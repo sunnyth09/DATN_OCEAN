@@ -63,7 +63,7 @@ const chartOptions = {
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
       titleColor: '#1e293b',
       bodyColor: '#475569',
-      borderColor: 'rgba(2, 136, 209, 0.2)',
+      borderColor: 'rgba(230, 59, 111, 0.2)',
       borderWidth: 1,
       padding: 12,
       displayColors: false,
@@ -116,7 +116,7 @@ const chartOptions = {
       radius: 0,
       hitRadius: 10,
       hoverRadius: 6,
-      backgroundColor: '#0288d1',
+      backgroundColor: '#E63B6F',
       borderWidth: 2,
       borderColor: '#fff'
     }

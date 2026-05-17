@@ -740,7 +740,7 @@ onMounted(() => fetchOrder());
 
 /* Done state */
 .timeline-step.done .step-dot {
-  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  background: linear-gradient(135deg, rgba(230, 59, 111, 0.08), #bae6fd);
   border-color: #0ea5e9;
   box-shadow: 0 2px 8px rgba(14, 165, 233, 0.18);
 }
@@ -912,7 +912,7 @@ onMounted(() => fetchOrder());
 .item-info { flex: 1; min-width: 0; }
 .item-name { margin: 0; font-size: 0.95rem; font-weight: 600; color: #0f172a; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
 .item-variant { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
-.variant-tag { padding: 2px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; background: #e0f2fe; color: #0369a1; }
+.variant-tag { padding: 2px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; background: rgba(230, 59, 111, 0.08); color: #0369a1; }
 .item-sku { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
 .item-qty { font-weight: 700; color: #64748b; font-size: 0.95rem; padding: 0 8px; }
 .item-price { font-weight: 700; color: #0f172a; font-size: 1rem; min-width: 110px; text-align: right; }

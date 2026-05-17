@@ -5,6 +5,7 @@ import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'checkout_screen.dart';
+import '../config/app_config.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -207,10 +208,7 @@ class _CartScreenState extends State<CartScreen> {
               final variant = item['variant']; // Variant info if exist
               
               String name = product != null ? product['name'] : 'Sản phẩm';
-              String image = product != null ? product['thumbnail_url'] : '';
-              if (!image.startsWith('http') && image.isNotEmpty) {
-                image = 'http://127.0.0.1:8383/api/image-proxy?path=$image';
-              }
+              String image = product != null ? AppConfig.imageUrl(product['thumbnail_url']) : '';
               int qty = int.tryParse(item['quantity'].toString()) ?? 1;
               String variantStr = '';
               if (variant != null) {

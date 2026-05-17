@@ -1,18 +1,17 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/product_model.dart';
+import '../config/app_config.dart';
 
 class ApiService {
-  // Thay đổi 127.0.0.1 thành localhost nếu chạy trực tiếp trên desktop app (Windows/Mac)
-  // Trong Android Emulator, 127.0.0.1 trỏ về localhost của máy tính chứa server
-  static const String baseUrl = 'http://127.0.0.1:8383/api';
+  static const String baseUrl = AppConfig.kBaseUrl;
 
   static Future<List<Product>> fetchProducts() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/products'));
 
       if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        final Map<String, dynamic> jsonResponse = json.decode(utf8.decode(response.bodyBytes));
         
         // Trích xuất mảng data theo cấu trúc phổ biến của Laravel pagination/resource
         List<dynamic> data = [];

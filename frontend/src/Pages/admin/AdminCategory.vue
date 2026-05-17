@@ -229,7 +229,7 @@ const confirmDeleteCategory = async () => {
         <div class="page-header animate-in">
             <div class="header-info">
                 <h1 class="page-title">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
                     </svg>
                     Quản lý danh mục
@@ -472,10 +472,10 @@ const confirmDeleteCategory = async () => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: var(--ocean-blue); color: white;
+    background: #E63B6F; color: white;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s;
-    box-shadow: 0 4px 10px rgba(2, 136, 209, 0.2);
+    box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 .btn-primary:hover {
     background: var(--ocean-bright); transform: translateY(-2px);
@@ -503,8 +503,8 @@ const confirmDeleteCategory = async () => {
     transition: all 0.2s;
 }
 .search-box:focus-within {
-    border-color: var(--ocean-blue); background: white;
-    box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1);
+    border-color: #E63B6F; background: white;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 .search-box svg { color: var(--text-light); flex-shrink: 0; }
 .search-input {
@@ -521,13 +521,13 @@ const confirmDeleteCategory = async () => {
     background: var(--ocean-deepest); color: var(--text-muted);
     font-size: 0.8rem; font-weight: 600;
 }
-.stat-pill svg { color: var(--ocean-blue); }
+.stat-pill svg { color: #E63B6F; }
 
 /* Loading */
 .loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
 .spinner {
     width: 30px; height: 30px; border: 3px solid var(--border-color);
-    border-top-color: var(--ocean-blue); border-radius: 50%;
+    border-top-color: #E63B6F; border-radius: 50%;
     animation: spin 1s linear infinite; margin: 0 auto 16px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -594,7 +594,7 @@ const confirmDeleteCategory = async () => {
     color: var(--text-main); font-family: var(--font-inter);
     font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.form-control:focus { border-color: var(--ocean-blue); outline: none; box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1); }
+.form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .form-control.is-invalid { border-color: var(--coral); background: #fef2f2; }
 .form-control.is-invalid:focus { box-shadow: 0 0 0 3px rgba(239,83,80,0.1); }
 .field-error { display: block; color: var(--coral); font-size: 0.72rem; font-weight: 600; margin-top: 6px; animation: fadeSlideUp 0.2s ease; }
@@ -628,7 +628,7 @@ const confirmDeleteCategory = async () => {
     position: absolute; content: ""; height: 18px; width: 18px;
     left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;
 }
-.toggle-input:checked + .toggle-slider { background-color: var(--ocean-blue); }
+.toggle-input:checked + .toggle-slider { background-color: #E63B6F; }
 .toggle-input:checked + .toggle-slider:before { transform: translateX(20px); }
 .toggle-text { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
 
@@ -654,7 +654,7 @@ const confirmDeleteCategory = async () => {
 .img-remove-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .img-new-badge {
     position: absolute; bottom: 6px; left: 6px;
-    background: var(--ocean-blue); color: white;
+    background: #E63B6F; color: white;
     font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 4px;
     letter-spacing: 0.5px;
 }
@@ -667,8 +667,8 @@ const confirmDeleteCategory = async () => {
     background: var(--ocean-deepest);
 }
 .image-drop-zone:hover {
-    border-color: var(--ocean-blue); color: var(--ocean-blue);
-    background: rgba(2, 136, 209, 0.04);
+    border-color: #E63B6F; color: #E63B6F;
+    background: rgba(230, 59, 111, 0.04);
 }
 .image-drop-zone.has-image { padding: 12px; border-style: solid; }
 .file-input-hidden { display: none; }

@@ -16,14 +16,11 @@ class AuthService {
           'email': email,
           'password': password,
           'is_mobile': true,
-          'turnstile_token': null,
+          // Không gửi turnstile_token → backend bypass qua User-Agent 'dart'
         },
       );
 
       final data = response.data;
-      print('====== LOGIN RESPONSE =====');
-      print('Status Code: ${response.statusCode}');
-      print('Data: $data');
 
       if (response.statusCode == 200 && data['status'] == 'success') {
         const storage = FlutterSecureStorage(aOptions: AndroidOptions(encryptedSharedPreferences: true));
@@ -37,13 +34,8 @@ class AuthService {
       }
     } on DioException catch (e) {
       final data = e.response?.data;
-      print('====== LOGIN DIO ERROR =====');
-      print('Status Code: ${e.response?.statusCode}');
-      print('Data: $data');
       return {'success': false, 'message': data?['message'] ?? 'Lỗi kết nối hoặc tài khoản không tồn tại.'};
     } catch (e) {
-      print('====== LOGIN FATAL ERROR =====');
-      print(e);
       return {'success': false, 'message': 'Không thể kết nối đến máy chủ: $e'};
     }
   }

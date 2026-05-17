@@ -7,6 +7,7 @@ import 'screens/notification_screen.dart';
 import 'package:dio/dio.dart';
 import 'services/api_client.dart';
 import 'widgets/shimmer_loading.dart';
+import 'config/app_config.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -478,15 +479,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     final name = product['name'] ?? 'Không tên';
     final dynamic rawPrice = product['min_price'] ?? (product['lowest_price_variant'] != null ? product['lowest_price_variant']['price'] : 0);
     
-    String imageUrl = '';
     final rawImage = product['thumbnail_url'] ?? '';
-    if (rawImage.toString().isNotEmpty) {
-      if (rawImage.toString().startsWith('http')) {
-        imageUrl = rawImage.toString();
-      } else {
-        imageUrl = 'http://127.0.0.1:8383/api/image-proxy?path=$rawImage';
-      }
-    }
+    final imageUrl = AppConfig.imageUrl(rawImage.toString());
 
     return GestureDetector(
       onTap: () {

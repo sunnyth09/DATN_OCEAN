@@ -115,7 +115,7 @@ const formatCurrency = (val) => {
 .product-rank {
   font-weight: 800;
   font-size: 0.9rem;
-  color: var(--ocean-blue);
+  color: #E63B6F;
   width: 24px;
 }
 
@@ -139,7 +139,7 @@ const formatCurrency = (val) => {
 
 .text-right { text-align: right; }
 .text-center { text-align: center; }
-.text-ocean { color: var(--ocean-blue); }
+.text-ocean { color: #E63B6F; }
 
 .stock-badge {
   padding: 4px 8px;

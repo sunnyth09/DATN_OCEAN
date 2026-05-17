@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_client.dart';
+import '../config/app_config.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -80,9 +81,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final avatar = widget.userData['avatar_url'];
-    final avatarUrl = avatar != null
-        ? (avatar.toString().startsWith('http') ? avatar.toString() : 'http://127.0.0.1:8383/api/image-proxy?path=$avatar')
-        : null;
+    final avatarUrl = AppConfig.imageUrl(avatar?.toString());
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -121,7 +120,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: ClipOval(
                         child: _pickedImage != null
                             ? Image.file(File(_pickedImage!.path), fit: BoxFit.cover)
-                            : (avatarUrl != null
+                            : (avatarUrl.isNotEmpty
                                 ? Image.network(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _defaultAvatar())
                                 : _defaultAvatar()),
                       ),

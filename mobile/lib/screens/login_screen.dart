@@ -3,6 +3,7 @@ import 'main_wrapper.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import 'webview_login_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+  /// Mở WebView login → trang web thật có Turnstile CAPTCHA
   void _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -30,25 +32,28 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _isLoading = true);
-    
-    final result = await AuthService.login(email, password);
-    
+
+    // Mở trang web login thật — tự động điền email/password
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WebViewLoginScreen(
+          prefillEmail: email,
+          prefillPassword: password,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (result['success']) {
-      if (mounted) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const MainWrapper()),
-          (route) => false,
-        );
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
-        );
-      }
+    if (result == true) {
+      // Login thành công — token đã được lưu bởi WebViewLoginScreen
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const MainWrapper()),
+        (route) => false,
+      );
     }
   }
 
@@ -141,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   
                   const SizedBox(height: 40),
                   
-                  // Divider Hoặc Đăng nhập với
+                  // Divider
                   Row(
                     children: [
                       const Expanded(child: Divider(color: Color(0xFFE2E8F0))),

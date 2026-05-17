@@ -326,7 +326,7 @@ onUnmounted(() => {
     <div class="page-header animate-in">
         <div class="header-info">
             <h1 class="page-title">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="16" y1="4" x2="16" y2="20" />
                     <line x1="8" y1="4" x2="8" y2="20" />
                     <line x1="3" y1="8" x2="21" y2="8" />
@@ -540,9 +540,9 @@ onUnmounted(() => {
 /* Bulk Actions */
 .bulk-actions-bar {
     display: flex; align-items: center; justify-content: space-between;
-    background: var(--ocean-deepest); border: 2px dashed rgba(2, 136, 209, 0.5);
+    background: var(--ocean-deepest); border: 2px dashed rgba(230, 59, 111, 0.5);
     border-radius: 8px; padding: 12px 20px; margin-bottom: 20px;
-    box-shadow: 0 4px 12px rgba(2, 136, 209, 0.05);
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.05);
 }
 .selected-count { font-size: 0.95rem; color: var(--text-main); }
 .bulk-controls { display: flex; gap: 12px; }
@@ -551,10 +551,10 @@ onUnmounted(() => {
     font-family: inherit; font-size: 0.85rem; outline: none; background: white;
 }
 .btn-bulk-apply {
-    background: var(--ocean-blue); color: white; border: none; border-radius: 6px;
+    background: #E63B6F; color: white; border: none; border-radius: 6px;
     padding: 8px 20px; font-weight: 600; cursor: pointer; transition: 0.2s;
 }
-.btn-bulk-apply:hover:not(:disabled) { background: #0277bd; }
+.btn-bulk-apply:hover:not(:disabled) { background: #d82f65; }
 .btn-bulk-apply:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* Header */
@@ -581,7 +581,7 @@ onUnmounted(() => {
     border-radius: 8px; padding: 10px 16px; min-width: 320px;
     transition: border-color 0.2s;
 }
-.search-box:focus-within { border-color: var(--ocean-blue); background: white; box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1); }
+.search-box:focus-within { border-color: #E63B6F; background: white; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .search-box svg { color: var(--text-light); }
 .search-input { background: none; border: none; outline: none; color: var(--text-main); font-family: var(--font-inter); font-size: 0.9rem; width: 100%; }
 .search-input::placeholder { color: var(--text-light); }
@@ -605,12 +605,12 @@ onUnmounted(() => {
     font-family: var(--font-inter); font-size: 0.8rem; font-weight: 600;
     cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
 }
-.filter-btn:hover { border-color: var(--ocean-blue); color: var(--ocean-blue); }
-.filter-btn.active { background: rgba(2, 136, 209, 0.1); border-color: rgba(2, 136, 209, 0.3); color: var(--ocean-blue); }
+.filter-btn:hover { border-color: #E63B6F; color: #E63B6F; }
+.filter-btn.active { background: rgba(230, 59, 111, 0.1); border-color: rgba(230, 59, 111, 0.3); color: #E63B6F; }
 
 /* Loading */
 .loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
-.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: var(--ocean-blue); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: #E63B6F; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* Table */
@@ -627,11 +627,11 @@ onUnmounted(() => {
 
 /* Checkbox */
 .checkbox-cell { width: 40px; text-align: center; padding-left: 16px !important; padding-right: 8px !important; }
-.order-checkbox { width: 16px; height: 16px; accent-color: var(--ocean-blue); cursor: pointer; }
-.is-selected td { background: rgba(2, 136, 209, 0.05) !important; }
+.order-checkbox { width: 16px; height: 16px; accent-color: #E63B6F; cursor: pointer; }
+.is-selected td { background: rgba(230, 59, 111, 0.05) !important; }
 
 .order-code-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start;}
-.badge-id { padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; background: rgba(2, 136, 209, 0.1); color: var(--ocean-blue); }
+.badge-id { padding: 4px 8px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; background: rgba(230, 59, 111, 0.1); color: #E63B6F; }
 .order-date { font-size: 0.75rem; color: var(--text-muted); }
 
 .customer-cell { display: flex; flex-direction: column; gap: 2px; }
@@ -653,7 +653,7 @@ onUnmounted(() => {
 
 /* Colors for Fulfillment */
 .f-pending { background: rgba(255, 167, 38, 0.15); color: #e65100; }
-.f-confirmed { background: rgba(3, 169, 244, 0.15); color: #0288d1; }
+.f-confirmed { background: rgba(3, 169, 244, 0.15); color: #E63B6F; }
 .f-packing, .f-shipping { background: rgba(0, 188, 212, 0.15); color: #0097a7; }
 .f-delivered, .f-completed { background: rgba(38, 166, 154, 0.15); color: #167a70; }
 .f-cancelled { background: rgba(239, 83, 80, 0.15); color: #c62828; }
@@ -698,8 +698,8 @@ onUnmounted(() => {
     border-radius: 8px; border: 1px solid var(--border-color); background: white;
     font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s; font-family: var(--font-inter);
 }
-.page-btn:hover:not(:disabled) { border-color: var(--ocean-blue); color: var(--ocean-blue); }
-.page-btn.active { background: var(--ocean-blue); color: white; border-color: var(--ocean-blue); }
+.page-btn:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; }
+.page-btn.active { background: #E63B6F; color: white; border-color: #E63B6F; }
 .page-btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--ocean-deepest); }
 
 /* Cancel Modal */

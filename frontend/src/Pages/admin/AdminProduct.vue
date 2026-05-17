@@ -349,7 +349,7 @@ const formatDate = (dateString) => {
         <div class="page-header animate-in">
             <div class="header-info">
                 <h1 class="page-title">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
                         <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
                         <line x1="12" y1="22.08" x2="12" y2="12"/>
@@ -526,7 +526,7 @@ const formatDate = (dateString) => {
                     <!-- Modal Header -->
                     <div class="qv-header">
                         <h2>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                             Xem Nhanh Sản Phẩm
                         </h2>
                         <button class="qv-close" @click="closeQuickView">×</button>
@@ -686,7 +686,7 @@ const formatDate = (dateString) => {
                 <div class="import-modal animate-in">
                     <div class="import-header">
                         <h2>
-                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
                                 <polyline points="14 2 14 8 20 8"/>
                                 <line x1="16" y1="13" x2="8" y2="13"/>
@@ -832,10 +832,10 @@ const formatDate = (dateString) => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: var(--ocean-blue); color: white;
+    background: #E63B6F; color: white;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s; text-decoration: none;
-    box-shadow: 0 4px 10px rgba(2, 136, 209, 0.2);
+    box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 .btn-primary:hover {
     background: var(--ocean-bright); transform: translateY(-2px);
@@ -847,7 +847,7 @@ const formatDate = (dateString) => {
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s; text-decoration: none;
 }
-.btn-outline:hover { border-color: var(--ocean-blue); color: var(--ocean-blue); }
+.btn-outline:hover { border-color: #E63B6F; color: #E63B6F; }
 
 /* Filters */
 .filters-bar {
@@ -861,8 +861,8 @@ const formatDate = (dateString) => {
     transition: all 0.2s;
 }
 .search-box:focus-within {
-    border-color: var(--ocean-blue); background: white;
-    box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1);
+    border-color: #E63B6F; background: white;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 .search-box svg { color: var(--text-light); }
 .search-input {
@@ -879,17 +879,17 @@ const formatDate = (dateString) => {
     cursor: pointer; transition: all 0.2s;
     display: flex; align-items: center; gap: 6px;
 }
-.filter-btn:hover { border-color: var(--ocean-blue); color: var(--ocean-blue); }
+.filter-btn:hover { border-color: #E63B6F; color: #E63B6F; }
 .filter-btn.active {
-    background: rgba(2, 136, 209, 0.1); border-color: rgba(2, 136, 209, 0.3);
-    color: var(--ocean-blue);
+    background: rgba(230, 59, 111, 0.1); border-color: rgba(230, 59, 111, 0.3);
+    color: #E63B6F;
 }
 
 /* Loading */
 .loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600;}
 .spinner {
     width: 30px; height: 30px; border: 3px solid var(--border-color);
-    border-top-color: var(--ocean-blue); border-radius: 50%;
+    border-top-color: #E63B6F; border-radius: 50%;
     animation: spin 1s linear infinite; margin: 0 auto 16px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -915,7 +915,7 @@ const formatDate = (dateString) => {
 /* Badges */
 .badge-id {
     padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;
-    font-weight: 700; background: rgba(2, 136, 209, 0.1); color: var(--ocean-blue);
+    font-weight: 700; background: rgba(230, 59, 111, 0.1); color: #E63B6F;
 }
 .prod-cell { display: flex; flex-direction: column; gap: 2px; }
 .prod-thumb {
@@ -933,7 +933,7 @@ const formatDate = (dateString) => {
     padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700;
 }
 .badge-type.simple { background: rgba(156, 39, 176, 0.1); color: #7b1fa2; }
-.badge-type.variant { background: rgba(3, 169, 244, 0.1); color: #0288d1; }
+.badge-type.variant { background: rgba(3, 169, 244, 0.1); color: #E63B6F; }
 
 .badge-stock {
     padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;
@@ -1009,8 +1009,8 @@ const formatDate = (dateString) => {
     width: 52px; height: 52px; border-radius: 8px; overflow: hidden; cursor: pointer;
     border: 2px solid transparent; transition: border-color 0.2s;
 }
-.qv-thumb-item:hover { border-color: var(--ocean-blue); }
-.qv-thumb-item.active { border-color: var(--ocean-blue); box-shadow: 0 0 0 2px rgba(2,136,209,0.2); }
+.qv-thumb-item:hover { border-color: #E63B6F; }
+.qv-thumb-item.active { border-color: #E63B6F; box-shadow: 0 0 0 2px rgba(230, 59, 111,0.2); }
 .qv-thumb-item img { width: 100%; height: 100%; object-fit: cover; }
 
 /* Product Info */
@@ -1044,14 +1044,14 @@ const formatDate = (dateString) => {
     border-bottom: 1px solid var(--border-color); background: var(--ocean-deepest, #f8fafc);
 }
 .qv-variants-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-.qv-variants-table tbody tr:hover td { background: rgba(2,136,209,0.03); }
+.qv-variants-table tbody tr:hover td { background: rgba(230, 59, 111,0.03); }
 .qv-variants-table code { font-size: 0.78rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
 .qv-v-price { font-weight: 700; color: var(--seafoam); }
 .qv-variant-thumb {
     width: 36px; height: 36px; border-radius: 6px; overflow: hidden;
     border: 1px solid var(--border-color); cursor: pointer; transition: border-color 0.2s;
 }
-.qv-variant-thumb:hover { border-color: var(--ocean-blue); }
+.qv-variant-thumb:hover { border-color: #E63B6F; }
 .qv-variant-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .qv-variant-thumb.empty {
     display: flex; align-items: center; justify-content: center;
@@ -1082,8 +1082,8 @@ const formatDate = (dateString) => {
     cursor: pointer; transition: all 0.2s;
     display: flex; align-items: center; justify-content: center;
 }
-.page-btn:hover:not(:disabled) { border-color: var(--ocean-blue); color: var(--ocean-blue); }
-.page-btn.active { background: var(--ocean-blue); color: white; border-color: var(--ocean-blue); }
+.page-btn:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; }
+.page-btn.active { background: #E63B6F; color: white; border-color: #E63B6F; }
 .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .page-dots { display: flex; align-items: center; justify-content: center; padding: 0 4px; color: var(--text-muted); font-weight: 700; }
 
@@ -1136,14 +1136,14 @@ const formatDate = (dateString) => {
 
 .import-guide {
     background: var(--ocean-deepest, #f0f7fa); padding: 16px 18px; border-radius: 10px;
-    border: 1px solid rgba(2, 136, 209, 0.15);
+    border: 1px solid rgba(230, 59, 111, 0.15);
 }
 .import-guide h4 { font-size: 0.95rem; font-weight: 700; margin: 0 0 8px 0; color: var(--text-main); }
 .import-guide ol {
     margin: 0; padding-left: 20px; font-size: 0.85rem; color: var(--text-muted);
     line-height: 1.8;
 }
-.import-guide ol strong { color: var(--ocean-blue); }
+.import-guide ol strong { color: #E63B6F; }
 .import-cols-info {
     display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;
 }
@@ -1151,7 +1151,7 @@ const formatDate = (dateString) => {
     padding: 3px 10px; border-radius: 5px; font-size: 0.72rem; font-weight: 700;
     background: rgba(158, 158, 158, 0.12); color: var(--text-muted);
 }
-.col-tag.required { background: rgba(2, 136, 209, 0.1); color: var(--ocean-blue); }
+.col-tag.required { background: rgba(230, 59, 111, 0.1); color: #E63B6F; }
 
 .btn-download-template {
     display: flex; align-items: center; gap: 8px; justify-content: center;
@@ -1169,7 +1169,7 @@ const formatDate = (dateString) => {
     padding: 30px 20px; text-align: center; cursor: pointer; transition: all 0.25s;
     background: var(--ocean-deepest, #fafcfe);
 }
-.import-dropzone:hover { border-color: var(--ocean-blue); background: rgba(2, 136, 209, 0.03); }
+.import-dropzone:hover { border-color: #E63B6F; background: rgba(230, 59, 111, 0.03); }
 .import-dropzone.has-file { border-color: #26a69a; border-style: solid; background: rgba(38, 166, 154, 0.04); }
 .import-file-input {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;

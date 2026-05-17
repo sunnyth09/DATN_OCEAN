@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../services/api_client.dart';
 import '../productDetail.dart';
 import '../widgets/shimmer_loading.dart';
+import '../config/app_config.dart';
 
 class ProductListScreen extends StatefulWidget {
   final int? categoryId;
@@ -308,15 +309,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
     final name = product['name'] ?? 'Không tên';
     final dynamic rawPrice = product['min_price'] ?? (product['lowest_price_variant'] != null ? product['lowest_price_variant']['price'] : 0);
     
-    String imageUrl = '';
     final rawImage = product['thumbnail_url'] ?? '';
-    if (rawImage.toString().isNotEmpty) {
-      if (rawImage.toString().startsWith('http')) {
-        imageUrl = rawImage.toString();
-      } else {
-        imageUrl = 'http://127.0.0.1:8383/api/image-proxy?path=$rawImage';
-      }
-    }
+    final imageUrl = AppConfig.imageUrl(rawImage.toString());
 
     return GestureDetector(
       onTap: () {

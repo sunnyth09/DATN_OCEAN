@@ -117,14 +117,14 @@ const resetFilters = () => {
 
 .btn-preset:hover {
   background: var(--hover-bg);
-  border-color: rgba(2, 136, 209, 0.3);
+  border-color: rgba(230, 59, 111, 0.3);
 }
 
 .btn-preset.active {
-  background: var(--ocean-blue);
+  background: #E63B6F;
   color: white;
-  border-color: var(--ocean-blue);
-  box-shadow: 0 4px 10px rgba(2, 136, 209, 0.2);
+  border-color: #E63B6F;
+  box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 
 .custom-range {
@@ -142,8 +142,8 @@ const resetFilters = () => {
   transition: all 0.2s;
 }
 .form-input:focus {
-  border-color: var(--ocean-blue);
-  box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1);
+  border-color: #E63B6F;
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
 .filter-actions {
@@ -165,13 +165,13 @@ const resetFilters = () => {
 }
 
 .btn-primary {
-  background: var(--ocean-blue);
+  background: #E63B6F;
   color: white;
   border: none;
 }
 .btn-primary:hover {
   background: var(--ocean-bright);
-  box-shadow: 0 4px 12px rgba(2, 136, 209, 0.25);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25);
   transform: translateY(-1px);
 }
 

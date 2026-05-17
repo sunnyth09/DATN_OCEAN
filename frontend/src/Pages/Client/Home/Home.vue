@@ -1,40 +1,16 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../../axios.js";
 import ProductCard from "../../../components/ProductCard.vue";
 import ProductSkeleton from "../../../components/ProductSkeleton.vue";
-import FlashSaleBoard from "../../../components/FlashSaleBoard.vue";
 
 const router = useRouter();
-
 const Products = ref([]);
 const Categories = ref([]);
 const categoryProducts = ref({});
 const isLoadingFeatured = ref(true);
 const isLoadingCategories = ref(true);
-
-// ── Hero Slider ──
-const currentSlide = ref(0);
-const heroSlides = ref([
-    {
-        image: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
-        subtitle: "BST MỚI 2026",
-        title: "Phong Cách<br/>Tối Giản",
-        desc: "Định hình cá tính với bộ sưu tập thời trang mới nhất.<br/>Thiết kế tối giản, dễ mặc, dễ phối.",
-        btn: "Mua sắm ngay",
-        tag: "NEW SEASON"
-    },
-    {
-        image: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
-        subtitle: "SUMMER SALE",
-        title: "Giảm Giá<br/>Sôi Động",
-        desc: "Lên đến 50% cho hơn 1000 sản phẩm với mẫu mã thời thượng nhất.",
-        btn: "Khám phá sale",
-        tag: "SALE -50%"
-    }
-]);
-let slideInterval = null;
 
 const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
 
@@ -65,280 +41,205 @@ const mapProduct = (item) => {
     let originalPrice = null;
     if (lowest?.is_on_sale) originalPrice = lowest.price;
     else if (lowest?.compare_at_price > lowest?.price) originalPrice = lowest.compare_at_price;
-
     let maxDiscount = lowest?.discount_percent || 0;
     if (item.variants?.length) {
         maxDiscount = Math.max(...item.variants.map(v => v.discount_percent || 0), maxDiscount);
     }
     return {
-        id: item.product_id,
-        name: item.name,
+        id: item.product_id, name: item.name,
         price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(currentPrice),
         originalPrice: originalPrice ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(originalPrice) : null,
-        discount_percent: maxDiscount,
-        is_on_sale: lowest?.is_on_sale || false,
+        discount_percent: maxDiscount, is_on_sale: lowest?.is_on_sale || false,
         image: getImageUrl(item.thumbnail_url || item.mainImage?.image_url || null),
-        badge: item.is_featured ? "Hot" : null,
-        slug: item.slug,
-        category_name: item.category_name || '',
+        badge: item.is_featured ? "Hot" : (maxDiscount > 0 ? "Sale" : null),
+        slug: item.slug, category_name: item.category_name || '',
     };
 };
 
-const fetchProducts = async () => {
-    isLoadingFeatured.value = true;
-    try {
-        const response = await api.get("/productsFeatured");
-        Products.value = response.data.data.map(mapProduct);
-    } catch (error) {
-        console.error("Error fetching products:", error);
-    } finally {
-        isLoadingFeatured.value = false;
-    }
-};
+Products.value = [
+    { id: 1, name: 'Vợt Cầu Lông Yonex Astrox 88D Pro', price: '3.500.000 ₫', originalPrice: '4.000.000 ₫', discount_percent: 15, is_on_sale: true, image: 'https://cdn.shopvnb.com/uploads/gallery/vot-cau-long-yonex-astrox-88d-pro-chinh-hang_1711234907.webp', badge: 'Hot', slug: 'yonex-astrox-88d-pro', category_name: 'Vợt Cầu Lông' },
+    { id: 2, name: 'Giày Cầu Lông Mizuno Wave Claw 3', price: '2.100.000 ₫', originalPrice: '2.500.000 ₫', discount_percent: 16, is_on_sale: true, image: 'https://cdn.shopvnb.com/uploads/gallery/giay-cau-long-mizuno-wave-claw-3-trang-hong-chinh-hang_1714529068.webp', badge: 'Sale', slug: 'mizuno-wave-claw-3', category_name: 'Giày Cầu Lông' },
+    { id: 3, name: 'Balo Cầu Lông Yonex BA92012EX', price: '1.200.000 ₫', originalPrice: null, discount_percent: 0, is_on_sale: false, image: 'https://bizweb.dktcdn.net/100/172/291/products/26359-ba92012ex-black-2.jpg?v=1630138924040', badge: null, slug: 'yonex-ba92012ex', category_name: 'Balo Cầu Lông' },
+    { id: 4, name: 'Quả Cầu Lông Vina Star', price: '250.000 ₫', originalPrice: null, discount_percent: 0, is_on_sale: false, image: 'https://cdn.shopvnb.com/uploads/gallery/ong-cau-long-vina-star-xanh-2_1707283626.webp', badge: 'Hot', slug: 'vina-star', category_name: 'Phụ kiện' },
+    { id: 5, name: 'Vợt Cầu Lông Victor Thruster Ryuga II', price: '3.800.000 ₫', originalPrice: null, discount_percent: 0, is_on_sale: false, image: 'https://cdn.shopvnb.com/uploads/gallery/vot-cau-long-victor-thruster-ryuga-ii-chinh-hang-1.webp', badge: null, slug: 'victor-ryuga-ii', category_name: 'Vợt Cầu Lông' },
+    { id: 6, name: 'Áo Cầu Lông Yonex Trắng', price: '350.000 ₫', originalPrice: '450.000 ₫', discount_percent: 22, is_on_sale: true, image: 'https://bizweb.dktcdn.net/100/172/291/products/ao-cau-long-yonex-trang-1.jpg', badge: 'Sale', slug: 'ao-yonex-trang', category_name: 'Quần Áo' },
+    { id: 7, name: 'Giày Cầu Lông Yonex 65Z3', price: '2.800.000 ₫', originalPrice: '3.200.000 ₫', discount_percent: 12, is_on_sale: true, image: 'https://bizweb.dktcdn.net/100/172/291/products/giay-cau-long-yonex-shb-65z3-men-trang-do-chinh-hang.jpg', badge: null, slug: 'yonex-65z3', category_name: 'Giày Cầu Lông' },
+    { id: 8, name: 'Cước Cầu Lông Yonex BG66', price: '150.000 ₫', originalPrice: null, discount_percent: 0, is_on_sale: false, image: 'https://bizweb.dktcdn.net/100/172/291/products/bg66um-4-1.jpg', badge: 'Hot', slug: 'yonex-bg66', category_name: 'Phụ kiện' }
+];
 
-const fetchCategories = async () => {
-    isLoadingCategories.value = true;
-    try {
-        const response = await api.get("/categories");
-        Categories.value = response.data.data.map((item) => ({
-            id: item.category_id,
-            name: item.name,
-            slug: item.slug,
-            image: getImageUrl(item.image_url || null),
-        }));
+Categories.value = [
+    { id: 1, name: 'Bóng chuyền', slug: 'bong-chuyen', image: BASE_URL + '/storage/categories/category_bong_chuyen_1776325154591.png' },
+    { id: 2, name: 'Cầu lông', slug: 'cau-long', image: BASE_URL + '/storage/categories/category_cau_long_1776325167694.png' },
+    { id: 3, name: 'Pickleball', slug: 'pickleball', image: BASE_URL + '/storage/categories/category_pickleball_1776325197526.png' },
+    { id: 4, name: 'Phụ kiện', slug: 'phu-kien', image: BASE_URL + '/storage/categories/category_phu_kien_the_thao_1776325207304.png' }
+];
 
-        await Promise.all(
-            Categories.value.map(async (cat) => {
-                try {
-                    const res = await api.get(`/products?limit=4&page=1&category_id=${cat.id}`);
-                    categoryProducts.value[cat.id] = (res.data.data || []).map(mapProduct);
-                } catch {
-                    categoryProducts.value[cat.id] = [];
-                }
-            })
-        );
-    } catch (error) {
-        console.error("Error fetching categories:", error);
-    } finally {
-        isLoadingCategories.value = false;
-    }
-};
+isLoadingFeatured.value = false;
+isLoadingCategories.value = false;
 
-// ── Countdown ──
-const countdown = ref({ days: 0, hours: 0, mins: 0, secs: 0 });
-const targetDate = new Date();
-targetDate.setDate(targetDate.getDate() + 3);
+// Featured category for the big card
+const featuredCategory = computed(() => Categories.value[0] || null);
+const featuredCatProduct = computed(() => null);
+const sideCategories = computed(() => Categories.value.slice(1, 3));
 
-const countdownInterval = setInterval(() => {
-    const now = new Date().getTime();
-    const distance = targetDate.getTime() - now;
-    if (distance > 0) {
-        countdown.value.days  = Math.floor(distance / (1000 * 60 * 60 * 24));
-        countdown.value.hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        countdown.value.mins  = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        countdown.value.secs  = Math.floor((distance % (1000 * 60)) / 1000);
-    }
-}, 1000);
+const catIcons = ['👟','🎒','⌚','👔','👗','🏃','🏷️'];
+const getCatIcon = (idx) => catIcons[idx % catIcons.length];
 
-const setSlide = (i) => { currentSlide.value = i; resetSlide(); };
-const resetSlide = () => {
-    if (slideInterval) clearInterval(slideInterval);
-    slideInterval = setInterval(() => {
-        currentSlide.value = (currentSlide.value + 1) % heroSlides.value.length;
-    }, 5500);
-};
-
-// Category icon map — sử dụng SVG paths đơn giản
-const catIcons = {
-    'thoi-trang-nam': '👔', 'thoi-trang-nu': '👗', 'giay-dep': '👟',
-    'tui-xach': '👜', 'phu-kien': '⌚', 'the-thao': '🏃',
-    'default': '🏷️'
-};
-const getCatIcon = (slug) => catIcons[slug] || catIcons['default'];
-
-onMounted(() => {
-    fetchProducts();
-    fetchCategories();
-    resetSlide();
-});
-
-onUnmounted(() => {
-    if (slideInterval) clearInterval(slideInterval);
-    clearInterval(countdownInterval);
+onMounted(() => { 
+    // fetchProducts(); 
+    // fetchCategories(); 
 });
 </script>
 
 <template>
     <main class="home-main">
 
-        <!-- ═══════════════════════════════════════════
+        <!-- ══════════════════════════════════════════
              1. HERO BANNER
-        ══════════════════════════════════════════════ -->
+        ══════════════════════════════════════════ -->
         <section class="hero-section">
-            <div class="hero-slider">
-                <div
-                    class="slide"
-                    v-for="(slide, i) in heroSlides"
-                    :key="i"
-                    :class="{ active: currentSlide === i }"
-                >
-                    <img :src="slide.image" alt="banner" class="slide-img" />
-                    <div class="slide-overlay"></div>
-                    <div class="slide-content">
-                        <span class="slide-tag">{{ slide.tag }}</span>
-                        <h1 class="slide-title" v-html="slide.title"></h1>
-                        <p class="slide-desc" v-html="slide.desc"></p>
-                        <button class="btn-hero" @click="router.push('/product')">
-                            {{ slide.btn }}
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            <div class="hero-bg">
+                <img src="https://images.unsplash.com/photo-1461896836934-bd45ba8fcf9b?w=1920&q=80" alt="hero" class="hero-bg-img" />
+                <div class="hero-overlay"></div>
+            </div>
+            <div class="hero-content">
+                <span class="hero-tag">BỘ SƯU TẬP MỚI 2026</span>
+                <h1 class="hero-title">Tốc độ.<br/>Sức mạnh.<br/>Chính xác.</h1>
+                <p class="hero-desc">Khám phá những thiết bị chất lượng cao, được thiết kế để nâng tầm kỹ năng và đưa bạn đến chiến thắng. Đam mê bắt đầu từ đây.</p>
+                <div class="hero-btns">
+                    <button class="btn-primary-hero" @click="() => {}">
+                        Khám phá ngay
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </button>
+                    <button class="btn-outline-hero" @click="() => {}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Xem Video
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════
+             2. TRANG BỊ THIẾT YẾU (Essential Equipment)
+        ══════════════════════════════════════════ -->
+        <section class="section-inner equip-section">
+            <div class="section-head">
+                <div>
+                    <h2 class="section-title">Trang bị thiết yếu</h2>
+                    <p class="section-subtitle">Lựa chọn hàng đầu cho các lông thủ.</p>
+                </div>
+                <button class="link-more  btn">
+                    Xem tất cả
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+            </div>
+
+            <div class="equip-grid-custom">
+                <!-- Big featured card -->
+                <div class="equip-big-card-custom">
+                    <div class="equip-big-img-custom">
+                        <img src="https://cdn.shopvnb.com/uploads/gallery/vot-cau-long-yonex-astrox-88d-pro-chinh-hang_1711234907.webp" alt="Vợt cầu lông" />
+                    </div>
+                    <div class="equip-big-info-custom">
+                        <span class="equip-discount-badge">Giảm giá 15%</span>
+                        <h3 class="equip-big-name-custom">Vợt cầu lông cao cấp</h3>
+                        <p class="equip-big-desc-custom">Trọng lượng nhẹ, độ cứng tối ưu cho những cú đập cháy sân.</p>
+                        <button class="equip-big-link-custom">
+                            Mua ngay
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
                     </div>
                 </div>
 
-                <!-- Dots -->
-                <div class="slide-dots">
-                    <span
-                        v-for="(s, i) in heroSlides"
-                        :key="i"
-                        class="dot"
-                        :class="{ active: currentSlide === i }"
-                        @click="setSlide(i)"
-                    ></span>
+                <!-- Side category cards -->
+                <div class="equip-side-custom">
+                    <!-- Top card: Shoes -->
+                    <div class="equip-small-card-custom">
+                        <div class="equip-small-img-custom">
+                            <img src="https://cdn.shopvnb.com/uploads/gallery/giay-cau-long-mizuno-wave-claw-3-trang-hong-chinh-hang_1714529068.webp" alt="Giày chuyên dụng" />
+                        </div>
+                        <div class="equip-small-info-custom">
+                            <h4 class="equip-small-name-custom">Giày chuyên dụng</h4>
+                            <button class="equip-small-link-custom">
+                                Xem thêm
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Bottom card: Accessories -->
+                    <div class="equip-small-card-custom accessory-card">
+                        <div class="equip-acc-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="10" cy="10" r="5.5" stroke="#E63B6F" stroke-width="2.5" />
+                                <path d="M14 14L18.5 18.5" stroke="#E63B6F" stroke-width="3" stroke-linecap="round" />
+                                <circle cx="17.5" cy="12.5" r="2.5" fill="#E63B6F" />
+                            </svg>
+                        </div>
+                        <h4 class="equip-small-name-custom text-center">Phụ kiện & Balo</h4>
+                        <p class="equip-small-desc-custom text-center">Túi, quấn cán, cước...</p>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- ═══════════════════════════════════════════
-             2. LUXURY CATEGORY CIRCLES
-        ══════════════════════════════════════════════ -->
-        <section class="section-inner cat-section" v-if="Categories.length > 0">
-            <div class="cat-scroll">
-                <router-link
-                    v-for="cat in Categories.slice(0, 8)"
-                    :key="cat.id"
-                    :to="{ name: 'product', query: { category: cat.slug } }"
-                    class="luxury-cat-item"
-                >
-                    <div class="cat-img-wrapper">
-                        <img v-if="cat.image" :src="cat.image" :alt="cat.name" class="cat-img" loading="lazy" />
-                        <span v-else class="cat-icon-fallback">{{ getCatIcon(cat.slug) }}</span>
-                    </div>
-                    <span class="luxury-cat-name">{{ cat.name }}</span>
-                </router-link>
-            </div>
-        </section>
-
-        <!-- ═══════════════════════════════════════════
-             3. FEATURED PRODUCTS (Full Width)
-        ══════════════════════════════════════════════ -->
-        <section class="section-inner section-featured">
-            <div class="section-head">
-                <h2 class="section-title">Sản phẩm nổi bật</h2>
-                <router-link :to="{ name: 'product' }" class="link-more">
-                    Xem tất cả
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </router-link>
+        <!-- ══════════════════════════════════════════
+             3. SẢN PHẨM BÁN CHẠY (Best Sellers)
+        ══════════════════════════════════════════ -->
+        <section class="section-inner bestseller-section">
+            <div class="section-head section-head-center">
+                <h2 class="section-title">Sản phẩm bán chạy</h2>
             </div>
             <div class="products-grid">
                 <template v-if="isLoadingFeatured">
-                    <ProductSkeleton v-for="i in 8" :key="i" />
+                    <ProductSkeleton v-for="i in 4" :key="i" />
                 </template>
                 <template v-else>
-                    <ProductCard
-                        v-for="product in Products.slice(0, 8)"
-                        :key="product.id"
-                        :product="product"
-                    />
+                    <ProductCard v-for="product in Products.slice(0, 8)" :key="product.id" :product="product" />
                 </template>
             </div>
-        </section>
-
-        <!-- ═══════════════════════════════════════════
-             4. FLASH SALE & PROMO BANNER 
-        ══════════════════════════════════════════════ -->
-        <section class="promo-banner flash-sale-banner">
-            <div class="promo-overlay"></div>
-            <div class="promo-inner">
-                <div class="promo-left">
-                    <span class="promo-tag">⚡ Chương Trình Đặc Biệt</span>
-                    <h2 class="promo-title">Giảm đến <span class="highlight">50%</span></h2>
-                    <p class="promo-desc">Hàng trăm sản phẩm chất lượng cao. Số lượng có hạn — đừng bỏ lỡ cơ hội sở hữu sẩn phẩm yêu thích với mức giá không tưởng!</p>
-                </div>
-                <div class="promo-right d-flex justify-content-end">
-                    <!-- Sử dụng component FlashSaleBoard hiện có nhưng hiển thị dạng card nổi -->
-                    <FlashSaleBoard class="shadow-lg" />
-                </div>
+            <div class="view-more-wrap">
+                <button  class="btn-view-more">
+                    Xem thêm sản phẩm
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
             </div>
         </section>
 
-        <!-- ═══════════════════════════════════════════
-             5. SẢN PHẨM THEO DANH MỤC
-        ══════════════════════════════════════════════ -->
-        <template v-if="isLoadingCategories">
-            <section class="section-inner">
-                <div class="section-head">
-                    <h2 class="section-title">Đang tải...</h2>
-                </div>
-                <div class="products-grid">
-                    <ProductSkeleton v-for="i in 8" :key="i" />
-                </div>
-            </section>
-        </template>
-        <template v-else>
-            <section
-                v-for="cat in Categories"
-                :key="cat.id"
-                v-show="categoryProducts[cat.id]?.length > 0"
-                class="section-inner"
-            >
-                <div class="section-head">
-                    <h2 class="section-title">{{ cat.name }}</h2>
-                    <router-link :to="{ name: 'product', query: { category: cat.slug } }" class="link-more">
-                        Xem tất cả
+        <!-- ══════════════════════════════════════════
+             4. COMMUNITY / STORY BANNER
+        ══════════════════════════════════════════ -->
+        <section class="community-section">
+            <div class="community-inner">
+                <div class="community-content">
+                    <span class="community-tag">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        CỘNG ĐỒNG QUYỀN SPORT
+                    </span>
+                    <h2 class="community-title">Hơn cả một cửa hàng.<br/>Chúng tôi là <em>đam mê</em>.</h2>
+                    <p class="community-desc">Tham gia câu lạc bộ của chúng tôi để nhận ưu đãi độc quyền, kết nối với cộng đồng yêu thể thao và nâng cao kỹ năng qua các buổi giao lưu.</p>
+                    <ul class="community-list">
+                        <li>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Giảm giá 10% cho mọi đơn hàng.
+                        </li>
+                        <li>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Tham gia các buổi workshop nâng cao kỹ năng miễn phí.
+                        </li>
+                        <li>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            Cập nhật sản phẩm mới nhất trước mọi người.
+                        </li>
+                    </ul>
+                    <button class="btn-community" @click="() => {}">
+                        Đăng ký tham gia ngay
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    </router-link>
+                    </button>
                 </div>
-                <div class="products-grid">
-                    <ProductCard
-                        v-for="product in (categoryProducts[cat.id] || []).slice(0, 4)"
-                        :key="product.id"
-                        :product="product"
-                    />
+                <div class="community-images">
+                    <img src="https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=800&q=80" alt="community" class="community-img" />
                 </div>
-            </section>
-        </template>
-
-        <!-- ═══════════════════════════════════════════
-             6. TRUST BAR
-        ══════════════════════════════════════════════ -->
-        <section class="trust-bar">
-            <div class="trust-item">
-                <div class="trust-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11"/><path d="M14 9h4l4 4v5c0 .6-.4 1-1 1h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
-                </div>
-                <h5>Giao hàng 24h</h5>
-                <p>Nội thành các tỉnh thành lớn</p>
-            </div>
-            <div class="trust-item">
-                <div class="trust-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                </div>
-                <h5>Hoàn trả 30 ngày</h5>
-                <p>Đổi trả dễ dàng, không phiền toái</p>
-            </div>
-            <div class="trust-item">
-                <div class="trust-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
-                </div>
-                <h5>Thanh toán an toàn</h5>
-                <p>Bảo mật 100% thông tin cá nhân</p>
-            </div>
-            <div class="trust-item">
-                <div class="trust-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
-                </div>
-                <h5>Hỗ trợ 24/7</h5>
-                <p>Đội ngũ CSKH tận tâm, chuyên nghiệp</p>
             </div>
         </section>
 
@@ -347,267 +248,256 @@ onUnmounted(() => {
 
 <style scoped>
 /* ============================================
-   TYPOGRAPHY & TOKENS
+   GLOBAL TOKENS
 ============================================ */
-.home-main {
-    width: 100%;
-    padding: 0;
-    color: #0f172a;
-}
+.home-main { width: 100%; padding: 0; color: #2D3436; }
 
-/* ============================================
-   SECTION WRAPPERS
-============================================ */
-.section-inner {
-    padding: 56px 0;
-    border-bottom: 1px solid #f1f5f9;
-}
-
-.section-inner:last-of-type {
-    border-bottom: none;
-}
-
-.section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 28px;
-}
-
-.section-title {
-    font-size: 1.6rem;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -0.5px;
-    margin: 0;
-}
-
-.link-more {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--ocean-blue, #0288d1);
-    font-weight: 600;
-    font-size: 0.9rem;
-    text-decoration: none;
-    transition: gap 0.2s;
-}
+.section-inner { padding: 56px 0; }
+.section-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 32px; }
+.section-head-center { justify-content: center; text-align: center; }
+.section-title { font-size: 1.75rem; font-weight: 800; color: #2D3436; letter-spacing: -0.5px; margin: 0; }
+.section-subtitle { color: #636E72; font-size: 0.95rem; margin: 4px 0 0; }
+.link-more { display: inline-flex; align-items: center; gap: 6px; color: #E63B6F; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: gap 0.2s; }
 .link-more:hover { gap: 10px; }
 
 /* ============================================
-   1. HERO SLIDER
+   1. HERO BANNER
 ============================================ */
 .hero-section {
-    /* Break out of the layout container */
+    position: relative;
     width: 100vw;
     margin-left: calc(-50vw + 50%);
-}
-
-.hero-slider {
-    position: relative;
-    height: 600px;
+    height: 560px;
     overflow: hidden;
 }
 
-.slide {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.9s ease;
-    visibility: hidden;
+.hero-bg { position: absolute; inset: 0; }
+.hero-bg-img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(105deg, rgba(20, 20, 30, 0.88) 0%, rgba(20, 20, 30, 0.6) 45%, transparent 75%);
 }
 
-.slide.active {
-    opacity: 1;
-    visibility: visible;
+.hero-content {
+    position: relative; z-index: 2;
+    max-width: 1400px; margin: 0 auto; padding: 0 40px;
+    height: 100%; display: flex; flex-direction: column; justify-content: center;
 }
 
-.slide-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 25%;
+.hero-tag {
+    display: inline-block; background: rgba(230, 59, 111, 0.15); border: 1px solid rgba(230, 59, 111, 0.3);
+    color: #ffb2bf; font-size: 0.7rem; font-weight: 700; letter-spacing: 2px;
+    padding: 5px 14px; border-radius: 4px; margin-bottom: 20px; text-transform: uppercase; width: fit-content;
 }
 
-.slide-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to right, rgba(10, 20, 40, 0.80) 0%, rgba(10, 20, 40, 0.35) 60%, transparent 100%);
+.hero-title {
+    font-size: 3.5rem; font-weight: 900; line-height: 1.08; color: #ffffff;
+    letter-spacing: -1px; margin: 0 0 20px; text-shadow: 0 2px 20px rgba(0,0,0,0.2);
 }
+.hero-title em, .hero-title i { font-style: italic; color: #E63B6F; }
 
-.slide-content {
-    position: absolute;
-    top: 50%;
-    left: 8%;
-    transform: translateY(-50%);
-    max-width: 520px;
-    z-index: 2;
-}
+.hero-desc { font-size: 1rem; color: #cbd5e1; line-height: 1.7; margin-bottom: 32px; max-width: 480px; }
 
-.slide-tag {
-    display: inline-block;
-    background: var(--ocean-blue, #0288d1);
-    color: white;
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 2px;
-    padding: 5px 14px;
-    border-radius: 4px;
-    margin-bottom: 20px;
-    text-transform: uppercase;
-}
+.hero-btns { display: flex; gap: 12px; flex-wrap: wrap; }
 
-.slide-title {
-    font-size: 3.8rem;
-    font-weight: 900;
-    line-height: 1.05;
-    color: #ffffff;
-    text-transform: uppercase;
-    letter-spacing: -1px;
-    margin-bottom: 20px;
-    text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+.btn-primary-hero {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #E63B6F; color: white; border: none;
+    padding: 14px 28px; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 700; cursor: pointer;
+    transition: all 0.3s ease; box-shadow: 0 4px 16px rgba(230,59,111,0.35);
+    font-family: inherit;
 }
+.btn-primary-hero:hover { background: #d82f65; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(230,59,111,0.45); }
 
-.slide-desc {
-    font-size: 1rem;
-    color: #cbd5e1;
-    line-height: 1.7;
-    margin-bottom: 36px;
+.btn-outline-hero {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: transparent; color: white;
+    border: 2px solid rgba(255,255,255,0.4);
+    padding: 12px 24px; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    transition: all 0.3s ease; font-family: inherit;
 }
-
-.btn-hero {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    background: var(--ocean-blue, #0288d1);
-    color: white;
-    border: none;
-    padding: 16px 36px;
-    border-radius: 8px;
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 20px rgba(2, 136, 209, 0.4);
-}
-
-.btn-hero:hover {
-    background: #0277bd;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 28px rgba(2, 136, 209, 0.5);
-}
-
-.slide-dots {
-    position: absolute;
-    bottom: 28px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 10px;
-    z-index: 10;
-}
-
-.dot {
-    width: 28px;
-    height: 5px;
-    background: rgba(255,255,255,0.35);
-    border-radius: 3px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.dot.active {
-    background: #ffffff;
-    width: 44px;
-}
+.btn-outline-hero:hover { border-color: #fff; background: rgba(255,255,255,0.08); }
 
 /* ============================================
-   2. LUXURY CATEGORY CIRCLES
+   2. EQUIPMENT SECTION
 ============================================ */
-.cat-section {
-    padding: 48px 0 32px;
+.equip-grid-custom {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr;
+    gap: 24px;
+    margin-top: 24px;
 }
 
-.cat-scroll {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 36px;
-    padding: 0 16px;
-}
-
-.luxury-cat-item {
+.equip-big-card-custom {
+    background: #FFFFFF;
+    border: 1px solid #EAEAEA;
+    border-radius: 12px;
+    padding: 40px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-decoration: none;
-    gap: 12px;
-    outline: none;
-}
-
-.cat-img-wrapper {
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    background: #ffffff;
-    padding: 3px; 
-    border: 1px solid #e2e8f0;
-    transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     position: relative;
     overflow: hidden;
 }
 
-.cat-img {
+.equip-big-img-custom {
     width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
-    transition: transform 0.6s ease;
-}
-
-.cat-icon-fallback {
-    width: 100%;
-    height: 100%;
+    height: 220px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
-    background: #f1f5f9;
-    border-radius: 50%;
+    margin-bottom: 32px;
 }
 
-.luxury-cat-item:hover .cat-img-wrapper {
-    border-color: var(--ocean-blue, #0288d1);
-    transform: translateY(-6px);
-    box-shadow: 0 12px 24px rgba(2, 136, 209, 0.15);
+.equip-big-img-custom img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
-.luxury-cat-item:hover .cat-img {
-    transform: scale(1.1);
+.equip-big-info-custom {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
 }
 
-.luxury-cat-name {
+.equip-discount-badge {
+    background: #FFFFFF;
+    color: #E63B6F;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid #F1F3F5;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 4px;
+}
+
+.equip-big-name-custom {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #2D3436;
+    margin: 0;
+}
+
+.equip-big-desc-custom {
+    font-size: 0.95rem;
+    color: #636E72;
+    margin: 0;
+    line-height: 1.5;
+    max-width: 80%;
+}
+
+.equip-big-link-custom {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #E63B6F;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-decoration: none;
+    margin-top: 4px;
+    transition: gap 0.2s;
+}
+.equip-big-link-custom:hover { gap: 10px; }
+
+.equip-side-custom {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.equip-small-card-custom {
+    background: #FFFFFF;
+    border: 1px solid #EAEAEA;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    flex: 1;
+    position: relative;
+    min-height: 200px;
+}
+
+.equip-small-img-custom {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 75%;
+    height: 55%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+}
+
+.equip-small-img-custom img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.equip-small-info-custom {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.equip-small-name-custom {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #2D3436;
+    margin: 0;
+}
+.equip-small-name-custom.text-center {
+    text-align: center;
+}
+
+.equip-small-desc-custom {
+    font-size: 0.85rem;
+    color: #636E72;
+    margin: 0;
+}
+.equip-small-desc-custom.text-center {
+    text-align: center;
+}
+
+.equip-small-link-custom {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #E63B6F;
     font-size: 0.85rem;
     font-weight: 700;
-    color: #1e293b;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    transition: color 0.3s;
+    text-decoration: none;
+    transition: gap 0.2s;
+}
+.equip-small-link-custom:hover { gap: 8px; }
+
+.accessory-card {
+    background: #F1F3F5;
+    border: 1px solid #EAEAEA;
+    box-shadow: none;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
 }
 
-.luxury-cat-item:hover .luxury-cat-name {
-    color: var(--ocean-blue, #0288d1);
+.equip-acc-icon {
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* ============================================
-   3. FEATURED PRODUCTS
-============================================ */
-/* Removed .section-2col since Featured is now full width */
-
-/* ============================================
-   PRODUCT GRID (4-col)
+   3. BEST SELLERS
 ============================================ */
 .products-grid {
     display: grid;
@@ -615,183 +505,111 @@ onUnmounted(() => {
     gap: 20px;
 }
 
-/* ============================================
-   4. FLASH SALE & PROMO BANNER 
-============================================ */
-.promo-banner {
-    position: relative;
-    width: 100vw;
-    margin-left: calc(-50vw + 50%);
-    background-image: url('https://images.unsplash.com/photo-1490481651829-270f644b9ff3?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
-    background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
-    padding: 72px 0;
-    margin-top: 56px;
-    margin-bottom: 0;
-}
+.view-more-wrap { text-align: center; margin-top: 40px; }
 
-.promo-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(10, 25, 50, 0.92) 0%, rgba(2, 100, 165, 0.85) 100%);
+.btn-view-more {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 32px; border: 2px solid #E63B6F;
+    color: #E63B6F; background: transparent;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+    text-decoration: none; transition: all 0.2s; font-family: inherit;
 }
-
-.promo-inner {
-    position: relative;
-    z-index: 1;
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 48px;
-    flex-wrap: nowrap; /* Prevent wrapping so they stay side-by-side if possible */
-}
-
-.promo-left {
-    flex: 1;
-    max-width: 600px;
-}
-
-.promo-tag {
-    display: inline-block;
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.3);
-    color: #fff;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    padding: 5px 14px;
-    border-radius: 4px;
-    margin-bottom: 16px;
-    text-transform: uppercase;
-}
-
-.promo-title {
-    font-size: 3rem;
-    font-weight: 900;
-    color: white;
-    margin-bottom: 12px;
-    line-height: 1.1;
-}
-
-.promo-title .highlight {
-    color: #fbbf24;
-}
-
-.promo-desc {
-    color: #bfdbfe;
-    font-size: 1rem;
-    line-height: 1.6;
-    margin-bottom: 0;
-}
-
-.promo-right {
-    flex-shrink: 0;
-    width: 480px; 
-}
+.btn-view-more:hover { background: #E63B6F; color: white; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(230,59,111,0.25); }
 
 /* ============================================
-   6. TRUST BAR
+   4. COMMUNITY SECTION
 ============================================ */
-.trust-bar {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1px;
-    background: #f1f5f9;
-    border-top: 1px solid #f1f5f9;
-    border-bottom: 1px solid #f1f5f9;
-    margin-top: 56px;
+.community-section {
+    width: 100vw; margin-left: calc(-50vw + 50%);
+    margin-top: 16px; margin-bottom: 0;
 }
 
-.trust-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 40px 24px;
-    background: #fff;
-    transition: background 0.2s;
-}
-.trust-item:hover { background: #f0f9ff; }
-
-.trust-icon {
-    width: 56px;
-    height: 56px;
-    background: #e0f2fe;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--ocean-blue, #0288d1);
-    margin-bottom: 16px;
-    transition: all 0.3s;
+.community-inner {
+    display: grid; grid-template-columns: 1fr 1fr;
+    min-height: 480px;
 }
 
-.trust-item:hover .trust-icon {
-    background: var(--ocean-blue, #0288d1);
-    color: white;
-    transform: translateY(-4px);
+.community-content {
+    background: #1a1a2e; padding: 64px 48px 64px 64px;
+    display: flex; flex-direction: column; justify-content: center;
 }
 
-.trust-item h5 {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 6px;
+.community-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: #94a3b8; font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 20px;
 }
+.community-tag svg { color: #636E72; }
 
-.trust-item p {
-    font-size: 0.85rem;
-    color: #64748b;
-    margin: 0;
-    line-height: 1.5;
+.community-title {
+    font-size: 2rem; font-weight: 800; color: #ffffff;
+    line-height: 1.2; margin: 0 0 16px; letter-spacing: -0.5px;
+}
+.community-title em { font-style: italic; color: #E63B6F; }
+
+.community-desc { color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin: 0 0 24px; max-width: 480px; }
+
+.community-list {
+    list-style: none; padding: 0; margin: 0 0 32px;
+    display: flex; flex-direction: column; gap: 12px;
+}
+.community-list li {
+    display: flex; align-items: center; gap: 10px;
+    color: #cbd5e1; font-size: 0.9rem; font-weight: 500;
+}
+.community-list li svg { flex-shrink: 0; }
+
+.btn-community {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: transparent; color: #E63B6F;
+    border: 2px solid #E63B6F; padding: 12px 24px;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; transition: all 0.3s; width: fit-content; font-family: inherit;
+}
+.btn-community:hover { background: #E63B6F; color: white; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(230,59,111,0.3); }
+
+.community-images {
+    position: relative; overflow: hidden;
+}
+.community-img {
+    width: 100%; height: 100%; object-fit: cover;
+}
+.equip-big-link-custom,.equip-small-link-custom {
+    border: none;
+    background-color: transparent;
 }
 
 /* ============================================
    RESPONSIVE
 ============================================ */
 @media (max-width: 1200px) {
-    .section-2col {
-        grid-template-columns: 1fr;
-    }
-    .col-flash {
-        position: static;
-        max-width: 480px;
-    }
-    .products-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
+    .products-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 1024px) {
-    .hero-slider { height: 520px; }
-    .slide-title { font-size: 3rem; }
+    .hero-section { height: 480px; }
+    .hero-title { font-size: 2.8rem; }
+    .equip-grid-custom { grid-template-columns: 1fr; }
+    .community-inner { grid-template-columns: 1fr; }
+    .community-images { height: 300px; }
     .products-grid { grid-template-columns: repeat(2, 1fr); }
-    .trust-bar { grid-template-columns: repeat(2, 1fr); }
-    .promo-inner { flex-direction: column; text-align: center; gap: 32px; }
-    .promo-right { width: 100%; display: flex; justify-content: center !important; }
 }
 
 @media (max-width: 768px) {
-    .hero-slider { height: 440px; }
-    .slide-title { font-size: 2.4rem; }
-    .slide-content { left: 5%; right: 5%; }
+    .hero-section { height: 420px; }
+    .hero-title { font-size: 2.2rem; }
+    .hero-content { padding: 0 24px; }
     .section-inner { padding: 40px 0; }
-    .section-title { font-size: 1.3rem; }
-    .promo-title { font-size: 2.2rem; }
-    .trust-bar { grid-template-columns: repeat(2, 1fr); }
+    .section-title { font-size: 1.4rem; }
+    .community-content { padding: 40px 24px; }
+    .community-title { font-size: 1.6rem; }
 }
 
 @media (max-width: 480px) {
-    .hero-slider { height: 360px; }
-    .slide-title { font-size: 2rem; }
+    .hero-section { height: 380px; }
+    .hero-title { font-size: 1.8rem; }
     .products-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-    .trust-bar { grid-template-columns: 1fr 1fr; }
-    .cd-num { font-size: 1.6rem; }
-    .cd-box { min-width: 56px; padding: 12px 14px; }
-    .btn-hero { padding: 14px 24px; font-size: 0.9rem; }
+    .hero-btns { flex-direction: column; }
+    .btn-primary-hero, .btn-outline-hero { width: 100%; justify-content: center; }
 }
 </style>

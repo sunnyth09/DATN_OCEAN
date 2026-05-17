@@ -85,7 +85,7 @@ const getStatusLabel = (status) => {
         <div class="page-header animate-in">
             <div class="header-info">
                 <h1 class="page-title">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
                     </svg>
                     Quản lý bài viết
@@ -223,10 +223,10 @@ const getStatusLabel = (status) => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: var(--ocean-blue); color: white; text-decoration: none;
+    background: #E63B6F; color: white; text-decoration: none;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s;
-    box-shadow: 0 4px 10px rgba(2, 136, 209, 0.2);
+    box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 .btn-primary:hover {
     background: var(--ocean-bright); transform: translateY(-2px); color: white;
@@ -245,8 +245,8 @@ const getStatusLabel = (status) => {
     transition: all 0.2s;
 }
 .search-box:focus-within {
-    border-color: var(--ocean-blue); background: white;
-    box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1);
+    border-color: #E63B6F; background: white;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 .search-box svg { color: var(--text-light); flex-shrink: 0; }
 .search-input {
@@ -263,7 +263,7 @@ const getStatusLabel = (status) => {
     background: var(--ocean-deepest); color: var(--text-muted);
     font-size: 0.8rem; font-weight: 600;
 }
-.stat-pill svg { color: var(--ocean-blue); }
+.stat-pill svg { color: #E63B6F; }
 
 /* Table */
 .table-header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); }
@@ -296,7 +296,7 @@ const getStatusLabel = (status) => {
     display: inline-flex; align-items: center; padding: 4px 10px;
     border-radius: 20px; font-size: 0.75rem; font-weight: 600;
 }
-.status-badge.active { background: #e0f2fe; color: #0284c7; }
+.status-badge.active { background: rgba(230, 59, 111, 0.08); color: #0284c7; }
 .status-badge.inactive { background: #f1f5f9; color: #64748b; }
 .status-badge.draft { background: #fef3c7; color: #d97706; }
 
@@ -305,7 +305,7 @@ const getStatusLabel = (status) => {
     background: none; border: none; padding: 6px; border-radius: 6px;
     cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;
 }
-.btn-action.edit { color: var(--ocean-blue); background: #e0f2fe; }
+.btn-action.edit { color: #E63B6F; background: rgba(230, 59, 111, 0.08); }
 .btn-action.delete { color: var(--coral); background: #fee2e2; }
 .btn-action:hover { transform: scale(1.1); }
 

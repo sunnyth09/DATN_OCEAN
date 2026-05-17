@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/api_client.dart';
 import 'main_wrapper.dart';
 import 'address_screen.dart';
+import '../config/app_config.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -586,9 +587,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             } else {
               rawImage = productData?['thumbnail_url']?.toString() ?? '';
             }
-            if (rawImage.isNotEmpty) {
-              imageUrl = rawImage.startsWith('http') ? rawImage : 'http://127.0.0.1:8383/api/image-proxy?path=$rawImage';
-            }
+            imageUrl = AppConfig.imageUrl(rawImage);
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),

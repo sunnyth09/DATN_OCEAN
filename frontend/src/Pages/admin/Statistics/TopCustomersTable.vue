@@ -64,8 +64,8 @@ const getInitials = (name) => {
 };
 
 const getRandomColor = (string) => {
-  if (!string) return '#0288d1';
-  const colors = ['#0288d1', '#26a69a', '#ffa726', '#7e57c2', '#ef5350', '#66bb6a', '#ec407a'];
+  if (!string) return '#E63B6F';
+  const colors = ['#E63B6F', '#26a69a', '#ffa726', '#7e57c2', '#ef5350', '#66bb6a', '#ec407a'];
   let sum = 0;
   for(let i=0; i<string.length; i++) {
     sum += string.charCodeAt(i);
@@ -161,7 +161,7 @@ const getRandomColor = (string) => {
 
 .text-right { text-align: right; }
 .text-center { text-align: center; }
-.text-ocean { color: var(--ocean-blue); }
+.text-ocean { color: #E63B6F; }
 .color-muted { color: var(--text-muted); font-size: 0.85rem; }
 
 .empty-cell {

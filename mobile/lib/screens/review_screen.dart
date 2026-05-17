@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
 
-const String kBaseUrl = 'http://127.0.0.1:8383/api';
+const String kBaseUrl = AppConfig.kBaseUrl;
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> orderItem;
@@ -61,7 +62,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
           Navigator.pop(context, true);
         }
       } else {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Không thể gửi đánh giá!'), backgroundColor: Colors.red));
       }
     } catch (_) {
@@ -73,9 +74,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = widget.productImage != null
-      ? (widget.productImage!.startsWith('http') ? widget.productImage! : 'http://127.0.0.1:8383/api/image-proxy?path=${widget.productImage}')
-      : null;
+    final imageUrl = AppConfig.imageUrl(widget.productImage);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -99,7 +98,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
-                    child: imageUrl != null
+                    child: imageUrl.isNotEmpty
                         ? Image.network(imageUrl, width: 70, height: 70, fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => _placeholder())
                         : _placeholder(),

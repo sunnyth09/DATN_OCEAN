@@ -63,9 +63,9 @@ const emit = defineEmits(['edit', 'delete']);
 .tree-icon { color: var(--text-light); font-family: monospace; font-size: 1rem; flex-shrink: 0; }
 .cat-icon-wrap {
     width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
-    background: rgba(2, 136, 209, 0.08); border: 1px solid rgba(2, 136, 209, 0.15);
+    background: rgba(230, 59, 111, 0.08); border: 1px solid rgba(230, 59, 111, 0.15);
     display: flex; align-items: center; justify-content: center;
-    color: var(--ocean-blue); overflow: hidden;
+    color: #E63B6F; overflow: hidden;
 }
 .cat-thumbnail {
     width: 100%; height: 100%; object-fit: cover; border-radius: 7px;
@@ -73,14 +73,14 @@ const emit = defineEmits(['edit', 'delete']);
 .cat-name { font-size: 0.88rem; font-weight: 700; color: var(--text-main); }
 .child-badge {
     font-size: 0.7rem; font-weight: 700;
-    background: rgba(2, 136, 209, 0.1); color: var(--ocean-blue);
+    background: rgba(230, 59, 111, 0.1); color: #E63B6F;
     padding: 2px 8px; border-radius: 10px;
 }
 
 /* Badges */
 .badge-id {
     padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;
-    font-weight: 700; background: rgba(2, 136, 209, 0.1); color: var(--ocean-blue);
+    font-weight: 700; background: rgba(230, 59, 111, 0.1); color: #E63B6F;
 }
 .badge-status {
     display: inline-block; padding: 4px 10px; border-radius: 6px;

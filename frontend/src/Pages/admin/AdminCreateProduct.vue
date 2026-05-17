@@ -1322,7 +1322,7 @@ onMounted(() => {
 }
 
 .back-link a:hover {
-    color: var(--ocean-blue);
+    color: #E63B6F;
 }
 
 .page-title {
@@ -1352,19 +1352,19 @@ onMounted(() => {
     padding: 10px 20px;
     border-radius: 8px;
     border: none;
-    background: var(--ocean-blue);
+    background: #E63B6F;
     color: white;
     font-size: 0.85rem;
     font-weight: 700;
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(2, 136, 209, 0.2);
+    box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
     transition: all 0.2s;
 }
 
 .btn-primary:hover {
     background: var(--ocean-bright);
     transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(2, 136, 209, 0.3);
+    box-shadow: 0 6px 14px rgba(230, 59, 111, 0.3);
 }
 
 .btn-outline {
@@ -1392,7 +1392,7 @@ onMounted(() => {
     border-radius: 6px;
     border: 1px solid var(--border-color);
     background: transparent;
-    color: var(--ocean-blue);
+    color: #E63B6F;
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
@@ -1400,14 +1400,14 @@ onMounted(() => {
 }
 
 .btn-outline-small:hover {
-    background: rgba(2, 136, 209, 0.05);
-    border-color: var(--ocean-blue);
+    background: rgba(230, 59, 111, 0.05);
+    border-color: #E63B6F;
 }
 
 .btn-text-link {
     background: none;
     border: none;
-    color: var(--ocean-blue);
+    color: #E63B6F;
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
@@ -1525,9 +1525,9 @@ onMounted(() => {
 }
 
 .form-control:focus {
-    border-color: var(--ocean-blue);
+    border-color: #E63B6F;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1);
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
 .form-control::placeholder {
@@ -1563,8 +1563,8 @@ onMounted(() => {
 }
 
 .input-with-prefix:focus-within {
-    border-color: var(--ocean-blue);
-    box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1);
+    border-color: #E63B6F;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
 .prefix {
@@ -1621,9 +1621,9 @@ onMounted(() => {
 }
 
 .radio-label input[type="radio"]:checked + .radio-box {
-    border-color: var(--ocean-blue);
-    background: rgba(2, 136, 209, 0.05);
-    box-shadow: 0 0 0 1px var(--ocean-blue);
+    border-color: #E63B6F;
+    background: rgba(230, 59, 111, 0.05);
+    box-shadow: 0 0 0 1px #E63B6F;
 }
 
 /* Image Upload */
@@ -1637,7 +1637,7 @@ onMounted(() => {
 }
 
 .image-upload-box:hover {
-    border-color: var(--ocean-blue);
+    border-color: #E63B6F;
     background: var(--hover-bg);
 }
 
@@ -1821,7 +1821,7 @@ onMounted(() => {
 }
 
 .toggle-input:checked + .toggle-slider {
-    background-color: var(--ocean-blue);
+    background-color: #E63B6F;
 }
 
 .toggle-input:checked + .toggle-slider:before {
@@ -1939,8 +1939,8 @@ onMounted(() => {
 }
 
 .gallery-add-btn:hover {
-    border-color: var(--ocean-blue);
-    background: rgba(2, 136, 209, 0.04);
+    border-color: #E63B6F;
+    background: rgba(230, 59, 111, 0.04);
 }
 
 /* Variant Images Grid */
@@ -2025,8 +2025,8 @@ onMounted(() => {
 }
 
 .variant-img-add:hover {
-    border-color: var(--ocean-blue);
-    background: rgba(2, 136, 209, 0.04);
+    border-color: #E63B6F;
+    background: rgba(230, 59, 111, 0.04);
 }
 
 /* Quill Custom Styles */
@@ -2056,11 +2056,11 @@ onMounted(() => {
 }
 
 .quill-wrapper:focus-within :deep(.ql-toolbar.ql-snow) {
-    border-color: var(--ocean-blue);
+    border-color: #E63B6F;
 }
 
 .quill-wrapper:focus-within :deep(.ql-container.ql-snow) {
-    border-color: var(--ocean-blue);
+    border-color: #E63B6F;
 }
 
 .quill-wrapper :deep(.ql-editor) {
@@ -2085,9 +2085,9 @@ onMounted(() => {
 .sale-toggle {
     margin-bottom: 20px;
     padding: 12px 16px;
-    background: rgba(2, 136, 209, 0.05);
+    background: rgba(230, 59, 111, 0.05);
     border-radius: 8px;
-    border: 1px solid rgba(2, 136, 209, 0.1);
+    border: 1px solid rgba(230, 59, 111, 0.1);
 }
 .sale-fields-grid {
     display: grid;
@@ -2122,7 +2122,7 @@ onMounted(() => {
     border-bottom: 2px dashed var(--border-color) !important;
 }
 .sale-expand-cell {
-    background-color: rgba(2, 136, 209, 0.03);
+    background-color: rgba(230, 59, 111, 0.03);
     border-radius: 0 0 6px 6px;
 }
 .sale-inline-fields {
@@ -2135,7 +2135,7 @@ onMounted(() => {
 }
 .sale-inline-field label {
     font-size: 0.75rem;
-    color: var(--ocean-blue);
+    color: #E63B6F;
     margin-bottom: 4px;
     display: block;
     font-weight: 600;
@@ -2160,12 +2160,12 @@ onMounted(() => {
 }
 .btn-sale-toggle:hover {
     background: var(--ocean-deepest);
-    color: var(--ocean-blue);
+    color: #E63B6F;
 }
 .btn-sale-toggle.active {
-    background: rgba(2, 136, 209, 0.1);
-    color: var(--ocean-blue);
-    border-color: var(--ocean-blue);
+    background: rgba(230, 59, 111, 0.1);
+    color: #E63B6F;
+    border-color: #E63B6F;
 }
 .slide-fade-enter-active {
   transition: all 0.3s ease-out;

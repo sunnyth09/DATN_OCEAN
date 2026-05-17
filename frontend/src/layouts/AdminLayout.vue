@@ -134,7 +134,7 @@ onMounted(() => {
 }
 
 .theme-toggle-btn:hover {
-  color: var(--ocean-blue);
+  color: #E63B6F;
   background: var(--hover-bg);
 }
 

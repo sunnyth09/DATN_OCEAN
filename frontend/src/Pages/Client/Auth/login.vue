@@ -171,7 +171,7 @@ const login = async () => {
 
             <div class="brand">
               <div class="brand-logo">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill="#0288d1" d="M2.5 12c0-5.25 4.25-9.5 9.5-9.5s9.5 4.25 9.5 9.5c0 4.14-2.65 7.63-6.38 8.97a1 1 0 0 1-1.25-.66 1 1 0 0 1 .66-1.25 7.5 7.5 0 1 0-10.02 0 1 1 0 0 1-1.25.66A9.46 9.46 0 0 1 2.5 12z"/><path fill="#0cc0df" d="M12 4.5a7.5 7.5 0 0 0-7.39 8.78 1 1 0 0 1-1.94.44A9.5 9.5 0 0 1 21.5 12a9.5 9.5 0 0 1-5.18 8.44 1 1 0 0 1-1.87-.71A7.5 7.5 0 0 0 12 4.5z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill="#E63B6F" d="M2.5 12c0-5.25 4.25-9.5 9.5-9.5s9.5 4.25 9.5 9.5c0 4.14-2.65 7.63-6.38 8.97a1 1 0 0 1-1.25-.66 1 1 0 0 1 .66-1.25 7.5 7.5 0 1 0-10.02 0 1 1 0 0 1-1.25.66A9.46 9.46 0 0 1 2.5 12z"/><path fill="#ff8fa3" d="M12 4.5a7.5 7.5 0 0 0-7.39 8.78 1 1 0 0 1-1.94.44A9.5 9.5 0 0 1 21.5 12a9.5 9.5 0 0 1-5.18 8.44 1 1 0 0 1-1.87-.71A7.5 7.5 0 0 0 12 4.5z"/></svg>
               </div>
               <span class="brand-text">Ocean Store</span>
             </div>
@@ -219,7 +219,7 @@ const login = async () => {
                     <span class="checkmark"></span>
                     <span>Ghi nhớ đăng nhập</span>
                 </label>
-                <router-link to="/client/forgot" class="recover-link">Quên mật khẩu?</router-link>
+                <router-link to="/" class="recover-link">Quên mật khẩu?</router-link>
               </div>
 
               <!-- CAPTCHA -->
@@ -261,7 +261,7 @@ const login = async () => {
                  </button>
               </div>
 
-              <p class="register-hint">Chưa có tài khoản? <router-link to="/client/register">Tạo tài khoản</router-link></p>
+              <p class="register-hint">Chưa có tài khoản? <router-link to="/">Tạo tài khoản</router-link></p>
             </form>
           </div>
         </div>
@@ -330,7 +330,7 @@ const login = async () => {
 }
 
 .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
-.brand-logo { background: linear-gradient(135deg, #e0f2fe, #bae6fd); padding: 12px; border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(186, 230, 253, 0.5);}
+.brand-logo { background: linear-gradient(135deg, #fce4ec, #ffd9de); padding: 12px; border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(255, 217, 222, 0.5);}
 .brand-text { color: #0f172a; font-weight: 800; font-size: 1.3rem; letter-spacing: -0.5px; }
 
 .auth-header { margin-bottom: 32px; }
@@ -355,8 +355,8 @@ const login = async () => {
 }
 .input-modern-wrapper:focus-within {
     background: #ffffff;
-    border-color: #bae6fd;
-    box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1);
+    border-color: #ffd9de;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 .form-field-item.has-error .input-modern-wrapper { border-color: #ef4444; }
 
@@ -374,14 +374,14 @@ const login = async () => {
 }
 .input-modern-wrapper input::placeholder { color: #94a3b8; font-weight: 400; }
 .input-modern-wrapper .icon { color: #94a3b8; display: flex; margin-right: 12px; align-items: center; justify-content: center; }
-.input-modern-wrapper:focus-within .icon { color: #0288d1; }
+.input-modern-wrapper:focus-within .icon { color: #E63B6F; }
 
 .input-password { position: relative; }
 .toggle-pw {
     background: none; border: none; cursor: pointer; color: #64748b; font-size: 0.8rem;
     display: flex; align-items: center; justify-content: center; padding: 4px; transition: color 0.2s; margin-left: 8px;
 }
-.toggle-pw:hover { color: #0288d1; }
+.toggle-pw:hover { color: #E63B6F; }
 
 .field-error { font-size: 0.82rem; color: #ef4444; margin-top: 6px; padding-left: 4px; margin-bottom: 0; display: block;}
 
@@ -389,11 +389,11 @@ const login = async () => {
 .remember-me { display: flex; align-items: center; gap: 8px; color: #475569; cursor: pointer; position: relative; font-weight: 500;}
 .remember-me input { position: absolute; opacity: 0; cursor: pointer; }
 .remember-me .checkmark { height: 16px; width: 16px; background-color: #f8fafc; border-radius: 4px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; border: 1px solid #cbd5e1; }
-.remember-me:hover input ~ .checkmark { border-color: #0288d1; }
-.remember-me input:checked ~ .checkmark { background-color: #0288d1; border-color: #0288d1; }
+.remember-me:hover input ~ .checkmark { border-color: #E63B6F; }
+.remember-me input:checked ~ .checkmark { background-color: #E63B6F; border-color: #E63B6F; }
 .remember-me input:checked ~ .checkmark:after { content: ""; width: 3px; height: 7px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); display: block; margin-bottom: 2px;}
 
-.recover-link { color: #0288d1; font-weight: 600; text-decoration: none; transition: 0.2s; }
+.recover-link { color: #E63B6F; font-weight: 600; text-decoration: none; transition: 0.2s; }
 .recover-link:hover { text-decoration: underline; }
 
 .captcha-box { display: flex; justify-content: flex-start; }
@@ -402,7 +402,7 @@ const login = async () => {
 .text-success { color: #22c55e !important; }
 
 .btn-primary {
-    background: #020617;
+    background: #E63B6F;
     color: white;
     border: none;
     border-radius: 10px;
@@ -418,7 +418,7 @@ const login = async () => {
     gap: 8px;
     margin-top: 4px;
 }
-.btn-primary:hover:not(:disabled) { background: #1e293b; transform: translateY(-2px); box-shadow: 0 8px 16px rgba(2, 6, 23, 0.15); }
+.btn-primary:hover:not(:disabled) { background: #d82f65; transform: translateY(-2px); box-shadow: 0 8px 16px rgba(230, 59, 111, 0.2); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-primary .btn-icon { opacity: 0.7; transition: opacity 0.3s; }
 .btn-primary:hover .btn-icon { opacity: 1; }
@@ -436,7 +436,7 @@ const login = async () => {
 .btn-social:hover { border-color: #cbd5e1; background: #f8fafc; }
 
 .register-hint { text-align: center; font-size: 0.9rem; color: #64748b; margin-top: 4px; font-weight: 500; }
-.register-hint a { color: #0288d1; font-weight: 700; text-decoration: none; position: relative; }
+.register-hint a { color: #E63B6F; font-weight: 700; text-decoration: none; position: relative; }
 .register-hint a:hover { text-decoration: underline; }
 
 /* RIGHT COLUMN - Fully covered Image */

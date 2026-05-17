@@ -879,7 +879,7 @@ onUnmounted(() => {
 
 /* Barcode Scanner Box */
 .barcode-scanner-box {
-  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+  background: linear-gradient(135deg, #FFF0F3, rgba(230, 59, 111, 0.08));
   border: 2px solid #bae6fd;
   border-radius: 14px;
   padding: 16px 20px;
@@ -1059,7 +1059,7 @@ onUnmounted(() => {
 .product-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-  border-color: var(--border-color, #e0f2fe);
+  border-color: var(--border-color, rgba(230, 59, 111, 0.08));
 }
 
 .product-img-wrapper {
@@ -1142,7 +1142,7 @@ onUnmounted(() => {
 }
 .cart-header-icon {
   font-size: 1.2rem;
-  color: var(--ocean-blue, #0288d1);
+  color: #E63B6F;
 }
 .cart-header-title {
   margin: 0;
@@ -1151,7 +1151,7 @@ onUnmounted(() => {
   color: var(--text-main, #102a43);
 }
 .cart-count-badge {
-  background: var(--ocean-blue, #0288d1);
+  background: #E63B6F;
   color: white;
   font-size: 0.7rem;
   font-weight: 700;
@@ -1387,8 +1387,8 @@ onUnmounted(() => {
   outline: none;
 }
 .input-icon-wrapper input:focus {
-  border-color: var(--ocean-blue, #0288d1);
-  box-shadow: 0 0 0 2px rgba(2, 136, 209, 0.1);
+  border-color: #E63B6F;
+  box-shadow: 0 0 0 2px rgba(230, 59, 111, 0.1);
 }
 .input-icon-wrapper input::placeholder {
   color: var(--text-light, #9fb3c8);
@@ -1443,12 +1443,12 @@ onUnmounted(() => {
   border-color: var(--ocean-mid, #b3e0f2);
 }
 .pay-method.active {
-  border-color: var(--ocean-blue, #0288d1);
-  background: linear-gradient(135deg, rgba(2, 136, 209, 0.06), rgba(3, 169, 244, 0.1));
+  border-color: #E63B6F;
+  background: linear-gradient(135deg, rgba(230, 59, 111, 0.06), rgba(3, 169, 244, 0.1));
 }
 .pay-method.active i,
 .pay-method.active span {
-  color: var(--ocean-blue, #0288d1);
+  color: #E63B6F;
 }
 
 /* Coupon */
@@ -1479,7 +1479,7 @@ onUnmounted(() => {
   outline: none;
 }
 .coupon-input-wrap input:focus {
-  border-color: var(--ocean-blue, #0288d1);
+  border-color: #E63B6F;
 }
 .btn-coupon {
   padding: 7px 14px;
@@ -1492,7 +1492,7 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 .btn-coupon.apply {
-  background: var(--ocean-blue, #0288d1);
+  background: #E63B6F;
   color: white;
 }
 .btn-coupon.apply:hover {
@@ -1584,7 +1584,7 @@ onUnmounted(() => {
   padding: 14px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--ocean-blue, #0288d1), var(--ocean-bright, #03a9f4));
+  background: linear-gradient(135deg, #E63B6F, var(--ocean-bright, #03a9f4));
   color: white;
   font-size: 1rem;
   font-weight: 700;
@@ -1592,12 +1592,12 @@ onUnmounted(() => {
   letter-spacing: 0.5px;
   cursor: pointer;
   transition: all 0.3s;
-  box-shadow: 0 4px 14px rgba(2, 136, 209, 0.3);
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.3);
   margin-top: 4px;
 }
 .btn-checkout:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(2, 136, 209, 0.4);
+  box-shadow: 0 6px 20px rgba(230, 59, 111, 0.4);
 }
 .btn-checkout:active:not(:disabled) {
   transform: translateY(0);
@@ -1631,7 +1631,7 @@ onUnmounted(() => {
 
 .variant-item.is-selected {
     border-color: #0ea5e9;
-    background-color: #f0f9ff;
+    background-color: #FFF0F3;
 }
 
 .variant-item.is-out-of-stock {

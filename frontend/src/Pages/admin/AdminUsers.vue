@@ -3,7 +3,7 @@
     <div class="page-header">
       <div class="header-info">
         <h1 class="page-title">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
           Quản Lý Khách Hàng
         </h1>
         <p class="page-subtitle">Quản lý tài khoản khách hàng và người bán hàng trên hệ thống.</p>
@@ -95,7 +95,7 @@
         <div class="qv-modal animate-in" style="max-width:520px">
           <div class="qv-header">
             <h2>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               {{ isEditing ? 'Sửa Khách Hàng' : 'Thêm Khách Hàng Mới' }}
             </h2>
             <button class="qv-close" @click="closeFormModal">×</button>
@@ -153,7 +153,7 @@
         <div class="qv-modal animate-in" style="max-width:620px">
           <div class="qv-header">
             <h2>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               Chi Tiết Khách Hàng
             </h2>
             <button class="qv-close" @click="closeDetailModal">×</button>
@@ -464,9 +464,9 @@ onMounted(fetchUsers);
 /* Buttons */
 .btn-primary {
   display: flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 8px; border: none;
-  background: var(--ocean-blue); color: white; font-family: var(--font-inter); font-size: 0.85rem;
+  background: #E63B6F; color: white; font-family: var(--font-inter); font-size: 0.85rem;
   font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none;
-  box-shadow: 0 4px 10px rgba(2, 136, 209, 0.2);
+  box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 .btn-primary:hover { background: var(--ocean-bright); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(3, 169, 244, 0.3); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
@@ -475,7 +475,7 @@ onMounted(fetchUsers);
   background: white; color: var(--text-muted); font-family: var(--font-inter); font-size: 0.85rem;
   font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none;
 }
-.btn-outline:hover { border-color: var(--ocean-blue); color: var(--ocean-blue); }
+.btn-outline:hover { border-color: #E63B6F; color: #E63B6F; }
 .btn-del {
   padding: 10px 28px; border-radius: 8px; border: none; background: #dc3545; color: #fff;
   font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
@@ -488,7 +488,7 @@ onMounted(fetchUsers);
   display: flex; align-items: center; gap: 10px; background: var(--ocean-deepest);
   border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 16px; flex: 1; max-width: 400px;
 }
-.search-box:focus-within { border-color: var(--ocean-blue); background: white; box-shadow: 0 0 0 3px rgba(2,136,209,0.1); }
+.search-box:focus-within { border-color: #E63B6F; background: white; box-shadow: 0 0 0 3px rgba(230, 59, 111,0.1); }
 .search-box svg { color: var(--text-light); }
 .search-input { background: none; border: none; outline: none; color: var(--text-main); font-family: var(--font-inter); font-size: 0.9rem; width: 100%; }
 .table-count { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
@@ -505,10 +505,10 @@ onMounted(fetchUsers);
 .data-table td { padding: 12px 12px; border-bottom: 1px solid var(--border-color); transition: background 0.15s; vertical-align: middle; }
 .data-table tbody tr:hover td { background: var(--hover-bg); }
 
-.badge-id { padding: 3px 6px; border-radius: 5px; font-size: 0.75rem; font-weight: 700; background: rgba(2,136,209,0.1); color: var(--ocean-blue); }
+.badge-id { padding: 3px 6px; border-radius: 5px; font-size: 0.75rem; font-weight: 700; background: rgba(230, 59, 111,0.1); color: #E63B6F; }
 .user-info-cell { display: flex; align-items: center; gap: 8px; }
 .avatar-circle {
-  width: 28px; height: 28px; border-radius: 50%; background: var(--ocean-blue); color: white;
+  width: 28px; height: 28px; border-radius: 50%; background: #E63B6F; color: white;
   display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.72rem; flex-shrink: 0;
 }
 .prod-name { font-size: 0.82rem; font-weight: 700; color: var(--text-main); white-space: nowrap; }
@@ -597,18 +597,18 @@ onMounted(fetchUsers);
 .qv-variants-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
 .qv-variants-table th { padding: 10px 12px; text-align: left; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color); background: var(--ocean-deepest, #f8fafc); }
 .qv-variants-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-.qv-variants-table tbody tr:hover td { background: rgba(2,136,209,0.03); }
+.qv-variants-table tbody tr:hover td { background: rgba(230, 59, 111,0.03); }
 .qv-variants-table code { font-size: 0.78rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
 .qv-v-price { font-weight: 700; color: var(--seafoam); }
 
 .badge-type { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
 .badge-type.customer { background: rgba(38,166,154,0.15); color: #167a70; }
 .badge-type.seller { background: rgba(255,167,38,0.15); color: #e65100; }
-.badge-type.admin { background: rgba(3,169,244,0.15); color: #0277bd; }
+.badge-type.admin { background: rgba(3,169,244,0.15); color: #d82f65; }
 .badge-type.staff { background: rgba(156,39,176,0.15); color: #7b1fa2; }
 .badge-type.percent { background: rgba(239,83,80,0.15); color: #c62828; }
 .badge-type.fixed { background: rgba(38,166,154,0.15); color: #167a70; }
-.badge-type.free_ship { background: rgba(3,169,244,0.15); color: #0277bd; }
+.badge-type.free_ship { background: rgba(3,169,244,0.15); color: #d82f65; }
 
 .badge-stock { padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; }
 .badge-stock.good { background: rgba(38,166,154,0.15); color: #167a70; }
@@ -616,7 +616,7 @@ onMounted(fetchUsers);
 
 /* Detail avatar */
 .detail-avatar-lg {
-  width: 52px; height: 52px; border-radius: 50%; background: var(--ocean-blue); color: #fff;
+  width: 52px; height: 52px; border-radius: 50%; background: #E63B6F; color: #fff;
   display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; flex-shrink: 0;
 }
 
@@ -634,7 +634,7 @@ onMounted(fetchUsers);
   font-size: 0.85rem; font-family: var(--font-inter); color: var(--text-main); box-sizing: border-box;
   outline: none; transition: all 0.2s; background: var(--ocean-deepest);
 }
-.qv-form-input:focus { border-color: var(--ocean-blue); box-shadow: 0 0 0 3px rgba(2,136,209,0.08); background: #fff; }
+.qv-form-input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230, 59, 111,0.08); background: #fff; }
 .qv-form-input.is-invalid { border-color: var(--coral); background: #fef2f2; }
 .qv-form-input.is-invalid:focus { box-shadow: 0 0 0 3px rgba(239,83,80,0.1); }
 .field-error { display: block; color: var(--coral); font-size: 0.72rem; font-weight: 600; margin-top: 6px; animation: fadeSlideUp 0.2s ease; }
@@ -642,7 +642,7 @@ onMounted(fetchUsers);
 .empty-cell { text-align: center; padding: 60px 20px !important; }
 .empty-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
 .empty-cell h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px; }
-.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: var(--ocean-blue); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: #E63B6F; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .animate-in { animation: fadeSlideUp 0.35s ease both; }
 @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }

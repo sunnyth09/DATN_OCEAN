@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
 
-const String kBaseUrl = 'http://127.0.0.1:8383/api';
+const String kBaseUrl = AppConfig.kBaseUrl;
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -48,7 +49,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         setState(() => _currentStep = 1);
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mã OTP đã được gửi đến email của bạn!'), backgroundColor: Colors.green));
       } else {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Lỗi gửi OTP!'), backgroundColor: Colors.red));
       }
     } catch (_) {
@@ -77,7 +78,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         setState(() => _currentStep = 2);
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Xác thực OTP thành công!'), backgroundColor: Colors.green));
       } else {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Mã OTP không chính xác!'), backgroundColor: Colors.red));
       }
     } catch (_) {
@@ -119,7 +120,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           Navigator.pop(context); // Quay về màn login
         }
       } else {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Lỗi đặt lại mật khẩu!'), backgroundColor: Colors.red));
       }
     } catch (_) {

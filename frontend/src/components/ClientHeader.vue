@@ -21,7 +21,7 @@ const unreadNotificationCount = ref(0);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
-    return categories.value.slice(0, 3);
+    return categories.value.slice(0, 4);
 });
 
 // INLINE EXPANDABLE SEARCH & AUTOCOMPLETE
@@ -114,14 +114,22 @@ const goToProduct = (slug) => {
     searchQuery.value = "";
 };
 
-const fetchCategories = async () => {
-    try {
-        const response = await api.get("/categories");
-        categories.value = response.data.data;
-    } catch (error) {
-        console.error("Error fetching categories:", error);
-    }
-};
+categories.value = [
+    { id: 1, name: 'Bóng chuyền', slug: 'bong-chuyen', image: BASE_URL + '/storage/categories/category_bong_chuyen_1776325154591.png' },
+    { id: 2, name: 'Cầu lông', slug: 'cau-long', image: BASE_URL + '/storage/categories/category_cau_long_1776325167694.png' },
+    { id: 3, name: 'Pickleball', slug: 'pickleball', image: BASE_URL + '/storage/categories/category_pickleball_1776325197526.png' },
+    { id: 4, name: 'Phụ kiện', slug: 'phu-kien', image: BASE_URL + '/storage/categories/category_phu_kien_the_thao_1776325207304.png' },
+    
+];
+
+// const fetchCategories = async () => {
+//     try {
+//         const response = await api.get("/categories");
+//         categories.value = response.data.data;
+//     } catch (error) {
+//         console.error("Error fetching categories:", error);
+//     }
+// };
 
 const checkAuth = () => {
     const userData = sessionStorage.getItem("user");
@@ -297,7 +305,7 @@ const handleFlashSaleClick = (e) => {
 
 onMounted(() => {
     checkAuth();
-    fetchCategories();
+    // fetchCategories();
     fetchCartCount();
 
     window.addEventListener("user-updated", checkAuth);
@@ -330,10 +338,10 @@ watch(
                 <!-- Logo -->
                 <router-link to="/" class="logo">
                     <img
-                        :src="BASE_URL + '/storage/logo/logo_OceanShop.png'"
+                        :src="BASE_URL + '/storage/logo/logo.png'"
                         alt="Logo"
                         class="logo-img"
-                        style="width: 70px; height: auto"
+                        style="width: 120px; height: auto"
                     />
                 </router-link>
 
@@ -341,15 +349,14 @@ watch(
                 <nav class="main-nav">
                     <router-link
                         v-for="cat in topCategories"
-                        :key="cat.category_id"
-                        :to="'/product?category=' + cat.category_id"
+                        :key="cat.id"
+                        to="/"
                         class="nav-link"
-                        :class="{ active: route.path === '/product' && route.query.category == cat.category_id }"
                     >
                         {{ cat.name }}
                     </router-link>
                     <router-link
-                        to="/contact"
+                        to="/"
                         class="nav-link"
                         exact-active-class="active"
                         >Liên hệ</router-link
@@ -436,7 +443,7 @@ watch(
                 </router-link>
 
                 <!-- Giỏ hàng -->
-                <router-link to="/cart" class="icon-btn cart-icon-btn">
+                <router-link to="/" class="icon-btn cart-icon-btn">
                     <div class="cart-icon-wrapper">
                         <svg
                             width="20"
@@ -466,7 +473,7 @@ watch(
                     @mouseenter="showDropdown = true"
                     @mouseleave="showDropdown = false"
                 >
-                    <button class="icon-btn user-icon-btn">
+                    <button class="icon-btn user-icon-btn equip-small-link-custom">
                         <template v-if="isLoggedIn">
                             <img
                                 v-if="userAvatar"
@@ -544,7 +551,7 @@ watch(
                                     >Đăng nhập</router-link
                                 >
                                 <router-link
-                                    to="/client/register"
+                                    to="/"
                                     class="account-menu-item"
                                     >Đăng ký</router-link
                                 >
@@ -587,8 +594,10 @@ watch(
 
 <style scoped>
 .site-header {
-    background: #fff;
-    border-bottom: 1px solid #f0f0f0;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid #F8F9FA;
     position: sticky;
     top: 0;
     z-index: 100;
@@ -635,10 +644,10 @@ watch(
     text-transform: capitalize;
 }
 .nav-link:hover {
-    color: #000;
+    color: #E63B6F;
 }
 .nav-link.active {
-    color: #3b82f6; /* Ocean blue like in the image */
+    color: #E63B6F;
 }
 .nav-link.active::after {
     content: "";
@@ -647,7 +656,7 @@ watch(
     left: 0;
     right: 0;
     height: 2px;
-    background-color: #3b82f6;
+    background-color: #E63B6F;
     border-radius: 2px;
 }
 
@@ -671,7 +680,7 @@ watch(
     transition: background 0.2s;
 }
 .icon-btn:hover {
-    background: #f1f5f9;
+    background: #FFF0F3;
 }
 
 /* INLINE EXPANDABLE SEARCH */
@@ -693,8 +702,9 @@ watch(
 }
 .search-container.is-expanded {
     width: 280px;
-    background: #f1f5f9;
+    background: #F8F9FA;
     padding-left: 12px;
+    border: 1px solid #E9ECEF;
 }
 .search-input {
     border: none;
@@ -787,13 +797,13 @@ watch(
 .search-item-price {
     font-size: 0.9rem;
     font-weight: 700;
-    color: #0288d1; /* Ocean blue theme */
+    color: #E63B6F;
 }
 .search-view-all {
     padding: 14px;
     text-align: center;
     background: #f8fafc;
-    color: #0288d1;
+    color: #E63B6F;
     font-weight: 700;
     font-size: 0.9rem;
     cursor: pointer;
@@ -813,7 +823,7 @@ watch(
     position: absolute;
     top: -4px;
     right: -6px;
-    background: #0288d1;
+    background: #E63B6F;
     color: #fff;
     font-size: 0.65rem;
     font-weight: 700;
@@ -842,7 +852,7 @@ watch(
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: #3b82f6;
+    background: #E63B6F;
     color: #fff;
     display: flex;
     align-items: center;
@@ -881,7 +891,7 @@ watch(
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #3b82f6;
+    background: #E63B6F;
     color: #fff;
     display: flex;
     align-items: center;
@@ -941,11 +951,11 @@ watch(
     display: flex;
     align-items: center;
     gap: 6px;
-    background: linear-gradient(135deg, #0288d1, #02bcec);
+    background: linear-gradient(135deg, #E63B6F, #d82f65);
     color: #fff;
     padding: 10px 16px;
     border-radius: 30px;
-    box-shadow: 0 6px 16px rgba(2, 136, 209, 0.3);
+    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
     font-weight: 800;
     font-size: 0.85rem;
     letter-spacing: 0.5px;
@@ -959,15 +969,15 @@ watch(
 @keyframes flash-pulse {
     0% {
         transform: scale(1);
-        box-shadow: 0 6px 16px rgba(2, 136, 209, 0.3);
+        box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
     }
     50% {
         transform: scale(1.05);
-        box-shadow: 0 8px 20px rgba(2, 136, 209, 0.5);
+        box-shadow: 0 8px 20px rgba(230, 59, 111, 0.5);
     }
     100% {
         transform: scale(1);
-        box-shadow: 0 6px 16px rgba(2, 136, 209, 0.3);
+        box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
     }
 }
 

@@ -7,46 +7,9 @@ import ClientLayout from "../layouts/ClientLayout.vue";
 import Home from "../Pages/Client/Home/Home.vue";
 
 // ==================== LAZY LOADED PAGES ====================
-// Mỗi page sẽ được tải riêng khi user truy cập → giảm bundle size ban đầu
 
-// Client pages
-const Product = () => import("../Pages/Client/Home/Product.vue");
-const ProductDetail = () => import("../Pages/Client/Home/productDetail.vue");
-const Coupon = () => import("../Pages/Client/Home/Coupon.vue")
-const FlashSale = () => import("../Pages/Client/Home/FlashSale.vue")
-const ProductCardDemo = () => import("../Pages/Client/Home/ProductCardDemo.vue")
-const Cart = () => import("../Pages/Client/Cart/Index.vue")
-const Checkout = () => import("../Pages/Client/Cart/Checkout.vue")
-const OrderSuccess = () => import("../Pages/Client/Cart/OrderSuccess.vue")
-const PaymentResult = () => import("../Pages/Client/Payment/PaymentResult.vue")
-
-// Profile
-const ProfileLayout = () => import("../Pages/Client/Profile/ProfileLayout.vue");
-const ProfileInfo = () => import("../Pages/Client/Profile/ProfileInfo.vue");
-const ProfileAddress = () => import("../Pages/Client/Profile/ProfileAddress.vue");
-const Address = () => import("../Pages/Client/Profile/Address.vue");
-const ProfileOrders = () => import("../Pages/Client/Profile/ProfileOrders.vue");
-const ProfileOrderDetail = () => import("../Pages/Client/Profile/ProfileOrderDetail.vue");
-const ProfileWishlist = () => import("../Pages/Client/Profile/ProfileWishlist.vue");
-const ProfileCoupon = () => import("../Pages/Client/Profile/ProfileCoupon.vue");
-const ProfileChangePassword = () => import("../Pages/Client/Profile/ProfileChangePassword.vue");
-
-// Auth
+// Auth - chỉ giữ Login (cần để đăng nhập Admin)
 const Login = () => import("../Pages/Client/Auth/login.vue");
-const Register = () => import("../Pages/Client/Auth/Register.vue");
-const Forgot = () => import("../Pages/Client/Auth/Forgot.vue");
-const GoogleCallback = () => import("../Pages/Client/Auth/GoogleCallback.vue");
-const FacebookCallback = () => import("../Pages/Client/Auth/FacebookCallback.vue");
-
-// Static pages
-const BrandStory = () => import("../Pages/Client/Static/BrandStory.vue");
-const Careers = () => import("../Pages/Client/Static/Careers.vue");
-const Terms = () => import("../Pages/Client/Static/Terms.vue");
-const Privacy = () => import("../Pages/Client/Static/Privacy.vue");
-const FAQ = () => import("../Pages/Client/Static/FAQ.vue");
-const ReturnPolicy = () => import("../Pages/Client/Static/ReturnPolicy.vue");
-const Contact = () => import("../Pages/Client/Static/Contact.vue");
-const ShoppingGuide = () => import("../Pages/Client/Static/ShoppingGuide.vue");
 
 // Admin (lazy load toàn bộ - chỉ tải khi admin truy cập)
 const AdminLayout = () => import("../layouts/AdminLayout.vue");
@@ -59,87 +22,21 @@ const AdminStaff = () => import("../Pages/admin/AdminStaff.vue");
 const AdminContact = () => import("../Pages/admin/AdminContact.vue");
 const AdminCoupon = () => import("../Pages/admin/AdminCoupon.vue");
 
-// Seller (lazy load toàn bộ - chỉ tải khi seller truy cập)
-const SellerLayout = () => import("../layouts/SellerLayout.vue");
-const SellerHome = () => import("../Pages/admin/SellerHome.vue");
-
 const routes = [
     {
         path: "/",
         component: ClientLayout,
         children: [
             { path: "", name: "home", component: Home, meta: { title: 'Trang chủ' } },
-            { path: "product", name: "product", component: Product, meta: { title: 'Sản phẩm' } },
-            { path: "product-cards-demo", name: "product-cards-demo", component: ProductCardDemo, meta: { title: 'Danh mục 20 Card' } },
-            { path: "product/:slug", name: "product-detail", component: ProductDetail, meta: { title: 'Chi tiết sản phẩm' } },
-            { path: "about", name: "brand-story", component: BrandStory, meta: { title: 'Câu chuyện thương hiệu' } },
-            { path: "careers", name: "careers", component: Careers, meta: { title: 'Tuyển dụng' } },
-            { path: "terms", name: "terms", component: Terms, meta: { title: 'Điều khoản sử dụng' } },
-            { path: "privacy", name: "privacy", component: Privacy, meta: { title: 'Chính sách bảo mật' } },
-            { path: "faq", name: "faq", component: FAQ, meta: { title: 'Câu hỏi thường gặp' } },
-            { path: "return-policy", name: "return-policy", component: ReturnPolicy, meta: { title: 'Chính sách đổi trả' } },
-            { path: "shopping-guide", name: "shopping-guide", component: ShoppingGuide, meta: { title: 'Hướng dẫn mua hàng' } },
-            { path: "coupon", name: "coupon", component: Coupon, meta: { title: 'Mã giảm giá' } },
-            { path: "flash-sale", name: "flash-sale", component: FlashSale, meta: { title: 'Flash Sale ⚡' } },
-            { path: "cart", name: "cart", component: Cart, meta: { requiresAuth: true, title: 'Giỏ hàng' } },
-            { path: "checkout", name: "checkout", component: Checkout, meta: { requiresAuth: true, title: 'Thanh toán' } },
-            { path: "order-success/:order_code", name: "order-success", component: OrderSuccess, meta: { requiresAuth: true, title: 'Đặt hàng thành công' } },
-            { path: "payment/result", name: "payment-result", component: PaymentResult, meta: { title: 'Kết quả thanh toán' } },
-            // Profile routes (nested layout)
-            {
-                path: "profile",
-                component: ProfileLayout,
-                meta: { requiresAuth: true },
-                children: [
-                    { path: "", name: "profile", component: ProfileInfo },
-                    { path: "addresses", name: "profile-addresses", component: ProfileAddress },
-                    { path: "address", name: "profile-address", component: Address },
-                    { path: "orders", name: "profile-orders", component: ProfileOrders },
-                    { path: "orders/:id", name: "profile-order-detail", component: ProfileOrderDetail },
-                    { path: "wishlist", name: "profile-wishlist", component: ProfileWishlist },
-                    { path: "change-password", name: "profile-change-password", component: ProfileChangePassword },
-                    { path: "coupon", name: "profile-coupon", component: ProfileCoupon },
-                    { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue") },
-                ],
-            },
         ],
     },
-    // Auth routes (không có layout header/footer)
+    // Auth routes - chỉ giữ Login cho Admin
     {
         path: "/client/login",
         name: "login",
         component: Login,
         meta: { guest: true, title: 'Đăng nhập' },
     },
-    {
-        path: "/client/register",
-        name: "register",
-        component: Register,
-        meta: { guest: true, title: 'Đăng ký' },
-    },
-    {
-        path: "/client/forgot",
-        name: "forgot",
-        component: Forgot,
-        meta: { guest: true, title: 'Quên mật khẩu' },
-    },
-    {
-        path: "/api/auth/google/callback",
-        name: "google-callback",
-        component: GoogleCallback,
-    },
-    {
-        path: "/api/auth/facebook/callback",
-        name: "facebook-callback",
-        component: FacebookCallback,
-    },
-    {
-        path: "/contact",
-        name: "contact",
-        component: Contact,
-        meta: { title: 'Liên hệ' },
-    },
-    { path: "/product-cards-demo", name: "product-cards-demo", component: ProductCardDemo, meta: { title: 'Danh mục 20 Card' } },
     // Admin routes
     {
         path: "/admin",
@@ -284,12 +181,6 @@ const routes = [
                 component: () => import("../Pages/admin/AdminAttendanceList.vue"),
                 meta: { roles: ['admin'], title: 'Danh sách Chấm công' },
             },
-            {
-                path: "stats",
-                name: "admin-stats",
-                component: () => import("../Pages/admin/AdminStats.vue"),
-                meta: { roles: ['admin'], title: 'Thống kê' },
-            },
         ],
     },
 
@@ -331,7 +222,7 @@ router.beforeEach((to, from) => {
         }
     }
 
-    // Route dành cho guest (login, register) — nếu đã login thì redirect
+    // Route dành cho guest (login) — nếu đã login thì redirect
     if (to.matched.some(record => record.meta.guest)) {
         if (token && user) {
             if (user.role === 'admin') {

@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import { useFavorites } from "@/composables/useFavorites";
+// import { useFavorites } from "@/composables/useFavorites";
 
 const props = defineProps({
     product: {
@@ -9,18 +9,11 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(["unfavorite"]);
-const { isFavorited, toggleFavorite } = useFavorites();
+const isFavorited = (id) => false;
+const toggleFavorite = async (id) => false;
 
 const handleToggleFav = async () => {
-    const pId = props.product.id || props.product.product_id;
-    if (!pId) return;
-
-    const wasFavorited = isFavorited(pId);
-    const success = await toggleFavorite(pId);
-    if (success && wasFavorited) {
-        emit("unfavorite", pId);
-    }
+    // Feature temporarily disabled
 };
 
 const handleAddToCart = (e) => {
@@ -34,10 +27,7 @@ const handleAddToCart = (e) => {
 <template>
     <div class="product-card">
         <router-link
-            :to="{
-                name: 'product-detail',
-                params: { slug: props.product.slug },
-            }"
+            to="/"
             class="text-decoration-none card-link"
         >
             <div class="img-frame">
@@ -115,7 +105,7 @@ const handleAddToCart = (e) => {
     width: 100%;
     background:#fff; 
     border-radius: 16px; 
-    box-shadow: 0 5px 15px rgba(0,0,0,0.05); 
+    box-shadow: 0 4px 15px rgba(45, 52, 70, 0.08); 
     padding-bottom: 16px;
     height: 100%;
     transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s;
@@ -123,7 +113,7 @@ const handleAddToCart = (e) => {
 
 .card-link:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0,0,0,0.08); 
+    box-shadow: 0 12px 24px rgba(45, 52, 70, 0.1); 
 }
 
 .img-frame {
@@ -172,7 +162,7 @@ const handleAddToCart = (e) => {
 }
 
 .badge-hot { background: #0f172a; }
-.badge-new { background: var(--ocean-blue); }
+.badge-new { background: #E63B6F; }
 
 /* Favorite button top right */
 .fav-top-btn {
@@ -219,10 +209,10 @@ const handleAddToCart = (e) => {
     width:46px; 
     height:46px; 
     border-radius:50%; 
-    background:var(--ocean-blue); 
+    background:#E63B6F; 
     color:white; 
     border: 3px solid #ffffff; 
-    box-shadow: 0 4px 10px rgba(2,136,209,0.35); 
+    box-shadow: 0 4px 10px rgba(230, 59, 111, 0.35); 
     z-index:11; 
     cursor:pointer; 
     display: flex;
@@ -237,7 +227,7 @@ const handleAddToCart = (e) => {
 
 .fab-btn:hover { 
     transform:scale(1.1); 
-    background: #0277bd;
+    background: #d82f65;
 }
 
 .info { 
@@ -270,12 +260,12 @@ const handleAddToCart = (e) => {
 }
 
 .card-link:hover .name {
-    color: var(--ocean-blue);
+    color: #E63B6F;
 }
 
 .price { 
     font-weight: 700; 
-    color: var(--ocean-blue);
+    color: #E63B6F;
     font-size: 1rem;
     margin-top: auto;
 }

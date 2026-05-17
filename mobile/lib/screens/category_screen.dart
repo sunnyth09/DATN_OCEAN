@@ -6,6 +6,7 @@ import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../productDetail.dart';
 import '../widgets/shimmer_loading.dart';
+import '../config/app_config.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -560,7 +561,7 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
     final name = product['name']?.toString() ?? 'Sản phẩm';
     final rawPrice = product['min_price'] ?? (product['lowest_price_variant'] is Map ? product['lowest_price_variant']['price'] : 0);
     final rawImage = product['thumbnail_url']?.toString() ?? '';
-    final imageUrl = rawImage.isEmpty ? '' : rawImage.startsWith('http') ? rawImage : 'http://127.0.0.1:8383/api/image-proxy?path=$rawImage';
+    final imageUrl = AppConfig.imageUrl(rawImage);
 
     // Random badge for display
     final isFav = product['is_favorited'] == true || product['is_favorited'] == 1;

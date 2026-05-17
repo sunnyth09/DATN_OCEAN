@@ -2,7 +2,7 @@
   <div class="overview-grid">
     <!-- Revenue -->
     <div class="stat-card ocean-card">
-      <div class="stat-icon" style="background: linear-gradient(135deg, #0288d1, #4fc3f7)">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #E63B6F, #4fc3f7)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
       </div>
       <div class="stat-content">
@@ -117,8 +117,8 @@ const formatCurrency = (val) => {
 
 .stat-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(2, 136, 209, 0.1);
-  border-color: rgba(2, 136, 209, 0.3);
+  box-shadow: 0 12px 24px rgba(230, 59, 111, 0.1);
+  border-color: rgba(230, 59, 111, 0.3);
 }
 
 .stat-icon {
@@ -206,7 +206,7 @@ const formatCurrency = (val) => {
   font-weight: 800;
 }
 
-.blue-text { color: var(--ocean-blue); }
+.blue-text { color: #E63B6F; }
 .orange-text { color: #f57c00; }
 .red-text { color: #d32f2f; }
 

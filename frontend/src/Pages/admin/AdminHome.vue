@@ -73,7 +73,7 @@
       <h3 class="section-title">Thao tác nhanh</h3>
       <div class="actions-grid">
         <router-link to="/admin/product" class="action-item ocean-card">
-          <div class="action-icon" style="background: var(--ocean-blue)">
+          <div class="action-icon" style="background: #E63B6F">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
           <span>Thêm sản phẩm</span>
@@ -109,7 +109,7 @@ const stats = ref([
   {
     title: 'Tổng doanh thu', value: '...', change: '', isUp: true,
     icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
-    iconBg: '#0288d1',
+    iconBg: '#E63B6F',
   },
   {
     title: 'Tổng đơn hàng', value: '...', change: '', isUp: true,
@@ -170,8 +170,8 @@ onMounted(async () => {
 .welcome-card {
   padding: 28px 30px;
   margin-bottom: 24px;
-  background: linear-gradient(135deg, rgba(2, 136, 209, 0.05) 0%, rgba(79, 195, 247, 0.08) 100%);
-  border: 1px solid rgba(2, 136, 209, 0.1);
+  background: linear-gradient(135deg, rgba(230, 59, 111, 0.05) 0%, rgba(79, 195, 247, 0.08) 100%);
+  border: 1px solid rgba(230, 59, 111, 0.1);
 }
 .welcome-title {
   font-size: 1.5rem;
@@ -179,7 +179,7 @@ onMounted(async () => {
   color: var(--text-main);
   margin-bottom: 6px;
 }
-.highlight { color: var(--ocean-blue); }
+.highlight { color: #E63B6F; }
 .welcome-sub {
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -201,9 +201,9 @@ onMounted(async () => {
   transition: all 0.2s;
 }
 .stat-card:hover { 
-  border-color: rgba(2, 136, 209, 0.25); 
+  border-color: rgba(230, 59, 111, 0.25); 
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(2, 136, 209, 0.08);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.08);
 }
 .stat-icon {
   width: 44px; height: 44px;
@@ -238,7 +238,7 @@ onMounted(async () => {
 .card-title { font-size: 1rem; font-weight: 800; color: var(--text-main); }
 .link-all {
   font-size: 0.8rem; font-weight: 600;
-  color: var(--ocean-blue); text-decoration: none;
+  color: #E63B6F; text-decoration: none;
 }
 .link-all:hover { color: var(--ocean-bright); text-decoration: underline; }
 
@@ -250,7 +250,7 @@ onMounted(async () => {
   font-family: var(--font-inter); font-size: 0.75rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s;
 }
-.tab.active { background: var(--ocean-blue); color: white; }
+.tab.active { background: #E63B6F; color: white; }
 .tab:hover:not(.active) { color: var(--text-main); }
 
 /* Bar chart */
@@ -262,7 +262,7 @@ onMounted(async () => {
 .bar-track { height: 160px; display: flex; align-items: flex-end; width: 100%; justify-content: center; }
 .bar-fill {
   width: 32px; border-radius: 6px 6px 2px 2px;
-  background: var(--ocean-blue);
+  background: #E63B6F;
   position: relative; transition: all 0.2s; cursor: pointer;
   min-height: 12px;
 }
@@ -284,7 +284,7 @@ onMounted(async () => {
   padding: 12px; border-radius: 8px;
   transition: all 0.2s; border: 1px solid transparent;
 }
-.order-row:hover { background: var(--hover-bg); border-color: rgba(2, 136, 209, 0.1); }
+.order-row:hover { background: var(--hover-bg); border-color: rgba(230, 59, 111, 0.1); }
 .order-avatar {
   width: 38px; height: 38px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
@@ -301,7 +301,7 @@ onMounted(async () => {
 }
 .s-done { background: rgba(38, 166, 154, 0.15); color: #167a70; }
 .s-pending { background: rgba(255, 167, 38, 0.15); color: #e65100; }
-.s-shipped { background: rgba(3, 169, 244, 0.15); color: var(--ocean-blue); }
+.s-shipped { background: rgba(3, 169, 244, 0.15); color: #E63B6F; }
 
 /* Quick Actions */
 .section-title { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 14px; }
@@ -312,9 +312,9 @@ onMounted(async () => {
   transition: all 0.2s;
 }
 .action-item:hover { 
-  border-color: rgba(2, 136, 209, 0.3); 
+  border-color: rgba(230, 59, 111, 0.3); 
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(2, 136, 209, 0.08); 
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.08); 
 }
 .action-item span { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
 .action-icon {

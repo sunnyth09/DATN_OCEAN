@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import '../productDetail.dart';
+import '../config/app_config.dart';
 
 class FavoriteScreen extends StatefulWidget {
   const FavoriteScreen({super.key});
@@ -137,11 +138,8 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
             price = product['min_price'];
           }
 
-          String imageUrl = '';
           final rawImage = (product['main_image'] is Map ? product['main_image']['image_url'] : null) ?? product['thumbnail_url'] ?? '';
-          if (rawImage.toString().isNotEmpty) {
-            imageUrl = rawImage.toString().startsWith('http') ? rawImage.toString() : 'http://127.0.0.1:8383/api/image-proxy?path=$rawImage';
-          }
+          final imageUrl = AppConfig.imageUrl(rawImage.toString());
 
           return GestureDetector(
             onTap: () {

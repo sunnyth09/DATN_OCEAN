@@ -4,8 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'main_wrapper.dart';
 import 'review_screen.dart';
+import '../config/app_config.dart';
 
-const String kBaseUrl = 'http://127.0.0.1:8383/api';
+const String kBaseUrl = AppConfig.kBaseUrl;
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -40,7 +41,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (mounted) {
           setState(() {
             orderData = data['data'];
@@ -231,7 +232,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           fetchOrderDetail();
         }
       } else {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(data['message'] ?? 'Không thể huỷ đơn hàng!'),
@@ -700,7 +701,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   );
 
   String _resolveImageUrl(String raw) {
-    if (raw.isEmpty) return '';
-    return raw.startsWith('http') ? raw : 'http://127.0.0.1:8383/api/image-proxy?path=$raw';
+    return AppConfig.imageUrl(raw);
   }
 }

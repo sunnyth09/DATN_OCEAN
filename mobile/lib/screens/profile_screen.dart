@@ -9,6 +9,7 @@ import 'favorite_screen.dart';
 import 'edit_profile_screen.dart';
 import 'pos_scanner_screen.dart';
 import 'attendance_screen.dart';
+import '../config/app_config.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -202,12 +203,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 CircleAvatar(
                   radius: 36,
                   backgroundColor: Colors.white,
-                  backgroundImage: avatar != null
-                      ? NetworkImage(
-                          avatar.toString().startsWith('http')
-                              ? avatar.toString()
-                              : 'http://127.0.0.1:8383/api/image-proxy?path=$avatar',
-                        )
+                  backgroundImage: avatar != null && AppConfig.imageUrl(avatar.toString()).isNotEmpty
+                      ? NetworkImage(AppConfig.imageUrl(avatar.toString()))
                       : null,
                   child: avatar == null
                       ? const Icon(Icons.person, size: 40, color: Color(0xFF0EA5E9))

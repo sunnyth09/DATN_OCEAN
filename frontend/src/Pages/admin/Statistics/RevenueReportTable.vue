@@ -95,7 +95,7 @@ const formatCurrency = (val) => {
 
 .text-right { text-align: right; }
 .text-center { text-align: center; }
-.text-ocean { color: var(--ocean-blue); }
+.text-ocean { color: #E63B6F; }
 
 .empty-cell {
   padding: 40px !important;

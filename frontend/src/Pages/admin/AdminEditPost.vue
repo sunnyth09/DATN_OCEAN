@@ -223,7 +223,7 @@ const handleSubmit = async () => {
             <div class="page-header animate-in">
                 <div class="header-info">
                     <h1 class="page-title">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
                         Sửa bài viết
@@ -376,10 +376,10 @@ const handleSubmit = async () => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: var(--ocean-blue); color: white;
+    background: #E63B6F; color: white;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s;
-    box-shadow: 0 4px 10px rgba(2, 136, 209, 0.2);
+    box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 .btn-primary:hover {
     background: var(--ocean-bright); transform: translateY(-2px);
@@ -418,7 +418,7 @@ const handleSubmit = async () => {
     color: var(--text-main); font-family: var(--font-inter);
     font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.form-control:focus { border-color: var(--ocean-blue); outline: none; box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1); background: white;}
+.form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); background: white;}
 .form-control::placeholder { color: var(--text-light); }
 .form-select {
     appearance: none;
@@ -433,10 +433,10 @@ const handleSubmit = async () => {
     background: var(--ocean-deepest); transition: all 0.2s;
     min-height: 140px; display: flex; align-items: center; justify-content: center;
 }
-.image-upload-box:hover { border-color: var(--ocean-blue); background: #f0f9ff; }
+.image-upload-box:hover { border-color: #E63B6F; background: #FFF0F3; }
 .file-input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
 .upload-label { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-light); pointer-events: none;}
-.upload-label svg { color: var(--ocean-blue); }
+.upload-label svg { color: #E63B6F; }
 .preview-box { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
 .img-preview { width: 100%; height: 100%; object-fit: cover; }
 .btn-remove-img {
@@ -453,7 +453,7 @@ const handleSubmit = async () => {
 .toggle-input { opacity: 0; width: 0; height: 0; }
 .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--text-light); transition: .3s; border-radius: 24px; }
 .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
-.toggle-input:checked + .toggle-slider { background-color: var(--ocean-blue); }
+.toggle-input:checked + .toggle-slider { background-color: #E63B6F; }
 .toggle-input:checked + .toggle-slider:before { transform: translateX(20px); }
 
 /* Quill Custom Styles */
@@ -466,8 +466,8 @@ const handleSubmit = async () => {
     border: 1px solid var(--border-color); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;
     border-top: none; font-family: var(--font-inter); font-size: 0.95rem; background: white; transition: border-color 0.2s;
 }
-.quill-wrapper:focus-within :deep(.ql-toolbar.ql-snow) { border-color: var(--ocean-blue); }
-.quill-wrapper:focus-within :deep(.ql-container.ql-snow) { border-color: var(--ocean-blue); box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1); }
+.quill-wrapper:focus-within :deep(.ql-toolbar.ql-snow) { border-color: #E63B6F; }
+.quill-wrapper:focus-within :deep(.ql-container.ql-snow) { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .quill-wrapper :deep(.ql-editor) { color: var(--text-main); }
 .editor-long :deep(.ql-editor) { min-height: 350px; }
 </style>

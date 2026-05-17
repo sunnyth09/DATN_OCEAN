@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
 
-const String kBaseUrl = 'http://127.0.0.1:8383/api';
+const String kBaseUrl = AppConfig.kBaseUrl;
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});

@@ -281,7 +281,7 @@ const selectedCategoryNames = computed(() => {
         <div class="page-header animate-in">
             <div class="header-info">
                 <h1 class="page-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
                     </svg>
                     Quản lý Mã giảm giá
@@ -588,7 +588,7 @@ const selectedCategoryNames = computed(() => {
                 <div class="modal-box ocean-card" style="max-width: 600px;">
                     <div class="modal-head">
                         <h3>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ocean-blue)" stroke-width="2.5" style="vertical-align:middle;margin-right:6px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" style="vertical-align:middle;margin-right:6px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
                             Lượt dùng: <strong style="color:#d84315">{{ usagesData?.coupon?.code }}</strong>
                         </h3>
                         <button class="btn-close" @click="closeUsagesModal">
@@ -702,10 +702,10 @@ const selectedCategoryNames = computed(() => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: var(--ocean-blue); color: white;
+    background: #E63B6F; color: white;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s;
-    box-shadow: 0 4px 10px rgba(2, 136, 209, 0.2);
+    box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 .btn-primary:hover {
     background: var(--ocean-bright); transform: translateY(-2px);
@@ -733,8 +733,8 @@ const selectedCategoryNames = computed(() => {
     transition: all 0.2s;
 }
 .search-box:focus-within {
-    border-color: var(--ocean-blue); background: white;
-    box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1);
+    border-color: #E63B6F; background: white;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 .search-box svg { color: var(--text-light); flex-shrink: 0; }
 .search-input {
@@ -751,13 +751,13 @@ const selectedCategoryNames = computed(() => {
     background: var(--ocean-deepest); color: var(--text-muted);
     font-size: 0.8rem; font-weight: 600;
 }
-.stat-pill svg { color: var(--ocean-blue); }
+.stat-pill svg { color: #E63B6F; }
 
 /* Loading & Empty */
 .loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
 .spinner {
     width: 30px; height: 30px; border: 3px solid var(--border-color);
-    border-top-color: var(--ocean-blue); border-radius: 50%;
+    border-top-color: #E63B6F; border-radius: 50%;
     animation: spin 1s linear infinite; margin: 0 auto 16px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -851,7 +851,7 @@ const selectedCategoryNames = computed(() => {
     color: var(--text-main); font-family: var(--font-inter);
     font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.form-control:focus { border-color: var(--ocean-blue); outline: none; box-shadow: 0 0 0 3px rgba(2, 136, 209, 0.1); }
+.form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .form-select {
     appearance: none; cursor: pointer;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23627d98' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -872,7 +872,7 @@ const selectedCategoryNames = computed(() => {
     position: absolute; content: ""; height: 18px; width: 18px;
     left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;
 }
-.toggle-input:checked + .toggle-slider { background-color: var(--ocean-blue); }
+.toggle-input:checked + .toggle-slider { background-color: #E63B6F; }
 .toggle-input:checked + .toggle-slider:before { transform: translateX(20px); }
 .toggle-text { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
 
@@ -901,7 +901,7 @@ const selectedCategoryNames = computed(() => {
     cursor: pointer; transition: all 0.2s; font-size: 0.85rem;
     color: var(--text-main); font-family: var(--font-inter);
 }
-.cat-dropdown-trigger:hover { border-color: var(--ocean-blue); box-shadow: 0 0 0 3px rgba(2,136,209,0.08); }
+.cat-dropdown-trigger:hover { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230, 59, 111,0.08); }
 .cat-dropdown-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 
 .cat-selected-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
@@ -952,9 +952,9 @@ const selectedCategoryNames = computed(() => {
     cursor: pointer; flex-shrink: 0; position: relative;
     background: #fff; transition: all 0.15s;
 }
-.cat-dropdown-item input[type="checkbox"]:hover { border-color: var(--ocean-blue); }
+.cat-dropdown-item input[type="checkbox"]:hover { border-color: #E63B6F; }
 .cat-dropdown-item input[type="checkbox"]:checked {
-    background: var(--ocean-blue); border-color: var(--ocean-blue);
+    background: #E63B6F; border-color: #E63B6F;
 }
 .cat-dropdown-item input[type="checkbox"]:checked::after {
     content: ''; position: absolute; left: 4px; top: 1px;

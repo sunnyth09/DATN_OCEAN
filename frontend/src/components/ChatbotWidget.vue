@@ -707,7 +707,7 @@ async function sendMessage() {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+  background: linear-gradient(135deg, #dbeafe, rgba(230, 59, 111, 0.08));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -733,7 +733,7 @@ async function sendMessage() {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+  background: linear-gradient(135deg, #dbeafe, rgba(230, 59, 111, 0.08));
   display: flex;
   align-items: center;
   justify-content: center;

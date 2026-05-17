@@ -34,5 +34,10 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CouponSeeder::class,
         ]);
+
+        // Gọi CleanProductSeeder — Xóa sạch + tạo 100 SP thời trang
+        $this->call([
+            CleanProductSeeder::class,
+        ]);
     }
 }

@@ -4,10 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
+import '../config/app_config.dart';
 
 class AttendanceService {
-  // Thay url tương ứng với IP của bạn (127.0.0.1 cho giả lập)
-  static const String baseUrl = 'http://127.0.0.1:8383/api/attendance';
+  static const String baseUrl = '${AppConfig.kBaseUrl}/attendance';
   final _info = NetworkInfo();
 
   Future<String?> _getToken() async {
@@ -81,7 +81,7 @@ class AttendanceService {
         }),
       ).timeout(const Duration(seconds: 10));
 
-      return jsonDecode(response.body);
+      return jsonDecode(utf8.decode(response.bodyBytes));
     } catch (e) {
       return {'status': 'error', 'message': 'Không thể kết nối với máy chủ chấm công. Vui lòng kiểm tra lại mạng.'};
     }

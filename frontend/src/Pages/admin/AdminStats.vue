@@ -174,7 +174,7 @@ onMounted(() => {
 }
 
 .btn-ocean {
-  background: var(--ocean-blue);
+  background: #E63B6F;
   color: white;
   border: none;
 }
@@ -183,12 +183,12 @@ onMounted(() => {
 }
 
 .btn-outline-ocean {
-  border: 1px solid var(--ocean-blue);
-  color: var(--ocean-blue);
+  border: 1px solid #E63B6F;
+  color: #E63B6F;
   background: transparent;
 }
 .btn-outline-ocean:hover {
-  background: rgba(2, 136, 209, 0.1);
+  background: rgba(230, 59, 111, 0.1);
 }
 
 .spin {
@@ -218,7 +218,7 @@ onMounted(() => {
 <style>
 /* Scoped variables for dashboard to prevent bleeding into other admin pages */
 .dashboard {
-  --ocean-blue: #0288d1;
+  --ocean-blue: #E63B6F;
   --ocean-bright: #4fc3f7;
   --ocean-deepest: #01579b;
   --seafoam: #26a69a;

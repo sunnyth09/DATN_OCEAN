@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'services/auth_service.dart';
 import 'services/api_client.dart';
 import 'screens/login_screen.dart';
+import 'config/app_config.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -196,10 +197,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final double rawValue = double.tryParse(priceRaw.toString()) ?? 0;
     final String oldPrice = _formatPrice(rawValue * 1.15);
 
-    String imageUrl = '';
-    if (rawImage.isNotEmpty) {
-      imageUrl = rawImage.startsWith('http') ? rawImage : 'http://127.0.0.1:8383/api/image-proxy?path=$rawImage';
-    }
+    final imageUrl = AppConfig.imageUrl(rawImage);
 
     String description = _product['description'] ?? 'Chưa có mô tả sản phẩm.';
     description = description.replaceAll(RegExp(r'<[^>]*>'), '').replaceAll('&nbsp;', ' ').trim();

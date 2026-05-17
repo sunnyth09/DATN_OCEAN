@@ -1,0 +1,143 @@
+=======================================================================
+               PHÂN TÍCH KIẾN TRÚC HỆ THỐNG OCEAN_PHP3
+=======================================================================
+
+======= 1. TỔNG QUAN DỰ ÁN =======
+- Kiến trúc hệ thống: Mô hình Client-Server phân tách hoàn toàn (Decoupled Architecture).
+  + Backend: Laravel RESTful API (PHP).
+  + Frontend: Single Page Application (SPA) xây dựng bằng VueJS 3 và Vite.
+  + Môi trường: Docker container (Nginx, MySQL, PHP, Redis nếu có).
+
+- Cách giao tiếp: 
+  + Frontend giao tiếp với Backend qua Axios HTTP Client.
+  + Xác thực (Authentication) qua JWT Token.
+  + Giao tiếp Realtime qua Websocket (Laravel Echo / Pusher) cho Chat & Notification.
+
+- Cấu trúc thư mục chính:
+  /backend: Chứa toàn bộ source code Laravel (API, Database, Logic xử lý).
+  /frontend: Chứa mã nguồn Vue SPA (Components, Views, Router, Assets).
+  /mobile: Source code Flutter app.
+  /docker-compose.yml: File cấu hình triển khai môi trường cục bộ.
+
+======= 2. BACKEND (LARAVEL) =======
+
+-- ROUTES (routes/api.php) --
+- Định tuyến hoàn toàn bằng API, không dùng view (blade).
+- Các routes chính:
+  + Auth: /login, /register, /forgot-password, OAuth (Google/Facebook).
+  + Client: /products, /categories, /cart, /profile, /orders, /payment (VNPay, MoMo).
+  + Admin: /admin/users, /admin/products, /admin/pos, /admin/attendance (nhóm quyền Role-based).
+
+-- CONTROLLERS --
+- ProductController: Quản lý danh sách, chi tiết, filter sản phẩm. Import/Export excel.
+- CartController: Khởi tạo giỏ hàng, thêm, sửa, xóa sản phẩm (hỗ trợ variant kích thước/màu sắc), đề xuất mua kèm (Upsell).
+- AuthController: Xử lý đăng nhập, cấp JWT Token, Refresh token, đăng xuất.
+- PosController: Chức năng bán hàng tại quầy (Quét mã vạch, checkout trực tiếp).
+- OrderController & VNPay/MoMo Controller: Xử lý quy trình đặt hàng, tích hợp cổng thanh toán trực tuyến và Webhook (IPN).
+
+-- MODELS & DATABASE RELATIONSHIPS --
+- User: Đại diện cho người dùng, liên kết 1-N với Order, Cart, Address.
+- Product: Sản phẩm gốc. Chứa các quan hệ 1-N với ProductVariant.
+- ProductVariant: Biến thể (màu sắc, size). Chứa thông tin về giá (price) và tồn kho (stock).
+- Order & OrderItem: Đơn hàng, liên kết 1-N.
+- Cart & CartItem: Lưu trữ trạng thái giỏ hàng động của user (Status: active).
+
+-- MIDDLEWARE --
+- auth:api / auth:admin: Kiểm tra tính hợp lệ của JWT token cho User hoặc Quản trị.
+- throttle: Limit request (Rate limiting chống spam cho login, register, payment IPN).
+- role: Phân quyền admin/seller/staff (RBAC) để chặn truy cập trái phép vào các endpoint quan trọng.
+
+-- REQUEST / VALIDATION --
+- Validate dữ liệu đầu vào thông qua Request classes hoặc trực tiếp trong Controller (Vd: `$request->validate([...])`). Check số lượng tồn kho (stock) trước khi đưa vào giỏ hoặc thanh toán.
+
+======= 3. FRONTEND (VUEJS) =======
+
+-- CẤU TRÚC --
+- /src/Pages: Chứa các màn hình (Views) phân rã theo Client và Admin.
+- /src/components: Các UI component dùng chung (FreeshipBar, QuickAddSlider).
+- /src/router: Quản lý điều hướng page.
+- /src/composables: Hàm logic tái sử dụng (Composition API).
+
+-- ROUTER (src/router/index.js) --
+- Áp dụng kỹ thuật Lazy Loading (Dynamic Import `() => import(...)`) giúp giảm Bundle size, load web nhanh hơn.
+- Cấu hình layout động cho Client (ClientLayout) và Admin (AdminLayout).
+- Routing Guards: `beforeEach` chặn user chưa đăng nhập vào `/cart`, `/profile`, tự động chuyển hướng quyền admin (staff/seller).
+
+-- COMPONENTS --
+- Ví dụ: `Cart/Index.vue`
+  + Chức năng: Quản lý giao diện, cập nhật giỏ hàng trực tiếp.
+  + State: `cartItems`, `totalPrice`, `loading` quản lý bằng `ref()`, `computed()`.
+  + Giao tiếp: Emit event/dispatch (window.dispatchEvent) để chia sẻ data giữa các component độc lập (như Slider với Cart).
+
+-- STATE MANAGEMENT & SESSION --
+- Không sử dụng thư viện cồng kềnh (Vuex/Pinia). Quản lý state cục bộ trong `<script setup>` và dùng Composables (VD: `useCartUpsell`).
+- Quản trị Session xuyên tab: `src/sessionSync.js`. Dùng `storage` event broadcast Token giữa các tab khi user thao tác ở 1 tab. Giúp Token chỉ nằm trong `sessionStorage` (an toàn cao) mà vẫn hoạt động trên đa tab.
+
+-- API CALL (src/axios.js) --
+- Cấu hình Global Axios Instance.
+- Có Request Interceptor tự động nhét `Bearer + Token` vào Header.
+- Có Response Interceptor để check mã lỗi 401: Ngăn chặn tự động Refresh token nếu token hết hạn (Renew session không gián đoạn user).
+
+======= 4. LUỒNG CHỨC NĂNG CHÍNH =======
+
+A. LUỒNG ĐĂNG NHẬP (LOGIN FLOW)
+[User nhập Email/Pass]
+    ↓
+[Vue: Auth/login.vue] --- axios.post() ---> [API: /api/login]
+    ↓
+[Laravel: AuthController] --- Validate + Check DB ---> [Tạo JWT Token]
+    ↓
+[Response -> Vue] --- Lưu token vào sessionStorage ---> [sessionSync.js chia sẻ ra các tab]
+    ↓
+[Vue Router chuyển hướng Trang chủ / Admin]
+
+B. LUỒNG THÊM GIỎ HÀNG & CHỌN BIẾN THỂ (CART FLOW)
+[User click "Thêm vào giỏ" / Chọn màu, size trong Modal]
+    ↓
+[Vue Component] --- axios.post(/api/cart/items) ---> [API Request data: variant_id, qty]
+    ↓
+[Laravel: CartController] --- Kiểm tra `ProductVariant` (status, stock)
+    ↓
+[Model: Cart & CartItem] --- Insert / Update Quantity (Cộng dồn nếu đã có)
+    ↓
+[Response -> Vue] --- Báo success, Emit cập nhật số lượng badge
+
+C. LUỒNG ĐẶT HÀNG / THANH TOÁN (CHECKOUT FLOW)
+[User xác nhận thanh toán & phương thức (VNPay)]
+    ↓
+[Vue Component] --- axios.post(/api/orders) ---> [API Request]
+    ↓
+[Laravel: OrderController] --- Khởi tạo Order, OrderItems, trừ Stock, Tính phí Ship
+    ↓
+[Laravel: VNPayController] --- Sinh URL VNPay Hash, trả về SDK/URL
+    ↓
+[Vue Redirect] ---> [Cổng thanh toán VNPay] -> User nhập thẻ
+    ↓
+[VNPay IPN Callback] ---> [Laravel: /api/payment/vnpay-ipn] -> [Update Model Order = PAID]
+    ↓
+[User Redirect về Web] ---> [Vue: OrderSuccess.vue] -> Fetch API hiển thị đơn
+
+D. LUỒNG MOBILE POS (BÁN HÀNG TẠI QUẦY)
+[Nhân viên quét mã vạch trên Mobile]
+    ↓
+[Mobile gọi API /api/pos/mobile-scan] ---> [Laravel: PosController]
+    ↓
+[Laravel Socket/Pusher] --- Emit Event `ScanProduct` ---> [Vue Admin POS Component Lắng nghe]
+    ↓
+[Vue POS Update Array Carts] ---> Cho phép thu ngân in bill.
+
+======= 5. ĐÁNH GIÁ CODE =======
+
+* ĐIỂM TỐT:
+- Cấu trúc thư mục sạch sẽ, module hóa tốt (SPA & REST API chuẩn).
+- Tối ưu hiệu năng FE: Dùng Lazy Loading route, không ôm đồm Vuex/Pinia cho dự án nhỏ/vừa.
+- Bảo mật tốt: JWT dùng SessionStorage thay vì LocalStorage kết hợp Cross-tab sync là một biện pháp kỹ thuật cực sáng tạo để chống XSS. Axios Token Refresh tự động giúp UX không gián đoạn.
+- Xử lý mượt luồng nghiệp vụ E-Commerce (Cart tracking by DB model thay vì LocalStorage cookie giúp đồng bộ app/web hoàn hảo, quản lý Stock Variant chặt chẽ).
+
+* ĐIỂM CHƯA TỐI ƯU / RỦI RO:
+- Frontend dùng Global Events (`window.dispatchEvent`) để đồng bộ nhỏ lẻ thay vì store global, khi dự án lớn/phức tạp có thể dẫn tới memory leak hoặc khó tracking event loop.
+- API Route file API.php khá dài (~450 dòng). Cần tổ chức refactor lại các routes vào từng file nhỏ (VD: `routes/api/admin.php`, `routes/api/client.php`).
+- Laravel Rate Limit (Throttle 10,1 cho Checkout/Flashsale) dùng IP dựa trên Session, có rủi ro nghẽn cổ chai với mạng NAT nội bộ. Cần cẩn trọng khi chạy event Flash Sale thực tế.
+- Frontend không thấy triển khai logic Server-Side Rendering (SSR). Do đó độ tối ưu SEO là một thách thức, phụ thuộc hoàn toàn vào Metadata Client.
+
+=================== KẾT THÚC ===================
