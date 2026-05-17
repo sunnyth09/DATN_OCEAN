@@ -5,6 +5,7 @@ import ClientLayout from "../layouts/ClientLayout.vue";
 
 // ==================== HOME PAGES (eager load - trang chính) ====================
 import Home from "../Pages/Client/Home/Home.vue";
+import Cart from "../Pages/Client/Cart/index.vue";
 
 // ==================== LAZY LOADED PAGES ====================
 
@@ -28,6 +29,13 @@ const routes = [
         component: ClientLayout,
         children: [
             { path: "", name: "home", component: Home, meta: { title: 'Trang chủ' } },
+        ],
+    },
+    {
+        path: "/cart",
+        component: ClientLayout,
+        children: [
+            { path: "", name: "cart", component: Cart, meta: { title: 'Trang chủ' } },
         ],
     },
     // Auth routes - chỉ giữ Login cho Admin

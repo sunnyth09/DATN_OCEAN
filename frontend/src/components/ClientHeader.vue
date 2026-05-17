@@ -443,7 +443,7 @@ watch(
                 </router-link>
 
                 <!-- Giỏ hàng -->
-                <router-link to="/" class="icon-btn cart-icon-btn">
+                <router-link to="/cart" class="icon-btn cart-icon-btn">
                     <div class="cart-icon-wrapper">
                         <svg
                             width="20"
