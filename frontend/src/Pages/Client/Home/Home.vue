@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../../axios.js";
@@ -530,7 +530,7 @@ onMounted(() => {
 }
 
 .community-content {
-    background: #1a1a2e; padding: 64px 48px 64px 64px;
+    background: #2D3436; padding: 64px 48px 64px 64px;
     display: flex; flex-direction: column; justify-content: center;
 }
 
