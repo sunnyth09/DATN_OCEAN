@@ -1,5 +1,5 @@
-﻿<script setup>
-import { ref, onMounted, onUnmounted, computed } from "vue";
+<script setup>
+import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../../axios.js";
 import ProductCard from "../../../components/ProductCard.vue";
@@ -8,31 +8,21 @@ import ProductSkeleton from "../../../components/ProductSkeleton.vue";
 const router = useRouter();
 const Products = ref([]);
 const Categories = ref([]);
-const categoryProducts = ref({});
 const isLoadingFeatured = ref(true);
 const isLoadingCategories = ref(true);
 
 const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
 
-const NEW_IMAGES = [
-    'products/luxury_watch_1776303372051.png','products/leather_wallet_1776303390698.png',
-    'products/sunglasses_1776303412493.png','products/silver_necklace_1776303426962.png',
-    'products/leather_loafer_1776303445224.png','products/white_sneaker_1776303469345.png',
-    'products/womens_clutch_1776303489059.png','products/card_holder_1776303513454.png',
-    'products/zippered_wallet_1776303528282.png','products/button_down_shirt_1776303542708.png',
-    'products/summer_dress_1776303557050.png','products/denim_jeans_1776303576632.png',
-    'products/light_jacket_1776303589362.png','products/leather_belt_1776303603972.png'
-];
-let globalImageIdx = 0;
-
 const getImageUrl = (path) => {
-    if (!path || path === '0') {
-        const url = `${BASE_URL}/storage/${NEW_IMAGES[globalImageIdx % NEW_IMAGES.length]}`;
-        globalImageIdx++;
-        return url;
-    }
+    if (!path || path === '0') return '';
     if (path.startsWith('http')) return path;
     return `${BASE_URL}/storage/${path}`;
+};
+
+const getCategoryImage = (cat) => {
+    if (cat.image) return getImageUrl(cat.image);
+    if (cat.image_url) return getImageUrl(cat.image_url);
+    return '';
 };
 
 const mapProduct = (item) => {
@@ -56,38 +46,54 @@ const mapProduct = (item) => {
     };
 };
 
-Products.value = [
-    { id: 1, name: 'Vợt Cầu Lông Yonex Astrox 88D Pro', price: '3.500.000 ₫', originalPrice: '4.000.000 ₫', discount_percent: 15, is_on_sale: true, image: 'https://cdn.shopvnb.com/uploads/gallery/vot-cau-long-yonex-astrox-88d-pro-chinh-hang_1711234907.webp', badge: 'Hot', slug: 'yonex-astrox-88d-pro', category_name: 'Vợt Cầu Lông' },
-    { id: 2, name: 'Giày Cầu Lông Mizuno Wave Claw 3', price: '2.100.000 ₫', originalPrice: '2.500.000 ₫', discount_percent: 16, is_on_sale: true, image: 'https://cdn.shopvnb.com/uploads/gallery/giay-cau-long-mizuno-wave-claw-3-trang-hong-chinh-hang_1714529068.webp', badge: 'Sale', slug: 'mizuno-wave-claw-3', category_name: 'Giày Cầu Lông' },
-    { id: 3, name: 'Balo Cầu Lông Yonex BA92012EX', price: '1.200.000 ₫', originalPrice: null, discount_percent: 0, is_on_sale: false, image: 'https://bizweb.dktcdn.net/100/172/291/products/26359-ba92012ex-black-2.jpg?v=1630138924040', badge: null, slug: 'yonex-ba92012ex', category_name: 'Balo Cầu Lông' },
-    { id: 4, name: 'Quả Cầu Lông Vina Star', price: '250.000 ₫', originalPrice: null, discount_percent: 0, is_on_sale: false, image: 'https://cdn.shopvnb.com/uploads/gallery/ong-cau-long-vina-star-xanh-2_1707283626.webp', badge: 'Hot', slug: 'vina-star', category_name: 'Phụ kiện' },
-    { id: 5, name: 'Vợt Cầu Lông Victor Thruster Ryuga II', price: '3.800.000 ₫', originalPrice: null, discount_percent: 0, is_on_sale: false, image: 'https://cdn.shopvnb.com/uploads/gallery/vot-cau-long-victor-thruster-ryuga-ii-chinh-hang-1.webp', badge: null, slug: 'victor-ryuga-ii', category_name: 'Vợt Cầu Lông' },
-    { id: 6, name: 'Áo Cầu Lông Yonex Trắng', price: '350.000 ₫', originalPrice: '450.000 ₫', discount_percent: 22, is_on_sale: true, image: 'https://bizweb.dktcdn.net/100/172/291/products/ao-cau-long-yonex-trang-1.jpg', badge: 'Sale', slug: 'ao-yonex-trang', category_name: 'Quần Áo' },
-    { id: 7, name: 'Giày Cầu Lông Yonex 65Z3', price: '2.800.000 ₫', originalPrice: '3.200.000 ₫', discount_percent: 12, is_on_sale: true, image: 'https://bizweb.dktcdn.net/100/172/291/products/giay-cau-long-yonex-shb-65z3-men-trang-do-chinh-hang.jpg', badge: null, slug: 'yonex-65z3', category_name: 'Giày Cầu Lông' },
-    { id: 8, name: 'Cước Cầu Lông Yonex BG66', price: '150.000 ₫', originalPrice: null, discount_percent: 0, is_on_sale: false, image: 'https://bizweb.dktcdn.net/100/172/291/products/bg66um-4-1.jpg', badge: 'Hot', slug: 'yonex-bg66', category_name: 'Phụ kiện' }
-];
+// ── Fetch danh mục từ API ──
+const fetchCategories = async () => {
+    isLoadingCategories.value = true;
+    try {
+        const res = await api.get('/categories');
+        const data = res.data?.data || res.data || [];
+        Categories.value = (Array.isArray(data) ? data : []).map(cat => ({
+            id: cat.category_id || cat.id,
+            name: cat.name,
+            slug: cat.slug || '',
+            image: getCategoryImage(cat),
+            product_count: cat.products_count || cat.product_count || 0,
+        }));
+    } catch (e) {
+        console.error('Lỗi tải danh mục:', e);
+    } finally {
+        isLoadingCategories.value = false;
+    }
+};
 
-Categories.value = [
-    { id: 1, name: 'Bóng chuyền', slug: 'bong-chuyen', image: BASE_URL + '/storage/categories/category_bong_chuyen_1776325154591.png' },
-    { id: 2, name: 'Cầu lông', slug: 'cau-long', image: BASE_URL + '/storage/categories/category_cau_long_1776325167694.png' },
-    { id: 3, name: 'Pickleball', slug: 'pickleball', image: BASE_URL + '/storage/categories/category_pickleball_1776325197526.png' },
-    { id: 4, name: 'Phụ kiện', slug: 'phu-kien', image: BASE_URL + '/storage/categories/category_phu_kien_the_thao_1776325207304.png' }
-];
+// ── Fetch sản phẩm từ API ──
+const fetchProducts = async () => {
+    isLoadingFeatured.value = true;
+    try {
+        const res = await api.get('/products', { params: { limit: 8, sort: 'newest' } });
+        const rawData = res.data?.data?.data || res.data?.data || res.data || [];
+        Products.value = (Array.isArray(rawData) ? rawData : []).map(mapProduct);
+    } catch (e) {
+        console.error('Lỗi tải sản phẩm:', e);
+    } finally {
+        isLoadingFeatured.value = false;
+    }
+};
 
-isLoadingFeatured.value = false;
-isLoadingCategories.value = false;
-
-// Featured category for the big card
+// ── Computed cho Equipment Section ──
 const featuredCategory = computed(() => Categories.value[0] || null);
-const featuredCatProduct = computed(() => null);
 const sideCategories = computed(() => Categories.value.slice(1, 3));
+// Sản phẩm nổi bật nhất (có sale hoặc hot) cho big card
+const featuredProduct = computed(() => {
+    return Products.value.find(p => p.badge === 'Hot' || p.is_on_sale) || Products.value[0] || null;
+});
 
 const catIcons = ['👟','🎒','⌚','👔','👗','🏃','🏷️'];
 const getCatIcon = (idx) => catIcons[idx % catIcons.length];
 
-onMounted(() => { 
-    // fetchProducts(); 
-    // fetchCategories(); 
+onMounted(() => {
+    fetchCategories();
+    fetchProducts();
 });
 </script>
 
@@ -107,14 +113,15 @@ onMounted(() => {
                 <h1 class="hero-title">Tốc độ.<br/>Sức mạnh.<br/>Chính xác.</h1>
                 <p class="hero-desc">Khám phá những thiết bị chất lượng cao, được thiết kế để nâng tầm kỹ năng và đưa bạn đến chiến thắng. Đam mê bắt đầu từ đây.</p>
                 <div class="hero-btns">
-                    <button class="btn-primary-hero" @click="() => {}">
+                    <router-link to="/product" class="btn-primary-hero">
                         Khám phá ngay
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                    </button>
-                    <button class="btn-outline-hero" @click="() => {}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                        Xem Video
-                    </button>
+                    </router-link>
+                    <router-link to="/flash-sale" class="btn-outline-hero">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>
+                        Flash Sale
+                    </router-link>
                 </div>
             </div>
         </section>
@@ -126,49 +133,66 @@ onMounted(() => {
             <div class="section-head">
                 <div>
                     <h2 class="section-title">Trang bị thiết yếu</h2>
-                    <p class="section-subtitle">Lựa chọn hàng đầu cho các lông thủ.</p>
+                    <p class="section-subtitle">Lựa chọn hàng đầu cho vận động viên.</p>
                 </div>
-                <button class="link-more  btn">
+                <router-link to="/product" class="link-more btn">
                     Xem tất cả
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </button>
+                </router-link>
             </div>
 
-            <div class="equip-grid-custom">
-                <!-- Big featured card -->
-                <div class="equip-big-card-custom">
+            <!-- Loading state -->
+            <div v-if="isLoadingCategories || isLoadingFeatured" class="equip-grid-custom">
+                <div class="equip-big-card-custom skeleton-pulse" style="min-height:380px"></div>
+                <div class="equip-side-custom">
+                    <div class="equip-small-card-custom skeleton-pulse"></div>
+                    <div class="equip-small-card-custom skeleton-pulse"></div>
+                </div>
+            </div>
+
+            <!-- Content from DB -->
+            <div v-else class="equip-grid-custom">
+                <!-- Big featured card: sản phẩm nổi bật -->
+                <div class="equip-big-card-custom" v-if="featuredProduct">
                     <div class="equip-big-img-custom">
-                        <img src="https://cdn.shopvnb.com/uploads/gallery/vot-cau-long-yonex-astrox-88d-pro-chinh-hang_1711234907.webp" alt="Vợt cầu lông" />
+                        <img :src="featuredProduct.image" :alt="featuredProduct.name" />
                     </div>
                     <div class="equip-big-info-custom">
-                        <span class="equip-discount-badge">Giảm giá 15%</span>
-                        <h3 class="equip-big-name-custom">Vợt cầu lông cao cấp</h3>
-                        <p class="equip-big-desc-custom">Trọng lượng nhẹ, độ cứng tối ưu cho những cú đập cháy sân.</p>
-                        <button class="equip-big-link-custom">
+                        <span v-if="featuredProduct.discount_percent > 0" class="equip-discount-badge">Giảm giá {{ featuredProduct.discount_percent }}%</span>
+                        <span v-else-if="featuredProduct.badge" class="equip-discount-badge">{{ featuredProduct.badge }}</span>
+                        <h3 class="equip-big-name-custom">{{ featuredProduct.name }}</h3>
+                        <p class="equip-big-desc-custom">{{ featuredProduct.category_name }} · {{ featuredProduct.price }}</p>
+                        <router-link :to="'/product/' + featuredProduct.id" class="equip-big-link-custom">
                             Mua ngay
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                        </button>
+                        </router-link>
                     </div>
                 </div>
 
-                <!-- Side category cards -->
+                <!-- Side category cards: 2 danh mục đầu tiên -->
                 <div class="equip-side-custom">
-                    <!-- Top card: Shoes -->
-                    <div class="equip-small-card-custom">
-                        <div class="equip-small-img-custom">
-                            <img src="https://cdn.shopvnb.com/uploads/gallery/giay-cau-long-mizuno-wave-claw-3-trang-hong-chinh-hang_1714529068.webp" alt="Giày chuyên dụng" />
-                        </div>
-                        <div class="equip-small-info-custom">
-                            <h4 class="equip-small-name-custom">Giày chuyên dụng</h4>
-                            <button class="equip-small-link-custom">
-                                Xem thêm
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <!-- Bottom card: Accessories -->
-                    <div class="equip-small-card-custom accessory-card">
+                    <template v-if="sideCategories.length > 0">
+                        <router-link
+                            v-for="cat in sideCategories"
+                            :key="cat.id"
+                            :to="'/product?category=' + cat.id"
+                            class="equip-small-card-custom"
+                            style="text-decoration:none"
+                        >
+                            <div class="equip-small-img-custom" v-if="cat.image">
+                                <img :src="cat.image" :alt="cat.name" />
+                            </div>
+                            <div class="equip-small-info-custom">
+                                <h4 class="equip-small-name-custom">{{ cat.name }}</h4>
+                                <span class="equip-small-link-custom">
+                                    Xem thêm
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                                </span>
+                            </div>
+                        </router-link>
+                    </template>
+                    <!-- Fallback nếu chưa có đủ danh mục -->
+                    <div v-if="sideCategories.length < 2" class="equip-small-card-custom accessory-card">
                         <div class="equip-acc-icon">
                             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <circle cx="10" cy="10" r="5.5" stroke="#E63B6F" stroke-width="2.5" />
@@ -176,8 +200,8 @@ onMounted(() => {
                                 <circle cx="17.5" cy="12.5" r="2.5" fill="#E63B6F" />
                             </svg>
                         </div>
-                        <h4 class="equip-small-name-custom text-center">Phụ kiện & Balo</h4>
-                        <p class="equip-small-desc-custom text-center">Túi, quấn cán, cước...</p>
+                        <h4 class="equip-small-name-custom text-center">Khám phá thêm</h4>
+                        <p class="equip-small-desc-custom text-center">Xem tất cả danh mục</p>
                     </div>
                 </div>
             </div>
@@ -192,17 +216,22 @@ onMounted(() => {
             </div>
             <div class="products-grid">
                 <template v-if="isLoadingFeatured">
-                    <ProductSkeleton v-for="i in 4" :key="i" />
+                    <ProductSkeleton v-for="i in 8" :key="i" />
                 </template>
-                <template v-else>
+                <template v-else-if="Products.length > 0">
                     <ProductCard v-for="product in Products.slice(0, 8)" :key="product.id" :product="product" />
                 </template>
+                <template v-else>
+                    <div class="empty-state">
+                        <p>Chưa có sản phẩm nào. Vui lòng quay lại sau!</p>
+                    </div>
+                </template>
             </div>
-            <div class="view-more-wrap">
-                <button  class="btn-view-more">
+            <div class="view-more-wrap" v-if="Products.length > 0">
+                <router-link to="/product" class="btn-view-more">
                     Xem thêm sản phẩm
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </button>
+                </router-link>
             </div>
         </section>
 
@@ -610,6 +639,32 @@ onMounted(() => {
     .hero-title { font-size: 1.8rem; }
     .products-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .hero-btns { flex-direction: column; }
-    .btn-primary-hero, .btn-outline-hero { width: 100%; justify-content: center; }
+    .btn-primary-hero, .btn-outline-hero { width: 100%; justify-content: center; text-decoration: none; }
+}
+
+/* Skeleton Loading */
+.skeleton-pulse {
+    background: linear-gradient(90deg, #F1F3F5 25%, #E9ECEF 50%, #F1F3F5 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+    border-radius: 12px;
+}
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Empty State */
+.empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 24px;
+    color: #636E72;
+    font-size: 1rem;
+}
+
+/* Fix router-link styling */
+a.btn-primary-hero, a.btn-outline-hero, a.btn-view-more, a.link-more {
+    text-decoration: none;
 }
 </style>

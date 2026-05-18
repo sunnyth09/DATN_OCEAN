@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from "vue";
-// import { useFavorites } from "@/composables/useFavorites";
 
 const props = defineProps({
     product: {
@@ -9,264 +8,387 @@ const props = defineProps({
     },
 });
 
-const isFavorited = (id) => false;
-const toggleFavorite = async (id) => false;
+const formatCurrency = (value) => {
+    if (value === null || value === undefined || value === "") {
+        return "Liên hệ";
+    }
 
-const handleToggleFav = async () => {
-    // Feature temporarily disabled
+    if (typeof value === "number") {
+        return new Intl.NumberFormat("vi-VN", {
+            style: "currency",
+            currency: "VND",
+        }).format(value);
+    }
+
+    return value;
 };
 
-const handleAddToCart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Phát event add-to-cart nếu cần, hoặc xử lý thêm vào giỏ hàng ở đây
-    console.log("Thêm vào giỏ", props.product.name);
+const numericDiscount = computed(() => {
+    const value = Number(props.product.discount_percent || 0);
+    return Number.isFinite(value) ? Math.round(value) : 0;
+});
+
+const badgeLabel = computed(() => {
+    if (numericDiscount.value > 0) {
+        return `-${numericDiscount.value}%`;
+    }
+
+    if (props.product.badge === "New" || props.product.badge === "Mới") {
+        return "Mới";
+    }
+
+    if (props.product.badge === "Hot") {
+        return "Mới";
+    }
+
+    return props.product.badge || "";
+});
+
+const badgeClass = computed(() => {
+    if (numericDiscount.value > 0) return "badge-sale";
+    return "badge-new";
+});
+
+const productLink = computed(() => {
+    if (props.product.slug) {
+        return `/product/${props.product.slug}`;
+    }
+
+    return "/product";
+});
+
+const productImage = computed(() => props.product.image || props.product.thumbnail_url || "");
+const productCategory = computed(() => props.product.category_name || props.product.category || "");
+const currentPrice = computed(() => formatCurrency(props.product.price));
+const originalPrice = computed(() => {
+    if (!props.product.originalPrice) return "";
+    if (props.product.originalPrice === props.product.price) return "";
+    return formatCurrency(props.product.originalPrice);
+});
+
+const isFavorited = () => false;
+const handleToggleFav = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+};
+
+const handleAddToCart = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    console.log("Them vao gio", props.product.name);
 };
 </script>
 
 <template>
-    <div class="product-card">
-        <router-link
-            to="/"
-            class="text-decoration-none card-link"
-        >
-            <div class="img-frame">
-                <div class="img-wrapper">
-                    <!-- Badges -->
-                    <div class="badges-container">
-                        <span
-                            class="product-badge"
-                            v-if="props.product.badge"
-                            :class="{
-                                'badge-hot': props.product.badge === 'Hot',
-                                'badge-new': props.product.badge === 'New',
-                            }"
-                        >
-                            {{ props.product.badge }}
-                        </span>
-                    </div>
+    <article class="product-card">
+        <router-link :to="productLink" class="card-link">
+            <div class="media">
+                <span v-if="badgeLabel" class="product-badge" :class="badgeClass">
+                    {{ badgeLabel || HOT }}
+                </span>
 
-                    <!-- Main Image -->
+                <button
+                    class="icon-btn favorite-btn"
+                    :class="{ 'is-active': isFavorited(product.id || product.product_id) }"
+                    @click="handleToggleFav"
+                    title="Yêu thích"
+                    aria-label="Yêu thích"
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                    </svg>
+                </button>
+
+                <div class="image-shell" :class="{ 'is-empty': !productImage }">
                     <img
-                        :src="props.product.image"
-                        :alt="props.product.name"
+                        v-if="productImage"
+                        :src="productImage"
+                        :alt="product.name"
+                        class="product-image"
                         loading="lazy"
                     />
 
-                    <!-- Top Right action (Favorite) -->
+                    <div v-else class="image-placeholder" aria-hidden="true">
+                        <div class="placeholder-circle">
+                            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#c8ccd3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M6 7h12l-1 12H7L6 7Z" />
+                                <path d="M9 9V7a3 3 0 0 1 6 0v2" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content">
+                <p v-if="productCategory" class="category">
+                    {{ productCategory }}
+                </p>
+
+                <h3 class="name" :title="product.name">
+                    {{ product.name }}
+                </h3>
+
+                <div class="footer-row">
+                    <div class="price-block">
+                        <span v-if="originalPrice" class="original-price">
+                            {{ originalPrice }}
+                        </span>
+                        <span class="current-price">
+                            {{ currentPrice }}
+                        </span>
+                    </div>
+
                     <button
-                        class="fav-top-btn"
-                        :class="{ 'is-active': isFavorited(props.product.id || props.product.product_id) }"
-                        @click.prevent="handleToggleFav"
-                        title="Yêu thích"
+                        class="icon-btn cart-btn"
+                        @click="handleAddToCart"
+                        title="Thêm vào giỏ"
+                        aria-label="Thêm vào giỏ"
                     >
-                        <svg v-if="isFavorited(props.product.id || props.product.product_id)" width="18" height="18" viewBox="0 0 24 24" fill="#ff4757" stroke="#ff4757" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-                        </svg>
-                        <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="9" cy="20" r="1.6" />
+                            <circle cx="18" cy="20" r="1.6" />
+                            <path d="M3 4h2.2l1.9 9.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.7L20 7H7.1" />
+                            <path d="M12 9v4" />
+                            <path d="M10 11h4" />
                         </svg>
                     </button>
                 </div>
-
-                <!-- Floating bag icon (Now outside overflow:hidden but inside relative frame) -->
-                <button class="fab-btn" @click.prevent="handleAddToCart" title="Thêm vào giỏ">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <path d="M16 10a4 4 0 0 1-8 0"></path>
-                    </svg>
-                </button>
-            </div>
-
-            <div class="info">
-                <p class="category text-truncate" v-if="props.product.category_name">
-                    {{ props.product.category_name }}
-                </p>
-                <h3 class="name" :title="props.product.name">
-                    {{ props.product.name }}
-                </h3>
-                <span class="price">{{ props.product.price }}</span>
             </div>
         </router-link>
-    </div>
+    </article>
 </template>
 
 <style scoped>
-/* ================== S17: FAB BUTTON ================== */
 .product-card {
     width: 100%;
-    margin-bottom: 20px;
+    height: 100%;
 }
 
 .card-link {
+    position: relative;
     display: flex;
     flex-direction: column;
-    width: 100%;
-    background:#fff; 
-    border-radius: 16px; 
-    box-shadow: 0 4px 15px rgba(45, 52, 70, 0.08); 
-    padding-bottom: 16px;
     height: 100%;
-    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s;
+    min-height: 388px;
+    text-decoration: none;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.07);
+    transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
 }
 
 .card-link:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(45, 52, 70, 0.1); 
+    transform: translateY(-6px);
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.12);
+    border-color: #d9dee8;
 }
 
-.img-frame {
+.media {
     position: relative;
-    width: 100%;
+    padding: 14px 14px 0;
 }
 
-.img-wrapper { 
-    position:relative; 
-    width:100%; 
-    aspect-ratio:1/1; 
-    border-radius: 16px; 
-    overflow:hidden;
-    background: #f8fafc;
-}
-
-.img-wrapper img { 
-    width:100%; 
-    height:100%; 
-    object-fit:cover; 
-    transition:0.5s cubic-bezier(0.25, 1, 0.5, 1);
-}
-
-.card-link:hover .img-wrapper img { 
-    transform:scale(1.05);
-}
-
-/* Badges */
-.badges-container {
-    position: absolute;
-    top: 12px;
-    left: 12px;
+.image-shell {
+    /* height: 210px; */
+    border-radius: 16px 16px 0 0;
+    background:
+        radial-gradient(circle at 50% 78%, rgba(15, 23, 42, 0.08), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, #ffffff 68%, #fcfcfd 100%);
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    z-index: 10;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.image-shell.is-empty {
+    background: linear-gradient(180deg, #f4f5f7 0%, #efeff1 100%);
+}
+
+.product-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 14px;
+    transition: transform 0.35s ease;
+}
+
+.card-link:hover .product-image {
+    transform: scale(1.04);
+}
+
+.image-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.placeholder-circle {
+    width: 116px;
+    height: 116px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.52);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .product-badge {
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.65rem;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.badge-hot { background: #0f172a; }
-.badge-new { background: #E63B6F; }
-
-/* Favorite button top right */
-.fav-top-btn {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    background: rgba(255, 255, 255, 0.9);
+    top: 14px;
+    left: 14px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.badge-new {
+    background: #ffe6f0;
+    color: #d81b60;
+}
+
+.badge-sale {
+    background: #e7f6ea;
+    color: #2f8f4e;
+}
+
+.icon-btn {
+    width: 34px;
+    height: 34px;
     border: none;
-    border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    display: flex;
+    border-radius: 999px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
     cursor: pointer;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
-    opacity: 0;
-    transform: translateX(10px);
-    z-index: 10;
+    transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
-.card-link:hover .fav-top-btn,
-.fav-top-btn.is-active {
-    opacity: 1;
-    transform: translateX(0);
+.favorite-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.92);
+    color: #5f6672;
 }
 
-.fav-top-btn:hover {
-    color: #111111;
-    transform: scale(1.1) !important;
+.favorite-btn:hover,
+.favorite-btn.is-active {
+    color: #111827;
+    transform: scale(1.06);
 }
 
-.fav-top-btn.is-active {
-    color: #ff4757;
-}
-
-/* FAB button bottom right */
-.fab-btn { 
-    position:absolute; 
-    bottom:-20px; 
-    right: 20px; 
-    width:46px; 
-    height:46px; 
-    border-radius:50%; 
-    background:#E63B6F; 
-    color:white; 
-    border: 3px solid #ffffff; 
-    box-shadow: 0 4px 10px rgba(230, 59, 111, 0.35); 
-    z-index:11; 
-    cursor:pointer; 
+.content {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 20px 20px;
 }
 
-.card-link:hover .fab-btn {
-    bottom: -22px; /* Slight dip when card lifts */
+.category {
+    margin: 0;
+    color: #6b7280;
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.3;
 }
 
-.fab-btn:hover { 
-    transform:scale(1.1); 
-    background: #d82f65;
+.name {
+    margin: 0;
+    color: #1f2937;
+    font-size: 1.02rem;
+    font-weight: 500;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    min-height: 46px;
 }
 
-.info { 
-    padding: 24px 16px 0; 
+.footer-row {
+    margin-top: auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.price-block {
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
+    gap: 4px;
 }
 
-.category { 
-    font-size: 0.7rem; 
-    color: #64748b; 
-    font-weight: 600; 
-    text-transform:uppercase; 
-    margin-bottom:4px;
+.original-price {
+    color: #6b7280;
+    font-size: 0.98rem;
+    text-decoration: line-through;
 }
 
-.name { 
-    font-size: 0.95rem; 
-    font-weight: 700; 
-    color: #1e293b; 
-    margin-bottom:6px; 
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden; 
-    padding-right: 30px; /* leave space so text text doesn't hit FAB completely if wrapping */
-    line-height: 1.4;
-    transition: 0.2s;
+.current-price {
+    color: #d4145a;
+    font-size: 1.14rem;
+    font-weight: 800;
+    line-height: 1.1;
 }
 
-.card-link:hover .name {
-    color: #E63B6F;
+.cart-btn {
+    flex: 0 0 auto;
+    background: #f1f1f1;
+    color: #20242c;
 }
 
-.price { 
-    font-weight: 700; 
-    color: #E63B6F;
-    font-size: 1rem;
-    margin-top: auto;
+.cart-btn:hover {
+    background: #e5e7eb;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+    .card-link {
+        min-height: 332px;
+        border-radius: 16px;
+    }
+
+    .media {
+        padding: 12px 12px 0;
+    }
+
+    .image-shell {
+        height: 168px;
+    }
+
+    .content {
+        padding: 12px 14px 16px;
+    }
+
+    .category {
+        font-size: 0.84rem;
+    }
+
+    .name {
+        font-size: 0.95rem;
+        min-height: 42px;
+    }
+
+    .original-price {
+        font-size: 0.88rem;
+    }
+
+    .current-price {
+        font-size: 1rem;
+    }
 }
 </style>

@@ -5,6 +5,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import './bootstrap';
 import './echo';
+import { createPinia } from 'pinia';
+const pinia = createPinia();
 import router from './router';
 import { initSessionSync } from './sessionSync';
 
@@ -13,5 +15,6 @@ import { initSessionSync } from './sessionSync';
 initSessionSync().then(() => {
     const app = createApp(App);
     app.use(router);
+    app.use(pinia);
     app.mount('#app');
 });
