@@ -79,6 +79,18 @@ const routes = [
         meta: { guest: true, title: 'Đăng nhập' },
     },
     {
+        path: "/client/auth/google/callback",
+        name: "google-callback",
+        component: GoogleCallback,
+        meta: { guest: true, title: 'Đang xử lý đăng nhập Google...' },
+    },
+    {
+        path: "/client/auth/facebook/callback",
+        name: "facebook-callback",
+        component: FacebookCallback,
+        meta: { guest: true, title: 'Đang xử lý đăng nhập Facebook...' },
+    },
+    {
         path: "/client/register",
         name: "register",
         component: Register,
