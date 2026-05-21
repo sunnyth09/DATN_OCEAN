@@ -3,9 +3,9 @@
     <!-- Brand -->
     <div class="sidebar-brand">
       <div class="brand-icon">
-        <img src="../../public/favicon.ico" alt="logo-ocean" width="100" height="60">
+        <img src="/favicon.ico" alt="logo-ocean" width="40" height="40">
       </div>
-      <h2 class="brand-title">Admin</h2>
+      <h2 class="brand-title">Quản trị</h2>
     </div>
 
     <!-- Nav -->
@@ -218,7 +218,7 @@ const handleLogout = async () => {
 
 <style scoped>
 .sidebar {
-  width: 250px;
+  width: var(--shell-sidebar-width);
   min-height: 100vh;
   background: var(--card-bg, #fff);
   display: flex;
@@ -233,7 +233,7 @@ const handleLogout = async () => {
   align-items: center;
   gap: 12px;
   padding: 0 22px;
-  height: 70px;
+  height: var(--shell-header-height);
   border-bottom: 1px solid var(--border-color, #eee);
   flex-shrink: 0;
 }
@@ -245,15 +245,17 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
 }
 
 .brand-title {
-  font-size: 1.4rem;
-  margin-left: 5px;
-  margin-top: 5px;
+  font-size: 1.05rem;
+  margin: 0;
   font-weight: 700;
   color: var(--text-main, #000);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.02em;
 }
 
 /* Nav */
@@ -291,13 +293,14 @@ const handleLogout = async () => {
 
 .nav-item:hover {
   background: var(--hover-bg, #f3f4f6);
-  color: var(--text-main, #1a1a1a);
+  color: var(--primary);
 }
 
 .nav-item--active {
-  background: var(--ocean-blue, #1d4ed8) !important;
+  background: var(--primary) !important;
   color: white !important;
   font-weight: 600;
+  box-shadow: 0 10px 20px rgba(230, 59, 111, 0.18);
 }
 
 .nav-item--active .nav-icon {
@@ -347,20 +350,20 @@ const handleLogout = async () => {
 }
 
 .submenu-item:hover {
-  color: var(--ocean-blue, #1d4ed8);
+  color: var(--primary);
 }
 
 .submenu-item:hover .submenu-dot {
-  background: var(--ocean-blue, #1d4ed8);
+  background: var(--primary);
 }
 
 .submenu-item--active {
-  color: #1d4ed8 !important;
+  color: var(--primary) !important;
   font-weight: 600;
 }
 
 .submenu-item--active .submenu-dot {
-  background: #1d4ed8 !important;
+  background: var(--primary) !important;
 }
 
 /* Transitions */
@@ -394,13 +397,14 @@ const handleLogout = async () => {
   height: 44px;
   border-radius: 50%;
   background: var(--hover-bg, #eef2ff);
-  color: var(--ocean-blue, #1d4ed8);
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
   font-size: 1.1rem;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .user-details {
@@ -422,5 +426,19 @@ const handleLogout = async () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color, #eee);
+  }
+
+  .sidebar-nav {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
 }
 </style>
