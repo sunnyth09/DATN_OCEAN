@@ -3,11 +3,15 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { useFavorites } from '@/composables/useFavorites';
+import { useAuthStore } from '@/stores/auth';
+import { useCartStore } from '@/stores/cart';
 import PremiumUpgrade from '@/components/PremiumUpgrade.vue';
 import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
+const cartStore = useCartStore();
 // slug là computed để watch được khi route thay đổi (route param là :id, có thể là slug hoặc id)
 const slug = computed(() => route.params.id);
 const product = ref(null);
@@ -277,8 +281,7 @@ const showToast = (message, type = 'success') => {
 };
 
 const addToCart = async () => {
-    const token = sessionStorage.getItem('auth_token');
-    if (!token) {
+    if (!authStore.isAuthenticated) {
         router.push({ name: 'login', query: { redirect: route.fullPath } });
         return false;
     }
@@ -295,13 +298,12 @@ const addToCart = async () => {
 
     addingToCart.value = true;
     try {
-        const response = await api.post('/cart/items', {
-            variant_id: selectedVariant.value.variant_id,
+        const response = await cartStore.addItem({
+            variantId: selectedVariant.value.variant_id,
             quantity: quantity.value,
         });
-        if (response.data.status === 'success') {
-            showToast(response.data.message, 'success');
-            window.dispatchEvent(new Event('cart-updated'));
+        if (response.status === 'success') {
+            showToast(response.message, 'success');
             return true;
         }
     } catch (error) {

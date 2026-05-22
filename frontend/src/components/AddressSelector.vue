@@ -109,7 +109,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import api from '@/axios';
+import { addressService } from '@/services/addressService';
 
 // Props
 const props = defineProps({
@@ -170,7 +170,7 @@ const fullAddress = computed(() => {
 async function fetchProvinces() {
   loadingProvinces.value = true;
   try {
-    const response = await api.get('/location/provinces');
+    const response = await addressService.listProvinces();
     provinces.value = response.data.data || [];
   } catch (error) {
     console.error('Lỗi khi tải danh sách tỉnh/thành phố:', error);
@@ -187,7 +187,7 @@ async function fetchDistricts(provinceCode) {
   }
   loadingDistricts.value = true;
   try {
-    const response = await api.get(`/location/districts/${provinceCode}`);
+    const response = await addressService.listDistricts(provinceCode);
     districts.value = response.data.data || [];
   } catch (error) {
     console.error('Lỗi khi tải danh sách quận/huyện:', error);
@@ -204,7 +204,7 @@ async function fetchWards(districtCode) {
   }
   loadingWards.value = true;
   try {
-    const response = await api.get(`/location/wards/${districtCode}`);
+    const response = await addressService.listWards(districtCode);
     wards.value = response.data.data || [];
   } catch (error) {
     console.error('Lỗi khi tải danh sách phường/xã:', error);

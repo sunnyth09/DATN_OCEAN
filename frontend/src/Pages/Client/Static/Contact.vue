@@ -1,5 +1,4 @@
 ﻿<template>
-  <ClientHeader/>
   <div class="static-page">
         <section class="page-hero">
       <div class="container">
@@ -76,7 +75,6 @@
       </div>
     </section>
   </div>
-  <Footer_client />
 </template>
 
 <script setup>

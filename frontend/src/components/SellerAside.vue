@@ -3,7 +3,7 @@
     <!-- Brand -->
     <div class="sidebar-brand">
       <div class="brand-icon">
-        <img src="/favicon.ico" alt="logo-ocean" width="40" height="40">
+        <img src="../../public/favicon.ico" alt="logo-ocean" width="100" height="60">
       </div>
       <h2 class="brand-title">Kênh Bán</h2>
     </div>
@@ -141,7 +141,7 @@ const handleLogout = async () => {
 
 <style scoped>
 .sidebar {
-  width: var(--shell-sidebar-width);
+  width: 250px;
   min-height: 100vh;
   background: var(--card-bg, #fff);
   display: flex;
@@ -156,7 +156,7 @@ const handleLogout = async () => {
   align-items: center;
   gap: 12px;
   padding: 0 22px;
-  height: var(--shell-header-height);
+  height: 70px;
   border-bottom: 1px solid var(--border-color, #eee);
   flex-shrink: 0;
 }
@@ -168,17 +168,15 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  overflow: hidden;
 }
 
 .brand-title {
-  font-size: 1.05rem;
-  margin: 0;
+  font-size: 1.4rem;
+  margin-left: 5px;
+  margin-top: 5px;
   font-weight: 700;
   color: var(--text-main, #000);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.5px;
 }
 
 /* Nav */
@@ -211,14 +209,13 @@ const handleLogout = async () => {
 
 .nav-item:hover {
   background: var(--hover-bg, #f3f4f6);
-  color: var(--primary);
+  color: var(--text-main, #1a1a1a);
 }
 
 .nav-item--active {
-  background: var(--primary) !important;
+  background: #E63B6F !important;
   color: white !important;
   font-weight: 600;
-  box-shadow: 0 10px 20px rgba(230, 59, 111, 0.18);
 }
 
 .nav-item--active .nav-icon {
@@ -243,7 +240,7 @@ const handleLogout = async () => {
   height: 44px;
   border-radius: 50%;
   background: var(--hover-bg, #FFF0F3);
-  color: var(--primary);
+  color: #E63B6F;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -272,19 +269,5 @@ const handleLogout = async () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-@media (max-width: 768px) {
-  .sidebar {
-    width: 100%;
-    min-height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color, #eee);
-  }
-
-  .sidebar-nav {
-    padding-top: 14px;
-    padding-bottom: 14px;
-  }
 }
 </style>

@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { pinia } from '@/stores';
+import { useAuthStore } from '@/stores/auth';
 
 // ==================== CORE LAYOUTS (eager load) ====================
 import ClientLayout from "../layouts/ClientLayout.vue";
@@ -53,7 +55,7 @@ const routes = [
                     { path: "", name: "profile-info", component: () => import("../Pages/Client/Profile/ProfileInfo.vue"), meta: { title: 'Thông tin cá nhân' } },
                     { path: "orders", name: "profile-orders", component: () => import("../Pages/Client/Profile/ProfileOrders.vue"), meta: { title: 'Đơn hàng' } },
                     { path: "orders/:id", name: "profile-order-detail", component: () => import("../Pages/Client/Profile/ProfileOrderDetail.vue"), meta: { title: 'Chi tiết đơn hàng' } },
-                    { path: "address", name: "profile-address", component: () => import("../Pages/Client/Profile/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
+                    { path: "addresses", name: "profile-address", component: () => import("../Pages/Client/Profile/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
                     { path: "change-password", name: "profile-change-password", component: () => import("../Pages/Client/Profile/ProfileChangePassword.vue"), meta: { title: 'Đổi mật khẩu' } },
                     { path: "wishlist", name: "profile-wishlist", component: () => import("../Pages/Client/Profile/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
                     { path: "coupons", name: "profile-coupons", component: () => import("../Pages/Client/Profile/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
@@ -265,9 +267,13 @@ const router = createRouter({
 // ==================== Navigation Guard ====================
 
 router.beforeEach((to, from) => {
-    const token = sessionStorage.getItem('auth_token');
-    const userData = sessionStorage.getItem('user');
-    const user = userData ? JSON.parse(userData) : null;
+    const authStore = useAuthStore(pinia);
+    if (!authStore.isHydrated) {
+        authStore.hydrate();
+    }
+
+    const token = authStore.token;
+    const user = authStore.user;
 
     // Route yêu cầu đăng nhập
     if (to.matched.some(record => record.meta.requiresAuth)) {
@@ -291,14 +297,7 @@ router.beforeEach((to, from) => {
     // Route dành cho guest (login) — nếu đã login thì redirect
     if (to.matched.some(record => record.meta.guest)) {
         if (token && user) {
-            if (user.role === 'admin') {
-                return { name: 'admin' };
-            } else if (user.role === 'seller') {
-                return { name: 'admin-pos' };
-            } else if (user.role === 'staff') {
-                return { name: 'admin-product' };
-            }
-            return { name: 'home' };
+            return authStore.preferredRoute;
         }
     }
 });
@@ -309,9 +308,9 @@ router.afterEach((to) => {
     const isAdmin = to.matched.some(record => record.path === '/admin');
 
     if (title) {
-        document.title = isAdmin ? `${title} | Ocean Admin` : `${title} | Ocean`;
+        document.title = isAdmin ? `${title} | QS Admin` : `${title} | Quyền Sport`;
     } else {
-        document.title = 'Ocean';
+        document.title = 'Quyền Sport';
     }
 });
 

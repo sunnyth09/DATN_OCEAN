@@ -1,8 +1,8 @@
 ﻿<script setup>
 import { ref, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import api from '@/axios';
 import { Toast } from 'bootstrap';
+import { orderService } from '@/services/orderService';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -81,7 +81,7 @@ const getStatusIcon = (status) => {
 const fetchOrderDetail = async () => {
   loading.value = true;
   try {
-    const res = await api.get(`/profile/orders/${orderId}`);
+    const res = await orderService.getProfileOrderDetail(orderId);
     if (res.data.status === 'success') {
       order.value = res.data.data;
     }
@@ -137,9 +137,7 @@ const confirmCancelOrder = async () => {
 
   actionLoading.value = true;
   try {
-    const res = await api.put(`/profile/orders/${order.value.order_id}/cancel`, {
-      cancel_reason: reason
-    });
+    const res = await orderService.cancelProfileOrder(order.value.order_id, reason);
     if (res.data.status === 'success') {
       showToast('Đơn hàng của bạn đã được hủy thành công.', 'success');
       await fetchOrderDetail();

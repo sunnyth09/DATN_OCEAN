@@ -1,14 +1,54 @@
 <template>
   <div class="backoffice-shell">
-    <component :is="sidebarComponent" />
+    <Transition name="shell-scrim">
+      <button
+        v-if="isSidebarOpen"
+        type="button"
+        class="backoffice-scrim"
+        aria-label="Đóng menu điều hướng"
+        @click="closeSidebar"
+      ></button>
+    </Transition>
+
+    <div
+      class="backoffice-sidebar-shell"
+      :class="{ 'backoffice-sidebar-shell--open': isSidebarOpen }"
+    >
+      <component :is="sidebarComponent" />
+    </div>
 
     <div class="backoffice-main">
       <header class="backoffice-header">
-        <div class="backoffice-header__meta">
-          <p v-if="sectionLabel" class="backoffice-header__eyebrow">
-            {{ sectionLabel }}
-          </p>
-          <h1 class="backoffice-header__title">{{ resolvedTitle }}</h1>
+        <div class="backoffice-header__leading">
+          <button
+            type="button"
+            class="shell-icon-btn shell-icon-btn--menu"
+            :aria-expanded="isSidebarOpen"
+            title="Mở menu điều hướng"
+            @click="toggleSidebar"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+
+          <div class="backoffice-header__meta">
+            <p v-if="sectionLabel" class="backoffice-header__eyebrow">
+              {{ sectionLabel }}
+            </p>
+            <h1 class="backoffice-header__title">{{ resolvedTitle }}</h1>
+          </div>
         </div>
 
         <div class="backoffice-header__actions">
@@ -85,8 +125,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
+import { useUiStore } from '@/stores/ui';
 
 const props = defineProps({
   sidebarComponent: {
@@ -104,7 +146,11 @@ const props = defineProps({
 });
 
 const route = useRoute();
-const isDarkMode = ref(false);
+const uiStore = useUiStore();
+const {
+  isBackofficeDarkMode: isDarkMode,
+  isBackofficeSidebarOpen: isSidebarOpen,
+} = storeToRefs(uiStore);
 
 const resolvedTitle = computed(() => {
   for (let i = route.matched.length - 1; i >= 0; i -= 1) {
@@ -115,18 +161,40 @@ const resolvedTitle = computed(() => {
   return props.defaultTitle;
 });
 
-const syncTheme = (theme) => {
-  isDarkMode.value = theme === 'dark';
-  document.documentElement.classList.toggle('dark', isDarkMode.value);
-  localStorage.setItem('admin_theme', isDarkMode.value ? 'dark' : 'light');
+const toggleDarkMode = () => {
+  uiStore.toggleBackofficeDarkMode();
 };
 
-const toggleDarkMode = () => {
-  syncTheme(isDarkMode.value ? 'light' : 'dark');
+const toggleSidebar = () => {
+  uiStore.toggleBackofficeSidebar();
 };
+
+const closeSidebar = () => {
+  uiStore.setBackofficeSidebarOpen(false);
+};
+
+const syncSidebarForViewport = () => {
+  if (window.innerWidth >= 1024) {
+    closeSidebar();
+  }
+};
+
+watch(
+  () => route.fullPath,
+  () => {
+    if (window.innerWidth < 1024) {
+      closeSidebar();
+    }
+  },
+);
 
 onMounted(() => {
-  syncTheme(localStorage.getItem('admin_theme') || 'light');
+  syncSidebarForViewport();
+  window.addEventListener('resize', syncSidebarForViewport);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncSidebarForViewport);
 });
 </script>
 
@@ -137,6 +205,11 @@ onMounted(() => {
   background: var(--ocean-deepest);
   color: var(--text-main);
   font-family: var(--font-primary);
+}
+
+.backoffice-sidebar-shell {
+  width: var(--shell-sidebar-width);
+  flex-shrink: 0;
 }
 
 .backoffice-main {
@@ -160,6 +233,13 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 20;
+}
+
+.backoffice-header__leading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
 }
 
 :global(html.dark) .backoffice-header {
@@ -192,6 +272,10 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+}
+
+.shell-icon-btn--menu {
+  display: none;
 }
 
 .shell-icon-btn,
@@ -238,6 +322,10 @@ onMounted(() => {
   margin: 0 auto;
 }
 
+.backoffice-scrim {
+  display: none;
+}
+
 @media (max-width: 1024px) {
   .backoffice-header {
     padding: 0 20px;
@@ -246,13 +334,40 @@ onMounted(() => {
   .backoffice-content {
     padding: 20px;
   }
+
+  .shell-icon-btn--menu {
+    display: inline-flex;
+  }
+
+  .backoffice-sidebar-shell {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(86vw, var(--shell-sidebar-width));
+    transform: translateX(-100%);
+    transition: transform 0.24s ease;
+    pointer-events: none;
+  }
+
+  .backoffice-sidebar-shell--open {
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+
+  .backoffice-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    border: 0;
+    background: rgba(15, 23, 42, 0.38);
+    backdrop-filter: blur(2px);
+  }
 }
 
 @media (max-width: 768px) {
-  .backoffice-shell {
-    flex-direction: column;
-  }
-
   .backoffice-header {
     padding: 14px 16px;
     align-items: flex-start;
@@ -271,5 +386,19 @@ onMounted(() => {
   .backoffice-content {
     padding: 16px;
   }
+
+  .back-home-btn span {
+    display: none;
+  }
+}
+
+.shell-scrim-enter-active,
+.shell-scrim-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.shell-scrim-enter-from,
+.shell-scrim-leave-to {
+  opacity: 0;
 }
 </style>

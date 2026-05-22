@@ -1,10 +1,10 @@
 ﻿<script setup>
 import { ref, computed, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue';
-import api from '../../../axios.js';
 import { useRouter } from 'vue-router';
-import { Toast, Modal } from 'bootstrap';
-import ClientHeader from '../../../components/ClientHeader.vue';
-import ClientFooter from '../../../components/ClientFooter.vue';
+import { Modal } from 'bootstrap';
+import AuthLayout from '../../../layouts/AuthLayout.vue';
+import { useToast } from '@/composables/useToast';
+import { authService } from '@/services/authService';
 
 const name = ref('');
 const email = ref('');
@@ -18,8 +18,7 @@ const isSubmitting = ref(false);
 const router = useRouter();
 const turnstileToken = ref('');
 let turnstileWidgetId = null;
-
-const toast = ref({ message: '', type: 'success' });
+const { showToast } = useToast();
 
 // Field-level validation
 const fieldErrors = reactive({ name: '', email: '', password: '', confirm: '', terms: '' });
@@ -50,14 +49,6 @@ const validateField = (field) => {
 const onBlur = (field) => {
   touched[field] = true;
   validateField(field);
-};
-
-const showToast = (message, type = 'success') => {
-  toast.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('registerToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
-  });
 };
 
 // Password validation
@@ -121,7 +112,7 @@ const handleRegister = async () => {
     isSubmitting.value = true;
 
     try {
-        const response = await api.post('/register', {
+        const response = await authService.register({
             name: name.value,
             email: email.value,
             password: password.value,
@@ -158,10 +149,7 @@ const goToLogin = () => { router.push('/client/login'); };
 </script>
 
 <template>
-  <div class="page-wrapper">
-    <ClientHeader />
-
-    <main class="auth-main">
+  <AuthLayout>
       <div class="auth-page">
         <div class="auth-card">
           <!-- Icon -->
@@ -249,7 +237,7 @@ const goToLogin = () => { router.push('/client/login'); };
             <div :class="{ 'has-error-terms': touched.terms && fieldErrors.terms }">
               <label class="checkbox-label">
                 <input type="checkbox" v-model="agreeTerms" @change="touched.terms = true; validateField('terms')" />
-                <span>Tôi đồng ý với <a href="#" class="link">Điều khoản dịch vụ</a> và <a href="#" class="link">Chính sách bảo mật</a></span>
+                <span>Tôi đồng ý với <router-link to="/terms" class="link">Điều khoản dịch vụ</router-link> và <router-link to="/privacy" class="link">Chính sách bảo mật</router-link></span>
               </label>
               <p v-if="touched.terms && fieldErrors.terms" class="field-error" style="margin-left: 24px;">{{ fieldErrors.terms }}</p>
             </div>
@@ -272,9 +260,6 @@ const goToLogin = () => { router.push('/client/login'); };
           </p>
         </div>
       </div>
-    </main>
-
-    <ClientFooter />
 
     <!-- Bootstrap Modal -->
     <div class="modal fade" id="registerSuccessModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
@@ -291,21 +276,10 @@ const goToLogin = () => { router.push('/client/login'); };
       </div>
     </div>
 
-    <!-- Bootstrap Toast -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-      <div class="toast align-items-center border-0 text-bg-danger" id="registerToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body">{{ toast.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    </div>
-  </div>
+  </AuthLayout>
 </template>
 
 <style scoped>
-.page-wrapper { min-height: 100vh; display: flex; flex-direction: column; }
-.auth-main { flex: 1; background: #F8F9FA; display: flex; flex-direction: column; }
 .auth-page { flex: 1; padding: 48px 24px; display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
 .auth-card { width: 100%; max-width: 440px; background: #fff; border-radius: 16px; padding: 40px 36px 36px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04); }
 .auth-icon { width: 56px; height: 56px; border-radius: 14px; background: #FFF0F3; color: #E63B6F; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }

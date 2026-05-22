@@ -1,7 +1,7 @@
 ﻿<script setup>
 import { ref, onMounted } from 'vue';
-import api from '@/axios';
 import { useRouter } from 'vue-router';
+import { orderService } from '@/services/orderService';
 
 const orders = ref([]);
 const loading = ref(true);
@@ -90,7 +90,10 @@ const getStatusIcon = (status) => {
 const fetchOrders = async (page = 1) => {
   loading.value = true;
   try {
-    const res = await api.get(`/profile/orders?page=${page}&status=${currentFilter.value}`);
+    const res = await orderService.listProfileOrders({
+      page,
+      status: currentFilter.value,
+    });
     if (res.data.status === 'success') {
       orders.value = res.data.data.data;
       pagination.value = {
@@ -178,9 +181,7 @@ const confirmCancelOrder = async () => {
 
   actionLoading.value = cancellingOrderId.value;
   try {
-    const res = await api.put(`/profile/orders/${cancellingOrderId.value}/cancel`, {
-      cancel_reason: reason
-    });
+    const res = await orderService.cancelProfileOrder(cancellingOrderId.value, reason);
     if (res.data.status === 'success') {
       showToast('Đơn hàng của bạn đã được hủy thành công.', 'success');
       await fetchOrders(currentPage.value);
@@ -197,7 +198,7 @@ const confirmCancelOrder = async () => {
 const buyAgain = async (orderId) => {
   actionLoading.value = orderId;
   try {
-    const res = await api.post(`/cart/buy-again/${orderId}`);
+    const res = await orderService.buyAgain(orderId);
     if (res.data.status === 'success') {
       if (res.data.errors && res.data.errors.length > 0) {
         showToast(res.data.message + " Lưu ý: " + res.data.errors.join('. '), 'warning');

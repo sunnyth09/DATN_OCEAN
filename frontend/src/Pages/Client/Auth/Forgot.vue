@@ -1,9 +1,8 @@
 ﻿<script setup>
-import { ref, reactive, nextTick, onMounted, onBeforeUnmount, computed, watch } from 'vue';
-import api from '../../../axios.js';
+import { ref, nextTick, onBeforeUnmount, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import ClientHeader from '../../../components/ClientHeader.vue';
-import ClientFooter from '../../../components/ClientFooter.vue';
+import AuthLayout from '../../../layouts/AuthLayout.vue';
+import { authService } from '@/services/authService';
 
 const router = useRouter();
 const currentStep = ref(1);
@@ -116,7 +115,7 @@ const handleSendOtp = async () => {
   isSubmitting.value = true;
 
   try {
-    const response = await api.post('/forgot-password/send-otp', { email: email.value });
+    const response = await authService.sendForgotPasswordOtp(email.value);
     if (response.data.status === 'success') {
       successMsg.value = response.data.message;
       currentStep.value = 2;
@@ -141,7 +140,7 @@ const handleResendOtp = async () => {
   isSubmitting.value = true;
 
   try {
-    const response = await api.post('/forgot-password/send-otp', { email: email.value });
+    const response = await authService.sendForgotPasswordOtp(email.value);
     if (response.data.status === 'success') {
       successMsg.value = 'Mã OTP mới đã được gửi!';
       startCountdown();
@@ -164,7 +163,7 @@ const handleVerifyOtp = async () => {
   isSubmitting.value = true;
 
   try {
-    const response = await api.post('/forgot-password/verify-otp', {
+    const response = await authService.verifyForgotPasswordOtp({
       email: email.value,
       otp: otpString.value
     });
@@ -196,7 +195,7 @@ const handleResetPassword = async () => {
   isSubmitting.value = true;
 
   try {
-    const response = await api.post('/forgot-password/reset', {
+    const response = await authService.resetForgotPassword({
       email: email.value,
       reset_token: resetToken.value,
       password: password.value,
@@ -225,10 +224,7 @@ const steps = [
 </script>
 
 <template>
-  <div class="page-wrapper">
-    <ClientHeader />
-
-    <main class="auth-main">
+  <AuthLayout>
       <div class="auth-page">
         <div class="auth-card">
           <!-- Icon -->
@@ -381,15 +377,10 @@ const steps = [
           </div>
         </div>
       </div>
-    </main>
-
-    <ClientFooter />
-  </div>
+  </AuthLayout>
 </template>
 
 <style scoped>
-.page-wrapper { min-height: 100vh; display: flex; flex-direction: column; }
-.auth-main { flex: 1; background: #F8F9FA; display: flex; flex-direction: column; }
 .auth-page { flex: 1; padding: 48px 24px; display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
 .auth-card { width: 100%; max-width: 460px; background: #fff; border-radius: 16px; padding: 40px 36px 36px; box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04); }
 
