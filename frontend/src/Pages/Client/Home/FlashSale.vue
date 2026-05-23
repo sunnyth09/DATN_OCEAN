@@ -1,4 +1,13 @@
-﻿<template>
+﻿<script setup>
+import { useRoute } from 'vue-router';
+import AppIcon from '@/icons/AppIcon.vue';
+import FlashSaleBoard from '@/components/FlashSaleBoard.vue';
+
+const route = useRoute();
+const targetId = route.query.id ? parseInt(route.query.id) : null;
+</script>
+
+<template>
   <div class="flash-sale-page">
 
     <!-- ══ HERO ══ -->
@@ -10,7 +19,8 @@
           <span class="eyebrow-dot"></span>
         </div>
         <h1 class="hero-title">
-          ⚡ Flash Sale
+          <AppIcon name="zap" size="52" stroke-width="2.5" />
+          Flash Sale
           <span class="hero-accent">Giá Sốc</span>
         </h1>
         <p class="hero-sub">Số lượng cực kỳ có hạn — Cơ hội săn deal không thể bỏ lỡ!</p>
@@ -28,26 +38,39 @@
 
         <!-- Quy tắc -->
         <div class="rules-card">
-          <h3 class="rules-title">📋 Điều kiện tham gia</h3>
+          <h3 class="rules-title">
+            <AppIcon name="clipboard-list" size="16" stroke-width="2.3" />
+            Điều kiện tham gia
+          </h3>
           <ul class="rules-list">
             <li>
-              <span class="rule-icon">🔒</span>
+              <span class="rule-icon">
+                <AppIcon name="lock" size="16" />
+              </span>
               Phải <strong>đăng nhập</strong> để mua hàng
             </li>
             <li>
-              <span class="rule-icon">🛒</span>
+              <span class="rule-icon">
+                <AppIcon name="cart" size="16" />
+              </span>
               Tối đa <strong>1 sản phẩm / khách hàng</strong>
             </li>
             <li>
-              <span class="rule-icon">🚚</span>
+              <span class="rule-icon">
+                <AppIcon name="truck" size="16" />
+              </span>
               Flash Sale được <strong>miễn phí vận chuyển</strong>
             </li>
             <li>
-              <span class="rule-icon">⚡</span>
+              <span class="rule-icon">
+                <AppIcon name="zap" size="16" />
+              </span>
               Đơn hàng xử lý theo thứ tự — đặt sớm ưu tiên trước
             </li>
             <li>
-              <span class="rule-icon">❌</span>
+              <span class="rule-icon">
+                <AppIcon name="x" size="16" />
+              </span>
               Không áp dụng thêm mã giảm giá khác
             </li>
           </ul>
@@ -58,14 +81,6 @@
 
   </div>
 </template>
-
-<script setup>
-import { useRoute } from 'vue-router';
-import FlashSaleBoard from '@/components/FlashSaleBoard.vue';
-
-const route    = useRoute();
-const targetId = route.query.id ? parseInt(route.query.id) : null;
-</script>
 
 <style scoped>
 .flash-sale-page {
@@ -111,6 +126,15 @@ const targetId = route.query.id ? parseInt(route.query.id) : null;
   line-height: 1.1;
   margin: 0 0 8px;
   letter-spacing: -1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero-title svg {
+  flex-shrink: 0;
 }
 
 .hero-accent {
@@ -162,6 +186,9 @@ const targetId = route.query.id ? parseInt(route.query.id) : null;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .rules-list {
@@ -184,8 +211,13 @@ const targetId = route.query.id ? parseInt(route.query.id) : null;
 
 .rule-icon {
   flex-shrink: 0;
-  font-size: 15px;
+  width: 20px;
+  height: 20px;
   line-height: 1.5;
+  color: #E63B6F;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .rules-list li strong {

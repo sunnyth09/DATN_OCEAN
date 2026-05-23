@@ -80,11 +80,11 @@ const getStatusClass = (status) => {
 };
 
 const getStatusIcon = (status) => {
-  if (status === 'pending') return '📋';
-  if (status === 'shipping') return '🚚';
-  if (status === 'cancelled') return '❌';
-  if (status === 'completed' || status === 'delivered') return '✅';
-  return '📦';
+  if (status === 'pending') return 'clock';
+  if (status === 'shipping') return 'truck';
+  if (status === 'cancelled') return 'x';
+  if (status === 'completed' || status === 'delivered') return 'check';
+  return 'shopping-cart';
 };
 
 const fetchOrders = async (page = 1) => {
@@ -246,7 +246,9 @@ onMounted(() => {
     </div>
 
     <div v-else-if="orders.length === 0" class="empty-state">
-      <div class="empty-icon">📦</div>
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </div>
       <h3>Chưa có đơn hàng nào</h3>
       <p>Bạn chưa đặt bất kỳ đơn hàng nào. Hãy mua sắm ngay nhé!</p>
       <router-link to="/product" class="btn-primary mt-4">Tiếp tục mua sắm</router-link>

@@ -136,7 +136,7 @@ onMounted(() => {
         <section class="section-inner equip-section">
             <div class="section-head">
                 <div>
-                    <h2 class="section-title">Trang bị thiết yếu</h2>
+                    <h2 class="section-title">TRANG BỊ THIẾT YẾU</h2>
                     <p class="section-subtitle">Lựa chọn hàng đầu cho vận động viên.</p>
                 </div>
                 <router-link to="/product" class="link-more btn">
@@ -216,7 +216,7 @@ onMounted(() => {
         ══════════════════════════════════════════ -->
         <section class="section-inner bestseller-section">
             <div class="section-head section-head-center">
-                <h2 class="section-title">Sản phẩm bán chạy</h2>
+                <h2 class="section-title">SẢN PHẨM BÁN CHẠY</h2>
             </div>
             <div class="products-grid">
                 <template v-if="isLoadingFeatured">

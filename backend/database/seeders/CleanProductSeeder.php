@@ -249,7 +249,7 @@ class CleanProductSeeder extends Seeder
             }
         }
 
-        echo "📦 Seeded: {$counter} sản phẩm\n";
+        echo "Seeded: {$counter} sản phẩm\n";
     }
 
     /**
