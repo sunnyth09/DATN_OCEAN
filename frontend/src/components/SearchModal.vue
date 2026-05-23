@@ -1,7 +1,7 @@
 ﻿<script setup>
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import api from '@/axios.js';
+import { catalogService, extractCollection } from '@/services/catalogService';
 
 const props = defineProps({
     modelValue: { type: Boolean, default: false },
@@ -42,8 +42,8 @@ watch(searchQuery, (val) => {
 
 const doSearch = async (q) => {
     try {
-        const res = await api.get('/products', { params: { search: q, limit: 6 } });
-        results.value = res.data?.data || [];
+        const res = await catalogService.searchProducts(q, { limit: 6 });
+        results.value = extractCollection(res);
         hasSearched.value = true;
     } catch (e) {
         results.value = [];
@@ -82,17 +82,17 @@ onUnmounted(() => {
 
 const goToProduct = (slug) => {
     close();
-    router.push({ name: 'product-detail', params: { slug } });
+    router.push({ name: 'product-detail', params: { id: slug } });
 };
 
 const viewAll = () => {
     if (!searchQuery.value.trim()) return;
     const q = searchQuery.value.trim();
     close();
-    router.push({ path: '/product', query: { q } });
+    router.push({ path: '/product', query: { search: q } });
 };
 
-const tipsKeywords = ['Áo thun', 'Quần jeans', 'Váy đầm', 'Giày sneaker', 'Túi xách'];
+const tipsKeywords = ['Vợt cầu lông', 'Giày đá bóng', 'Pickleball', 'Áo thể thao', 'Phụ kiện'];
 const clickTip = (kw) => {
     searchQuery.value = kw;
 };
@@ -222,7 +222,7 @@ const clickTip = (kw) => {
                         <span class="footer-hint">
                             <kbd>ESC</kbd> đóng &nbsp;·&nbsp; <kbd>↵</kbd> xem tất cả
                         </span>
-                        <span class="footer-brand">⚡ Meilisearch</span>
+                        <span class="footer-brand">Tìm nhanh</span>
                     </div>
                 </div>
             </div>

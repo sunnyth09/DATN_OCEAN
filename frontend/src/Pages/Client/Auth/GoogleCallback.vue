@@ -1,10 +1,12 @@
 ﻿<script setup>
 import { onMounted, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import api from '../../../axios.js';
+import { authService } from '@/services/authService';
+import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
 const status = ref('loading'); // loading | success | error
 const errorMsg = ref('');
 
@@ -19,31 +21,18 @@ onMounted(async () => {
   }
 
   try {
-    const response = await api.post('/auth/google/callback', { code });
+    const response = await authService.exchangeGoogleCode(code);
 
     if (response.data.status === 'success') {
-      const userData = JSON.stringify({
+      authStore.setSession(response.data.access_token, {
         isLoggedIn: true,
         ...response.data.user
       });
 
-      // OAuth luôn dùng sessionStorage (không có tùy chọn "ghi nhớ" khi login OAuth)
-      sessionStorage.setItem('auth_token', response.data.access_token);
-      sessionStorage.setItem('user', userData);
-      // Xóa localStorage nếu có từ session cũ
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
-
       status.value = 'success';
 
-      // Redirect theo role
       setTimeout(() => {
-        const role = response.data.user?.role;
-        if (['admin', 'staff', 'seller'].includes(role)) {
-          router.push('/admin');
-        } else {
-          router.push('/');
-        }
+        router.push(getDefaultRouteForRole(response.data.user?.role));
       }, 1500);
     }
   } catch (error) {

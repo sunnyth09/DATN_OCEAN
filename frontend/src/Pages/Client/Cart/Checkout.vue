@@ -1,18 +1,19 @@
 ﻿<script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
-import axios from 'axios';
 import { useCartUpsell } from '@/composables/useCartUpsell';
+import { useToast } from '@/composables/useToast';
+import AddressSelector from '@/components/AddressSelector.vue';
+import { addressService } from '@/services/addressService';
+import { orderService } from '@/services/orderService';
 
 const router = useRouter();
 const cartItems = ref([]);
 const loading = ref(true);
+const { showToast } = useToast();
 
 const { state: upsellState, fetchUpsellData } = useCartUpsell();
-
-const TOKEN_GHN = import.meta.env.VITE_TOKEN_GHN;
-const SHOPID_GHN = import.meta.env.VITE_SHOPID_GHN;
 
 // --- Địa chỉ ---
 const addresses = ref([]);
@@ -30,22 +31,11 @@ const formAddress = ref({
 });
 
 // --- GHN Data ---
-const provinces = ref([]);
-const districts = ref([]);
-const wards = ref([]);
-const selectedProvince = ref(null);
-const selectedDistrict = ref(null);
-const selectedWard = ref(null);
-const isLoadingProvinces = ref(false);
-const isLoadingDistricts = ref(false);
-const isLoadingWards = ref(false);
 const isCalculatingFee = ref(false);
-const isInitializing = ref(false);
 
 // --- Thanh toán & Khác ---
 const paymentMethod = ref('cod'); // cod, vnpay, banking
 const note = ref('');
-const toast = ref({ show: false, message: '', type: 'success' });
 
 // --- Coupon ---
 const couponCode = ref('');
@@ -80,12 +70,19 @@ const fetchCart = async () => {
 // Lấy danh sách địa chỉ
 const fetchAddresses = async () => {
     try {
-        const res = await api.get('/profile/addresses');
+        const res = await addressService.listProfileAddresses();
         addresses.value = res.data?.data || [];
+        if (addresses.value.length === 0) {
+            selectedAddressId.value = null;
+            showAddAddressForm.value = true;
+            return;
+        }
+
         // Tự động chọn địa chỉ mặc định hoặc cái đầu tiên
         const defaultAddr = addresses.value.find(a => a.is_default);
         if (defaultAddr) selectedAddressId.value = defaultAddr.address_id;
         else if (addresses.value.length > 0) selectedAddressId.value = addresses.value[0].address_id;
+        showAddAddressForm.value = false;
     } catch (e) {
         console.error('Lỗi tải địa chỉ:', e);
     }
@@ -129,6 +126,12 @@ const onAddressChange = (data) => {
     formAddress.value.ward = data.ward_name;
     formAddress.value.ward_code = data.ward_code;
     formAddress.value.address_line = data.address_detail;
+
+    if (data.district_code && data.ward_code) {
+        getShippingFee(data.district_code, data.ward_code);
+    } else {
+        shippingFee.value = 0;
+    }
 };
 
 const openAddAddressForm = () => {
@@ -138,12 +141,21 @@ const openAddAddressForm = () => {
         ward_code: '', district_code: '', province_code: '',
         address_type: 'home', is_default: false,
     };
-    selectedProvince.value = null;
-    selectedDistrict.value = null;
-    selectedWard.value = null;
-    districts.value = [];
-    wards.value = [];
+    selectedAddressId.value = null;
+    shippingFee.value = 0;
+    addressSelectorKey.value += 1;
     showAddAddressForm.value = true;
+};
+
+const useSavedAddresses = () => {
+    showAddAddressForm.value = false;
+
+    if (!selectedAddressId.value) return;
+
+    const savedAddress = addresses.value.find((addr) => addr.address_id === selectedAddressId.value);
+    if (savedAddress?.district_code && savedAddress?.ward_code) {
+        getShippingFee(savedAddress.district_code, savedAddress.ward_code);
+    }
 };
 
 // --- Xử lý tính toán hóa đơn ---
@@ -165,71 +177,15 @@ const finalShippingFee = computed(() => {
     return shippingFee.value;
 });
 
-// GHN API Methods
-const getGHNProvinces = async () => {
-    if (!TOKEN_GHN) return;
-    isLoadingProvinces.value = true;
-    try {
-        const response = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/province', {
-            headers: { 'Token': TOKEN_GHN }
-        });
-        provinces.value = response.data.data;
-    } catch (error) {
-        console.error("Lỗi lấy tỉnh thành:", error);
-    } finally {
-        isLoadingProvinces.value = false;
-    }
-};
-
-const getGHNDistricts = async (provinceId) => {
-    if (!provinceId || !TOKEN_GHN) return;
-    isLoadingDistricts.value = true;
-    try {
-        const response = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/district', {
-            params: { province_id: provinceId },
-            headers: { 'Token': TOKEN_GHN }
-        });
-        districts.value = response.data.data;
-    } catch (error) {
-        console.error("Lỗi lấy quận huyện:", error);
-    } finally {
-        isLoadingDistricts.value = false;
-    }
-};
-
-const getGHNWards = async (districtId) => {
-    if (!districtId || !TOKEN_GHN) return;
-    isLoadingWards.value = true;
-    try {
-        const response = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/ward', {
-            params: { district_id: districtId },
-            headers: { 'Token': TOKEN_GHN }
-        });
-        wards.value = response.data.data;
-    } catch (error) {
-        console.error("Lỗi lấy phường xã:", error);
-    } finally {
-        isLoadingWards.value = false;
-    }
-};
-
 const getShippingFee = async (district_id, ward_code) => {
-    if (!district_id || !ward_code || !TOKEN_GHN) return;
+    if (!district_id || !ward_code) return;
     isCalculatingFee.value = true;
     try {
-        const response = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee', {
-            params: {
-                "service_type_id": 2,
-                "to_district_id": parseInt(district_id),
-                "to_ward_code": ward_code,
-                "weight": 3000,
-            },
-            headers: {
-                Token: TOKEN_GHN,
-                ShopId: SHOPID_GHN,
-            },
+        shippingFee.value = await addressService.getShippingFee({
+            districtCode: district_id,
+            wardCode: ward_code,
+            weight: 3000,
         });
-        shippingFee.value = response.data?.data?.total || 0;
     } catch (error) {
         console.error("Lỗi tính phí vận chuyển GHN:", error.response?.data || error.message);
         shippingFee.value = 0;
@@ -237,53 +193,6 @@ const getShippingFee = async (district_id, ward_code) => {
         isCalculatingFee.value = false;
     }
 };
-
-// Watchers for cascading selects
-import { watch } from 'vue';
-
-watch(selectedProvince, async (newVal) => {
-    if (!isInitializing.value) {
-        selectedDistrict.value = null;
-        selectedWard.value = null;
-        districts.value = [];
-        wards.value = [];
-        formAddress.value.district = '';
-        formAddress.value.district_code = '';
-        formAddress.value.ward = '';
-        formAddress.value.ward_code = '';
-    }
-    if (newVal) {
-        const p = provinces.value.find(item => item.ProvinceID === newVal);
-        formAddress.value.province = p?.ProvinceName || '';
-        formAddress.value.province_code = newVal.toString();
-        await getGHNDistricts(newVal);
-    }
-});
-
-watch(selectedDistrict, async (newVal) => {
-    if (!isInitializing.value) {
-        selectedWard.value = null;
-        wards.value = [];
-        formAddress.value.ward = '';
-        formAddress.value.ward_code = '';
-    }
-    if (newVal) {
-        const d = districts.value.find(item => item.DistrictID === newVal);
-        formAddress.value.district = d?.DistrictName || '';
-        formAddress.value.district_code = newVal.toString();
-        await getGHNWards(newVal);
-    }
-});
-
-watch(selectedWard, (newVal) => {
-    if (newVal) {
-        const w = wards.value.find(item => item.WardCode === newVal);
-        formAddress.value.ward = w?.WardName || '';
-        formAddress.value.ward_code = newVal;
-        // Trigger shipping fee calculation when ward is selected
-        getShippingFee(selectedDistrict.value, newVal);
-    }
-});
 
 // Watch for address selection change in the list
 watch(selectedAddressId, (newVal) => {
@@ -406,7 +315,7 @@ const placeOrder = async () => {
 
     placingOrder.value = true;
     try {
-        const res = await api.post('/profile/orders', payload);
+        const res = await orderService.createProfileOrder(payload);
         if (res.data.status === 'success') {
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {
                 showToast('Đang chuyển đến cổng thanh toán VNPay...', 'success');
@@ -455,26 +364,14 @@ const getProductImage = (item) => {
     return 'https://placehold.co/120x120?text=No+Image';
 };
 
-const showToast = (message, type = 'success') => {
-    toast.value = { show: true, message, type };
-    setTimeout(() => { toast.value.show = false; }, 3000);
-};
-
 onMounted(async () => {
-    await Promise.all([fetchCart(), fetchAddresses(), fetchCoupons(), getGHNProvinces(), fetchUpsellData()]);
+    await Promise.all([fetchCart(), fetchAddresses(), fetchCoupons(), fetchUpsellData()]);
     loading.value = false;
 });
 </script>
 
 <template>
     <div class="checkout-page theme-brown">
-        <!-- Toast Notification -->
-        <Transition name="toast">
-            <div v-if="toast.show" class="toast-notification" :class="toast.type">
-                <span>{{ toast.message }}</span>
-            </div>
-        </Transition>
-
         <div v-if="loading" class="loading-state">
             <div class="spinner"></div>
             <p>Đang chuẩn bị trang thanh toán...</p>
@@ -510,7 +407,7 @@ onMounted(async () => {
                         <div class="section-body block-border">
                             <div class="address-tabs">
                                 <button class="add-tab" :class="{ 'active': !showAddAddressForm }"
-                                    @click="showAddAddressForm = false">
+                                    @click="useSavedAddresses">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2">
                                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -546,57 +443,10 @@ onMounted(async () => {
                                     </div>
                                 </div>
                                 <div class="form-group pb-2 mt-2">
-                                    <div class="form-group-grid">
-                                        <div class="form-group">
-                                            <label class="form-label">Tỉnh / Thành phố <span
-                                                    class="required">*</span></label>
-                                            <div class="select-wrapper" :class="{ 'loading': isLoadingProvinces }">
-                                                <select v-model="selectedProvince" class="form-input">
-                                                    <option :value="null" disabled>Chọn Tỉnh/Thành</option>
-                                                    <option v-for="p in provinces" :key="p.ProvinceID"
-                                                        :value="p.ProvinceID">
-                                                        {{ p.ProvinceName }}
-                                                    </option>
-                                                </select>
-                                                <div v-if="isLoadingProvinces" class="select-spinner"></div>
-                                            </div>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label">Quận / Huyện <span
-                                                    class="required">*</span></label>
-                                            <div class="select-wrapper" :class="{ 'loading': isLoadingDistricts }">
-                                                <select v-model="selectedDistrict" class="form-input"
-                                                    :disabled="!selectedProvince">
-                                                    <option :value="null" disabled>Chọn Quận/Huyện</option>
-                                                    <option v-for="d in districts" :key="d.DistrictID"
-                                                        :value="d.DistrictID">
-                                                        {{ d.DistrictName }}
-                                                    </option>
-                                                </select>
-                                                <div v-if="isLoadingDistricts" class="select-spinner"></div>
-                                            </div>
-                                        </div>
-                                        <div class="form-group">
-                                            <label class="form-label">Phường / Xã <span
-                                                    class="required">*</span></label>
-                                            <div class="select-wrapper" :class="{ 'loading': isLoadingWards }">
-                                                <select v-model="selectedWard" class="form-input"
-                                                    :disabled="!selectedDistrict">
-                                                    <option :value="null" disabled>Chọn Phường/Xã</option>
-                                                    <option v-for="w in wards" :key="w.WardCode" :value="w.WardCode">
-                                                        {{ w.WardName }}
-                                                    </option>
-                                                </select>
-                                                <div v-if="isLoadingWards" class="select-spinner"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="form-group mt-2">
-                                        <label class="form-label">Địa chỉ chi tiết <span
-                                                class="required">*</span></label>
-                                        <input v-model="formAddress.address_line" type="text" class="form-input"
-                                            placeholder="Số nhà, tên đường..." />
-                                    </div>
+                                    <AddressSelector
+                                        :key="addressSelectorKey"
+                                        @change="onAddressChange"
+                                    />
                                 </div>
                             </div>
 
@@ -2074,66 +1924,6 @@ textarea.note-input {
     background: #059669;
 }
 
-/* Toast */
-.toast-notification {
-    position: fixed;
-    top: 90px;
-    right: 24px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 16px 24px;
-    border-radius: 12px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    z-index: 10000;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-}
-
-.toast-notification.success {
-    background: #f0fdf4;
-    color: #166534;
-    border: 2px solid #bbf7d0;
-}
-
-.toast-notification.error {
-    background: #fef2f2;
-    color: #991b1b;
-    border: 2px solid #fecaca;
-}
-
-.toast-enter-active {
-    animation: slideInRight 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.toast-leave-active {
-    animation: slideOutRight 0.3s ease;
-}
-
-@keyframes slideInRight {
-    from {
-        opacity: 0;
-        transform: translateX(50px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-@keyframes slideOutRight {
-    from {
-        opacity: 1;
-        transform: translateX(0);
-    }
-
-    to {
-        opacity: 0;
-        transform: translateX(50px);
-    }
-}
-
 /* Animations */
 .animate-in {
     animation: fadeIn 0.5s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
@@ -2195,37 +1985,61 @@ textarea.note-input {
     .form-row {
         grid-template-columns: 1fr;
     }
+
+    .address-tabs {
+        flex-direction: column;
+    }
+
+    .add-tab {
+        width: 100%;
+    }
+
+    .block-border,
+    .bill-body {
+        padding: 18px;
+    }
+
+    .coupon-input-group {
+        flex-direction: column;
+    }
+
+    .btn-apply-coupon {
+        width: 100%;
+        min-height: 44px;
+    }
 }
 
-/* GHN Selector Styles */
-.form-group-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    width: 100%;
-}
+@media (max-width: 640px) {
+    .page-header {
+        margin-bottom: 14px;
+    }
 
-.select-wrapper {
-    position: relative;
-    width: 100%;
-}
+    .section-header h2 {
+        font-size: 1.12rem;
+    }
 
-.select-wrapper.loading select {
-    padding-right: 40px;
-    background-color: #f1f5f9;
-}
+    .address-card,
+    .payment-card {
+        align-items: flex-start;
+    }
 
-.select-spinner {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 18px;
-    height: 18px;
-    border: 2px solid #e2e8f0;
-    border-top-color: #E63B6F;
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
+    .addr-header,
+    .coupon-applied-box,
+    .total-final-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .modal-overlay {
+        padding: 12px;
+        align-items: flex-end;
+    }
+
+    .modal-content {
+        max-width: none;
+        max-height: min(82vh, 640px);
+        border-radius: 20px 20px 0 0;
+    }
 }
 
 .calculating-text {
@@ -2251,9 +2065,4 @@ textarea.note-input {
     100% { opacity: 1; }
 }
 
-@media (max-width: 768px) {
-    .form-group-grid {
-        grid-template-columns: 1fr;
-    }
-}
 </style>

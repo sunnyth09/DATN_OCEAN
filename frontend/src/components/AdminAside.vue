@@ -150,7 +150,8 @@
     <!-- Footer (User Profile) -->
     <div class="sidebar-footer">
       <div class="user-profile">
-        <div class="user-avatar-circle"><img :src="userAvatar" alt="" width="50" height="50" style="border-radius: 50%;"></div>
+        <div v-if="userAvatar" class="user-avatar-circle"><img :src="userAvatar" alt="" width="50" height="50" style="border-radius: 50%;"></div>
+        <div v-else class="user-avatar-circle">{{ userInitial }}</div>
         <div class="user-details" @click="handleLogout" style="cursor: pointer;" title="Nhấn để đăng xuất">
           <span class="user-name-bold">{{ userName }}</span>
           <span class="user-email-text">{{ userEmail || 'admin123@gmail.com' }}</span>
@@ -161,7 +162,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 
@@ -174,6 +175,7 @@ const userRoleRaw = ref('');
 const isStoreMenuOpen = ref(true); // Mặc định mở theo ảnh mẫu
 const isStaffMenuOpen = ref(false); // Mặc định đóng
 
+const userInitial = computed(() => (userName.value?.[0] || 'A').toUpperCase());
 
 onMounted(() => {
   const userData = sessionStorage.getItem('user');

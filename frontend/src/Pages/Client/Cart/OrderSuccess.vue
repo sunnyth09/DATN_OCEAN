@@ -1,8 +1,9 @@
 ﻿<script setup>
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
-import api from "@/axios";
 import ProductCard from "@/components/ProductCard.vue";
+import { catalogService } from "@/services/catalogService";
+import { orderService } from "@/services/orderService";
 
 const route = useRoute();
 const orderCode = route.params.order_code || "";
@@ -14,11 +15,9 @@ const fetchRelatedProducts = async () => {
     loading.value = true;
     try {
         // Lấy 8 sản phẩm thay vì 4 để lấp đầy grid đẹp hơn
-        const res = await api.get("/products", {
-            params: {
-                limit: 8,
-                sort: "newest", // hoặc random nếu backend hỗ trợ
-            },
+        const res = await catalogService.listProducts({
+            limit: 8,
+            sort: "newest",
         });
         if (res.data.status === "success") {
             relatedProducts.value = res.data.data.data || [];
@@ -33,7 +32,7 @@ const fetchRelatedProducts = async () => {
 };
 const fetchOrderId = async () => {
     try {
-        const res = await api.get("/profile/orders/" + orderCode + "/order-id");
+        const res = await orderService.resolveOrderId(orderCode);
         if (res.data.status === "success") {
             orderId.value = res.data.data.order_id;
         }

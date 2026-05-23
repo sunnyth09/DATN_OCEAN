@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <aside class="profile-aside">
     <!-- User Info Card -->
     <div class="aside-user-card">
@@ -71,7 +71,7 @@
       </router-link>
 
       <router-link
-        to="/profile/coupon"
+        to="/profile/coupons"
         class="aside-nav-item"
         active-class="aside-nav-item--active"
       >
@@ -196,7 +196,7 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 14px;
-  background: linear-gradient(135deg, #1a56db 0%, #2563eb 50%, #E63B6F 100%);
+  background-color:  #E63B6F;
   color: #fff;
 }
 
@@ -287,7 +287,7 @@ const handleLogout = async () => {
 
 .aside-nav-item--active {
   background: #eff6ff !important;
-  color: #1a56db !important;
+  color: #E63B6F !important;
   font-weight: 600;
 }
 

@@ -1,3 +1,19 @@
+<<<<<<< ours
+<template>
+  <BackOfficeShell
+    :sidebar-component="SellerAside"
+    default-title="Kênh bán hàng"
+    section-label="Vận hành cửa hàng"
+  >
+    <router-view />
+  </BackOfficeShell>
+</template>
+
+<script setup>
+import BackOfficeShell from '../components/BackOfficeShell.vue';
+import SellerAside from '../components/SellerAside.vue';
+</script>
+=======
 ﻿<template>
   <div class="admin-layout">
     <SellerAside />
@@ -192,3 +208,4 @@ onMounted(() => {
   margin: 0 auto;
 }
 </style>
+>>>>>>> theirs

@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
-import api from "../../../axios.js";
 import { useRouter, useRoute } from "vue-router";
 import ProductCard from "../../../components/ProductCard.vue";
 import ProductSkeleton from "../../../components/ProductSkeleton.vue";
+import { catalogService } from "@/services/catalogService";
 
 const router = useRouter();
 const route = useRoute();
@@ -59,7 +59,7 @@ const fetchProducts = async () => {
         if (sortBy.value) params.sort_by = sortBy.value;
         if (searchQuery.value.trim()) params.search = searchQuery.value.trim();
 
-        const response = await api.get('/products', { params });
+        const response = await catalogService.listProducts(params);
         const rawData = response.data.data || response.data;
 
         Products.value = (Array.isArray(rawData) ? rawData : rawData.data || []).map((item) => {
@@ -97,7 +97,7 @@ const fetchProducts = async () => {
 // ── Fetch categories ──
 const fetchCategories = async () => {
     try {
-        const response = await api.get("/categories");
+        const response = await catalogService.listCategories();
         Categories.value = response.data.data || response.data || [];
     } catch (error) {
         console.error("Error fetching categories:", error);
@@ -107,7 +107,7 @@ const fetchCategories = async () => {
 // ── Fetch brands ──
 const fetchBrands = async () => {
     try {
-        const response = await api.get("/brands");
+        const response = await catalogService.listBrands();
         Brands.value = response.data.data || response.data || [];
     } catch (e) {
         // Brands endpoint might not exist, fail silently

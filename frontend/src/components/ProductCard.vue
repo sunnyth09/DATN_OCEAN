@@ -1,5 +1,9 @@
 <script setup>
 import { computed } from "vue";
+import { useRouter } from "vue-router";
+import { useToast } from "@/composables/useToast";
+import { useFavorites } from "@/composables/useFavorites";
+import { useCartStore } from "@/stores/cart";
 
 const props = defineProps({
     product: {
@@ -7,6 +11,11 @@ const props = defineProps({
         required: true,
     },
 });
+const emit = defineEmits(["unfavorite"]);
+const router = useRouter();
+const cartStore = useCartStore();
+const { showToast } = useToast();
+const { isFavorited, toggleFavorite } = useFavorites();
 
 const formatCurrency = (value) => {
     if (value === null || value === undefined || value === "") {
@@ -59,6 +68,14 @@ const productLink = computed(() => {
 
 const productImage = computed(() => props.product.image || props.product.thumbnail_url || "");
 const productCategory = computed(() => props.product.category_name || props.product.category || "");
+const productId = computed(() => props.product.id || props.product.product_id || null);
+const defaultVariantId = computed(() =>
+    props.product.variant_id ||
+    props.product.default_variant_id ||
+    props.product.lowest_price_variant?.variant_id ||
+    props.product.lowestPriceVariant?.variant_id ||
+    null,
+);
 const currentPrice = computed(() => formatCurrency(props.product.price));
 const originalPrice = computed(() => {
     if (!props.product.originalPrice) return "";
@@ -66,16 +83,44 @@ const originalPrice = computed(() => {
     return formatCurrency(props.product.originalPrice);
 });
 
-const isFavorited = () => false;
-const handleToggleFav = (event) => {
+const handleToggleFav = async (event) => {
     event.preventDefault();
     event.stopPropagation();
+
+    if (!productId.value) return;
+
+    const wasFavorited = isFavorited(productId.value);
+    const success = await toggleFavorite(productId.value);
+    if (success && wasFavorited) {
+        emit("unfavorite", productId.value);
+    }
 };
 
-const handleAddToCart = (event) => {
+const handleAddToCart = async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    console.log("Them vao gio", props.product.name);
+
+    if (!defaultVariantId.value) {
+        router.push(productLink.value);
+        return;
+    }
+
+    try {
+        const result = await cartStore.addItem({
+            variantId: defaultVariantId.value,
+            quantity: 1,
+        });
+
+        if (result.status === "unauthenticated") {
+            router.push({ name: "login", query: { redirect: productLink.value } });
+            return;
+        }
+
+        showToast(result.message || "Đã thêm vào giỏ hàng", "success");
+    } catch (error) {
+        const message = error.response?.data?.message || "Không thể thêm vào giỏ hàng.";
+        showToast(message, "danger");
+    }
 };
 </script>
 

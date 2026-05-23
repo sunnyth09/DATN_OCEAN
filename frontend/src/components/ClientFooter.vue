@@ -43,10 +43,10 @@ const BASE_URL = import.meta.env.VITE_BASE_URL;
         <div class="footer-col">
           <h4 class="footer-heading">Về chúng tôi</h4>
           <ul class="footer-links">
-            <li><router-link to="/">Câu chuyện thương hiệu</router-link></li>
-            <li><router-link to="/">Tuyển dụng</router-link></li>
-            <li><router-link to="/">Điều khoản dịch vụ</router-link></li>
-            <li><router-link to="/">Chính sách bảo mật</router-link></li>
+            <li><router-link to="/brand-story">Câu chuyện thương hiệu</router-link></li>
+            <li><router-link to="/careers">Tuyển dụng</router-link></li>
+            <li><router-link to="/terms">Điều khoản dịch vụ</router-link></li>
+            <li><router-link to="/privacy">Chính sách bảo mật</router-link></li>
           </ul>
         </div>
 
@@ -54,10 +54,10 @@ const BASE_URL = import.meta.env.VITE_BASE_URL;
         <div class="footer-col">
           <h4 class="footer-heading">Hỗ Trợ Khách Hàng</h4>
           <ul class="footer-links">
-            <li><router-link to="/">Câu hỏi thường gặp (FAQ)</router-link></li>
-            <li><router-link to="/">Chính sách đổi trả</router-link></li>
-            <li><router-link to="/">Liên hệ hỗ trợ</router-link></li>
-            <li><router-link to="/">Hướng dẫn mua hàng</router-link></li>
+            <li><router-link to="/faq">Câu hỏi thường gặp (FAQ)</router-link></li>
+            <li><router-link to="/return-policy">Chính sách đổi trả</router-link></li>
+            <li><router-link to="/contact">Liên hệ hỗ trợ</router-link></li>
+            <li><router-link to="/shopping-guide">Hướng dẫn mua hàng</router-link></li>
           </ul>
         </div>
 

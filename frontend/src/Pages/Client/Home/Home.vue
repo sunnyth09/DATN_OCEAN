@@ -1,15 +1,19 @@
 <script setup>
 import { ref, onMounted, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { useRouter } from "vue-router";
-import api from "../../../axios.js";
 import ProductCard from "../../../components/ProductCard.vue";
 import ProductSkeleton from "../../../components/ProductSkeleton.vue";
+import { useCatalogStore } from "@/stores/catalog";
+import { catalogService, extractCollection } from "@/services/catalogService";
 
 const router = useRouter();
 const Products = ref([]);
 const Categories = ref([]);
 const isLoadingFeatured = ref(true);
 const isLoadingCategories = ref(true);
+const catalogStore = useCatalogStore();
+const { categories: storeCategories } = storeToRefs(catalogStore);
 
 const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
 
@@ -50,8 +54,8 @@ const mapProduct = (item) => {
 const fetchCategories = async () => {
     isLoadingCategories.value = true;
     try {
-        const res = await api.get('/categories');
-        const data = res.data?.data || res.data || [];
+        await catalogStore.fetchCategories();
+        const data = storeCategories.value || [];
         Categories.value = (Array.isArray(data) ? data : []).map(cat => ({
             id: cat.category_id || cat.id,
             name: cat.name,
@@ -70,8 +74,8 @@ const fetchCategories = async () => {
 const fetchProducts = async () => {
     isLoadingFeatured.value = true;
     try {
-        const res = await api.get('/products', { params: { limit: 8, sort: 'newest' } });
-        const rawData = res.data?.data?.data || res.data?.data || res.data || [];
+        const res = await catalogService.listProducts({ limit: 8, sort: 'newest' });
+        const rawData = extractCollection(res);
         Products.value = (Array.isArray(rawData) ? rawData : []).map(mapProduct);
     } catch (e) {
         console.error('Lỗi tải sản phẩm:', e);

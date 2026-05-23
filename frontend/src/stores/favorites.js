@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { defineStore } from 'pinia';
 import Swal from 'sweetalert2';
 import api from '@/axios';
+import { useAuthStore } from '@/stores/auth';
 
 const Toast = Swal.mixin({
     toast: true,
@@ -19,8 +20,9 @@ export const useFavoritesStore = defineStore('favorites', () => {
     const favoriteIds = ref([]);
     const isInitialized = ref(false);
     const isFetching = ref(false);
+    const authStore = useAuthStore();
 
-    const isLoggedIn = () => !!sessionStorage.getItem('auth_token');
+    const isLoggedIn = () => authStore.isAuthenticated;
 
     const fetchFavoriteIds = async (force = false) => {
         if (!isLoggedIn()) {
