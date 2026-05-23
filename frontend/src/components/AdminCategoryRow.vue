@@ -1,4 +1,6 @@
 <script setup>
+import AppIcon from '@/icons/AppIcon.vue';
+
 const props = defineProps({
     category: { type: Object, required: true },
     level: { type: Number, default: 0 }
@@ -19,9 +21,7 @@ const emit = defineEmits(['edit', 'delete']);
                         :alt="category.name"
                         class="cat-thumbnail"
                     />
-                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
-                    </svg>
+                    <AppIcon v-else name="folder" size="16" />
                 </div>
                 <span class="cat-name">{{ category.name }}</span>
                 <span v-if="category.children?.length" class="child-badge">{{ category.children.length }}</span>
@@ -37,10 +37,10 @@ const emit = defineEmits(['edit', 'delete']);
         <td>
             <div class="actions-cell">
                 <button class="btn-icon edit" @click="emit('edit', category)" title="Chỉnh sửa">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    <AppIcon name="edit" size="15" />
                 </button>
                 <button class="btn-icon del" @click="emit('delete', category.category_id || category.post_category_id)" title="Xóa">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    <AppIcon name="trash" size="15" />
                 </button>
             </div>
         </td>

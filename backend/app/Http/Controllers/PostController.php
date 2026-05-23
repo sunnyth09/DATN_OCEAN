@@ -9,6 +9,9 @@ use Illuminate\Support\Str;
 
 class PostController extends Controller
 {
+    private const SUMMARY_MAX_LENGTH = 500;
+    private const SEO_DESCRIPTION_MAX_LENGTH = 500;
+
     /**
      * Display a listing of the resource.
      */
@@ -25,7 +28,7 @@ class PostController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'summary' => 'nullable|string',
+            'summary' => 'nullable|string|max:' . self::SUMMARY_MAX_LENGTH,
             'content' => 'nullable|string',
             'post_category_id' => 'required|exists:post_categories,post_category_id',
             'post_type' => 'nullable|string',
@@ -35,9 +38,12 @@ class PostController extends Controller
             'published_at' => 'nullable|date',
             'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'banner' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'seo_title' => 'nullable|string',
-            'seo_description' => 'nullable|string',
-            'seo_keywords' => 'nullable|string',
+            'seo_title' => 'nullable|string|max:255',
+            'seo_description' => 'nullable|string|max:' . self::SEO_DESCRIPTION_MAX_LENGTH,
+            'seo_keywords' => 'nullable|string|max:255',
+        ], [
+            'summary.max' => 'Tóm tắt nội dung không được vượt quá ' . self::SUMMARY_MAX_LENGTH . ' ký tự.',
+            'seo_description.max' => 'Mô tả SEO không được vượt quá ' . self::SEO_DESCRIPTION_MAX_LENGTH . ' ký tự.',
         ]);
         $post = Post::where('slug', Str::slug($request->title))->first();
         if($post){

@@ -213,10 +213,9 @@ const login = async () => {
               </div>
 
               <!-- CAPTCHA -->
-              <div class="turnstile-container">
+              <!-- <div class="turnstile-container">
                  <div class="captcha-box" v-show="!turnstileToken">
                     <div class="turnstile-wrapper">
-                      <!-- Ensure valid turnstile rendering here -->
                       <div id="turnstile-login"></div>
                     </div>
                  </div>
@@ -226,10 +225,10 @@ const login = async () => {
                     </span>
                     <span class="captcha-text">Xác thực thành công</span>
                  </div>
-              </div>
+              </div> -->
 
               <!-- Action -->
-              <button type="submit" class="btn-primary" :disabled="!isFormValid || isSubmitting || !turnstileToken">
+              <button type="submit" class="btn-primary" :disabled="!isFormValid || isSubmitting">
                 <span v-if="isSubmitting" class="spinner"></span>
                 <span>{{ isSubmitting ? 'ĐANG TIẾN HÀNH...' : 'ĐĂNG NHẬP' }}</span>
                 <svg v-if="!isSubmitting" class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>

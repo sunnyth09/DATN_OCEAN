@@ -84,7 +84,7 @@ class SendOrderEmails extends Command
                 // --- Bước 2.1: Tạo thông báo in-app (vào DB) ---
                 try {
                     $notificationData = [
-                        'title'       => '📦 Đặt hàng thành công',
+                        'title'       => 'Đặt hàng thành công',
                         'message'     => 'Đơn hàng ' . $order->order_code . ' của bạn đã được ghi nhận.',
                         'order_code'  => $order->order_code,
                         'grand_total' => $order->grand_total,
@@ -219,7 +219,7 @@ class SendOrderEmails extends Command
         $emailMessage = (new \Symfony\Component\Mime\Email())
             ->from($emailUser)
             ->to($user->email)
-            ->subject('📦 Xác nhận đơn hàng ' . $order->order_code . ' - Ocean Store')
+            ->subject('Xác nhận đơn hàng ' . $order->order_code . ' - Ocean Store')
             ->html($htmlBody);
 
         $mailer->send($emailMessage);

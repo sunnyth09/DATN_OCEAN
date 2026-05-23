@@ -3,6 +3,7 @@ import { ref, onMounted, computed, nextTick } from 'vue';
 import api from '../../axios.js';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
+import AppIcon from '@/icons/AppIcon.vue';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastMsg = (message, type = 'success') => {
@@ -445,7 +446,7 @@ const formatDate = (dateString) => {
                             <td>
                                 <div class="prod-cell">
                                     <div>
-                                        <span class="prod-name">{{ p.name }}</span> <br class="m-0">
+                                        <router-link :to="`/product/${p.slug}`" class="prod-name text-decoration-none">{{ p.name }}</router-link> <br class="m-0">
                                         <span class="prod-slug">{{ p.slug }}</span> <br class="m-0">
                                         <span class="prod-slug">Ngày tạo: {{ formatDate(p.created_at) }}</span>
 
@@ -498,7 +499,13 @@ const formatDate = (dateString) => {
 
             <!-- Empty -->
             <div v-if="products.length === 0" class="empty-state">
-                <span class="empty-emoji">🐚</span>
+                <span class="empty-emoji mb-4">
+                    <!-- Search icon -->
+                    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                </span>
                 <h3>Không tìm thấy sản phẩm</h3>
                 <p>Thử tìm kiếm với từ khóa khác hoặc thêm sản phẩm mới.</p>
             </div>
@@ -701,7 +708,7 @@ const formatDate = (dateString) => {
                     <div class="import-body">
                         <!-- Hướng dẫn -->
                         <div class="import-guide">
-                            <h4>📋 Hướng dẫn</h4>
+                            <h4><AppIcon iconName="import" size="16" /> Hướng dẫn</h4>
                             <ol>
                                 <li>Tải file Excel mẫu bên dưới</li>
                                 <li>Điền thông tin sản phẩm vào file (mỗi dòng = 1 sản phẩm đơn)</li>

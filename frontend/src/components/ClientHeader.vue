@@ -5,6 +5,7 @@ import api from "../axios.js";
 import { broadcastLogout } from "../sessionSync.js";
 import Swal from "sweetalert2";
 import SearchModal from "./SearchModal.vue";
+import AppIcon from "@/icons/AppIcon.vue";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 const route = useRoute();
@@ -116,7 +117,7 @@ const checkAuth = () => {
             const path = user.avatar_url;
             if (path) {
                 const API_URL = (
-                    import.meta.env.VITE_API_URL || "http://localhost:8383/api"
+                    import.meta.env.VITE_API_URL || ""
                 ).replace("/api", "");
                 userAvatar.value = path.startsWith("http")
                     ? path
@@ -349,33 +350,20 @@ watch(
                     aria-label="Mở menu điều hướng"
                     @click.stop="toggleMobileMenu"
                 >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
+                    <AppIcon name="menu" stroke-width="2.2" />
                 </button>
 
                 <!-- Search -->
                 <div class="search-wrapper">
                     <button type="button" class="icon-btn search-icon-btn" @click="openSearch">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
+                        <AppIcon name="search" />
                     </button>
                 </div>
 
                 <!-- Thông báo -->
                 <router-link to="/profile/notifications" class="icon-btn notif-icon-btn" v-if="isLoggedIn">
                     <div class="cart-icon-wrapper">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
+                        <AppIcon name="bell" />
                         <span v-if="unreadNotificationCount > 0" class="cart-badge">{{
                             unreadNotificationCount > 99 ? "99+" : unreadNotificationCount
                         }}</span>
@@ -385,12 +373,7 @@ watch(
                 <!-- Giỏ hàng -->
                 <router-link to="/cart" class="icon-btn cart-icon-btn">
                     <div class="cart-icon-wrapper">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <path d="M16 10a4 4 0 0 1-8 0"></path>
-                        </svg>
+                        <AppIcon name="order" />
                         <span v-if="cartCount > 0" class="cart-badge">{{
                             cartCount > 99 ? "99+" : cartCount
                         }}</span>
@@ -407,11 +390,7 @@ watch(
                             </div>
                         </template>
                         <template v-else>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="12" cy="7" r="4"></circle>
-                            </svg>
+                            <AppIcon name="user" />
                         </template>
                     </button>
 
@@ -460,20 +439,12 @@ watch(
                         <h2 class="mobile-nav-title">Khám phá nhanh</h2>
                     </div>
                     <button type="button" class="icon-btn mobile-nav-close" @click="closeMobileMenu">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
+                        <AppIcon name="x" size="18" stroke-width="2.5" />
                     </button>
                 </div>
 
                 <button type="button" class="mobile-search-btn" @click="openSearch">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
+                    <AppIcon name="search" size="18" />
                     <span>Tìm kiếm sản phẩm</span>
                 </button>
 
@@ -530,10 +501,7 @@ watch(
     <div class="floating-flash-sale" :style="{ left: flashSalePos.x + 'px', top: flashSalePos.y + 'px' }"
         @mousedown="startDrag" @touchstart="startDrag" @click="handleFlashSaleClick">
         <div class="flash-sale-badge">
-            <svg class="flash-sale-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-            </svg>
+            <AppIcon name="zap" class="flash-sale-icon" size="24" />
             <span>FLASH SALE</span>
         </div>
     </div>

@@ -255,7 +255,9 @@ onMounted(fetchFlashSales);
 
                     <!-- Dynamic Items Settings -->
                     <hr/>
-                    <h6 class="fw-bold mb-3">📦 Danh sách sản phẩm Sale</h6>
+                    <h6 class="fw-bold mb-3">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                     Danh sách sản phẩm Sale</h6>
                     <div class="position-relative mb-3">
                         <input v-model="productSearchTerm" @input="searchProducts" type="text" 
                                class="form-control shadow-sm" placeholder="🔍 Gõ tên để thêm sản phẩm vào sự kiện..." />
