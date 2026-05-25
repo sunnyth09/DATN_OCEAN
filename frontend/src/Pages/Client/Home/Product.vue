@@ -18,6 +18,9 @@ const selectedCategories = ref([]);     // checkbox array
 const selectedBrands = ref([]);         // checkbox array
 const priceMin = ref(0);
 const priceMax = ref(10000000);
+const displayPriceMax = ref(10000000);
+watch(priceMax, (newVal) => { displayPriceMax.value = newVal; });
+
 const sortBy = ref("newest");
 const searchQuery = ref("");
 
@@ -56,6 +59,13 @@ const fetchProducts = async () => {
         if (selectedCategories.value.length > 0) {
             params.category_id = selectedCategories.value[0]; // primary filter
         }
+        if (selectedBrands.value.length > 0) {
+            params.brand_ids = selectedBrands.value.join(',');
+        }
+        if (priceMax.value !== undefined && priceMax.value !== null) {
+            params.max_price = priceMax.value;
+        }
+        
         if (sortBy.value) params.sort_by = sortBy.value;
         if (searchQuery.value.trim()) params.search = searchQuery.value.trim();
 
@@ -138,7 +148,7 @@ const formatPrice = (val) => {
 // ── Watchers ──
 let isResettingPage = false;
 
-watch([selectedCategories, selectedBrands, sortBy], () => {
+watch([selectedCategories, selectedBrands, sortBy, priceMax], () => {
     if (currentPage.value !== 1) {
         isResettingPage = true;
         currentPage.value = 1;
@@ -288,10 +298,10 @@ onMounted(async () => {
                     <div class="filter-group">
                         <h3 class="filter-title">KHOẢNG GIÁ</h3>
                         <div class="price-slider-wrap">
-                            <input type="range" min="0" max="10000000" step="100000" v-model.number="priceMax" class="price-slider" />
+                            <input type="range" min="0" max="10000000" step="100000" v-model.number="displayPriceMax" @change="priceMax = displayPriceMax" class="price-slider" />
                             <div class="price-labels">
                                 <span>0đ</span>
-                                <span>{{ formatPrice(priceMax) }}</span>
+                                <span>{{ formatPrice(displayPriceMax) }}</span>
                             </div>
                         </div>
                     </div>

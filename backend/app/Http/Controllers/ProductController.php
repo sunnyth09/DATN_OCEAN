@@ -117,7 +117,20 @@ class ProductController extends Controller
             $query->whereIn('category_id', $categoryIds);
         }
 
-        // Lọc theo giá
+        // Lọc theo thương hiệu
+        $brandIds = $request->query('brand_ids');
+        if ($brandIds) {
+            $brands = explode(',', $brandIds);
+            $query->whereIn('brand_id', $brands);
+        }
+
+        // Lọc theo giá lớn nhất (slider)
+        $maxPrice = $request->query('max_price');
+        if ($maxPrice !== null) {
+            $query->where('min_price', '<=', $maxPrice);
+        }
+
+        // Lọc theo khoảng giá tĩnh (nếu còn dùng)
         $priceRange = $request->query('price_range');
         if ($priceRange === 'under-500k') {
             $query->where('min_price', '<', 500000);
