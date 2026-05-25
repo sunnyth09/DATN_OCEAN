@@ -9,6 +9,7 @@ import PremiumUpgrade from '@/components/PremiumUpgrade.vue';
 import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/icons/AppIcon.vue';
+import VirtualTryOnModal from '@/components/VirtualTryOnModal.vue';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -23,6 +24,7 @@ const relatedProducts = ref([]);
 const addingToCart = ref(false);
 const toast = ref({ show: false, message: '', type: 'success' });
 const showSizeGuide = ref(false);
+const showTryOn = ref(false);
 
 const { isFavorited, toggleFavorite } = useFavorites();
 const handleToggleFav = async () => {
@@ -459,6 +461,12 @@ onMounted(() => {
           <button class="pd-btn-buy" @click="buyNow" :disabled="addingToCart">Mua Ngay</button>
         </div>
 
+        <!-- AR Try-On -->
+        <button class="pd-btn-tryon" @click="showTryOn = true" title="Thử sản phẩm trực quan bằng Camera">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+          Thử Sản Phẩm AR
+        </button>
+
         <!-- Perks -->
         <div class="pd-perks">
           <div class="pd-perk"><AppIcon name="arrow-right" size="16" /> Giao hàng miễn phí</div>
@@ -567,6 +575,13 @@ onMounted(() => {
       <span>{{ toast.message }}</span>
     </div>
   </Transition>
+
+  <!-- Virtual Try-On Modal -->
+  <VirtualTryOnModal 
+    :show="showTryOn" 
+    :image-url="mainImageUrl" 
+    @close="showTryOn = false" 
+  />
 
   <!-- Modal Bảng Size -->
   <teleport to="body">
@@ -708,6 +723,30 @@ onMounted(() => {
 .pd-btn-cart:disabled { opacity: 0.6; cursor: not-allowed; }
 .pd-btn-buy { flex: 1; padding: 14px 20px; background: #fff; color: #E63B6F; border: 2px solid #E63B6F; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .pd-btn-buy:hover { background: #E63B6F; color: #fff; }
+
+/* AR Try-On Button */
+.pd-btn-tryon {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #FFF0F3;
+  color: #E63B6F;
+  border: 2px dashed #FFB8CC;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+  font-family: inherit;
+}
+.pd-btn-tryon:hover {
+  background: #FFE4E9;
+  border-color: #E63B6F;
+}
 
 /* Perks */
 .pd-perks { display: flex; gap: 24px; padding: 16px 0; border-top: 1px solid #E9ECEF; margin-bottom: 20px; }
