@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
@@ -14,6 +14,8 @@ const loading = ref(true);
 const { showToast } = useToast();
 
 const { state: upsellState, fetchUpsellData } = useCartUpsell();
+
+const APP_URL = import.meta.env.VITE_BASE_URL;
 
 // --- Địa chỉ ---
 const addresses = ref([]);
@@ -169,12 +171,16 @@ const subtotal = computed(() => {
 
 const shippingFee = ref(0);
 
-const finalShippingFee = computed(() => {
-    // Miễn phí vận chuyển nếu đơn đạt mốc freeship
+const shippingDiscount = computed(() => {
+    let disc = 0;
     if (subtotal.value >= upsellState.freeshipThreshold) {
-        return 0;
+        disc = shippingFee.value;
     }
-    return shippingFee.value;
+    if (appliedCoupon.value && appliedCoupon.value.type === 'free_ship') {
+        const val = parseFloat(appliedCoupon.value.value) || shippingFee.value;
+        disc = Math.max(disc, Math.min(val, shippingFee.value));
+    }
+    return disc;
 });
 
 const getShippingFee = async (district_id, ward_code) => {
@@ -221,9 +227,8 @@ const discount = computed(() => {
         }
         return Math.min(disc, subtotal.value);
     } else if (type === 'free_ship') {
-        disc = value;
-        // With free_ship, it applies to shipping fee
-        return Math.min(disc, finalShippingFee.value); 
+        // Free ship coupon is handled in shippingDiscount
+        return 0; 
     } else {
         // fixed
         disc = value;
@@ -232,7 +237,7 @@ const discount = computed(() => {
 });
 
 const total = computed(() => {
-    return subtotal.value + finalShippingFee.value - discount.value;
+    return Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
 });
 
 // Appy coupon (Mã cứng mockup cho UI: OCEAN10)
@@ -287,6 +292,7 @@ const placeOrder = async () => {
         payment_method: paymentMethod.value,
         note: note.value,
         coupon_applied: appliedCoupon.value?.code || null,
+        referral_code: localStorage.getItem('affiliate_ref') || null,
     };
 
     if (showAddAddressForm.value) {
@@ -317,6 +323,8 @@ const placeOrder = async () => {
     try {
         const res = await orderService.createProfileOrder(payload);
         if (res.data.status === 'success') {
+            // Xóa referral_code sau khi đặt hàng thành công
+            localStorage.removeItem('affiliate_ref');
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {
                 showToast('Đang chuyển đến cổng thanh toán VNPay...', 'success');
                 setTimeout(() => {
@@ -358,9 +366,9 @@ const placeOrder = async () => {
 
 // Các hàm tiện ích
 const getProductImage = (item) => {
-    if (item.variant?.image_url) return `http://localhost:8383/storage/${item.variant.image_url}`;
-    if (item.product?.main_image) return `http://localhost:8383/storage/${item.product.main_image}`;
-    if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return `http://localhost:8383/storage/${item.product.thumbnail_url}`;
+    if (item.variant?.image_url) return `${APP_URL}/storage/${item.variant.image_url}`;
+    if (item.product?.main_image) return `${APP_URL}/storage/${item.product.main_image}`;
+    if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return `${APP_URL}/storage/${item.product.thumbnail_url}`;
     return 'https://placehold.co/120x120?text=No+Image';
 };
 
@@ -650,13 +658,20 @@ onMounted(async () => {
                                         <span>Phí vận chuyển</span>
                                         <span class="fw-600">
                                             <span v-if="isCalculatingFee" class="calculating-text">Đang tính...</span>
-                                            <span v-else-if="finalShippingFee === 0" class="free-badge">Miễn phí</span>
-                                            <span v-else>{{ formatPrice(finalShippingFee) }}</span>
+                                            <span v-else>{{ formatPrice(shippingFee) }}</span>
                                         </span>
                                     </div>
-                                    <div class="total-row" v-if="discount > 0">
+                                    <div v-if="subtotal < upsellState.freeshipThreshold && shippingFee > 0" class="freeship-hint-row" style="text-align: right; margin-top: -6px; margin-bottom: 8px;">
+                                        <small style="color: #0ea5e9; font-size: 0.8rem; font-weight: 500;">
+                                           Chỉ cần mua thêm {{ formatPrice(upsellState.freeshipThreshold - subtotal) }} để được Freeship
+                                        </small>
+                                    </div>
+                                    <div class="total-row" v-if="discount > 0 || shippingDiscount > 0">
                                         <span>Giảm giá</span>
-                                        <span class="discount-val">-{{ formatPrice(discount) }}</span>
+                                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                                            <span class="discount-val" v-if="discount > 0" style="color: #ef4444;">-{{ formatPrice(discount) }}</span>
+                                            <span class="free-badge" v-if="shippingDiscount > 0" style="color: #10b981;">Freeship: -{{ formatPrice(shippingDiscount) }}</span>
+                                        </div>
                                     </div>
 
                                     <div class="summary-divider variant-dashed"></div>

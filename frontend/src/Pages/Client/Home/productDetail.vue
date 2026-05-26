@@ -369,6 +369,27 @@ watch(slug, (newSlug, oldSlug) => {
 
 onMounted(() => {
     fetchProduct(slug.value);
+
+    // === Affiliate: ghi nhận referral code từ URL ===
+    const refCode = route.query.ref;
+    if (refCode) {
+        // Lưu vào localStorage với TTL 30 ngày
+        localStorage.setItem('affiliate_ref', refCode);
+        localStorage.setItem('affiliate_ref_expiry', Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+        // Gọi API track click (fire-and-forget, không block UI)
+        api.post('/affiliate/track-click', {
+            referral_code: refCode,
+            product_id: null, // Sẽ cập nhật sau khi fetch product
+        }).catch(() => {}); // Bỏ qua lỗi
+    } else {
+        // Kiểm tra localStorage đã hết hạn chưa
+        const expiry = localStorage.getItem('affiliate_ref_expiry');
+        if (expiry && Date.now() > Number(expiry)) {
+            localStorage.removeItem('affiliate_ref');
+            localStorage.removeItem('affiliate_ref_expiry');
+        }
+    }
 });
 </script>
 

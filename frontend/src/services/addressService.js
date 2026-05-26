@@ -12,8 +12,7 @@ const getGhnHeaders = () => {
   }
 
   return {
-    Token: token,
-    ShopId: shopId,
+    token: token,
   };
 };
 
@@ -39,15 +38,33 @@ export const addressService = {
   },
 
   listProvinces() {
-    return api.get('/location/provinces');
+    return axios.get(`${GHN_BASE_URL}/master-data/province`, {
+      headers: {
+        ...getGhnHeaders(),
+      },
+    });
   },
 
   listDistricts(provinceCode) {
-    return api.get(`/location/districts/${provinceCode}`);
+    return axios.get(`${GHN_BASE_URL}/master-data/district`, {
+      headers: {
+        ...getGhnHeaders(),
+      },
+      params: {
+        province_id: provinceCode,
+      },
+    });
   },
 
   listWards(districtCode) {
-    return api.get(`/location/wards/${districtCode}`);
+    return axios.get(`${GHN_BASE_URL}/master-data/ward`, {
+      headers: {
+        ...getGhnHeaders(),
+      },
+      params: {
+        district_id: districtCode,
+      },
+    });
   },
 
   async getShippingFee({ districtCode, wardCode, weight = 1000, serviceTypeId = 2 }) {

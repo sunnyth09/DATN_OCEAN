@@ -64,4 +64,9 @@ class Order extends Model
         $order = $this->where('order_code', $order_code)->first();
         return $order->order_id;
     }
+
+    public function affiliateConversion()
+    {
+        return $this->hasOne(AffiliateConversion::class, 'order_id', 'order_id');
+    }
 }

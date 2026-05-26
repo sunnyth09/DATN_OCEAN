@@ -94,6 +94,7 @@ const featuredProduct = computed(() => {
 
 const catIcons = ['👟','🎒','⌚','👔','👗','🏃','🏷️'];
 const getCatIcon = (idx) => catIcons[idx % catIcons.length];
+const APP_URL = import.meta.env.VITE_API_URL || 'http://localhost:8383/';
 
 onMounted(() => {
     fetchCategories();
@@ -109,7 +110,7 @@ onMounted(() => {
         ══════════════════════════════════════════ -->
         <section class="hero-section">
             <div class="hero-bg">
-                <img src="https://images.unsplash.com/photo-1461896836934-bd45ba8fcf9b?w=1920&q=80" alt="hero" class="hero-bg-img" />
+                <img :src="APP_URL + '/storage/banners/banner.png'" alt="hero" class="hero-bg-img" />
                 <div class="hero-overlay"></div>
             </div>
             <div class="hero-content">
