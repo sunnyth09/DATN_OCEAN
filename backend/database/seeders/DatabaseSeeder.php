@@ -30,6 +30,20 @@ class DatabaseSeeder extends Seeder
             echo "ℹ️ Super Admin already exists, skipping.\n";
         }
 
+        // Kiểm tra user bình thường đã tồn tại chưa
+        $userExists = DB::select("SELECT * FROM users WHERE email = ?", ['user123@gmail.com']);
+
+        if (count($userExists) === 0) {
+            DB::insert(
+                "INSERT INTO users (full_name, email, password, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                ['Normal User', 'user123@gmail.com', Hash::make('123456'), 'user', 'active', $now, $now]
+            );
+
+            echo "✅ Normal User created: user123@gmail.com / 123456\n";
+        } else {
+            echo "ℹ️ Normal User already exists, skipping.\n";
+        }
+
         // Gọi thêm CouponSeeder
         $this->call([
             CouponSeeder::class,

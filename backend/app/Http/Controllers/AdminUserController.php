@@ -74,8 +74,15 @@ class AdminUserController extends Controller
         $validator = Validator::make($request->all(), [
             'full_name' => 'required|string|max:255',
             'email'     => 'required|email|unique:users,email',
-            'password'  => 'required|string|min:8',
-            'phone'     => 'nullable|string|max:20|unique:users,phone',
+            'password'  => [
+                'required', 
+                'string', 
+                'min:8', 
+                'regex:/[A-Z]/', 
+                'regex:/[0-9]/', 
+                'regex:/[^A-Za-z0-9]/'
+            ],
+            'phone'     => ['nullable', 'string', 'regex:/^(0[0-9]{9})$/', 'unique:users,phone'],
             'role'      => 'nullable|in:customer,seller,staff,admin',
             'status'    => 'nullable|in:active,inactive,banned',
         ], [
@@ -85,6 +92,8 @@ class AdminUserController extends Controller
             'email.unique'       => 'Email này đã được sử dụng!',
             'password.required'  => 'Mật khẩu là bắt buộc!',
             'password.min'       => 'Mật khẩu tối thiểu 8 ký tự!',
+            'password.regex'     => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ số và 1 ký tự đặc biệt!',
+            'phone.regex'        => 'Số điện thoại không hợp lệ (gồm 10 số và bắt đầu bằng 0)!',
             'phone.unique'       => 'Số điện thoại này đã được sử dụng!',
         ]);
 
@@ -94,18 +103,6 @@ class AdminUserController extends Controller
                 'message' => $validator->errors()->first(),
                 'errors' => $validator->errors()
             ], 422);
-        }
-
-        // Password validation giống register: chữ hoa + số + ký tự đặc biệt
-        $password = $request->password;
-        if (!preg_match('/[A-Z]/', $password)) {
-            return response()->json(['status' => 'error', 'message' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa!'], 422);
-        }
-        if (!preg_match('/[0-9]/', $password)) {
-            return response()->json(['status' => 'error', 'message' => 'Mật khẩu phải chứa ít nhất 1 chữ số!'], 422);
-        }
-        if (!preg_match('/[^A-Za-z0-9]/', $password)) {
-            return response()->json(['status' => 'error', 'message' => 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt!'], 422);
         }
 
         $user = User::create([
@@ -144,13 +141,22 @@ class AdminUserController extends Controller
         $validator = Validator::make($request->all(), [
             'full_name' => 'sometimes|required|string|max:255',
             'email'     => 'sometimes|required|email|unique:users,email,' . $id . ',user_id',
-            'phone'     => 'nullable|string|max:20|unique:users,phone,' . $id . ',user_id',
-            'password'  => 'nullable|string|min:8',
+            'phone'     => ['nullable', 'string', 'regex:/^(0[0-9]{9})$/', 'unique:users,phone,' . $id . ',user_id'],
+            'password'  => [
+                'nullable',
+                'string',
+                'min:8',
+                'regex:/[A-Z]/',
+                'regex:/[0-9]/',
+                'regex:/[^A-Za-z0-9]/'
+            ],
             'role'      => 'nullable|in:customer,seller,staff,admin',
             'status'    => 'nullable|in:active,inactive,banned',
         ], [
             'email.unique'    => 'Email này đã được sử dụng!',
             'password.min'    => 'Mật khẩu tối thiểu 8 ký tự!',
+            'password.regex'  => 'Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ số và 1 ký tự đặc biệt!',
+            'phone.regex'     => 'Số điện thoại không hợp lệ (gồm 10 số và bắt đầu bằng 0)!',
             'phone.unique'    => 'Số điện thoại này đã được sử dụng!',
         ]);
 
@@ -160,20 +166,6 @@ class AdminUserController extends Controller
                 'message' => $validator->errors()->first(),
                 'errors' => $validator->errors()
             ], 422);
-        }
-
-        // Password validation nếu có nhập mật khẩu mới
-        if ($request->filled('password')) {
-            $password = $request->password;
-            if (!preg_match('/[A-Z]/', $password)) {
-                return response()->json(['status' => 'error', 'message' => 'Mật khẩu phải chứa ít nhất 1 chữ hoa!'], 422);
-            }
-            if (!preg_match('/[0-9]/', $password)) {
-                return response()->json(['status' => 'error', 'message' => 'Mật khẩu phải chứa ít nhất 1 chữ số!'], 422);
-            }
-            if (!preg_match('/[^A-Za-z0-9]/', $password)) {
-                return response()->json(['status' => 'error', 'message' => 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt!'], 422);
-            }
         }
 
         $data = $request->only(['full_name', 'email', 'phone']);
