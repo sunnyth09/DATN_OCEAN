@@ -8,6 +8,7 @@ import { useCartStore } from '@/stores/cart';
 import PremiumUpgrade from '@/components/PremiumUpgrade.vue';
 import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
+import AppIcon from '@/icons/AppIcon.vue';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -64,7 +65,7 @@ const allImages = computed(() => {
         const exactVariantImgs = getUniqueImages(
             imgs.filter(img => img.variant_id === selectedVariant.value.variant_id)
         );
-        if (exactVariantImgs.length > 0) return getUniqueImages([...exactVariantImgs, ...generalImgs]);
+        if (exactVariantImgs.length > 0) return exactVariantImgs;
     }
 
     // Sản phẩm biến thể + đã chọn màu → hiện ảnh của variant màu đó
@@ -72,8 +73,8 @@ const allImages = computed(() => {
         const colorVariants = variants.filter(v => v.color === selectedColor.value);
         const variantIds = colorVariants.map(v => v.variant_id);
 
-        const variantImgs = imgs.filter(img => img.variant_id && variantIds.includes(img.variant_id));
-        if (variantImgs.length > 0) return getUniqueImages([...variantImgs, ...generalImgs]);
+        const variantImgs = getUniqueImages(imgs.filter(img => img.variant_id && variantIds.includes(img.variant_id)));
+        if (variantImgs.length > 0) return variantImgs;
 
         // Fallback: NẾU BIẾN THỂ KHÔNG CÓ ẢNH -> Trả về Ảnh chung của sản phẩm (ảnh không thuộc biến thể nào)
         if (generalImgs.length > 0) return generalImgs;
@@ -84,8 +85,7 @@ const allImages = computed(() => {
         return [{ image_url: null }];
     }
 
-    // Tất cả các trường hợp khác: hiển thị tất cả các ảnh nhưng lọc trùng
-    if (generalImgs.length > 0) return generalImgs;
+    // Tất cả các trường hợp khác: hiển thị tất cả ảnh, bao gồm ảnh của variant
     if (imgs.length > 0) return getUniqueImages(imgs);
 
     if (product.value.thumbnail_url && product.value.thumbnail_url !== '0') {
@@ -441,7 +441,7 @@ onMounted(() => {
         <div class="pd-status">
           <span class="pd-status-label">Tình trạng:</span>
           <span class="pd-status-value in-stock">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <AppIcon name="check" size="14" stroke-width="2.5" />
             Còn hàng
           </span>
         </div>
@@ -474,7 +474,7 @@ onMounted(() => {
         <!-- CTA -->
         <div class="pd-cta">
           <button class="pd-btn-cart" @click="addToCart" :disabled="addingToCart">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M3 4h2l1.68 8.39a2 2 0 002 1.61h8.72a2 2 0 002-1.61L21 7H7"/></svg>
+            <AppIcon name="cart" size="18" />
             {{ addingToCart ? 'Đang thêm...' : 'Thêm Vào Giỏ Hàng' }}
           </button>
           <button class="pd-btn-buy" @click="buyNow" :disabled="addingToCart">Mua Ngay</button>
@@ -482,8 +482,8 @@ onMounted(() => {
 
         <!-- Perks -->
         <div class="pd-perks">
-          <div class="pd-perk"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg> Giao hàng miễn phí</div>
-          <div class="pd-perk"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Bảo hành chính hãng</div>
+          <div class="pd-perk"><AppIcon name="arrow-right" size="16" /> Giao hàng miễn phí</div>
+          <div class="pd-perk"><AppIcon name="shield" size="16" /> Bảo hành chính hãng</div>
         </div>
 
         <PremiumUpgrade :current-variant="selectedVariant" :all-variants="sortedVariants" @upgrade="handleUpgrade" />
@@ -684,7 +684,7 @@ onMounted(() => {
 .pd-thumb.active, .pd-thumb:hover { opacity: 1; border-color: #E63B6F; }
 .pd-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .pd-main-img { flex: 1; aspect-ratio: 1/1; border: 1px solid #E9ECEF; border-radius: 12px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; }
-.pd-main-img img { width: 100%; height: 100%; object-fit: contain; animation: fadeIn 0.3s ease; }
+.pd-main-img img { width: 100%; height: 100%; object-fit: cover; animation: fadeIn 0.3s ease; }
 
 /* Info Panel */
 .pd-info { display: flex; flex-direction: column; }

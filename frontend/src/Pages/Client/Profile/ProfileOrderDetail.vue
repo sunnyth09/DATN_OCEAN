@@ -3,6 +3,7 @@ import { ref, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
 import { orderService } from '@/services/orderService';
+import AppIcon from '@/icons/AppIcon.vue';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -71,11 +72,11 @@ const getStatusClass = (status) => {
 };
 
 const getStatusIcon = (status) => {
-  if (status === 'pending') return '📋';
-  if (status === 'shipping') return '🚚';
-  if (status === 'cancelled') return '❌';
-  if (status === 'completed' || status === 'delivered') return '✅';
-  return '📦';
+  if (status === 'pending') return 'clipboard';
+  if (status === 'shipping') return 'truck';
+  if (status === 'cancelled') return 'x';
+  if (status === 'completed' || status === 'delivered') return 'check';
+  return 'shopping-cart';
 };
 
 const fetchOrderDetail = async () => {

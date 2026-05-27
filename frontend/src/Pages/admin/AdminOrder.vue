@@ -2,6 +2,7 @@
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
+import AppIcon from '@/icons/AppIcon.vue';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastNotify = (message, type = 'success') => {
@@ -424,7 +425,9 @@ onUnmounted(() => {
                     <tr v-if="orders.length === 0">
                         <td colspan="7">
                             <div class="empty-state">
-                                <span class="empty-emoji">📦</span>
+                                <span class="empty-emoji">
+                                  <AppIcon name="shopping-cart" size="60"/>
+                                </span>
                                 <h3>Không tìm thấy đơn hàng</h3>
                                 <p>Thử tìm kiếm với từ khóa hoặc ngày khác.</p>
                             </div>
