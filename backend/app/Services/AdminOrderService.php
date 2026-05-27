@@ -1,0 +1,310 @@
+<?php
+
+namespace App\Services;
+
+use App\Repositories\AdminOrderRepository;
+use App\Models\Order;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class AdminOrderService
+{
+    private const ALLOWED_TRANSITIONS = [
+        'pending'   => ['confirmed', 'cancelled'],
+        'confirmed' => ['packing', 'cancelled'],
+        'packing'   => ['shipping', 'cancelled'],
+        'shipping'  => ['delivered'],
+        'delivered' => ['completed'],
+        'completed' => [],
+        'cancelled' => [],
+    ];
+
+    private const STATUS_FIELD_MAP = [
+        'confirmed' => 'confirmed_at',
+        'shipping'  => 'shipped_at',
+        'delivered' => 'delivered_at',
+        'completed' => 'completed_at',
+        'cancelled' => 'cancelled_at',
+    ];
+
+    public function __construct(
+        protected AdminOrderRepository $orderRepository,
+        protected AffiliateService $affiliateService
+    ) {}
+
+    /**
+     * Lấy danh sách đơn hàng cho Admin
+     */
+    public function listOrders(Request $request): array
+    {
+        $filters = [
+            'status'         => $request->status,
+            'payment_status' => $request->payment_status,
+            'search'         => $request->search,
+            'date_from'      => $request->date_from,
+            'date_to'        => $request->date_to,
+        ];
+
+        $orders = $this->orderRepository->getFilteredOrders($filters, $request->per_page ?? 10);
+
+        return ['status' => 'success', 'data' => $orders];
+    }
+
+    /**
+     * Lấy chi tiết đơn hàng
+     */
+    public function showOrder(int $id): array
+    {
+        $order = $this->orderRepository->findWithRelations($id);
+
+        if (!$order) {
+            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+        }
+
+        return ['_status' => 200, 'status' => 'success', 'data' => $order];
+    }
+
+    /**
+     * Cập nhật trạng thái đơn hàng
+     */
+    public function updateStatus(int $id, array $data): array
+    {
+        $order = $this->orderRepository->find($id);
+        if (!$order) {
+            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+        }
+
+        $newFulfillmentStatus = $data['fulfillment_status'] ?? null;
+
+        if ($newFulfillmentStatus) {
+            // Kiểm tra trùng trạng thái
+            if ($newFulfillmentStatus === $order->fulfillment_status) {
+                return [
+                    '_status' => 422,
+                    'status'  => 'error',
+                    'message' => "Đơn hàng đang ở trạng thái '{$order->fulfillment_status}' rồi. Vui lòng chọn trạng thái tiếp theo!",
+                ];
+            }
+
+            // Kiểm tra luồng trạng thái hợp lệ
+            $allowed = self::ALLOWED_TRANSITIONS[$order->fulfillment_status] ?? [];
+            if (!in_array($newFulfillmentStatus, $allowed)) {
+                return [
+                    '_status' => 422,
+                    'status'  => 'error',
+                    'message' => "Không thể chuyển từ '{$order->fulfillment_status}' sang '{$newFulfillmentStatus}'. Vui lòng thực hiện theo đúng quy trình!",
+                ];
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            $oldFulfillmentStatus = $order->fulfillment_status;
+            $oldPaymentStatus     = $order->payment_status;
+            $updates = [];
+
+            if ($newFulfillmentStatus) {
+                $updates['fulfillment_status'] = $newFulfillmentStatus;
+
+                // Tự động set thời gian
+                if (isset(self::STATUS_FIELD_MAP[$newFulfillmentStatus])) {
+                    $updates[self::STATUS_FIELD_MAP[$newFulfillmentStatus]] = now();
+                }
+
+                // Auto payment status updates
+                if ($newFulfillmentStatus === 'completed' && $order->payment_method === 'cod' && $order->payment_status === 'unpaid') {
+                    $updates['payment_status'] = 'paid';
+                }
+
+                if ($newFulfillmentStatus === 'cancelled') {
+                    $updates['cancel_reason'] = $data['note'] ?? 'Hủy bởi Admin';
+
+                    if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer']) && $order->payment_status === 'paid') {
+                        $updates['payment_status'] = 'refunded';
+                    }
+
+                    // Hoàn tồn kho
+                    $this->orderRepository->restoreStock($order->items);
+                }
+            }
+
+            if (!empty($updates)) {
+                $order->update($updates);
+
+                if (isset($updates['fulfillment_status'])) {
+                    $this->orderRepository->createStatusHistory([
+                        'order_id'   => $order->order_id,
+                        'old_status' => $oldFulfillmentStatus,
+                        'new_status' => $updates['fulfillment_status'],
+                        'note'       => $data['note'] ?? 'Chuyển trạng thái bởi Admin',
+                    ]);
+                }
+
+                if (isset($updates['payment_status']) && $updates['payment_status'] !== $oldPaymentStatus) {
+                    $this->orderRepository->createStatusHistory([
+                        'order_id'   => $order->order_id,
+                        'old_status' => $oldPaymentStatus,
+                        'new_status' => $updates['payment_status'],
+                        'note'       => '[Thanh toán] Tự động cập nhật theo trạng thái đơn hàng',
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            // Đồng bộ affiliate
+            if (isset($updates['fulfillment_status'])) {
+                $this->affiliateService->updateConversionOnStatusChange($order, $updates['fulfillment_status']);
+            }
+
+            return ['_status' => 200, 'status' => 'success', 'message' => 'Cập nhật trạng thái thành công!'];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Cập nhật trạng thái đơn hàng lỗi: ' . $e->getMessage());
+            return ['_status' => 500, 'status' => 'error', 'message' => 'Có lỗi xảy ra!'];
+        }
+    }
+
+    /**
+     * Cập nhật trạng thái hàng loạt
+     */
+    public function bulkUpdateStatus(array $data): array
+    {
+        $orders = $this->orderRepository->findByIds($data['order_ids']);
+
+        if ($orders->isEmpty()) {
+            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng nào để cập nhật!'];
+        }
+
+        $newFulfillmentStatus = $data['fulfillment_status'] ?? null;
+
+        // Validate toàn bộ lô
+        $invalidOrders = [];
+        foreach ($orders as $order) {
+            if ($newFulfillmentStatus && $newFulfillmentStatus !== $order->fulfillment_status) {
+                $allowed = self::ALLOWED_TRANSITIONS[$order->fulfillment_status] ?? [];
+                if (!in_array($newFulfillmentStatus, $allowed)) {
+                    $invalidOrders[] = "#{$order->order_code} (Chuyển Giao hàng không hợp lệ)";
+                }
+            }
+        }
+
+        if (!empty($invalidOrders)) {
+            $invalidList = implode(', ', $invalidOrders);
+            return [
+                '_status' => 422,
+                'status'  => 'error',
+                'message' => "Hủy thao tác do có đơn hàng không hợp lệ: {$invalidList}. Vui lòng bỏ chọn các đơn này và thử lại!",
+            ];
+        }
+
+        DB::beginTransaction();
+        try {
+            $updatedCount = 0;
+
+            foreach ($orders as $order) {
+                $oldFulfillmentStatus = $order->fulfillment_status;
+                $oldPaymentStatus     = $order->payment_status;
+                $updates = [];
+
+                if ($newFulfillmentStatus && $newFulfillmentStatus !== $order->fulfillment_status) {
+                    $updates['fulfillment_status'] = $newFulfillmentStatus;
+
+                    if (isset(self::STATUS_FIELD_MAP[$newFulfillmentStatus])) {
+                        $updates[self::STATUS_FIELD_MAP[$newFulfillmentStatus]] = now();
+                    }
+
+                    if ($newFulfillmentStatus === 'completed' && $order->payment_method === 'cod' && $order->payment_status === 'unpaid') {
+                        $updates['payment_status'] = 'paid';
+                    }
+
+                    if ($newFulfillmentStatus === 'cancelled') {
+                        $updates['cancel_reason'] = $data['note'] ?? 'Hủy hàng loạt bởi Admin';
+
+                        if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer']) && $order->payment_status === 'paid') {
+                            $updates['payment_status'] = 'refunded';
+                        }
+
+                        // Hoàn tồn kho
+                        $items = DB::table('order_items')->where('order_id', $order->order_id)->get();
+                        $this->orderRepository->restoreStock($items->filter(fn($i) => $i->variant_id)->all());
+                    }
+                }
+
+                if (!empty($updates)) {
+                    $order->update($updates);
+                    $updatedCount++;
+
+                    if (isset($updates['fulfillment_status'])) {
+                        $this->orderRepository->createStatusHistory([
+                            'order_id'   => $order->order_id,
+                            'old_status' => $oldFulfillmentStatus,
+                            'new_status' => $updates['fulfillment_status'],
+                            'note'       => $data['note'] ?? 'Chuyển trạng thái hàng loạt bởi Admin',
+                        ]);
+                    }
+
+                    if (isset($updates['payment_status']) && $updates['payment_status'] !== $oldPaymentStatus) {
+                        $this->orderRepository->createStatusHistory([
+                            'order_id'   => $order->order_id,
+                            'old_status' => $oldPaymentStatus,
+                            'new_status' => $updates['payment_status'],
+                            'note'       => '[Thanh toán] Tự động cập nhật theo trạng thái đơn hàng',
+                        ]);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            // Affiliate sync
+            if ($newFulfillmentStatus) {
+                foreach ($orders as $order) {
+                    $this->affiliateService->updateConversionOnStatusChange($order->fresh(), $newFulfillmentStatus);
+                }
+            }
+
+            if ($updatedCount === 0) {
+                return [
+                    '_status' => 422,
+                    'status'  => 'error',
+                    'message' => 'Tất cả đơn hàng đã ở trạng thái được chọn rồi. Không có gì thay đổi!',
+                ];
+            }
+
+            return [
+                '_status' => 200,
+                'status'  => 'success',
+                'message' => 'Cập nhật trạng thái hàng loạt thành công cho ' . $updatedCount . ' đơn hàng!',
+            ];
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Cập nhật trạng thái hàng loạt lỗi: ' . $e->getMessage());
+            return ['_status' => 500, 'status' => 'error', 'message' => 'Có lỗi hệ thống xảy ra!'];
+        }
+    }
+
+    /**
+     * Đồng bộ đơn hàng lên GHN
+     */
+    public function syncGHN(int $id): array
+    {
+        $order = Order::with(['items', 'address'])->where('order_id', $id)->first();
+        if (!$order) {
+            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+        }
+
+        try {
+            $result = \App\Services\GHNService::createOrder($order);
+            return [
+                '_status' => 200,
+                'status'  => 'success',
+                'message' => 'Đã tạo đơn hàng trên GHN thành công!',
+                'data'    => $result,
+            ];
+        } catch (\Exception $e) {
+            return ['_status' => 500, 'status' => 'error', 'message' => $e->getMessage()];
+        }
+    }
+}

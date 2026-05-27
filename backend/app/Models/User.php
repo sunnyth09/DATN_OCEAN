@@ -34,6 +34,10 @@ class User extends Authenticatable implements JWTSubject
         'facebook_id',
         'role',
         'status',
+        'referral_code',
+        'referred_by',
+        'affiliate_registered_at',
+        'is_affiliate',
     ];
 
     /**
@@ -54,9 +58,11 @@ class User extends Authenticatable implements JWTSubject
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'date_of_birth'     => 'date',
-            'password'          => 'hashed',
+            'email_verified_at'        => 'datetime',
+            'date_of_birth'            => 'date',
+            'password'                 => 'hashed',
+            'is_affiliate'             => 'boolean',
+            'affiliate_registered_at'  => 'datetime',
         ];
     }
 
@@ -82,6 +88,33 @@ class User extends Authenticatable implements JWTSubject
     public function userCoupons()
     {
         return $this->hasMany(UserCoupon::class, 'user_id', 'user_id');
+    }
+
+    // ==================== Affiliate Relationships ====================
+
+    public function referrer()
+    {
+        return $this->belongsTo(User::class, 'referred_by', 'user_id');
+    }
+
+    public function referredUsers()
+    {
+        return $this->hasMany(User::class, 'referred_by', 'user_id');
+    }
+
+    public function affiliateClicks()
+    {
+        return $this->hasMany(AffiliateClick::class, 'referrer_id', 'user_id');
+    }
+
+    public function affiliateConversions()
+    {
+        return $this->hasMany(AffiliateConversion::class, 'referrer_id', 'user_id');
+    }
+
+    public function affiliateWithdrawals()
+    {
+        return $this->hasMany(AffiliateWithdrawal::class, 'user_id', 'user_id');
     }
 
     // ==================== JWT Methods ====================
