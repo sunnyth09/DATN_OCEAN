@@ -44,7 +44,7 @@ const formatCurrency = (val) => {
 
 <style scoped>
 .table-card {
-  background: white;
+  background: var(--card-bg);
   padding: 24px;
 }
 
@@ -76,7 +76,7 @@ const formatCurrency = (val) => {
   text-transform: uppercase;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
-  background: white;
+  background: var(--surface-container);
   position: sticky;
   top: 0;
   z-index: 10;
