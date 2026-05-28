@@ -9,15 +9,32 @@
       <div class="actions">
         <!-- Optional Actions like PDF, Excel -->
         <button class="btn btn-outline-success me-2" @click="handleExportExcel" title="Xuất Doanh Thu Tháng Vừa Rồi">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" class="me-1">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="8" y1="13" x2="16" y2="13"></line>
+            <line x1="8" y1="17" x2="16" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
           Xuất Excel (Tháng trước)
         </button>
         <button class="btn btn-outline-ocean me-2" @click="handlePrintPdf">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" class="me-1">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
           Xuất PDF
         </button>
         <button class="btn btn-ocean" @click="fetchData">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1" :class="{ 'spin': loading }"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" class="me-1" :class="{ 'spin': loading }">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
           Làm mới
         </button>
       </div>
@@ -94,7 +111,7 @@ const revenueReport = ref([]);
 const fetchData = async () => {
   loading.value = true;
   const params = { ...filters.value };
-  
+
   try {
     const urls = [
       api.get('/admin/statistics/overview', { params }),
@@ -120,7 +137,7 @@ const fetchData = async () => {
     topProducts.value = topProductsRes.data.data;
     topCustomers.value = topCustomersRes.data.data;
     revenueReport.value = reportRes.data.data;
-    
+
   } catch (error) {
     console.error('Lỗi tải dữ liệu thống kê:', error);
   } finally {
@@ -138,13 +155,13 @@ const handleExportExcel = async () => {
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    
+
     // Tạo tên file an toàn với định dạng tháng trước
     const lastMonth = new Date();
     lastMonth.setMonth(lastMonth.getMonth() - 1);
     const mm = String(lastMonth.getMonth() + 1).padStart(2, '0');
     const yyyy = lastMonth.getFullYear();
-    
+
     link.setAttribute('download', `Doanh_Thu_Thang_${mm}_${yyyy}.xlsx`);
     document.body.appendChild(link);
     link.click();
@@ -170,25 +187,43 @@ onMounted(() => {
 .page-title {
   font-size: 1.5rem;
   font-weight: 800;
-  color: var(--ocean-deepest);
+  color: var(--text-main);
 }
 
 .btn-ocean {
   background: #E63B6F;
   color: white;
   border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  padding: 8px 18px;
+  letter-spacing: 0.2px;
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.2);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .btn-ocean:hover {
-  background: var(--ocean-bright);
+  background: #d82f65;
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 15px rgba(230, 59, 111, 0.3);
 }
 
 .btn-outline-ocean {
-  border: 1px solid #E63B6F;
+  border: 1.5px solid #E63B6F;
   color: #E63B6F;
   background: transparent;
+  border-radius: 10px;
+  font-weight: 700;
+  padding: 8px 18px;
+  letter-spacing: 0.2px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 .btn-outline-ocean:hover {
-  background: rgba(230, 59, 111, 0.1);
+  background: rgba(230, 59, 111, 0.08);
+  border-color: #E63B6F;
+  color: #E63B6F;
+  transform: translateY(-1.5px);
 }
 
 .spin {
@@ -196,17 +231,26 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  100% { transform: rotate(360deg); }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @media print {
-  @page { margin: 10mm; size: landscape; }
+  @page {
+    margin: 10mm;
+    size: landscape;
+  }
+
   body * {
     visibility: hidden;
   }
-  #printable-dashboard, #printable-dashboard * {
+
+  #printable-dashboard,
+  #printable-dashboard * {
     visibility: visible;
   }
+
   #printable-dashboard {
     position: absolute;
     left: 0;

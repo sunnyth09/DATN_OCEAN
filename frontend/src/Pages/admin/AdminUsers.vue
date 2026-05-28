@@ -282,14 +282,16 @@
     </Teleport>
 
     <!-- Toast -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-      <div class="toast align-items-center border-0" :class="toast.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="usersToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body">{{ toast.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    <Teleport to="body">
+      <div class="toast-container position-fixed admin-users-toast-host" style="z-index: 1080">
+        <div class="toast align-items-center border-0" :class="toast.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="usersToast" role="alert">
+          <div class="d-flex">
+            <div class="toast-body">{{ toast.message }}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -451,6 +453,14 @@ onMounted(fetchUsers);
 </script>
 
 <style scoped>
+/* Toast */
+:global(.admin-users-toast-host) {
+  top: 20px !important;
+  right: 20px !important;
+  left: auto !important;
+  padding: 0 !important;
+}
+
 /* Header */
 .page-header {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
