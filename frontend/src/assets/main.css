@@ -97,6 +97,325 @@ html.dark {
 }
 
 /* =======================================================
+   DATN OCEAN Global Backoffice Dark Mode Overrides
+   ======================================================= */
+html.dark .ocean-card,
+html.dark .card,
+html.dark .modal-box,
+html.dark .table-card,
+html.dark .chart-card {
+  background-color: var(--card-bg) !important;
+  background: var(--card-bg) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+html.dark th,
+html.dark .data-table th,
+html.dark .ocean-table th {
+  background-color: var(--surface-container) !important;
+  background: var(--surface-container) !important;
+  color: var(--text-muted) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+html.dark td,
+html.dark .data-table td,
+html.dark .ocean-table td {
+  color: var(--text-main) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+html.dark .cat-dropdown-menu,
+html.dark .dropdown-menu {
+  background-color: var(--card-bg) !important;
+  background: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+}
+
+html.dark .cat-dropdown-item {
+  color: var(--text-secondary) !important;
+}
+
+html.dark .cat-dropdown-item.parent {
+  color: var(--text-main) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+html.dark .cat-dropdown-item.child {
+  color: var(--text-muted) !important;
+}
+
+html.dark .cat-dropdown-item:hover,
+html.dark .dropdown-item:hover {
+  background-color: var(--hover-bg) !important;
+  background: var(--hover-bg) !important;
+  color: var(--primary) !important;
+}
+
+html.dark .cat-dropdown-item input[type="checkbox"],
+html.dark .option-checkbox .checkmark {
+  background: var(--background) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .cat-dropdown-item input[type="checkbox"]:checked,
+html.dark .option-checkbox input:checked+.checkmark {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+html.dark .statistics-filter,
+html.dark .filters-bar {
+  background: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .btn-preset {
+  background: var(--surface-container-low) !important;
+  border-color: var(--border-color) !important;
+  color: #ffffff !important;
+  /* Trắng tinh khiết */
+}
+
+html.dark .btn-preset:hover {
+  background: var(--hover-bg) !important;
+  border-color: var(--primary) !important;
+}
+
+html.dark .btn-preset.active {
+  background: var(--primary-dark) !important;
+  color: white !important;
+  border-color: var(--primary-dark) !important;
+}
+
+html.dark input[type="date"] {
+  background-color: var(--background) !important;
+  background: var(--background) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .badge-category,
+html.dark .cat-tag {
+  background: rgba(30, 144, 255, 0.15) !important;
+  color: #4fc3f7 !important;
+  border-color: rgba(30, 144, 255, 0.25) !important;
+}
+
+html.dark .badge-first-order,
+html.dark .badge-user-limit,
+html.dark .usage-count-badge {
+  background: rgba(255, 152, 0, 0.15) !important;
+  color: #ffb74d !important;
+  border-color: rgba(255, 152, 0, 0.25) !important;
+}
+
+html.dark .status-badge.active,
+html.dark .in-stock {
+  background: rgba(38, 166, 154, 0.2) !important;
+  color: #4db6ac !important;
+}
+
+html.dark .status-badge.inactive,
+html.dark .out-stock,
+html.dark .expired {
+  background: rgba(239, 83, 80, 0.2) !important;
+  color: #e57373 !important;
+}
+
+html.dark .btn-action.edit:hover,
+html.dark .btn-icon.edit:hover,
+html.dark .btn-icon.view:hover {
+  background: rgba(30, 144, 255, 0.15) !important;
+  color: #4fc3f7 !important;
+}
+
+html.dark .btn-action.delete:hover,
+html.dark .btn-icon.delete:hover {
+  background: rgba(239, 83, 80, 0.15) !important;
+  color: #e57373 !important;
+}
+
+html.dark .email-option-wrap {
+  background: var(--surface-container-low) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+/* Admin Chat Module Dark Overrides */
+html.dark .admin-chat-layout,
+html.dark .chat-main {
+  background-color: var(--card-bg) !important;
+}
+
+html.dark .chat-sidebar,
+html.dark .chat-messages-container {
+  background-color: var(--background) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .sidebar-header,
+html.dark .chat-header,
+html.dark .chat-input-area {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .sidebar-title,
+html.dark .session-name,
+html.dark .chat-user-name {
+  color: var(--text-main) !important;
+}
+
+html.dark .session-item {
+  border-bottom-color: var(--border-color) !important;
+}
+
+html.dark .session-item:hover {
+  background-color: var(--hover-bg) !important;
+}
+
+html.dark .session-item.is-active {
+  background-color: rgba(230, 59, 111, 0.15) !important;
+  border-left-color: var(--primary) !important;
+}
+
+html.dark .unread-badge {
+  border-color: var(--card-bg) !important;
+}
+
+html.dark .msg-theirs .msg-bubble {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-main) !important;
+}
+
+html.dark .msg-mine .msg-bubble {
+  background-color: var(--primary) !important;
+  color: #0e1112 !important;
+  font-weight: 600;
+}
+
+html.dark .system-notice {
+  background-color: var(--surface-container-low) !important;
+  color: var(--text-muted) !important;
+}
+
+html.dark .chat-input-area input {
+  background-color: var(--background) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .chat-input-area input:focus {
+  border-color: var(--primary) !important;
+}
+
+html.dark .btn-send {
+  background-color: var(--primary) !important;
+  color: #0e1112 !important;
+}
+
+html.dark .btn-send:hover {
+  background-color: var(--primary-light) !important;
+}
+
+html.dark .chat-closed-notice {
+  background-color: var(--surface-container-low) !important;
+  color: var(--text-muted) !important;
+  border-top-color: var(--border-color) !important;
+}
+
+/* Custom Admin Header in Dark Mode */
+html.dark .backoffice-header {
+  background-color: rgba(22, 24, 25, 0.92) !important;
+  background: rgba(22, 24, 25, 0.92) !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+/* Custom Admin Review Page in Dark Mode */
+html.dark .table-wrap,
+html.dark .filters-bar {
+  background-color: var(--card-bg) !important;
+  background: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .review-table thead tr {
+  background-color: var(--surface-container) !important;
+  background: var(--surface-container) !important;
+}
+
+html.dark .review-table th,
+html.dark .review-table td,
+html.dark .product-name,
+html.dark .user-name {
+  color: var(--text-main) !important;
+}
+
+html.dark .review-table td {
+  border-bottom-color: var(--border-color) !important;
+}
+
+html.dark .review-row {
+  border-bottom-color: var(--border-color) !important;
+}
+
+html.dark .review-row:hover {
+  background-color: var(--hover-bg) !important;
+  background: var(--hover-bg) !important;
+}
+
+html.dark .review-row.row--pending {
+  background-color: rgba(255, 193, 7, 0.08) !important;
+  background: rgba(255, 193, 7, 0.08) !important;
+}
+
+html.dark .search-input {
+  background-color: var(--background) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .search-input:focus {
+  border-color: var(--primary) !important;
+}
+
+html.dark .tab-btn,
+html.dark .star-btn,
+html.dark .page-btn {
+  background-color: var(--surface-container-low) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .tab-btn:hover,
+html.dark .star-btn:hover,
+html.dark .page-btn:hover:not(:disabled) {
+  background-color: var(--hover-bg) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+html.dark .star-btn--active {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  color: #ffb74d !important;
+  border-color: #f59e0b !important;
+}
+
+html.dark .badge--approved {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  color: #10b981 !important;
+}
+
+html.dark .badge--pending {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #ffb74d !important;
+}
+
+/* =======================================================
    Bootstrap Overrides for Dark Mode
    ======================================================= */
 html.dark .bg-white,
@@ -126,7 +445,8 @@ html.dark .table {
   color: var(--text-main);
   border-color: var(--border-color);
 }
-html.dark .table > :not(caption) > * > * {
+
+html.dark .table> :not(caption)>*>* {
   background-color: transparent !important;
   color: var(--text-main) !important;
   border-bottom-color: var(--border-color) !important;
@@ -157,6 +477,7 @@ html.dark .dropdown-menu {
 html.dark .dropdown-item {
   color: var(--text-main);
 }
+
 html.dark .dropdown-item:hover {
   background-color: var(--hover-bg);
   color: var(--primary);
@@ -173,6 +494,7 @@ html.dark .btn-light {
   border-color: var(--surface-container);
   color: var(--text-main);
 }
+
 html.dark .btn-light:hover {
   background-color: var(--surface-container-low);
 }
@@ -180,6 +502,7 @@ html.dark .btn-light:hover {
 html.dark .nav-tabs .nav-link {
   color: var(--text-muted);
 }
+
 html.dark .nav-tabs .nav-link.active {
   background-color: var(--card-bg);
   color: var(--text-main);
@@ -194,6 +517,7 @@ html.dark .swal2-popup {
   background-color: var(--card-bg) !important;
   color: var(--text-main) !important;
 }
+
 html.dark .swal2-title,
 html.dark .swal2-html-container {
   color: var(--text-main) !important;
@@ -213,19 +537,50 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6, p, a, span, label, td, th, li {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+a,
+span,
+label,
+td,
+th,
+li {
   font-family: var(--font-primary);
 }
 
-input, button, select, textarea, .form-control, .form-select, .btn {
+input,
+button,
+select,
+textarea,
+.form-control,
+.form-select,
+.btn {
   font-family: var(--font-primary) !important;
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--surface); }
-::-webkit-scrollbar-thumb { background: #E63B6F40; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E63B6F40;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
 
 /* Shared card style */
 .ocean-card {
@@ -237,8 +592,15 @@ input, button, select, textarea, .form-control, .form-select, .btn {
 
 /* Simple fade-in */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-in {
@@ -310,9 +672,11 @@ html.dark .swal2-popup {
   background: #dcfce7 !important;
   color: #16a34a !important;
 }
+
 .swal2-icon.swal2-success [class^="swal2-success-line"] {
   background-color: #16a34a !important;
 }
+
 .swal2-icon.swal2-success .swal2-success-ring {
   border-color: rgba(22, 163, 74, 0.2) !important;
 }
@@ -326,6 +690,7 @@ html.dark .swal2-popup {
   background: #fee2e2 !important;
   color: #ef4444 !important;
 }
+
 .swal2-icon.swal2-error [class^="swal2-x-mark-line"] {
   background-color: #ef4444 !important;
 }
@@ -363,17 +728,19 @@ html.dark .swal2-popup {
   background: var(--primary) !important;
   color: white !important;
 }
+
 .swal2-confirm:hover {
   background: var(--primary-dark) !important;
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(230, 59, 111, 0.25) !important;
 }
 
-.swal2-popup:has(.swal2-warning) .swal2-confirm, 
+.swal2-popup:has(.swal2-warning) .swal2-confirm,
 .swal2-popup:has(.swal2-error) .swal2-confirm {
   background: #ef4444 !important;
 }
-.swal2-popup:has(.swal2-warning) .swal2-confirm:hover, 
+
+.swal2-popup:has(.swal2-warning) .swal2-confirm:hover,
 .swal2-popup:has(.swal2-error) .swal2-confirm:hover {
   background: #dc2626 !important;
   box-shadow: 0 8px 20px rgba(239, 68, 68, 0.25) !important;
@@ -384,6 +751,7 @@ html.dark .swal2-popup {
   color: #475569 !important;
   border: 1px solid transparent !important;
 }
+
 .swal2-cancel:hover {
   background: #e2e8f0 !important;
   color: #0f172a !important;
@@ -395,6 +763,86 @@ html.dark .swal2-cancel {
   color: var(--text-main) !important;
   border: 1px solid var(--border-color) !important;
 }
+
 html.dark .swal2-cancel:hover {
   background: var(--hover-bg) !important;
+}
+
+/* ===== Backoffice Badge & Tag Styling Override ===== */
+.type-badge,
+.badge-category,
+.badge-first-order,
+.badge-user-limit,
+.usage-count-badge,
+.cat-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px !important;
+  border-radius: 8px !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.status-badge,
+.payment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px !important;
+  border-radius: 9999px !important;
+  /* Capsule style */
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+/* Dark Mode specific badges */
+html.dark .payment-badge.p-unpaid,
+html.dark .payment-badge.p-pending {
+  background: rgba(255, 167, 38, 0.15) !important;
+  color: #ffb74d !important;
+  border-color: rgba(255, 167, 38, 0.25) !important;
+}
+
+html.dark .payment-badge.p-paid {
+  background: rgba(38, 166, 154, 0.15) !important;
+  color: #4db6ac !important;
+  border-color: rgba(38, 166, 154, 0.25) !important;
+}
+
+html.dark .payment-badge.p-failed {
+  background: rgba(239, 83, 80, 0.15) !important;
+  color: #e57373 !important;
+  border-color: rgba(239, 83, 80, 0.25) !important;
+}
+
+html.dark .payment-badge.p-refunded,
+html.dark .payment-badge.p-partially_refunded {
+  background: rgba(158, 158, 158, 0.15) !important;
+  color: #b0bec5 !important;
+  border-color: rgba(158, 158, 158, 0.25) !important;
+}
+
+/* Date picker, search inputs overrides in Dark Mode */
+html.dark .date-picker-box,
+html.dark .date-picker-box .date-input {
+  background-color: var(--background) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+
+html.dark .search-box:focus-within {
+  background-color: var(--background) !important;
+}
+
+html.dark .bulk-select {
+  background-color: var(--background) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
 }

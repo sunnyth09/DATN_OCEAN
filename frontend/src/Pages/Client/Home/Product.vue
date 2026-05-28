@@ -216,6 +216,16 @@ onMounted(async () => {
     }
 
     await fetchProducts();
+
+    // === Affiliate: ghi nhận referral code từ URL ===
+    const refCode = route.query.ref;
+    if (refCode) {
+        localStorage.setItem('affiliate_ref', refCode);
+        localStorage.setItem('affiliate_ref_expiry', Date.now() + 30 * 24 * 60 * 60 * 1000);
+        // Fire-and-forget track click
+        const { default: api } = await import('@/axios');
+        api.post('/affiliate/track-click', { referral_code: refCode }).catch(() => {});
+    }
 });
 </script>
 

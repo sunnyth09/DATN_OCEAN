@@ -14,6 +14,7 @@
 import { computed } from 'vue';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'vue-chartjs';
+import { useUiStore } from '@/stores/ui';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -23,6 +24,8 @@ const props = defineProps({
     default: null
   }
 });
+
+const uiStore = useUiStore();
 
 const hasData = computed(() => {
   return props.data && props.data.labels && props.data.labels.length > 0;
@@ -39,41 +42,44 @@ const chartData = computed(() => {
   return dynamicData;
 });
 
-const chartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  cutout: '70%',
-  plugins: {
-    legend: {
-      position: 'right',
-      labels: {
+const chartOptions = computed(() => {
+  const isDark = uiStore.isBackofficeDarkMode;
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '70%',
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          font: {
+            family: "'Inter', sans-serif",
+            size: 13,
+            weight: '500'
+          },
+          color: isDark ? '#b7cbcf' : '#475569'
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(22, 24, 25, 0.95)',
+        titleColor: '#f0f1f2',
+        bodyColor: '#b7cbcf',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
+        padding: 12,
+        displayColors: true,
         usePointStyle: true,
-        padding: 20,
-        font: {
-          family: "'Inter', sans-serif",
-          size: 13,
-          weight: '500'
-        },
-        color: '#475569'
       }
-    },
-    tooltip: {
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      titleColor: '#1e293b',
-      bodyColor: '#475569',
-      borderColor: 'rgba(230, 59, 111, 0.2)',
-      borderWidth: 1,
-      padding: 12,
-      displayColors: true,
-      usePointStyle: true,
     }
-  }
-};
+  };
+});
 </script>
 
 <style scoped>
 .chart-card {
-  background: white;
+  background: var(--card-bg);
   padding: 24px;
   display: flex;
   flex-direction: column;

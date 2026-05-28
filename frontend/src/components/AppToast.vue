@@ -37,7 +37,7 @@ const closeButtonClass = computed(() => {
 </script>
 
 <template>
-  <div class="toast-container position-fixed top-0 end-0 p-3 app-toast-host">
+  <div class="toast-container position-fixed app-toast-host">
     <div
       :id="toastId"
       class="toast align-items-center border-0 shadow-sm"
@@ -62,6 +62,10 @@ const closeButtonClass = computed(() => {
 
 <style scoped>
 .app-toast-host {
+  top: 20px;
+  right: 20px;
+  left: auto;
+  padding: 0;
   z-index: 1080;
 }
 </style>
