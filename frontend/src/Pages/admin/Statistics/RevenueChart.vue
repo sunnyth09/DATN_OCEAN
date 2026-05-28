@@ -60,10 +60,10 @@ const chartOptions = {
       display: false
     },
     tooltip: {
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      titleColor: '#1e293b',
-      bodyColor: '#475569',
-      borderColor: 'rgba(230, 59, 111, 0.2)',
+      backgroundColor: 'rgba(22, 24, 25, 0.95)',
+      titleColor: '#f0f1f2',
+      bodyColor: '#b7cbcf',
+      borderColor: 'rgba(255, 255, 255, 0.1)',
       borderWidth: 1,
       padding: 12,
       displayColors: false,
@@ -85,7 +85,7 @@ const chartOptions = {
     y: {
       beginAtZero: true,
       grid: {
-        color: '#f1f5f9',
+        color: 'rgba(148, 163, 184, 0.1)',
         drawBorder: false,
       },
       ticks: {
@@ -126,7 +126,7 @@ const chartOptions = {
 
 <style scoped>
 .chart-card {
-  background: white;
+  background: var(--card-bg);
   padding: 24px;
   display: flex;
   flex-direction: column;

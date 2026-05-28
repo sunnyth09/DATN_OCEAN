@@ -84,7 +84,7 @@ const resetFilters = () => {
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 20px;
-  background: white;
+  background: var(--card-bg);
   margin-bottom: 24px;
 }
 
@@ -106,7 +106,7 @@ const resetFilters = () => {
 .btn-preset {
   padding: 8px 16px;
   border: 1px solid var(--border-color);
-  background: #f8f9fa;
+  background: var(--surface-container-low);
   color: var(--text-main);
   border-radius: 8px;
   font-size: 0.9rem;
@@ -135,6 +135,8 @@ const resetFilters = () => {
 .form-input {
   padding: 8px 12px;
   border: 1px solid var(--border-color);
+  background: var(--background);
+  color: var(--text-main);
   border-radius: 8px;
   font-family: inherit;
   font-size: 0.9rem;

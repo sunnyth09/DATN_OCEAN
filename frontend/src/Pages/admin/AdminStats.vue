@@ -215,7 +215,7 @@ onMounted(() => {
   }
 }
 </style>
-<style>
+<style scoped>
 /* Scoped variables for dashboard to prevent bleeding into other admin pages */
 .dashboard {
   --ocean-blue: #E63B6F;
@@ -231,10 +231,17 @@ onMounted(() => {
   --hover-bg: #f1f5f9;
 }
 
-.ocean-card {
+:global(html.dark) .dashboard {
+  --text-main: #f0f1f2;
+  --text-muted: #b7cbcf;
+  --border-color: #2e3132;
+  --hover-bg: #2a1520;
+}
+
+:deep(.ocean-card) {
   border-radius: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  background: white;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
+  background: var(--card-bg);
 }
 </style>
