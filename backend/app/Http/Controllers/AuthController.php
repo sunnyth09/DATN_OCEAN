@@ -13,6 +13,15 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        // Verify Cloudflare Turnstile
+        // $turnstileToken = $request->input('turnstile_token');
+        // if (!$this->verifyTurnstile($turnstileToken)) {
+        //     return response()->json([
+        //         'status' => 'error',
+        //         'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+        //     ], 422);
+        // }
+
         $result = $this->authService->register($request->all());
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
