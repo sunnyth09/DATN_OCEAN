@@ -1,112 +1,3 @@
-<template>
-  <div class="address-selector">
-    <div class="address-selector__row">
-      <!-- Tỉnh / Thành phố -->
-      <div class="address-selector__field">
-        <label class="address-selector__label" for="province-select">
-          <i class="fas fa-map-marker-alt"></i>
-          Tỉnh / Thành phố <span class="required">*</span>
-        </label>
-        <div class="address-selector__select-wrapper">
-          <select
-            id="province-select"
-            v-model="selectedProvince"
-            @change="onProvinceChange"
-            class="address-selector__select"
-            :disabled="loadingProvinces"
-          >
-            <option value="">-- Chọn Tỉnh/Thành phố --</option>
-            <option
-              v-for="province in provinces"
-              :key="province.code"
-              :value="province.code"
-            >
-              {{ province.name }}
-            </option>
-          </select>
-          <div v-if="loadingProvinces" class="address-selector__spinner"></div>
-        </div>
-      </div>
-
-      <!-- Quận / Huyện -->
-      <div class="address-selector__field">
-        <label class="address-selector__label" for="district-select">
-          <i class="fas fa-building"></i>
-          Quận / Huyện <span class="required">*</span>
-        </label>
-        <div class="address-selector__select-wrapper">
-          <select
-            id="district-select"
-            v-model="selectedDistrict"
-            @change="onDistrictChange"
-            class="address-selector__select"
-            :disabled="!selectedProvince || loadingDistricts"
-          >
-            <option value="">-- Chọn Quận/Huyện --</option>
-            <option
-              v-for="district in districts"
-              :key="district.code"
-              :value="district.code"
-            >
-              {{ district.name }}
-            </option>
-          </select>
-          <div v-if="loadingDistricts" class="address-selector__spinner"></div>
-        </div>
-      </div>
-
-      <!-- Phường / Xã -->
-      <div class="address-selector__field">
-        <label class="address-selector__label" for="ward-select">
-          <i class="fas fa-home"></i>
-          Phường / Xã <span class="required">*</span>
-        </label>
-        <div class="address-selector__select-wrapper">
-          <select
-            id="ward-select"
-            v-model="selectedWard"
-            @change="onWardChange"
-            class="address-selector__select"
-            :disabled="!selectedDistrict || loadingWards"
-          >
-            <option value="">-- Chọn Phường/Xã --</option>
-            <option
-              v-for="ward in wards"
-              :key="ward.code"
-              :value="ward.code"
-            >
-              {{ ward.name }}
-            </option>
-          </select>
-          <div v-if="loadingWards" class="address-selector__spinner"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Địa chỉ chi tiết -->
-    <div class="address-selector__field address-selector__field--full">
-      <label class="address-selector__label" for="address-detail">
-        <i class="fas fa-pen"></i>
-        Địa chỉ chi tiết
-      </label>
-      <input
-        id="address-detail"
-        v-model="addressDetail"
-        @input="onDetailChange"
-        type="text"
-        class="address-selector__input"
-        placeholder="Số nhà, tên đường, tòa nhà..."
-      />
-    </div>
-
-    <!-- Hiển thị địa chỉ đầy đủ -->
-    <div v-if="fullAddress" class="address-selector__preview">
-      <i class="fas fa-location-dot"></i>
-      <span>{{ fullAddress }}</span>
-    </div>
-  </div>
-</template>
-
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { addressService } from '@/services/addressService';
@@ -143,18 +34,18 @@ const loadingWards = ref(false);
 
 // Computed - Tên đầy đủ
 const selectedProvinceName = computed(() => {
-  const p = provinces.value.find(item => item.code == selectedProvince.value);
-  return p ? p.name : '';
+  const p = provinces.value.find(item => item.ProvinceID == selectedProvince.value);
+  return p ? p.ProvinceName : '';
 });
 
 const selectedDistrictName = computed(() => {
-  const d = districts.value.find(item => item.code == selectedDistrict.value);
-  return d ? d.name : '';
+  const d = districts.value.find(item => item.DistrictID == selectedDistrict.value);
+  return d ? d.DistrictName : '';
 });
 
 const selectedWardName = computed(() => {
-  const w = wards.value.find(item => item.code == selectedWard.value);
-  return w ? w.name : '';
+  const w = wards.value.find(item => item.WardCode == selectedWard.value);
+  return w ? w.WardName : '';
 });
 
 const fullAddress = computed(() => {
@@ -291,6 +182,116 @@ onMounted(async () => {
   }
 });
 </script>
+<template>
+  <div class="address-selector">
+    <div class="address-selector__row">
+      <!-- Tỉnh / Thành phố -->
+      <div class="address-selector__field">
+        <label class="address-selector__label" for="province-select">
+          <i class="fas fa-map-marker-alt"></i>
+          Tỉnh / Thành phố <span class="required">*</span>
+        </label>
+        <div class="address-selector__select-wrapper">
+          <select
+            id="province-select"
+            v-model="selectedProvince"
+            @change="onProvinceChange"
+            class="address-selector__select"
+            :disabled="loadingProvinces"
+          >
+            <option value="">-- Chọn Tỉnh/Thành phố --</option>
+            <option
+              v-for="province in provinces"
+              :key="province.ProvinceID"
+              :value="province.ProvinceID"
+            >
+              {{ province.ProvinceName }}
+            </option>
+          </select>
+          <div v-if="loadingProvinces" class="address-selector__spinner"></div>
+        </div>
+      </div>
+
+      <!-- Quận / Huyện -->
+      <div class="address-selector__field">
+        <label class="address-selector__label" for="district-select">
+          <i class="fas fa-building"></i>
+          Quận / Huyện <span class="required">*</span>
+        </label>
+        <div class="address-selector__select-wrapper">
+          <select
+            id="district-select"
+            v-model="selectedDistrict"
+            @change="onDistrictChange"
+            class="address-selector__select"
+            :disabled="!selectedProvince || loadingDistricts"
+          >
+            <option value="">-- Chọn Quận/Huyện --</option>
+            <option
+              v-for="district in districts"
+              :key="district.DistrictID"
+              :value="district.DistrictID"
+            >
+              {{ district.DistrictName }}
+            </option>
+          </select>
+          <div v-if="loadingDistricts" class="address-selector__spinner"></div>
+        </div>
+      </div>
+
+      <!-- Phường / Xã -->
+      <div class="address-selector__field">
+        <label class="address-selector__label" for="ward-select">
+          <i class="fas fa-home"></i>
+          Phường / Xã <span class="required">*</span>
+        </label>
+        <div class="address-selector__select-wrapper">
+          <select
+            id="ward-select"
+            v-model="selectedWard"
+            @change="onWardChange"
+            class="address-selector__select"
+            :disabled="!selectedDistrict || loadingWards"
+          >
+            <option value="">-- Chọn Phường/Xã --</option>
+            <option
+              v-for="ward in wards"
+              :key="ward.WardCode"
+              :value="ward.WardCode"
+            >
+              {{ ward.WardName }}
+            </option>
+          </select>
+          <div v-if="loadingWards" class="address-selector__spinner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Địa chỉ chi tiết -->
+    <div class="address-selector__field address-selector__field--full">
+      <label class="address-selector__label" for="address-detail">
+        <i class="fas fa-pen"></i>
+        Địa chỉ chi tiết
+      </label>
+      <input
+        id="address-detail"
+        v-model="addressDetail"
+        @input="onDetailChange"
+        type="text"
+        class="address-selector__input"
+        placeholder="Số nhà, tên đường, tòa nhà..."
+      />
+    </div>
+
+    <!-- Hiển thị địa chỉ đầy đủ -->
+    <div v-if="fullAddress" class="address-selector__preview">
+      <i class="fas fa-location-dot"></i>
+      <span>{{ fullAddress }}</span>
+    </div>
+  </div>
+</template>
+
+
 
 <style scoped>
 .address-selector {

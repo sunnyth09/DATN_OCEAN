@@ -845,8 +845,9 @@ const formatDate = (dateString) => {
     box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 .btn-primary:hover {
-    background: var(--ocean-bright); transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(3, 169, 244, 0.3);
+    background: var(--primary-dark); color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(230, 59, 111, 0.28);
 }
 .btn-outline {
     padding: 10px 22px; border-radius: 8px; border: 1px solid var(--border-color);

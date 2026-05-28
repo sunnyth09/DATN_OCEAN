@@ -28,6 +28,8 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\FlashSaleController;
+use App\Http\Controllers\AffiliateController;
+use App\Http\Controllers\AdminAffiliateController;
 
 // Add this line to run the route: http://localhost:8000/api
 Route::get('/', function () {
@@ -115,6 +117,14 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::get('/favorites', [FavoriteController::class, 'index']);
     Route::get('/favorites/ids', [FavoriteController::class, 'getFavoriteIds']);
     Route::post('/favorites/toggle', [FavoriteController::class, 'toggle']);
+
+    // ── Affiliate (Hoa hồng giới thiệu) ──
+    Route::post('/affiliate/register', [AffiliateController::class, 'register']);
+    Route::get('/affiliate/profile', [AffiliateController::class, 'profile']);
+    Route::get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
+    Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
+    Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
+    Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
 });
 
 // Cart routes (Protected - cần JWT token user/admin)
@@ -140,6 +150,11 @@ Route::get('flash-sale', [FlashSaleController::class, 'index']);
 Route::get('flash-sale/{id}/stock', [FlashSaleController::class, 'stock']);
 // Protected — Mua Flash Sale (throttle 10 request/phút/user)
 Route::middleware(['auth:api,admin', 'throttle:10,1'])->post('flash-sale/buy', [FlashSaleController::class, 'buy']);
+
+// ==========================================
+// AFFILIATE — Track Click (Public, không cần auth)
+// ==========================================
+Route::post('/affiliate/track-click', [AffiliateController::class, 'trackClick']);
 
 // ==========================================
 // NHÓM 1: QUAN TRỊ VIÊN CẤP CAO (admin)
@@ -173,6 +188,15 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     // Flash Sale Management (Admin only)
     Route::post('/flash-sale', [FlashSaleController::class, 'store']);
     Route::post('/flash-sale/{id}/initialize', [FlashSaleController::class, 'initialize']);
+
+    // ── Affiliate Management (Admin) ──
+    Route::get('/affiliate/conversions', [AdminAffiliateController::class, 'conversions']);
+    Route::put('/affiliate/conversions/{id}/approve', [AdminAffiliateController::class, 'approveConversion']);
+    Route::put('/affiliate/conversions/{id}/cancel', [AdminAffiliateController::class, 'cancelConversion']);
+    Route::get('/affiliate/withdrawals', [AdminAffiliateController::class, 'withdrawals']);
+    Route::put('/affiliate/withdrawals/{id}/approve', [AdminAffiliateController::class, 'approveWithdrawal']);
+    Route::put('/affiliate/withdrawals/{id}/reject', [AdminAffiliateController::class, 'rejectWithdrawal']);
+    Route::put('/affiliate/withdrawals/{id}/paid', [AdminAffiliateController::class, 'markPaidWithdrawal']);
 });
 
 // ==========================================

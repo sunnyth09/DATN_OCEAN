@@ -213,7 +213,7 @@ const login = async () => {
               </div>
 
               <!-- CAPTCHA -->
-              <!-- <div class="turnstile-container">
+              <div class="turnstile-container">
                  <div class="captcha-box" v-show="!turnstileToken">
                     <div class="turnstile-wrapper">
                       <div id="turnstile-login"></div>
@@ -225,7 +225,7 @@ const login = async () => {
                     </span>
                     <span class="captcha-text">Xác thực thành công</span>
                  </div>
-              </div> -->
+              </div>
 
               <!-- Action -->
               <button type="submit" class="btn-primary" :disabled="!isFormValid || isSubmitting">

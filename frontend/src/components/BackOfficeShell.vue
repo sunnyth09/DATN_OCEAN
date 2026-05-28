@@ -242,10 +242,6 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-:global(html.dark) .backoffice-header {
-  background: rgba(22, 24, 25, 0.92);
-}
-
 .backoffice-header__meta {
   min-width: 0;
 }

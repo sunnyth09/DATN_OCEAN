@@ -84,7 +84,7 @@ const resetFilters = () => {
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 20px;
-  background: white;
+  background: var(--card-bg);
   margin-bottom: 24px;
 }
 
@@ -104,27 +104,49 @@ const resetFilters = () => {
 }
 
 .btn-preset {
-  padding: 8px 16px;
+  padding: 8px 18px;
   border: 1px solid var(--border-color);
-  background: #f8f9fa;
+  background: var(--surface-container-low);
   color: var(--text-main);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  border-radius: 20px; /* Capsule shape */
+  font-size: 0.85rem;
+  font-weight: 700; /* Thick bold font */
+  letter-spacing: 0.2px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-preset:hover {
   background: var(--hover-bg);
-  border-color: rgba(230, 59, 111, 0.3);
+  border-color: #E63B6F;
+  color: #E63B6F;
+  transform: translateY(-1px);
 }
 
 .btn-preset.active {
   background: #E63B6F;
-  color: white;
+  color: white !important;
   border-color: #E63B6F;
-  box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25);
+}
+
+/* Ép màu chữ sáng rõ nét 100% ở Dark Mode */
+:global(html.dark) .btn-preset {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important; /* Trắng tinh khiết rõ nét */
+}
+
+:global(html.dark) .btn-preset:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: #E63B6F !important;
+  color: #E63B6F !important;
+}
+
+:global(html.dark) .btn-preset.active {
+  background: #E63B6F !important;
+  border-color: #E63B6F !important;
+  color: white !important;
 }
 
 .custom-range {
@@ -135,6 +157,8 @@ const resetFilters = () => {
 .form-input {
   padding: 8px 12px;
   border: 1px solid var(--border-color);
+  background: var(--background);
+  color: var(--text-main);
   border-radius: 8px;
   font-family: inherit;
   font-size: 0.9rem;
@@ -144,6 +168,16 @@ const resetFilters = () => {
 .form-input:focus {
   border-color: #E63B6F;
   box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+}
+
+:global(html.dark) .filter-group label {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+:global(html.dark) .form-input {
+  background-color: var(--background) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
 }
 
 .filter-actions {
