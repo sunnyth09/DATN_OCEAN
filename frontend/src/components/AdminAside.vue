@@ -143,8 +143,10 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 const userName = ref('Admin');
 const userEmail = ref('');
 const userAvatar = ref('');
@@ -187,11 +189,8 @@ const handleLogout = async () => {
       cancelButtonText: 'Hủy'
   });
   if (result.isConfirmed) {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
-    sessionStorage.removeItem('auth_token');
-    sessionStorage.removeItem('user');
-    router.push('/client/login');
+    await authStore.logout();
+    router.push('/');
   }
 };
 </script>
