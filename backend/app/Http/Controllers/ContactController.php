@@ -6,6 +6,7 @@ use App\Models\Contact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Http;
 
 class ContactController extends Controller
 {
@@ -38,11 +39,40 @@ class ContactController extends Controller
         ], 201);
             
     }
+    private function verifyTurnstile(?string $token): bool
+    {
+        if (!$token) {
+            return false;
+        }
+        $secretKey = config('services.turnstile.secret_key');
+        if (!$secretKey) {
+            return false;
+        }
+        try {
+            $response = Http::asForm()->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+                'secret' => $secretKey,
+                'response' => $token,
+            ]);
+            return $response->json('success', false);
+        } catch (\Exception $e) {
+            Log::error('Turnstile verification failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
     /**
      * User gửi form liên hệ (Public)
      */
     public function SubmitContact(Request $request)
     {
+        $turnstileToken = $request->input('turnstile_token');
+        if (!$this->verifyTurnstile($turnstileToken)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+            ], 422);
+        }
+
         $validator = Validator::make($request->all(), [
             'name'    => 'required|string|max:255',
             'email'   => 'required|email|max:255',

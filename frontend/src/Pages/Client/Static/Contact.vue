@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="static-page">
     <section class="page-hero">
       <div class="container">
@@ -50,26 +50,57 @@
         </div>
       </div>
 
-      <div class="content-block">
-        <h2>Gửi yêu cầu hỗ trợ</h2>
-        <form @submit.prevent="submitContact" class="contact-form" novalidate>
+      <div class="contact-layout">
+        <div class="map-block">
+          <div class="map-header">
+            <h2>Bản đồ cửa hàng</h2>
+            <p>Địa chỉ: 134 Nguyễn Thị Định, P. Buôn Ma Thuột, Đắk Lắk</p>
+          </div>
+          <div class="map-frame">
+            <iframe
+              src="https://www.google.com/maps?q=134+Nguyễn+Thị+Định,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              title="Bản đồ Ocean Store"
+            ></iframe>
+          </div>
+        </div>
+        <div class="content-block">
+          <h2>Gửi yêu cầu hỗ trợ</h2>
+          <form @submit.prevent="submitContact" class="contact-form" novalidate>
           <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
           <div v-if="errorMsg" class="alert-error">{{ errorMsg }}</div>
           <div class="form-row-2">
             <div class="form-group">
               <label>Họ và tên</label>
-              <input v-model="form.name" type="text" placeholder="Nguyễn Văn A" />
+              <input
+                v-model="form.name"
+                type="text"
+                placeholder="Nguyễn Văn A"
+                :aria-invalid="Boolean(fieldErrors.name)"
+                @input="clearFieldError('name')"
+              />
               <span v-if="fieldErrors.name" class="field-error">{{ fieldErrors.name }}</span>
             </div>
             <div class="form-group">
               <label>Email</label>
-              <input v-model="form.email" type="email" placeholder="your@email.com" />
+              <input
+                v-model="form.email"
+                type="email"
+                placeholder="your@email.com"
+                :aria-invalid="Boolean(fieldErrors.email)"
+                @input="clearFieldError('email')"
+              />
               <span v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</span>
             </div>
           </div>
           <div class="form-group">
             <label>Chủ đề</label>
-            <select v-model="form.subject">
+            <select
+              v-model="form.subject"
+              :aria-invalid="Boolean(fieldErrors.subject)"
+              @change="clearFieldError('subject')"
+            >
               <option value="">-- Chọn chủ đề --</option>
               <option>Hỏi về đơn hàng</option>
               <option>Đổi/Trả sản phẩm</option>
@@ -81,20 +112,43 @@
           </div>
           <div class="form-group">
             <label>Nội dung</label>
-            <textarea v-model="form.message" rows="5" placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."></textarea>
+            <textarea
+              v-model="form.message"
+              rows="5"
+              placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."
+              :aria-invalid="Boolean(fieldErrors.message)"
+              @input="clearFieldError('message')"
+            ></textarea>
             <span v-if="fieldErrors.message" class="field-error">{{ fieldErrors.message }}</span>
           </div>
-          <button type="submit" class="btn-primary" :disabled="isSubmitting">
+
+          <!-- CAPTCHA -->
+          <div class="turnstile-container" style="margin-bottom: 16px;">
+             <div class="captcha-box" v-show="!turnstileToken">
+                <div class="turnstile-wrapper">
+                  <div id="turnstile-contact"></div>
+                </div>
+             </div>
+             <div class="captcha-box success" v-if="turnstileToken" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 14px; display: inline-flex; align-items: center; gap: 10px;">
+                <span class="icon text-success" style="color: #22c55e;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                </span>
+                <span class="captcha-text" style="color: #15803d; font-weight: 600; font-size: 0.85rem;">Xác thực thành công</span>
+             </div>
+          </div>
+
+          <button type="submit" class="btn-primary" :disabled="isSubmitting || !turnstileToken">
             {{ isSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu' }}
           </button>
         </form>
       </div>
+    </div>
     </section>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
+import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import ClientHeader from '@/components/ClientHeader.vue';
 import Footer_client from '@/Pages/Includes/Layouts/Footer_client.vue';
@@ -103,35 +157,95 @@ const form = reactive({ name: '', email: '', subject: '', message: '' });
 const isSubmitting = ref(false);
 const successMsg = ref('');
 const errorMsg = ref('');
-const fieldErrors = ref({});
+const fieldErrors = reactive({});
+
+const turnstileToken = ref('');
+let turnstileWidgetId = null;
+
+const loadTurnstile = () => {
+  if (window.turnstile) {
+    renderTurnstile();
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
+  script.async = true;
+  window.onTurnstileLoad = () => renderTurnstile();
+  document.head.appendChild(script);
+};
+
+const renderTurnstile = () => {
+  const container = document.getElementById('turnstile-contact');
+  if (!container || !window.turnstile) return;
+  container.innerHTML = '';
+  turnstileWidgetId = window.turnstile.render('#turnstile-contact', {
+    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+    callback: (token) => { turnstileToken.value = token; },
+    'expired-callback': () => { turnstileToken.value = ''; },
+    'error-callback': () => { turnstileToken.value = ''; },
+    theme: 'light',
+  });
+};
+
+onMounted(() => {
+  loadTurnstile();
+});
+
+onBeforeUnmount(() => {
+  if (turnstileWidgetId !== null && window.turnstile) {
+    window.turnstile.remove(turnstileWidgetId);
+  }
+});
+
+const clearFieldError = (field) => {
+  delete fieldErrors[field];
+};
 
 const submitContact = async () => {
   successMsg.value = '';
   errorMsg.value = '';
-  fieldErrors.value = {};
+  Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
 
   // Client-side validation
-  if (!form.name.trim()) { fieldErrors.value.name = 'Vui lòng nhập họ tên.'; }
-  if (!form.email.trim()) { fieldErrors.value.email = 'Vui lòng nhập email.'; }
-  if (!form.subject) { fieldErrors.value.subject = 'Vui lòng chọn chủ đề.'; }
-  if (!form.message.trim()) { fieldErrors.value.message = 'Vui lòng nhập nội dung.'; }
-  if (Object.keys(fieldErrors.value).length > 0) return;
+  if (!form.name.trim()) { fieldErrors.name = 'Vui lòng nhập họ tên.'; }
+  if (!form.email.trim()) {
+    fieldErrors.email = 'Vui lòng nhập email.';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    fieldErrors.email = 'Email không hợp lệ.';
+  }
+  if (!form.subject) { fieldErrors.subject = 'Vui lòng chọn chủ đề.'; }
+  if (!form.message.trim()) { fieldErrors.message = 'Vui lòng nhập nội dung.'; }
+  if (Object.keys(fieldErrors).length > 0) return;
 
   isSubmitting.value = true;
   try {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8383/api';
-    const res = await axios.post(`${baseUrl}/SubmitContact`, { ...form });
+    const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8383/api';
+    const res = await axios.post(`${baseUrl}/SubmitContact`, { ...form, turnstile_token: turnstileToken.value });
     successMsg.value = res.data.message;
     // Reset form
-    form.name = ''; form.email = ''; form.subject = ''; form.message = '';
+    form.name = '';
+    form.email = '';
+    form.subject = '';
+    form.message = '';
+
+    // Reset turnstile
+    if (window.turnstile && turnstileWidgetId !== null) {
+      window.turnstile.reset(turnstileWidgetId);
+      turnstileToken.value = '';
+    }
   } catch (err) {
     if (err.response?.status === 422 && err.response.data.errors) {
-      fieldErrors.value = {};
+      Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
       for (const [key, msgs] of Object.entries(err.response.data.errors)) {
-        fieldErrors.value[key] = msgs[0];
+        fieldErrors[key] = msgs[0];
       }
     } else {
       errorMsg.value = err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại.';
+    }
+
+    if (window.turnstile && turnstileWidgetId !== null) {
+      window.turnstile.reset(turnstileWidgetId);
+      turnstileToken.value = '';
     }
   } finally {
     isSubmitting.value = false;
