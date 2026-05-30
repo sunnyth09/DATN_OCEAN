@@ -255,7 +255,6 @@ const routes = [
                 component: () => import("../Pages/admin/AdminAttendanceList.vue"),
                 meta: { roles: ['admin'], title: 'Danh sách Chấm công' },
             },
-<<<<<<< Updated upstream
             {
                 path: "work-locations",
                 name: "admin-work-locations",
@@ -267,7 +266,7 @@ const routes = [
                 name: "admin-work-shifts",
                 component: () => import("../Pages/admin/AdminWorkShifts.vue"),
                 meta: { roles: ['admin'], title: 'Ca làm việc & Phân ca' },
-=======
+            },
             // Court Booking Admin Pages
             {
                 path: "courts",
@@ -292,7 +291,6 @@ const routes = [
                 name: "admin-court-reports",
                 component: () => import("../Pages/admin/AdminCourtReports.vue"),
                 meta: { roles: ['admin'], title: 'Thống Kê Sân' },
->>>>>>> Stashed changes
             },
         ],
     },

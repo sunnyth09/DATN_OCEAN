@@ -6,12 +6,9 @@ import api from "../axios.js";
 import { broadcastLogout } from "../sessionSync.js";
 import Swal from "sweetalert2";
 import SearchModal from "./SearchModal.vue";
-<<<<<<< Updated upstream
 import AppIcon from "@/icons/AppIcon.vue";
-=======
 import { useCartStore } from "@/stores/cart";
 import { useCatalogStore } from "@/stores/catalog";
->>>>>>> Stashed changes
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 const route = useRoute();

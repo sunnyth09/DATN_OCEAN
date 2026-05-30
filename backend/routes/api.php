@@ -30,10 +30,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\FlashSaleController;
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\AdminAffiliateController;
-<<<<<<< Updated upstream
 use App\Http\Controllers\TryOnController;
-
-=======
 use App\Http\Controllers\Api\CourtController;
 use App\Http\Controllers\Api\CourtBookingController;
 use App\Http\Controllers\Api\Admin\CourtAdminController;
@@ -42,7 +39,6 @@ use App\Http\Controllers\Api\Admin\CourtScheduleAdminController;
 use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
 use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
 use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
->>>>>>> Stashed changes
 // Add this line to run the route: http://localhost:8000/api
 Route::get('/', function () {
     return response()->json([

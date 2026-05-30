@@ -169,12 +169,8 @@ const formatPrice = (val) => {
 // ── Watchers ──
 let isResettingPage = false;
 
-<<<<<<< Updated upstream
 watch([selectedCategories, selectedBrands, sortBy, priceMax], () => {
-=======
-watch([selectedCategories, selectedBrands, sortBy], () => {
     if (isInitializing) return;
->>>>>>> Stashed changes
     if (currentPage.value !== 1) {
         isResettingPage = true;
         currentPage.value = 1;
