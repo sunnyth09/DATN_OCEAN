@@ -7,6 +7,7 @@ use App\Repositories\UserRepository;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class AuthService
 {
@@ -21,15 +22,6 @@ class AuthService
      */
     public function verifyTurnstile(?string $token): bool
     {
-        // Bypass CAPTCHA for Mobile App (Flutter)
-        $userAgent = request()->userAgent() ?? '';
-        $isMobileApp = request()->input('is_mobile') == true;
-        $hasDartAgent = str_contains(strtolower($userAgent), 'dart');
-
-        if ($hasDartAgent || ($isMobileApp && empty($token))) {
-            return true;
-        }
-
         if (!$token) return false;
 
         $secretKey = config('services.turnstile.secret_key');
@@ -65,13 +57,24 @@ class AuthService
 
     public function register(array $data): array
     {
+        $validator = Validator::make($data, [
+            'full_name' => ['nullable', 'required_without:name', 'string', 'max:120'],
+            'name' => ['nullable', 'required_without:full_name', 'string', 'max:120'],
+            'email' => ['required', 'string', 'email', 'max:255'],
+            'password' => ['required', 'string', 'confirmed'],
+        ]);
+
+        if ($validator->fails()) {
+            return ['_status' => 422, 'status' => 'error', 'errors' => $validator->errors()->toArray()];
+        }
+
         // Turnstile
         if (!$this->verifyTurnstile($data['turnstile_token'] ?? null)) {
             return ['_status' => 422, 'status' => 'error', 'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'];
         }
 
-        $name     = $data['full_name'] ?? $data['name'] ?? '';
-        $email    = $data['email'];
+        $name     = trim($data['full_name'] ?? $data['name']);
+        $email    = strtolower(trim($data['email']));
         $password = $data['password'];
 
         // Password validation
@@ -95,6 +98,11 @@ class AuthService
 
         // Login
         $token = auth('api')->attempt(['email' => $email, 'password' => $password]);
+        $user = auth('api')->user();
+
+        if (!$token || !$user) {
+            return ['_status' => 500, 'status' => 'error', 'message' => 'Không thể khởi tạo phiên đăng nhập. Vui lòng đăng nhập lại.'];
+        }
 
         return [
             '_status'       => 201,
@@ -104,6 +112,8 @@ class AuthService
             'refresh_token' => $token,
             'token_type'    => 'Bearer',
             'expires_in'    => auth('api')->factory()->getTTL() * 60,
+            'role'          => $user->role,
+            'user'          => $user,
         ];
     }
 
@@ -111,12 +121,21 @@ class AuthService
 
     public function login(array $data): array
     {
+        $validator = Validator::make($data, [
+            'email' => ['required', 'string', 'email', 'max:255'],
+            'password' => ['required', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            return ['_status' => 422, 'status' => 'error', 'errors' => $validator->errors()->toArray()];
+        }
+
         // Turnstile
         if (!$this->verifyTurnstile($data['turnstile_token'] ?? null)) {
             return ['_status' => 422, 'status' => 'error', 'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'];
         }
 
-        $credentials = ['email' => $data['email'], 'password' => $data['password']];
+        $credentials = ['email' => strtolower(trim($data['email'])), 'password' => $data['password']];
 
         // Thử admin trước
         if ($token = auth('admin')->attempt($credentials)) {
@@ -227,7 +246,7 @@ class AuthService
             // Find or create user
             $user = $this->findOrCreateOAuthUser('google', $googleId, $googleEmail, $googleName, $googleAvatar);
 
-            if (isset($user['_status'])) return $user; // error response
+            if (is_array($user) && isset($user['_status'])) return $user; // error response
 
             // JWT
             $token = auth('api')->login($this->userRepository->findModel($user->user_id));
@@ -245,7 +264,7 @@ class AuthService
             ];
         } catch (\Exception $e) {
             Log::error('Google login error: ' . $e->getMessage());
-            return ['_status' => 500, 'status' => 'error', 'message' => 'Đăng nhập Google thất bại! ' . $e->getMessage()];
+            return ['_status' => 500, 'status' => 'error', 'message' => 'Đăng nhập Google thất bại! Vui lòng thử lại.'];
         }
     }
 
@@ -286,7 +305,7 @@ class AuthService
             // Find or create user
             $user = $this->findOrCreateOAuthUser('facebook', $fbId, $fbEmail, $fbName, $fbAvatar);
 
-            if (isset($user['_status'])) return $user;
+            if (is_array($user) && isset($user['_status'])) return $user;
 
             // JWT
             $token = auth('api')->login($this->userRepository->findModel($user->user_id));
@@ -304,7 +323,7 @@ class AuthService
             ];
         } catch (\Exception $e) {
             Log::error('Facebook login error: ' . $e->getMessage());
-            return ['_status' => 500, 'status' => 'error', 'message' => 'Đăng nhập Facebook thất bại! ' . $e->getMessage()];
+            return ['_status' => 500, 'status' => 'error', 'message' => 'Đăng nhập Facebook thất bại! Vui lòng thử lại.'];
         }
     }
 

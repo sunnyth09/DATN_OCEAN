@@ -88,22 +88,24 @@ class _WebViewLoginScreenState extends State<WebViewLoginScreen> {
   /// Auto-fill email/password nếu đã nhập từ form native
   void _autofillForm() {
     if (widget.prefillEmail != null && widget.prefillEmail!.isNotEmpty) {
+      final email = jsonEncode(widget.prefillEmail);
       _controller.runJavaScript('''
         (function() {
           var emailInput = document.getElementById('login-email');
           if (emailInput) {
-            emailInput.value = '${widget.prefillEmail}';
+            emailInput.value = $email;
             emailInput.dispatchEvent(new Event('input', { bubbles: true }));
           }
         })();
       ''');
     }
     if (widget.prefillPassword != null && widget.prefillPassword!.isNotEmpty) {
+      final password = jsonEncode(widget.prefillPassword);
       _controller.runJavaScript('''
         (function() {
           var pwInput = document.getElementById('login-password');
           if (pwInput) {
-            pwInput.value = '${widget.prefillPassword}';
+            pwInput.value = $password;
             pwInput.dispatchEvent(new Event('input', { bubbles: true }));
           }
         })();

@@ -133,6 +133,7 @@ let serverOffset = 0;
 let timerInterval = null;
 let stockInterval = null;
 let toastTimer    = null;
+let stockRequest  = null;
 
 // ── Computed ──
 const isLoggedIn   = computed(() => !!getUser());
@@ -236,11 +237,17 @@ async function fetchSale() {
 }
 
 async function fetchStock() {
-  if (!sale.value) return;
-  try {
+  if (!sale.value || document.hidden) return;
+  if (stockRequest) return stockRequest;
+
+  stockRequest = (async () => {
     const { data } = await api.get(`flash-sale/${sale.value.id}/stock?product_id=${sale.value.product_id}`);
     stockData.value = data;
-  } catch {}
+  })().catch(() => {}).finally(() => {
+    stockRequest = null;
+  });
+
+  return stockRequest;
 }
 
 // ── Buy ──
@@ -297,12 +304,19 @@ onMounted(async () => {
   await fetchStock();
   startTimer();
   stockInterval = setInterval(fetchStock, 30_000);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 onUnmounted(() => {
   clearInterval(timerInterval);
   clearInterval(stockInterval);
   clearTimeout(toastTimer);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
+const handleVisibilityChange = () => {
+  if (document.hidden) return;
+  tickTimer();
+  fetchStock();
+};
 watch(() => props.flashSaleId, async () => {
   await fetchSale();
   await fetchStock();

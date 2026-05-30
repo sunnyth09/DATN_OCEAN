@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/turnstile_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -12,6 +13,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureText = true;
   bool _obscureTextConfirm = true;
   bool _isLoading = false;
+  String _turnstileToken = '';
+  final _turnstileKey = GlobalKey<TurnstileServiceState>();
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -38,9 +41,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    if (_turnstileToken.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đợi xác thực bảo mật hoàn tất')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
-    final result = await AuthService.register(name, email, password, passwordConfirm);
+    final result = await AuthService.register(
+      name,
+      email,
+      password,
+      passwordConfirm,
+      turnstileToken: _turnstileToken,
+    );
 
     setState(() => _isLoading = false);
 
@@ -53,6 +69,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } else {
       if (mounted) {
+        setState(() => _turnstileToken = '');
+        _turnstileKey.currentState?.resetToken();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
         );
@@ -147,12 +165,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   
                   const SizedBox(height: 32),
+
+                  TurnstileService(
+                    key: _turnstileKey,
+                    onTokenReceived: (token) {
+                      if (mounted) setState(() => _turnstileToken = token);
+                    },
+                    onError: (_) {
+                      if (mounted) setState(() => _turnstileToken = '');
+                    },
+                  ),
                   
                   // Nút Đăng ký
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleRegister,
+                      onPressed: _isLoading || _turnstileToken.isEmpty ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: const Color(0xFF0EA5E9),

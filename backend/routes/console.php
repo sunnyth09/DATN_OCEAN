@@ -88,3 +88,12 @@ Schedule::command('app:send-order-emails')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
 
+Schedule::command('court-bookings:clean-expired-locks')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+Schedule::command('court-bookings:mark-no-shows --grace=15')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));

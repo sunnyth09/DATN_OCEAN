@@ -5,8 +5,8 @@ export const extractCollection = (response) => {
 };
 
 export const catalogService = {
-  listProducts(params = {}) {
-    return api.get('/products', { params });
+  listProducts(params = {}, config = {}) {
+    return api.get('/products', { ...config, params });
   },
 
   listCategories() {

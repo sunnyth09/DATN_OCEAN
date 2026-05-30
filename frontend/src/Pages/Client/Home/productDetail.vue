@@ -100,7 +100,7 @@ const allImages = computed(() => {
 const fetchProduct = async (currentSlug) => {
     try {
         const response = await api.get(`/products/${currentSlug}`);
-        product.value = response.data;
+        product.value = response.data.data;
         // Reset selections khi đổi sản phẩm
         selectedVariant.value = null;
         selectedColor.value = null;
@@ -384,7 +384,6 @@ watch(slug, (newSlug, oldSlug) => {
 
 onMounted(() => {
     fetchProduct(slug.value);
-
     // === Affiliate: ghi nhận referral code từ URL ===
     const refCode = route.query.ref;
     if (refCode) {
@@ -406,6 +405,8 @@ onMounted(() => {
         }
     }
 });
+console.log(quantity.value);
+
 </script>
 
 <template>
@@ -481,7 +482,7 @@ onMounted(() => {
           <span class="pd-qty-label">Số lượng</span>
           <div class="pd-qty">
             <button @click="decreaseQuantity">−</button>
-            <input type="number" v-model="quantity" readonly />
+            <input type="number" v-model="quantity" />
             <button @click="increaseQuantity">+</button>
           </div>
         </div>
@@ -718,7 +719,7 @@ onMounted(() => {
 
 /* Info Panel */
 .pd-info { display: flex; flex-direction: column; }
-.pd-badge { display: inline-block; background: #E63B6F; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; width: fit-content; }
+.pd-badge { display: inline-block; background: #E63B6F; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 4px 12px; border-radius: 16px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; width: fit-content; }
 .pd-title { font-size: 1.6rem; font-weight: 800; color: #2D3436; line-height: 1.3; margin: 0 0 12px; }
 
 .pd-rating { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
@@ -739,25 +740,25 @@ onMounted(() => {
 .pd-variants { margin-bottom: 20px; }
 .pd-var-label { font-size: 0.85rem; font-weight: 700; color: #2D3436; margin: 0 0 10px; }
 .pd-var-options { display: flex; flex-wrap: wrap; gap: 8px; }
-.pd-var-btn { padding: 8px 18px; border: 1.5px solid #E9ECEF; border-radius: 8px; background: #fff; font-size: 0.88rem; font-weight: 600; color: #2D3436; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.pd-var-btn { padding: 8px 18px; border: 1.5px solid #E9ECEF; border-radius: 20px; background: #fff; font-size: 0.88rem; font-weight: 600; color: #2D3436; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .pd-var-btn:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; }
 .pd-var-btn.active { border-color: #E63B6F; background: rgba(230,59,111,0.06); color: #E63B6F; }
 .pd-var-btn.disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Quantity */
-.pd-qty-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.pd-qty-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px;}
 .pd-qty-label { font-size: 0.9rem; font-weight: 600; color: #636E72; }
-.pd-qty { display: flex; align-items: center; border: 1.5px solid #E9ECEF; border-radius: 8px; overflow: hidden; }
+.pd-qty { display: flex; align-items: center; border: 1.5px solid #e63b6e7d; border-radius: 20px; overflow: hidden; }
 .pd-qty button { width: 40px; height: 40px; background: #fff; border: none; font-size: 1.1rem; cursor: pointer; color: #2D3436; transition: background 0.2s; }
 .pd-qty button:hover { background: #F8F9FA; }
 .pd-qty input { width: 48px; text-align: center; border: none; border-left: 1px solid #E9ECEF; border-right: 1px solid #E9ECEF; font-weight: 700; font-size: 0.95rem; outline: none; background: #fff; font-family: inherit; }
 
 /* CTA Buttons */
 .pd-cta { display: flex; gap: 12px; margin-bottom: 20px; }
-.pd-btn-cart { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 20px; background: #E63B6F; color: #fff; border: 2px solid #E63B6F; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.pd-btn-cart { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 12px; background: #E63B6F; color: #fff; border: 2px solid #E63B6F; border-radius: 28px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .pd-btn-cart:hover { background: #C4305D; border-color: #C4305D; }
 .pd-btn-cart:disabled { opacity: 0.6; cursor: not-allowed; }
-.pd-btn-buy { flex: 1; padding: 14px 20px; background: #fff; color: #E63B6F; border: 2px solid #E63B6F; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.pd-btn-buy { flex: 1; padding: 12px 12px; background: #fff; color: #E63B6F; border: 2px solid #E63B6F; border-radius: 28px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .pd-btn-buy:hover { background: #E63B6F; color: #fff; }
 
 /* AR Try-On Button */

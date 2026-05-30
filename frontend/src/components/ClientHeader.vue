@@ -1,15 +1,25 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
 import api from "../axios.js";
 import { broadcastLogout } from "../sessionSync.js";
 import Swal from "sweetalert2";
 import SearchModal from "./SearchModal.vue";
+<<<<<<< Updated upstream
 import AppIcon from "@/icons/AppIcon.vue";
+=======
+import { useCartStore } from "@/stores/cart";
+import { useCatalogStore } from "@/stores/catalog";
+>>>>>>> Stashed changes
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 const route = useRoute();
 const router = useRouter();
+const cartStore = useCartStore();
+const catalogStore = useCatalogStore();
+const { count: cartCount } = storeToRefs(cartStore);
+const { categories } = storeToRefs(catalogStore);
 
 const isLoggedIn = ref(false);
 const userName = ref("");
@@ -17,8 +27,6 @@ const userEmail = ref("");
 const userAvatar = ref(null);
 const isAdmin = ref(false);
 const showDropdown = ref(false);
-const categories = ref([]);
-const cartCount = ref(0);
 const unreadNotificationCount = ref(0);
 const isSearchModalOpen = ref(false);
 const isMobileMenuOpen = ref(false);
@@ -95,15 +103,6 @@ const handleViewportResize = () => {
     }
 };
 
-const fetchCategories = async () => {
-    try {
-        const response = await api.get("/categories");
-        categories.value = response.data.data;
-    } catch (error) {
-        console.error("Error fetching categories:", error);
-    }
-};
-
 const checkAuth = () => {
     const userData = sessionStorage.getItem("user");
     if (userData) {
@@ -136,20 +135,6 @@ const checkAuth = () => {
     }
 };
 
-const fetchCartCount = async () => {
-    const token = sessionStorage.getItem("auth_token");
-    if (!token) {
-        cartCount.value = 0;
-        return;
-    }
-    try {
-        const response = await api.get("/cart/count");
-        cartCount.value = response.data.count || 0;
-    } catch (e) {
-        cartCount.value = 0;
-    }
-};
-
 const fetchUnreadNotificationCount = async () => {
     const token = sessionStorage.getItem("auth_token");
     if (!token) {
@@ -164,11 +149,23 @@ const fetchUnreadNotificationCount = async () => {
     }
 };
 
+let notificationUserId = null;
+
+const leaveNotificationChannel = () => {
+    if (window.Echo && notificationUserId) {
+        window.Echo.leave('user.' + notificationUserId);
+    }
+    notificationUserId = null;
+};
+
 watch(isLoggedIn, (val) => {
     if (val) {
         fetchUnreadNotificationCount();
         const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
         if (window.Echo && userData && userData.user_id) {
+            if (notificationUserId === userData.user_id) return;
+            leaveNotificationChannel();
+            notificationUserId = userData.user_id;
             window.Echo.private('user.' + userData.user_id)
                 .listen('.UserNotificationEvent', (e) => { // . means it ignores Broadcast namespace
                     unreadNotificationCount.value++;
@@ -190,10 +187,7 @@ watch(isLoggedIn, (val) => {
         }
     } else {
         unreadNotificationCount.value = 0;
-        const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
-        if (window.Echo && userData && userData.user_id) {
-            window.Echo.leave('user.' + userData.user_id);
-        }
+        leaveNotificationChannel();
     }
 }, { immediate: true });
 
@@ -279,11 +273,10 @@ const handleFlashSaleClick = (e) => {
 
 onMounted(() => {
     checkAuth();
-    fetchCategories();
-    fetchCartCount();
+    catalogStore.fetchCategories();
+    cartStore.fetchCount();
 
     window.addEventListener("user-updated", checkAuth);
-    window.addEventListener("cart-updated", fetchCartCount);
     window.addEventListener("resize", handleViewportResize);
     document.addEventListener("click", handleDocumentClick);
 
@@ -295,15 +288,14 @@ onMounted(() => {
 });
 onUnmounted(() => {
     window.removeEventListener("user-updated", checkAuth);
-    window.removeEventListener("cart-updated", fetchCartCount);
     window.removeEventListener("resize", handleViewportResize);
     document.removeEventListener("click", handleDocumentClick);
+    leaveNotificationChannel();
 });
 watch(
     () => route.fullPath,
     () => {
         checkAuth();
-        fetchCartCount();
         closeAccountMenu();
         closeMobileMenu();
     },

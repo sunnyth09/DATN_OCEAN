@@ -38,20 +38,59 @@ const clearAuth = () => {
     getAuthStore().clearSession({ notify: false });
 };
 
-let isRefreshing = false;
-let failedQueue = [];
+const AUTH_ENDPOINTS = ['/login', '/register', '/refresh', '/forgot-password/', '/auth/'];
+let refreshPromise = null;
 
-const processQueue = (error, token = null) => {
-    failedQueue.forEach((promise) => {
-        if (error) promise.reject(error);
-        else promise.resolve(token);
-    });
-    failedQueue = [];
+const isAuthEndpoint = (url = '') => AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+
+const isTokenExpiring = (token, leewaySeconds = 30) => {
+    try {
+        const encodedPayload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(encodedPayload.padEnd(Math.ceil(encodedPayload.length / 4) * 4, '=')));
+        return !payload.exp || payload.exp <= Math.floor(Date.now() / 1000) + leewaySeconds;
+    } catch {
+        return true;
+    }
+};
+
+const redirectToLogin = () => {
+    if (window.location.pathname !== '/client/login') {
+        window.dispatchEvent(new CustomEvent('auth-logout'));
+        window.location.href = '/client/login';
+    }
+};
+
+const refreshAccessToken = () => {
+    if (!refreshPromise) {
+        refreshPromise = api.post('/refresh', null, { skipAuthRefresh: true })
+            .then((response) => {
+                const newToken = response.data.access_token;
+                if (!newToken) throw new Error('No token in refresh response');
+
+                saveToken(newToken);
+                api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+                return newToken;
+            })
+            .catch((error) => {
+                clearAuth();
+                redirectToLogin();
+                throw error;
+            })
+            .finally(() => {
+                refreshPromise = null;
+            });
+    }
+
+    return refreshPromise;
 };
 
 api.interceptors.request.use(
-    (config) => {
-        const token = getToken();
+    async (config) => {
+        let token = getToken();
+        if (token && !config.skipAuthRefresh && !isAuthEndpoint(config.url) && isTokenExpiring(token)) {
+            token = await refreshAccessToken();
+        }
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -85,44 +124,14 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        if (isRefreshing) {
-            return new Promise((resolve, reject) => {
-                failedQueue.push({ resolve, reject });
-            })
-                .then((token) => {
-                    originalRequest.headers.Authorization = `Bearer ${token}`;
-                    return api(originalRequest);
-                })
-                .catch((refreshError) => Promise.reject(refreshError));
-        }
-
         originalRequest._retry = true;
-        isRefreshing = true;
 
         try {
-            const response = await api.post('/refresh');
-            const newToken = response.data.access_token;
-
-            if (!newToken) throw new Error('No token in refresh response');
-
-            saveToken(newToken);
-            api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-            processQueue(null, newToken);
-
+            const newToken = await refreshAccessToken();
             originalRequest.headers.Authorization = `Bearer ${newToken}`;
             return api(originalRequest);
         } catch (refreshError) {
-            processQueue(refreshError, null);
-            clearAuth();
-
-            if (window.location.pathname !== '/client/login') {
-                window.dispatchEvent(new CustomEvent('auth-logout'));
-                window.location.href = '/client/login';
-            }
-
             return Promise.reject(refreshError);
-        } finally {
-            isRefreshing = false;
         }
     },
 );

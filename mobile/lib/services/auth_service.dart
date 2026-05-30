@@ -8,15 +8,14 @@ class AuthService {
   static const String keyUser = 'user_data';
 
   // ========== LOGIN ==========
-  static Future<Map<String, dynamic>> login(String email, String password) async {
+  static Future<Map<String, dynamic>> login(String email, String password, {required String turnstileToken}) async {
     try {
       final response = await ApiClient().dio.post(
         '/login',
         data: {
           'email': email,
           'password': password,
-          'is_mobile': true,
-          // Không gửi turnstile_token → backend bypass qua User-Agent 'dart'
+          'turnstile_token': turnstileToken,
         },
       );
 
@@ -41,7 +40,7 @@ class AuthService {
   }
 
   // ========== REGISTER ==========
-  static Future<Map<String, dynamic>> register(String name, String email, String password, String passwordConfirm) async {
+  static Future<Map<String, dynamic>> register(String name, String email, String password, String passwordConfirm, {required String turnstileToken}) async {
     try {
       final response = await ApiClient().dio.post(
         '/register',
@@ -50,7 +49,7 @@ class AuthService {
           'email': email,
           'password': password,
           'password_confirmation': passwordConfirm,
-          'is_mobile': true,
+          'turnstile_token': turnstileToken,
         },
       );
 

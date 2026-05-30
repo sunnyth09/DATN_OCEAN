@@ -116,6 +116,7 @@ const handleRegister = async () => {
             name: name.value,
             email: email.value,
             password: password.value,
+            password_confirmation: password_confirmation.value,
             turnstile_token: turnstileToken.value
         });
 

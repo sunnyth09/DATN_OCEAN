@@ -87,7 +87,7 @@ onBeforeUnmount(() => {
 // Google OAuth
 const loginWithGoogle = () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-  const redirectUri = 'http://localhost:3302/api/auth/google/callback';
+  const redirectUri = `${window.location.origin}/api/auth/google/callback`;
   const scope = 'openid email profile';
   const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`;
   window.location.href = url;
@@ -96,7 +96,7 @@ const loginWithGoogle = () => {
 // Facebook OAuth
 const loginWithFacebook = () => {
   const clientId = import.meta.env.VITE_FACEBOOK_ID || '1969230567301526';
-  const redirectUri = 'http://localhost:3302/api/auth/facebook/callback';
+  const redirectUri = `${window.location.origin}/api/auth/facebook/callback`;
   const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=public_profile,email`;
   window.location.href = url;
 };

@@ -1,12 +1,14 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import ProductCard from "../../../components/ProductCard.vue";
 import ProductSkeleton from "../../../components/ProductSkeleton.vue";
 import { catalogService } from "@/services/catalogService";
+import { useCatalogStore } from "@/stores/catalog";
 
 const router = useRouter();
 const route = useRoute();
+const catalogStore = useCatalogStore();
 const Products = ref([]);
 const Categories = ref([]);
 const Brands = ref([]);
@@ -27,6 +29,10 @@ const searchQuery = ref("");
 const currentPage = ref(1);
 const totalPages = ref(1);
 const perPage = 12;
+let isInitializing = true;
+let fetchTimer = null;
+let productRequestController = null;
+let latestProductRequest = 0;
 
 const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
 
@@ -52,6 +58,10 @@ const visiblePages = computed(() => {
 
 // ── Fetch products ──
 const fetchProducts = async () => {
+    const requestId = ++latestProductRequest;
+    productRequestController?.abort();
+    productRequestController = new AbortController();
+
     try {
         isSearching.value = true;
         const params = { limit: perPage, page: currentPage.value };
@@ -69,7 +79,11 @@ const fetchProducts = async () => {
         if (sortBy.value) params.sort_by = sortBy.value;
         if (searchQuery.value.trim()) params.search = searchQuery.value.trim();
 
-        const response = await catalogService.listProducts(params);
+        const response = await catalogService.listProducts(params, {
+            signal: productRequestController.signal,
+        });
+        if (requestId !== latestProductRequest) return;
+
         const rawData = response.data.data || response.data;
 
         Products.value = (Array.isArray(rawData) ? rawData : rawData.data || []).map((item) => {
@@ -98,17 +112,24 @@ const fetchProducts = async () => {
         totalPages.value = response.data.total_pages || Math.ceil((response.data.total || Products.value.length) / perPage) || 1;
         totalProducts.value = response.data.total || Products.value.length;
     } catch (error) {
+        if (error.code === 'ERR_CANCELED') return;
         console.error("Error fetching products:", error);
     } finally {
-        isSearching.value = false;
+        if (requestId === latestProductRequest) {
+            isSearching.value = false;
+        }
     }
+};
+
+const scheduleFetchProducts = () => {
+    clearTimeout(fetchTimer);
+    fetchTimer = setTimeout(fetchProducts, 100);
 };
 
 // ── Fetch categories ──
 const fetchCategories = async () => {
     try {
-        const response = await catalogService.listCategories();
-        Categories.value = response.data.data || response.data || [];
+        Categories.value = await catalogStore.fetchCategories();
     } catch (error) {
         console.error("Error fetching categories:", error);
     }
@@ -148,12 +169,17 @@ const formatPrice = (val) => {
 // ── Watchers ──
 let isResettingPage = false;
 
+<<<<<<< Updated upstream
 watch([selectedCategories, selectedBrands, sortBy, priceMax], () => {
+=======
+watch([selectedCategories, selectedBrands, sortBy], () => {
+    if (isInitializing) return;
+>>>>>>> Stashed changes
     if (currentPage.value !== 1) {
         isResettingPage = true;
         currentPage.value = 1;
     }
-    fetchProducts();
+    scheduleFetchProducts();
     // Sync URL
     const newQuery = { ...route.query };
     if (selectedCategories.value.length > 0) newQuery.category = selectedCategories.value[0];
@@ -163,13 +189,15 @@ watch([selectedCategories, selectedBrands, sortBy, priceMax], () => {
 }, { deep: true });
 
 watch(() => route.query.search, (val) => {
+    if (isInitializing) return;
     searchQuery.value = val || '';
     currentPage.value = 1;
-    fetchProducts();
+    scheduleFetchProducts();
 });
 
 watch(() => route.query.q, (val) => {
-    if (val) { searchQuery.value = val; currentPage.value = 1; fetchProducts(); }
+    if (isInitializing) return;
+    if (val) { searchQuery.value = val; currentPage.value = 1; scheduleFetchProducts(); }
 });
 
 watch(() => route.query.category, (val) => {
@@ -195,8 +223,9 @@ const goToPage = (page) => {
 };
 
 watch(currentPage, () => {
+    if (isInitializing) return;
     if (isResettingPage) { isResettingPage = false; return; }
-    fetchProducts();
+    scheduleFetchProducts();
     router.replace({ query: { ...route.query, page: currentPage.value } }).catch(() => {});
     window.scrollTo({ top: 0, behavior: 'smooth' });
 });
@@ -215,6 +244,7 @@ onMounted(async () => {
         if (cat) selectedCategories.value = [cat.category_id];
     }
 
+    isInitializing = false;
     await fetchProducts();
 
     // === Affiliate: ghi nhận referral code từ URL ===
@@ -226,6 +256,11 @@ onMounted(async () => {
         const { default: api } = await import('@/axios');
         api.post('/affiliate/track-click', { referral_code: refCode }).catch(() => {});
     }
+});
+
+onUnmounted(() => {
+    clearTimeout(fetchTimer);
+    productRequestController?.abort();
 });
 </script>
 

@@ -30,8 +30,19 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\FlashSaleController;
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\AdminAffiliateController;
+<<<<<<< Updated upstream
 use App\Http\Controllers\TryOnController;
 
+=======
+use App\Http\Controllers\Api\CourtController;
+use App\Http\Controllers\Api\CourtBookingController;
+use App\Http\Controllers\Api\Admin\CourtAdminController;
+use App\Http\Controllers\Api\Admin\CourtBookingAdminController;
+use App\Http\Controllers\Api\Admin\CourtScheduleAdminController;
+use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
+use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
+use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
+>>>>>>> Stashed changes
 // Add this line to run the route: http://localhost:8000/api
 Route::get('/', function () {
     return response()->json([
@@ -54,11 +65,11 @@ Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'resetPa
 // OAuth callbacks (Public)
 Route::post('/auth/google/callback', [AuthController::class, 'googleCallback']);
 Route::post('/auth/facebook/callback', [AuthController::class, 'facebookCallback']);
+Route::middleware('throttle:20,1')->post('/refresh', [AuthController::class, 'refresh']);
 
 // Auth routes (Protected - cần JWT token)
 Route::middleware('auth:api,admin')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/user', function (Request $request) {
         return auth('admin')->user() ?? auth('api')->user();
@@ -273,7 +284,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin'
 
     // Tổng quan (Dashboard)
     Route::get('/dashboard', [\App\Http\Controllers\AdminDashboardController::class, 'getDashboardData']);
-    
+
     // Admin Statistics (Detailed dashboard)
     Route::get('/statistics/overview', [\App\Http\Controllers\AdminStatisticsController::class, 'getOverview']);
     Route::get('/statistics/revenue', [\App\Http\Controllers\AdminStatisticsController::class, 'getRevenueChart']);
@@ -494,3 +505,47 @@ Route::get('image-proxy', function (\Illuminate\Http\Request $request) {
     return response()->file($absolutePath);
 });
 Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
+
+// ==========================================
+// COURT BOOKING ROUTES
+// ==========================================
+// PUBLIC & USER ROUTES
+Route::get('/courts', [CourtController::class, 'index']);
+Route::get('/courts/{id}', [CourtController::class, 'show']);
+Route::get('/courts/{id}/availability', [CourtController::class, 'availability']);
+Route::get('/court-services', [CourtController::class, 'publicServices']);
+
+Route::middleware('auth:api,admin')->group(function () {
+    Route::post('/court-bookings/lock', [CourtBookingController::class, 'lock']);
+    Route::post('/court-bookings/release-lock', [CourtBookingController::class, 'releaseLock']);
+    Route::post('/court-bookings', [CourtBookingController::class, 'store']);
+    Route::get('/court-bookings', [CourtBookingController::class, 'index']);
+    Route::get('/court-bookings/{id}', [CourtBookingController::class, 'show']);
+    Route::post('/court-bookings/{id}/cancel', [CourtBookingController::class, 'cancel']);
+    Route::post('/court-bookings/{id}/payments', [CourtBookingController::class, 'pay']);
+    Route::get('/court-bookings/{id}/qr', [CourtBookingController::class, 'qr']);
+});
+
+// ADMIN ROUTES
+Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin')->group(function () {
+    // Courts Management
+    Route::apiResource('courts', CourtAdminController::class);
+    Route::apiResource('court-schedules', CourtScheduleAdminController::class);
+    Route::apiResource('court-prices', CourtPriceAdminController::class);
+    Route::apiResource('court-services', CourtServiceAdminController::class);
+    Route::apiResource('court-maintenances', CourtMaintenanceAdminController::class);
+
+    // Bookings Management
+    Route::apiResource('court-bookings', CourtBookingAdminController::class);
+    Route::post('/court-bookings/{id}/check-in', [CourtBookingAdminController::class, 'checkIn']);
+    Route::post('/court-bookings/{id}/check-out', [CourtBookingAdminController::class, 'checkOut']);
+    Route::post('/court-bookings/{id}/services', [CourtBookingAdminController::class, 'addService']);
+    Route::post('/court-bookings/{id}/extend', [CourtBookingAdminController::class, 'extend']);
+    Route::post('/court-bookings/{id}/confirm', [CourtBookingAdminController::class, 'confirm']);
+    Route::post('/court-bookings/{id}/cancel', [CourtBookingAdminController::class, 'cancel']);
+    Route::post('/court-bookings/{id}/payments', [CourtBookingAdminController::class, 'recordPayment']);
+    Route::post('/court-bookings/{id}/qr-check-in', [CourtBookingAdminController::class, 'qrCheckIn']);
+    Route::get('/courts-calendar', [CourtBookingAdminController::class, 'calendar']);
+    Route::get('/courts-dashboard', [CourtBookingAdminController::class, 'dashboard']);
+    Route::get('/courts-stats', [CourtBookingAdminController::class, 'stats']);
+});
