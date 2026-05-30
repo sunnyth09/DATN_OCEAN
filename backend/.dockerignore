@@ -6,3 +6,4 @@ storage/framework/sessions/*
 storage/framework/views/*
 .git
 .env
+public/storage

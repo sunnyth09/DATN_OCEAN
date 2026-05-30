@@ -16,7 +16,7 @@ if (reverbKey) {
         wsPort: import.meta.env.VITE_REVERB_PORT ?? 8383,
         wssPort: import.meta.env.VITE_REVERB_PORT ?? 8383,
         forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'http') === 'https',
-        enabledTransports: ['ws', 'wss'],
+        enabledTransports: (import.meta.env.VITE_REVERB_SCHEME ?? 'http') === 'https' ? ['ws', 'wss'] : ['ws'],
         authEndpoint: `${import.meta.env.VITE_REVERB_SCHEME ?? 'http'}://${window.location.hostname}:8383/api/broadcasting/auth`,
         authorizer: (channel, options) => {
             return {
