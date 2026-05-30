@@ -28,6 +28,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\FlashSaleController;
+use App\Http\Controllers\TryOnController;
 
 // Add this line to run the route: http://localhost:8000/api
 Route::get('/', function () {
@@ -77,6 +78,9 @@ Route::middleware('auth:api,admin')->group(function () {
     Route::put('/posts/{id}', [PostController::class, 'update']);
     Route::delete('/posts/{id}', [PostController::class, 'destroy']);
     Route::get('posts/edit/{id}', [PostController::class, 'edit']);
+
+    // Try-on
+    Route::middleware('throttle:10,1')->post('/try-on', [TryOnController::class, 'process']);
 });
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
@@ -173,6 +177,25 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     // Flash Sale Management (Admin only)
     Route::post('/flash-sale', [FlashSaleController::class, 'store']);
     Route::post('/flash-sale/{id}/initialize', [FlashSaleController::class, 'initialize']);
+
+    // Quản lý Vị trí Làm việc (Admin only)
+    Route::get('/work-locations', [\App\Http\Controllers\WorkLocationController::class, 'index']);
+    Route::post('/work-locations', [\App\Http\Controllers\WorkLocationController::class, 'store']);
+    Route::put('/work-locations/{id}', [\App\Http\Controllers\WorkLocationController::class, 'update']);
+    Route::delete('/work-locations/{id}', [\App\Http\Controllers\WorkLocationController::class, 'destroy']);
+
+    // Quản lý Ca Làm việc (Admin only)
+    Route::get('/work-shifts', [\App\Http\Controllers\WorkShiftController::class, 'index']);
+    Route::post('/work-shifts', [\App\Http\Controllers\WorkShiftController::class, 'store']);
+    Route::put('/work-shifts/{id}', [\App\Http\Controllers\WorkShiftController::class, 'update']);
+    Route::delete('/work-shifts/{id}', [\App\Http\Controllers\WorkShiftController::class, 'destroy']);
+
+    // Phân Ca cho Nhân viên (Admin only)
+    Route::get('/shift-assignments', [\App\Http\Controllers\WorkShiftController::class, 'getAssignments']);
+    Route::post('/shift-assignments', [\App\Http\Controllers\WorkShiftController::class, 'saveAssignments']);
+
+    // Flag chấm công bất thường (Admin only)
+    Route::put('/attendance/{id}/flag', [\App\Http\Controllers\AttendanceController::class, 'flag']);
 });
 
 // ==========================================
@@ -219,8 +242,10 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
 // ==========================================
 Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin')->group(function () {
     Route::get('/attendance', [\App\Http\Controllers\AttendanceController::class, 'index']);
-    Route::post('/attendance/check-in', [\App\Http\Controllers\AttendanceController::class, 'checkIn']);
-    Route::post('/attendance/check-out', [\App\Http\Controllers\AttendanceController::class, 'checkOut']);
+    Route::middleware('throttle:10,1')->post('/attendance/check-in', [\App\Http\Controllers\AttendanceController::class, 'checkIn']);
+    Route::middleware('throttle:10,1')->post('/attendance/check-out', [\App\Http\Controllers\AttendanceController::class, 'checkOut']);
+    Route::get('/attendance/today', [\App\Http\Controllers\AttendanceController::class, 'today']);
+    Route::get('/attendance/my-history', [\App\Http\Controllers\AttendanceController::class, 'myHistory']);
 
     // Tổng quan (Dashboard)
     Route::get('/dashboard', [\App\Http\Controllers\AdminDashboardController::class, 'getDashboardData']);

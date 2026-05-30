@@ -2,211 +2,182 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Attendance;
+use App\Http\Requests\AttendanceCheckInRequest;
+use App\Http\Requests\AttendanceCheckOutRequest;
+use App\Services\AttendanceService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class AttendanceController extends Controller
 {
-    private function getUserId()
+    private AttendanceService $attendanceService;
+
+    public function __construct(AttendanceService $attendanceService)
     {
-        if (Auth::guard('admin')->check()) {
-            return Auth::guard('admin')->user()->admin_id;
-        }
-        return Auth::guard('api')->check() ? Auth::guard('api')->user()->user_id : null;
+        $this->attendanceService = $attendanceService;
     }
 
     /**
-     * Calculate spherical distance between two points in meters using Haversine formula
+     * Check-in chấm công.
+     * POST /api/admin/attendance/check-in
+     *
+     * Request body: { latitude, longitude, accuracy?, note?, image? }
+     * User ID lấy từ JWT token, KHÔNG nhận từ request body.
      */
-    private function calculateDistanceDistanceInMeters($lat1, $lon1, $lat2, $lon2)
+    public function checkIn(AttendanceCheckInRequest $request): JsonResponse
     {
-        $earthRadius = 6371000; // Radius of the earth in meters
+        $user = $this->attendanceService->resolveUser();
 
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLon = deg2rad($lon2 - $lon1);
+        if (!$user['user_id']) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Không xác định được người dùng.',
+            ], 401);
+        }
 
-        $a = sin($dLat / 2) * sin($dLat / 2) +
-             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-             sin($dLon / 2) * sin($dLon / 2);
+        $result = $this->attendanceService->checkIn(
+            $user['user_id'],
+            $user['user_type'],
+            $request->validated()
+        );
 
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-        $distance = $earthRadius * $c; // Distance in meters
-
-        return $distance;
+        return response()->json([
+            'status'  => $result['success'] ? 'success' : 'error',
+            'message' => $result['message'],
+            'data'    => $result['data'],
+        ], $result['status_code']);
     }
 
-    public function index(Request $request)
+    /**
+     * Check-out chấm công.
+     * POST /api/admin/attendance/check-out
+     *
+     * Request body: { latitude, longitude, accuracy?, image? }
+     * Cho phép check-out ngoài phạm vi (chỉ cảnh báo).
+     */
+    public function checkOut(AttendanceCheckOutRequest $request): JsonResponse
     {
-        $attendances = Attendance::orderBy('created_at', 'desc')->paginate(15);
+        $user = $this->attendanceService->resolveUser();
 
-        // Load relationships manually if user logic is dynamic, or if they are in admins table.
-        // Assuming we look up the full name via the admin or user model.
-        // For simplicity, we just return the raw data and let front-end handle or we can join:
-
-        foreach ($attendances as $attendance) {
-            $admin = \App\Models\Admin::find($attendance->user_id);
-            if ($admin) {
-                $attendance->user_name = $admin->full_name;
-                $attendance->role = $admin->role;
-            } else {
-                $user = \App\Models\User::find($attendance->user_id);
-                $attendance->user_name = $user ? $user->full_name : 'Unknown';
-            }
+        if (!$user['user_id']) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Không xác định được người dùng.',
+            ], 401);
         }
+
+        $result = $this->attendanceService->checkOut(
+            $user['user_id'],
+            $user['user_type'],
+            $request->validated()
+        );
+
+        return response()->json([
+            'status'  => $result['success'] ? 'success' : 'error',
+            'message' => $result['message'],
+            'data'    => $result['data'],
+        ], $result['status_code']);
+    }
+
+    /**
+     * Lấy trạng thái chấm công hôm nay.
+     * GET /api/admin/attendance/today
+     *
+     * Response: { state: 'not_checked_in' | 'checked_in' | 'checked_out', attendance: {...} }
+     */
+    public function today(): JsonResponse
+    {
+        $user = $this->attendanceService->resolveUser();
+
+        if (!$user['user_id']) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Không xác định được người dùng.',
+            ], 401);
+        }
+
+        $result = $this->attendanceService->getTodayStatus(
+            $user['user_id'],
+            $user['user_type']
+        );
 
         return response()->json([
             'status' => 'success',
-            'data' => $attendances
+            'data'   => $result,
         ]);
     }
 
-    public function checkIn(Request $request)
+    /**
+     * Lấy lịch sử chấm công cá nhân.
+     * GET /api/admin/attendance/my-history
+     *
+     * Query params: from_date, to_date, status
+     */
+    public function myHistory(Request $request): JsonResponse
     {
-        $userId = $this->getUserId();
+        $user = $this->attendanceService->resolveUser();
 
-        if (!$userId) {
-            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        if (!$user['user_id']) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Không xác định được người dùng.',
+            ], 401);
         }
 
-        $userIp = $request->ip();
+        $filters = $request->only(['from_date', 'to_date', 'status']);
 
-        // Validating WiFi 
-        $wifiSsid = $request->wifi_ssid ? trim(str_replace('"', '', $request->wifi_ssid)) : null;
-        $wifiBssid = $request->wifi_bssid;
-        $allowedWifi = array_map('trim', explode(',', env('STORE_WIFI_SSIDS', 'CongTy_WiFi,Office_5G')));
-        $isWifiValid = $wifiSsid && in_array($wifiSsid, $allowedWifi);
-
-        if (!$isWifiValid) {
-            // Fallback to Location Distance
-            $storeLat = env('STORE_LAT');
-            $storeLng = env('STORE_LNG');
-            $userLat = $request->lat;
-            $userLng = $request->lng;
-
-            if (!$userLat || !$userLng) {
-                return response()->json(['status' => 'error', 'message' => "Bạn chưa kết nối WiFi công ty ($wifiSsid không hợp lệ) và cũng không thể lấy tọa độ GPS từ thiết bị!"], 400);
-            }
-
-            if ($storeLat && $storeLng) {
-                $distance = $this->calculateDistanceDistanceInMeters($storeLat, $storeLng, $userLat, $userLng);
-
-                // Allow 50 meters
-                if ($distance > 50) {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Bạn không ở công ty (sai WiFi gốc) và vị trí GPS cách xa hơn 50m!'
-                    ], 400);
-                }
-            }
-        }
-
-        // Check if already checked in today without checking out
-        $alreadyCheckedIn = Attendance::where('user_id', $userId)
-            ->whereDate('check_in_at', now()->toDateString())
-            ->whereNull('check_out_at')
-            ->exists();
-
-        if ($alreadyCheckedIn) {
-            return response()->json(['status' => 'error', 'message' => 'Bạn đã check-in vào ca làm việc chưa kết thúc!'], 400);
-        }
-
-        $imagePath = null;
-        if ($request->has('image') && $request->image) {
-            $imageParts = explode(';base64,', $request->image);
-            if (count($imageParts) == 2) {
-                $image_base64 = base64_decode($imageParts[1]);
-                $fileName = 'attendance_' . $userId . '_' . time() . '.jpg';
-                $path = 'attendances/' . $fileName;
-                \Illuminate\Support\Facades\Storage::disk('public')->put($path, $image_base64);
-                $imagePath = '/storage/' . $path;
-            }
-        }
-
-        $attendance = Attendance::create([
-            'user_id' => $userId,
-            'check_in_at' => now(),
-            'ip_address' => $userIp,
-            'latitude' => $request->lat,
-            'longitude' => $request->lng,
-            'wifi_ssid' => $wifiSsid,
-            'wifi_bssid' => $wifiBssid,
-            'image_path' => $imagePath,
-            'note' => $request->note,
-        ]);
+        $attendances = $this->attendanceService->getMyHistory(
+            $user['user_id'],
+            $user['user_type'],
+            $filters
+        );
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã Check-in thành công!',
-            'data' => $attendance
+            'data'   => $attendances,
         ]);
     }
 
-    public function checkOut(Request $request)
+    /**
+     * Danh sách chấm công toàn bộ nhân viên (Admin only).
+     * GET /api/admin/attendance
+     *
+     * Query params: from_date, to_date, status, is_flagged
+     */
+    public function index(Request $request): JsonResponse
     {
-        $userId = $this->getUserId();
+        $filters = $request->only(['from_date', 'to_date', 'status', 'is_flagged']);
 
-        if (!$userId) {
-            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
-        }
-
-        $attendance = Attendance::where('user_id', $userId)
-            ->whereNull('check_out_at')
-            ->latest()
-            ->first();
-
-        if (!$attendance) {
-            return response()->json(['status' => 'error', 'message' => 'Bạn chưa check-in hoặc đã check-out rồi!'], 400);
-        }
-
-        // Validate WiFi
-        $wifiSsid = $request->wifi_ssid ? trim(str_replace('"', '', $request->wifi_ssid)) : null;
-        $wifiBssid = $request->wifi_bssid;
-        $allowedWifi = array_map('trim', explode(',', env('STORE_WIFI_SSIDS', 'CongTy_WiFi,Office_5G')));
-        $isWifiValid = $wifiSsid && in_array($wifiSsid, $allowedWifi);
-
-        if (!$isWifiValid) {
-            // Validate Location Distance
-            $storeLat = env('STORE_LAT');
-            $storeLng = env('STORE_LNG');
-            $userLat = $request->lat;
-            $userLng = $request->lng;
-
-            if (!$userLat || !$userLng) {
-                return response()->json(['status' => 'error', 'message' => "Bạn chưa kết nối WiFi công ty và không thể lấy tọa độ GPS từ thiết bị!"], 400);
-            }
-
-            if ($storeLat && $storeLng) {
-                $distance = $this->calculateDistanceDistanceInMeters($storeLat, $storeLng, $userLat, $userLng);
-                if ($distance > 50) {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Vị trí của bạn cách xa hơn 50m (GPS) và chưa kết nối WiFi công ty.'
-                    ], 400);
-                }
-            }
-        }
-
-        $imagePath = null;
-        if ($request->has('image') && $request->image) {
-            $imageParts = explode(';base64,', $request->image);
-            if (count($imageParts) == 2) {
-                $image_base64 = base64_decode($imageParts[1]);
-                $fileName = 'checkout_' . $userId . '_' . time() . '.jpg';
-                $path = 'attendances/' . $fileName;
-                \Illuminate\Support\Facades\Storage::disk('public')->put($path, $image_base64);
-                $imagePath = '/storage/' . $path;
-            }
-        }
-
-        $attendance->update([
-            'check_out_at' => now(),
-            'check_out_image_path' => $imagePath,
-        ]);
+        $attendances = $this->attendanceService->getAllAttendances($filters);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã Check-out thành công!'
+            'data'   => $attendances,
         ]);
+    }
+
+    /**
+     * Gắn cờ / bỏ cờ bất thường cho bản ghi chấm công.
+     * PUT /api/admin/attendance/{id}/flag
+     *
+     * Request body: { is_flagged: true, flag_note: "Không phải nhân viên" }
+     */
+    public function flag(Request $request, $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'is_flagged' => 'required|boolean',
+            'flag_note'  => 'nullable|string|max:500',
+        ]);
+
+        $result = $this->attendanceService->flagAttendance(
+            (int) $id,
+            $validated['is_flagged'],
+            $validated['flag_note'] ?? null
+        );
+
+        return response()->json([
+            'status'  => $result['success'] ? 'success' : 'error',
+            'message' => $result['message'],
+        ], $result['status_code']);
     }
 }

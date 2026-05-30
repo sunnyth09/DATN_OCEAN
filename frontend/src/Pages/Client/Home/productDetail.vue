@@ -17,6 +17,8 @@ const cartStore = useCartStore();
 // slug là computed để watch được khi route thay đổi (route param là :id, có thể là slug hoặc id)
 const slug = computed(() => route.params.id);
 const product = ref(null);
+const showTryOn = ref(false);
+const tryOnEnabled = import.meta.env.VITE_TRYON_ENABLED !== 'false';
 const selectedVariant = ref(null);
 const selectedColor = ref(null);
 const selectedSize = ref(null);
@@ -24,7 +26,6 @@ const relatedProducts = ref([]);
 const addingToCart = ref(false);
 const toast = ref({ show: false, message: '', type: 'success' });
 const showSizeGuide = ref(false);
-const showTryOn = ref(false);
 
 const { isFavorited, toggleFavorite } = useFavorites();
 const handleToggleFav = async () => {
@@ -172,8 +173,20 @@ const availableSizes = computed(() => {
     if (!product.value?.variants) return [];
     const variants = product.value.variants;
 
-    // Lấy tất cả sizes duy nhất
-    const allSizes = [...new Set(variants.map(v => v.size).filter(Boolean))];
+    // Lấy tất cả sizes duy nhất, sắp xếp theo thứ tự chuẩn
+    const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '4XL'];
+    const allSizes = [...new Set(variants.map(v => v.size).filter(Boolean))]
+        .sort((a, b) => {
+            const idxA = sizeOrder.indexOf(a);
+            const idxB = sizeOrder.indexOf(b);
+            // Nếu cả 2 đều có trong bảng chuẩn → sort theo thứ tự chuẩn
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            // Nếu chỉ 1 trong 2 có → ưu tiên cái có trong bảng lên trước
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            // Cả 2 đều không có (size số) → sort theo alphabet/số
+            return a.localeCompare(b, undefined, { numeric: true });
+        });
 
     return allSizes.map(size => {
         // Nếu đã chọn màu, kiểm tra variant (color + size) có tồn tại và khả dụng không
@@ -461,10 +474,10 @@ onMounted(() => {
           <button class="pd-btn-buy" @click="buyNow" :disabled="addingToCart">Mua Ngay</button>
         </div>
 
-        <!-- AR Try-On -->
-        <button class="pd-btn-tryon" @click="showTryOn = true" title="Thử sản phẩm trực quan bằng Camera">
+        <!-- AI Try-On -->
+        <button v-if="tryOnEnabled" class="pd-btn-tryon" @click="showTryOn = true" title="Thử áo bằng AI">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-          Thử Sản Phẩm AR
+          ✨ Thử áo bằng AI
         </button>
 
         <!-- Perks -->
@@ -579,7 +592,9 @@ onMounted(() => {
   <!-- Virtual Try-On Modal -->
   <VirtualTryOnModal 
     :show="showTryOn" 
-    :image-url="mainImageUrl" 
+    :product-id="product?.product_id"
+    :product-name="product?.name"
+    :product-image-url="mainImageUrl" 
     @close="showTryOn = false" 
   />
 
@@ -677,8 +692,8 @@ onMounted(() => {
 .pd-thumb { width: 72px; height: 72px; border: 2px solid transparent; border-radius: 8px; overflow: hidden; cursor: pointer; opacity: 0.5; transition: all 0.2s; }
 .pd-thumb.active, .pd-thumb:hover { opacity: 1; border-color: #E63B6F; }
 .pd-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.pd-main-img { flex: 1; aspect-ratio: 1/1; border: 1px solid #E9ECEF; border-radius: 12px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; }
-.pd-main-img img { width: 100%; height: 100%; object-fit: cover; animation: fadeIn 0.3s ease; }
+.pd-main-img { flex: 1; aspect-ratio: 3/4; max-height: 520px; border: 1px solid #E9ECEF; border-radius: 12px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; }
+.pd-main-img img { width: 100%; height: 100%; object-fit: contain; animation: fadeIn 0.3s ease; }
 
 /* Info Panel */
 .pd-info { display: flex; flex-direction: column; }
