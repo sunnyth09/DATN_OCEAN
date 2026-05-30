@@ -9,6 +9,7 @@ import PremiumUpgrade from '@/components/PremiumUpgrade.vue';
 import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/icons/AppIcon.vue';
+import VirtualTryOnModal from '@/components/VirtualTryOnModal.vue';
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -16,6 +17,8 @@ const cartStore = useCartStore();
 // slug là computed để watch được khi route thay đổi (route param là :id, có thể là slug hoặc id)
 const slug = computed(() => route.params.id);
 const product = ref(null);
+const showTryOn = ref(false);
+const tryOnEnabled = import.meta.env.VITE_TRYON_ENABLED !== 'false';
 const selectedVariant = ref(null);
 const selectedColor = ref(null);
 const selectedSize = ref(null);
@@ -170,8 +173,20 @@ const availableSizes = computed(() => {
     if (!product.value?.variants) return [];
     const variants = product.value.variants;
 
-    // Lấy tất cả sizes duy nhất
-    const allSizes = [...new Set(variants.map(v => v.size).filter(Boolean))];
+    // Lấy tất cả sizes duy nhất, sắp xếp theo thứ tự chuẩn
+    const sizeOrder = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', '4XL'];
+    const allSizes = [...new Set(variants.map(v => v.size).filter(Boolean))]
+        .sort((a, b) => {
+            const idxA = sizeOrder.indexOf(a);
+            const idxB = sizeOrder.indexOf(b);
+            // Nếu cả 2 đều có trong bảng chuẩn → sort theo thứ tự chuẩn
+            if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+            // Nếu chỉ 1 trong 2 có → ưu tiên cái có trong bảng lên trước
+            if (idxA !== -1) return -1;
+            if (idxB !== -1) return 1;
+            // Cả 2 đều không có (size số) → sort theo alphabet/số
+            return a.localeCompare(b, undefined, { numeric: true });
+        });
 
     return allSizes.map(size => {
         // Nếu đã chọn màu, kiểm tra variant (color + size) có tồn tại và khả dụng không
@@ -480,6 +495,12 @@ onMounted(() => {
           <button class="pd-btn-buy" @click="buyNow" :disabled="addingToCart">Mua Ngay</button>
         </div>
 
+        <!-- AI Try-On -->
+        <button v-if="tryOnEnabled" class="pd-btn-tryon" @click="showTryOn = true" title="Thử áo bằng AI">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
+          ✨ Thử áo bằng AI
+        </button>
+
         <!-- Perks -->
         <div class="pd-perks">
           <div class="pd-perk"><AppIcon name="arrow-right" size="16" /> Giao hàng miễn phí</div>
@@ -589,6 +610,15 @@ onMounted(() => {
     </div>
   </Transition>
 
+  <!-- Virtual Try-On Modal -->
+  <VirtualTryOnModal 
+    :show="showTryOn" 
+    :product-id="product?.product_id"
+    :product-name="product?.name"
+    :product-image-url="mainImageUrl" 
+    @close="showTryOn = false" 
+  />
+
   <!-- Modal Bảng Size -->
   <teleport to="body">
     <transition name="modal-fade">
@@ -683,8 +713,8 @@ onMounted(() => {
 .pd-thumb { width: 72px; height: 72px; border: 2px solid transparent; border-radius: 8px; overflow: hidden; cursor: pointer; opacity: 0.5; transition: all 0.2s; }
 .pd-thumb.active, .pd-thumb:hover { opacity: 1; border-color: #E63B6F; }
 .pd-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.pd-main-img { flex: 1; aspect-ratio: 1/1; border: 1px solid #E9ECEF; border-radius: 12px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; }
-.pd-main-img img { width: 100%; height: 100%; object-fit: cover; animation: fadeIn 0.3s ease; }
+.pd-main-img { flex: 1; aspect-ratio: 3/4; max-height: 520px; border: 1px solid #E9ECEF; border-radius: 12px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; }
+.pd-main-img img { width: 100%; height: 100%; object-fit: contain; animation: fadeIn 0.3s ease; }
 
 /* Info Panel */
 .pd-info { display: flex; flex-direction: column; }
@@ -729,6 +759,30 @@ onMounted(() => {
 .pd-btn-cart:disabled { opacity: 0.6; cursor: not-allowed; }
 .pd-btn-buy { flex: 1; padding: 14px 20px; background: #fff; color: #E63B6F; border: 2px solid #E63B6F; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .pd-btn-buy:hover { background: #E63B6F; color: #fff; }
+
+/* AR Try-On Button */
+.pd-btn-tryon {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #FFF0F3;
+  color: #E63B6F;
+  border: 2px dashed #FFB8CC;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+  font-family: inherit;
+}
+.pd-btn-tryon:hover {
+  background: #FFE4E9;
+  border-color: #E63B6F;
+}
 
 /* Perks */
 .pd-perks { display: flex; gap: 24px; padding: 16px 0; border-top: 1px solid #E9ECEF; margin-bottom: 20px; }

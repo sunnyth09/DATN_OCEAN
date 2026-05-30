@@ -107,6 +107,14 @@
             <span class="submenu-dot"></span>
             <span>Lịch sử chấm công</span>
           </router-link>
+          <router-link to="/admin/work-locations" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Vị trí làm việc</span>
+          </router-link>
+          <router-link to="/admin/work-shifts" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Ca làm việc & Phân ca</span>
+          </router-link>
         </div>
       </transition>
        <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/chat" class="nav-item" active-class="nav-item--active">

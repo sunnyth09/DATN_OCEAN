@@ -250,6 +250,18 @@ const routes = [
                 component: () => import("../Pages/admin/AdminAttendanceList.vue"),
                 meta: { roles: ['admin'], title: 'Danh sách Chấm công' },
             },
+            {
+                path: "work-locations",
+                name: "admin-work-locations",
+                component: () => import("../Pages/admin/AdminWorkLocations.vue"),
+                meta: { roles: ['admin'], title: 'Quản lý vị trí làm việc' },
+            },
+            {
+                path: "work-shifts",
+                name: "admin-work-shifts",
+                component: () => import("../Pages/admin/AdminWorkShifts.vue"),
+                meta: { roles: ['admin'], title: 'Ca làm việc & Phân ca' },
+            },
         ],
     },
 
