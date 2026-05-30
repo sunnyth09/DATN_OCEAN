@@ -74,7 +74,14 @@ const routes = [
             { path: "terms", name: "terms", component: () => import("../Pages/Client/Static/Terms.vue"), meta: { title: 'Điều khoản dịch vụ' } },
         ],
     },
-    // Auth routes
+    {
+        path: "/cart",
+        component: ClientLayout,
+        children: [
+            { path: "", name: "cart", component: Cart, meta: { title: 'Trang chủ' } },
+        ],
+    },
+    // Auth routes - chỉ giữ Login cho Admin
     {
         path: "/client/login",
         name: "login",
