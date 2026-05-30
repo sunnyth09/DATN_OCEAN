@@ -62,6 +62,82 @@ const router = useRouter();
 const categories = ref([]);
 const brands = ref([]);
 const errors = ref({});
+const IMAGE_MAX_SIZE_MB = 4;
+const IMAGE_MAX_SIZE_BYTES = IMAGE_MAX_SIZE_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/svg+xml",
+    "image/webp",
+];
+const ALLOWED_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".svg", ".webp"];
+
+const getImageValidationError = (file) => {
+    const fileName = file.name.toLowerCase();
+    const hasAllowedType = ALLOWED_IMAGE_TYPES.includes(file.type);
+    const hasAllowedExtension = ALLOWED_IMAGE_EXTENSIONS.some((ext) =>
+        fileName.endsWith(ext),
+    );
+
+    if (!hasAllowedType && !hasAllowedExtension) {
+        return `Ảnh "${file.name}" không đúng định dạng. Chỉ hỗ trợ JPG, JPEG, PNG, GIF, SVG, WEBP.`;
+    }
+
+    if (file.size > IMAGE_MAX_SIZE_BYTES) {
+        return `Ảnh "${file.name}" vượt quá ${IMAGE_MAX_SIZE_MB}MB. Vui lòng nén ảnh hoặc chọn ảnh nhỏ hơn.`;
+    }
+
+    return "";
+};
+
+const normalizeServerErrors = (serverErrors = {}) => {
+    const normalized = {};
+
+    Object.entries(serverErrors).forEach(([key, value]) => {
+        normalized[key] = Array.isArray(value) ? value[0] : value;
+    });
+
+    if (normalized.thumbnail && !normalized.thumbnail_url) {
+        normalized.thumbnail_url = normalized.thumbnail;
+    }
+
+    const galleryMessages = Object.entries(normalized)
+        .filter(([key]) => key === "gallery" || key.startsWith("gallery."))
+        .map(([, value]) => value);
+
+    if (galleryMessages.length) {
+        normalized.gallery = galleryMessages.join(" ");
+    }
+
+    if (typeof normalized.variant_images === "string") {
+        normalized.variant_images_global = normalized.variant_images;
+        delete normalized.variant_images;
+    }
+
+    const variantImageMessages = Object.entries(normalized)
+        .filter(([key]) => key.startsWith("variant_images."))
+        .reduce((messages, [key, value]) => {
+            const variantIndex = Number(key.split(".")[1]);
+            if (!Number.isNaN(variantIndex)) {
+                messages[variantIndex] = messages[variantIndex]
+                    ? `${messages[variantIndex]} ${value}`
+                    : value;
+            }
+            return messages;
+        }, []);
+
+    if (variantImageMessages.length) {
+        normalized.variant_images = variantImageMessages;
+    }
+
+    return normalized;
+};
+
+const firstErrorMessage = (serverErrors = {}) => {
+    const first = Object.values(serverErrors)[0];
+    return Array.isArray(first) ? first[0] : first;
+};
 
 const product = reactive({
     category_id: "",
@@ -129,18 +205,49 @@ const removeSize = (variantIndex, sizeIndex) => {
 const handleThumbnailChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+        const fileError = getImageValidationError(file);
+        if (fileError) {
+            errors.value.thumbnail_url = fileError;
+            event.target.value = "";
+            return;
+        }
+
         product.thumbnail_url = file;
         product.imagePreview = URL.createObjectURL(file);
+        delete errors.value.thumbnail_url;
+        delete errors.value.thumbnail;
     }
+};
+
+const removeThumbnailImage = () => {
+    product.thumbnail_url = "";
+    product.imagePreview = "";
+    delete errors.value.thumbnail_url;
+    delete errors.value.thumbnail;
 };
 
 // xử lý ảnh phụ (gallery)
 const handleGalleryChange = (event) => {
     const files = Array.from(event.target.files);
+    const fileErrors = [];
+
     files.forEach((file) => {
+        const fileError = getImageValidationError(file);
+        if (fileError) {
+            fileErrors.push(fileError);
+            return;
+        }
+
         product.gallery_files.push(file);
         product.galleryPreviews.push(URL.createObjectURL(file));
     });
+
+    if (fileErrors.length) {
+        errors.value.gallery = fileErrors.join(" ");
+    } else {
+        delete errors.value.gallery;
+    }
+
     event.target.value = "";
 };
 
@@ -159,14 +266,30 @@ const removeVariantImage = (variantIndex, imageIndex) => {
 // xử lý ảnh biến thể — hỗ trợ nhiều ảnh
 const handleVariantImageChange = (event, index) => {
     const files = Array.from(event.target.files);
+    const fileErrors = [];
+
     if (files.length) {
         files.forEach((file) => {
+            const fileError = getImageValidationError(file);
+            if (fileError) {
+                fileErrors.push(fileError);
+                return;
+            }
+
             product.variants[index].images.push(file);
             product.variants[index].imagePreviews.push(
                 URL.createObjectURL(file),
             );
         });
     }
+
+    if (fileErrors.length) {
+        if (!errors.value.variant_images) errors.value.variant_images = [];
+        errors.value.variant_images[index] = fileErrors.join(" ");
+    } else if (errors.value.variant_images) {
+        errors.value.variant_images[index] = "";
+    }
+
     event.target.value = "";
 };
 
@@ -379,11 +502,16 @@ const handleSubmit = async () => {
         Swal.fire('Thành công', 'Thêm sản phẩm thành công!', 'success');
         router.push("/admin/product");
     } catch (error) {
-        console.error("Error creating product:", error);
+        const responseData = error.response?.data;
+        console.error("Error creating product:", responseData || error);
         if (error.response?.data?.errors) {
-            errors.value = error.response.data.errors;
+            errors.value = normalizeServerErrors(error.response.data.errors);
         }
-        Swal.fire('Lỗi', error.response?.data?.message || "Lỗi khi thêm sản phẩm", 'error');
+        Swal.fire(
+            'Lỗi',
+            firstErrorMessage(error.response?.data?.errors) || error.response?.data?.message || "Lỗi khi thêm sản phẩm",
+            'error',
+        );
     }
 };
 
@@ -670,6 +798,12 @@ onMounted(() => {
                                 Thêm Biến Thể
                             </button>
                         </div>
+                        <span v-if="errors.variants_global" class="field-error" style="display: block; margin-bottom: 12px;">
+                            {{ errors.variants_global }}
+                        </span>
+                        <span v-if="errors.variant_images_global" class="field-error" style="display: block; margin-bottom: 12px;">
+                            {{ errors.variant_images_global }}
+                        </span>
 
                         <div
                             class="variant-item"
@@ -793,6 +927,9 @@ onMounted(() => {
                                             />
                                         </div>
                                     </div>
+                                    <span v-if="errors.variant_images && errors.variant_images[vIndex]" class="field-error" style="margin-top: 10px; display:block;">
+                                        {{ errors.variant_images[vIndex] }}
+                                    </span>
                                 </div>
 
                                 <div class="sizes-section">
@@ -1057,10 +1194,9 @@ onMounted(() => {
                                         class="img-preview"
                                     />
                                     <button
+                                        type="button"
                                         class="remove-img-btn"
-                                        @click.prevent="
-                                            product.imagePreview = ''
-                                        "
+                                        @click.prevent="removeThumbnailImage"
                                     >
                                         ×
                                     </button>
@@ -1108,10 +1244,10 @@ onMounted(() => {
                                 </div>
                             </div>
                             <span
-                                v-if="errors.thumbnail_url"
+                                v-if="errors.thumbnail_url || errors.thumbnail"
                                 class="field-error" style="margin-top: 10px;text-align:center;display:block;"
                             >
-                                {{ errors.thumbnail_url }}
+                                {{ errors.thumbnail_url || errors.thumbnail }}
                             </span>
                         </div>
 
@@ -1169,6 +1305,9 @@ onMounted(() => {
                                     />
                                 </div>
                             </div>
+                            <span v-if="errors.gallery" class="field-error" style="margin-top: 10px; display:block;">
+                                {{ errors.gallery }}
+                            </span>
                         </div>
                     </div>
 
@@ -1208,12 +1347,15 @@ onMounted(() => {
                                 </option>
                                 <option
                                     v-for="b in brands"
-                                    :key="b.id"
-                                    :value="b.id"
+                                    :key="b.brand_id || b.id"
+                                    :value="b.brand_id || b.id"
                                 >
                                     {{ b.name }}
                                 </option>
                             </select>
+                            <span v-if="errors.brand_id" class="field-error">
+                                {{ errors.brand_id }}
+                            </span>
                         </div>
 
                         <div class="form-group">
@@ -1222,8 +1364,12 @@ onMounted(() => {
                                 type="text"
                                 v-model="product.seller_id"
                                 class="form-control"
+                                :class="{'is-invalid': errors.seller_id}"
                                 placeholder="Nhập mã nhà cung cấp"
                             />
+                            <span v-if="errors.seller_id" class="field-error">
+                                {{ errors.seller_id }}
+                            </span>
                         </div>
                     </div>
 

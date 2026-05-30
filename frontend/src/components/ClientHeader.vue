@@ -1,9 +1,11 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, watch, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "../axios.js";
 import { broadcastLogout } from "../sessionSync.js";
 import Swal from "sweetalert2";
+import SearchModal from "./SearchModal.vue";
+import AppIcon from "@/icons/AppIcon.vue";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 const route = useRoute();
@@ -18,118 +20,89 @@ const showDropdown = ref(false);
 const categories = ref([]);
 const cartCount = ref(0);
 const unreadNotificationCount = ref(0);
+const isSearchModalOpen = ref(false);
+const isMobileMenuOpen = ref(false);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
     return categories.value.slice(0, 4);
 });
 
-// INLINE EXPANDABLE SEARCH & AUTOCOMPLETE
-const isSearchExpanded = ref(false);
-const searchQuery = ref("");
-const searchInputRef = ref(null);
-const searchResults = ref([]);
-const isSearching = ref(false);
-const showDropdownResult = ref(false);
-let searchTimeout = null;
+const getCategoryId = (category) => {
+    return String(category.category_id ?? category.id ?? "");
+};
 
-const toggleSearch = () => {
-    isSearchExpanded.value = !isSearchExpanded.value;
-    if (isSearchExpanded.value) {
-        nextTick(() => {
-            if (searchInputRef.value) searchInputRef.value.focus();
-        });
-    } else {
-        showDropdownResult.value = false;
+const getCategoryRoute = (category) => {
+    return {
+        name: "product-list",
+        query: { category: getCategoryId(category) },
+    };
+};
+
+const isCategoryActive = (category) => {
+    return (
+        route.name === "product-list" &&
+        String(route.query.category ?? "") === getCategoryId(category)
+    );
+};
+
+const isRouteActive = (routeName) => {
+    return route.name === routeName;
+};
+
+const closeAccountMenu = () => {
+    showDropdown.value = false;
+};
+
+const closeMobileMenu = () => {
+    isMobileMenuOpen.value = false;
+};
+
+const toggleMobileMenu = () => {
+    isMobileMenuOpen.value = !isMobileMenuOpen.value;
+    if (isMobileMenuOpen.value) {
+        closeAccountMenu();
     }
 };
 
-const executeSearch = () => {
-    if (searchQuery.value.trim()) {
-        router.push({
-            path: "/product",
-            query: { search: searchQuery.value.trim() },
-        });
-        isSearchExpanded.value = false;
-        showDropdownResult.value = false;
-        searchQuery.value = "";
+const toggleAccountMenu = () => {
+    showDropdown.value = !showDropdown.value;
+    if (showDropdown.value) {
+        closeMobileMenu();
     }
 };
 
-const handleSearchBlur = () => {
-    setTimeout(() => {
-        isSearchExpanded.value = false;
-        showDropdownResult.value = false;
-    }, 200);
+const openSearch = () => {
+    isSearchModalOpen.value = true;
+    closeMobileMenu();
 };
 
-const handleSearchFocus = () => {
-    if (searchQuery.value.trim()) {
-        showDropdownResult.value = true;
-    }
-};
+const handleDocumentClick = (event) => {
+    const target = event.target;
 
-watch(searchQuery, (newVal) => {
-    const val = newVal.trim();
-    if (!val) {
-        searchResults.value = [];
-        showDropdownResult.value = false;
+    if (!(target instanceof Element)) {
         return;
     }
-    showDropdownResult.value = true;
-    isSearching.value = true;
-    
-    if (searchTimeout) clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(async () => {
-        try {
-            const response = await api.get('/products', { params: { search: val, limit: 5 } });
-            searchResults.value = response.data?.data || [];
-        } catch (e) {
-            console.error('Search error', e);
-        } finally {
-            isSearching.value = false;
-        }
-    }, 300); 
-});
 
-const getImageUrl = (item) => {
-    let path = item.thumbnail_url || (item.mainImage && item.mainImage.image_url) || (item.main_image && item.main_image.image_url);
-    if (!path) return '';
-    if (path.startsWith('http')) return path;
-    
-    // Use the correctly configured BASE_URL and avoid double-slash issues
-    const base = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
-    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    return `${base}/storage/${cleanPath}`;
+    if (!target.closest(".account-dropdown")) {
+        closeAccountMenu();
+    }
 };
 
-const formatPrice = (val) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+const handleViewportResize = () => {
+    if (window.innerWidth > 768) {
+        closeMobileMenu();
+    }
 };
 
-const goToProduct = (slug) => {
-    router.push(`/product/${slug}`);
-    isSearchExpanded.value = false;
-    showDropdownResult.value = false;
-    searchQuery.value = "";
+const fetchCategories = async () => {
+    try {
+        const response = await api.get("/categories");
+        categories.value = response.data.data;
+    } catch (error) {
+        console.error("Error fetching categories:", error);
+    }
 };
-
-categories.value = [
-    { id: 1, name: 'Bóng chuyền', slug: 'bong-chuyen', image: BASE_URL + '/storage/categories/category_bong_chuyen_1776325154591.png' },
-    { id: 2, name: 'Cầu lông', slug: 'cau-long', image: BASE_URL + '/storage/categories/category_cau_long_1776325167694.png' },
-    { id: 3, name: 'Pickleball', slug: 'pickleball', image: BASE_URL + '/storage/categories/category_pickleball_1776325197526.png' },
-    { id: 4, name: 'Phụ kiện', slug: 'phu-kien', image: BASE_URL + '/storage/categories/category_phu_kien_the_thao_1776325207304.png' },
-    
-];
-
-// const fetchCategories = async () => {
-//     try {
-//         const response = await api.get("/categories");
-//         categories.value = response.data.data;
-//     } catch (error) {
-//         console.error("Error fetching categories:", error);
-//     }
-// };
 
 const checkAuth = () => {
     const userData = sessionStorage.getItem("user");
@@ -144,7 +117,7 @@ const checkAuth = () => {
             const path = user.avatar_url;
             if (path) {
                 const API_URL = (
-                    import.meta.env.VITE_API_URL || "http://localhost:8383/api"
+                    import.meta.env.VITE_API_URL || ""
                 ).replace("/api", "");
                 userAvatar.value = path.startsWith("http")
                     ? path
@@ -239,7 +212,8 @@ const handleLogout = async () => {
     sessionStorage.removeItem("ocean_chatbot_messages");
     sessionStorage.removeItem("ocean_chatbot_history");
     isLoggedIn.value = false;
-    showDropdown.value = false;
+    closeAccountMenu();
+    closeMobileMenu();
 
     window.location.reload();
 };
@@ -305,11 +279,13 @@ const handleFlashSaleClick = (e) => {
 
 onMounted(() => {
     checkAuth();
-    // fetchCategories();
+    fetchCategories();
     fetchCartCount();
 
     window.addEventListener("user-updated", checkAuth);
     window.addEventListener("cart-updated", fetchCartCount);
+    window.addEventListener("resize", handleViewportResize);
+    document.addEventListener("click", handleDocumentClick);
 
     // adjust initial position for small screens
     if (window.innerWidth < 768) {
@@ -320,12 +296,16 @@ onMounted(() => {
 onUnmounted(() => {
     window.removeEventListener("user-updated", checkAuth);
     window.removeEventListener("cart-updated", fetchCartCount);
+    window.removeEventListener("resize", handleViewportResize);
+    document.removeEventListener("click", handleDocumentClick);
 });
 watch(
-    () => route.path,
+    () => route.fullPath,
     () => {
         checkAuth();
         fetchCartCount();
+        closeAccountMenu();
+        closeMobileMenu();
     },
 );
 </script>
@@ -337,105 +317,53 @@ watch(
             <div class="header-left">
                 <!-- Logo -->
                 <router-link to="/" class="logo">
-                    <img
-                        :src="BASE_URL + '/storage/logo/logo.png'"
-                        alt="Logo"
-                        class="logo-img"
-                        style="width: 120px; height: auto"
-                    />
+                    <img :src="BASE_URL + '/storage/logo/logo.png'" alt="Logo" class="logo-img"
+                        style="width: 120px; height: auto" />
                 </router-link>
 
                 <!-- Navigation Links -->
                 <nav class="main-nav">
                     <router-link
                         v-for="cat in topCategories"
-                        :key="cat.id"
-                        to="/"
+                        :key="getCategoryId(cat)"
+                        :to="getCategoryRoute(cat)"
                         class="nav-link"
+                        :class="{ active: isCategoryActive(cat) }"
                     >
                         {{ cat.name }}
                     </router-link>
                     <router-link
-                        to="/"
+                        to="/contact"
                         class="nav-link"
-                        exact-active-class="active"
-                        >Liên hệ</router-link
+                        :class="{ active: isRouteActive('contact') }"
                     >
+                        Liên hệ
+                    </router-link>
                 </nav>
             </div>
 
             <div class="header-actions">
-                <!-- Inline Expandable Search -->
-                <div class="search-wrapper">
-                    <div
-                        class="search-container"
-                        :class="{ 'is-expanded': isSearchExpanded }"
-                    >
-                        <input
-                            type="text"
-                            class="search-input"
-                            v-model="searchQuery"
-                            ref="searchInputRef"
-                            @keyup.enter="executeSearch"
-                            @blur="handleSearchBlur"
-                            @focus="handleSearchFocus"
-                            placeholder="Tìm kiếm sản phẩm..."
-                        />
-                        <button
-                            class="icon-btn search-icon-btn"
-                            @click="toggleSearch"
-                        >
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
-                        </button>
-                    </div>
+                <button
+                    type="button"
+                    class="icon-btn mobile-nav-toggle"
+                    :aria-expanded="isMobileMenuOpen"
+                    aria-label="Mở menu điều hướng"
+                    @click.stop="toggleMobileMenu"
+                >
+                    <AppIcon name="menu" stroke-width="2.2" />
+                </button>
 
-                    <!-- Search dropdown results -->
-                    <div class="search-dropdown-box" v-if="isSearchExpanded && showDropdownResult">
-                        <div v-if="isSearching" class="search-msg">Đang tìm kiếm...</div>
-                        <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản phẩm phù hợp.</div>
-                        <ul v-else class="search-list">
-                            <li v-for="item in searchResults" :key="item.product_id" class="search-item" @click.stop="goToProduct(item.slug)">
-                                <img :src="getImageUrl(item)" class="search-item-img" />
-                                <div class="search-item-info">
-                                    <div class="search-item-name">{{ item.name }}</div>
-                                    <div class="search-item-price">{{ formatPrice(item.min_price) }}</div>
-                                </div>
-                            </li>
-                        </ul>
-                        <div v-if="searchResults.length > 0" class="search-view-all" @click.stop="executeSearch">
-                            Xem tất cả kết quả
-                        </div>
-                    </div>
+                <!-- Search -->
+                <div class="search-wrapper">
+                    <button type="button" class="icon-btn search-icon-btn" @click="openSearch">
+                        <AppIcon name="search" />
+                    </button>
                 </div>
 
                 <!-- Thông báo -->
                 <router-link to="/profile/notifications" class="icon-btn notif-icon-btn" v-if="isLoggedIn">
                     <div class="cart-icon-wrapper">
-                        <svg
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
+                        <AppIcon name="bell" />
                         <span v-if="unreadNotificationCount > 0" class="cart-badge">{{
                             unreadNotificationCount > 99 ? "99+" : unreadNotificationCount
                         }}</span>
@@ -445,22 +373,7 @@ watch(
                 <!-- Giỏ hàng -->
                 <router-link to="/cart" class="icon-btn cart-icon-btn">
                     <div class="cart-icon-wrapper">
-                        <svg
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <path
-                                d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"
-                            ></path>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <path d="M16 10a4 4 0 0 1-8 0"></path>
-                        </svg>
+                        <AppIcon name="order" />
                         <span v-if="cartCount > 0" class="cart-badge">{{
                             cartCount > 99 ? "99+" : cartCount
                         }}</span>
@@ -468,38 +381,16 @@ watch(
                 </router-link>
 
                 <!-- Tài khoản -->
-                <div
-                    class="account-dropdown"
-                    @mouseenter="showDropdown = true"
-                    @mouseleave="showDropdown = false"
-                >
-                    <button class="icon-btn user-icon-btn equip-small-link-custom">
+                <div class="account-dropdown">
+                    <button class="icon-btn user-icon-btn equip-small-link-custom" @click.stop="toggleAccountMenu">
                         <template v-if="isLoggedIn">
-                            <img
-                                v-if="userAvatar"
-                                :src="userAvatar"
-                                class="header-user-avatar"
-                            />
+                            <img v-if="userAvatar" :src="userAvatar" class="header-user-avatar" />
                             <div v-else class="header-user-avatar-fallback">
                                 {{ (userName || "?")[0].toUpperCase() }}
                             </div>
                         </template>
                         <template v-else>
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <path
-                                    d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"
-                                ></path>
-                                <circle cx="12" cy="7" r="4"></circle>
-                            </svg>
+                            <AppIcon name="user" />
                         </template>
                     </button>
 
@@ -508,11 +399,7 @@ watch(
                         <div class="account-menu-inner">
                             <template v-if="isLoggedIn">
                                 <div class="dropdown-user">
-                                    <img
-                                        v-if="userAvatar"
-                                        :src="userAvatar"
-                                        class="dropdown-avatar-img"
-                                    />
+                                    <img v-if="userAvatar" :src="userAvatar" class="dropdown-avatar-img" />
                                     <div v-else class="dropdown-avatar">
                                         {{ (userName || "?")[0].toUpperCase() }}
                                     </div>
@@ -526,35 +413,15 @@ watch(
                                     </div>
                                 </div>
                                 <div class="dropdown-divider"></div>
-                                <router-link
-                                    to="/profile"
-                                    class="account-menu-item"
-                                    >Tài khoản của tôi</router-link
-                                >
-                                <router-link
-                                    v-if="isAdmin"
-                                    to="/admin"
-                                    class="account-menu-item"
-                                    >Quản trị</router-link
-                                >
-                                <button
-                                    @click="handleLogout"
-                                    class="account-menu-item account-logout"
-                                >
+                                <router-link to="/profile" class="account-menu-item">Tài khoản của tôi</router-link>
+                                <router-link v-if="isAdmin" to="/admin" class="account-menu-item">Quản trị</router-link>
+                                <button @click="handleLogout" class="account-menu-item account-logout">
                                     Đăng xuất
                                 </button>
                             </template>
                             <template v-else>
-                                <router-link
-                                    to="/client/login"
-                                    class="account-menu-item"
-                                    >Đăng nhập</router-link
-                                >
-                                <router-link
-                                    to="/"
-                                    class="account-menu-item"
-                                    >Đăng ký</router-link
-                                >
+                                <router-link to="/client/login" class="account-menu-item">Đăng nhập</router-link>
+                                <router-link to="/client/register" class="account-menu-item">Đăng ký</router-link>
                             </template>
                         </div>
                     </div>
@@ -563,33 +430,83 @@ watch(
         </div>
     </header>
 
+    <Transition name="mobile-menu-fade">
+        <div v-if="isMobileMenuOpen" class="mobile-nav-overlay" @click="closeMobileMenu">
+            <div class="mobile-nav-panel" @click.stop>
+                <div class="mobile-nav-header">
+                    <div>
+                        <p class="mobile-nav-eyebrow">Quyền Sport</p>
+                        <h2 class="mobile-nav-title">Khám phá nhanh</h2>
+                    </div>
+                    <button type="button" class="icon-btn mobile-nav-close" @click="closeMobileMenu">
+                        <AppIcon name="x" size="18" stroke-width="2.5" />
+                    </button>
+                </div>
+
+                <button type="button" class="mobile-search-btn" @click="openSearch">
+                    <AppIcon name="search" size="18" />
+                    <span>Tìm kiếm sản phẩm</span>
+                </button>
+
+                <nav class="mobile-nav-links">
+                    <router-link
+                        v-for="cat in topCategories"
+                        :key="`mobile-${getCategoryId(cat)}`"
+                        :to="getCategoryRoute(cat)"
+                        class="mobile-nav-link"
+                        :class="{ active: isCategoryActive(cat) }"
+                        @click="closeMobileMenu"
+                    >
+                        {{ cat.name }}
+                    </router-link>
+                    <router-link
+                        to="/contact"
+                        class="mobile-nav-link"
+                        :class="{ active: isRouteActive('contact') }"
+                        @click="closeMobileMenu"
+                    >
+                        Liên hệ
+                    </router-link>
+                </nav>
+
+                <div class="mobile-nav-account">
+                    <template v-if="isLoggedIn">
+                        <div class="mobile-account-summary">
+                            <img v-if="userAvatar" :src="userAvatar" class="header-user-avatar" />
+                            <div v-else class="header-user-avatar-fallback">
+                                {{ (userName || "?")[0].toUpperCase() }}
+                            </div>
+                            <div class="mobile-account-text">
+                                <strong>{{ userName }}</strong>
+                                <span>{{ userEmail }}</span>
+                            </div>
+                        </div>
+                        <router-link to="/profile" class="mobile-account-link" @click="closeMobileMenu">Tài khoản của tôi</router-link>
+                        <router-link v-if="isAdmin" to="/admin" class="mobile-account-link" @click="closeMobileMenu">Quản trị</router-link>
+                        <router-link to="/profile/notifications" class="mobile-account-link" @click="closeMobileMenu">Thông báo</router-link>
+                        <button type="button" class="mobile-account-link mobile-account-link--danger" @click="handleLogout">
+                            Đăng xuất
+                        </button>
+                    </template>
+                    <template v-else>
+                        <router-link to="/client/login" class="mobile-account-link" @click="closeMobileMenu">Đăng nhập</router-link>
+                        <router-link to="/client/register" class="mobile-account-link" @click="closeMobileMenu">Đăng ký</router-link>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </Transition>
+
     <!-- Draggable Flash Sale Widget -->
-    <div
-        class="floating-flash-sale"
-        :style="{ left: flashSalePos.x + 'px', top: flashSalePos.y + 'px' }"
-        @mousedown="startDrag"
-        @touchstart="startDrag"
-        @click="handleFlashSaleClick"
-    >
+    <div class="floating-flash-sale" :style="{ left: flashSalePos.x + 'px', top: flashSalePos.y + 'px' }"
+        @mousedown="startDrag" @touchstart="startDrag" @click="handleFlashSaleClick">
         <div class="flash-sale-badge">
-            <svg
-                class="flash-sale-icon"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-            >
-                <polygon
-                    points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
-                ></polygon>
-            </svg>
+            <AppIcon name="zap" class="flash-sale-icon" size="24" />
             <span>FLASH SALE</span>
         </div>
     </div>
+
+    <SearchModal v-model="isSearchModalOpen" />
 </template>
 
 <style scoped>
@@ -617,7 +534,8 @@ watch(
 .header-left {
     display: flex;
     align-items: center;
-    gap: 40px; /* distance between logo and nav */
+    gap: 40px;
+    /* distance between logo and nav */
     height: 100%;
 }
 
@@ -632,6 +550,7 @@ watch(
     gap: 32px;
     height: 100%;
 }
+
 .nav-link {
     display: inline-flex;
     align-items: center;
@@ -643,12 +562,15 @@ watch(
     transition: color 0.2s;
     text-transform: capitalize;
 }
+
 .nav-link:hover {
     color: #E63B6F;
 }
+
 .nav-link.active {
     color: #E63B6F;
 }
+
 .nav-link.active::after {
     content: "";
     position: absolute;
@@ -667,6 +589,10 @@ watch(
     gap: 20px;
 }
 
+.mobile-nav-toggle {
+    display: none;
+}
+
 .icon-btn {
     background: none;
     border: none;
@@ -679,6 +605,7 @@ watch(
     border-radius: 50%;
     transition: background 0.2s;
 }
+
 .icon-btn:hover {
     background: #FFF0F3;
 }
@@ -689,136 +616,13 @@ watch(
     display: flex;
     align-items: center;
 }
-.search-container {
-    display: flex;
-    align-items: center;
-    position: relative;
-    width: 36px; /* only icon width */
-    height: 36px;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
-    border-radius: 20px;
-    background: transparent;
-}
-.search-container.is-expanded {
-    width: 280px;
-    background: #F8F9FA;
-    padding-left: 12px;
-    border: 1px solid #E9ECEF;
-}
-.search-input {
-    border: none;
-    background: transparent;
-    outline: none;
-    width: 0;
-    opacity: 0;
-    transition:
-        opacity 0.3s,
-        width 0.3s;
-    font-size: 0.9rem;
-    color: #111;
-}
-.search-container.is-expanded .search-input {
-    width: flex-grow;
-    flex: 1;
-    opacity: 1;
-}
-.search-icon-btn {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
-/* SEARCH DROPDOWN */
-.search-dropdown-box {
-    position: absolute;
-    top: calc(100% + 12px);
-    right: 0;
-    width: 380px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
-    border: 1px solid #e2e8f0;
-    overflow: hidden;
-    z-index: 300;
-}
-.search-msg {
-    padding: 24px;
-    text-align: center;
-    color: #64748b;
-    font-size: 0.95rem;
-}
-.search-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    max-height: 400px;
-    overflow-y: auto;
-}
-.search-item {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 12px 16px;
-    border-bottom: 1px solid #f1f5f9;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-.search-item:last-child {
-    border-bottom: none;
-}
-.search-item:hover {
-    background: #f8fafc;
-}
-.search-item-img {
-    width: 54px;
-    height: 54px;
-    border-radius: 8px;
-    object-fit: cover;
-    background: #e2e8f0;
-    flex-shrink: 0;
-}
-.search-item-info {
-    flex: 1;
-    overflow: hidden;
-}
-.search-item-name {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #0f172a;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin-bottom: 4px;
-    line-height: 1.3;
-}
-.search-item-price {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #E63B6F;
-}
-.search-view-all {
-    padding: 14px;
-    text-align: center;
-    background: #f8fafc;
-    color: #E63B6F;
-    font-weight: 700;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: background 0.2s;
-    border-top: 1px solid #e2e8f0;
-}
-.search-view-all:hover {
-    background: #e2e8f0;
-}
 
 /* CART BADGE */
 .cart-icon-wrapper {
     position: relative;
     display: inline-flex;
 }
+
 .cart-badge {
     position: absolute;
     top: -4px;
@@ -842,12 +646,14 @@ watch(
 .account-dropdown {
     position: relative;
 }
+
 .header-user-avatar {
     width: 24px;
     height: 24px;
     border-radius: 50%;
     object-fit: cover;
 }
+
 .header-user-avatar-fallback {
     width: 24px;
     height: 24px;
@@ -860,6 +666,7 @@ watch(
     font-size: 0.8rem;
     font-weight: 700;
 }
+
 .account-menu {
     position: absolute;
     top: 100%;
@@ -868,6 +675,7 @@ watch(
     min-width: 220px;
     z-index: 200;
 }
+
 .account-menu-inner {
     background: #fff;
     border: 1px solid #e5e7eb;
@@ -875,18 +683,21 @@ watch(
     padding: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
 }
+
 .dropdown-user {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 10px;
 }
+
 .dropdown-avatar-img {
     width: 40px;
     height: 40px;
     border-radius: 50%;
     object-fit: cover;
 }
+
 .dropdown-avatar {
     width: 40px;
     height: 40px;
@@ -898,19 +709,23 @@ watch(
     justify-content: center;
     font-weight: 700;
 }
+
 .dropdown-name {
     font-size: 0.9rem;
     font-weight: 600;
 }
+
 .dropdown-email {
     font-size: 0.75rem;
     color: #888;
 }
+
 .dropdown-divider {
     height: 1px;
     background: #f0f0f0;
     margin: 4px 0;
 }
+
 .account-menu-item {
     display: block;
     padding: 10px 12px;
@@ -926,14 +741,161 @@ watch(
     text-align: left;
     transition: background 0.15s;
 }
+
 .account-menu-item:hover {
     background: #f1f5f9;
 }
+
 .account-logout {
     color: #ef4444;
 }
+
 .account-logout:hover {
     background: #fef2f2;
+}
+
+.mobile-nav-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    padding: 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.mobile-nav-panel {
+    width: min(88vw, 360px);
+    height: calc(100vh - 24px);
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24);
+}
+
+.mobile-nav-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.mobile-nav-eyebrow {
+    margin: 0 0 4px;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+}
+
+.mobile-nav-title {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.mobile-nav-close {
+    flex-shrink: 0;
+}
+
+.mobile-search-btn,
+.mobile-account-link {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 14px;
+    padding: 14px 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.2s ease;
+}
+
+.mobile-search-btn:hover,
+.mobile-account-link:hover {
+    border-color: rgba(230, 59, 111, 0.28);
+    background: #fff7f9;
+}
+
+.mobile-nav-links,
+.mobile-nav-account {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mobile-nav-links {
+    padding-bottom: 18px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.mobile-nav-link {
+    display: block;
+    padding: 12px 14px;
+    border-radius: 14px;
+    text-decoration: none;
+    color: #334155;
+    font-weight: 600;
+    background: #f8fafc;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.mobile-nav-link:hover,
+.mobile-nav-link.active {
+    color: #E63B6F;
+    background: #fff1f4;
+    border-color: rgba(230, 59, 111, 0.18);
+}
+
+.mobile-account-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 2px 10px;
+}
+
+.mobile-account-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-account-text strong {
+    color: #0f172a;
+    font-size: 0.96rem;
+}
+
+.mobile-account-text span {
+    color: #64748b;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mobile-account-link--danger {
+    color: #dc2626;
+}
+
+.mobile-menu-fade-enter-active,
+.mobile-menu-fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.mobile-menu-fade-enter-from,
+.mobile-menu-fade-leave-to {
+    opacity: 0;
 }
 
 /* DRAGGABLE FLOATING FLASH SALE */
@@ -944,9 +906,11 @@ watch(
     user-select: none;
     touch-action: none;
 }
+
 .floating-flash-sale:active {
     cursor: grabbing;
 }
+
 .flash-sale-badge {
     display: flex;
     align-items: center;
@@ -961,6 +925,7 @@ watch(
     letter-spacing: 0.5px;
     animation: flash-pulse 2s infinite;
 }
+
 .flash-sale-badge svg {
     color: #fff;
     fill: rgba(255, 255, 255, 0.2);
@@ -971,10 +936,12 @@ watch(
         transform: scale(1);
         box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
     }
+
     50% {
         transform: scale(1.05);
         box-shadow: 0 8px 20px rgba(230, 59, 111, 0.5);
     }
+
     100% {
         transform: scale(1);
         box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
@@ -985,11 +952,35 @@ watch(
     .header-inner {
         padding: 0 20px;
     }
-    .main-nav {
-        display: none; /* Hide on small mobile, or require a hamburger menu which we can add later if wanted */
+
+    .header-left {
+        gap: 16px;
     }
-    .search-container.is-expanded {
-        width: 200px;
+
+    .main-nav {
+        display: none;
+    }
+
+    .mobile-nav-toggle {
+        display: inline-flex;
+    }
+
+    .account-dropdown {
+        display: none;
+    }
+
+    .header-actions {
+        gap: 10px;
+    }
+
+    .flash-sale-badge {
+        padding: 8px 12px;
+        font-size: 0.76rem;
+    }
+
+    .flash-sale-icon {
+        width: 18px;
+        height: 18px;
     }
 }
 </style>

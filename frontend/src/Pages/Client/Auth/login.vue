@@ -1,20 +1,30 @@
 <script setup>
-import { ref, reactive, nextTick, onMounted, onBeforeUnmount, computed } from 'vue';
-import api from '../../../axios.js';
-import { useRouter } from 'vue-router';
-import { Toast } from 'bootstrap';
-import ClientHeader from '../../../components/ClientHeader.vue';
-import ClientFooter from '../../../components/ClientFooter.vue';
+import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import AuthLayout from '../../../layouts/AuthLayout.vue';
+import { useToast } from '@/composables/useToast';
+import { authService } from '@/services/authService';
+import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth';
 
 const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
 const rememberMe = ref(false);
 const isSubmitting = ref(false);
+const route = useRoute();
 const router = useRouter();
-const toast = ref({ message: '', type: 'success' });
+const authStore = useAuthStore();
 const turnstileToken = ref('');
 let turnstileWidgetId = null;
+const { showToast } = useToast();
+
+const resolveRedirectTarget = (user) => {
+  const redirect = Array.isArray(route.query.redirect)
+    ? route.query.redirect[0]
+    : route.query.redirect;
+
+  return redirect || getDefaultRouteForRole(user?.role);
+};
 
 const isFormValid = computed(() => {
   return email.value.trim() !== '' &&
@@ -41,14 +51,6 @@ const validateField = (field) => {
 const onBlur = (field) => {
   touched[field] = true;
   validateField(field);
-};
-
-const showToast = (message, type = 'success') => {
-  toast.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('loginToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 2500 }).show();
-  });
 };
 
 // Cloudflare Turnstile
@@ -115,30 +117,21 @@ const login = async () => {
 
   isSubmitting.value = true;
   try {
-    const response = await api.post('/login', {
+    const response = await authService.login({
       email: email.value,
       password: password.value,
       turnstile_token: turnstileToken.value
     });
 
     if (response.data.status === 'success') {
-      const userData = JSON.stringify({
+      authStore.setSession(response.data.access_token, {
         isLoggedIn: true,
         ...response.data.user
       });
 
       // Luôn lưu vào sessionStorage — SessionSync sẽ tự đồng bộ sang tab mới
-      sessionStorage.setItem('auth_token', response.data.access_token);
-      sessionStorage.setItem('user', userData);
       // Xóa sạch localStorage khỏi session cũ (nếu có)
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
-
-      if (['admin', 'staff', 'seller'].includes(response.data.user.role)) {
-        router.push('/admin');
-      } else {
-        router.push('/');
-      }
+      router.push(resolveRedirectTarget(response.data.user));
     }
   } catch (error) {
     let msg = error.response?.data?.message || 'Đăng nhập thất bại!';
@@ -157,11 +150,8 @@ const login = async () => {
 </script>
 
 <template>
-  <div class="page-wrapper">
-    <ClientHeader />
-
-    <main class="auth-main">
-      <div class="container d-flex justify-content-center">
+  <AuthLayout>
+      <div class="auth-page container d-flex justify-content-center">
         <!-- Bootstrap container wrapping the boxed layout -->
         <div class="auth-box-classic">
 
@@ -219,14 +209,13 @@ const login = async () => {
                     <span class="checkmark"></span>
                     <span>Ghi nhớ đăng nhập</span>
                 </label>
-                <router-link to="/" class="recover-link">Quên mật khẩu?</router-link>
+                <router-link to="/client/forgot-password" class="recover-link">Quên mật khẩu?</router-link>
               </div>
 
               <!-- CAPTCHA -->
-              <div class="turnstile-container">
+              <!-- <div class="turnstile-container">
                  <div class="captcha-box" v-show="!turnstileToken">
                     <div class="turnstile-wrapper">
-                      <!-- Ensure valid turnstile rendering here -->
                       <div id="turnstile-login"></div>
                     </div>
                  </div>
@@ -236,10 +225,10 @@ const login = async () => {
                     </span>
                     <span class="captcha-text">Xác thực thành công</span>
                  </div>
-              </div>
+              </div> -->
 
               <!-- Action -->
-              <button type="submit" class="btn-primary" :disabled="!isFormValid || isSubmitting || !turnstileToken">
+              <button type="submit" class="btn-primary" :disabled="!isFormValid || isSubmitting">
                 <span v-if="isSubmitting" class="spinner"></span>
                 <span>{{ isSubmitting ? 'ĐANG TIẾN HÀNH...' : 'ĐĂNG NHẬP' }}</span>
                 <svg v-if="!isSubmitting" class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
@@ -261,7 +250,7 @@ const login = async () => {
                  </button>
               </div>
 
-              <p class="register-hint">Chưa có tài khoản? <router-link to="/">Tạo tài khoản</router-link></p>
+              <p class="register-hint">Chưa có tài khoản? <router-link to="/client/register">Tạo tài khoản</router-link></p>
             </form>
           </div>
         </div>
@@ -273,33 +262,19 @@ const login = async () => {
 
         </div>
       </div>
-    </main>
-
-    <ClientFooter />
-
-    <!-- Bootstrap Toast -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-      <div class="toast align-items-center border-0" :class="toast.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="loginToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body">{{ toast.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    </div>
-  </div>
+  </AuthLayout>
 </template>
 
 <style scoped>
-.page-wrapper { min-height: 100vh; display: flex; flex-direction: column; }
-
-.auth-main {
+.auth-page {
     flex: 1;
+    width: 100%;
     background: #f1f5f9; /* Classic soft background */
     padding: 60px 0;
     font-family: var(--font-inter, 'Inter', sans-serif);
-    min-height: calc(100vh - 120px);
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 
 .auth-box-classic {

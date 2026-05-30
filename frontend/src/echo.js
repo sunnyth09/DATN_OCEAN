@@ -1,6 +1,8 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import axios from 'axios';
+import { pinia } from '@/stores';
+import { useAuthStore } from '@/stores/auth';
 
 const reverbKey = import.meta.env.VITE_REVERB_APP_KEY;
 
@@ -24,7 +26,7 @@ if (reverbKey) {
                         channel_name: channel.name
                     }, {
                         headers: {
-                            Authorization: `Bearer ${sessionStorage.getItem('auth_token')}`,
+                            Authorization: `Bearer ${useAuthStore(pinia).token || sessionStorage.getItem('auth_token')}`,
                             Accept: 'application/json'
                         }
                     })

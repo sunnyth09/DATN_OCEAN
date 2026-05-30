@@ -15,6 +15,8 @@ const categories = ref([]);
 const authors = ref([]);
 const toastObj = ref({ message: '', type: 'success' });
 const isSubmitting = ref(false);
+const SUMMARY_MAX_LENGTH = 500;
+const SEO_DESCRIPTION_MAX_LENGTH = 500;
 
 const showToast = (message, type = 'success') => {
   toastObj.value = { message, type };
@@ -136,6 +138,16 @@ const handleSubmit = async () => {
          return;
     }
 
+    if (post.summary && post.summary.length > SUMMARY_MAX_LENGTH) {
+        showToast(`Tóm tắt nội dung không được vượt quá ${SUMMARY_MAX_LENGTH} ký tự.`, "danger");
+        return;
+    }
+
+    if (post.seo_description && post.seo_description.length > SEO_DESCRIPTION_MAX_LENGTH) {
+        showToast(`Mô tả SEO không được vượt quá ${SEO_DESCRIPTION_MAX_LENGTH} ký tự.`, "danger");
+        return;
+    }
+
     isSubmitting.value = true;
     const formData = new FormData();
     formData.append("title", post.title);
@@ -209,7 +221,15 @@ const handleSubmit = async () => {
                         </div>
                         <div class="form-group">
                             <label for="summary">Tóm tắt nội dung</label>
-                            <textarea id="summary" v-model="post.summary" class="form-control" rows="3" placeholder="Nhập đoạn tóm tắt ngắn gọn..."></textarea>
+                            <textarea
+                                id="summary"
+                                v-model="post.summary"
+                                class="form-control"
+                                rows="3"
+                                :maxlength="SUMMARY_MAX_LENGTH"
+                                placeholder="Nhập đoạn tóm tắt ngắn gọn..."
+                            ></textarea>
+                            <small class="field-hint">{{ post.summary.length }}/{{ SUMMARY_MAX_LENGTH }}</small>
                         </div>
                         <div class="form-group">
                             <label>Nội dung chi tiết</label>
@@ -227,7 +247,15 @@ const handleSubmit = async () => {
                         </div>
                         <div class="form-group">
                             <label for="seo_description">Mô tả SEO</label>
-                            <textarea id="seo_description" v-model="post.seo_description" class="form-control" rows="2" placeholder="Tối đa 160 ký tự"></textarea>
+                            <textarea
+                                id="seo_description"
+                                v-model="post.seo_description"
+                                class="form-control"
+                                rows="2"
+                                :maxlength="SEO_DESCRIPTION_MAX_LENGTH"
+                                placeholder="Tối đa 500 ký tự"
+                            ></textarea>
+                            <small class="field-hint">{{ post.seo_description.length }}/{{ SEO_DESCRIPTION_MAX_LENGTH }}</small>
                         </div>
                         <div class="form-group">
                             <label for="seo_keywords">Từ khóa SEO</label>
@@ -377,6 +405,7 @@ const handleSubmit = async () => {
 }
 .form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); background: white;}
 .form-control::placeholder { color: var(--text-light); }
+.field-hint { display: block; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); text-align: right; }
 .form-select {
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23627d98' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");

@@ -1,4 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { pinia } from '@/stores';
+import { useAuthStore } from '@/stores/auth';
 
 // ==================== CORE LAYOUTS (eager load) ====================
 import ClientLayout from "../layouts/ClientLayout.vue";
@@ -9,8 +11,12 @@ import Cart from "../Pages/Client/Cart/index.vue";
 
 // ==================== LAZY LOADED PAGES ====================
 
-// Auth - chỉ giữ Login (cần để đăng nhập Admin)
+// Auth
 const Login = () => import("../Pages/Client/Auth/login.vue");
+const Register = () => import("../Pages/Client/Auth/Register.vue");
+const Forgot = () => import("../Pages/Client/Auth/Forgot.vue");
+const GoogleCallback = () => import("../Pages/Client/Auth/GoogleCallback.vue");
+const FacebookCallback = () => import("../Pages/Client/Auth/FacebookCallback.vue");
 
 // Admin (lazy load toàn bộ - chỉ tải khi admin truy cập)
 const AdminLayout = () => import("../layouts/AdminLayout.vue");
@@ -29,21 +35,76 @@ const routes = [
         component: ClientLayout,
         children: [
             { path: "", name: "home", component: Home, meta: { title: 'Trang chủ' } },
+            // Product pages
+            { path: "product", name: "product-list", component: () => import("../Pages/Client/Home/Product.vue"), meta: { title: 'Sản phẩm' } },
+            { path: "product/:id", name: "product-detail", component: () => import("../Pages/Client/Home/productDetail.vue"), meta: { title: 'Chi tiết sản phẩm' } },
+            // Flash Sale & Coupon
+            { path: "flash-sale", name: "flash-sale", component: () => import("../Pages/Client/Home/FlashSale.vue"), meta: { title: 'Flash Sale' } },
+            { path: "coupon", name: "coupon", component: () => import("../Pages/Client/Home/Coupon.vue"), meta: { title: 'Mã giảm giá' } },
+            // Cart
+            { path: "cart", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { requiresAuth: true, title: 'Giỏ hàng' } },
+            { path: "checkout", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { requiresAuth: true, title: 'Thanh toán' } },
+            { path: "order-success/:order_code?", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { requiresAuth: true, title: 'Đặt hàng thành công' } },
+            // Payment
+            { path: "payment/result", name: "payment-result", component: () => import("../Pages/Client/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } },
+            // Profile
+            {
+                path: "profile",
+                component: () => import("../Pages/Client/Profile/ProfileLayout.vue"),
+                meta: { requiresAuth: true },
+                children: [
+                    { path: "", name: "profile-info", component: () => import("../Pages/Client/Profile/ProfileInfo.vue"), meta: { title: 'Thông tin cá nhân' } },
+                    { path: "orders", name: "profile-orders", component: () => import("../Pages/Client/Profile/ProfileOrders.vue"), meta: { title: 'Đơn hàng' } },
+                    { path: "orders/:id", name: "profile-order-detail", component: () => import("../Pages/Client/Profile/ProfileOrderDetail.vue"), meta: { title: 'Chi tiết đơn hàng' } },
+                    { path: "addresses", name: "profile-address", component: () => import("../Pages/Client/Profile/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
+                    { path: "change-password", name: "profile-change-password", component: () => import("../Pages/Client/Profile/ProfileChangePassword.vue"), meta: { title: 'Đổi mật khẩu' } },
+                    { path: "wishlist", name: "profile-wishlist", component: () => import("../Pages/Client/Profile/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
+                    { path: "coupons", name: "profile-coupons", component: () => import("../Pages/Client/Profile/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
+                    { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
+                ],
+            },
+            // Static pages
+            { path: "brand-story", name: "brand-story", component: () => import("../Pages/Client/Static/BrandStory.vue"), meta: { title: 'Câu chuyện thương hiệu' } },
+            { path: "careers", name: "careers", component: () => import("../Pages/Client/Static/Careers.vue"), meta: { title: 'Tuyển dụng' } },
+            { path: "contact", name: "contact", component: () => import("../Pages/Client/Static/Contact.vue"), meta: { title: 'Liên hệ' } },
+            { path: "faq", name: "faq", component: () => import("../Pages/Client/Static/FAQ.vue"), meta: { title: 'Câu hỏi thường gặp' } },
+            { path: "privacy", name: "privacy", component: () => import("../Pages/Client/Static/Privacy.vue"), meta: { title: 'Chính sách bảo mật' } },
+            { path: "return-policy", name: "return-policy", component: () => import("../Pages/Client/Static/ReturnPolicy.vue"), meta: { title: 'Chính sách đổi trả' } },
+            { path: "shopping-guide", name: "shopping-guide", component: () => import("../Pages/Client/Static/ShoppingGuide.vue"), meta: { title: 'Hướng dẫn mua hàng' } },
+            { path: "terms", name: "terms", component: () => import("../Pages/Client/Static/Terms.vue"), meta: { title: 'Điều khoản dịch vụ' } },
         ],
     },
-    {
-        path: "/cart",
-        component: ClientLayout,
-        children: [
-            { path: "", name: "cart", component: Cart, meta: { title: 'Trang chủ' } },
-        ],
-    },
-    // Auth routes - chỉ giữ Login cho Admin
+    // Auth routes
     {
         path: "/client/login",
         name: "login",
         component: Login,
         meta: { guest: true, title: 'Đăng nhập' },
+    },
+    {
+        path: "/client/register",
+        name: "register",
+        component: Register,
+        meta: { guest: true, title: 'Đăng ký' },
+    },
+    {
+        path: "/client/forgot-password",
+        name: "forgot-password",
+        component: Forgot,
+        meta: { guest: true, title: 'Quên mật khẩu' },
+    },
+    // OAuth Callback routes
+    {
+        path: "/api/auth/google/callback",
+        name: "google-callback",
+        component: GoogleCallback,
+        meta: { title: 'Đăng nhập Google' },
+    },
+    {
+        path: "/api/auth/facebook/callback",
+        name: "facebook-callback",
+        component: FacebookCallback,
+        meta: { title: 'Đăng nhập Facebook' },
     },
     // Admin routes
     {
@@ -207,9 +268,13 @@ const router = createRouter({
 // ==================== Navigation Guard ====================
 
 router.beforeEach((to, from) => {
-    const token = sessionStorage.getItem('auth_token');
-    const userData = sessionStorage.getItem('user');
-    const user = userData ? JSON.parse(userData) : null;
+    const authStore = useAuthStore(pinia);
+    if (!authStore.isHydrated) {
+        authStore.hydrate();
+    }
+
+    const token = authStore.token;
+    const user = authStore.user;
 
     // Route yêu cầu đăng nhập
     if (to.matched.some(record => record.meta.requiresAuth)) {
@@ -233,14 +298,7 @@ router.beforeEach((to, from) => {
     // Route dành cho guest (login) — nếu đã login thì redirect
     if (to.matched.some(record => record.meta.guest)) {
         if (token && user) {
-            if (user.role === 'admin') {
-                return { name: 'admin' };
-            } else if (user.role === 'seller') {
-                return { name: 'admin-pos' };
-            } else if (user.role === 'staff') {
-                return { name: 'admin-product' };
-            }
-            return { name: 'home' };
+            return authStore.preferredRoute;
         }
     }
 });
@@ -251,9 +309,9 @@ router.afterEach((to) => {
     const isAdmin = to.matched.some(record => record.path === '/admin');
 
     if (title) {
-        document.title = isAdmin ? `${title} | Ocean Admin` : `${title} | Ocean`;
+        document.title = isAdmin ? `${title} | QS Admin` : `${title} | Quyền Sport`;
     } else {
-        document.title = 'Ocean';
+        document.title = 'Quyền Sport';
     }
 });
 
