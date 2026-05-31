@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { Modal } from 'bootstrap';
@@ -16,8 +16,6 @@ const agreeTerms = ref(false);
 const errorMsg = ref('');
 const isSubmitting = ref(false);
 const router = useRouter();
-const turnstileToken = ref('');
-let turnstileWidgetId = null;
 const { showToast } = useToast();
 
 // Field-level validation
@@ -70,34 +68,6 @@ const passwordsMatch = computed(() =>
   password.value && password_confirmation.value && password.value === password_confirmation.value
 );
 
-// Cloudflare Turnstile
-const loadTurnstile = () => {
-  if (window.turnstile) { renderTurnstile(); return; }
-  const script = document.createElement('script');
-  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
-  script.async = true;
-  window.onTurnstileLoad = () => renderTurnstile();
-  document.head.appendChild(script);
-};
-
-const renderTurnstile = () => {
-  const container = document.getElementById('turnstile-register');
-  if (!container || !window.turnstile) return;
-  container.innerHTML = '';
-  turnstileWidgetId = window.turnstile.render('#turnstile-register', {
-    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
-    callback: (token) => { turnstileToken.value = token; },
-    'expired-callback': () => { turnstileToken.value = ''; },
-    'error-callback': () => { turnstileToken.value = ''; },
-    theme: 'light',
-  });
-};
-
-onMounted(() => { loadTurnstile(); });
-onBeforeUnmount(() => {
-  if (turnstileWidgetId !== null && window.turnstile) window.turnstile.remove(turnstileWidgetId);
-});
-
 const handleRegister = async () => {
     // Touch & validate all
     Object.keys(touched).forEach(k => { touched[k] = true; validateField(k); });
@@ -106,7 +76,6 @@ const handleRegister = async () => {
     if (!isPasswordValid.value) { errorMsg.value = 'Mật khẩu chưa đáp ứng đủ yêu cầu bảo mật'; return; }
     if (password.value !== password_confirmation.value) return;
     if (!agreeTerms.value) return;
-    if (!turnstileToken.value) { errorMsg.value = 'Vui lòng xác thực CAPTCHA'; return; }
 
     errorMsg.value = '';
     isSubmitting.value = true;
@@ -116,7 +85,7 @@ const handleRegister = async () => {
             name: name.value,
             email: email.value,
             password: password.value,
-            turnstile_token: turnstileToken.value
+            password_confirmation: password_confirmation.value
         });
 
         if (response.data.status === 'success') {
@@ -136,10 +105,6 @@ const handleRegister = async () => {
         }
         errorMsg.value = errorText;
         showToast(errorText, 'danger');
-        if (window.turnstile && turnstileWidgetId !== null) {
-          window.turnstile.reset(turnstileWidgetId);
-          turnstileToken.value = '';
-        }
     } finally {
         isSubmitting.value = false;
     }
@@ -242,13 +207,8 @@ const goToLogin = () => { router.push('/client/login'); };
               <p v-if="touched.terms && fieldErrors.terms" class="field-error" style="margin-left: 24px;">{{ fieldErrors.terms }}</p>
             </div>
 
-            <!-- Cloudflare Turnstile CAPTCHA -->
-            <div class="turnstile-wrapper">
-              <div id="turnstile-register"></div>
-            </div>
-
             <!-- Submit -->
-            <button type="submit" class="btn-primary" :disabled="isSubmitting || !turnstileToken">
+            <button type="submit" class="btn-primary" :disabled="isSubmitting">
               <span v-if="isSubmitting" class="spinner"></span>
               {{ isSubmitting ? 'Đang xử lý...' : 'Đăng ký' }}
             </button>

@@ -55,6 +55,8 @@ const routes = [
                     { path: "", name: "profile-info", component: () => import("../Pages/Client/Profile/ProfileInfo.vue"), meta: { title: 'Thông tin cá nhân' } },
                     { path: "orders", name: "profile-orders", component: () => import("../Pages/Client/Profile/ProfileOrders.vue"), meta: { title: 'Đơn hàng' } },
                     { path: "orders/:id", name: "profile-order-detail", component: () => import("../Pages/Client/Profile/ProfileOrderDetail.vue"), meta: { title: 'Chi tiết đơn hàng' } },
+                    { path: "return-requests", name: "profile-return-requests", component: () => import("../Pages/Client/Profile/ProfileReturnRequests.vue"), meta: { title: 'Yêu cầu hoàn hàng' } },
+                    { path: "return-requests/:id", name: "profile-return-request-detail", component: () => import("../Pages/Client/Profile/ProfileReturnRequestDetail.vue"), meta: { title: 'Chi tiết yêu cầu hoàn hàng' } },
                     { path: "addresses", name: "profile-address", component: () => import("../Pages/Client/Profile/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
                     { path: "change-password", name: "profile-change-password", component: () => import("../Pages/Client/Profile/ProfileChangePassword.vue"), meta: { title: 'Đổi mật khẩu' } },
                     { path: "wishlist", name: "profile-wishlist", component: () => import("../Pages/Client/Profile/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
@@ -141,6 +143,18 @@ const routes = [
                 name: "admin-order",
                 component: () => import("../Pages/admin/AdminOrder.vue"),
                 meta: { roles: ['admin', 'seller'], title: 'Quản lý Đơn hàng' },
+            },
+            {
+                path: "return-requests",
+                name: "admin-return-requests",
+                component: () => import("../Pages/admin/AdminReturnRequests.vue"),
+                meta: { roles: ['admin'], title: 'Yêu cầu hoàn hàng' },
+            },
+            {
+                path: "return-requests/:id",
+                name: "admin-return-request-detail",
+                component: () => import("../Pages/admin/AdminReturnRequestDetail.vue"),
+                meta: { roles: ['admin'], title: 'Chi tiết yêu cầu hoàn hàng' },
             },
             {
                 path: "order/:id",
@@ -273,6 +287,12 @@ const router = createRouter({
     // Scroll to top khi navigate
     scrollBehavior(to, from, savedPosition) {
         if (savedPosition) return savedPosition;
+        
+        // Không cuộn lên đầu trang nếu chỉ thay đổi query param trên cùng một route (ví dụ: lọc, phân trang)
+        if (to.path === from.path) {
+            return false;
+        }
+        
         return { top: 0 };
     },
 });

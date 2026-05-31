@@ -1,10 +1,11 @@
 import 'dart:convert';
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 
-const String kBaseUrl = AppConfig.kBaseUrl;
+String get kBaseUrl => AppConfig.kBaseUrl;
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -90,7 +91,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF0EA5E9)),
+        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
         actions: [
           IconButton(
             icon: const Icon(Icons.done_all), 
@@ -100,7 +101,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         ],
       ),
       body: isLoading
-        ? const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)))
+        ? const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)))
         : notifications.isEmpty
           ? const Center(child: Text('Bạn không có thông báo nào.', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
@@ -124,7 +125,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     decoration: BoxDecoration(
                       color: isRead ? Colors.white : const Color(0xFFF0F9FF),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: isRead ? Colors.transparent : const Color(0xFF38BDF8).withOpacity(0.3)),
+                      border: Border.all(color: isRead ? Colors.transparent : const Color(0xFFFF8FAB).withOpacity(0.3)),
                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)]
                     ),
                     child: Row(
@@ -132,8 +133,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(color: const Color(0xFFE0F2FE), shape: BoxShape.circle),
-                          child: const Icon(Icons.notifications_active, color: Color(0xFF0EA5E9), size: 18),
+                          decoration: BoxDecoration(color: const Color(0xFFFFF0F3), shape: BoxShape.circle),
+                          child: const Icon(Icons.notifications_active, color: Color(0xFFE63B6F), size: 18),
                         ),
                         const SizedBox(width: 12),
                         Expanded(

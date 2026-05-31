@@ -60,7 +60,12 @@
               <td class="email-cell">{{ user.email }}</td>
               <td>{{ user.phone || '—' }}</td>
               <td>
-                <span class="badge-type customer">Khách hàng</span>
+                <select :value="user.role" @change="updateRole(user.user_id, $event.target.value)" class="role-select" :class="'role-' + user.role">
+                  <option value="customer">Khách hàng</option>
+                  <option value="seller">Người bán</option>
+                  <option value="staff">Nhân viên</option>
+                  <option value="admin">Quản trị viên</option>
+                </select>
               </td>
               <td>
                 <select :value="user.status" @change="updateStatus(user.user_id, $event.target.value)" class="status-select" :class="'status-' + user.status">
@@ -123,13 +128,24 @@
               <input v-model="form.password" type="password" class="qv-form-input" :class="{'is-invalid': errors.password}" placeholder="Tối thiểu 8 ký tự, chữ hoa, số, ký tự đặc biệt" />
               <span v-if="errors.password" class="field-error">{{ errors.password }}</span>
             </div>
-            <div class="qv-form-group">
+            <div class="qv-meta" style="margin-bottom:14px">
+              <div class="qv-form-group" style="margin-bottom:0">
+                <label class="qv-form-label">Vai trò</label>
+                <select v-model="form.role" class="qv-form-input">
+                  <option value="customer">Khách hàng</option>
+                  <option value="seller">Người bán</option>
+                  <option value="staff">Nhân viên</option>
+                  <option value="admin">Quản trị viên</option>
+                </select>
+              </div>
+              <div class="qv-form-group" style="margin-bottom:0">
                 <label class="qv-form-label">Trạng thái</label>
                 <select v-model="form.status" class="qv-form-input">
                   <option value="active">Hoạt động</option>
                   <option value="inactive">Không hoạt động</option>
                   <option value="banned">Bị cấm</option>
                 </select>
+              </div>
             </div>
             <!-- Inline error -->
             <div v-if="formError" class="form-error-box">
@@ -186,7 +202,9 @@
               </div>
               <div class="qv-meta-item">
                 <span class="qv-meta-label">Vai trò</span>
-                <span class="badge-type" :class="detailData.role">{{ detailData.role }}</span>
+                <span class="badge-type" :class="detailData.role">
+                  {{ detailData.role === 'admin' ? 'Quản trị viên' : (detailData.role === 'staff' ? 'Nhân viên' : (detailData.role === 'seller' ? 'Người bán' : 'Khách hàng')) }}
+                </span>
               </div>
               <div class="qv-meta-item">
                 <span class="qv-meta-label">Ngày tạo</span>

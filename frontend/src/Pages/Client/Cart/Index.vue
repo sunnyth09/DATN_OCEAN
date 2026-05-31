@@ -956,7 +956,7 @@ onMounted(async () => {
 .btn-checkout {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, #E63B6F, #039be5);
+    background:  #E63B6F;
     color: #fff;
     font-size: 1.05rem;
     font-weight: 700;
@@ -968,7 +968,7 @@ onMounted(async () => {
     box-shadow: 0 4px 14px rgba(230, 59, 111, 0.3);
 }
 .btn-checkout:hover:not(:disabled) {
-    background: linear-gradient(135deg, #C4305D, #E63B6F);
+    background: #C4305D;
     transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(230, 59, 111, 0.4);
 }

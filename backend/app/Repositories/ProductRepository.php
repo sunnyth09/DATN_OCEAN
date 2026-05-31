@@ -84,6 +84,17 @@ class ProductRepository
             };
         }
 
+        // Max price slider
+        if (isset($filters['max_price']) && is_numeric($filters['max_price'])) {
+            $query->where('min_price', '<=', $filters['max_price']);
+        }
+
+        // Brand ids
+        if (!empty($filters['brand_ids'])) {
+            $brandIds = explode(',', $filters['brand_ids']);
+            $query->whereIn('brand_id', $brandIds);
+        }
+
         // Sort
         match ($filters['sort_by'] ?? null) {
             'oldest'     => $query->orderBy('created_at', 'asc'),
@@ -354,13 +365,51 @@ class ProductRepository
     /**
      * Update min/max price từ danh sách giá
      */
-    public function updateMinMaxPrice(Product $product, array $prices): void
+    public function updateMinMaxPrice(Product $product, array $prices = []): void
     {
-        if (!empty($prices)) {
-            $product->update([
-                'min_price' => min($prices),
-                'max_price' => max($prices),
-            ]);
+        // Tính toán lại min_price và max_price thực tế từ các variants (bỏ qua mảng $prices truyền vào vì thiếu sale_price)
+        $variants = $product->variants()->get();
+        if ($variants->isEmpty()) {
+            return;
         }
+
+        $minPrice = null;
+        $maxPrice = null;
+        $now = now();
+
+        foreach ($variants as $variant) {
+            // Lấy giá cơ bản
+            $effectivePrice = $variant->price;
+            
+            // Nếu có sale_price hợp lệ và đang trong thời gian sale thì lấy sale_price
+            if ($variant->sale_price !== null && $variant->sale_price > 0) {
+                $start = $variant->sale_starts_at ? \Carbon\Carbon::parse($variant->sale_starts_at) : null;
+                $end = $variant->sale_ends_at ? \Carbon\Carbon::parse($variant->sale_ends_at) : null;
+                
+                $isActiveSale = true;
+                if ($start && $now->lt($start)) {
+                    $isActiveSale = false;
+                }
+                if ($end && $now->gt($end)) {
+                    $isActiveSale = false;
+                }
+                
+                if ($isActiveSale) {
+                    $effectivePrice = $variant->sale_price;
+                }
+            }
+
+            if ($minPrice === null || $effectivePrice < $minPrice) {
+                $minPrice = $effectivePrice;
+            }
+            if ($maxPrice === null || $effectivePrice > $maxPrice) {
+                $maxPrice = $effectivePrice;
+            }
+        }
+
+        $product->update([
+            'min_price' => $minPrice ?? 0,
+            'max_price' => $maxPrice ?? 0,
+        ]);
     }
 }

@@ -31,6 +31,18 @@
         <span>Đơn hàng</span>
       </router-link>
 
+      <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/return-requests" class="nav-item" active-class="nav-item--active">
+        <div class="nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 8v13H3V8"></path>
+            <path d="M1 3h22v5H1z"></path>
+            <path d="M10 12h4"></path>
+            <path d="M12 10v4"></path>
+          </svg>
+        </div>
+        <span>Hoàn hàng</span>
+      </router-link>
+
       <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/pos" class="nav-item" active-class="nav-item--active">
         <div class="nav-icon">
           <AppIcon name="pos" />

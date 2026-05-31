@@ -116,10 +116,10 @@
                 @change="onAddressChange"
               />
 
-              <div v-if="shippingFee > 0" class="shipping-preview">
+              <!-- <div v-if="shippingFee > 0" class="shipping-preview">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
                 <span>Phí vận chuyển dự kiến: <strong>{{ shippingFee.toLocaleString() }}đ</strong></span>
-              </div>
+              </div> -->
 
               <div class="form-row">
                 <div class="form-group">
@@ -142,13 +142,13 @@
                     </label>
                   </div>
                 </div>
-                <div class="form-group form-group--checkbox">
-                  <label class="checkbox-label">
-                    <input type="checkbox" v-model="form.is_default" class="checkbox-input" />
-                    <span class="checkbox-custom"></span>
-                    Đặt làm địa chỉ mặc định
-                  </label>
-                </div>
+              </div>
+              <div class="form-group form-group--checkbox">
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="form.is_default" class="checkbox-input" />
+                  <span class="checkbox-custom"></span>
+                  Đặt làm địa chỉ mặc định
+                </label>
               </div>
 
               <!-- Error -->
@@ -262,7 +262,7 @@ function onAddressChange(data) {
 }
 
 // Open Add form
-async function openAddForm() {
+const openAddForm = async() => {
   isEditing.value = false;
   editingId.value = null;
   formError.value = '';
@@ -285,7 +285,7 @@ async function openAddForm() {
 }
 
 // Open Edit form
-async function openEditForm(address) {
+const openEditForm = async(address) => {
   isEditing.value = true;
   editingId.value = address.address_id;
   formError.value = '';
@@ -315,13 +315,14 @@ async function openEditForm(address) {
 }
 
 // Close form
-function closeForm() {
+const closeForm = () => {
   showForm.value = false;
   formError.value = '';
 }
+const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
 
 // Submit form
-async function handleSubmit() {
+const handleSubmit = async() => {
   // Validate
   if (!form.value.recipient_name.trim()) {
     formError.value = 'Vui lòng nhập họ tên người nhận';
@@ -329,6 +330,9 @@ async function handleSubmit() {
   }
   if (!form.value.phone.trim()) {
     formError.value = 'Vui lòng nhập số điện thoại';
+    return;
+  } else if (!phoneRegex.test(form.value.phone.trim())) {
+    formError.value = 'Số điện thoại không hợp lệ';
     return;
   }
   if (!form.value.province) {
@@ -363,7 +367,7 @@ async function handleSubmit() {
 }
 
 // Delete address
-async function deleteAddress(id) {
+const deleteAddress = async(id) => {
   const result = await Swal.fire({
     title: 'Xác nhận xóa',
     text: 'Bạn có chắc chắn muốn xóa địa chỉ này?',
@@ -386,7 +390,7 @@ async function deleteAddress(id) {
 }
 
 // Set default
-async function setDefault(id) {
+const setDefault = async(id) => {
   try {
     await addressService.setDefaultProfileAddress(id);
     await fetchAddresses();
@@ -528,7 +532,7 @@ onMounted(fetchAddresses);
 .default-badge {
   display: inline-flex;
   padding: 2px 10px;
-  background: #1a56db;
+  background: #E63B6F;
   color: #fff;
   font-size: 0.7rem;
   font-weight: 600;
@@ -547,12 +551,12 @@ onMounted(fetchAddresses);
 
 .type-badge--home {
   background: #ecfdf5;
-  color: #059669;
+  color: #10B981
 }
 
 .type-badge--office {
   background: #eff6ff;
-  color: #2563eb;
+  color: #3B82F6
 }
 
 .type-badge--other {
@@ -796,6 +800,7 @@ onMounted(fetchAddresses);
 }
 
 .type-option {
+  width: 150px;
   display: flex;
   align-items: center;
   gap: 6px;

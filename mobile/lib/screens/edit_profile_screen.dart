@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
@@ -90,13 +91,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF0EA5E9)),
+        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _save,
             child: _isSaving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF0EA5E9)))
-                : const Text('Lưu', style: TextStyle(color: Color(0xFF0EA5E9), fontWeight: FontWeight.bold, fontSize: 16)),
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE63B6F)))
+                : const Text('Lưu', style: TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.bold, fontSize: 16)),
           ),
         ],
       ),
@@ -114,8 +115,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       width: 100, height: 100,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF0EA5E9), width: 3),
-                        boxShadow: [BoxShadow(color: const Color(0xFF0EA5E9).withOpacity(0.2), blurRadius: 12)],
+                        border: Border.all(color: const Color(0xFFE63B6F), width: 3),
+                        boxShadow: [BoxShadow(color: const Color(0xFFE63B6F).withOpacity(0.2), blurRadius: 12)],
                       ),
                       child: ClipOval(
                         child: _pickedImage != null
@@ -133,7 +134,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0EA5E9),
+                          color: const Color(0xFFE63B6F),
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -169,7 +170,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _save,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0EA5E9),
+                  backgroundColor: const Color(0xFFE63B6F),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   elevation: 0,
@@ -200,8 +201,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _defaultAvatar() => Container(
-    color: const Color(0xFFE0F2FE),
-    child: const Icon(Icons.person, size: 50, color: Color(0xFF0EA5E9)),
+    color: const Color(0xFFFFF0F3),
+    child: const Icon(Icons.person, size: 50, color: Color(0xFFE63B6F)),
   );
 
   Widget _buildCard({required List<Widget> children}) => Container(

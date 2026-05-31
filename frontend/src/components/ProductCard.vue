@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useToast } from "@/composables/useToast";
 import { useFavorites } from "@/composables/useFavorites";
 import { useCartStore } from "@/stores/cart";
+import { useFlyToCart } from "@/composables/useFlyToCart";
 import AppIcon from "@/icons/AppIcon.vue";
 
 const props = defineProps({
@@ -17,6 +18,10 @@ const router = useRouter();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const { isFavorited, toggleFavorite } = useFavorites();
+const { flyToCart } = useFlyToCart();
+
+const productImageRef = ref(null);
+const isAddingToCart = ref(false);
 
 const formatCurrency = (value) => {
     if (value === null || value === undefined || value === "") {
@@ -101,12 +106,15 @@ const handleAddToCart = async (event) => {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!defaultVariantId.value) {
-        router.push(productLink.value);
+    if (!defaultVariantId.value || isAddingToCart.value) {
+        if (!defaultVariantId.value) {
+            router.push(productLink.value);
+        }
         return;
     }
 
     try {
+        isAddingToCart.value = true;
         const result = await cartStore.addItem({
             variantId: defaultVariantId.value,
             quantity: 1,
@@ -117,10 +125,17 @@ const handleAddToCart = async (event) => {
             return;
         }
 
+        // Run animation if success
+        if (productImageRef.value) {
+            await flyToCart(productImageRef.value, '#cart-icon');
+        }
+
         showToast(result.message || "Đã thêm vào giỏ hàng", "success");
     } catch (error) {
         const message = error.response?.data?.message || "Không thể thêm vào giỏ hàng.";
         showToast(message, "danger");
+    } finally {
+        isAddingToCart.value = false;
     }
 };
 </script>
@@ -145,6 +160,7 @@ const handleAddToCart = async (event) => {
 
                 <div class="image-shell" :class="{ 'is-empty': !productImage }">
                     <img
+                        ref="productImageRef"
                         v-if="productImage"
                         :src="productImage"
                         :alt="product.name"
@@ -182,10 +198,12 @@ const handleAddToCart = async (event) => {
                     <button
                         class="icon-btn cart-btn"
                         @click="handleAddToCart"
+                        :disabled="isAddingToCart"
                         title="Thêm vào giỏ"
                         aria-label="Thêm vào giỏ"
                     >
-                        <AppIcon name="cart-plus" size="18" stroke-width="1.9" />
+                        <AppIcon v-if="!isAddingToCart" name="cart-plus" size="18" stroke-width="1.9" />
+                        <span v-else class="small-spinner"></span>
                     </button>
                 </div>
             </div>

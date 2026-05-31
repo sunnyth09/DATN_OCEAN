@@ -15,8 +15,6 @@ class AuthService {
         data: {
           'email': email,
           'password': password,
-          'is_mobile': true,
-          // Không gửi turnstile_token → backend bypass qua User-Agent 'dart'
         },
       );
 
@@ -50,7 +48,6 @@ class AuthService {
           'email': email,
           'password': password,
           'password_confirmation': passwordConfirm,
-          'is_mobile': true,
         },
       );
 

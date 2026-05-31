@@ -34,6 +34,15 @@ const statuses = [
 ];
 
 // Luồng trạng thái tuần tự
+statuses.splice(2, 0, { value: 'processing', label: 'Đang xử lý' });
+statuses.push(
+  { value: 'return_requested', label: 'Yêu cầu hoàn' },
+  { value: 'return_approved', label: 'Đã duyệt hoàn' },
+  { value: 'return_rejected', label: 'Từ chối hoàn' },
+  { value: 'returned', label: 'Đã nhận hàng hoàn' },
+  { value: 'refunded', label: 'Đã hoàn tiền' },
+);
+
 const statusTransitions = {
   'pending':   ['pending', 'confirmed', 'cancelled'],
   'confirmed': ['confirmed', 'packing', 'cancelled'],
@@ -43,10 +52,21 @@ const statusTransitions = {
   'completed': ['completed'],
   'cancelled': ['cancelled'],
 };
+statusTransitions.confirmed = ['confirmed', 'processing', 'packing', 'cancelled'];
+statusTransitions.processing = ['processing', 'shipping', 'cancelled'];
+statusTransitions.return_requested = ['return_requested'];
+statusTransitions.return_approved = ['return_approved'];
+statusTransitions.return_rejected = ['return_rejected'];
+statusTransitions.returned = ['returned'];
+statusTransitions.refunded = ['refunded'];
 
 const getAllowedFulfillmentOptions = (currentStatus) => {
   const allowed = statusTransitions[currentStatus] || [currentStatus];
   return statuses.filter(s => allowed.includes(s.value));
+};
+
+const isLockedFulfillmentStatus = (status) => {
+  return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returned', 'refunded'].includes(status);
 };
 
 // ====== Payment Status (Chỉ hiển thị, tự động bởi hệ thống) ======
@@ -61,7 +81,7 @@ const paymentOptions = [
 
 const isTerminalOrder = (or) => {
   if (!or) return true;
-  return or.fulfillment_status === 'cancelled' || or.fulfillment_status === 'completed';
+  return ['cancelled', 'completed', 'return_requested', 'return_approved', 'return_rejected', 'returned', 'refunded'].includes(or.fulfillment_status);
 };
 
 const getStatusLabel = (value) => statuses.find(s => s.value === value)?.label || paymentOptions.find(p => p.value === value)?.label || value;
@@ -80,6 +100,9 @@ const paymentMethodLabels = {
   momo: 'Ví MoMo',
   bank_transfer: 'Chuyển khoản ngân hàng',
 };
+
+paymentLabels.refund_pending = 'Chờ hoàn tiền';
+paymentLabels.refund_failed = 'Hoàn tiền lỗi';
 
 const fetchOrder = async () => {
   loading.value = true;
@@ -449,7 +472,7 @@ onMounted(() => fetchOrder());
             </h3>
             <div class="action-group">
               <label class="action-label">Xử lý đơn hàng</label>
-              <select class="form-select" v-model="order.fulfillment_status" @change="updateFulfillment" :disabled="order.fulfillment_status === 'completed' || order.fulfillment_status === 'cancelled'">
+              <select class="form-select" v-model="order.fulfillment_status" @change="updateFulfillment" :disabled="isLockedFulfillmentStatus(order.fulfillment_status)">
                 <option v-for="s in getAllowedFulfillmentOptions(order._prevFulfillmentStatus)" :key="s.value" :value="s.value">{{ s.label }}</option>
               </select>
             </div>
@@ -1100,7 +1123,17 @@ onMounted(() => fetchOrder());
   color: #ffb74d;
 }
 .ps-pending .payment-auto-text { color: #ffb74d; }
- 
+
+.ps-refund_pending {
+  background: rgba(255, 167, 38, 0.08);
+  border-color: rgba(255, 167, 38, 0.2);
+}
+.ps-refund_pending .payment-auto-icon {
+  background: rgba(255, 167, 38, 0.15);
+  color: #ffb74d;
+}
+.ps-refund_pending .payment-auto-text { color: #ffb74d; }
+
 /* Failed */
 .ps-failed {
   background: rgba(239, 83, 80, 0.08);
@@ -1111,6 +1144,16 @@ onMounted(() => fetchOrder());
   color: #e57373;
 }
 .ps-failed .payment-auto-text { color: #e57373; }
+
+.ps-refund_failed {
+  background: rgba(239, 83, 80, 0.08);
+  border-color: rgba(239, 83, 80, 0.2);
+}
+.ps-refund_failed .payment-auto-icon {
+  background: rgba(239, 83, 80, 0.15);
+  color: #e57373;
+}
+.ps-refund_failed .payment-auto-text { color: #e57373; }
  
 /* Refunded */
 .ps-refunded {

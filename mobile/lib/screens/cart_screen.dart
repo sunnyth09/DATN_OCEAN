@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import '../config/app_theme.dart';
 import 'login_screen.dart';
 import 'checkout_screen.dart';
 import '../config/app_config.dart';
@@ -148,7 +149,7 @@ class _CartScreenState extends State<CartScreen> {
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)));
     }
     
     if (errorMessage != null) {
@@ -269,7 +270,7 @@ class _CartScreenState extends State<CartScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(_formatPrice(item['variant']?['price'] ?? 0), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0284C7), fontSize: 16)),
+                              Text(_formatPrice(item['variant']?['price'] ?? 0), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE63B6F), fontSize: 16)),
                               // Bộ số đếm
                               Container(
                                 decoration: BoxDecoration(
@@ -343,7 +344,7 @@ class _CartScreenState extends State<CartScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: const Color(0xFF0EA5E9),
+                      backgroundColor: const Color(0xFFE63B6F),
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     ),

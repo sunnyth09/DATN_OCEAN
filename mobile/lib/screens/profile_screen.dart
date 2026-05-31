@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
+import '../config/app_theme.dart';
 import 'login_screen.dart';
 import 'address_screen.dart';
 import 'change_password_screen.dart';
@@ -91,7 +92,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0EA5E9),
+        backgroundColor: const Color(0xFFE63B6F),
         elevation: 0,
         title: const Text(
           'Hồ Sơ Cá Nhân',
@@ -105,7 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)));
     }
 
     // Chưa đăng nhập → hiện giao diện Guest
@@ -119,10 +120,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: const BoxDecoration(
-                  color: Color(0xFFE0F2FE),
+                  color: Color(0xFFFFF0F3),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.person_outline, size: 64, color: Color(0xFF0284C7)),
+                child: const Icon(Icons.person_outline, size: 64, color: Color(0xFFE63B6F)),
               ),
               const SizedBox(height: 24),
               const Text(
@@ -147,7 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     fetchProfile();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0EA5E9),
+                    backgroundColor: const Color(0xFFE63B6F),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     elevation: 0,
@@ -192,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.only(bottom: 30, top: 20, left: 24, right: 24),
             decoration: const BoxDecoration(
-              color: Color(0xFF0EA5E9),
+              color: Color(0xFFE63B6F),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(30),
                 bottomRight: Radius.circular(30),
@@ -207,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ? NetworkImage(AppConfig.imageUrl(avatar.toString()))
                       : null,
                   child: avatar == null
-                      ? const Icon(Icons.person, size: 40, color: Color(0xFF0EA5E9))
+                      ? const Icon(Icons.person, size: 40, color: Color(0xFFE63B6F))
                       : null,
                 ),
                 const SizedBox(width: 16),

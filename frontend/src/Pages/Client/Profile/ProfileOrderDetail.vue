@@ -3,7 +3,16 @@ import { ref, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
 import { orderService } from '@/services/orderService';
+import { returnRequestService } from '@/services/returnRequestService';
 import AppIcon from '@/icons/AppIcon.vue';
+import {
+  RETURN_REASON_OPTIONS,
+  getOrderStatusDescription,
+  getOrderStatusTone,
+  getPaymentStatusLabel,
+  getReturnRequestStatusLabel,
+  getReturnRequestStatusTone,
+} from '@/utils/orderStatus';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -49,27 +58,8 @@ const formatDate = (dateString) => {
   return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 };
 
-const getStatusText = (status) => {
-  switch (status) {
-    case 'pending': return 'Đơn hàng đang chờ xác nhận';
-    case 'confirmed': return 'Đơn hàng đã được xác nhận';
-    case 'packing': return 'Đang đóng gói sản phẩm';
-    case 'shipping': return 'Shipper đang giao hàng đến bạn';
-    case 'delivered': return 'Đã giao hàng thành công';
-    case 'completed': return 'Đơn hàng đã hoàn thành';
-    case 'cancelled': return 'Đơn hàng đã bị hủy';
-    case 'returned': return 'Đơn hàng đã hoàn trả';
-    default: return 'Đang xử lý';
-  }
-};
-
-const getStatusClass = (status) => {
-  if (['pending', 'confirmed', 'packing'].includes(status)) return 'status-info';
-  if (['shipping'].includes(status)) return 'status-warning';
-  if (['delivered', 'completed'].includes(status)) return 'status-success';
-  if (['cancelled', 'returned'].includes(status)) return 'status-danger';
-  return 'status-default';
-};
+const getStatusText = (status) => getOrderStatusDescription(status);
+const getStatusClass = (status) => getOrderStatusTone(status);
 
 const getStatusIcon = (status) => {
   if (status === 'pending') return 'clipboard';
@@ -107,6 +97,14 @@ const cancelReasons = [
   'Lý do khác',
 ];
 
+const returnReasons = RETURN_REASON_OPTIONS;
+const showReturnModal = ref(false);
+const submittingReturnRequest = ref(false);
+const returnReason = ref('');
+const returnDescription = ref('');
+const returnImages = ref([]);
+const returnValidationError = ref('');
+
 // Cancel modal state
 const showCancelModal = ref(false);
 const selectedCancelReason = ref('');
@@ -122,6 +120,51 @@ const openCancelModal = () => {
 
 const dismissCancelModal = () => {
   showCancelModal.value = false;
+};
+
+const openReturnModal = () => {
+  returnReason.value = '';
+  returnDescription.value = '';
+  returnImages.value = [];
+  returnValidationError.value = '';
+  showReturnModal.value = true;
+};
+
+const dismissReturnModal = () => {
+  showReturnModal.value = false;
+};
+
+const onReturnImagesChange = (event) => {
+  returnImages.value = Array.from(event.target.files || []);
+  returnValidationError.value = '';
+};
+
+const submitReturnRequest = async () => {
+  if (!returnReason.value) {
+    returnValidationError.value = 'Vui lòng chọn lý do hoàn hàng';
+    return;
+  }
+
+  const payload = new FormData();
+  payload.append('reason', returnReason.value);
+  if (returnDescription.value.trim()) {
+    payload.append('description', returnDescription.value.trim());
+  }
+  returnImages.value.forEach((file) => payload.append('images[]', file));
+
+  submittingReturnRequest.value = true;
+  try {
+    const res = await returnRequestService.createReturnRequest(order.value.order_id, payload);
+    if (res.data.status === 'success') {
+      showToast('Đã gửi yêu cầu hoàn hàng thành công.', 'success');
+      showReturnModal.value = false;
+      await fetchOrderDetail();
+    }
+  } catch (error) {
+    showToast(error.response?.data?.message || 'Không thể gửi yêu cầu hoàn hàng.', 'danger');
+  } finally {
+    submittingReturnRequest.value = false;
+  }
 };
 
 const confirmCancelOrder = async () => {
@@ -199,7 +242,32 @@ onMounted(() => {
             <span v-if="actionLoading" class="spinner-small"></span>
             <span v-else>⊗ Yêu cầu hủy đơn</span>
           </button>
+          <button
+            v-if="order.can_request_return"
+            class="btn-action btn-return-order"
+            @click="openReturnModal"
+            :disabled="submittingReturnRequest"
+          >
+            <span v-if="submittingReturnRequest" class="spinner-small"></span>
+            <span v-else>↺ Yêu cầu hoàn hàng</span>
+          </button>
         </div>
+      </div>
+
+      <div v-if="order.latest_return_request" class="return-request-banner">
+        <div class="return-request-banner__meta">
+          <span class="return-request-label">Yêu cầu hoàn hàng gần nhất</span>
+          <span class="status-badge" :class="getReturnRequestStatusTone(order.latest_return_request.status)">
+            {{ getReturnRequestStatusLabel(order.latest_return_request.status) }}
+          </span>
+        </div>
+        <p>{{ order.latest_return_request.reason }}</p>
+        <router-link
+          :to="{ name: 'profile-return-request-detail', params: { id: order.latest_return_request.id } }"
+          class="return-request-link"
+        >
+          Xem chi tiết yêu cầu
+        </router-link>
       </div>
 
       <div class="detail-grid">
@@ -226,11 +294,11 @@ onMounted(() => {
           </div>
           <div class="card-body">
              <div class="summary-row">
-               <span>Tạm tính</span>
+               <span class="fw-bold">Tạm tính</span>
                <span>{{ formatPrice(order.subtotal) }}</span>
              </div>
              <div class="summary-row">
-               <span>Phí vận chuyển</span>
+               <span class="fw-bold">Phí vận chuyển</span>
                <span>{{ formatPrice(order.shipping_fee) }}</span>
              </div>
              <div class="summary-row discount" v-if="order.discount_amount > 0">
@@ -244,7 +312,7 @@ onMounted(() => {
              
              <div class="payment-status mt-3">
                <strong>Trạng thái thanh toán: </strong>
-               <span :class="['pay-badge', order.payment_status]">{{ order.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán' }}</span>
+               <span :class="['pay-badge', order.payment_status]">{{ getPaymentStatusLabel(order.payment_status) }}</span>
              </div>
           </div>
         </div>
@@ -322,6 +390,41 @@ onMounted(() => {
       </div>
     </Transition>
 
+    <Transition name="modal">
+      <div v-if="showReturnModal" class="cancel-modal-overlay" @click.self="dismissReturnModal">
+        <div class="cancel-modal-box">
+          <div class="cancel-modal-header">
+            <h5>Yêu cầu hoàn hàng</h5>
+            <button class="cancel-modal-close" @click="dismissReturnModal">×</button>
+          </div>
+          <div class="cancel-modal-body">
+            <p class="cancel-modal-desc">Chọn lý do và cung cấp thêm thông tin nếu cần để admin xử lý nhanh hơn.</p>
+            <div class="cancel-reason-list">
+              <label v-for="reason in returnReasons" :key="reason" class="cancel-reason-item" :class="{ selected: returnReason === reason }">
+                <input type="radio" v-model="returnReason" :value="reason" @change="returnValidationError = ''" />
+                <span>{{ reason }}</span>
+              </label>
+            </div>
+            <textarea
+              v-model="returnDescription"
+              placeholder="Mô tả thêm tình trạng sản phẩm, lý do hoàn hàng hoặc thông tin cần hỗ trợ..."
+              class="cancel-custom-input"
+              @input="returnValidationError = ''"
+            ></textarea>
+            <input class="return-file-input" type="file" accept="image/*" multiple @change="onReturnImagesChange" />
+            <p v-if="returnImages.length" class="return-file-count">Đã chọn {{ returnImages.length }} ảnh minh chứng</p>
+            <p v-if="returnValidationError" class="cancel-validation-error">{{ returnValidationError }}</p>
+          </div>
+          <div class="cancel-modal-footer">
+            <button class="btn-cancel-dismiss" @click="dismissReturnModal">Quay lại</button>
+            <button class="btn-cancel-confirm return-confirm-btn" :disabled="submittingReturnRequest" @click="submitReturnRequest">
+              {{ submittingReturnRequest ? 'Đang gửi...' : 'Gửi yêu cầu hoàn hàng' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Bootstrap Toast -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
       <div class="toast align-items-center border-0" :class="toastData.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="orderDetailToast" role="alert">
@@ -388,10 +491,10 @@ onMounted(() => {
 .order-code {
   font-weight: 800;
   color: #E63B6F;
-  font-size: 1.1rem;
+  font-size: 1rem;
   background: #e0f2fe;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 6px 18px;
+  border-radius: 20px;
 }
 
 /* Loading & Empty */
@@ -480,6 +583,48 @@ onMounted(() => {
   background: #fef2f2;
 }
 .btn-cancel-order:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-return-order {
+  border-color: #fdba74;
+  color: #b45309;
+}
+.btn-return-order:hover:not(:disabled) {
+  background: #fff7ed;
+}
+
+.return-request-banner {
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: #fffaf0;
+  border: 1px solid #fed7aa;
+}
+
+.return-request-banner__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.return-request-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #b45309;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.return-request-banner p {
+  margin: 0 0 8px;
+  color: #7c2d12;
+}
+
+.return-request-link {
+  color: #E63B6F;
+  font-weight: 700;
+  text-decoration: none;
+}
 
 /* Grid Layout */
 .detail-grid {
@@ -558,6 +703,11 @@ onMounted(() => {
 }
 .pay-badge.unpaid { background: #fee2e2; color: #dc2626; }
 .pay-badge.paid { background: #dcfce3; color: #16a34a; }
+.pay-badge.failed,
+.pay-badge.refund_failed { background: #fee2e2; color: #dc2626; }
+.pay-badge.refund_pending,
+.pay-badge.partially_refunded { background: #fef3c7; color: #b45309; }
+.pay-badge.refunded { background: #e0f2fe; color: #0f766e; }
 
 /* Items List */
 .item-list {
@@ -658,12 +808,28 @@ onMounted(() => {
 .cancel-reason-item input[type="radio"] { accent-color: #E63B6F; width: 16px; height: 16px; flex-shrink: 0; }
 .cancel-custom-input { width: 100%; margin-top: 12px; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.88rem; min-height: 80px; resize: vertical; outline: none; font-family: inherit; box-sizing: border-box; }
 .cancel-custom-input:focus { border-color: #E63B6F; }
+.return-file-input {
+  width: 100%;
+  margin-top: 12px;
+  font: inherit;
+}
+.return-file-count {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: #475569;
+}
 .cancel-validation-error { color: #dc2626; font-size: 0.82rem; font-weight: 600; margin: 10px 0 0; }
 .cancel-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #e2e8f0; }
 .btn-cancel-dismiss { padding: 8px 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .btn-cancel-dismiss:hover { background: #f1f5f9; }
 .btn-cancel-confirm { padding: 8px 20px; border-radius: 8px; border: none; background: #dc2626; color: white; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .btn-cancel-confirm:hover { background: #b91c1c; }
+.return-confirm-btn {
+  background: #E63B6F;
+}
+.return-confirm-btn:hover {
+  background: #c53061;
+}
 .modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-from .cancel-modal-box, .modal-leave-to .cancel-modal-box { transform: scale(0.95) translateY(10px); }

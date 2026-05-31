@@ -1,6 +1,5 @@
 <template>
   <aside class="profile-aside">
-    <!-- User Info Card -->
     <div class="aside-user-card">
       <div class="aside-avatar">
         <img v-if="userAvatar" :src="userAvatar" alt="Avatar" class="aside-avatar-img" />
@@ -12,7 +11,6 @@
       </div>
     </div>
 
-    <!-- Nav Menu -->
     <nav class="aside-nav">
       <router-link
         to="/profile"
@@ -28,11 +26,7 @@
         <span>Thông tin tài khoản</span>
       </router-link>
 
-      <router-link
-        to="/profile/addresses"
-        class="aside-nav-item"
-        active-class="aside-nav-item--active"
-      >
+      <router-link to="/profile/addresses" class="aside-nav-item" active-class="aside-nav-item--active">
         <div class="aside-nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
@@ -42,11 +36,7 @@
         <span>Sổ địa chỉ</span>
       </router-link>
 
-      <router-link
-        to="/profile/orders"
-        class="aside-nav-item"
-        active-class="aside-nav-item--active"
-      >
+      <router-link to="/profile/orders" class="aside-nav-item" active-class="aside-nav-item--active">
         <div class="aside-nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
@@ -57,11 +47,19 @@
         <span>Đơn hàng của tôi</span>
       </router-link>
 
-      <router-link
-        to="/profile/wishlist"
-        class="aside-nav-item"
-        active-class="aside-nav-item--active"
-      >
+      <router-link to="/profile/return-requests" class="aside-nav-item" active-class="aside-nav-item--active">
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 8v13H3V8"/>
+            <path d="M1 3h22v5H1z"/>
+            <path d="M10 12h4"/>
+            <path d="M12 10v4"/>
+          </svg>
+        </div>
+        <span>Yêu cầu hoàn hàng</span>
+      </router-link>
+
+      <router-link to="/profile/wishlist" class="aside-nav-item" active-class="aside-nav-item--active">
         <div class="aside-nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
@@ -70,11 +68,7 @@
         <span>Sản phẩm yêu thích</span>
       </router-link>
 
-      <router-link
-        to="/profile/coupons"
-        class="aside-nav-item"
-        active-class="aside-nav-item--active"
-      >
+      <router-link to="/profile/coupons" class="aside-nav-item" active-class="aside-nav-item--active">
         <div class="aside-nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 12V8H6a2 2 0 01-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 00-2 2c0 1.1.9 2 2 2h4v-4h-4z"/>
@@ -83,11 +77,7 @@
         <span>Mã giảm giá của tôi</span>
       </router-link>
 
-      <router-link
-        to="/profile/affiliate"
-        class="aside-nav-item"
-        active-class="aside-nav-item--active"
-      >
+      <router-link to="/profile/affiliate" class="aside-nav-item" active-class="aside-nav-item--active">
         <div class="aside-nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -97,11 +87,7 @@
         <span>Affiliate</span>
       </router-link>
 
-      <router-link
-        to="/profile/change-password"
-        class="aside-nav-item"
-        active-class="aside-nav-item--active"
-      >
+      <router-link to="/profile/change-password" class="aside-nav-item" active-class="aside-nav-item--active">
         <div class="aside-nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
@@ -111,11 +97,7 @@
         <span>Đổi mật khẩu</span>
       </router-link>
 
-      <router-link
-        to="/profile/notifications"
-        class="aside-nav-item"
-        active-class="aside-nav-item--active"
-      >
+      <router-link to="/profile/notifications" class="aside-nav-item" active-class="aside-nav-item--active">
         <div class="aside-nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -142,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '@/axios';
 import Swal from 'sweetalert2';
@@ -152,11 +134,11 @@ const route = useRoute();
 
 const userName = ref('');
 const userEmail = ref('');
-const userInitial = ref('?');
+const userAvatar = ref('');
 
-const isExactActive = (path) => {
-  return route.path === path;
-};
+const userInitial = computed(() => (userName.value[0] || '?').toUpperCase());
+
+const isExactActive = (path) => route.path === path;
 
 onMounted(() => {
   const userData = sessionStorage.getItem('user');
@@ -165,7 +147,7 @@ onMounted(() => {
       const user = JSON.parse(userData);
       userName.value = user.name || user.full_name || 'Người dùng';
       userEmail.value = user.email || '';
-      userInitial.value = (userName.value[0] || '?').toUpperCase();
+      userAvatar.value = user.avatar_url || '';
     } catch (e) {
       console.error('Failed to parse user data', e);
     }
@@ -174,15 +156,22 @@ onMounted(() => {
 
 const handleLogout = async () => {
   const result = await Swal.fire({
-      title: 'Xác nhận',
-      text: 'Bạn có chắc chắn muốn đăng xuất?',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Đăng xuất',
-      cancelButtonText: 'Hủy'
+    title: 'Xác nhận',
+    text: 'Bạn có chắc chắn muốn đăng xuất?',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Đăng xuất',
+    cancelButtonText: 'Hủy',
   });
+
   if (!result.isConfirmed) return;
-  try { await api.post('/logout'); } catch (e) { /* ignore */ }
+
+  try {
+    await api.post('/logout');
+  } catch (e) {
+    // ignore
+  }
+
   localStorage.removeItem('auth_token');
   localStorage.removeItem('user');
   localStorage.removeItem('ocean_live_chat_token');
@@ -204,13 +193,12 @@ const handleLogout = async () => {
   flex-shrink: 0;
 }
 
-/* User Card */
 .aside-user-card {
   padding: 24px 20px;
   display: flex;
   align-items: center;
   gap: 14px;
-  background-color:  #E63B6F;
+  background-color: #E63B6F;
   color: #fff;
 }
 
@@ -258,7 +246,6 @@ const handleLogout = async () => {
   text-overflow: ellipsis;
 }
 
-/* Nav */
 .aside-nav {
   padding: 12px;
 }
@@ -292,22 +279,24 @@ const handleLogout = async () => {
 
 .aside-nav-item:hover {
   background: #f3f4f6;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .aside-nav-item:hover .aside-nav-icon {
   opacity: 1;
+  color: #E63B6F;
 }
 
 .aside-nav-item--active {
   background: #eff6ff !important;
   color: #E63B6F !important;
   font-weight: 600;
+  border-radius: 12px;
 }
 
 .aside-nav-item--active .aside-nav-icon {
   opacity: 1;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .aside-nav-divider {

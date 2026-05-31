@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/attendance_service.dart';
@@ -107,7 +108,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
         title: const Text('Chấm Công Điện Tử', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF0EA5E9),
+        backgroundColor: const Color(0xFFE63B6F),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
@@ -127,7 +128,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.access_time_filled, size: 48, color: Color(0xFF0EA5E9)),
+                  const Icon(Icons.access_time_filled, size: 48, color: Color(0xFFE63B6F)),
                   const SizedBox(height: 16),
                   Text(_currentTime, style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: 2)),
                   const SizedBox(height: 8),
@@ -156,7 +157,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   const SizedBox(height: 8),
                   GestureDetector(
                     onTap: _loadNetworkInfo,
-                    child: const Text('Làm mới kết nối mạng', style: TextStyle(color: Color(0xFF0EA5E9), fontSize: 12, decoration: TextDecoration.underline)),
+                    child: const Text('Làm mới kết nối mạng', style: TextStyle(color: Color(0xFFE63B6F), fontSize: 12, decoration: TextDecoration.underline)),
                   )
                 ],
               ),

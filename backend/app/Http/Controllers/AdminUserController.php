@@ -115,6 +115,20 @@ class AdminUserController extends Controller
 
         if ($request->has('status')) {
             DB::table('users')->where('user_id', $user->user_id)->update(['status' => $request->status]);
+            $user->status = $request->status;
+        }
+
+        if (in_array($user->role, ['admin', 'staff', 'seller'])) {
+            \App\Models\Admin::updateOrCreate(
+                ['email' => $user->email],
+                [
+                    'full_name' => $user->full_name,
+                    'password' => $user->password,
+                    'role' => $user->role,
+                    'phone' => $user->phone,
+                    'status' => $user->status ?? 'active'
+                ]
+            );
         }
 
         return response()->json([
@@ -182,6 +196,25 @@ class AdminUserController extends Controller
 
         $user->update($data);
 
+        if (in_array($user->role, ['admin', 'staff', 'seller'])) {
+            \App\Models\Admin::updateOrCreate(
+                ['email' => $user->email],
+                [
+                    'full_name' => $user->full_name,
+                    'role' => $user->role,
+                    'phone' => $user->phone,
+                    'status' => $user->status ?? 'active',
+                    'password' => $user->password
+                ]
+            );
+            // If password was changed, update it
+            if ($request->filled('password')) {
+                \App\Models\Admin::where('email', $user->email)->update(['password' => $user->password]);
+            }
+        } else {
+            \App\Models\Admin::where('email', $user->email)->delete();
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật khách hàng thành công!',
@@ -213,6 +246,26 @@ class AdminUserController extends Controller
         }
 
         $affected = DB::update("UPDATE users SET role = ?, updated_at = NOW() WHERE user_id = ?", [$role, $id]);
+        
+        $user = User::find($id);
+        if ($user) {
+            if (in_array($role, ['admin', 'staff', 'seller'])) {
+                \App\Models\Admin::updateOrCreate(
+                    ['email' => $user->email],
+                    [
+                        'full_name' => $user->full_name,
+                        'role' => $role,
+                        'phone' => $user->phone,
+                        'status' => $user->status ?? 'active',
+                        'password' => $user->password
+                    ]
+                );
+                // sync password if they were just created in admins table
+                \App\Models\Admin::where('email', $user->email)->update(['password' => $user->password]);
+            } else {
+                \App\Models\Admin::where('email', $user->email)->delete();
+            }
+        }
 
         if ($affected === 0) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy user!'], 404);

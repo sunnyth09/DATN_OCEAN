@@ -4,7 +4,7 @@ import '../models/product_model.dart';
 import '../config/app_config.dart';
 
 class ApiService {
-  static const String baseUrl = AppConfig.kBaseUrl;
+  static String get baseUrl => AppConfig.kBaseUrl;
 
   static Future<List<Product>> fetchProducts() async {
     try {

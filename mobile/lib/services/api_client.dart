@@ -6,7 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
 
-const String kBaseUrl = AppConfig.kBaseUrl;
+String get kBaseUrl => AppConfig.kBaseUrl;
 
 /// User-Agent chứa 'dart' để backend nhận diện mobile app và bypass CAPTCHA
 const String kMobileUserAgent = 'Dart/3.0 (dart:io) Flutter OceanShop/1.0';

@@ -37,14 +37,13 @@ class WorkShiftController extends Controller
         $validated = $request->validate([
             'name'                 => 'required|string|max:100',
             'start_time'           => 'required|date_format:H:i',
-            'end_time'             => 'required|date_format:H:i|after:start_time',
+            'end_time'             => 'required|date_format:H:i',
             'early_buffer_minutes' => 'nullable|integer|min:0|max:120',
             'is_active'            => 'nullable|boolean',
         ], [
-            'name.required'      => 'Tên ca không được để trống.',
+            'name.required'       => 'Tên ca không được để trống.',
             'start_time.required' => 'Giờ bắt đầu không được để trống.',
-            'end_time.required'  => 'Giờ kết thúc không được để trống.',
-            'end_time.after'     => 'Giờ kết thúc phải sau giờ bắt đầu.',
+            'end_time.required'   => 'Giờ kết thúc không được để trống.',
         ]);
 
         $shift = WorkShift::create($validated);

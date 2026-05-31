@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 
@@ -187,7 +188,7 @@ class _AddressScreenState extends State<AddressScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0EA5E9),
+                          backgroundColor: const Color(0xFFE63B6F),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
@@ -288,10 +289,10 @@ class _AddressScreenState extends State<AddressScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF0EA5E9)),
+        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)))
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)))
           : addresses.isEmpty
               ? Center(
                   child: Column(
@@ -319,7 +320,7 @@ class _AddressScreenState extends State<AddressScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        border: isDefault ? Border.all(color: const Color(0xFF0EA5E9), width: 1.5) : null,
+                        border: isDefault ? Border.all(color: const Color(0xFFE63B6F), width: 1.5) : null,
                         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
                       ),
                       child: Column(
@@ -338,8 +339,8 @@ class _AddressScreenState extends State<AddressScreen> {
                                       const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(color: const Color(0xFF0EA5E9).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                                        child: const Text('Mặc định', style: TextStyle(color: Color(0xFF0EA5E9), fontSize: 10, fontWeight: FontWeight.bold)),
+                                        decoration: BoxDecoration(color: const Color(0xFFE63B6F).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                        child: const Text('Mặc định', style: TextStyle(color: Color(0xFFE63B6F), fontSize: 10, fontWeight: FontWeight.bold)),
                                       ),
                                     ],
                                   ],
@@ -352,7 +353,7 @@ class _AddressScreenState extends State<AddressScreen> {
                                     onTap: () => _showAddAddressModal(existing: addr),
                                     child: const Padding(
                                       padding: EdgeInsets.all(6),
-                                      child: Icon(Icons.edit_outlined, color: Color(0xFF0EA5E9), size: 20),
+                                      child: Icon(Icons.edit_outlined, color: Color(0xFFE63B6F), size: 20),
                                     ),
                                   ),
                                   GestureDetector(
@@ -377,7 +378,7 @@ class _AddressScreenState extends State<AddressScreen> {
                             const SizedBox(height: 10),
                             GestureDetector(
                               onTap: () => setDefaultAddress(addrId),
-                              child: const Text('Đặt làm mặc định', style: TextStyle(color: Color(0xFF0EA5E9), fontSize: 12, fontWeight: FontWeight.w600)),
+                              child: const Text('Đặt làm mặc định', style: TextStyle(color: Color(0xFFE63B6F), fontSize: 12, fontWeight: FontWeight.w600)),
                             ),
                           ],
                           if (widget.isSelecting) ...[
@@ -386,8 +387,8 @@ class _AddressScreenState extends State<AddressScreen> {
                               width: double.infinity,
                               child: OutlinedButton(
                                 onPressed: () => Navigator.pop(context, addr),
-                                style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFF0EA5E9)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                                child: const Text('Chọn địa chỉ này', style: TextStyle(color: Color(0xFF0EA5E9))),
+                                style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFE63B6F)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                                child: const Text('Chọn địa chỉ này', style: TextStyle(color: Color(0xFFE63B6F))),
                               ),
                             ),
                           ],
@@ -404,7 +405,7 @@ class _AddressScreenState extends State<AddressScreen> {
             icon: const Icon(Icons.add, color: Colors.white),
             label: const Text('Thêm địa chỉ mới', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0EA5E9),
+              backgroundColor: const Color(0xFFE63B6F),
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               elevation: 0,

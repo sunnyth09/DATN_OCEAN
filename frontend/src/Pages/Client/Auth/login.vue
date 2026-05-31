@@ -14,8 +14,6 @@ const isSubmitting = ref(false);
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const turnstileToken = ref('');
-let turnstileWidgetId = null;
 const { showToast } = useToast();
 
 const resolveRedirectTarget = (user) => {
@@ -53,37 +51,6 @@ const onBlur = (field) => {
   validateField(field);
 };
 
-// Cloudflare Turnstile
-const loadTurnstile = () => {
-  if (window.turnstile) {
-    renderTurnstile();
-    return;
-  }
-  const script = document.createElement('script');
-  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
-  script.async = true;
-  window.onTurnstileLoad = () => renderTurnstile();
-  document.head.appendChild(script);
-};
-
-const renderTurnstile = () => {
-  const container = document.getElementById('turnstile-login');
-  if (!container || !window.turnstile) return;
-  container.innerHTML = '';
-  turnstileWidgetId = window.turnstile.render('#turnstile-login', {
-    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
-    callback: (token) => { turnstileToken.value = token; },
-    'expired-callback': () => { turnstileToken.value = ''; },
-    'error-callback': () => { turnstileToken.value = ''; },
-    theme: 'light',
-  });
-};
-
-onMounted(() => { loadTurnstile(); });
-onBeforeUnmount(() => {
-  if (turnstileWidgetId !== null && window.turnstile) window.turnstile.remove(turnstileWidgetId);
-});
-
 // Google OAuth
 const loginWithGoogle = () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -110,17 +77,11 @@ const login = async () => {
 
   if (fieldErrors.email || fieldErrors.password) return;
 
-  // if (!turnstileToken.value) {
-  //   showToast('Vui lòng xác thực CAPTCHA', 'danger');
-  //   return;
-  // }
-
   isSubmitting.value = true;
   try {
     const response = await authService.login({
       email: email.value,
-      password: password.value,
-      turnstile_token: turnstileToken.value
+      password: password.value
     });
 
     if (response.data.status === 'success') {
@@ -139,10 +100,6 @@ const login = async () => {
       msg = 'Bạn đã thử quá nhiều lần! Vui lòng đợi 1 phút rồi thử lại.';
     }
     showToast(msg, 'danger');
-    if (window.turnstile && turnstileWidgetId !== null) {
-      window.turnstile.reset(turnstileWidgetId);
-      turnstileToken.value = '';
-    }
   } finally {
     isSubmitting.value = false;
   }
@@ -210,21 +167,6 @@ const login = async () => {
                     <span>Ghi nhớ đăng nhập</span>
                 </label>
                 <router-link to="/client/forgot-password" class="recover-link">Quên mật khẩu?</router-link>
-              </div>
-
-              <!-- CAPTCHA -->
-              <div class="turnstile-container">
-                 <div class="captcha-box" v-show="!turnstileToken">
-                    <div class="turnstile-wrapper">
-                      <div id="turnstile-login"></div>
-                    </div>
-                 </div>
-                 <div class="captcha-box success" v-if="turnstileToken">
-                    <span class="icon text-success">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </span>
-                    <span class="captcha-text">Xác thực thành công</span>
-                 </div>
               </div>
 
               <!-- Action -->
