@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, watch } from 'vue';import { useRouter } from 'vue-router';
 import api from '@/axios';
 import Swal from 'sweetalert2';
@@ -286,6 +286,9 @@ const selectedItems = computed(() => cartItems.value.filter(i => i.selected));
 const totalSelectedQuantity = computed(() => selectedItems.value.reduce((sum, i) => sum + i.quantity, 0));
 const totalPrice = computed(() => selectedItems.value.reduce((sum, i) => sum + (i.variant?.price || 0) * i.quantity, 0));
 
+// Tính VAT (Cách B: VAT đã bao gồm trong giá)
+const vatAmount = computed(() => totalPrice.value * (10 / 110));
+
 // Format tiền VND
 const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
@@ -475,6 +478,10 @@ onMounted(async () => {
                         <strong>{{ totalSelectedQuantity }}</strong>
                     </div>
                     <div class="summary-divider"></div>
+                    <div class="summary-row" v-if="totalPrice > 0">
+                        <span>Thuế VAT (10% - đã bao gồm)</span>
+                        <strong class="vat-amount">{{ formatPrice(vatAmount) }}</strong>
+                    </div>
                     <div class="summary-row summary-total">
                         <span>Tạm tính</span>
                         <strong class="total-price">{{ formatPrice(totalPrice) }}</strong>

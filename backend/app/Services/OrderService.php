@@ -89,6 +89,9 @@ class OrderService
             $discountAmount = $couponResult['discount_amount'];
             $couponId = $couponResult['coupon']?->id;
 
+            $vatableAmount = max(0, $subtotal - $discountAmount);
+            $vatAmount = round($vatableAmount * (10 / 110), 2); // Cách B: Thuế VAT 10% đã bao gồm trong giá
+
             $grandTotal = $subtotal + $shippingFee - $discountAmount;
 
             $result = DB::transaction(function () use (
@@ -98,6 +101,7 @@ class OrderService
                 $address,
                 $cartItems,
                 $subtotal,
+                $vatAmount,
                 $discountAmount,
                 $shippingFee,
                 $grandTotal,
@@ -119,6 +123,7 @@ class OrderService
                     'payment_status' => 'unpaid',
                     'fulfillment_status' => 'pending',
                     'subtotal' => $subtotal,
+                    'vat_amount' => $vatAmount,
                     'discount_amount' => $discountAmount,
                     'shipping_fee' => $shippingFee,
                     'grand_total' => $grandTotal,

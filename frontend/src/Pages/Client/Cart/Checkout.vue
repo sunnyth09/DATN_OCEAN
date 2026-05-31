@@ -240,6 +240,12 @@ const total = computed(() => {
     return Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
 });
 
+// Tính VAT (Cách B: 10% đã bao gồm trong giá)
+const vatAmount = computed(() => {
+    const vatableAmount = Math.max(0, subtotal.value - discount.value);
+    return vatableAmount * (10 / 110);
+});
+
 // Appy coupon (Mã cứng mockup cho UI: OCEAN10)
 const applyCoupon = () => {
     if (!couponCode.value.trim()) return;
@@ -672,6 +678,11 @@ onMounted(async () => {
                                             <span class="discount-val" v-if="discount > 0" style="color: #ef4444;">-{{ formatPrice(discount) }}</span>
                                             <span class="free-badge" v-if="shippingDiscount > 0" style="color: #10b981;">Freeship: -{{ formatPrice(shippingDiscount) }}</span>
                                         </div>
+                                    </div>
+
+                                    <div class="total-row" v-if="vatAmount > 0">
+                                        <span>Thuế VAT (10% - đã bao gồm)</span>
+                                        <span class="fw-600" style="color: #636E72;">{{ formatPrice(vatAmount) }}</span>
                                     </div>
 
                                     <div class="summary-divider variant-dashed"></div>

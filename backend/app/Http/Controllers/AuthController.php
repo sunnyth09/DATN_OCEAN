@@ -89,7 +89,16 @@ class AuthController extends Controller
     {
         $user = ($guardType === 'admin') ? auth('admin')->user() : auth('api')->user();
 
-        return response()->json($result, $status);
+        return response()->json([
+            'status'        => 'success',
+            'message'       => 'Đăng nhập thành công!',
+            'access_token'  => $token,
+            'refresh_token' => $token,
+            'token_type'    => 'Bearer',
+            'expires_in'    => config('jwt.ttl', 60) * 60,
+            'role'          => $user->role,
+            'user'          => $user,
+        ], 200);
     }
 
     public function refresh()

@@ -97,7 +97,7 @@ const allImages = computed(() => {
 const fetchProduct = async (currentSlug) => {
     try {
         const response = await api.get(`/products/${currentSlug}`);
-        product.value = response.data;
+        product.value = response.data.data || response.data;
         // Reset selections khi đổi sản phẩm
         selectedVariant.value = null;
         selectedColor.value = null;

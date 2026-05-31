@@ -22,6 +22,7 @@ class Order extends Model
         'payment_status',
         'fulfillment_status',
         'subtotal',
+        'vat_amount',
         'discount_amount',
         'shipping_fee',
         'grand_total',

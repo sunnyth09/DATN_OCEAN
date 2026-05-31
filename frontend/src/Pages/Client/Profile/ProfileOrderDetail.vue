@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
@@ -228,6 +228,10 @@ onMounted(() => {
              <div class="summary-row">
                <span>Tạm tính</span>
                <span>{{ formatPrice(order.subtotal) }}</span>
+             </div>
+             <div class="summary-row" v-if="order.vat_amount > 0">
+               <span>Thuế VAT (10% - đã bao gồm)</span>
+               <span>{{ formatPrice(order.vat_amount) }}</span>
              </div>
              <div class="summary-row">
                <span>Phí vận chuyển</span>
