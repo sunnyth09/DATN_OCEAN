@@ -112,12 +112,9 @@ const checkAuth = () => {
 
             const path = user.avatar_url;
             if (path) {
-                const API_URL = (
-                    import.meta.env.VITE_API_URL || ""
-                ).replace("/api", "");
                 userAvatar.value = path.startsWith("http")
                     ? path
-                    : `${API_URL}${path}`;
+                    : `${BASE_URL}${path}`;
             } else {
                 userAvatar.value = null;
             }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Repositories\UserRepository;
+use App\Http\Resources\UserProfileResource;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -197,10 +198,12 @@ class AuthService
         }
     }
 
+    // FIX C1: Dùng UserProfileResource để lọc data nhạy cảm
     public function me(): array
     {
         $guard = auth('admin')->check() ? 'admin' : 'api';
-        return ['status' => 'success', 'user' => auth($guard)->user()];
+        $user = auth($guard)->user();
+        return ['status' => 'success', 'user' => new UserProfileResource($user)];
     }
 
     public function logout(): array

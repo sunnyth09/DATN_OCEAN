@@ -87,9 +87,19 @@ class AuthController extends Controller
 
     protected function respondWithToken($token, $guardType)
     {
-        $user = ($guardType === 'admin') ? auth('admin')->user() : auth('api')->user();
+        $guard = ($guardType === 'admin') ? 'admin' : 'api';
+        $user  = auth($guard)->user();
 
-        return response()->json($result, $status);
+        return response()->json([
+            'status'        => 'success',
+            'message'       => 'Đăng nhập thành công!',
+            'access_token'  => $token,
+            'refresh_token' => $token,
+            'token_type'    => 'Bearer',
+            'expires_in'    => auth($guard)->factory()->getTTL() * 60,
+            'role'          => $user->role ?? $guardType,
+            'user'          => $user,
+        ], 200);
     }
 
     public function refresh()

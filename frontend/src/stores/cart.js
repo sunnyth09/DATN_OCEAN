@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { defineStore } from 'pinia';
-import { pinia } from '@/stores';
+import { pinia } from '@/stores/index';
 import { useAuthStore } from '@/stores/auth';
 
 let hasBoundCartEvents = false;

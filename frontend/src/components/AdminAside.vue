@@ -208,7 +208,7 @@ onMounted(() => {
     try {
       const user = JSON.parse(userData);
       const path = user.avatar_url;
-      const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
+      const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
       
       userName.value = user.full_name || user.name || 'Admin';
       userEmail.value = user.email || '';

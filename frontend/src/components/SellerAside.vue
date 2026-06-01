@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <aside class="sidebar">
     <!-- Brand -->
     <div class="sidebar-brand">
@@ -109,7 +109,7 @@ onMounted(() => {
     try {
       const user = JSON.parse(userData);
       const path = user.avatar_url || '';
-      const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
+      const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
       
       userName.value = user.full_name || user.name || 'Seller';
       userAvatar.value = path.startsWith('http') ? path : (path ? `${BASE_URL}${path}` : ''); 

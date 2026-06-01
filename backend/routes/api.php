@@ -366,49 +366,26 @@ Route::post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, '
 // =====================================================================
 // ██ DEBUG ROUTES — Chạy thủ công scheduler commands (XÓA KHI PRODUCTION)
 // =====================================================================
-Route::prefix('debug')->group(function () {
-    // Test: Chạy abandoned cart command ngay lập tức
-    // GET /api/debug/run-abandoned-cart
+// ⚠️ DEBUG ROUTES — Được bảo vệ bởi auth + role:admin (FIX C7: không còn public)
+Route::middleware(['auth:api,admin', 'role:admin'])->prefix('debug')->group(function () {
     Route::get('/run-abandoned-cart', function () {
         try {
             \Illuminate\Support\Facades\Artisan::call('app:remind-abandoned-cart');
-            $output = \Illuminate\Support\Facades\Artisan::output();
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Command executed!',
-                'output' => $output,
-            ]);
+            return response()->json(['status' => 'success', 'output' => \Illuminate\Support\Facades\Artisan::output()]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     });
 
-    // Test: Chạy birthday command ngay lập tức
-    // GET /api/debug/run-birthday
     Route::get('/run-birthday', function () {
         try {
             \Illuminate\Support\Facades\Artisan::call('app:send-birthday-wishes');
-            $output = \Illuminate\Support\Facades\Artisan::output();
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Command executed!',
-                'output' => $output,
-            ]);
+            return response()->json(['status' => 'success', 'output' => \Illuminate\Support\Facades\Artisan::output()]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     });
 
-    // Test: Xem trạng thái cart + notification
-    // GET /api/debug/cart-status
     Route::get('/cart-status', function () {
         $carts = \App\Models\Cart::where('status', 'active')
             ->whereHas('items')
@@ -422,7 +399,6 @@ Route::prefix('debug')->group(function () {
                         'user_id' => $cart->user->user_id,
                         'name' => $cart->user->full_name,
                         'email' => $cart->user->email,
-                        'reward_points' => $cart->user->reward_points,
                     ] : null,
                     'item_count' => $cart->items->count(),
                     'latest_item_updated_at' => $latestItem ? $latestItem->updated_at->format('Y-m-d H:i:s') : null,
@@ -445,28 +421,15 @@ Route::prefix('debug')->group(function () {
         ]);
     });
 
-    // Test: Chạy send-order-emails ngay lập tức
-    // GET /api/debug/run-order-emails
     Route::get('/run-order-emails', function () {
         try {
             \Illuminate\Support\Facades\Artisan::call('app:send-order-emails');
-            $output = \Illuminate\Support\Facades\Artisan::output();
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Command executed!',
-                'output' => $output,
-            ]);
+            return response()->json(['status' => 'success', 'output' => \Illuminate\Support\Facades\Artisan::output()]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     });
 
-    // Test: Xem đơn hàng chưa gửi email
-    // GET /api/debug/pending-emails
     Route::get('/pending-emails', function () {
         $orders = \App\Models\Order::where('email_sent', false)
             ->with('user:user_id,full_name,email')
@@ -493,12 +456,35 @@ Route::prefix('debug')->group(function () {
     });
 });
 
+// FIX C6: image-proxy — chống path traversal, whitelist extensions, nosniff header
 Route::get('image-proxy', function (\Illuminate\Http\Request $request) {
     $path = $request->query('path');
     if (!$path) abort(404);
-    $absolutePath = storage_path('app/public/' . $path);
-    if (!file_exists($absolutePath)) abort(404);
-    return response()->file($absolutePath);
+
+    // Chặn path traversal sequences
+    if (str_contains($path, '..') || str_contains($path, "\0")) {
+        abort(403, 'Invalid path');
+    }
+
+    // Whitelist extensions cho phép
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+    $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    if (!in_array($extension, $allowedExtensions)) {
+        abort(403, 'File type not allowed');
+    }
+
+    // Resolve absolute path và verify nằm trong storage boundary
+    $storagePath = realpath(storage_path('app/public'));
+    $absolutePath = realpath(storage_path('app/public/' . $path));
+
+    // realpath trả false nếu file không tồn tại
+    if (!$absolutePath || !str_starts_with($absolutePath, $storagePath . DIRECTORY_SEPARATOR)) {
+        abort(404);
+    }
+
+    return response()->file($absolutePath, [
+        'X-Content-Type-Options' => 'nosniff',
+    ]);
 });
 Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
 

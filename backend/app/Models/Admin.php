@@ -15,9 +15,10 @@ class Admin extends Authenticatable implements JWTSubject
         'email',
         'password',
         'role',
-        'status',
+        'status',        // FIX M8: Thêm status vào fillable
         'phone',
         'avatar_url',
+        'date_of_birth', // FIX M4: Thêm date_of_birth vào fillable
     ];
 
     protected $hidden = [
@@ -28,7 +29,8 @@ class Admin extends Authenticatable implements JWTSubject
     protected function casts(): array
     {
         return [
-            'password' => 'hashed',
+            'password'      => 'hashed',
+            'date_of_birth' => 'date', // FIX M4: Cast date_of_birth
         ];
     }
 
