@@ -23,6 +23,11 @@ class AuthService
      */
     public function verifyTurnstile(?string $token): bool
     {
+        // Tắt CAPTCHA khi đang ở môi trường local/dev
+        if (app()->environment('local', 'testing')) {
+            return true;
+        }
+
         if (!$token) return false;
 
         $secretKey = config('services.turnstile.secret_key');

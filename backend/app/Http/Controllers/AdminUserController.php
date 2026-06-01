@@ -27,12 +27,14 @@ class AdminUserController extends Controller
             });
         }
 
-        $users = $query->orderBy('created_at', 'DESC')->get();
+        $users = $query->orderBy('created_at', 'DESC')->paginate(20);
 
         return response()->json([
             'status' => 'success',
-            'data' => $users,
-            'total' => $users->count()
+            'data' => $users->items(),
+            'total' => $users->total(),
+            'current_page' => $users->currentPage(),
+            'last_page' => $users->lastPage(),
         ]);
     }
 
@@ -219,7 +221,7 @@ class AdminUserController extends Controller
             ], 403);
         }
 
-        $affected = DB::update("UPDATE users SET role = ?, updated_at = NOW() WHERE user_id = ?", [$role, $id]);
+        $affected = User::where('user_id', (int) $id)->update(['role' => $role, 'updated_at' => now()]);
 
         if ($affected === 0) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy user!'], 404);
@@ -254,7 +256,7 @@ class AdminUserController extends Controller
             ], 403);
         }
 
-        $affected = DB::update("UPDATE users SET status = ?, updated_at = NOW() WHERE user_id = ?", [$status, $id]);
+        $affected = User::where('user_id', (int) $id)->update(['status' => $status, 'updated_at' => now()]);
 
         if ($affected === 0) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy user!'], 404);

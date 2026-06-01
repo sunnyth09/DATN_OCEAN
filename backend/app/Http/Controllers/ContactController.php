@@ -97,11 +97,14 @@ class ContactController extends Controller
             $query->where('status', $status);
         }
 
-        $contacts = $query->get();
+        $contacts = $query->paginate(20);
 
         return response()->json([
             'status' => 'success',
-            'data'   => $contacts,
+            'data'   => $contacts->items(),
+            'total'  => $contacts->total(),
+            'current_page' => $contacts->currentPage(),
+            'last_page' => $contacts->lastPage(),
         ]);
     }
 

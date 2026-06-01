@@ -8,7 +8,7 @@ const api = axios.create({
         Accept: 'application/json',
         'Content-Type': 'application/json',
     },
-    timeout: 300000,
+    timeout: 30000,
 });
 
 const getAuthStore = () => useAuthStore(pinia);

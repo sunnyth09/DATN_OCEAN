@@ -140,7 +140,7 @@ class FlashSaleController extends Controller
         $flashSaleId = (int) $request->flash_sale_id;
         $productId   = (int) $request->product_id;
         $quantity    = (int) ($request->quantity ?? 1);
-        $userId      = auth()->id();
+        $userId      = auth('api')->user()?->user_id ?? auth('admin')->user()?->getKey();
 
         $flashSale = Cache::remember("flash_sale_meta_{$flashSaleId}", 10, fn () => FlashSale::find($flashSaleId));
 

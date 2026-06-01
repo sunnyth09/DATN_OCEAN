@@ -18,17 +18,20 @@ class CouponController extends Controller
      */
     public function index()
     {
-        $coupons = Coupon::with(['categories:category_id,name', 'userCoupons'])->get();
+        $coupons = Coupon::with(['categories:category_id,name', 'userCoupons'])->paginate(20);
 
         // Thêm thông tin thống kê cho mỗi coupon
-        $coupons->each(function ($coupon) {
+        collect($coupons->items())->each(function ($coupon) {
             $coupon->total_users_used = $coupon->userCoupons->where('used_count', '>', 0)->count();
             $coupon->category_ids = $coupon->categories->pluck('category_id');
         });
 
         return response()->json([
             'status' => 'success',
-            'data' => $coupons
+            'data' => $coupons->items(),
+            'total' => $coupons->total(),
+            'current_page' => $coupons->currentPage(),
+            'last_page' => $coupons->lastPage(),
         ]);
     }
 
@@ -40,7 +43,7 @@ class CouponController extends Controller
         $request->validate([
             'code' => 'required|string|max:20|unique:coupons,code',
             'type' => 'required|in:percent,fixed,free_ship',
-            'value' => 'required|numeric|min:0',
+            'value' => 'required|numeric|min:0' . ($request->input('type') === 'percent' ? '|max:100' : ''),
             'max_discount_value' => 'nullable|numeric|min:0',
             'min_order_value' => 'nullable|numeric|min:0',
             'usage_limit' => 'nullable|integer|min:1',
@@ -66,7 +69,7 @@ class CouponController extends Controller
             $coupon->categories()->sync($request->category_ids);
         }
         
-        Cache::flush();
+        Cache::forget('coupons:public_active');
 
         // Gửi email thông báo cho khách hàng
         if ($request->input('send_email')) {
@@ -126,7 +129,7 @@ class CouponController extends Controller
         $request->validate([
             'code' => 'required|string|max:20|unique:coupons,code,' . $id,
             'type' => 'required|in:percent,fixed,free_ship',
-            'value' => 'required|numeric|min:0',
+            'value' => 'required|numeric|min:0' . ($request->input('type') === 'percent' ? '|max:100' : ''),
             'max_discount_value' => 'nullable|numeric|min:0',
             'min_order_value' => 'nullable|numeric|min:0',
             'usage_limit' => 'nullable|integer|min:1',
@@ -147,7 +150,7 @@ class CouponController extends Controller
             $coupon->categories()->sync($request->category_ids ?? []);
         }
         
-        Cache::flush();
+        Cache::forget('coupons:public_active');
 
         return response()->json([
             'status' => 'success',
@@ -171,7 +174,7 @@ class CouponController extends Controller
         }
 
         $coupon->delete();
-        Cache::flush();
+        Cache::forget('coupons:public_active');
 
         return response()->json([
             'status' => 'success',

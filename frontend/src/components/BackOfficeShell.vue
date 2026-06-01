@@ -47,7 +47,6 @@
             <p v-if="sectionLabel" class="backoffice-header__eyebrow">
               {{ sectionLabel }}
             </p>
-            <h1 class="backoffice-header__title">{{ resolvedTitle }}</h1>
           </div>
         </div>
 

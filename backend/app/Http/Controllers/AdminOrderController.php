@@ -39,7 +39,7 @@ class AdminOrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'fulfillment_status' => 'nullable|string',
+            'fulfillment_status' => 'nullable|string|in:pending,confirmed,shipping,shipped,delivered,cancelled,returned',
             'note'               => 'nullable|string|max:500',
         ]);
 
