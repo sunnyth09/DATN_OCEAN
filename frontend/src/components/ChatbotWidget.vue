@@ -48,7 +48,7 @@
           <!-- Welcome message -->
           <div v-if="messages.length === 0" class="welcome-section">
             <div class="welcome-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 12c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0"/>
                 <path d="M2 17c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0" opacity="0.5"/>
                 <path d="M2 7c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0" opacity="0.5"/>
@@ -62,7 +62,7 @@
           <div v-for="(msg, idx) in messages" :key="idx" class="message-item" :class="msg.role">
             <!-- AI avatar -->
             <div v-if="msg.role === 'assistant'" class="msg-avatar">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 12c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0"/>
                 <path d="M2 17c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0" opacity="0.5"/>
               </svg>
@@ -158,7 +158,7 @@
           <!-- Typing indicator -->
           <div v-if="isTyping" class="message-item assistant">
             <div class="msg-avatar">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 12c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0"/>
                 <path d="M2 17c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0" opacity="0.5"/>
               </svg>
@@ -531,7 +531,7 @@ async function sendMessage() {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #1a56db 0%, #3b82f6 50%, #06b6d4 100%);
+  background: linear-gradient(135deg, #E63B6F 0%, #ff6b8b 50%, #b50c4d 100%);
   border: none;
   cursor: pointer;
   display: flex;
@@ -539,8 +539,8 @@ async function sendMessage() {
   justify-content: center;
   color: #fff;
   box-shadow:
-    0 4px 20px rgba(26, 86, 219, 0.4),
-    0 0 0 0 rgba(26, 86, 219, 0.3);
+    0 4px 20px rgba(230, 59, 111, 0.4),
+    0 0 0 0 rgba(230, 59, 111, 0.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   animation: bubble-pulse 2s ease-in-out infinite;
@@ -548,7 +548,7 @@ async function sendMessage() {
 
 .chatbot-bubble:hover {
   transform: scale(1.1);
-  box-shadow: 0 6px 28px rgba(26, 86, 219, 0.5);
+  box-shadow: 0 6px 28px rgba(230, 59, 111, 0.5);
 }
 
 .chatbot-bubble.is-open {
@@ -558,8 +558,8 @@ async function sendMessage() {
 }
 
 @keyframes bubble-pulse {
-  0%, 100% { box-shadow: 0 4px 20px rgba(26, 86, 219, 0.4), 0 0 0 0 rgba(26, 86, 219, 0.3); }
-  50% { box-shadow: 0 4px 20px rgba(26, 86, 219, 0.4), 0 0 0 12px rgba(26, 86, 219, 0); }
+  0%, 100% { box-shadow: 0 4px 20px rgba(230, 59, 111, 0.4), 0 0 0 0 rgba(230, 59, 111, 0.3); }
+  50% { box-shadow: 0 4px 20px rgba(230, 59, 111, 0.4), 0 0 0 12px rgba(230, 59, 111, 0); }
 }
 
 .unread-dot {
@@ -623,7 +623,7 @@ async function sendMessage() {
 
 /* ==================== HEADER ==================== */
 .chat-header {
-  background: linear-gradient(135deg, #1a56db 0%, #2563eb 60%, #06b6d4 100%);
+  background: linear-gradient(135deg, #E63B6F 0%, #ff6b8b 60%, #b50c4d 100%);
   padding: 16px 20px;
   display: flex;
   align-items: center;
@@ -751,7 +751,7 @@ async function sendMessage() {
 }
 
 .msg-bubble.user {
-  background: linear-gradient(135deg, #1a56db, #2563eb);
+  background: linear-gradient(135deg, #E63B6F, #b50c4d);
   color: #fff;
   border-bottom-right-radius: 4px;
 }
@@ -785,10 +785,10 @@ async function sendMessage() {
   transition: all 0.2s;
 }
 .product-card:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
+  background: #fff0f3;
+  border-color: #ffb2bf;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(26, 86, 219, 0.08);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.08);
 }
 
 .product-card-img {
@@ -860,7 +860,7 @@ async function sendMessage() {
 .order-code {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .order-status {
@@ -1028,19 +1028,19 @@ async function sendMessage() {
 }
 .quick-toggle-btn:hover {
   border-color: #93c5fd;
-  color: #1a56db;
+  color: #E63B6F;
   background: #eff6ff;
 }
 .quick-toggle-btn.active {
-  border-color: #1a56db;
-  color: #1a56db;
+  border-color: #E63B6F;
+  color: #E63B6F;
   background: #eff6ff;
 }
 
 .quick-action-btn:hover {
   background: #eff6ff;
   border-color: #93c5fd;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .quick-icon {
@@ -1076,7 +1076,7 @@ async function sendMessage() {
 }
 
 .chat-input:focus {
-  border-color: #1a56db;
+  border-color: #E63B6F;
   background: #fff;
 }
 
@@ -1088,7 +1088,7 @@ async function sendMessage() {
   height: 40px;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #1a56db, #2563eb);
+  background: #E63B6F;
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -1099,7 +1099,7 @@ async function sendMessage() {
 }
 
 .chat-send-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1e40af, #1a56db);
+  background: #C4305D;
   transform: scale(1.05);
 }
 
@@ -1208,7 +1208,7 @@ async function sendMessage() {
   width: 100%;
   padding: 10px;
   border: none;
-  background: linear-gradient(135deg, #1a56db, #2563eb);
+  background: #E63B6F;
   color: #fff;
   font-size: 0.82rem;
   font-weight: 600;
@@ -1217,7 +1217,7 @@ async function sendMessage() {
   transition: background 0.2s;
 }
 .pd-view-btn:hover {
-  background: linear-gradient(135deg, #1e40af, #1a56db);
+  background: #C4305D;
 }
 
 /* ==================== CATEGORY CARDS ==================== */
@@ -1270,7 +1270,7 @@ async function sendMessage() {
 
 .cat-child-tag {
   font-size: 0.7rem;
-  color: #1a56db;
+  color: #E63B6F;
   background: #dbeafe;
   padding: 2px 8px;
   border-radius: 10px;

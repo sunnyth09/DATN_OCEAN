@@ -15,7 +15,7 @@ class AdminOrderService
     private const ALLOWED_TRANSITIONS = [
         'pending' => ['confirmed', 'cancelled'],
         'confirmed' => ['processing', 'packing', 'cancelled'],
-        'processing' => ['shipping', 'cancelled'],
+        'processing' => ['packing', 'shipping', 'cancelled'],
         'packing' => ['shipping', 'cancelled'],
         'shipping' => ['delivered'],
         'delivered' => ['completed', 'return_requested'],

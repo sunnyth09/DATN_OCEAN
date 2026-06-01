@@ -510,7 +510,7 @@ onUnmounted(() => {
   border: 2px solid #fff;
   transition: background 0.2s;
 }
-.avatar-upload-btn:hover { background: #4338ca; }
+.avatar-upload-btn:hover { background: #b50c4d; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
 
 .avatar-info h4 { font-size: 0.95rem; font-weight: 600; color: #111827; margin: 0 0 4px; }
@@ -548,7 +548,7 @@ onUnmounted(() => {
   transition: border 0.15s, box-shadow 0.15s;
   background: #fff;
 }
-.form-input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
+.form-input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230,59,111,0.12); }
 .form-input--error { border-color: #ef4444; }
 .form-input--disabled { background: #f9fafb; color: #6b7280; cursor: not-allowed; }
 

@@ -66,7 +66,7 @@ const statusTransitions = {
   'cancelled': ['cancelled'],
 };
 statusTransitions.confirmed = ['confirmed', 'processing', 'packing', 'cancelled'];
-statusTransitions.processing = ['processing', 'shipping', 'cancelled'];
+statusTransitions.processing = ['processing', 'packing', 'shipping', 'cancelled'];
 statusTransitions.return_requested = ['return_requested'];
 statusTransitions.return_approved = ['return_approved'];
 statusTransitions.return_rejected = ['return_rejected'];
@@ -260,11 +260,12 @@ const getStatusLabel = (status) => statuses.find(s => s.value === status)?.label
 
 const isAllSelected = computed({
   get() {
-    return orders.value.length > 0 && selectedOrders.value.length === orders.value.length;
+    const selectableOrders = orders.value.filter(o => !isLockedFulfillmentStatus(o.fulfillment_status));
+    return selectableOrders.length > 0 && selectedOrders.value.length === selectableOrders.length;
   },
   set(value) {
     if (value) {
-      selectedOrders.value = orders.value.map(o => o.order_id);
+      selectedOrders.value = orders.value.filter(o => !isLockedFulfillmentStatus(o.fulfillment_status)).map(o => o.order_id);
     } else {
       selectedOrders.value = [];
     }
@@ -284,6 +285,17 @@ const applyBulkStatus = async () => {
     if (allSameStatus) {
         const label = statuses.find(s => s.value === bulkFulfillmentStatus.value)?.label || bulkFulfillmentStatus.value;
         toast.error(`Tất cả ${selectedOrdersList.length} đơn đã ở trạng thái "${label}" rồi. Vui lòng chọn trạng thái tiếp theo!`);
+        return;
+    }
+
+    // Kiểm tra tính hợp lệ của luồng trạng thái
+    const invalidTransitions = selectedOrdersList.filter(o => {
+        const allowed = statusTransitions[o.fulfillment_status] || [o.fulfillment_status];
+        return !allowed.includes(bulkFulfillmentStatus.value);
+    });
+
+    if (invalidTransitions.length > 0) {
+        toast.error(`Có ${invalidTransitions.length} đơn hàng không thể chuyển sang trạng thái này do sai quy trình (vượt cấp hoặc đi lùi)!`);
         return;
     }
 
@@ -457,7 +469,7 @@ onUnmounted(() => {
                     </tr>
                     <tr v-for="order in orders" :key="order.order_id" :class="{'is-new-order': order.is_new, 'is-selected': selectedOrders.includes(order.order_id)}">
                         <td class="checkbox-cell">
-                            <input type="checkbox" :value="order.order_id" v-model="selectedOrders" class="order-checkbox" />
+                            <input type="checkbox" :value="order.order_id" v-model="selectedOrders" class="order-checkbox" :disabled="isLockedFulfillmentStatus(order.fulfillment_status)" :title="isLockedFulfillmentStatus(order.fulfillment_status) ? 'Không thể thao tác hàng loạt với đơn hàng đã đóng' : ''"/>
                         </td>
                         <td>
                             <div class="order-code-cell">

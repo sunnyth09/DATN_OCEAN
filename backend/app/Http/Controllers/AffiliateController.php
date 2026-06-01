@@ -18,7 +18,14 @@ class AffiliateController extends Controller
      */
     public function register(Request $request): JsonResponse
     {
-        $userId = auth('api')->id() ?? auth('admin')->id();
+        if (auth('admin')->check()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tài khoản quản trị không thể đăng ký Affiliate của khách hàng.'
+            ], 403);
+        }
+
+        $userId = auth('api')->id();
         $result = $this->affiliateService->register($userId);
 
         return response()->json($result['body'], $result['status_code']);
@@ -30,7 +37,14 @@ class AffiliateController extends Controller
      */
     public function profile(Request $request): JsonResponse
     {
-        $userId = auth('api')->id() ?? auth('admin')->id();
+        if (auth('admin')->check()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tài khoản quản trị không có Affiliate profile.'
+            ], 403);
+        }
+
+        $userId = auth('api')->id();
         $result = $this->affiliateService->getProfile($userId);
 
         return response()->json($result['body'], $result['status_code']);
@@ -42,7 +56,14 @@ class AffiliateController extends Controller
      */
     public function statistics(Request $request): JsonResponse
     {
-        $userId = auth('api')->id() ?? auth('admin')->id();
+        if (auth('admin')->check()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tài khoản quản trị không có thống kê Affiliate.'
+            ], 403);
+        }
+
+        $userId = auth('api')->id();
         $type = $request->query('type', 'month');
         $result = $this->affiliateService->getStatistics($userId, $type);
 
@@ -55,7 +76,14 @@ class AffiliateController extends Controller
      */
     public function conversions(Request $request): JsonResponse
     {
-        $userId = auth('api')->id() ?? auth('admin')->id();
+        if (auth('admin')->check()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tài khoản quản trị không có đơn hàng Affiliate.'
+            ], 403);
+        }
+
+        $userId = auth('api')->id();
         $result = $this->affiliateService->getConversions($userId);
 
         return response()->json($result['body'], $result['status_code']);
@@ -74,7 +102,14 @@ class AffiliateController extends Controller
             'bank_account_number' => 'required|string|max:50',
         ]);
 
-        $userId = auth('api')->id() ?? auth('admin')->id();
+        if (auth('admin')->check()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tài khoản quản trị không thể rút tiền Affiliate.'
+            ], 403);
+        }
+
+        $userId = auth('api')->id();
         $result = $this->affiliateService->requestWithdrawal($userId, $request->only([
             'amount', 'bank_name', 'bank_account_name', 'bank_account_number'
         ]));
@@ -88,7 +123,14 @@ class AffiliateController extends Controller
      */
     public function withdrawals(Request $request): JsonResponse
     {
-        $userId = auth('api')->id() ?? auth('admin')->id();
+        if (auth('admin')->check()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tài khoản quản trị không có lịch sử rút tiền Affiliate.'
+            ], 403);
+        }
+
+        $userId = auth('api')->id();
         $result = $this->affiliateService->getWithdrawals($userId);
 
         return response()->json($result['body'], $result['status_code']);

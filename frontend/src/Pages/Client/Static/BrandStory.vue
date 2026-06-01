@@ -79,7 +79,7 @@
 .info-card p { font-size: 0.85rem; color: #6b7280; line-height: 1.6; margin: 0; }
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .stat-item { background: #FFF0F3; border-radius: 12px; padding: 24px 16px; text-align: center; }
-.stat-number { display: block; font-size: 1.5rem; font-weight: 800; color: #1a56db; margin-bottom: 6px; }
+.stat-number { display: block; font-size: 1.5rem; font-weight: 800; color: #E63B6F; margin-bottom: 6px; }
 .stat-label { font-size: 0.82rem; color: #6b7280; }
 .check-list { list-style: none; padding: 0; margin: 0; }
 .check-list li { padding: 10px 0 10px 28px; position: relative; font-size: 0.95rem; color: #4b5563; border-bottom: 1px solid #f3f4f6; }

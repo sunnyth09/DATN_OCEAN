@@ -7,12 +7,9 @@ use Illuminate\Http\Request;
 
 class AddressController extends Controller
 {
-    /**
-     * Lấy user hiện tại (hỗ trợ cả guard api và admin)
-     */
     private function currentUser()
     {
-        return auth('api')->user() ?? auth('admin')->user();
+        return auth('api')->user();
     }
 
     /**
@@ -20,8 +17,12 @@ class AddressController extends Controller
      */
     private function currentUserId()
     {
-        $user = $this->currentUser();
-        return $user->user_id ?? $user->admin_id ?? null;
+        $user = auth('api')->user();
+        if ($user) {
+            return $user->user_id;
+        }
+        
+        abort(403, 'Tài khoản nhân viên/quản trị không thể sử dụng tính năng của khách hàng. Vui lòng đăng nhập bằng tài khoản khách hàng.');
     }
 
     /**

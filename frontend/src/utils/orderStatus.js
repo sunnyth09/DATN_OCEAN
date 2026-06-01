@@ -84,9 +84,9 @@ export const RETURN_REQUEST_ADMIN_STATUS_OPTIONS = [
   { value: 'all', label: 'Tất cả' },
   { value: 'pending', label: 'Chờ duyệt' },
   { value: 'approved', label: 'Đã duyệt' },
-  { value: 'rejected', label: 'Đã từ chối' },
   { value: 'received', label: 'Đã nhận hàng hoàn' },
   { value: 'refunded', label: 'Đã hoàn tiền' },
+  { value: 'rejected', label: 'Đã từ chối' },
 ];
 
 export const RETURN_REQUEST_REFUND_METHOD_OPTIONS = [

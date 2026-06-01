@@ -273,7 +273,7 @@ class CouponController extends Controller
         $userId = $user ? $user->user_id : null;
 
         if (!$userId && auth('admin')->check()) {
-            $userId = auth('admin')->user()->getKey();
+            abort(403, 'Tài khoản nhân viên/quản trị không thể lưu mã giảm giá. Vui lòng đăng nhập bằng tài khoản khách hàng.');
         }
 
         if (!$userId) {

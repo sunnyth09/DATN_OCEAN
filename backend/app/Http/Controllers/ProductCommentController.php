@@ -77,18 +77,8 @@ class ProductCommentController extends Controller
                 'is_approved' => 0,
             ]);
 
-            // Recalculate average rating for the product
-            $product = Product::find($request->product_id);
-            $avgRating = ProductComment::where('product_id', $product->product_id)
-                            ->where('is_approved', 0)
-                            ->avg('rating');
-            $countRating = ProductComment::where('product_id', $product->product_id)
-                            ->where('is_approved', 0)
-                            ->count();
-            
-            $product->rating_avg = round($avgRating, 0);
-            $product->rating_count = $countRating;
-            $product->save();
+            // Recalculate average rating for the product using approved comments
+            $this->recalculateProductRating($request->product_id);
 
             DB::commit();
 
@@ -110,7 +100,7 @@ class ProductCommentController extends Controller
     {
         $comments = ProductComment::with('user:user_id,full_name,avatar_url')
                         ->where('product_id', $productId)
-                        ->where('is_approved', 0)
+                        ->where('is_approved', 1)
                         ->orderBy('created_at', 'desc')
                         ->paginate(10);
 

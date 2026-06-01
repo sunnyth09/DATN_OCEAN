@@ -435,7 +435,7 @@ onMounted(fetchAddresses);
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #1a56db;
+  background: #E63B6F;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -449,9 +449,9 @@ onMounted(fetchAddresses);
 }
 
 .btn-add:hover {
-  background: #1648b8;
+  background: #b50c4d;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(26, 86, 219, 0.3);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.3);
 }
 
 .btn-add--large {
@@ -474,7 +474,7 @@ onMounted(fetchAddresses);
   width: 32px;
   height: 32px;
   border: 3px solid #e5e7eb;
-  border-top-color: #1a56db;
+  border-top-color: #E63B6F;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -779,8 +779,8 @@ onMounted(fetchAddresses);
 
 .form-input:focus,
 .form-select:focus {
-  border-color: #1a56db;
-  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
+  border-color: #E63B6F;
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
 .form-input::placeholder {
@@ -819,9 +819,9 @@ onMounted(fetchAddresses);
 }
 
 .type-option--active {
-  border-color: #1a56db;
+  border-color: #E63B6F;
   background: #eff6ff;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .type-radio {
@@ -858,8 +858,8 @@ onMounted(fetchAddresses);
 }
 
 .checkbox-input:checked + .checkbox-custom {
-  background: #1a56db;
-  border-color: #1a56db;
+  background: #E63B6F;
+  border-color: #E63B6F;
 }
 
 .checkbox-input:checked + .checkbox-custom::after {
@@ -892,7 +892,7 @@ onMounted(fetchAddresses);
 }
 
 .shipping-preview strong {
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 
@@ -933,7 +933,7 @@ onMounted(fetchAddresses);
   align-items: center;
   gap: 8px;
   padding: 10px 24px;
-  background: #1a56db;
+  background: #E63B6F;
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -945,7 +945,7 @@ onMounted(fetchAddresses);
 }
 
 .btn-save:hover:not(:disabled) {
-  background: #1648b8;
+  background: #b50c4d;
 }
 
 .btn-save:disabled {

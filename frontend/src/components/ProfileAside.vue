@@ -58,6 +58,20 @@
       </router-link>
 
       <router-link
+        :to="{ name: 'profile-return-requests' }"
+        class="aside-nav-item"
+        active-class="aside-nav-item--active"
+      >
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+        <span>Yêu cầu hoàn hàng</span>
+      </router-link>
+
+      <router-link
         to="/profile/wishlist"
         class="aside-nav-item"
         active-class="aside-nav-item--active"
@@ -295,8 +309,8 @@ const handleLogout = async () => {
 }
 
 .aside-nav-item:hover {
-  background: #f3f4f6;
-  color: #1a56db;
+  background: #fff0f3;
+  color: #E63B6F;
 }
 
 .aside-nav-item:hover .aside-nav-icon {
@@ -304,14 +318,14 @@ const handleLogout = async () => {
 }
 
 .aside-nav-item--active {
-  background: #eff6ff !important;
+  background: #fff0f3 !important;
   color: #E63B6F !important;
   font-weight: 600;
 }
 
 .aside-nav-item--active .aside-nav-icon {
   opacity: 1;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .aside-nav-divider {

@@ -251,13 +251,35 @@ class AuthService
             $googleName   = $googleUser['name'] ?? $googleUser['email'];
             $googleAvatar = $googleUser['picture'] ?? null;
 
-            // Find or create user
+            // Kiểm tra xem email này có thuộc về một Admin không
+            $admin = \App\Models\Admin::where('email', $googleEmail)->first();
+            if ($admin) {
+                if (isset($admin->status) && $admin->status !== 'active') {
+                    return ['_status' => 403, 'status' => 'error', 'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'];
+                }
+                
+                $token = auth('admin')->login($admin);
+                return [
+                    '_status'       => 200,
+                    'status'        => 'success',
+                    'message'       => 'Đăng nhập Google thành công!',
+                    'access_token'  => $token,
+                    'refresh_token' => $token,
+                    'token_type'    => 'Bearer',
+                    'expires_in'    => auth('admin')->factory()->getTTL() * 60,
+                    'role'          => $admin->role ?? 'admin',
+                    'user'          => clone $admin,
+                ];
+            }
+
+            // Find or create user (Customer)
             $user = $this->findOrCreateOAuthUser('google', $googleId, $googleEmail, $googleName, $googleAvatar);
 
             if (is_array($user) && isset($user['_status'])) return $user; // error response
 
             // JWT
-            $token = auth('api')->login($this->userRepository->findModel($user->user_id));
+            $model = $this->userRepository->findModel($user->user_id);
+            $token = auth('api')->login($model);
 
             return [
                 '_status'       => 200,
@@ -266,8 +288,8 @@ class AuthService
                 'access_token'  => $token,
                 'refresh_token' => $token,
                 'token_type'    => 'Bearer',
-                'expires_in'    => config('jwt.ttl', 60) * 60,
-                'role'          => $user->role,
+                'expires_in'    => auth('api')->factory()->getTTL() * 60,
+                'role'          => $user->role ?? 'customer',
                 'user'          => clone $user,
             ];
         } catch (\Exception $e) {
@@ -310,13 +332,36 @@ class AuthService
             $fbName   = $fbUser['name'] ?? 'Facebook User';
             $fbAvatar = $fbUser['picture']['data']['url'] ?? null;
 
-            // Find or create user
+            // Kiểm tra xem email này có thuộc về một Admin không
+            $admin = \App\Models\Admin::where('email', $fbEmail)->first();
+            if ($admin) {
+                if (isset($admin->status) && $admin->status !== 'active') {
+                    return ['_status' => 403, 'status' => 'error', 'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'];
+                }
+                
+                $token = auth('admin')->login($admin);
+                return [
+                    '_status'       => 200,
+                    'status'        => 'success',
+                    'message'       => 'Đăng nhập Facebook thành công!',
+                    'access_token'  => $token,
+                    'refresh_token' => $token,
+                    'token_type'    => 'Bearer',
+                    'expires_in'    => auth('admin')->factory()->getTTL() * 60,
+                    'role'          => $admin->role ?? 'admin',
+                    'user'          => clone $admin,
+                ];
+            }
+
+            // Find or create user (Customer)
             $user = $this->findOrCreateOAuthUser('facebook', $fbId, $fbEmail, $fbName, $fbAvatar);
 
             if (is_array($user) && isset($user['_status'])) return $user;
 
             // JWT
-            $token = auth('api')->login($this->userRepository->findModel($user->user_id));
+            // JWT
+            $model = $this->userRepository->findModel($user->user_id);
+            $token = auth('api')->login($model);
 
             return [
                 '_status'       => 200,
@@ -325,8 +370,8 @@ class AuthService
                 'access_token'  => $token,
                 'refresh_token' => $token,
                 'token_type'    => 'Bearer',
-                'expires_in'    => config('jwt.ttl', 60) * 60,
-                'role'          => $user->role,
+                'expires_in'    => auth('api')->factory()->getTTL() * 60,
+                'role'          => $user->role ?? 'customer',
                 'user'          => clone $user,
             ];
         } catch (\Exception $e) {

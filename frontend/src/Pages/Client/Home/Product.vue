@@ -67,7 +67,7 @@ const fetchProducts = async () => {
         const params = { limit: perPage, page: currentPage.value };
 
         if (selectedCategories.value.length > 0) {
-            params.category_id = selectedCategories.value[0]; // primary filter
+            params.category_ids = selectedCategories.value.join(',');
         }
         if (selectedBrands.value.length > 0) {
             params.brand_ids = selectedBrands.value.join(',');
@@ -162,7 +162,6 @@ const toggleBrandFilter = (brandId) => {
 
 // ── Price slider formatting ──
 const formatPrice = (val) => {
-    if (val >= 1000000) return (val / 1000000).toFixed(0) + '.000.000đ';
     return new Intl.NumberFormat('vi-VN').format(val) + 'đ';
 };
 
@@ -178,7 +177,7 @@ watch([selectedCategories, selectedBrands, sortBy, priceMax], () => {
     scheduleFetchProducts();
     // Sync URL
     const newQuery = { ...route.query };
-    if (selectedCategories.value.length > 0) newQuery.category = selectedCategories.value[0];
+    if (selectedCategories.value.length > 0) newQuery.category = selectedCategories.value.join(',');
     else delete newQuery.category;
     if (currentPage.value === 1) delete newQuery.page;
     router.replace({ query: newQuery }).catch(() => {});
@@ -236,8 +235,19 @@ onMounted(async () => {
 
     const categoryParam = route.query.category;
     if (categoryParam) {
-        const cat = Categories.value.find(c => c.category_id == categoryParam || c.slug === categoryParam);
-        if (cat) selectedCategories.value = [cat.category_id];
+        if (typeof categoryParam === 'string' && categoryParam.includes(',')) {
+            selectedCategories.value = categoryParam.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+        } else {
+            // Flatten categories to search for slug or single ID
+            const flatCategories = Categories.value.reduce((acc, cat) => {
+                acc.push(cat);
+                if (cat.children) acc.push(...cat.children);
+                return acc;
+            }, []);
+            
+            const cat = flatCategories.find(c => c.category_id == categoryParam || c.slug === categoryParam);
+            if (cat) selectedCategories.value = [cat.category_id];
+        }
     }
 
     isInitializing = false;
@@ -308,16 +318,31 @@ onUnmounted(() => {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
                             DANH MỤC
                         </h3>
-                        <label
-                            v-for="cat in Categories"
-                            :key="cat.category_id"
-                            class="filter-checkbox"
-                            :class="{ checked: selectedCategories.includes(cat.category_id) }"
-                        >
-                            <input type="checkbox" :value="cat.category_id" :checked="selectedCategories.includes(cat.category_id)" @change="toggleCategoryFilter(cat.category_id)" />
-                            <span class="cb-custom"></span>
-                            <span class="cb-label">{{ cat.name }}</span>
-                        </label>
+                        <template v-for="cat in Categories" :key="cat.category_id">
+                            <!-- Danh mục cha -->
+                            <label
+                                class="filter-checkbox"
+                                :class="{ checked: selectedCategories.includes(cat.category_id) }"
+                            >
+                                <input type="checkbox" :value="cat.category_id" :checked="selectedCategories.includes(cat.category_id)" @change="toggleCategoryFilter(cat.category_id)" />
+                                <span class="cb-custom"></span>
+                                <span class="cb-label">{{ cat.name }}</span>
+                            </label>
+
+                            <!-- Danh mục con -->
+                            <div v-if="cat.children && cat.children.length > 0" class="sub-categories">
+                                <label
+                                    v-for="child in cat.children"
+                                    :key="child.category_id"
+                                    class="filter-checkbox sub-category"
+                                    :class="{ checked: selectedCategories.includes(child.category_id) }"
+                                >
+                                    <input type="checkbox" :value="child.category_id" :checked="selectedCategories.includes(child.category_id)" @change="toggleCategoryFilter(child.category_id)" />
+                                    <span class="cb-custom"></span>
+                                    <span class="cb-label">{{ child.name }}</span>
+                                </label>
+                            </div>
+                        </template>
                     </div>
 
                     <!-- Thương hiệu -->
@@ -337,12 +362,15 @@ onUnmounted(() => {
 
                     <!-- Khoảng giá -->
                     <div class="filter-group">
-                        <h3 class="filter-title">KHOẢNG GIÁ</h3>
+                        <h3 class="filter-title">MỨC GIÁ TỐI ĐA</h3>
                         <div class="price-slider-wrap">
+                            <div class="current-price-label">
+                                Dưới <strong>{{ formatPrice(displayPriceMax) }}</strong>
+                            </div>
                             <input type="range" min="0" max="10000000" step="100000" v-model.number="displayPriceMax" @change="priceMax = displayPriceMax" class="price-slider" />
                             <div class="price-labels">
                                 <span>0đ</span>
-                                <span>{{ formatPrice(displayPriceMax) }}</span>
+                                <span>10.000.000đ</span>
                             </div>
                         </div>
                     </div>
@@ -583,6 +611,20 @@ onUnmounted(() => {
     display: none;
 }
 
+.sub-categories {
+    margin-left: 28px;
+    margin-bottom: 8px;
+    border-left: 1px dashed #EAEAEA;
+    padding-left: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.filter-checkbox.sub-category {
+    padding: 5px 0;
+    font-size: 0.85rem;
+}
+
 .cb-custom {
     width: 18px;
     height: 18px;
@@ -612,6 +654,16 @@ onUnmounted(() => {
 /* Price slider */
 .price-slider-wrap {
     padding: 4px 0;
+}
+.current-price-label {
+    font-size: 0.9rem;
+    color: #E63B6F;
+    margin-bottom: 12px;
+    text-align: center;
+}
+.current-price-label strong {
+    font-weight: 800;
+    font-size: 1.1rem;
 }
 .price-slider {
     width: 100%;

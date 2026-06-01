@@ -331,7 +331,7 @@ onMounted(async () => {
 }
 
 .address-selector__label i {
-  color: #0ea5e9;
+  color: #E63B6F;
   font-size: 0.8rem;
 }
 
@@ -371,8 +371,8 @@ onMounted(async () => {
 
 .address-selector__select:focus,
 .address-selector__input:focus {
-  border-color: #0ea5e9;
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  border-color: #E63B6F;
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.15);
 }
 
 .address-selector__select:hover,
@@ -399,7 +399,7 @@ onMounted(async () => {
   width: 16px;
   height: 16px;
   border: 2px solid #e2e8f0;
-  border-top-color: #0ea5e9;
+  border-top-color: #E63B6F;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }

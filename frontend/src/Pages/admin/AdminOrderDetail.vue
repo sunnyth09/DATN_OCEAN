@@ -53,7 +53,7 @@ const statusTransitions = {
   'cancelled': ['cancelled'],
 };
 statusTransitions.confirmed = ['confirmed', 'processing', 'packing', 'cancelled'];
-statusTransitions.processing = ['processing', 'shipping', 'cancelled'];
+statusTransitions.processing = ['processing', 'packing', 'shipping', 'cancelled'];
 statusTransitions.return_requested = ['return_requested'];
 statusTransitions.return_approved = ['return_approved'];
 statusTransitions.return_rejected = ['return_rejected'];

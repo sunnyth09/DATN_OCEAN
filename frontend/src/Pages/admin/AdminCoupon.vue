@@ -930,7 +930,7 @@ const selectedCategoryNames = computed(() => {
     font-family: var(--font-inter); margin: 2px 6px; border-radius: 6px;
     padding: 9px 12px; user-select: none;
 }
-.cat-dropdown-item:hover { background: #f0f5ff; color: #1a56db; }
+.cat-dropdown-item:hover { background: #FFF0F3; color: #E63B6F; }
 .cat-dropdown-item.parent {
     font-weight: 700; font-size: 0.85rem; color: #1e293b;
     margin-top: 2px; border-bottom: 1px solid #f1f5f9;
@@ -1004,7 +1004,7 @@ const selectedCategoryNames = computed(() => {
     background: var(--ocean-deepest);
 }
 .option-checkbox input:checked + .checkmark {
-    background: #1a56db; border-color: #1a56db;
+    background: #E63B6F; border-color: #E63B6F;
 }
 .option-checkbox input:checked + .checkmark::after {
     content: ''; position: absolute; left: 5px; top: 1px;

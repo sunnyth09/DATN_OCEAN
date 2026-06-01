@@ -133,7 +133,11 @@ onMounted(() => {
   min-height: 500px;
 }
 
-.page-header { margin-bottom: 20px; }
+.page-header {
+  margin-bottom: 24px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 16px;
+}
 .page-title { margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a; }
 .page-subtitle { margin: 8px 0 0; color: #64748b; font-size: 0.92rem; }
 
@@ -148,16 +152,23 @@ onMounted(() => {
   border: 1px solid #cbd5e1;
   background: #fff;
   color: #475569;
-  border-radius: 999px;
+  border-radius: 20px;
   padding: 8px 16px;
   font-weight: 600;
+  font-size: 0.85rem;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-tab:hover {
+  border-color: #E63B6F;
+  color: #E63B6F;
 }
 
 .filter-tab.active {
-  background: #E63B6F;
+  background: rgba(230, 59, 111, 0.1);
   border-color: #E63B6F;
-  color: #fff;
+  color: #E63B6F;
 }
 
 .request-list {
@@ -220,16 +231,18 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 0.82rem;
+  padding: 6px 14px;
+  border-radius: 30px;
+  font-size: 0.85rem;
   font-weight: 700;
+  background: white;
+  border: 1px solid #e2e8f0;
 }
 
-.status-badge.status-info { color: #475569; background: #f8fafc; border: 1px solid #cbd5e1; }
-.status-badge.status-warning { color: #d97706; background: #fef3c7; border: 1px solid #fde68a; }
-.status-badge.status-success { color: #16a34a; background: #dcfce7; border: 1px solid #bbf7d0; }
-.status-badge.status-danger { color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; }
+.status-badge.status-info { color: #475569; background: #f8fafc; border-color: #cbd5e1; }
+.status-badge.status-warning { color: #d97706; background: #fef3c7; border-color: #fde68a; }
+.status-badge.status-success { color: #16a34a; background: #dcfce3; border-color: #bbf7d0; }
+.status-badge.status-danger { color: #dc2626; background: #fee2e2; border-color: #fecaca; }
 
 .loading-state,
 .empty-state {

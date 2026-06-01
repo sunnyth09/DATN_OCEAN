@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { orderService } from '@/services/orderService';
@@ -37,7 +37,6 @@ const filterTabs = [
   { value: 'pending', label: 'Chờ xác nhận' },
   { value: 'shipping', label: 'Đang giao' },
   { value: 'completed', label: 'Hoàn thành' },
-  { value: 'return_requested', label: 'Hoàn hàng' },
   { value: 'cancelled', label: 'Đã hủy' },
 ];
 

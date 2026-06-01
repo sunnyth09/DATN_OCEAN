@@ -102,10 +102,11 @@ class ProductService
         }
 
         // Category filter (bao gồm con)
-        $categoryId = $request->query('category_id');
-        if ($categoryId && $categoryId !== 'All') {
-            $categoryIds = [$categoryId];
-            $childIds = Category::where('parent_id', $categoryId)->pluck('category_id')->toArray();
+        $categoryInput = $request->query('category_ids') ?? $request->query('category_id');
+        if (!empty($categoryInput) && $categoryInput !== 'All') {
+            $categoryIds = is_array($categoryInput) ? $categoryInput : explode(',', $categoryInput);
+            
+            $childIds = Category::whereIn('parent_id', $categoryIds)->pluck('category_id')->toArray();
             $filters['category_ids'] = array_merge($categoryIds, $childIds);
         }
 

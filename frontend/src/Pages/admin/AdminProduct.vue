@@ -306,12 +306,13 @@ const openQuickView = async (slug) => {
     showQuickViewModal.value = true;
     try {
         const response = await api.get(`/products/${slug}`);
-        quickViewProduct.value = response.data;
+        const productData = response.data.data || response.data;
+        quickViewProduct.value = productData;
         // Set preview ảnh ban đầu
-        if (response.data.thumbnail_url) {
-            qvSelectedImage.value = `${storageUrl}/${response.data.thumbnail_url}`;
-        } else if (response.data.images && response.data.images.length > 0) {
-            qvSelectedImage.value = `${storageUrl}/${response.data.images[0].image_url}`;
+        if (productData.thumbnail_url) {
+            qvSelectedImage.value = `${storageUrl}/${productData.thumbnail_url}`;
+        } else if (productData.images && productData.images.length > 0) {
+            qvSelectedImage.value = `${storageUrl}/${productData.images[0].image_url}`;
         } else {
             qvSelectedImage.value = '';
         }
