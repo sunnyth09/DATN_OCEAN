@@ -1,10 +1,11 @@
 import 'dart:convert';
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 
-const String kBaseUrl = AppConfig.kBaseUrl;
+String get kBaseUrl => AppConfig.kBaseUrl;
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> orderItem;
@@ -83,7 +84,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF0EA5E9)),
+        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -168,7 +169,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0EA5E9))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
                     ),
                   ),
                 ],
@@ -181,7 +182,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0EA5E9),
+                  backgroundColor: const Color(0xFFE63B6F),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   elevation: 0,

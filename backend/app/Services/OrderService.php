@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\OrderStatus;
 use App\Models\OrderStatusHistory;
 use App\Repositories\OrderRepository;
 use App\Repositories\CartRepository;
@@ -21,7 +22,8 @@ class OrderService
         protected CouponService $couponService,
         protected ShippingService $shippingService,
         protected PaymentGatewayService $paymentGatewayService,
-        protected AffiliateService $affiliateService
+        protected AffiliateService $affiliateService,
+        protected ReturnRequestService $returnRequestService
     ) {}
 
     public function getUserOrders(int $userId, string $status = 'all')
@@ -32,6 +34,10 @@ class OrderService
             $order->is_reviewed = $order->items->every(
                 fn ($item) => $item->comment !== null
             );
+            $order->latest_return_request = $order->returnRequests
+                ->sortByDesc('requested_at')
+                ->first();
+            $order->can_request_return = $this->returnRequestService->canUserRequestReturn($order);
 
             return $order;
         });
@@ -41,7 +47,17 @@ class OrderService
 
     public function getUserOrderDetail(int $userId, int $orderId)
     {
-        return $this->orderRepository->getUserOrderDetail($userId, $orderId);
+        $order = $this->orderRepository->getUserOrderDetail($userId, $orderId);
+
+        if ($order) {
+            $order->latest_return_request = $order->returnRequests
+                ->sortByDesc('requested_at')
+                ->first();
+            $order->can_request_return = $this->returnRequestService->canUserRequestReturn($order);
+            $order->return_window_days = $this->returnRequestService->getReturnWindowDays();
+        }
+
+        return $order;
     }
 
     public function getOrderIdByCode(int $userId, string $orderCode): ?int
@@ -147,7 +163,7 @@ class OrderService
 
                 $this->orderRepository->createStatusHistory([
                     'order_id' => $order->order_id,
-                    'new_status' => 'pending',
+                    'new_status' => OrderStatus::PENDING->value,
                     'note' => 'Khách hàng đặt đơn hàng mới',
                 ]);
 
@@ -220,7 +236,7 @@ class OrderService
             return $this->error('Không tìm thấy đơn hàng!', 404);
         }
 
-        if ($order->fulfillment_status !== 'pending') {
+        if ($order->fulfillment_status !== OrderStatus::PENDING->value) {
             return $this->error(
                 'Bạn chỉ có thể hủy đơn hàng khi đang chờ xác nhận!',
                 400
@@ -233,8 +249,8 @@ class OrderService
 
                 $this->orderRepository->createStatusHistory([
                     'order_id' => $order->order_id,
-                    'old_status' => 'pending',
-                    'new_status' => 'cancelled',
+                    'old_status' => OrderStatus::PENDING->value,
+                    'new_status' => OrderStatus::CANCELLED->value,
                     'note' => 'Khách hàng hủy đơn: ' . $reason,
                 ]);
 

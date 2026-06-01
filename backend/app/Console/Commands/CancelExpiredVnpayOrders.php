@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
@@ -25,8 +27,8 @@ class CancelExpiredVnpayOrders extends Command
         $minutes = (int) $this->option('minutes');
 
         $expiredOrders = Order::whereIn('payment_method', ['vnpay', 'momo'])
-            ->where('payment_status', 'unpaid')
-            ->where('fulfillment_status', 'pending')
+            ->where('payment_status', PaymentStatus::UNPAID->value)
+            ->where('fulfillment_status', OrderStatus::PENDING->value)
             ->where('created_at', '<', now()->subMinutes($minutes))
             ->get();
 
@@ -46,8 +48,8 @@ class CancelExpiredVnpayOrders extends Command
 
                 // Cập nhật trạng thái đơn hàng
                 $order->update([
-                    'fulfillment_status' => 'cancelled',
-                    'payment_status' => 'failed',
+                    'fulfillment_status' => OrderStatus::CANCELLED->value,
+                    'payment_status' => PaymentStatus::FAILED->value,
                     'cancelled_at' => now(),
                     'cancel_reason' => 'Hệ thống tự động hủy: quá thời hạn thanh toán (' . $minutes . ' phút)',
                 ]);
@@ -55,8 +57,8 @@ class CancelExpiredVnpayOrders extends Command
                 // Ghi lịch sử
                 OrderStatusHistory::create([
                     'order_id' => $order->order_id,
-                    'old_status' => 'pending',
-                    'new_status' => 'cancelled',
+                    'old_status' => OrderStatus::PENDING->value,
+                    'new_status' => OrderStatus::CANCELLED->value,
                     'note' => 'Hệ thống tự động hủy: chưa thanh toán sau ' . $minutes . ' phút.',
                 ]);
 

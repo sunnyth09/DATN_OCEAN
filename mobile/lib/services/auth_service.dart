@@ -8,14 +8,13 @@ class AuthService {
   static const String keyUser = 'user_data';
 
   // ========== LOGIN ==========
-  static Future<Map<String, dynamic>> login(String email, String password, {required String turnstileToken}) async {
+  static Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await ApiClient().dio.post(
         '/login',
         data: {
           'email': email,
           'password': password,
-          'turnstile_token': turnstileToken,
         },
       );
 
@@ -40,7 +39,7 @@ class AuthService {
   }
 
   // ========== REGISTER ==========
-  static Future<Map<String, dynamic>> register(String name, String email, String password, String passwordConfirm, {required String turnstileToken}) async {
+  static Future<Map<String, dynamic>> register(String name, String email, String password, String passwordConfirm) async {
     try {
       final response = await ApiClient().dio.post(
         '/register',
@@ -49,7 +48,6 @@ class AuthService {
           'email': email,
           'password': password,
           'password_confirmation': passwordConfirm,
-          'turnstile_token': turnstileToken,
         },
       );
 

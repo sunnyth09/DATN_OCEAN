@@ -6,6 +6,7 @@ import 'screens/onboarding_screen.dart';
 import 'screens/main_wrapper.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'config/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,12 +47,10 @@ class MyApp extends StatelessWidget {
     }
 
     return MaterialApp(
-      title: 'Ocean Shop',
+      title: 'Quyền Sport',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0EA5E9)),
-        useMaterial3: true,
-      ),
+      // Sử dụng theme tập trung đồng bộ với website
+      theme: AppTheme.lightTheme,
       home: homeScreen,
     );
   }

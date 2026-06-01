@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Repositories\AdminOrderRepository;
 use App\Models\Order;
 use Illuminate\Http\Request;
@@ -11,13 +13,19 @@ use Illuminate\Support\Facades\Log;
 class AdminOrderService
 {
     private const ALLOWED_TRANSITIONS = [
-        'pending'   => ['confirmed', 'cancelled'],
-        'confirmed' => ['packing', 'cancelled'],
-        'packing'   => ['shipping', 'cancelled'],
-        'shipping'  => ['delivered'],
-        'delivered' => ['completed'],
-        'completed' => [],
+        'pending' => ['confirmed', 'cancelled'],
+        'confirmed' => ['processing', 'packing', 'cancelled'],
+        'processing' => ['shipping', 'cancelled'],
+        'packing' => ['shipping', 'cancelled'],
+        'shipping' => ['delivered'],
+        'delivered' => ['completed', 'return_requested'],
+        'completed' => ['return_requested'],
         'cancelled' => [],
+        'return_requested' => [],
+        'return_approved' => [],
+        'return_rejected' => [],
+        'returned' => [],
+        'refunded' => [],
     ];
 
     private const STATUS_FIELD_MAP = [
@@ -113,15 +121,17 @@ class AdminOrderService
                 }
 
                 // Auto payment status updates
-                if ($newFulfillmentStatus === 'completed' && $order->payment_method === 'cod' && $order->payment_status === 'unpaid') {
-                    $updates['payment_status'] = 'paid';
+                if (in_array($newFulfillmentStatus, [OrderStatus::DELIVERED->value, OrderStatus::COMPLETED->value], true)
+                    && $order->payment_method === 'cod'
+                    && $order->payment_status === PaymentStatus::UNPAID->value) {
+                    $updates['payment_status'] = PaymentStatus::PAID->value;
                 }
 
-                if ($newFulfillmentStatus === 'cancelled') {
+                if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
                     $updates['cancel_reason'] = $data['note'] ?? 'Hủy bởi Admin';
 
-                    if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer']) && $order->payment_status === 'paid') {
-                        $updates['payment_status'] = 'refunded';
+                    if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
+                        $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 
                     // Hoàn tồn kho
@@ -215,15 +225,17 @@ class AdminOrderService
                         $updates[self::STATUS_FIELD_MAP[$newFulfillmentStatus]] = now();
                     }
 
-                    if ($newFulfillmentStatus === 'completed' && $order->payment_method === 'cod' && $order->payment_status === 'unpaid') {
-                        $updates['payment_status'] = 'paid';
+                    if (in_array($newFulfillmentStatus, [OrderStatus::DELIVERED->value, OrderStatus::COMPLETED->value], true)
+                        && $order->payment_method === 'cod'
+                        && $order->payment_status === PaymentStatus::UNPAID->value) {
+                        $updates['payment_status'] = PaymentStatus::PAID->value;
                     }
 
-                    if ($newFulfillmentStatus === 'cancelled') {
+                    if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
                         $updates['cancel_reason'] = $data['note'] ?? 'Hủy hàng loạt bởi Admin';
 
-                        if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer']) && $order->payment_status === 'paid') {
-                            $updates['payment_status'] = 'refunded';
+                        if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
+                            $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                         }
 
                         // Hoàn tồn kho

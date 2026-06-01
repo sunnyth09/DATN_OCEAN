@@ -6,36 +6,32 @@
 /// - Khi chạy với server thật (production): dùng kProductionBaseUrl
 /// ============================================================
 
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
   AppConfig._(); // Ngăn tạo instance
 
-  /// ── URL SERVER THẬT (Production) ──
+  /// ── URL CƠ BẢN CỦA API (Production) ──
   static const String kProductionBaseUrl = 'https://api.ocean.pro.vn/api';
   static const String kProductionStorageUrl = 'https://api.ocean.pro.vn/storage';
 
   /// ── URL LOCAL (Development/Emulator) ──
-  static const String kLocalBaseUrl = 'http://127.0.0.1:8383/api';
-  static const String kLocalStorageUrl = 'http://127.0.0.1:8383/storage';
+  /// LƯU Ý: Lấy IP từ file .env (API_IP)
+  static String get _localIp => dotenv.env['API_IP'] ?? '127.0.0.1';
+  static String get kLocalBaseUrl => 'http://$_localIp:8383/api';
+  static String get kLocalStorageUrl => 'http://$_localIp:8383/storage';
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // 👇 CHUYỂN ĐỔI Ở ĐÂY: true = dùng server thật
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  static const bool isProduction = true;
+  static const bool isProduction = false;
 
   /// Base URL cho API (tự động chọn theo isProduction)
-  static const String kBaseUrl = isProduction ? kProductionBaseUrl : kLocalBaseUrl;
+  static String get kBaseUrl => isProduction ? kProductionBaseUrl : kLocalBaseUrl;
 
-  /// Base URL cho Storage (ảnh sản phẩm, avatar, v.v.)
-  static const String kStorageUrl = isProduction ? kProductionStorageUrl : kLocalStorageUrl;
-
-  /// ── CLOUDFLARE TURNSTILE ──
-  /// Đọc Site Key từ file .env (biến TURNSTILE_SITE_KEY)
-  static String get kTurnstileSiteKey => dotenv.env['TURNSTILE_SITE_KEY'] ?? '';
-
-  /// ── FRONTEND URL (cho WebView Login) ──
-  static const String kFrontendLoginUrl = 'https://ocean.pro.vn/client/login';
+  /// Base URL cho ảnh/video (tự động chọn theo isProduction)
+  static String get kStorageUrl => isProduction ? kProductionStorageUrl : kLocalStorageUrl;
 
   /// Tạo URL đầy đủ cho ảnh từ đường dẫn relative
   /// VD: 'products/abc.jpg' → 'https://api.ocean.pro.vn/storage/products/abc.jpg'

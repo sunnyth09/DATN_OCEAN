@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,7 +7,7 @@ import 'main_wrapper.dart';
 import 'review_screen.dart';
 import '../config/app_config.dart';
 
-const String kBaseUrl = AppConfig.kBaseUrl;
+String get kBaseUrl => AppConfig.kBaseUrl;
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -151,7 +152,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF0EA5E9))),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
                         ),
                       ),
                     ],
@@ -314,14 +315,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF0EA5E9)),
+        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
       ),
       body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
-    if (isLoading) return const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)));
+    if (isLoading) return const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)));
     if (errorMessage != null) {
       return Center(
         child: Column(
@@ -416,7 +417,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               Container(
                                 width: 20, height: 20,
                                 decoration: BoxDecoration(
-                                  color: isLast ? const Color(0xFF0EA5E9) : Colors.green,
+                                  color: isLast ? const Color(0xFFE63B6F) : Colors.green,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(isLast ? Icons.circle : Icons.check, size: 12, color: Colors.white),
@@ -457,7 +458,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.location_on_outlined, color: Color(0xFF0EA5E9), size: 20),
+                        child: const Icon(Icons.location_on_outlined, color: Color(0xFFE63B6F), size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -515,7 +516,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                     children: [
                                       Text('x$qty', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
                                       const Spacer(),
-                                      Text(_formatPrice(num.parse(price.toString()) * qty), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0EA5E9))),
+                                      Text(_formatPrice(num.parse(price.toString()) * qty), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE63B6F))),
                                     ],
                                   ),
                                   if (isCompleted) ...[  
@@ -564,7 +565,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.payment_outlined, color: Color(0xFF0EA5E9), size: 20),
+                      child: const Icon(Icons.payment_outlined, color: Color(0xFFE63B6F), size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -599,7 +600,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Tổng thanh toán', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text(_formatPrice(grandTotal), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0EA5E9), fontSize: 20)),
+                        Text(_formatPrice(grandTotal), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE63B6F), fontSize: 20)),
                       ],
                     ),
                   ],
@@ -649,7 +650,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           : const Icon(Icons.refresh, size: 18),
                         label: const Text('Mua lại', style: TextStyle(fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0EA5E9),
+                          backgroundColor: const Color(0xFFE63B6F),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -667,7 +668,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         icon: const Icon(Icons.arrow_back, size: 18),
                         label: const Text('Quay lại', style: TextStyle(fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0EA5E9),
+                          backgroundColor: const Color(0xFFE63B6F),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

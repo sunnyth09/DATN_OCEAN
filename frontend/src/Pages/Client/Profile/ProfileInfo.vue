@@ -331,6 +331,36 @@ const updateProfile = async () => {
   globalError.value = '';
   globalSuccess.value = '';
 
+  const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
+  if (form.value.phone && !phoneRegex.test(form.value.phone.trim())) {
+    errors.value.phone = ['Số điện thoại không hợp lệ (phải là số hợp lệ tại Việt Nam).'];
+    loading.value = false;
+    return;
+  }
+
+  if (form.value.date_of_birth) {
+    const dob = new Date(form.value.date_of_birth);
+    const now = new Date();
+    dob.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+    
+    if (dob > now) {
+      errors.value.date_of_birth = ['Ngày sinh không thể vượt quá ngày hiện tại.'];
+      loading.value = false;
+      return;
+    }
+    
+    if (user.value?.created_at) {
+      const joinDate = new Date(user.value.created_at);
+      joinDate.setHours(0, 0, 0, 0);
+      if (dob > joinDate) {
+        errors.value.date_of_birth = ['Ngày sinh không thể vượt quá thời gian tham gia hệ thống.'];
+        loading.value = false;
+        return;
+      }
+    }
+  }
+
   const formData = new FormData();
   formData.append('full_name', form.value.full_name.trim());
   formData.append('phone', form.value.phone || '');
@@ -468,7 +498,7 @@ onUnmounted(() => {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  background: #4f46e5;
+  background: #E63B6F ;
   color: #fff;
   width: 28px;
   height: 28px;
@@ -544,7 +574,7 @@ onUnmounted(() => {
 }
 .btn-primary {
   padding: 10px 28px;
-  background: #4f46e5;
+  background: #E63B6F;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -558,7 +588,7 @@ onUnmounted(() => {
   min-width: 130px;
   transition: background 0.2s;
 }
-.btn-primary:hover:not(:disabled) { background: #4338ca; }
+.btn-primary:hover:not(:disabled) { background: #cb184d; }
 .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
 
 .btn-outline {

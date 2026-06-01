@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/material.dart';
 import '../services/api_client.dart';
+import '../config/app_theme.dart';
 import '../home_screen.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
@@ -121,7 +121,7 @@ class _MainWrapperState extends State<MainWrapper> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE0F2FE) : Colors.transparent,
+          color: isSelected ? AppColors.primarySoft : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(
@@ -130,7 +130,7 @@ class _MainWrapperState extends State<MainWrapper> {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(isSelected ? selectedIcon : unselectedIcon, color: isSelected ? const Color(0xFF0284C7) : const Color(0xFF94A3B8), size: 24),
+                Icon(isSelected ? selectedIcon : unselectedIcon, color: isSelected ? AppColors.primary : const Color(0xFF94A3B8), size: 24),
                 if (badgeCount > 0)
                   Positioned(
                     right: -6, top: -4,
@@ -143,7 +143,7 @@ class _MainWrapperState extends State<MainWrapper> {
               ],
             ),
             if (isSelected) const SizedBox(height: 4),
-            if (isSelected) Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+            if (isSelected) Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
           ],
         ),
       ),

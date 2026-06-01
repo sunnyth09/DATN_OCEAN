@@ -95,6 +95,11 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(UserCoupon::class, 'user_id', 'user_id');
     }
 
+    public function returnRequests()
+    {
+        return $this->hasMany(ReturnRequest::class, 'user_id', 'user_id');
+    }
+
     // ==================== Affiliate Relationships ====================
 
     public function referrer()
@@ -138,7 +143,7 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [
-            'role' => 'customer',
+            'role' => $this->role ?? 'customer',
         ];
     }
 }

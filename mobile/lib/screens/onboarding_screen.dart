@@ -58,7 +58,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     alignment: Alignment.center,
                     children: [
                       // Placeholder icon
-                      const Icon(Icons.shopping_bag_outlined, size: 100, color: Color(0xFF38BDF8)),
+                      const Icon(Icons.sports_tennis, size: 100, color: Color(0xFFFF8FAB)),
                       // Hazy gradient glow effect logic would go here
                       Positioned(
                          bottom: 0,
@@ -67,7 +67,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                            height: 50,
                            decoration: BoxDecoration(
                              gradient: RadialGradient(
-                               colors: [const Color(0xFF0EA5E9).withOpacity(0.5), Colors.transparent],
+                               colors: [const Color(0xFFE63B6F).withOpacity(0.5), Colors.transparent],
                                radius: 1.5,
                              ),
                            ),
@@ -86,9 +86,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: EdgeInsets.symmetric(horizontal: 40),
               child: Column(
                 children: [
-                  Text('Mua sắm nhanh chóng', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), height: 1.2)),
+                  Text('Quyền Sport', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), height: 1.2)),
                   SizedBox(height: 16),
-                  Text('Khám phá hàng ngàn sản phẩm chất lượng cao chỉ với vài thao tác chạm đơn giản.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.6)),
+                  Text('Khám phá hàng ngàn sản phẩm thể thao chính hãng — giày, quần áo, phụ kiện — chỉ với vài thao tác.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.6)),
                 ],
               ),
             ),
@@ -99,7 +99,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(width: 20, height: 6, decoration: BoxDecoration(color: const Color(0xFF0EA5E9), borderRadius: BorderRadius.circular(3))),
+                Container(width: 20, height: 6, decoration: BoxDecoration(color: const Color(0xFFE63B6F), borderRadius: BorderRadius.circular(3))),
                 const SizedBox(width: 6),
                 Container(width: 6, height: 6, decoration: BoxDecoration(color: const Color(0xFFCBD5E1), borderRadius: BorderRadius.circular(3))),
                 const SizedBox(width: 6),
@@ -118,7 +118,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   onPressed: _goToApp,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    backgroundColor: const Color(0xFF0EA5E9),
+                    backgroundColor: const Color(0xFFE63B6F),
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),

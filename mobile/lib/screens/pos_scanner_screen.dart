@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/api_client.dart';
@@ -121,7 +122,7 @@ class _PosScannerScreenState extends State<PosScannerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Máy Quét POS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF0EA5E9),
+        backgroundColor: const Color(0xFFE63B6F),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           if (sessionId != null)

@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Http\Requests;
+
+use App\Enums\RefundMethod;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class UpdateReturnRequestStatusRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        $action = $this->route()?->getActionMethod();
+
+        return match ($action) {
+            'approve' => [
+                'admin_note' => 'nullable|string|max:1000',
+            ],
+            'reject' => [
+                'admin_note' => 'required|string|max:1000',
+            ],
+            'refund' => [
+                'admin_note' => 'nullable|string|max:1000',
+                'refund_amount' => 'required|numeric|min:0',
+                'refund_method' => ['required', Rule::in(array_map(
+                    static fn (RefundMethod $method) => $method->value,
+                    RefundMethod::cases()
+                ))],
+            ],
+            default => [
+                'admin_note' => 'nullable|string|max:1000',
+            ],
+        };
+    }
+
+    public function messages(): array
+    {
+        return [
+            'admin_note.required' => 'Vui lòng nhập ghi chú xử lý.',
+            'refund_amount.required' => 'Vui lòng nhập số tiền hoàn.',
+            'refund_amount.numeric' => 'Số tiền hoàn phải là số hợp lệ.',
+            'refund_method.required' => 'Vui lòng chọn phương thức hoàn tiền.',
+        ];
+    }
+}

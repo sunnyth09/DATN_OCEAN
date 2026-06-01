@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -177,7 +178,7 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
                   const Text('Bộ lọc & Sắp xếp', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
                   TextButton(
                     onPressed: () => setSheet(() { tmpSort = 'newest'; tmpPrice = const RangeValues(0, 50000000); tmpInStock = false; }),
-                    child: const Text('Đặt lại', style: TextStyle(color: Color(0xFF0EA5E9))),
+                    child: const Text('Đặt lại', style: TextStyle(color: Color(0xFFE63B6F))),
                   ),
                 ]),
                 const SizedBox(height: 20),
@@ -196,14 +197,14 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
                 // Price range
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Text('Khoảng giá', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF334155))),
-                  Text('${_fmtPrice(tmpPrice.start)} – ${_fmtPrice(tmpPrice.end)}', style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9), fontWeight: FontWeight.w600)),
+                  Text('${_fmtPrice(tmpPrice.start)} – ${_fmtPrice(tmpPrice.end)}', style: const TextStyle(fontSize: 12, color: Color(0xFFE63B6F), fontWeight: FontWeight.w600)),
                 ]),
                 SliderTheme(
                   data: SliderTheme.of(ctx).copyWith(
-                    activeTrackColor: const Color(0xFF0EA5E9),
-                    thumbColor: const Color(0xFF0284C7),
+                    activeTrackColor: const Color(0xFFE63B6F),
+                    thumbColor: const Color(0xFFE63B6F),
                     inactiveTrackColor: const Color(0xFFE2E8F0),
-                    overlayColor: const Color(0xFF0EA5E9).withOpacity(0.1),
+                    overlayColor: const Color(0xFFE63B6F).withOpacity(0.1),
                   ),
                   child: RangeSlider(
                     values: tmpPrice,
@@ -222,9 +223,9 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
                       duration: const Duration(milliseconds: 200),
                       width: 22, height: 22,
                       decoration: BoxDecoration(
-                        color: tmpInStock ? const Color(0xFF0EA5E9) : Colors.white,
+                        color: tmpInStock ? const Color(0xFFE63B6F) : Colors.white,
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: tmpInStock ? const Color(0xFF0EA5E9) : const Color(0xFFCBD5E1), width: 1.5),
+                        border: Border.all(color: tmpInStock ? const Color(0xFFE63B6F) : const Color(0xFFCBD5E1), width: 1.5),
                       ),
                       child: tmpInStock ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
                     ),
@@ -238,7 +239,7 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0EA5E9),
+                      backgroundColor: const Color(0xFFE63B6F),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
@@ -267,9 +268,9 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: sel ? const Color(0xFF0EA5E9) : Colors.white,
+          color: sel ? const Color(0xFFE63B6F) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: sel ? const Color(0xFF0EA5E9) : const Color(0xFFE2E8F0)),
+          border: Border.all(color: sel ? const Color(0xFFE63B6F) : const Color(0xFFE2E8F0)),
         ),
         child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : const Color(0xFF475569))),
       ),
@@ -334,7 +335,7 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
-                    color: _hasActiveFilter ? const Color(0xFF0EA5E9) : const Color(0xFFF1F5F9),
+                    color: _hasActiveFilter ? const Color(0xFFE63B6F) : const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(children: [
@@ -414,9 +415,9 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF0EA5E9) : const Color(0xFFF1F5F9),
+          color: selected ? const Color(0xFFE63B6F) : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? const Color(0xFF0EA5E9) : Colors.transparent),
+          border: Border.all(color: selected ? const Color(0xFFE63B6F) : Colors.transparent),
         ),
         child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: selected ? Colors.white : const Color(0xFF475569))),
       ),
@@ -425,7 +426,7 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
 
   Widget _buildBody() {
     return RefreshIndicator(
-      color: const Color(0xFF0EA5E9),
+      color: const Color(0xFFE63B6F),
       onRefresh: () async { currentPage = 1; await fetchProducts(); },
       child: CustomScrollView(
         controller: _scrollCtrl,
@@ -476,7 +477,7 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
           // Load more indicator
           if (isFetchingMore)
             const SliverToBoxAdapter(
-              child: Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9), strokeWidth: 2))),
+              child: Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F), strokeWidth: 2))),
             ),
 
           if (!hasMore && products.length > 4)
@@ -507,9 +508,9 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
 
   Widget _badge(String label, {required VoidCallback onRemove}) {
     return Chip(
-      label: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF0284C7))),
-      backgroundColor: const Color(0xFFE0F2FE),
-      deleteIcon: const Icon(Icons.close, size: 14, color: Color(0xFF0284C7)),
+      label: Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFFE63B6F))),
+      backgroundColor: const Color(0xFFFFF0F3),
+      deleteIcon: const Icon(Icons.close, size: 14, color: Color(0xFFE63B6F)),
       onDeleted: onRemove,
       padding: const EdgeInsets.symmetric(horizontal: 4),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -538,7 +539,7 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
           onPressed: _resetAndFetch,
           icon: const Icon(Icons.refresh),
           label: const Text('Thử lại'),
-          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE63B6F), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         ),
       ]),
     );
@@ -626,11 +627,11 @@ class _CategoryScreenState extends State<CategoryScreen> with AutomaticKeepAlive
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(_formatPrice(rawPrice), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0EA5E9))),
+                    Text(_formatPrice(rawPrice), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFFE63B6F))),
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF0284C7)]),
+                        gradient: const LinearGradient(colors: [Color(0xFFE63B6F), Color(0xFFE63B6F)]),
                         borderRadius: BorderRadius.circular(9),
                       ),
                       child: const Icon(Icons.add_shopping_cart_rounded, size: 15, color: Colors.white),

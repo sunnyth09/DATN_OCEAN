@@ -414,11 +414,11 @@ onMounted(async () => {
 .address-selector__preview {
   margin-top: 14px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 1px solid #bae6fd;
+  background: #E63B6F;
+  border: 1px solid #f3d1de;
   border-radius: 10px;
   font-size: 0.875rem;
-  color: #0369a1;
+  color: #ffffff;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -426,7 +426,7 @@ onMounted(async () => {
 }
 
 .address-selector__preview i {
-  color: #0ea5e9;
+  color: #E63B6F;
   margin-top: 2px;
   flex-shrink: 0;
 }

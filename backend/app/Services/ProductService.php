@@ -77,6 +77,8 @@ class ProductService
         $filters = [
             'status'     => $status,
             'price_range' => $request->query('price_range'),
+            'max_price'  => $request->query('max_price'),
+            'brand_ids'  => $request->query('brand_ids'),
             'sort_by'    => $request->query('sort_by'),
         ];
 

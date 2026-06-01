@@ -3,7 +3,6 @@ import 'main_wrapper.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
-import 'webview_login_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,7 +18,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  /// Mở WebView login → trang web thật có Turnstile CAPTCHA
   void _handleLogin() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -33,26 +31,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // Mở trang web login thật — tự động điền email/password
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => WebViewLoginScreen(
-          prefillEmail: email,
-          prefillPassword: password,
-        ),
-      ),
-    );
+    final result = await AuthService.login(email, password);
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (result == true) {
-      // Login thành công — token đã được lưu bởi WebViewLoginScreen
+    if (result['success'] == true) {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const MainWrapper()),
         (route) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
       );
     }
   }
@@ -79,13 +71,13 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 width: 72, height: 72,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE0F2FE),
+                  color: const Color(0xFFFFF0F3),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(Icons.waves, color: Color(0xFF0284C7), size: 40),
+                child: const Icon(Icons.sports_tennis, color: Color(0xFFE63B6F), size: 40),
               ),
               const SizedBox(height: 24),
-              const Text('Ocean Shop', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
+              const Text('Quyền Sport', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
               const SizedBox(height: 8),
               const Text('Đăng nhập', style: TextStyle(fontSize: 16, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
               
@@ -113,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
                          onTap: () {
                            Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()));
                          },
-                         child: Text('Quên mật khẩu?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue.shade600)),
+                         child: Text('Quên mật khẩu?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE63B6F))),
                        ),
                     ],
                   ),
@@ -134,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: const Color(0xFF0EA5E9),
+                        backgroundColor: const Color(0xFFE63B6F),
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
@@ -186,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             MaterialPageRoute(builder: (context) => const RegisterScreen()),
                           );
                         },
-                        child: Text('Đăng ký ngay', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue.shade600))
+                        child: Text('Đăng ký ngay', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFE63B6F)))
                       ),
                     ],
                   ),

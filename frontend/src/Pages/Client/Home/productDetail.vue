@@ -10,6 +10,8 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/icons/AppIcon.vue';
 import VirtualTryOnModal from '@/components/VirtualTryOnModal.vue';
+import { useFlyToCart } from '@/composables/useFlyToCart';
+
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -17,7 +19,9 @@ const cartStore = useCartStore();
 // slug là computed để watch được khi route thay đổi (route param là :id, có thể là slug hoặc id)
 const slug = computed(() => route.params.id);
 const product = ref(null);
+const productImageRef = ref(null);
 const showTryOn = ref(false);
+const { flyToCart } = useFlyToCart();
 const tryOnEnabled = import.meta.env.VITE_TRYON_ENABLED !== 'false';
 const selectedVariant = ref(null);
 const selectedColor = ref(null);
@@ -318,6 +322,9 @@ const addToCart = async () => {
             quantity: quantity.value,
         });
         if (response.status === 'success') {
+            if (productImageRef.value) {
+                await flyToCart(productImageRef.value, '#cart-icon');
+            }
             showToast(response.message, 'success');
             return true;
         }
@@ -430,7 +437,7 @@ console.log(quantity.value);
           </div>
         </div>
         <div class="pd-main-img">
-          <img :src="mainImageUrl" :alt="product.name" :key="activeImageIndex" />
+          <img ref="productImageRef" :src="mainImageUrl" :alt="product.name" :key="activeImageIndex" />
         </div>
       </div>
 

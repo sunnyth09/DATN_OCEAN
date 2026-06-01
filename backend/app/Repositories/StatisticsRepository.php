@@ -2,6 +2,8 @@
 
 namespace App\Repositories;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -17,8 +19,8 @@ class StatisticsRepository
     public function getRevenue($startDate, $endDate): float
     {
         return Order::where(function ($q) {
-            $q->where('payment_status', 'paid')
-              ->orWhere('fulfillment_status', 'completed');
+            $q->where('payment_status', PaymentStatus::PAID->value)
+              ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
         })->whereBetween('created_at', [$startDate, $endDate])->sum('grand_total');
     }
 
@@ -47,8 +49,8 @@ class StatisticsRepository
     {
         $todayRevenue = Order::whereDate('created_at', Carbon::today())
             ->where(function ($q) {
-                $q->where('payment_status', 'paid')
-                  ->orWhere('fulfillment_status', 'completed');
+                $q->where('payment_status', PaymentStatus::PAID->value)
+                  ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
             })->sum('grand_total');
 
         $todayOrders = Order::whereDate('created_at', Carbon::today())->count();
@@ -61,10 +63,10 @@ class StatisticsRepository
      */
     public function getPendingAndCancelledCounts($startDate, $endDate): array
     {
-        $pending = Order::whereIn('fulfillment_status', ['pending', 'processing'])
+        $pending = Order::whereIn('fulfillment_status', OrderStatus::pendingLikeValues())
             ->whereBetween('created_at', [$startDate, $endDate])->count();
 
-        $cancelled = Order::where('fulfillment_status', 'cancelled')
+        $cancelled = Order::where('fulfillment_status', OrderStatus::CANCELLED->value)
             ->whereBetween('created_at', [$startDate, $endDate])->count();
 
         return ['pending' => $pending, 'cancelled' => $cancelled];
@@ -80,8 +82,8 @@ class StatisticsRepository
             DB::raw('SUM(grand_total) as revenue')
         )
             ->where(function ($q) {
-                $q->where('payment_status', 'paid')
-                  ->orWhere('fulfillment_status', 'completed');
+                $q->where('payment_status', PaymentStatus::PAID->value)
+                  ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
             })
             ->whereBetween('created_at', [$startDate, $endDate])
             ->groupBy('date')
@@ -100,8 +102,8 @@ class StatisticsRepository
             DB::raw('SUM(grand_total) as revenue')
         )
             ->where(function ($q) {
-                $q->where('payment_status', 'paid')
-                  ->orWhere('fulfillment_status', 'completed');
+                $q->where('payment_status', PaymentStatus::PAID->value)
+                  ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
             })
             ->whereBetween('created_at', [$startDate, $endDate])
             ->groupBy('month')
@@ -134,7 +136,7 @@ class StatisticsRepository
         )
             ->whereHas('order', function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('created_at', [$startDate, $endDate])
-                  ->whereNotIn('fulfillment_status', ['cancelled', 'returned', 'failed']);
+                  ->whereNotIn('fulfillment_status', OrderStatus::revenueExcludedValues());
             })
             ->groupBy('product_id', 'product_name')
             ->orderByDesc('total_sold')
@@ -161,7 +163,12 @@ class StatisticsRepository
             DB::raw('MAX(created_at) as last_order_date')
         )
             ->whereBetween('created_at', [$startDate, $endDate])
-            ->whereNotIn('fulfillment_status', ['cancelled'])
+            ->whereNotIn('fulfillment_status', [
+                OrderStatus::CANCELLED->value,
+                OrderStatus::RETURN_APPROVED->value,
+                OrderStatus::RETURNED->value,
+                OrderStatus::REFUNDED->value,
+            ])
             ->groupBy('user_id', 'recipient_name', 'recipient_phone')
             ->orderByDesc('total_spent')
             ->limit($limit)
@@ -179,7 +186,12 @@ class StatisticsRepository
             DB::raw('COUNT(order_id) as total_orders'),
             DB::raw('SUM(grand_total) as total_revenue')
         )
-            ->whereNotIn('fulfillment_status', ['cancelled'])
+            ->whereNotIn('fulfillment_status', [
+                OrderStatus::CANCELLED->value,
+                OrderStatus::RETURN_APPROVED->value,
+                OrderStatus::RETURNED->value,
+                OrderStatus::REFUNDED->value,
+            ])
             ->whereBetween('created_at', [$startDate, $endDate])
             ->groupBy('date')
             ->orderBy('date', 'DESC')

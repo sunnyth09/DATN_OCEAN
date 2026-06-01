@@ -1,9 +1,10 @@
 import 'dart:convert';
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 
-const String kBaseUrl = AppConfig.kBaseUrl;
+String get kBaseUrl => AppConfig.kBaseUrl;
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -184,7 +185,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 Center(
                   child: TextButton(
                     onPressed: _isLoading ? null : _sendOtp,
-                    child: const Text('Gửi lại mã OTP', style: TextStyle(color: Color(0xFF0EA5E9), fontWeight: FontWeight.bold)),
+                    child: const Text('Gửi lại mã OTP', style: TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.bold)),
                   ),
                 ),
               ] else ...[
@@ -256,7 +257,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0EA5E9),
+          backgroundColor: const Color(0xFFE63B6F),
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -30,6 +30,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\FlashSaleController;
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\AdminAffiliateController;
+use App\Http\Controllers\Api\ReturnRequestController;
 use App\Http\Controllers\TryOnController;
 use App\Http\Controllers\Api\CourtController;
 use App\Http\Controllers\Api\CourtBookingController;
@@ -90,6 +91,11 @@ Route::middleware('auth:api,admin')->group(function () {
 
     // Try-on
     Route::middleware('throttle:10,1')->post('/try-on', [TryOnController::class, 'process']);
+
+    // Return requests
+    Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
+    Route::get('/my/return-requests', [ReturnRequestController::class, 'myIndex']);
+    Route::get('/my/return-requests/{id}', [ReturnRequestController::class, 'myShow']);
 });
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
@@ -227,6 +233,14 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
 
     // Flag chấm công bất thường (Admin only)
     Route::put('/attendance/{id}/flag', [\App\Http\Controllers\AttendanceController::class, 'flag']);
+
+    // Return requests (Admin only)
+    Route::get('/return-requests', [ReturnRequestController::class, 'adminIndex']);
+    Route::get('/return-requests/{id}', [ReturnRequestController::class, 'adminShow']);
+    Route::patch('/return-requests/{id}/approve', [ReturnRequestController::class, 'approve']);
+    Route::patch('/return-requests/{id}/reject', [ReturnRequestController::class, 'reject']);
+    Route::patch('/return-requests/{id}/received', [ReturnRequestController::class, 'received']);
+    Route::patch('/return-requests/{id}/refund', [ReturnRequestController::class, 'refund']);
 });
 
 // ==========================================

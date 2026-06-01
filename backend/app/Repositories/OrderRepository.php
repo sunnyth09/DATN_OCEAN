@@ -10,12 +10,16 @@ class OrderRepository
 {
     public function getUserOrders(int $userId, string $status = 'all')
     {
-        $query = Order::with(['items.product', 'items.variant', 'items.comment'])
+        $query = Order::with(['items.product', 'items.variant', 'items.comment', 'returnRequests'])
             ->where('user_id', $userId)
             ->orderBy('created_at', 'desc');
 
         if ($status !== 'all') {
-            $query->where('fulfillment_status', $status);
+            if ($status === 'processing') {
+                $query->whereIn('fulfillment_status', ['processing', 'packing']);
+            } else {
+                $query->where('fulfillment_status', $status);
+            }
         }
 
         return $query->paginate(10);
@@ -23,7 +27,7 @@ class OrderRepository
 
     public function getUserOrderDetail(int $userId, int $orderId)
     {
-        return Order::with(['items.product.images', 'items.variant', 'statusHistories'])
+        return Order::with(['items.product.images', 'items.variant', 'statusHistories', 'returnRequests'])
             ->where('user_id', $userId)
             ->where('order_id', $orderId)
             ->first();

@@ -357,7 +357,7 @@ watch(
                 </router-link>
 
                 <!-- Giỏ hàng -->
-                <router-link to="/cart" class="icon-btn cart-icon-btn">
+                <router-link to="/cart" id="cart-icon" class="icon-btn cart-icon-btn">
                     <div class="cart-icon-wrapper">
                         <AppIcon name="order" />
                         <span v-if="cartCount > 0" class="cart-badge">{{

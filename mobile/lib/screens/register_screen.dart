@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import '../services/auth_service.dart';
-import '../services/turnstile_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,8 +13,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscureText = true;
   bool _obscureTextConfirm = true;
   bool _isLoading = false;
-  String _turnstileToken = '';
-  final _turnstileKey = GlobalKey<TurnstileServiceState>();
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -41,13 +39,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (_turnstileToken.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng đợi xác thực bảo mật hoàn tất')),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
 
     final result = await AuthService.register(
@@ -55,7 +46,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       email,
       password,
       passwordConfirm,
-      turnstileToken: _turnstileToken,
     );
 
     setState(() => _isLoading = false);
@@ -69,8 +59,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
     } else {
       if (mounted) {
-        setState(() => _turnstileToken = '');
-        _turnstileKey.currentState?.resetToken();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
         );
@@ -109,15 +97,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Container(
                 width: 72, height: 72,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE0F2FE),
+                  color: const Color(0xFFFFF0F3),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(Icons.waves, color: Color(0xFF0284C7), size: 40),
+                child: const Icon(Icons.sports_tennis, color: Color(0xFFE63B6F), size: 40),
               ),
               const SizedBox(height: 16),
               const Text('Đăng ký tài khoản', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
               const SizedBox(height: 8),
-              const Text('Gia nhập Ocean Shop ngay hôm nay', style: TextStyle(fontSize: 14, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+              const Text('Gia nhập Quyền Sport ngay hôm nay', style: TextStyle(fontSize: 14, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
               
               const SizedBox(height: 32),
 
@@ -165,25 +153,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   
                   const SizedBox(height: 32),
-
-                  TurnstileService(
-                    key: _turnstileKey,
-                    onTokenReceived: (token) {
-                      if (mounted) setState(() => _turnstileToken = token);
-                    },
-                    onError: (_) {
-                      if (mounted) setState(() => _turnstileToken = '');
-                    },
-                  ),
                   
                   // Nút Đăng ký
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _isLoading || _turnstileToken.isEmpty ? null : _handleRegister,
+                      onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: const Color(0xFF0EA5E9),
+                        backgroundColor: const Color(0xFFE63B6F),
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),

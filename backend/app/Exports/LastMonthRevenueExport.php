@@ -2,6 +2,8 @@
 
 namespace App\Exports;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -22,8 +24,8 @@ class LastMonthRevenueExport implements FromCollection, WithHeadings, WithMappin
         return Order::with(['user', 'seller'])
             ->whereBetween('created_at', [$startDate, $endDate])
             ->where(function ($q) {
-                $q->where('payment_status', 'paid')
-                  ->orWhere('fulfillment_status', 'completed');
+                $q->where('payment_status', PaymentStatus::PAID->value)
+                  ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
             })
             ->orderBy('created_at', 'ASC')
             ->get();

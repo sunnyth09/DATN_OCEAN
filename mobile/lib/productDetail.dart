@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -34,10 +35,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Future<void> fetchProductDetails() async {
     try {
       final slug = _product['slug'];
-      final res = await ApiClient().dio.get('/products/slug/$slug');
+      final id = _product['id'] ?? _product['product_id'];
+      
+      Response res;
+      if (slug != null && slug.toString().isNotEmpty) {
+        res = await ApiClient().dio.get('/products/slug/$slug');
+      } else if (id != null) {
+        res = await ApiClient().dio.get('/products/$id');
+      } else {
+        throw Exception('Không có ID hoặc Slug sản phẩm');
+      }
+
       if (mounted) {
         setState(() {
-          _product = res.data is Map<String, dynamic> ? res.data : _product;
+          if (res.data is Map<String, dynamic>) {
+            _product = res.data['data'] ?? res.data;
+          }
           isLoadingDetails = false;
           final variants = _product['variants'] as List<dynamic>? ?? [];
           if (variants.isNotEmpty) {
@@ -52,8 +65,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           }
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => isLoadingDetails = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => isLoadingDetails = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải thông tin sản phẩm: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -173,7 +191,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (isLoadingDetails) {
       return const Scaffold(
         backgroundColor: Color(0xFFF8FAFC),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9))),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F))),
       );
     }
 
@@ -210,9 +228,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Ocean Shop', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0369A1), fontSize: 18)),
+        title: const Text('Quyền Sport', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFFB50C4D), fontSize: 18)),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0EA5E9),
+        foregroundColor: const Color(0xFFE63B6F),
         elevation: 0,
         centerTitle: true,
         leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context)),
@@ -265,7 +283,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(categoryName.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+                          Text(categoryName.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE63B6F))),
                           const Icon(Icons.favorite_border, color: Color(0xFF94A3B8)),
                         ],
                       ),
@@ -275,22 +293,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(_formatPrice(priceRaw), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF0284C7))),
+                          Text(_formatPrice(priceRaw), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFFE63B6F))),
                           const SizedBox(width: 8),
                           Text(oldPrice, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8), decoration: TextDecoration.lineThrough)),
                         ],
                       ),
                       const SizedBox(height: 24),
-                      GridView.count(
-                        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2, childAspectRatio: 3, mainAxisSpacing: 10, crossAxisSpacing: 10,
-                        children: [
-                          _buildFeatureItem(Icons.water_drop_outlined, 'Chống nước', '300m / 1000ft'),
-                          _buildFeatureItem(Icons.settings_outlined, 'Tự động', 'Trữ cót 72h'),
-                          _buildFeatureItem(Icons.shield_outlined, 'Bảo hành', '5 năm quốc tế'),
-                          _buildFeatureItem(Icons.diamond_outlined, 'Vật liệu', 'Thép không gỉ 316L'),
-                        ],
-                      ),
+                      // GridView removed to avoid hardcoded watch features in a sports store
                     ],
                   ),
                 ),
@@ -316,7 +325,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text('Kích thước', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                              Text('Hướng dẫn đo size', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.blue.shade600)),
+                              Text('Hướng dẫn đo size', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFE63B6F))),
                             ],
                           ),
                           const SizedBox(height: 12),
@@ -415,10 +424,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         onPressed: () => _handleActionSelected('Thêm vào giỏ'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: const BorderSide(color: Color(0xFF0EA5E9), width: 1.5),
+                          side: const BorderSide(color: Color(0xFFE63B6F), width: 1.5),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                         ),
-                        child: const Text('Thêm vào giỏ', style: TextStyle(color: Color(0xFF0EA5E9), fontWeight: FontWeight.bold)),
+                        child: const Text('Thêm vào giỏ', style: TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -427,7 +436,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         onPressed: () => _handleActionSelected('Mua ngay'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: const Color(0xFF0EA5E9),
+                          backgroundColor: const Color(0xFFE63B6F),
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                         ),
@@ -495,7 +504,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Container(
           margin: const EdgeInsets.only(right: 12),
           padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: isSelected ? const Color(0xFF0EA5E9) : Colors.transparent, width: 2)),
+          decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: isSelected ? const Color(0xFFE63B6F) : Colors.transparent, width: 2)),
           child: Container(width: 32, height: 32, decoration: BoxDecoration(color: clr, shape: BoxShape.circle, border: Border.all(color: Colors.black12, width: 1))),
         ),
       );
@@ -506,11 +515,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           margin: const EdgeInsets.only(right: 12),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0EA5E9).withOpacity(0.1) : Colors.white,
+            color: isSelected ? const Color(0xFFE63B6F).withOpacity(0.1) : Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFFE2E8F0)),
+            border: Border.all(color: isSelected ? const Color(0xFFE63B6F) : const Color(0xFFE2E8F0)),
           ),
-          child: Text(colorVal, style: TextStyle(color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFF475569), fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 13)),
+          child: Text(colorVal, style: TextStyle(color: isSelected ? const Color(0xFFE63B6F) : const Color(0xFF475569), fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 13)),
         ),
       );
     }
@@ -523,9 +532,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0284C7) : Colors.white,
+          color: isSelected ? const Color(0xFFE63B6F) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? const Color(0xFF0284C7) : const Color(0xFFE2E8F0)),
+          border: Border.all(color: isSelected ? const Color(0xFFE63B6F) : const Color(0xFFE2E8F0)),
         ),
         child: Text(sizeVal, style: TextStyle(color: isSelected ? Colors.white : const Color(0xFF475569), fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 13)),
       ),
