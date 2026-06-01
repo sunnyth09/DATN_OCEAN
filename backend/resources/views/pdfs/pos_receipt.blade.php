@@ -39,7 +39,7 @@
 <body>
     <div class="header text-center">
         <h2>OCEAN STORE</h2>
-        <div>134 Nguyễn Thị Định, P.Buôn Ma Thuột, Tỉnh Đắk Lắk</div>
+        <div>101 Y Ngông, P. Tân Lập, TP.Buôn Ma Thuột, Đắk Lắk</div>
         <div>SĐT: 1900-OCEAN (1900 6232)</div>
     </div>
     

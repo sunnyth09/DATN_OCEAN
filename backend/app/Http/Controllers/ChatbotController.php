@@ -697,7 +697,7 @@ class ChatbotController extends Controller
             'contact' => [
                 'title'   => 'Thông tin liên hệ',
                 'content' => [
-                    'Địa chỉ: 134 Nguyễn Thị Định, P.Buôn Ma Thuột, Tỉnh Đắk Lắk',
+                    'Địa chỉ: 101 Y Ngông, P. Tân Lập, TP.Buôn Ma Thuột, Đắk Lắk',
                     'Hotline: 1900-OCEAN (1900 6232)',
                     'Email: contact@oceanstore.vn',
                     'Giờ làm việc: 8:00 - 22:00 hàng ngày',

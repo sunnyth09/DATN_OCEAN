@@ -23,8 +23,8 @@
         <div class="contact-card">
           <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
           <h3>Showroom</h3>
-          <p class="contact-value">134 Nguyễn Thị Định</p>
-          <p class="contact-note">P. Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+          <p class="contact-value">101 Y Ngông</p>
+          <p class="contact-note">P. Tân Lập, TP. Buôn Ma Thuột, Đắk Lắk</p>
         </div>
         <div class="contact-card">
           <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div>
@@ -38,11 +38,11 @@
         <div class="map-block">
           <div class="map-header">
             <h2>Bản đồ cửa hàng</h2>
-            <p>Địa chỉ: 134 Nguyễn Thị Định, P. Buôn Ma Thuột, Đắk Lắk</p>
+            <p>Địa chỉ: 101 Y Ngông, P. Tân Lập, TP.Buôn Ma Thuột, Đắk Lắk</p>
           </div>
           <div class="map-frame">
             <iframe
-              src="https://www.google.com/maps?q=134+Nguyễn+Thị+Định,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
+              src="https://www.google.com/maps?q=101+Y+Ngông,+P.+Tân+Lập,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
               loading="lazy"
               referrerpolicy="no-referrer-when-downgrade"
               title="Bản đồ Ocean Store"

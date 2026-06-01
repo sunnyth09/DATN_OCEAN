@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="static-page">
     <section class="page-hero">
       <div class="container">
@@ -33,7 +33,7 @@ const faqItems = [
   { q: 'Sản phẩm trên Ocean Store có chính hãng không?', a: 'Tất cả sản phẩm trên Ocean Store đều 100% chính hãng, có tem chống hàng giả và giấy chứng nhận xuất xứ rõ ràng.' },
   { q: 'Tôi quên mật khẩu, phải làm sao?', a: 'Bạn vào trang Đăng nhập → Quên mật khẩu → Nhập email đã đăng ký → Nhận mã OTP qua email → Đặt mật khẩu mới.' },
   { q: 'Làm sao để liên hệ hỗ trợ?', a: 'Bạn có thể gọi Hotline 1900-OCEAN (1900 6232), gửi email support@oceanstore.vn.' },
-  { q: 'Ocean Store có cửa hàng offline không?', a: 'Hiện tại Ocean Store có showroom tại 134 Nguyễn Thị Định, P. Buôn Ma Thuột, Tỉnh Đắk Lắk. Mở cửa từ 8h-21h hàng ngày.' },
+  { q: 'Ocean Store có cửa hàng offline không?', a: 'Hiện tại Ocean Store có showroom tại 101 Y Ngông, P. Tân Lập, TP. Buôn Ma Thuột, Đắk Lắk. Mở cửa từ 8h-21h hàng ngày.' },
 ];
 </script>
 
