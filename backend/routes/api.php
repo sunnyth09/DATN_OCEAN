@@ -360,8 +360,16 @@ Route::prefix('location')->group(function () {
 });
 Route::get('/posts', [PostController::class, 'index']);
 
-// AI Chatbot (Public — tự detect auth nếu có JWT token)
-Route::post('/chatbot/message', [\App\Http\Controllers\ChatbotController::class, 'sendMessage']);
+// AI Chatbot (Public — tự detect auth nếu có JWT token, có rate limit chống abuse AI)
+Route::middleware('throttle:20,1')->post('/chatbot/message', [\App\Http\Controllers\ChatbotController::class, 'sendMessage']);
+
+// Chatbot transactional actions (Customer only — không cho admin/staff đặt hàng qua AI)
+Route::middleware(['auth:api', 'throttle:10,1'])->prefix('chatbot')->group(function () {
+    Route::post('/cart/add', [\App\Http\Controllers\ChatbotController::class, 'addToCart']);
+    Route::get('/addresses', [\App\Http\Controllers\ChatbotController::class, 'getAddresses']);
+    Route::post('/order/prepare', [\App\Http\Controllers\ChatbotController::class, 'prepareOrder']);
+    Route::post('/order/confirm', [\App\Http\Controllers\ChatbotController::class, 'confirmOrder']);
+});
 
 // Live Chat (Realtime - Public/User)
 Route::middleware('throttle:30,1')->group(function () {

@@ -627,6 +627,13 @@ textarea,
   font-family: var(--font-primary) !important;
 }
 
+/* SweetAlert2 Toast container overrides to prevent covering sticky header */
+.swal2-container.swal2-top-end,
+.swal2-container.swal2-top-right {
+  top: 85px !important;
+  right: 16px !important;
+}
+
 /* Base Modal Style */
 .swal2-popup {
   border-radius: 16px !important;

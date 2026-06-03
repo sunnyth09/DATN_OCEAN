@@ -453,6 +453,14 @@ watch(
                     >
                         Liên hệ
                     </router-link>
+                    <router-link
+                        to="/coupon"
+                        class="mobile-nav-link"
+                        :class="{ active: isRouteActive('coupon') }"
+                        @click="closeMobileMenu"
+                    >
+                        Săn voucher
+                    </router-link>
                 </nav>
 
                 <div class="mobile-nav-account">
@@ -503,7 +511,8 @@ watch(
     border-bottom: 1px solid #F8F9FA;
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1030;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .header-inner {

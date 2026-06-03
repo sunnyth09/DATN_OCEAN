@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast';
 import AddressSelector from '@/components/AddressSelector.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
+import AppIcon from '@/icons/AppIcon.vue';
 
 const router = useRouter();
 const cartItems = ref([]);
@@ -269,6 +270,10 @@ const openCouponModal = () => {
 };
 
 const selectCoupon = (coupon) => {
+    if (coupon.type === 'free_ship' && subtotal.value >= (upsellState.freeshipThreshold || 500000)) {
+        showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển!', 'warning');
+        return;
+    }
     appliedCoupon.value = {
         code: coupon.code,
         type: coupon.type,
@@ -283,7 +288,15 @@ const selectCoupon = (coupon) => {
 const removingCoupon = () => {
     appliedCoupon.value = null;
     couponCode.value = '';
-}
+};
+
+watch(subtotal, (newSubtotal) => {
+    if (newSubtotal >= (upsellState.freeshipThreshold || 500000) && appliedCoupon.value && appliedCoupon.value.type === 'free_ship') {
+        appliedCoupon.value = null;
+        couponCode.value = '';
+        showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển. Mã freeship đã được gỡ bỏ!', 'warning');
+    }
+});
 
 // Đặt hàng
 const placingOrder = ref(false);
@@ -625,7 +638,7 @@ onMounted(async () => {
                                         </button>
                                     </div>
                                     <div v-else class="coupon-applied-box">
-                                        <div class="coupon-tag">🎟️ {{ appliedCoupon.code }}</div>
+                                        <div class="coupon-tag"><AppIcon name="voucher" size="20" color="#111" class="me-1" />{{ appliedCoupon.code }}</div>
                                         <button class="btn-remove-coupon" @click="removingCoupon">Gỡ bỏ</button>
                                     </div>
                                     <div class="text-right mt-1">
@@ -652,12 +665,13 @@ onMounted(async () => {
                                         </small>
                                     </div>
                                     <div class="total-row" v-if="discount > 0 || shippingDiscount > 0">
-                                        <span>Giảm giá</span>
+                                        <span>Voucher Giảm giá</span>
                                         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
-                                            <span class="discount-val" v-if="discount > 0" style="color: #ef4444;">-{{ formatPrice(discount) }}</span>
-                                            <span class="free-badge" v-if="shippingDiscount > 0" style="color: #10b981;">Freeship: -{{ formatPrice(shippingDiscount) }}</span>
+                                            <span class="discount-val mb-2" v-if="discount > 0" style="color: #ef4444;">- {{ formatPrice(discount) }}</span>
+                                            <span class="free-badge" v-if="shippingDiscount > 0" style="color: #10b981;">Freeship: - {{ formatPrice(shippingDiscount) }}</span>
                                         </div>
                                     </div>
+
 
                                     <div class="summary-divider variant-dashed"></div>
 
@@ -715,8 +729,11 @@ onMounted(async () => {
                             </div>
                             <div v-else-if="availableCoupons.length > 0" class="coupon-list">
                                 <div v-for="coupon in availableCoupons" :key="coupon.id" class="coupon-card"
-                                    :class="{ 'is-applied': appliedCoupon?.code === coupon.code }">
-                                    <div class="cp-left"><span class="cp-icon">🎟️</span></div>
+                                    :class="{
+                                        'is-applied': appliedCoupon?.code === coupon.code,
+                                        'is-disabled': coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)
+                                    }">
+                                    <div class="cp-left"><span class="cp-icon"><AppIcon name="voucher" size="24" color="#111" /></span></div>
                                     <div class="cp-right">
                                         <h4 class="cp-code">{{ coupon.code }}</h4>
                                         <p class="cp-desc">Giảm {{ coupon.type === 'percent' ? coupon.value + '%' :
@@ -724,8 +741,16 @@ onMounted(async () => {
                                         <p v-if="coupon.min_order_value" class="cp-min">Đơn tối thiểu: {{
                                             formatPrice(coupon.min_order_value) }}</p>
                                     </div>
-                                    <button class="btn-select-cp" @click="selectCoupon(coupon)">{{ appliedCoupon?.code
-                                        === coupon.code ? 'Đang dùng' : 'Sử dụng' }}</button>
+                                    <button class="btn-select-cp" 
+                                            :disabled="coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)"
+                                            @click="selectCoupon(coupon)">
+                                        <span v-if="coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)">
+                                            Đã freeship
+                                        </span>
+                                        <span v-else>
+                                            {{ appliedCoupon?.code === coupon.code ? 'Đang dùng' : 'Sử dụng' }}
+                                        </span>
+                                    </button>
                                 </div>
                             </div>
                             <div v-else class="empty-address-box">
@@ -1898,6 +1923,21 @@ textarea.note-input {
 
 .coupon-card.is-applied .btn-select-cp:hover {
     background: #059669;
+}
+
+.coupon-card.is-disabled {
+    opacity: 0.6;
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.coupon-card.is-disabled .btn-select-cp {
+    background: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
 /* Animations */

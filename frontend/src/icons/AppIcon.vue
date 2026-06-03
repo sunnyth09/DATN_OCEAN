@@ -14,18 +14,9 @@ const isDecorative = computed(() => props.decorative && !props.title);
 </script>
 
 <template>
-  <svg
-    :width="size"
-    :height="size"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    :stroke-width="strokeWidth"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    :aria-hidden="isDecorative ? 'true' : undefined"
-    :role="isDecorative ? undefined : 'img'"
-  >
+  <svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" :stroke-width="strokeWidth"
+    stroke-linecap="round" stroke-linejoin="round" :aria-hidden="isDecorative ? 'true' : undefined"
+    :role="isDecorative ? undefined : 'img'">
     <title v-if="!isDecorative">{{ title || name }}</title>
 
     <template v-if="normalizedName === 'dashboard'">
@@ -44,7 +35,8 @@ const isDecorative = computed(() => props.decorative && !props.title);
       <path d="M16 10a4 4 0 0 1-8 0" />
     </template>
     <template v-else-if="normalizedName === 'pos'">
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <path
+        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
       <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
       <line x1="12" y1="22.08" x2="12" y2="12" />
     </template>
@@ -62,7 +54,8 @@ const isDecorative = computed(() => props.decorative && !props.title);
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </template>
     <template v-else-if="normalizedName === 'contact'">
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+      <path
+        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
     </template>
     <template v-else-if="normalizedName === 'chevron-down'">
       <polyline points="6 9 12 15 18 9" />
@@ -93,19 +86,18 @@ const isDecorative = computed(() => props.decorative && !props.title);
       <path d="M6 7h12l-1 12H7L6 7Z" />
       <path d="M9 9V7a3 3 0 0 1 6 0v2" />
     </template>
-    <template v-else-if="normalizedName === 'cart-plus'">
+    <template v-else-if="normalizedName === 'cart'">
       <circle cx="9" cy="20" r="1.6" />
       <circle cx="18" cy="20" r="1.6" />
       <path d="M3 4h2.2l1.9 9.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.7L20 7H7.1" />
-      <path d="M12 9v4" />
-      <path d="M10 11h4" />
     </template>
     <template v-else-if="normalizedName === 'user'">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </template>
     <template v-else-if="normalizedName === 'heart'">
-      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+      <path
+        d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
     </template>
     <template v-else-if="normalizedName === 'folder'">
       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -148,6 +140,25 @@ const isDecorative = computed(() => props.decorative && !props.title);
     </template>
     <template v-else-if="normalizedName === 'zap'">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </template>
+    <template v-else-if="normalizedName === 'ticket'">
+      <path d="M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+      <path d="M12 4l-2 2" />
+      <path d="M12 4l2 2" />
+      <path d="M8 12H8.01" />
+      <path d="M12 12h.01" />
+      <path d="M16 12h.01" />
+      <path d="M8 16h.01" />
+      <path d="M12 16h.01" />
+      <path d="M16 16h.01" />
+    </template>
+    <template v-else-if="normalizedName === 'voucher'">
+      <path d="M4 5h16a2 2 0 0 1 2 2v10a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V7a2 2 0 0 1 2-2z" />
+      <path d="M6 2h12" />
+      <path d="M10 12H8" />
+      <path d="M10 15H8" />
+      <path d="M14 12h2" />
+      <path d="M14 15h2" />
     </template>
     <template v-else>
       <circle cx="12" cy="12" r="9" />

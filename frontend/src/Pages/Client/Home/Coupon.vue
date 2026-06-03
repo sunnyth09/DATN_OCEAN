@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted, computed, nextTick } from 'vue';
 import api from '@/axios';
 import { useRouter } from 'vue-router';
@@ -7,6 +7,7 @@ import { Toast } from 'bootstrap';
 const coupons = ref([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
+const router = useRouter();
 
 const toast = ref({ message: '', type: 'success' });
 
@@ -75,6 +76,10 @@ const copyCode = (code) => {
 };
 
 const saveCoupon = async (couponId) => {
+  if ( sessionStorage.getItem('user') == null ){
+    router.push('/client/login?redirect=' + router.currentRoute.value.fullPath);
+    return;
+  }
   try {
     const response = await api.post('/profile/coupons/save', { coupon_id: couponId });
     if (response.data.status === 'success') {
@@ -94,8 +99,8 @@ onMounted(fetchPublicCoupons);
 <template>
   <main class="coupon-page min-vh-100 pb-5">
     <!-- Hero Section -->
-    <div class="hero-section text-white py-4 mb-4 shadow-sm">
-      <div class="container text-center">
+    <div class="hero-section text-white text-center mb-5 shadow-sm">
+      <div class="container py-2">
         <h1 class="h2 fw-bold mb-2">Săn Voucher</h1>
         <p class="small opacity-75 mb-0">Ưu đãi hấp dẫn dành riêng cho bạn</p>
       </div>
@@ -104,7 +109,7 @@ onMounted(fetchPublicCoupons);
     <!-- Main Content -->
     <div class="container px-4">
       <!-- Search Bar -->
-      <div class="row justify-content-center mb-4">
+      <div class="row justify-content-center mb-5">
         <div class="col-md-5">
           <div class="input-group input-group-sm shadow-sm rounded-pill overflow-hidden border">
             <span class="input-group-text bg-white border-0 ps-3">
@@ -137,60 +142,95 @@ onMounted(fetchPublicCoupons);
       </div>
 
       <!-- Vouchers Grid (4 columns) -->
-      <div v-else class="row g-3">
+      <div v-else class="row g-4">
         <div 
           v-for="coupon in filteredCoupons" 
           :key="coupon.id" 
           class="col-6 col-md-4 col-lg-3"
         >
           <div 
-            class="card coupon-card h-100 border-0 shadow-sm rounded-3 overflow-hidden"
-            :class="{ 'opacity-50': isExpired(coupon.end_date) || !coupon.is_active }"
+            class="card coupon-card h-100 border-0 shadow-sm rounded-4 overflow-visible d-flex flex-column"
+            :class="{ 'coupon-disabled': isExpired(coupon.end_date) || !coupon.is_active }"
           >
-            <!-- Content -->
-            <div class="card-body p-3 d-flex flex-column">
-              <!-- Header -->
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <div class="badge rounded-pill" :class="{
-                  'bg-danger-subtle text-danger': coupon.type === 'percent',
-                  'bg-primary-subtle text-primary': coupon.type === 'free_ship',
-                  'bg-success-subtle text-success': coupon.type === 'fixed'
+            <!-- Content Top -->
+            <div class="coupon-top p-3 flex-grow-1 d-flex flex-column">
+              <!-- Header Badge -->
+              <div class="d-flex mb-3">
+                <span class="badge-custom" :class="{
+                  'badge-percent': coupon.type === 'percent',
+                  'badge-freeship': coupon.type === 'free_ship',
+                  'badge-fixed': coupon.type === 'fixed'
                 }">
-                  <span class="x-small fw-bold">{{ coupon.type === 'free_ship' ? 'Miễn phí vận chuyển' : coupon.type === 'fixed' ? 'Giảm giá trực tiếp' : coupon.type === 'percent' ? 'Giảm giá theo phần trăm' : '' }}</span>
-                </div>
+                  <!-- Percent Icon -->
+                  <svg v-if="coupon.type === 'percent'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="me-1">
+                    <line x1="19" y1="5" x2="5" y2="19"></line>
+                    <circle cx="6.5" cy="6.5" r="2.5"></circle>
+                    <circle cx="17.5" cy="17.5" r="2.5"></circle>
+                  </svg>
+                  <!-- Freeship Icon -->
+                  <svg v-else-if="coupon.type === 'free_ship'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="me-1">
+                    <rect x="1" y="3" width="15" height="13"></rect>
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                    <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                    <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                  </svg>
+                  <!-- Fixed Icon -->
+                  <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="me-1">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                  </svg>
+                  <span>{{ coupon.type === 'free_ship' ? 'Miễn phí vận chuyển' : coupon.type === 'fixed' ? 'Giảm giá trực tiếp' : coupon.type === 'percent' ? 'Giảm giá phần trăm' : '' }}</span>
+                </span>
               </div>
 
-              <!-- Code -->
-              <div class="h5 fw-bold text-primary mb-1 text-truncate" title="Click to copy" role="button" @click="copyCode(coupon.code)">
-                {{ coupon.code }}
+              <!-- Code Display Box (Clickable to Copy) -->
+              <div class="coupon-code-box d-flex align-items-center justify-content-between mb-3" @click="copyCode(coupon.code)" role="button" title="Click để sao chép mã">
+                <span class="coupon-code-text fw-bold">{{ coupon.code }}</span>
+                <span class="copy-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </span>
               </div>
 
               <!-- Value -->
-              <div class="h4 fw-black text-dark mb-0">
+              <div class="coupon-value mb-1">
                 {{ formatValue(coupon) }}
               </div>
-              <div v-if="coupon.min_order_value" class="x-small text-muted mb-2">
-                Đơn từ {{ formatCurrency(coupon.min_order_value) }}
+              
+              <!-- Min Order Value -->
+              <div v-if="coupon.min_order_value" class="coupon-min-order text-muted mt-auto">
+                Đơn từ <strong class="text-dark">{{ formatCurrency(coupon.min_order_value) }}</strong>
               </div>
+            </div>
 
-              <!-- Footer -->
-              <div class="mt-auto pt-2">
-                <div class="x-small text-muted mb-2 text-truncate">HSD: {{ formatDate(coupon.end_date) }}</div>
-                <div class="d-grid gap-1">
-                  <button 
-                    class="btn btn-primary btn-sm rounded-2 fw-bold p-2"
-                    :disabled="!coupon.is_active || isExpired(coupon.end_date)"
-                    @click="saveCoupon(coupon.id)"
-                  >
-                    Lưu mã
-                  </button>
-                  <button 
-                    class="btn btn-outline-secondary btn-sm rounded-2 border-0 x-small p-2"
-                    @click="copyCode(coupon.code)"
-                  >
-                    Sao chép mã
-                  </button>
-                </div>
+            <!-- Ticket Divider -->
+            <div class="coupon-divider"></div>
+
+            <!-- Content Bottom -->
+            <div class="coupon-bottom p-3">
+              <div class="coupon-expiry mb-3">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                HSD: {{ formatDate(coupon.end_date) }}
+              </div>
+              <div class="d-grid gap-2">
+                <button 
+                  class="btn btn-save-coupon fw-bold text-white shadow-sm"
+                  :disabled="!coupon.is_active || isExpired(coupon.end_date)"
+                  @click="saveCoupon(coupon.id)"
+                >
+                  Lưu mã
+                </button>
+                <button 
+                  class="btn btn-copy-coupon fw-bold"
+                  @click="copyCode(coupon.code)"
+                >
+                  Sao chép mã
+                </button>
               </div>
             </div>
           </div>
@@ -220,27 +260,198 @@ onMounted(fetchPublicCoupons);
 </template>
 
 <style scoped>
+/* Main Page Background */
+.coupon-page {
+  background-color: #FCF9FA;
+}
+
+/* Hero Banner Breakout to fill screen width */
 .hero-section {
   background: linear-gradient(135deg, #B50C4D 0%, #E63B6F 100%);
+  position: relative;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding: 56px 0;
+  box-shadow: 0 4px 20px rgba(181, 12, 77, 0.15);
 }
 
+.hero-section h1 {
+  font-size: 2.5rem;
+  letter-spacing: -0.5px;
+}
+
+/* Search bar styling */
+.input-group {
+  border-color: #FFE3E8 !important;
+  transition: all 0.3s ease;
+}
+
+.input-group:focus-within {
+  border-color: #E63B6F !important;
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.15) !important;
+}
+
+.input-group-text svg {
+  color: #E63B6F;
+}
+
+.form-control:focus {
+  box-shadow: none;
+}
+
+/* Coupon Card Layout */
 .coupon-card {
-  transition: transform 0.2s;
+  background: #ffffff;
+  border: 1px solid #FFE3E8 !important;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(230, 59, 111, 0.03);
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  position: relative;
 }
 
-.coupon-card:hover:not(.opacity-50) {
-  transform: translateY(-4px);
+.coupon-card:hover:not(.coupon-disabled) {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 35px rgba(230, 59, 111, 0.08);
+  border-color: #FFE0E6 !important;
 }
 
-.fw-black {
+/* Badge Custom */
+.badge-custom {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: #FFF0F3;
+  color: #E63B6F;
+  border: 1px solid rgba(230, 59, 111, 0.1);
+}
+
+/* Code Display Box */
+.coupon-code-box {
+  background: #FFF5F7;
+  border: 1.5px dashed #E63B6F;
+  border-radius: 10px;
+  padding: 8px 14px;
+  color: #E63B6F;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.coupon-code-box:hover {
+  background: #FFF0F3;
+  transform: scale(1.02);
+}
+
+.coupon-code-text {
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+}
+
+.copy-icon {
+  opacity: 0.8;
+  display: inline-flex;
+}
+
+/* Value Display */
+.coupon-value {
+  font-size: 1.5rem;
   font-weight: 900;
+  color: #0F172A;
+  letter-spacing: -0.5px;
 }
 
-.x-small {
-  font-size: 0.7rem;
+.coupon-min-order {
+  font-size: 0.78rem;
 }
 
-.max-w-100 {
-  max-width: 100%;
+/* Expiry Date */
+.coupon-expiry {
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  color: #64748B !important;
+}
+
+.coupon-expiry svg {
+  opacity: 0.7;
+}
+
+/* Ticket Divider & Side Notches */
+.coupon-divider {
+  position: relative;
+  height: 1px;
+  border-top: 1px dashed #FFE3E8;
+  margin: 0 12px;
+}
+
+.coupon-divider::before,
+.coupon-divider::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  background-color: #FCF9FA; /* matches the page body background */
+  border-radius: 50%;
+  border: 1.5px solid #FFE3E8;
+  z-index: 2;
+  transition: background-color 0.3s ease;
+}
+
+.coupon-divider::before {
+  left: -21px; /* Align perfectly centered on the card border */
+  clip-path: polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%);
+}
+
+.coupon-divider::after {
+  right: -21px;
+  clip-path: polygon(0% 0%, 50% 0%, 50% 100%, 0% 100%);
+}
+
+/* Buttons */
+.btn-save-coupon {
+  background: #E63B6F;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.btn-save-coupon:hover:not(:disabled) {
+  background: #B50C4D;
+  transform: translateY(-1px);
+}
+
+.btn-save-coupon:disabled {
+  background: #E2E8F0;
+  color: #94A3B8 !important;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-copy-coupon {
+  background: transparent;
+  color: #E63B6F;
+  border: 1.5px solid #E63B6F;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+
+.btn-copy-coupon:hover {
+  background: #FFF0F3;
+  color: #E63B6F;
+}
+
+/* Disabled Coupon Card Styling */
+.coupon-disabled {
+  opacity: 0.6;
+  filter: grayscale(30%);
 }
 </style>

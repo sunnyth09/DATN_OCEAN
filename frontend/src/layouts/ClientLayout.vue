@@ -30,7 +30,7 @@ import ChatbotWidget from '../components/ChatbotWidget.vue';
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   color: #2D3436;
   background: #FFFFFF;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .site-main {
