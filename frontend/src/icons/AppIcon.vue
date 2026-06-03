@@ -160,6 +160,10 @@ const isDecorative = computed(() => props.decorative && !props.title);
       <path d="M14 12h2" />
       <path d="M14 15h2" />
     </template>
+    <template v-else-if="normalizedName === 'bank'">
+      <rect x="2" y="3" width="20" height="16" rx="2" />
+      <path d="M2 10h20" />
+    </template>
     <template v-else>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v4" />

@@ -385,6 +385,9 @@ Route::middleware('throttle:30,1')->post('/payment/vnpay-ipn', [\App\Http\Contro
 Route::middleware('throttle:30,1')->get('/payment/momo-return', [\App\Http\Controllers\MoMoController::class, 'momoReturn']);
 
 Route::post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
+
+// SePay Webhook
+Route::post('/payment/sepay-webhook', [\App\Http\Controllers\SepayController::class, 'handleWebhook']);
 // =====================================================================
 // ██ DEBUG ROUTES — Chạy thủ công scheduler commands (XÓA KHI PRODUCTION)
 // =====================================================================

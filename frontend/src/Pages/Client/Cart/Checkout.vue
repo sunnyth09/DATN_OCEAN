@@ -37,8 +37,13 @@ const formAddress = ref({
 const isCalculatingFee = ref(false);
 
 // --- Thanh toán & Khác ---
-const paymentMethod = ref('cod'); // cod, vnpay, banking
+const paymentMethod = ref('cod'); // cod, vnpay, momo, banking
 const note = ref('');
+
+// --- Banking QR Modal ---
+const showBankingModal = ref(false);
+const bankingInfo = ref(null); // { bank_bin, account_number, account_name, amount, order_code, qr_url }
+const bankingOrderCode = ref('');
 
 // --- Coupon ---
 const couponCode = ref('');
@@ -355,7 +360,15 @@ const placeOrder = async () => {
                 return; // Không set placingOrder = false, giữ loading state
             }
 
-            // === Flow mặc định (COD, Bank, MoMo) ===
+            // === Banking: hiển thị QR code chuyển khoản ===
+            if (res.data.payment_method === 'bank_transfer' && res.data.banking_info) {
+                bankingInfo.value = res.data.banking_info;
+                bankingOrderCode.value = res.data.data?.order_code || '';
+                showBankingModal.value = true;
+                return;
+            }
+
+            // === Flow mặc định (COD) ===
             showToast('Đặt hàng thành công! Vui lòng kiểm tra email.', 'success');
             setTimeout(() => {
                 router.push({ name: 'order-success', params: { order_code: res.data.data.order_code } });
@@ -393,6 +406,68 @@ onMounted(async () => {
 
 <template>
     <div class="checkout-page theme-brown">
+
+        <!-- ===== BANKING QR MODAL ===== -->
+        <Teleport to="body">
+            <div v-if="showBankingModal" class="banking-modal-overlay" @click.self="null">
+                <div class="banking-modal">
+                    <div class="banking-modal-header">
+                        <span class="banking-modal-icon"><AppIcon name="bank" size="24" /></span>
+                        <h2>Thanh toán chuyển khoản</h2>
+                        <p>Quét mã QR hoặc chuyển khoản thủ công theo thông tin dưới đây</p>
+                    </div>
+
+                    <div class="banking-modal-body">
+                        <div class="qr-section">
+                            <img
+                                v-if="bankingInfo?.qr_url"
+                                :src="bankingInfo.qr_url"
+                                alt="QR Chuyển khoản"
+                                class="qr-image"
+                            />
+                            <p class="qr-hint">Quét bằng app ngân hàng bất kỳ</p>
+                        </div>
+
+                        <div class="bank-info-section">
+                            <div class="bank-info-row">
+                                <span class="bank-label">Số tài khoản</span>
+                                <span class="bank-value highlight">{{ bankingInfo?.account_number }}</span>
+                            </div>
+                            <div class="bank-info-row">
+                                <span class="bank-label">Chủ tài khoản</span>
+                                <span class="bank-value">{{ bankingInfo?.account_name }}</span>
+                            </div>
+                            <div class="bank-info-row">
+                                <span class="bank-label">Số tiền</span>
+                                <span class="bank-value highlight">{{ formatPrice(bankingInfo?.amount) }}</span>
+                            </div>
+                            <div class="bank-info-row">
+                                <span class="bank-label">Nội dung CK</span>
+                                <span class="bank-value highlight">{{ bankingOrderCode }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="banking-note">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span>Nhập đúng <strong>nội dung chuyển khoản</strong> là mã đơn hàng để hệ thống xác nhận tự động!</span>
+                    </div>
+
+                    <div class="banking-modal-actions">
+                        <button
+                            class="btn-banking-done"
+                            @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })"
+                        >
+                            Tôi đã chuyển khoản xong
+                        </button>
+                        <button class="btn-banking-later" @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })">
+                            Chuyển khoản sau
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
         <div v-if="loading" class="loading-state">
             <div class="spinner"></div>
             <p>Đang chuẩn bị trang thanh toán...</p>
@@ -2080,5 +2155,170 @@ textarea.note-input {
     50% { opacity: 0.6; }
     100% { opacity: 1; }
 }
+
+/* ===== Banking QR Modal ===== */
+.banking-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(6px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.banking-modal {
+    background: white;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+    overflow: hidden;
+    animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(40px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.banking-modal-header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+    padding: 28px 32px 24px;
+    text-align: center;
+    color: white;
+}
+
+.banking-modal-icon { font-size: 2.2rem; display: block; margin-bottom: 10px; }
+
+.banking-modal-header h2 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+}
+
+.banking-modal-header p {
+    font-size: 0.9rem;
+    opacity: 0.85;
+    line-height: 1.5;
+}
+
+.banking-modal-body {
+    display: flex;
+    gap: 24px;
+    padding: 24px 28px;
+    align-items: flex-start;
+}
+
+.qr-section {
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.qr-image {
+    width: 160px;
+    height: 160px;
+    border: 3px solid #e2e8f0;
+    border-radius: 12px;
+    display: block;
+}
+
+.qr-hint {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 6px;
+}
+
+.bank-info-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bank-info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+}
+
+.bank-label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.bank-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.bank-value.highlight { color: #1d4ed8; font-size: 1rem; }
+
+.banking-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 0 28px;
+    font-size: 0.85rem;
+    color: #92400e;
+    line-height: 1.4;
+}
+
+.banking-modal-actions {
+    padding: 20px 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn-banking-done {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s;
+}
+
+.btn-banking-done:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(29,78,216,0.3); }
+
+.btn-banking-later {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+}
+
+.btn-banking-later:hover { background: #f8fafc; color: #374151; }
+
+@media (max-width: 480px) {
+    .banking-modal-body { flex-direction: column; align-items: center; }
+    .qr-image { width: 180px; height: 180px; }
+}
+
 
 </style>
