@@ -245,9 +245,16 @@ class PaymentProcessingService
         try {
             $this->sendPaymentConfirmationEmail($order);
 
+            $methodLabel = 'VNPay';
+            if ($order->payment_method === 'bank_transfer') {
+                $methodLabel = 'Chuyển khoản ngân hàng (SePay)';
+            } elseif ($order->payment_method === 'momo') {
+                $methodLabel = 'Ví MoMo';
+            }
+
             $notificationData = [
-                'title'       => '✅ Thanh toán thành công',
-                'message'     => 'Đơn hàng ' . $order->order_code . ' đã được thanh toán thành công qua VNPay.',
+                'title'       => 'Thanh toán thành công',
+                'message'     => 'Đơn hàng ' . $order->order_code . ' đã được thanh toán thành công qua ' . $methodLabel . '.',
                 'order_code'  => $order->order_code,
                 'grand_total' => $order->grand_total,
                 'type'        => 'payment_success',
@@ -266,22 +273,26 @@ class PaymentProcessingService
 
             event(new \App\Events\UserNotificationEvent($order->user_id, $notificationData));
         } catch (\Exception $e) {
-            Log::error('VNPay post-payment: Email/Notification failed', [
+            Log::error('VNPay post-payment: Email/notification failed', [
                 'order_code' => $order->order_code,
                 'error'      => $e->getMessage(),
             ]);
         }
     }
 
-    /**
-     * Gửi email xác nhận thanh toán
-     */
     public function sendPaymentConfirmationEmail(Order $order): void
     {
         $order->load(['items', 'user']);
         $user = $order->user;
 
         if (!$user || empty($user->email)) return;
+
+        $methodLabel = 'VNPay';
+        if ($order->payment_method === 'bank_transfer') {
+            $methodLabel = 'Chuyển khoản ngân hàng (SePay)';
+        } elseif ($order->payment_method === 'momo') {
+            $methodLabel = 'Ví MoMo';
+        }
 
         $emailUser = config('mail.mailers.smtp.username');
         $emailPass = config('mail.mailers.smtp.password');
@@ -292,10 +303,12 @@ class PaymentProcessingService
         }
 
         if (!$emailUser || !$emailPass) {
-            Log::warning('Skip sending VNPay confirmation email: mail credentials missing.');
+            Log::warning('Skip sending payment confirmation email: mail credentials missing.');
             return;
         }
 
+        $transport = new \Symfony\Component\Mailer\Transport\Mip\EsmtpTransport('smtp.gmail.com', 587, false);
+        // Fallback ESmtpTransport
         $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport('smtp.gmail.com', 587, false);
         $transport->setUsername($emailUser);
         $transport->setPassword($emailPass);
@@ -311,7 +324,7 @@ class PaymentProcessingService
             </tr>';
         }
 
-        $frontendUrl = config('app.frontend_url', 'http://localhost:3302');
+        $frontendUrl = config('app.frontend_url');
 
         $htmlBody = '
         <!DOCTYPE html>
@@ -321,7 +334,7 @@ class PaymentProcessingService
             <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                 <div style="background: #16a34a; padding: 20px; text-align: center; color: white;">
                     <h2 style="margin: 0;">Thanh toán thành công!</h2>
-                    <p style="margin: 5px 0 0;">Đơn hàng ' . $order->order_code . ' đã được xác nhận thanh toán qua VNPay</p>
+                    <p style="margin: 5px 0 0;">Đơn hàng ' . $order->order_code . ' đã được xác nhận thanh toán qua ' . $methodLabel . '</p>
                 </div>
                 <div style="padding: 20px;">
                     <p>Xin chào <strong>' . htmlspecialchars($order->recipient_name) . '</strong>,</p>
@@ -349,7 +362,7 @@ class PaymentProcessingService
                     </table>
 
                     <div style="background: #dcfce7; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
-                        <p style="margin: 0; color: #166534;"><strong>Phương thức thanh toán:</strong> VNPay (Đã thanh toán)</p>
+                        <p style="margin: 0; color: #166534;"><strong>Phương thức thanh toán:</strong> ' . $methodLabel . ' (Đã thanh toán)</p>
                     </div>
 
                     <div style="text-align: center; margin-top: 30px;">
@@ -364,18 +377,16 @@ class PaymentProcessingService
         $emailMessage = (new \Symfony\Component\Mime\Email())
             ->from($emailUser)
             ->to($user->email)
-            ->subject('✅ Thanh toán thành công — Đơn hàng ' . $order->order_code)
+            ->subject('Thanh toán thành công — Đơn hàng ' . $order->order_code)
             ->html($htmlBody);
 
         $mailer->send($emailMessage);
 
-        Log::info('VNPay confirmation email sent', [
+        Log::info('Payment confirmation email sent', [
             'order_code' => $order->order_code,
             'to'         => $user->email,
         ]);
     }
-
-    // ─── PRIVATE HELPERS ───────────────────────────────────────────────
 
     private function upsertPayment(Order $order, array $result, array $queryParams, string $status): void
     {
