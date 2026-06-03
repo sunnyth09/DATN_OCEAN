@@ -62,7 +62,7 @@ const closeButtonClass = computed(() => {
 
 <style scoped>
 .app-toast-host {
-  top: 20px;
+  top: 85px;
   right: 20px;
   left: auto;
   padding: 0;

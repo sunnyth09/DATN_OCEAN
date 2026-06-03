@@ -13,10 +13,14 @@ class AdminOrderRepository
      */
     public function getFilteredOrders(array $filters, int $perPage = 10)
     {
-        $query = Order::with(['items', 'user'])->orderBy('created_at', 'desc');
+        $query = Order::with(['items', 'user', 'returnRequests'])->orderBy('created_at', 'desc');
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
-            $query->where('fulfillment_status', $filters['status']);
+            if ($filters['status'] === 'processing') {
+                $query->whereIn('fulfillment_status', ['processing', 'packing']);
+            } else {
+                $query->where('fulfillment_status', $filters['status']);
+            }
         }
 
         if (!empty($filters['payment_status']) && $filters['payment_status'] !== 'all') {
@@ -48,7 +52,7 @@ class AdminOrderRepository
      */
     public function findWithRelations(int $id): ?Order
     {
-        return Order::with(['items.product', 'items.variant', 'user', 'statusHistories'])
+        return Order::with(['items.product', 'items.variant', 'user', 'statusHistories', 'returnRequests'])
             ->where('order_id', $id)
             ->first();
     }

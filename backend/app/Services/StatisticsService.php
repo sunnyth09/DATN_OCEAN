@@ -15,11 +15,6 @@ class StatisticsService
         protected StatisticsRepository $statsRepository
     ) {}
 
-    // ─── DATE RANGE ────────────────────────────────────────────────────
-
-    /**
-     * Parse date range từ request (preset hoặc custom)
-     */
     public function getDateRange(Request $request): array
     {
         $startDate = $request->input('start_date');
@@ -28,12 +23,12 @@ class StatisticsService
 
         if ($preset) {
             return match ($preset) {
-                'today'      => [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()],
-                '7days'      => [Carbon::now()->subDays(6)->startOfDay(), Carbon::now()->endOfDay()],
-                '30days'     => [Carbon::now()->subDays(29)->startOfDay(), Carbon::now()->endOfDay()],
+                'today' => [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()],
+                '7days' => [Carbon::now()->subDays(6)->startOfDay(), Carbon::now()->endOfDay()],
+                '30days' => [Carbon::now()->subDays(29)->startOfDay(), Carbon::now()->endOfDay()],
                 'this_month' => [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()],
-                'this_year'  => [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()],
-                default      => [Carbon::now()->subDays(29)->startOfDay(), Carbon::now()->endOfDay()],
+                'this_year' => [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()],
+                default => [Carbon::now()->subDays(29)->startOfDay(), Carbon::now()->endOfDay()],
             };
         }
 
@@ -43,39 +38,27 @@ class StatisticsService
         ];
     }
 
-    // ─── OVERVIEW ──────────────────────────────────────────────────────
-
-    /**
-     * Tổng quan thống kê
-     */
     public function getOverview(Request $request): array
     {
         [$startDate, $endDate] = $this->getDateRange($request);
 
-        // Period trước để so sánh
         $diffInDays = $startDate->diffInDays($endDate) + 1;
         $prevStartDate = (clone $startDate)->subDays($diffInDays);
         $prevEndDate   = (clone $endDate)->subDays($diffInDays);
 
-        // Revenue
         $totalRevenue     = $this->statsRepository->getRevenue($startDate, $endDate);
         $prevTotalRevenue = $this->statsRepository->getRevenue($prevStartDate, $prevEndDate);
         $revenueChange    = $this->calculateChange($prevTotalRevenue, $totalRevenue);
 
-        // Orders
         $totalOrders     = $this->statsRepository->getOrderCount($startDate, $endDate);
         $prevTotalOrders = $this->statsRepository->getOrderCount($prevStartDate, $prevEndDate);
         $ordersChange    = $this->calculateChange($prevTotalOrders, $totalOrders);
 
-        // Customers
         $totalCustomers     = $this->statsRepository->getNewCustomerCount($startDate, $endDate);
         $prevTotalCustomers = $this->statsRepository->getNewCustomerCount($prevStartDate, $prevEndDate);
         $customersChange    = $this->calculateChange($prevTotalCustomers, $totalCustomers);
 
-        // Products
         $allProducts = Product::count();
-
-        // Today
         $today = $this->statsRepository->getTodayStats();
         $pendingCancelled = $this->statsRepository->getPendingAndCancelledCounts($startDate, $endDate);
 
@@ -103,11 +86,6 @@ class StatisticsService
         ];
     }
 
-    // ─── CHARTS ────────────────────────────────────────────────────────
-
-    /**
-     * Revenue chart data
-     */
     public function getRevenueChart(Request $request): array
     {
         [$startDate, $endDate] = $this->getDateRange($request);
@@ -149,9 +127,6 @@ class StatisticsService
         ];
     }
 
-    /**
-     * Order status pie chart data
-     */
     public function getOrderStatusChart(Request $request): array
     {
         [$startDate, $endDate] = $this->getDateRange($request);
@@ -159,15 +134,19 @@ class StatisticsService
         $statusCounts = $this->statsRepository->getOrderStatusCounts($startDate, $endDate);
 
         $statusMapping = [
-            'pending'    => ['label' => 'Chờ xác nhận', 'color' => '#ffb74d'],
+            'pending' => ['label' => 'Chờ xác nhận', 'color' => '#ffb74d'],
+            'confirmed' => ['label' => 'Đã xác nhận', 'color' => '#f48fb1'],
             'processing' => ['label' => 'Đang xử lý', 'color' => '#64b5f6'],
-            'shipping'   => ['label' => 'Đang giao hàng', 'color' => '#29b6f6'],
-            'shipped'    => ['label' => 'Đã giao', 'color' => '#4dd0e1'],
-            'delivered'  => ['label' => 'Đã nhận hàng', 'color' => '#4db6ac'],
-            'completed'  => ['label' => 'Hoàn thành', 'color' => '#26a69a'],
-            'cancelled'  => ['label' => 'Đã hủy', 'color' => '#e57373'],
-            'returned'   => ['label' => 'Trả hàng', 'color' => '#90a4ae'],
-            'failed'     => ['label' => 'Giao thất bại', 'color' => '#bdbdbd'],
+            'packing' => ['label' => 'Đang xử lý', 'color' => '#90caf9'],
+            'shipping' => ['label' => 'Đang giao hàng', 'color' => '#29b6f6'],
+            'delivered' => ['label' => 'Đã nhận hàng', 'color' => '#4db6ac'],
+            'completed' => ['label' => 'Hoàn thành', 'color' => '#26a69a'],
+            'cancelled' => ['label' => 'Đã hủy', 'color' => '#e57373'],
+            'return_requested' => ['label' => 'Yêu cầu hoàn hàng', 'color' => '#f59e0b'],
+            'return_approved' => ['label' => 'Đã duyệt hoàn hàng', 'color' => '#38bdf8'],
+            'return_rejected' => ['label' => 'Từ chối hoàn hàng', 'color' => '#fb7185'],
+            'returned' => ['label' => 'Đã nhận hàng hoàn', 'color' => '#94a3b8'],
+            'refunded' => ['label' => 'Đã hoàn tiền', 'color' => '#64748b'],
         ];
 
         $labels = [];
@@ -183,15 +162,13 @@ class StatisticsService
 
         return [
             'labels'   => $labels,
-            'datasets' => [['data' => $data, 'backgroundColor' => $backgroundColors]],
+            'datasets' => [[
+                'data' => $data,
+                'backgroundColor' => $backgroundColors,
+            ]],
         ];
     }
 
-    // ─── TOP PRODUCTS / CUSTOMERS ──────────────────────────────────────
-
-    /**
-     * Top sản phẩm bán chạy
-     */
     public function getTopProducts(Request $request): array
     {
         [$startDate, $endDate] = $this->getDateRange($request);
@@ -211,9 +188,6 @@ class StatisticsService
         })->toArray();
     }
 
-    /**
-     * Top khách hàng chi tiêu nhiều nhất
-     */
     public function getTopCustomers(Request $request): array
     {
         [$startDate, $endDate] = $this->getDateRange($request);
@@ -232,11 +206,6 @@ class StatisticsService
         })->toArray();
     }
 
-    // ─── REVENUE REPORT ────────────────────────────────────────────────
-
-    /**
-     * Bảng báo cáo doanh thu chi tiết
-     */
     public function getRevenueReport(Request $request): array
     {
         [$startDate, $endDate] = $this->getDateRange($request);
@@ -253,22 +222,19 @@ class StatisticsService
         })->toArray();
     }
 
-    /**
-     * Xuất Excel doanh thu tháng trước
-     */
     public function exportLastMonthRevenue()
     {
         $fileName = 'Doanh_Thu_Thang_Truoc_' . Carbon::now()->format('Y_m') . '.xlsx';
+
         return Excel::download(new LastMonthRevenueExport, $fileName);
     }
-
-    // ─── HELPERS ───────────────────────────────────────────────────────
 
     private function calculateChange(float $prev, float $current): float
     {
         if ($prev == 0) {
             return $current > 0 ? 100 : 0;
         }
+
         return (($current - $prev) / $prev) * 100;
     }
 }

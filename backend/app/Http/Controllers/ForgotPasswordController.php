@@ -181,9 +181,18 @@ class ForgotPasswordController extends Controller
             ], 422);
         }
 
+        if (Carbon::parse($otpRecord->expires_at)->isPast()) {
+            DB::delete("DELETE FROM password_resets_otp WHERE email = ?", [$email]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Phiên đặt lại mật khẩu đã hết hạn. Vui lòng thử lại!'
+            ], 422);
+        }
+
         $expectedToken = hash('sha256', $email . $otpRecord->otp . config('app.key'));
 
-        if ($resetToken !== $expectedToken) {
+        if (!hash_equals($expectedToken, $resetToken)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Token không hợp lệ. Vui lòng thử lại!'

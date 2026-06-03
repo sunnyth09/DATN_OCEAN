@@ -42,7 +42,7 @@ return [
             'driver' => 'local',
             'root' => storage_path('app/public'),
             'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
-            'visibility' => 'public', // Đã mở khóa visibility để file có quyền đọc (644/755) thay vì 600/700
+            // 'visibility' => 'public', // Bỏ visibility để fix lỗi Unable to set visibility trên Windows
             'throw' => true, // Bật throw để thấy rõ lỗi nếu có thay vì tự động trả về false
             'report' => true,
         ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
@@ -73,7 +74,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF0EA5E9)),
+        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
       ),
       body: _buildBody(),
     );
@@ -81,7 +82,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)));
     }
 
     if (errorMessage != null) {
@@ -189,7 +190,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
                       children: [
                         Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, height: 1.3, color: Color(0xFF0F172A))),
                         const SizedBox(height: 6),
-                        Text(_formatPrice(price), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0284C7), fontSize: 14)),
+                        Text(_formatPrice(price), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE63B6F), fontSize: 14)),
                       ],
                     ),
                   ),

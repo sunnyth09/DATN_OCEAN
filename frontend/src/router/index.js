@@ -55,11 +55,14 @@ const routes = [
                     { path: "", name: "profile-info", component: () => import("../Pages/Client/Profile/ProfileInfo.vue"), meta: { title: 'Thông tin cá nhân' } },
                     { path: "orders", name: "profile-orders", component: () => import("../Pages/Client/Profile/ProfileOrders.vue"), meta: { title: 'Đơn hàng' } },
                     { path: "orders/:id", name: "profile-order-detail", component: () => import("../Pages/Client/Profile/ProfileOrderDetail.vue"), meta: { title: 'Chi tiết đơn hàng' } },
+                    { path: "return-requests", name: "profile-return-requests", component: () => import("../Pages/Client/Profile/ProfileReturnRequests.vue"), meta: { title: 'Yêu cầu hoàn hàng' } },
+                    { path: "return-requests/:id", name: "profile-return-request-detail", component: () => import("../Pages/Client/Profile/ProfileReturnRequestDetail.vue"), meta: { title: 'Chi tiết yêu cầu hoàn hàng' } },
                     { path: "addresses", name: "profile-address", component: () => import("../Pages/Client/Profile/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
                     { path: "change-password", name: "profile-change-password", component: () => import("../Pages/Client/Profile/ProfileChangePassword.vue"), meta: { title: 'Đổi mật khẩu' } },
                     { path: "wishlist", name: "profile-wishlist", component: () => import("../Pages/Client/Profile/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
                     { path: "coupons", name: "profile-coupons", component: () => import("../Pages/Client/Profile/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
                     { path: "affiliate", name: "profile-affiliate", component: () => import("../Pages/Client/Profile/ProfileAffiliate.vue"), meta: { title: 'Affiliate' } },
+                    { path: "court-bookings", name: "profile-court-bookings", component: () => import("../Pages/Client/Courts/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
                     { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
                 ],
             },
@@ -72,6 +75,10 @@ const routes = [
             { path: "return-policy", name: "return-policy", component: () => import("../Pages/Client/Static/ReturnPolicy.vue"), meta: { title: 'Chính sách đổi trả' } },
             { path: "shopping-guide", name: "shopping-guide", component: () => import("../Pages/Client/Static/ShoppingGuide.vue"), meta: { title: 'Hướng dẫn mua hàng' } },
             { path: "terms", name: "terms", component: () => import("../Pages/Client/Static/Terms.vue"), meta: { title: 'Điều khoản dịch vụ' } },
+            // Court Booking Pages
+            { path: "courts", name: "courts-list", component: () => import("../Pages/Client/Courts/CourtsList.vue"), meta: { title: 'Đặt sân cầu lông' } },
+            { path: "courts/:id", name: "court-detail", component: () => import("../Pages/Client/Courts/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },
+
         ],
     },
     // Auth routes
@@ -141,6 +148,18 @@ const routes = [
                 name: "admin-order",
                 component: () => import("../Pages/admin/AdminOrder.vue"),
                 meta: { roles: ['admin', 'seller'], title: 'Quản lý Đơn hàng' },
+            },
+            {
+                path: "return-requests",
+                name: "admin-return-requests",
+                component: () => import("../Pages/admin/AdminReturnRequests.vue"),
+                meta: { roles: ['admin'], title: 'Yêu cầu hoàn hàng' },
+            },
+            {
+                path: "return-requests/:id",
+                name: "admin-return-request-detail",
+                component: () => import("../Pages/admin/AdminReturnRequestDetail.vue"),
+                meta: { roles: ['admin'], title: 'Chi tiết yêu cầu hoàn hàng' },
             },
             {
                 path: "order/:id",
@@ -262,6 +281,31 @@ const routes = [
                 component: () => import("../Pages/admin/AdminWorkShifts.vue"),
                 meta: { roles: ['admin'], title: 'Ca làm việc & Phân ca' },
             },
+            // Court Booking Admin Pages
+            {
+                path: "courts",
+                name: "admin-courts",
+                component: () => import("../Pages/admin/AdminCourtManagement.vue"),
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý Hệ thống Sân' },
+            },
+            {
+                path: "court-bookings",
+                name: "admin-court-bookings",
+                component: () => import("../Pages/admin/AdminBookingManagement.vue"),
+                meta: { roles: ['admin', 'staff', 'seller'], title: 'Quản lý Đặt Sân' },
+            },
+            {
+                path: "court-dashboard",
+                name: "admin-court-dashboard",
+                component: () => import("../Pages/admin/AdminCourtDashboard.vue"),
+                meta: { roles: ['admin', 'staff', 'seller'], title: 'Dashboard Lễ Tân' },
+            },
+            {
+                path: "court-reports",
+                name: "admin-court-reports",
+                component: () => import("../Pages/admin/AdminCourtReports.vue"),
+                meta: { roles: ['admin'], title: 'Thống Kê Sân' },
+            },
         ],
     },
 
@@ -273,6 +317,12 @@ const router = createRouter({
     // Scroll to top khi navigate
     scrollBehavior(to, from, savedPosition) {
         if (savedPosition) return savedPosition;
+        
+        // Không cuộn lên đầu trang nếu chỉ thay đổi query param trên cùng một route (ví dụ: lọc, phân trang)
+        if (to.path === from.path) {
+            return false;
+        }
+        
         return { top: 0 };
     },
 });

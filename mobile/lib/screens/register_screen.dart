@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
 import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -40,7 +41,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.register(name, email, password, passwordConfirm);
+    final result = await AuthService.register(
+      name,
+      email,
+      password,
+      passwordConfirm,
+    );
 
     setState(() => _isLoading = false);
 
@@ -91,15 +97,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Container(
                 width: 72, height: 72,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE0F2FE),
+                  color: const Color(0xFFFFF0F3),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(Icons.waves, color: Color(0xFF0284C7), size: 40),
+                child: const Icon(Icons.sports_tennis, color: Color(0xFFE63B6F), size: 40),
               ),
               const SizedBox(height: 16),
               const Text('Đăng ký tài khoản', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
               const SizedBox(height: 8),
-              const Text('Gia nhập Ocean Shop ngay hôm nay', style: TextStyle(fontSize: 14, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+              const Text('Gia nhập Quyền Sport ngay hôm nay', style: TextStyle(fontSize: 14, color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
               
               const SizedBox(height: 32),
 
@@ -155,7 +161,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: const Color(0xFF0EA5E9),
+                        backgroundColor: const Color(0xFFE63B6F),
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),

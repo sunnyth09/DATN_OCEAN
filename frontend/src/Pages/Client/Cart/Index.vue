@@ -1,5 +1,6 @@
 ﻿<script setup>
-import { ref, computed, onMounted, watch } from 'vue';import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import FreeshipBar from '@/components/FreeshipBar.vue';
@@ -13,6 +14,8 @@ const loading = ref(true);
 const updating = ref({});
 const selectAll = ref(true);
 const toast = ref({ show: false, message: '', type: 'success' });
+let cartRequest = null;
+let cartRefreshPending = false;
 
 // ====== UPSELL & GAMIFICATION ======
 const { setTotalPrice, fetchUpsellData } = useCartUpsell();
@@ -160,21 +163,38 @@ const getVariantLabel = (item) => {
 
 // Lấy giỏ hàng
 const fetchCart = async (showGlobalLoading = true) => {
+    if (cartRequest) {
+        cartRefreshPending = true;
+        return cartRequest;
+    }
+
     if (showGlobalLoading) loading.value = true;
+    cartRequest = (async () => {
+        try {
+            const response = await api.get('/cart');
+            if (response.data.status === 'success') {
+                cartId.value = response.data.data.cart_id;
+                cartItems.value = response.data.data.items || [];
+                updateSelectAllState();
+            }
+        } catch (error) {
+            console.error('Error fetching cart:', error);
+            if (error.response?.status === 401) {
+                router.push({ name: 'login', query: { redirect: '/cart' } });
+            }
+        } finally {
+            if (showGlobalLoading) loading.value = false;
+        }
+    })();
+
     try {
-        const response = await api.get('/cart');
-        if (response.data.status === 'success') {
-            cartId.value = response.data.data.cart_id;
-            cartItems.value = response.data.data.items || [];
-            updateSelectAllState();
-        }
-    } catch (error) {
-        console.error('Error fetching cart:', error);
-        if (error.response?.status === 401) {
-            router.push({ name: 'login', query: { redirect: '/cart' } });
-        }
+        return await cartRequest;
     } finally {
-        if (showGlobalLoading) loading.value = false;
+        cartRequest = null;
+        if (cartRefreshPending) {
+            cartRefreshPending = false;
+            await fetchCart(false);
+        }
     }
 };
 
@@ -318,16 +338,22 @@ watch(totalPrice, (val) => {
     setTotalPrice(val);
 }, { immediate: true });
 
+const handleCartUpdated = async () => {
+    await fetchCart(false);
+    fetchUpsellData();
+};
+
 onMounted(async () => {
     await fetchCart();
     // Fetch gợi ý upsell sau khi giỏ hàng đã load
     fetchUpsellData();
 
     // Khi QuickAddSlider thêm sản phẩm → cập nhật lại giỏ + upsell
-    window.addEventListener('cart-updated', async () => {
-        await fetchCart(false);
-        fetchUpsellData();
-    });
+    window.addEventListener('cart-updated', handleCartUpdated);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('cart-updated', handleCartUpdated);
 });
 </script>
 
@@ -956,7 +982,7 @@ onMounted(async () => {
 .btn-checkout {
     width: 100%;
     padding: 14px;
-    background: linear-gradient(135deg, #E63B6F, #039be5);
+    background:  #E63B6F;
     color: #fff;
     font-size: 1.05rem;
     font-weight: 700;
@@ -968,7 +994,7 @@ onMounted(async () => {
     box-shadow: 0 4px 14px rgba(230, 59, 111, 0.3);
 }
 .btn-checkout:hover:not(:disabled) {
-    background: linear-gradient(135deg, #C4305D, #E63B6F);
+    background: #C4305D;
     transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(230, 59, 111, 0.4);
 }

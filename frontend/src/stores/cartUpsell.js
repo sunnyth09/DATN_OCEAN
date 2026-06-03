@@ -7,6 +7,7 @@ export const useCartUpsellStore = defineStore('cart-upsell', () => {
     const freeshipThreshold = ref(500000);
     const suggestions = ref([]);
     const loadingSuggestions = ref(false);
+    let upsellRequest = null;
 
     const progress = computed(() =>
         Math.min(100, Math.round((totalPrice.value / freeshipThreshold.value) * 100))
@@ -23,19 +24,24 @@ export const useCartUpsellStore = defineStore('cart-upsell', () => {
     };
 
     const fetchUpsellData = async () => {
+        if (upsellRequest) return upsellRequest;
+
         loadingSuggestions.value = true;
-        try {
+        upsellRequest = (async () => {
             const res = await api.get('/cart/upsell-suggestions');
             if (res.data.status === 'success') {
                 freeshipThreshold.value = res.data.data.freeship_threshold ?? 500000;
                 suggestions.value = res.data.data.suggestions ?? [];
             }
-        } catch (error) {
+        })().catch((error) => {
             console.warn('[cartUpsellStore] fetchUpsellData error:', error?.response?.status);
             suggestions.value = [];
-        } finally {
+        }).finally(() => {
             loadingSuggestions.value = false;
-        }
+            upsellRequest = null;
+        });
+
+        return upsellRequest;
     };
 
     const quickAddToCart = async (variantId) => {

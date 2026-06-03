@@ -22,7 +22,7 @@ class OrderController extends Controller
         }
 
         if (auth('admin')->check()) {
-            return auth('admin')->user()->getKey();
+            abort(403, 'Tài khoản nhân viên/quản trị không thể mua hàng. Vui lòng đăng nhập bằng tài khoản khách hàng.');
         }
 
         return null;

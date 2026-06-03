@@ -30,8 +30,16 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\FlashSaleController;
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\AdminAffiliateController;
+use App\Http\Controllers\Api\ReturnRequestController;
 use App\Http\Controllers\TryOnController;
-
+use App\Http\Controllers\Api\CourtController;
+use App\Http\Controllers\Api\CourtBookingController;
+use App\Http\Controllers\Api\Admin\CourtAdminController;
+use App\Http\Controllers\Api\Admin\CourtBookingAdminController;
+use App\Http\Controllers\Api\Admin\CourtScheduleAdminController;
+use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
+use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
+use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
 // Add this line to run the route: http://localhost:8000/api
 Route::get('/', function () {
     return response()->json([
@@ -54,11 +62,11 @@ Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'resetPa
 // OAuth callbacks (Public)
 Route::post('/auth/google/callback', [AuthController::class, 'googleCallback']);
 Route::post('/auth/facebook/callback', [AuthController::class, 'facebookCallback']);
+Route::middleware('throttle:20,1')->post('/refresh', [AuthController::class, 'refresh']);
 
 // Auth routes (Protected - cần JWT token)
 Route::middleware('auth:api,admin')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/user', function (Request $request) {
         return auth('admin')->user() ?? auth('api')->user();
@@ -83,6 +91,11 @@ Route::middleware('auth:api,admin')->group(function () {
 
     // Try-on
     Route::middleware('throttle:10,1')->post('/try-on', [TryOnController::class, 'process']);
+
+    // Return requests
+    Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
+    Route::get('/my/return-requests', [ReturnRequestController::class, 'myIndex']);
+    Route::get('/my/return-requests/{id}', [ReturnRequestController::class, 'myShow']);
 });
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
@@ -220,6 +233,14 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
 
     // Flag chấm công bất thường (Admin only)
     Route::put('/attendance/{id}/flag', [\App\Http\Controllers\AttendanceController::class, 'flag']);
+
+    // Return requests (Admin only)
+    Route::get('/return-requests', [ReturnRequestController::class, 'adminIndex']);
+    Route::get('/return-requests/{id}', [ReturnRequestController::class, 'adminShow']);
+    Route::patch('/return-requests/{id}/approve', [ReturnRequestController::class, 'approve']);
+    Route::patch('/return-requests/{id}/reject', [ReturnRequestController::class, 'reject']);
+    Route::patch('/return-requests/{id}/received', [ReturnRequestController::class, 'received']);
+    Route::patch('/return-requests/{id}/refund', [ReturnRequestController::class, 'refund']);
 });
 
 // ==========================================
@@ -273,7 +294,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin'
 
     // Tổng quan (Dashboard)
     Route::get('/dashboard', [\App\Http\Controllers\AdminDashboardController::class, 'getDashboardData']);
-    
+
     // Admin Statistics (Detailed dashboard)
     Route::get('/statistics/overview', [\App\Http\Controllers\AdminStatisticsController::class, 'getOverview']);
     Route::get('/statistics/revenue', [\App\Http\Controllers\AdminStatisticsController::class, 'getRevenueChart']);
@@ -339,8 +360,16 @@ Route::prefix('location')->group(function () {
 });
 Route::get('/posts', [PostController::class, 'index']);
 
-// AI Chatbot (Public — tự detect auth nếu có JWT token)
-Route::post('/chatbot/message', [\App\Http\Controllers\ChatbotController::class, 'sendMessage']);
+// AI Chatbot (Public — tự detect auth nếu có JWT token, có rate limit chống abuse AI)
+Route::middleware('throttle:20,1')->post('/chatbot/message', [\App\Http\Controllers\ChatbotController::class, 'sendMessage']);
+
+// Chatbot transactional actions (Customer only — không cho admin/staff đặt hàng qua AI)
+Route::middleware(['auth:api', 'throttle:10,1'])->prefix('chatbot')->group(function () {
+    Route::post('/cart/add', [\App\Http\Controllers\ChatbotController::class, 'addToCart']);
+    Route::get('/addresses', [\App\Http\Controllers\ChatbotController::class, 'getAddresses']);
+    Route::post('/order/prepare', [\App\Http\Controllers\ChatbotController::class, 'prepareOrder']);
+    Route::post('/order/confirm', [\App\Http\Controllers\ChatbotController::class, 'confirmOrder']);
+});
 
 // Live Chat (Realtime - Public/User)
 Route::middleware('throttle:30,1')->group(function () {
@@ -359,49 +388,26 @@ Route::post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, '
 // =====================================================================
 // ██ DEBUG ROUTES — Chạy thủ công scheduler commands (XÓA KHI PRODUCTION)
 // =====================================================================
-Route::prefix('debug')->group(function () {
-    // Test: Chạy abandoned cart command ngay lập tức
-    // GET /api/debug/run-abandoned-cart
+// ⚠️ DEBUG ROUTES — Được bảo vệ bởi auth + role:admin (FIX C7: không còn public)
+Route::middleware(['auth:api,admin', 'role:admin'])->prefix('debug')->group(function () {
     Route::get('/run-abandoned-cart', function () {
         try {
             \Illuminate\Support\Facades\Artisan::call('app:remind-abandoned-cart');
-            $output = \Illuminate\Support\Facades\Artisan::output();
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Command executed!',
-                'output' => $output,
-            ]);
+            return response()->json(['status' => 'success', 'output' => \Illuminate\Support\Facades\Artisan::output()]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     });
 
-    // Test: Chạy birthday command ngay lập tức
-    // GET /api/debug/run-birthday
     Route::get('/run-birthday', function () {
         try {
             \Illuminate\Support\Facades\Artisan::call('app:send-birthday-wishes');
-            $output = \Illuminate\Support\Facades\Artisan::output();
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Command executed!',
-                'output' => $output,
-            ]);
+            return response()->json(['status' => 'success', 'output' => \Illuminate\Support\Facades\Artisan::output()]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     });
 
-    // Test: Xem trạng thái cart + notification
-    // GET /api/debug/cart-status
     Route::get('/cart-status', function () {
         $carts = \App\Models\Cart::where('status', 'active')
             ->whereHas('items')
@@ -415,7 +421,6 @@ Route::prefix('debug')->group(function () {
                         'user_id' => $cart->user->user_id,
                         'name' => $cart->user->full_name,
                         'email' => $cart->user->email,
-                        'reward_points' => $cart->user->reward_points,
                     ] : null,
                     'item_count' => $cart->items->count(),
                     'latest_item_updated_at' => $latestItem ? $latestItem->updated_at->format('Y-m-d H:i:s') : null,
@@ -438,28 +443,15 @@ Route::prefix('debug')->group(function () {
         ]);
     });
 
-    // Test: Chạy send-order-emails ngay lập tức
-    // GET /api/debug/run-order-emails
     Route::get('/run-order-emails', function () {
         try {
             \Illuminate\Support\Facades\Artisan::call('app:send-order-emails');
-            $output = \Illuminate\Support\Facades\Artisan::output();
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Command executed!',
-                'output' => $output,
-            ]);
+            return response()->json(['status' => 'success', 'output' => \Illuminate\Support\Facades\Artisan::output()]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ], 500);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     });
 
-    // Test: Xem đơn hàng chưa gửi email
-    // GET /api/debug/pending-emails
     Route::get('/pending-emails', function () {
         $orders = \App\Models\Order::where('email_sent', false)
             ->with('user:user_id,full_name,email')
@@ -486,11 +478,78 @@ Route::prefix('debug')->group(function () {
     });
 });
 
+// FIX C6: image-proxy — chống path traversal, whitelist extensions, nosniff header
 Route::get('image-proxy', function (\Illuminate\Http\Request $request) {
     $path = $request->query('path');
     if (!$path) abort(404);
-    $absolutePath = storage_path('app/public/' . $path);
-    if (!file_exists($absolutePath)) abort(404);
-    return response()->file($absolutePath);
+
+    // Chặn path traversal sequences
+    if (str_contains($path, '..') || str_contains($path, "\0")) {
+        abort(403, 'Invalid path');
+    }
+
+    // Whitelist extensions cho phép
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+    $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    if (!in_array($extension, $allowedExtensions)) {
+        abort(403, 'File type not allowed');
+    }
+
+    // Resolve absolute path và verify nằm trong storage boundary
+    $storagePath = realpath(storage_path('app/public'));
+    $absolutePath = realpath(storage_path('app/public/' . $path));
+
+    // realpath trả false nếu file không tồn tại
+    if (!$absolutePath || !str_starts_with($absolutePath, $storagePath . DIRECTORY_SEPARATOR)) {
+        abort(404);
+    }
+
+    return response()->file($absolutePath, [
+        'X-Content-Type-Options' => 'nosniff',
+    ]);
 });
 Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
+
+// ==========================================
+// COURT BOOKING ROUTES
+// ==========================================
+// PUBLIC & USER ROUTES
+Route::get('/courts', [CourtController::class, 'index']);
+Route::get('/courts/{id}', [CourtController::class, 'show']);
+Route::get('/courts/{id}/availability', [CourtController::class, 'availability']);
+Route::get('/court-services', [CourtController::class, 'publicServices']);
+
+Route::middleware('auth:api,admin')->group(function () {
+    Route::post('/court-bookings/lock', [CourtBookingController::class, 'lock']);
+    Route::post('/court-bookings/release-lock', [CourtBookingController::class, 'releaseLock']);
+    Route::post('/court-bookings', [CourtBookingController::class, 'store']);
+    Route::get('/court-bookings', [CourtBookingController::class, 'index']);
+    Route::get('/court-bookings/{id}', [CourtBookingController::class, 'show']);
+    Route::post('/court-bookings/{id}/cancel', [CourtBookingController::class, 'cancel']);
+    Route::post('/court-bookings/{id}/payments', [CourtBookingController::class, 'pay']);
+    Route::get('/court-bookings/{id}/qr', [CourtBookingController::class, 'qr']);
+});
+
+// ADMIN ROUTES
+Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin')->group(function () {
+    // Courts Management
+    Route::apiResource('courts', CourtAdminController::class);
+    Route::apiResource('court-schedules', CourtScheduleAdminController::class);
+    Route::apiResource('court-prices', CourtPriceAdminController::class);
+    Route::apiResource('court-services', CourtServiceAdminController::class);
+    Route::apiResource('court-maintenances', CourtMaintenanceAdminController::class);
+
+    // Bookings Management
+    Route::apiResource('court-bookings', CourtBookingAdminController::class);
+    Route::post('/court-bookings/{id}/check-in', [CourtBookingAdminController::class, 'checkIn']);
+    Route::post('/court-bookings/{id}/check-out', [CourtBookingAdminController::class, 'checkOut']);
+    Route::post('/court-bookings/{id}/services', [CourtBookingAdminController::class, 'addService']);
+    Route::post('/court-bookings/{id}/extend', [CourtBookingAdminController::class, 'extend']);
+    Route::post('/court-bookings/{id}/confirm', [CourtBookingAdminController::class, 'confirm']);
+    Route::post('/court-bookings/{id}/cancel', [CourtBookingAdminController::class, 'cancel']);
+    Route::post('/court-bookings/{id}/payments', [CourtBookingAdminController::class, 'recordPayment']);
+    Route::post('/court-bookings/{id}/qr-check-in', [CourtBookingAdminController::class, 'qrCheckIn']);
+    Route::get('/courts-calendar', [CourtBookingAdminController::class, 'calendar']);
+    Route::get('/courts-dashboard', [CourtBookingAdminController::class, 'dashboard']);
+    Route::get('/courts-stats', [CourtBookingAdminController::class, 'stats']);
+});

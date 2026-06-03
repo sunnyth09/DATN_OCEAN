@@ -166,7 +166,10 @@ onMounted(() => {
                         <span v-if="featuredProduct.discount_percent > 0" class="equip-discount-badge">Giảm giá {{ featuredProduct.discount_percent }}%</span>
                         <span v-else-if="featuredProduct.badge" class="equip-discount-badge">{{ featuredProduct.badge }}</span>
                         <h3 class="equip-big-name-custom">{{ featuredProduct.name }}</h3>
-                        <p class="equip-big-desc-custom">{{ featuredProduct.category_name }} · {{ featuredProduct.price }}</p>
+                        <p class="equip-big-desc-custom">
+                            <span v-if="featuredProduct.category_name">{{ featuredProduct.category_name }} &middot; </span>
+                            <span class="equip-price">{{ featuredProduct.price }}</span>
+                        </p>
                         <router-link :to="'/product/' + featuredProduct.id" class="equip-big-link-custom">
                             Mua ngay
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -368,27 +371,35 @@ onMounted(() => {
     background: #FFFFFF;
     border: 1px solid #EAEAEA;
     border-radius: 12px;
-    padding: 40px;
+    padding: 32px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     position: relative;
     overflow: hidden;
+    transition: box-shadow 0.3s ease;
+}
+.equip-big-card-custom:hover {
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
 }
 
 .equip-big-img-custom {
     width: 100%;
-    height: 220px;
+    height: 320px; /* Increased from 220px to make product larger */
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
+    background: #F8F9FA;
+    border-radius: 8px;
+    padding: 16px;
 }
 
 .equip-big-img-custom img {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    mix-blend-mode: multiply; /* Helps blend background if image has white bg */
 }
 
 .equip-big-info-custom {

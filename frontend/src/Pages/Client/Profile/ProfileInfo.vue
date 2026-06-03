@@ -24,7 +24,12 @@
         <!-- Avatar Upload -->
         <div class="avatar-section">
           <div class="avatar-wrapper">
-            <img :src="previewAvatar || avatarUrl" :alt="user.full_name" class="avatar-img" />
+            <img
+              :src="previewAvatar || avatarUrl"
+              :alt="user.full_name"
+              class="avatar-img"
+              @error="onAvatarError"
+            />
             <label for="avatar-input" class="avatar-upload-btn" title="Đổi ảnh đại diện">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </label>
@@ -153,11 +158,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '@/axios';
 
 // Lấy base URL từ env (ví dụ: http://localhost:8383)
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
+const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
+const router = useRouter();
+
+// FIX M2: Allowed file types for avatar upload
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/gif'];
+const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
+
+// FIX M1: Vietnamese phone regex
+const VN_PHONE_REGEX = /^(0[2-9]|\+84[2-9])[0-9]{8,9}$/;
 
 const user = ref({});
 const addressCount = ref(0);
@@ -209,22 +223,47 @@ const cancelEdit = () => {
   form.value.phone = originalData.value.phone;
   form.value.date_of_birth = originalData.value.date_of_birth;
   avatarFile.value = null;
+  // FIX M3: Revoke old preview URL to prevent memory leak
+  if (previewAvatar.value) {
+    URL.revokeObjectURL(previewAvatar.value);
+  }
   previewAvatar.value = null;
   errors.value = {};
   globalError.value = '';
   globalSuccess.value = '';
 };
 
+// FIX M10: Fallback khi avatar URL bị hỏng
+const onAvatarError = (e) => {
+  const name = encodeURIComponent(user.value.full_name || 'User');
+  e.target.src = `https://ui-avatars.com/api/?name=${name}&background=4f46e5&color=fff&size=128`;
+};
+
 const onAvatarChange = (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 2 * 1024 * 1024) {
+
+  // FIX M2: Validate file type bằng JS (không chỉ dựa vào accept attribute)
+  if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+    globalError.value = 'Chỉ hỗ trợ ảnh định dạng JPG, PNG hoặc GIF.';
+    setTimeout(() => globalError.value = '', 4000);
+    e.target.value = '';
+    return;
+  }
+
+  if (file.size > MAX_AVATAR_SIZE) {
     globalError.value = 'Ảnh quá lớn. Vui lòng chọn ảnh nhỏ hơn 2MB.';
     setTimeout(() => globalError.value = '', 4000);
     e.target.value = '';
     return;
   }
+
   avatarFile.value = file;
+
+  // FIX M3: Revoke URL cũ trước khi tạo mới
+  if (previewAvatar.value) {
+    URL.revokeObjectURL(previewAvatar.value);
+  }
   previewAvatar.value = URL.createObjectURL(file);
   
   // Tự động chuyển sang chế độ Sửa khi người dùng chọn xong ảnh
@@ -249,15 +288,81 @@ const syncUser = (data) => {
   originalData.value   = { full_name: data.full_name || '', phone: data.phone || '', date_of_birth: dob };
 };
 
+// FIX M1: Client-side validation trước khi submit
+const validateForm = () => {
+  const errs = {};
+  const name = (form.value.full_name || '').trim();
+  if (!name) {
+    errs.full_name = ['Họ và tên là bắt buộc.'];
+  } else if (name.length > 120) {
+    errs.full_name = ['Họ và tên không được dài quá 120 ký tự.'];
+  }
+
+  const phone = (form.value.phone || '').trim();
+  if (phone && !VN_PHONE_REGEX.test(phone)) {
+    errs.phone = ['Số điện thoại không đúng định dạng Việt Nam (vd: 0912345678).'];
+  }
+
+  const dob = form.value.date_of_birth;
+  if (dob) {
+    const dobDate = new Date(dob);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (dobDate >= today) {
+      errs.date_of_birth = ['Ngày sinh phải trước ngày hôm nay.'];
+    } else if (dobDate.getFullYear() < 1900) {
+      errs.date_of_birth = ['Ngày sinh không hợp lệ.'];
+    }
+  }
+
+  return errs;
+};
+
 const updateProfile = async () => {
+  // FIX M1: Validate frontend trước khi gửi request
+  const validationErrors = validateForm();
+  if (Object.keys(validationErrors).length > 0) {
+    errors.value = validationErrors;
+    return;
+  }
+
   loading.value     = true;
   errors.value      = {};
   globalError.value = '';
   globalSuccess.value = '';
 
+  const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
+  if (form.value.phone && !phoneRegex.test(form.value.phone.trim())) {
+    errors.value.phone = ['Số điện thoại không hợp lệ (phải là số hợp lệ tại Việt Nam).'];
+    loading.value = false;
+    return;
+  }
+
+  if (form.value.date_of_birth) {
+    const dob = new Date(form.value.date_of_birth);
+    const now = new Date();
+    dob.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+    
+    if (dob > now) {
+      errors.value.date_of_birth = ['Ngày sinh không thể vượt quá ngày hiện tại.'];
+      loading.value = false;
+      return;
+    }
+    
+    if (user.value?.created_at) {
+      const joinDate = new Date(user.value.created_at);
+      joinDate.setHours(0, 0, 0, 0);
+      if (dob > joinDate) {
+        errors.value.date_of_birth = ['Ngày sinh không thể vượt quá thời gian tham gia hệ thống.'];
+        loading.value = false;
+        return;
+      }
+    }
+  }
+
   const formData = new FormData();
-  formData.append('full_name', form.value.full_name);
-  // Luôn gửi phone (kể cả chuỗi rỗng để xóa) — backend sẽ set null khi rỗng
+  formData.append('full_name', form.value.full_name.trim());
   formData.append('phone', form.value.phone || '');
   formData.append('date_of_birth', form.value.date_of_birth || '');
   if (avatarFile.value) {
@@ -274,6 +379,10 @@ const updateProfile = async () => {
     window.dispatchEvent(new Event('user-updated'));
 
     avatarFile.value   = null;
+    // FIX M3: Revoke preview URL
+    if (previewAvatar.value) {
+      URL.revokeObjectURL(previewAvatar.value);
+    }
     previewAvatar.value = null;
     isEditing.value = false;
   } catch (err) {
@@ -288,7 +397,7 @@ const updateProfile = async () => {
 };
 
 onMounted(async () => {
-  // Hiện data từ localStorage ngay (không chờ API)
+  // Hiện data từ sessionStorage ngay (không chờ API)
   const cached = sessionStorage.getItem('user');
   if (cached) {
     try { syncUser(JSON.parse(cached)); } catch (_) {}
@@ -303,7 +412,16 @@ onMounted(async () => {
       sessionStorage.setItem('user', JSON.stringify(userData));
     }
   } catch (e) {
-    console.error('Lỗi tải thông tin user:', e);
+    // FIX M9: Xử lý lỗi API /me — redirect login nếu 401, hiện warning nếu lỗi khác
+    if (e.response?.status === 401) {
+      sessionStorage.removeItem('auth_token');
+      sessionStorage.removeItem('user');
+      router.push({ name: 'login', query: { redirect: '/profile' } });
+      return;
+    }
+    if (!cached) {
+      globalError.value = 'Không thể tải thông tin tài khoản. Vui lòng thử lại sau.';
+    }
   }
 
   // Đếm địa chỉ
@@ -311,6 +429,13 @@ onMounted(async () => {
     const res = await api.get('/profile/addresses');
     addressCount.value = Array.isArray(res.data?.data) ? res.data.data.length : 0;
   } catch (_) {}
+});
+
+// FIX M3: Cleanup object URL khi component unmount
+onUnmounted(() => {
+  if (previewAvatar.value) {
+    URL.revokeObjectURL(previewAvatar.value);
+  }
 });
 </script>
 
@@ -373,7 +498,7 @@ onMounted(async () => {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  background: #4f46e5;
+  background: #E63B6F ;
   color: #fff;
   width: 28px;
   height: 28px;
@@ -385,7 +510,7 @@ onMounted(async () => {
   border: 2px solid #fff;
   transition: background 0.2s;
 }
-.avatar-upload-btn:hover { background: #4338ca; }
+.avatar-upload-btn:hover { background: #b50c4d; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
 
 .avatar-info h4 { font-size: 0.95rem; font-weight: 600; color: #111827; margin: 0 0 4px; }
@@ -423,7 +548,7 @@ onMounted(async () => {
   transition: border 0.15s, box-shadow 0.15s;
   background: #fff;
 }
-.form-input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
+.form-input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230,59,111,0.12); }
 .form-input--error { border-color: #ef4444; }
 .form-input--disabled { background: #f9fafb; color: #6b7280; cursor: not-allowed; }
 
@@ -449,7 +574,7 @@ onMounted(async () => {
 }
 .btn-primary {
   padding: 10px 28px;
-  background: #4f46e5;
+  background: #E63B6F;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -463,7 +588,7 @@ onMounted(async () => {
   min-width: 130px;
   transition: background 0.2s;
 }
-.btn-primary:hover:not(:disabled) { background: #4338ca; }
+.btn-primary:hover:not(:disabled) { background: #cb184d; }
 .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
 
 .btn-outline {

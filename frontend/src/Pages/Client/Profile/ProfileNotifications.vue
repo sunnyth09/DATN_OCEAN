@@ -251,7 +251,7 @@ const getIconClass = (type) => {
 }
 
 .btn-primary {
-  background: #1a56db;
+  background: #E63B6F;
   color: #fff;
   padding: 10px 20px;
   border-radius: 8px;

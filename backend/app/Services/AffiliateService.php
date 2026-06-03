@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Repositories\AffiliateRepository;
 use App\Repositories\AffiliateClickRepository;
@@ -270,11 +271,16 @@ class AffiliateService
                 return;
             }
 
-            if (in_array($newStatus, ['completed', 'delivered'])) {
+            if (in_array($newStatus, [OrderStatus::COMPLETED->value, OrderStatus::DELIVERED->value], true)) {
                 $this->conversionRepo->updateStatusByOrderId($order->order_id, 'approved');
             }
 
-            if (in_array($newStatus, ['cancelled', 'returned'])) {
+            if (in_array($newStatus, [
+                OrderStatus::CANCELLED->value,
+                OrderStatus::RETURN_APPROVED->value,
+                OrderStatus::RETURNED->value,
+                OrderStatus::REFUNDED->value,
+            ], true)) {
                 $this->conversionRepo->updateStatusByOrderId($order->order_id, 'cancelled');
             }
         } catch (\Exception $e) {

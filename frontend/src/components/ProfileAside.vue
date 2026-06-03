@@ -58,6 +58,20 @@
       </router-link>
 
       <router-link
+        :to="{ name: 'profile-return-requests' }"
+        class="aside-nav-item"
+        active-class="aside-nav-item--active"
+      >
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+        <span>Yêu cầu hoàn hàng</span>
+      </router-link>
+
+      <router-link
         to="/profile/wishlist"
         class="aside-nav-item"
         active-class="aside-nav-item--active"
@@ -142,36 +156,46 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import api from '@/axios';
+import { useAuthStore } from '@/stores/auth';
 import Swal from 'sweetalert2';
 
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
 
-const userName = ref('');
-const userEmail = ref('');
-const userInitial = ref('?');
+// FIX L3: Dùng auth store thay vì đọc sessionStorage trực tiếp
+const userName = computed(() => authStore.displayName);
+const userEmail = computed(() => authStore.email);
+const userInitial = computed(() => authStore.userInitial);
+const userAvatar = computed(() => authStore.avatarUrl || '');
+
+// FIX M5: Xác định role để ẩn menu items không phù hợp
+const isCustomerRole = computed(() => {
+  const role = authStore.role;
+  return !role || role === 'customer';
+});
 
 const isExactActive = (path) => {
   return route.path === path;
 };
 
+// FIX L8: Lắng nghe auth-logout event từ tab khác
+const handleAuthLogout = () => {
+  router.push('/client/login');
+};
+
 onMounted(() => {
-  const userData = sessionStorage.getItem('user');
-  if (userData) {
-    try {
-      const user = JSON.parse(userData);
-      userName.value = user.name || user.full_name || 'Người dùng';
-      userEmail.value = user.email || '';
-      userInitial.value = (userName.value[0] || '?').toUpperCase();
-    } catch (e) {
-      console.error('Failed to parse user data', e);
-    }
-  }
+  window.addEventListener('auth-logout', handleAuthLogout);
 });
 
+onUnmounted(() => {
+  window.removeEventListener('auth-logout', handleAuthLogout);
+});
+
+// FIX C8: Dùng auth store logout() thay vì xóa thủ công
+// broadcastLogout() sẽ được gọi bên trong store.logout()
 const handleLogout = async () => {
   const result = await Swal.fire({
       title: 'Xác nhận',
@@ -182,14 +206,8 @@ const handleLogout = async () => {
       cancelButtonText: 'Hủy'
   });
   if (!result.isConfirmed) return;
-  try { await api.post('/logout'); } catch (e) { /* ignore */ }
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('user');
-  localStorage.removeItem('ocean_live_chat_token');
-  sessionStorage.removeItem('auth_token');
-  sessionStorage.removeItem('user');
-  sessionStorage.removeItem('ocean_chatbot_messages');
-  sessionStorage.removeItem('ocean_chatbot_history');
+
+  await authStore.logout();
   router.push('/client/login');
 };
 </script>
@@ -291,8 +309,8 @@ const handleLogout = async () => {
 }
 
 .aside-nav-item:hover {
-  background: #f3f4f6;
-  color: #1a56db;
+  background: #fff0f3;
+  color: #E63B6F;
 }
 
 .aside-nav-item:hover .aside-nav-icon {
@@ -300,14 +318,14 @@ const handleLogout = async () => {
 }
 
 .aside-nav-item--active {
-  background: #eff6ff !important;
+  background: #fff0f3 !important;
   color: #E63B6F !important;
   font-weight: 600;
 }
 
 .aside-nav-item--active .aside-nav-icon {
   opacity: 1;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .aside-nav-divider {

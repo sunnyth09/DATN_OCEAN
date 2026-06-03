@@ -331,7 +331,7 @@ onMounted(async () => {
 }
 
 .address-selector__label i {
-  color: #0ea5e9;
+  color: #E63B6F;
   font-size: 0.8rem;
 }
 
@@ -371,8 +371,8 @@ onMounted(async () => {
 
 .address-selector__select:focus,
 .address-selector__input:focus {
-  border-color: #0ea5e9;
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  border-color: #E63B6F;
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.15);
 }
 
 .address-selector__select:hover,
@@ -399,7 +399,7 @@ onMounted(async () => {
   width: 16px;
   height: 16px;
   border: 2px solid #e2e8f0;
-  border-top-color: #0ea5e9;
+  border-top-color: #E63B6F;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -414,11 +414,11 @@ onMounted(async () => {
 .address-selector__preview {
   margin-top: 14px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border: 1px solid #bae6fd;
+  background: #E63B6F;
+  border: 1px solid #f3d1de;
   border-radius: 10px;
   font-size: 0.875rem;
-  color: #0369a1;
+  color: #ffffff;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -426,7 +426,7 @@ onMounted(async () => {
 }
 
 .address-selector__preview i {
-  color: #0ea5e9;
+  color: #E63B6F;
   margin-top: 2px;
   flex-shrink: 0;
 }

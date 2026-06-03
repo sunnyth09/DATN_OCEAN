@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast';
 import AddressSelector from '@/components/AddressSelector.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
+import AppIcon from '@/icons/AppIcon.vue';
 
 const router = useRouter();
 const cartItems = ref([]);
@@ -214,7 +215,7 @@ watch(selectedAddressId, (newVal) => {
 
 const discount = computed(() => {
     if (!appliedCoupon.value) return 0;
-    
+
     let disc = 0;
     const type = appliedCoupon.value.type;
     const value = parseFloat(appliedCoupon.value.value) || 0;
@@ -228,7 +229,7 @@ const discount = computed(() => {
         return Math.min(disc, subtotal.value);
     } else if (type === 'free_ship') {
         // Free ship coupon is handled in shippingDiscount
-        return 0; 
+        return 0;
     } else {
         // fixed
         disc = value;
@@ -269,6 +270,10 @@ const openCouponModal = () => {
 };
 
 const selectCoupon = (coupon) => {
+    if (coupon.type === 'free_ship' && subtotal.value >= (upsellState.freeshipThreshold || 500000)) {
+        showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển!', 'warning');
+        return;
+    }
     appliedCoupon.value = {
         code: coupon.code,
         type: coupon.type,
@@ -283,7 +288,15 @@ const selectCoupon = (coupon) => {
 const removingCoupon = () => {
     appliedCoupon.value = null;
     couponCode.value = '';
-}
+};
+
+watch(subtotal, (newSubtotal) => {
+    if (newSubtotal >= (upsellState.freeshipThreshold || 500000) && appliedCoupon.value && appliedCoupon.value.type === 'free_ship') {
+        appliedCoupon.value = null;
+        couponCode.value = '';
+        showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển. Mã freeship đã được gỡ bỏ!', 'warning');
+    }
+});
 
 // Đặt hàng
 const placingOrder = ref(false);
@@ -519,71 +532,56 @@ onMounted(async () => {
                             </h2>
                         </div>
                         <div class="section-body block-border">
-                            <div class="payment-methods">
-                                <label class="payment-card" :class="{ 'is-selected': paymentMethod === 'cod' }">
+                            <div class="payment-methods-simple">
+                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'cod' }">
                                     <input type="radio" v-model="paymentMethod" value="cod" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
                                             <div class="radio-dot"></div>
                                         </div>
                                     </div>
-                                    <div class="payment-icon cod-icon">
-                                        <span>COD</span>
+                                    <div class="payment-info-simple">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                                        <span class="payment-name-simple">Thanh toán khi nhận hàng (COD)</span>
                                     </div>
-                                    <div class="payment-info">
-                                        <span class="payment-name">Thanh toán khi nhận hàng (COD)</span>
-                                        <span class="payment-desc">Thanh toán bằng tiền mặt khi nhận hàng</span>
-                                    </div>
-                                    <div class="badge-popular">PHỔ BIẾN</div>
                                 </label>
 
-                                <label class="payment-card"
-                                    :class="{ 'is-selected': paymentMethod === 'bank_transfer' }">
-                                    <input type="radio" v-model="paymentMethod" value="bank_transfer"
-                                        class="hidden-radio" />
+                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'bank_transfer' }">
+                                    <input type="radio" v-model="paymentMethod" value="bank_transfer" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
                                             <div class="radio-dot"></div>
                                         </div>
                                     </div>
-                                    <div class="payment-icon bank-icon">
-                                        <span>BANK</span>
-                                    </div>
-                                    <div class="payment-info">
-                                        <span class="payment-name">Chuyển khoản ngân hàng</span>
-                                        <span class="payment-desc">Chuyển khoản qua tài khoản ngân hàng</span>
+                                    <div class="payment-info-simple">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="2" y="21" width="20" height="2"></rect><polygon points="12 2 2 7 22 7 12 2"></polygon><path d="M5 21V9"></path><path d="M19 21V9"></path><path d="M12 21V9"></path></svg>
+                                        <span class="payment-name-simple">Chuyển khoản ngân hàng</span>
                                     </div>
                                 </label>
 
-                                <label class="payment-card" :class="{ 'is-selected': paymentMethod === 'momo' }">
+                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'momo' }">
                                     <input type="radio" v-model="paymentMethod" value="momo" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
                                             <div class="radio-dot"></div>
                                         </div>
                                     </div>
-                                    <div class="payment-icon momo-icon">
-                                        <span>MoMo</span>
-                                    </div>
-                                    <div class="payment-info">
-                                        <span class="payment-name">Ví MoMo</span>
-                                        <span class="payment-desc">Thanh toán qua ví điện tử MoMo</span>
+                                    <div class="payment-info-simple">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d82d8b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                                        <span class="payment-name-simple">Ví MoMo</span>
                                     </div>
                                 </label>
 
-                                <label class="payment-card" :class="{ 'is-selected': paymentMethod === 'vnpay' }">
+                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'vnpay' }">
                                     <input type="radio" v-model="paymentMethod" value="vnpay" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
                                             <div class="radio-dot"></div>
                                         </div>
                                     </div>
-                                    <div class="payment-icon vnpay-icon">
-                                        <span>VNPAY</span>
-                                    </div>
-                                    <div class="payment-info">
-                                        <span class="payment-name">VNPay</span>
-                                        <span class="payment-desc">Thanh toán qua QR Code, ATM, Visa/Master</span>
+                                    <div class="payment-info-simple">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#005a9e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        <span class="payment-name-simple">VNPay</span>
                                     </div>
                                 </label>
                             </div>
@@ -617,8 +615,8 @@ onMounted(async () => {
                                         <div class="bill-item-info">
                                             <h4 class="bill-item-name">{{ item.product?.name }}</h4>
                                             <p class="bill-item-variant">
-                                                {{ item.variant?.color || '' }} 
-                                                <span v-if="item.variant?.color && item.variant?.size" class="variant-divider">•</span> 
+                                                {{ item.variant?.color || '' }}
+                                                <span v-if="item.variant?.color && item.variant?.size" class="variant-divider">•</span>
                                                 {{ item.variant?.size || '' }}
                                             </p>
                                         </div>
@@ -640,7 +638,7 @@ onMounted(async () => {
                                         </button>
                                     </div>
                                     <div v-else class="coupon-applied-box">
-                                        <div class="coupon-tag">🎟️ {{ appliedCoupon.code }}</div>
+                                        <div class="coupon-tag"><AppIcon name="voucher" size="20" color="#111" class="me-1" />{{ appliedCoupon.code }}</div>
                                         <button class="btn-remove-coupon" @click="removingCoupon">Gỡ bỏ</button>
                                     </div>
                                     <div class="text-right mt-1">
@@ -667,12 +665,13 @@ onMounted(async () => {
                                         </small>
                                     </div>
                                     <div class="total-row" v-if="discount > 0 || shippingDiscount > 0">
-                                        <span>Giảm giá</span>
+                                        <span>Voucher Giảm giá</span>
                                         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
-                                            <span class="discount-val" v-if="discount > 0" style="color: #ef4444;">-{{ formatPrice(discount) }}</span>
-                                            <span class="free-badge" v-if="shippingDiscount > 0" style="color: #10b981;">Freeship: -{{ formatPrice(shippingDiscount) }}</span>
+                                            <span class="discount-val mb-2" v-if="discount > 0" style="color: #ef4444;">- {{ formatPrice(discount) }}</span>
+                                            <span class="free-badge" v-if="shippingDiscount > 0" style="color: #10b981;">Freeship: - {{ formatPrice(shippingDiscount) }}</span>
                                         </div>
                                     </div>
+
 
                                     <div class="summary-divider variant-dashed"></div>
 
@@ -685,11 +684,15 @@ onMounted(async () => {
                                 <button class="btn-place-order" @click="placeOrder"
                                     :disabled="placingOrder || (!showAddAddressForm && !selectedAddressId)">
                                     <div v-if="placingOrder" class="spinner-small"></div>
-                                    <span v-else><svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                    <span v-else>
+                                        <!-- <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                                             class="lock-icon" stroke="currentColor" stroke-width="2.5">
                                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                                             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                        </svg> Đặt hàng</span>
+                                        </svg> --> 
+                                        <span class="text-uppercase tracking-widest"> Đặt hàng </span>
+                                        
+                                    </span>
                                 </button>
                                 <p class="security-text">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" class="icon-green"
@@ -726,8 +729,11 @@ onMounted(async () => {
                             </div>
                             <div v-else-if="availableCoupons.length > 0" class="coupon-list">
                                 <div v-for="coupon in availableCoupons" :key="coupon.id" class="coupon-card"
-                                    :class="{ 'is-applied': appliedCoupon?.code === coupon.code }">
-                                    <div class="cp-left"><span class="cp-icon">🎟️</span></div>
+                                    :class="{
+                                        'is-applied': appliedCoupon?.code === coupon.code,
+                                        'is-disabled': coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)
+                                    }">
+                                    <div class="cp-left"><span class="cp-icon"><AppIcon name="voucher" size="24" color="#111" /></span></div>
                                     <div class="cp-right">
                                         <h4 class="cp-code">{{ coupon.code }}</h4>
                                         <p class="cp-desc">Giảm {{ coupon.type === 'percent' ? coupon.value + '%' :
@@ -735,8 +741,16 @@ onMounted(async () => {
                                         <p v-if="coupon.min_order_value" class="cp-min">Đơn tối thiểu: {{
                                             formatPrice(coupon.min_order_value) }}</p>
                                     </div>
-                                    <button class="btn-select-cp" @click="selectCoupon(coupon)">{{ appliedCoupon?.code
-                                        === coupon.code ? 'Đang dùng' : 'Sử dụng' }}</button>
+                                    <button class="btn-select-cp" 
+                                            :disabled="coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)"
+                                            @click="selectCoupon(coupon)">
+                                        <span v-if="coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)">
+                                            Đã freeship
+                                        </span>
+                                        <span v-else>
+                                            {{ appliedCoupon?.code === coupon.code ? 'Đang dùng' : 'Sử dụng' }}
+                                        </span>
+                                    </button>
                                 </div>
                             </div>
                             <div v-else class="empty-address-box">
@@ -887,11 +901,11 @@ h2 {
 /* Segmented Control Tabs (Kiểu Apple) */
 .address-tabs {
     display: flex;
-    background: #f1f5f9;
+    background: transparent;
     padding: 6px;
     border-radius: 12px;
     margin-bottom: 24px;
-    gap: 4px;
+    gap: 12px;
     position: relative;
 }
 
@@ -901,13 +915,13 @@ h2 {
     justify-content: center;
     gap: 8px;
     flex: 1;
-    padding: 12px 16px;
+    padding: 9px 16px;
     font-weight: 600;
     font-size: 0.95rem;
-    background: transparent;
-    color: #64748b;
-    border: none;
-    border-radius: 8px;
+    background: #DCE4E6;
+    color: #000000;
+    border: 1.5px solid transparent;
+    border-radius: 20px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -915,12 +929,12 @@ h2 {
 }
 
 .add-tab:hover:not(.active) {
-    color: #0f172a;
+    color: #E63B6F;
 }
 
 .add-tab.active {
-    background: #ffffff;
-    color: #0f172a;
+    background: #E63B6F;
+    color: #fff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0,0,0,0.05);
 }
 
@@ -934,8 +948,8 @@ h2 {
 }
 
 .add-tab.active .badge {
-    background: #ef4444;
-    color: white;
+    background: #DEE8FE;
+    color: rgb(0, 0, 0);
 }
 
 /* Form Elements */
@@ -1181,7 +1195,7 @@ textarea.note-input {
     background: #E63B6F;
     color: white;
     padding: 2px 8px;
-    border-radius: 6px;
+    border-radius:12px;
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -1279,107 +1293,78 @@ textarea.note-input {
     color: white;
 }
 
-/* Payment Methods */
-.payment-methods {
+/* Payment Methods Simple */
+.payment-methods-simple {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-.payment-card {
+.payment-card-simple {
     position: relative;
     overflow: hidden;
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 18px 20px;
+    padding: 16px 20px;
     border: 1px solid #e2e8f0;
-    border-radius: 14px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.25s;
     background: #ffffff;
 }
 
-.payment-card:hover {
-    border-color: #7dd3fc;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(230, 59, 111, 0.06);
-}
-
-.payment-card.is-selected {
+.payment-card-simple:hover {
     border-color: #E63B6F;
-    background: #f4faff;
-    box-shadow: 0 4px 15px rgba(230, 59, 111, 0.08);
 }
 
-.payment-icon {
-    width: 60px;
-    height: 40px;
+.payment-card-simple.is-selected {
+    border-color: #E63B6F;
+    background: #ffffff;
+}
+
+.payment-info-simple {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.payment-name-simple {
+    font-size: 1rem;
+    color: #333;
+}
+
+/* Redefine indicator for new simple card */
+.payment-card-simple .radio-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1.5px solid #cbd5e1;
     display: flex;
     align-items: center;
     justify-content: center;
     background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    flex-shrink: 0;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    transition: all 0.2s ease;
 }
 
-.payment-icon span {
-    font-weight: 800;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
-    text-align: center;
+.payment-card-simple .radio-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: transparent;
+    transition: all 0.2s;
+    transform: scale(0);
 }
 
-.cod-icon span, .bank-icon span {
-    color: #E63B6F;
+.payment-card-simple.is-selected .radio-indicator {
+    border-color: #7A1B38;
 }
 
-.momo-icon span {
-    color: #d82d8b;
+.payment-card-simple.is-selected .radio-dot {
+    background: #7A1B38;
+    transform: scale(1);
 }
 
-.vnpay-icon span {
-    color: #005a9e;
-}
-
-.payment-icon img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
-.payment-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.payment-name {
-    font-weight: 700;
-    font-size: 1.05rem;
-    color: #0f172a;
-}
-
-.payment-desc {
-    font-size: 0.85rem;
-    color: #64748b;
-}
-
-.badge-popular {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    background: #fee2e2;
-    color: #ef4444;
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 20px;
-    letter-spacing: 0.5px;
-}
 
 /* Right Section - Bill Summary */
 .sticky-sidebar {
@@ -1508,8 +1493,8 @@ textarea.note-input {
 /* Coupons */
 .coupon-section {
     background: #ffffff;
-    border: 1px dashed #cbd5e1;
-    border-radius: 12px;
+    border: 1px dashed #e2e8f0;
+    border-radius: 8px;
     padding: 16px;
     margin-bottom: 24px;
 }
@@ -1523,8 +1508,8 @@ textarea.note-input {
     flex: 1;
     min-width: 0;
     padding: 12px 14px;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
     font-family: inherit;
     font-size: 0.95rem;
     outline: none;
@@ -1540,22 +1525,23 @@ textarea.note-input {
 .btn-apply-coupon {
     padding: 0 20px;
     font-weight: 600;
-    background: #014168;
+    background: #E63B6F;
     color: white;
     border: none;
-    border-radius: 10px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .btn-apply-coupon:hover:not(:disabled) {
-    background: #012b45;
+    background: #d21551;
 }
 
 .btn-apply-coupon:disabled {
-    opacity: 0.7;
+    opacity: 1;
     cursor: not-allowed;
-    background: #94a3b8;
+    background: #cbd5e1;
+    color: white;
 }
 
 .coupon-applied-box {
@@ -1594,18 +1580,18 @@ textarea.note-input {
 
 .btn-select-coupon {
     font-size: 0.85rem;
-    font-weight: 700;
+    font-weight: 600;
     color: #E63B6F;
     background: none;
     border: none;
     cursor: pointer;
     transition: color 0.2s;
-    padding: 4px;
+    padding: 4px 0;
     margin-top: 4px;
 }
 
 .btn-select-coupon:hover {
-    color: #039be5;
+    color: #d21551;
     text-decoration: underline;
 }
 
@@ -1655,7 +1641,7 @@ textarea.note-input {
 .total-label {
     font-size: 1.15rem;
     font-weight: 700;
-    color: #0f172a;
+    color: #333;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -1663,22 +1649,22 @@ textarea.note-input {
 .total-price {
     font-size: 1.8rem;
     font-weight: 800;
-    color: #ef5350;
+    color: #E63B6F;
 }
 
 .btn-place-order {
     width: 100%;
-    background: #014168; /* Deep elegant ocean blue */
+    background: #E63B6F; /* Deep elegant ocean blue */
     color: white;
     border: none;
-    border-radius: 14px;
-    padding: 18px;
+    border-radius: 5px;
+    padding: 14px;
     font-size: 1.15rem;
     font-weight: 700;
     letter-spacing: 0.5px;
     cursor: pointer;
     transition: all 0.3s;
-    box-shadow: 0 6px 20px rgba(1, 65, 104, 0.2);
+    box-shadow: 0 6px 20px rgba(230, 59, 111, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1686,9 +1672,9 @@ textarea.note-input {
 }
 
 .btn-place-order:hover:not(:disabled) {
-    background: #012b45; /* Darker deep blue on hover */
+    background: #d21551; /* Darker deep blue on hover */
     transform: translateY(-3px);
-    box-shadow: 0 10px 25px rgba(1, 65, 104, 0.3);
+    box-shadow: 0 10px 25px rgba(230, 59, 111, 0.3);
 }
 
 .btn-place-order:disabled {
@@ -1937,6 +1923,21 @@ textarea.note-input {
 
 .coupon-card.is-applied .btn-select-cp:hover {
     background: #059669;
+}
+
+.coupon-card.is-disabled {
+    opacity: 0.6;
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+.coupon-card.is-disabled .btn-select-cp {
+    background: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
 /* Animations */

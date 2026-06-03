@@ -45,9 +45,12 @@ class AuthController extends Controller
         // }
 
         $credentials = $request->only('email', 'password');
+        \Illuminate\Support\Facades\Log::info("Login attempt", $credentials);
 
         // BƯỚC 1: Thử đăng nhập Admin (nhân sự) trước
-        if ($token = auth('admin')->attempt($credentials)) {
+        $adminToken = auth('admin')->attempt($credentials);
+        \Illuminate\Support\Facades\Log::info("Admin attempt result", ['token' => (bool)$adminToken]);
+        if ($adminToken) {
             $user = auth('admin')->user();
             if (isset($user->status) && $user->status !== 'active') {
                 auth('admin')->logout();
@@ -56,7 +59,7 @@ class AuthController extends Controller
                     'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'
                 ], 403);
             }
-            return $this->respondWithToken($token, 'admin');
+            return $this->respondWithToken($adminToken, 'admin');
         }
 
         // BƯỚC 2: Thử đăng nhập Customer
@@ -87,9 +90,19 @@ class AuthController extends Controller
 
     protected function respondWithToken($token, $guardType)
     {
-        $user = ($guardType === 'admin') ? auth('admin')->user() : auth('api')->user();
+        $guard = ($guardType === 'admin') ? 'admin' : 'api';
+        $user  = auth($guard)->user();
 
-        return response()->json($result, $status);
+        return response()->json([
+            'status'        => 'success',
+            'message'       => 'Đăng nhập thành công!',
+            'access_token'  => $token,
+            'refresh_token' => $token,
+            'token_type'    => 'Bearer',
+            'expires_in'    => auth($guard)->factory()->getTTL() * 60,
+            'role'          => $user->role ?? $guardType,
+            'user'          => $user,
+        ], 200);
     }
 
     public function refresh()

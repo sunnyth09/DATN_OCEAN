@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../config/app_theme.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -220,7 +221,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   Widget _buildBody() {
     return RefreshIndicator(
-      color: const Color(0xFF0EA5E9),
+      color: const Color(0xFFE63B6F),
       onRefresh: () async {
         setState(() { currentPage = 1; hasMore = true; });
         await fetchProducts();
@@ -287,7 +288,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               child: Padding(
                 padding: EdgeInsets.only(bottom: 30),
                 child: Center(
-                  child: CircularProgressIndicator(color: Color(0xFF0EA5E9)),
+                  child: CircularProgressIndicator(color: Color(0xFFE63B6F)),
                 ),
               ),
             ),
@@ -387,12 +388,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     children: [
                       Text(
                         _formatPrice(rawPrice),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF0EA5E9)),
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFFE63B6F)),
                       ),
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: const Color(0xFF0EA5E9).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.add_shopping_cart, size: 16, color: Color(0xFF0EA5E9)),
+                        decoration: BoxDecoration(color: const Color(0xFFE63B6F).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                        child: const Icon(Icons.add_shopping_cart, size: 16, color: Color(0xFFE63B6F)),
                       )
                     ],
                   )

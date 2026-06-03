@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import '../config/app_theme.dart';
 import 'order_detail_screen.dart';
 import 'login_screen.dart';
 
@@ -94,9 +95,9 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFF0EA5E9),
+          labelColor: const Color(0xFFE63B6F),
           unselectedLabelColor: const Color(0xFF64748B),
-          indicatorColor: const Color(0xFF0EA5E9),
+          indicatorColor: const Color(0xFFE63B6F),
           isScrollable: true,
           tabs: const [
             Tab(text: 'Tất cả'),
@@ -112,7 +113,7 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9)));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)));
     }
 
     if (isGuest) {
@@ -133,7 +134,7 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
                   await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
                   fetchOrders();
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE63B6F), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
                 child: const Text('Đăng nhập ngay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
@@ -239,7 +240,7 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Ngày đặt: $date', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-                    Text(total, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0284C7))),
+                    Text(total, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE63B6F))),
                   ],
                 ),
               ],

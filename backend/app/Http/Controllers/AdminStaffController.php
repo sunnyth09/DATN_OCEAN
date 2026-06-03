@@ -52,6 +52,21 @@ class AdminStaffController extends Controller
             'role' => $request->role,
         ]);
 
+        // Sync to users table
+        $user = \App\Models\User::where('email', $admin->email)->first();
+        if ($user) {
+            $user->update(['role' => $admin->role]);
+            \App\Models\User::where('email', $admin->email)->update(['password' => $admin->password]);
+        } else {
+            \App\Models\User::create([
+                'full_name' => $admin->full_name,
+                'email' => $admin->email,
+                'password' => $request->password, // will be hashed in User
+                'role' => $admin->role,
+            ]);
+            \App\Models\User::where('email', $admin->email)->update(['password' => $admin->password]); // ensure exact match
+        }
+
         return response()->json([
             'status' => 'success',
             'message' => 'Đã tạo tài khoản nhân sự mới thành công!',
@@ -84,6 +99,18 @@ class AdminStaffController extends Controller
         if ($request->filled('password')) {
             $admin->password = $request->password;
             $admin->save();
+        }
+
+        // Sync to users table
+        $user = \App\Models\User::where('email', $admin->email)->first();
+        if ($user) {
+            $user->update([
+                'full_name' => $admin->full_name,
+                'role' => $admin->role
+            ]);
+            if ($request->filled('password')) {
+                \App\Models\User::where('email', $admin->email)->update(['password' => $admin->password]);
+            }
         }
 
         return response()->json([
@@ -121,6 +148,9 @@ class AdminStaffController extends Controller
 
         $admin->update(['role' => $role]);
 
+        // Sync to users table
+        \App\Models\User::where('email', $admin->email)->update(['role' => $role]);
+
         return response()->json([
             'status' => 'success',
             'message' => "Đã phân quyền thành '{$role}' thành công!"
@@ -151,6 +181,9 @@ class AdminStaffController extends Controller
         }
 
         $admin->delete();
+
+        // Sync to users table: revert to customer when admin account deleted
+        \App\Models\User::where('email', $admin->email)->update(['role' => 'customer']);
 
         return response()->json([
             'status' => 'success',

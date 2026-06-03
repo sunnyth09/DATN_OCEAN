@@ -1,15 +1,22 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed } from "vue";
+import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
 import api from "../axios.js";
 import { broadcastLogout } from "../sessionSync.js";
 import Swal from "sweetalert2";
 import SearchModal from "./SearchModal.vue";
 import AppIcon from "@/icons/AppIcon.vue";
+import { useCartStore } from "@/stores/cart";
+import { useCatalogStore } from "@/stores/catalog";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 const route = useRoute();
 const router = useRouter();
+const cartStore = useCartStore();
+const catalogStore = useCatalogStore();
+const { count: cartCount } = storeToRefs(cartStore);
+const { categories } = storeToRefs(catalogStore);
 
 const isLoggedIn = ref(false);
 const userName = ref("");
@@ -17,8 +24,6 @@ const userEmail = ref("");
 const userAvatar = ref(null);
 const isAdmin = ref(false);
 const showDropdown = ref(false);
-const categories = ref([]);
-const cartCount = ref(0);
 const unreadNotificationCount = ref(0);
 const isSearchModalOpen = ref(false);
 const isMobileMenuOpen = ref(false);
@@ -95,15 +100,6 @@ const handleViewportResize = () => {
     }
 };
 
-const fetchCategories = async () => {
-    try {
-        const response = await api.get("/categories");
-        categories.value = response.data.data;
-    } catch (error) {
-        console.error("Error fetching categories:", error);
-    }
-};
-
 const checkAuth = () => {
     const userData = sessionStorage.getItem("user");
     if (userData) {
@@ -116,12 +112,9 @@ const checkAuth = () => {
 
             const path = user.avatar_url;
             if (path) {
-                const API_URL = (
-                    import.meta.env.VITE_API_URL || ""
-                ).replace("/api", "");
                 userAvatar.value = path.startsWith("http")
                     ? path
-                    : `${API_URL}${path}`;
+                    : `${BASE_URL}${path}`;
             } else {
                 userAvatar.value = null;
             }
@@ -133,20 +126,6 @@ const checkAuth = () => {
         userName.value = "";
         userEmail.value = "";
         isAdmin.value = false;
-    }
-};
-
-const fetchCartCount = async () => {
-    const token = sessionStorage.getItem("auth_token");
-    if (!token) {
-        cartCount.value = 0;
-        return;
-    }
-    try {
-        const response = await api.get("/cart/count");
-        cartCount.value = response.data.count || 0;
-    } catch (e) {
-        cartCount.value = 0;
     }
 };
 
@@ -164,11 +143,23 @@ const fetchUnreadNotificationCount = async () => {
     }
 };
 
+let notificationUserId = null;
+
+const leaveNotificationChannel = () => {
+    if (window.Echo && notificationUserId) {
+        window.Echo.leave('user.' + notificationUserId);
+    }
+    notificationUserId = null;
+};
+
 watch(isLoggedIn, (val) => {
     if (val) {
         fetchUnreadNotificationCount();
         const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
         if (window.Echo && userData && userData.user_id) {
+            if (notificationUserId === userData.user_id) return;
+            leaveNotificationChannel();
+            notificationUserId = userData.user_id;
             window.Echo.private('user.' + userData.user_id)
                 .listen('.UserNotificationEvent', (e) => { // . means it ignores Broadcast namespace
                     unreadNotificationCount.value++;
@@ -190,10 +181,7 @@ watch(isLoggedIn, (val) => {
         }
     } else {
         unreadNotificationCount.value = 0;
-        const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
-        if (window.Echo && userData && userData.user_id) {
-            window.Echo.leave('user.' + userData.user_id);
-        }
+        leaveNotificationChannel();
     }
 }, { immediate: true });
 
@@ -279,11 +267,10 @@ const handleFlashSaleClick = (e) => {
 
 onMounted(() => {
     checkAuth();
-    fetchCategories();
-    fetchCartCount();
+    catalogStore.fetchCategories();
+    cartStore.fetchCount();
 
     window.addEventListener("user-updated", checkAuth);
-    window.addEventListener("cart-updated", fetchCartCount);
     window.addEventListener("resize", handleViewportResize);
     document.addEventListener("click", handleDocumentClick);
 
@@ -295,15 +282,14 @@ onMounted(() => {
 });
 onUnmounted(() => {
     window.removeEventListener("user-updated", checkAuth);
-    window.removeEventListener("cart-updated", fetchCartCount);
     window.removeEventListener("resize", handleViewportResize);
     document.removeEventListener("click", handleDocumentClick);
+    leaveNotificationChannel();
 });
 watch(
     () => route.fullPath,
     () => {
         checkAuth();
-        fetchCartCount();
         closeAccountMenu();
         closeMobileMenu();
     },
@@ -371,7 +357,7 @@ watch(
                 </router-link>
 
                 <!-- Giỏ hàng -->
-                <router-link to="/cart" class="icon-btn cart-icon-btn">
+                <router-link to="/cart" id="cart-icon" class="icon-btn cart-icon-btn">
                     <div class="cart-icon-wrapper">
                         <AppIcon name="order" />
                         <span v-if="cartCount > 0" class="cart-badge">{{
@@ -467,6 +453,14 @@ watch(
                     >
                         Liên hệ
                     </router-link>
+                    <router-link
+                        to="/coupon"
+                        class="mobile-nav-link"
+                        :class="{ active: isRouteActive('coupon') }"
+                        @click="closeMobileMenu"
+                    >
+                        Săn voucher
+                    </router-link>
                 </nav>
 
                 <div class="mobile-nav-account">
@@ -517,7 +511,8 @@ watch(
     border-bottom: 1px solid #F8F9FA;
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1030;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .header-inner {

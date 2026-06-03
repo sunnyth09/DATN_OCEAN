@@ -1,7 +1,14 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { orderService } from '@/services/orderService';
+import {
+  getOrderStatusDescription,
+  getOrderStatusSummaryLabel,
+  getOrderStatusTone,
+  getReturnRequestStatusLabel,
+  getReturnRequestStatusTone,
+} from '@/utils/orderStatus';
 
 const orders = ref([]);
 const loading = ref(true);
@@ -43,41 +50,9 @@ const formatDate = (dateString) => {
   return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
 };
 
-const getStatusText = (status) => {
-  switch (status) {
-    case 'pending': return 'Đơn hàng đang chờ xác nhận';
-    case 'confirmed': return 'Đơn hàng đã được xác nhận';
-    case 'packing': return 'Đang đóng gói sản phẩm';
-    case 'shipping': return 'Shipper đang giao hàng đến bạn';
-    case 'delivered': return 'Đã giao hàng thành công';
-    case 'completed': return 'Đơn hàng đã hoàn thành';
-    case 'cancelled': return 'Đơn hàng đã bị hủy';
-    case 'returned': return 'Đơn hàng đã hoàn trả';
-    default: return 'Đang xử lý';
-  }
-};
-
-const getSummaryStatusText = (status) => {
-  switch (status) {
-    case 'pending': return 'Chờ xác nhận';
-    case 'shipping': 
-    case 'packing':
-    case 'confirmed': return 'Đang giao hàng';
-    case 'delivered':
-    case 'completed': return 'Hoàn thành';
-    case 'cancelled': return 'Đã hủy';
-    case 'returned': return 'Hoàn trả';
-    default: return 'Đang xử lý';
-  }
-};
-
-const getStatusClass = (status) => {
-  if (['pending', 'confirmed', 'packing'].includes(status)) return 'status-info';
-  if (['shipping'].includes(status)) return 'status-warning';
-  if (['delivered', 'completed'].includes(status)) return 'status-success';
-  if (['cancelled', 'returned'].includes(status)) return 'status-danger';
-  return 'status-default';
-};
+const getStatusText = (status) => getOrderStatusDescription(status);
+const getSummaryStatusText = (status) => getOrderStatusSummaryLabel(status);
+const getStatusClass = (status) => getOrderStatusTone(status);
 
 const getStatusIcon = (status) => {
   if (status === 'pending') return 'clock';
@@ -251,7 +226,7 @@ onMounted(() => {
       </div>
       <h3>Chưa có đơn hàng nào</h3>
       <p>Bạn chưa đặt bất kỳ đơn hàng nào. Hãy mua sắm ngay nhé!</p>
-      <router-link to="/product" class="btn-primary mt-4">Tiếp tục mua sắm</router-link>
+      <router-link to="/product" class="btn-primary mt-4 rounded-5">Tiếp tục mua sắm</router-link>
     </div>
 
     <div v-else class="orders-list">
@@ -276,6 +251,15 @@ onMounted(() => {
             <div class="payment-status-badge" :class="order.fulfillment_status">
               {{ getSummaryStatusText(order.fulfillment_status) }}
             </div>
+
+            <router-link
+              v-if="order.latest_return_request"
+              :to="{ name: 'profile-return-request-detail', params: { id: order.latest_return_request.id } }"
+              class="return-status-chip"
+              :class="getReturnRequestStatusTone(order.latest_return_request.status)"
+            >
+              {{ getReturnRequestStatusLabel(order.latest_return_request.status) }}
+            </router-link>
             
             <button 
               v-if="order.fulfillment_status === 'pending'" 
@@ -304,7 +288,7 @@ onMounted(() => {
               <p v-else class="evaluation-status-text">Bạn đã đánh giá</p>
             </template>
             <router-link :to="{ name: 'profile-order-detail', params: { id: order.order_id } }" class="btn-action btn-detail mt-2">
-              Xem chi tiết
+              {{ order.can_request_return ? 'Xem chi tiết / hoàn hàng' : 'Xem chi tiết' }}
             </router-link>
           </div>
         </div>
@@ -424,8 +408,8 @@ onMounted(() => {
 .status-tab {
   background: white;
   border: 1px solid #cbd5e1;
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 6px 18px;
+  border-radius: 20px;
   white-space: nowrap;
   font-weight: 600;
   color: #64748b;
@@ -473,7 +457,7 @@ onMounted(() => {
 .empty-state h3 { font-size: 1.1rem; color: #334155; margin-bottom: 8px; font-weight: 700; }
 .empty-state p { color: #64748b; font-size: 0.95rem; }
 .btn-primary { display: inline-block; background: #E63B6F; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; text-align: center; transition: background 0.2s; }
-.btn-primary:hover { background: #039be5; }
+.btn-primary:hover { background: #cb184d; transition: 0.2s ease; }
 .mt-4 { margin-top: 16px; }
 
 /* Orders List */
@@ -564,6 +548,24 @@ onMounted(() => {
 .payment-status-badge.shipping { background: #e0f2fe; color: #E63B6F; }
 .payment-status-badge.completed { background: #fee2e2; color: #ef4444; }
 .payment-status-badge.cancelled { background: #fee2e2; color: #dc2626; }
+.payment-status-badge.return_requested,
+.payment-status-badge.return_approved { background: #fff7ed; color: #c2410c; }
+.payment-status-badge.return_rejected { background: #fee2e2; color: #be123c; }
+.payment-status-badge.returned,
+.payment-status-badge.refunded { background: #ecfeff; color: #0f766e; }
+
+.return-status-chip {
+  text-decoration: none;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.return-status-chip.status-info { color: #475569; background: #f8fafc; border-color: #cbd5e1; }
+.return-status-chip.status-warning { color: #d97706; background: #fef3c7; border-color: #fde68a; }
+.return-status-chip.status-success { color: #16a34a; background: #dcfce3; border-color: #bbf7d0; }
+.return-status-chip.status-danger { color: #dc2626; background: #fee2e2; border-color: #fecaca; }
 
 .btn-action {
   background: white;

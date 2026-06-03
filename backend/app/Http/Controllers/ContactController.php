@@ -6,6 +6,7 @@ use App\Models\Contact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Http;
 
 class ContactController extends Controller
 {
@@ -38,11 +39,40 @@ class ContactController extends Controller
         ], 201);
             
     }
+    private function verifyTurnstile(?string $token): bool
+    {
+        if (!$token) {
+            return false;
+        }
+        $secretKey = config('services.turnstile.secret_key');
+        if (!$secretKey) {
+            return false;
+        }
+        try {
+            $response = Http::asForm()->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+                'secret' => $secretKey,
+                'response' => $token,
+            ]);
+            return $response->json('success', false);
+        } catch (\Exception $e) {
+            Log::error('Turnstile verification failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
     /**
      * User gửi form liên hệ (Public)
      */
     public function SubmitContact(Request $request)
     {
+        $turnstileToken = $request->input('turnstile_token');
+        if (!$this->verifyTurnstile($turnstileToken)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+            ], 422);
+        }
+
         $validator = Validator::make($request->all(), [
             'name'    => 'required|string|max:255',
             'email'   => 'required|email|max:255',
@@ -97,11 +127,14 @@ class ContactController extends Controller
             $query->where('status', $status);
         }
 
-        $contacts = $query->get();
+        $contacts = $query->paginate(20);
 
         return response()->json([
             'status' => 'success',
-            'data'   => $contacts,
+            'data'   => $contacts->items(),
+            'total'  => $contacts->total(),
+            'current_page' => $contacts->currentPage(),
+            'last_page' => $contacts->lastPage(),
         ]);
     }
 
@@ -149,13 +182,13 @@ class ContactController extends Controller
 
             $htmlBody = '
             <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-                <div style="background:linear-gradient(135deg,#1a56db,#4f6ef7);padding:24px;border-radius:12px 12px 0 0;text-align:center">
+                <div style="background:#E63B6F;padding:24px;border-radius:12px 12px 0 0;text-align:center">
                     <h2 style="color:#fff;margin:0;font-size:20px">Ocean Store — Phản hồi hỗ trợ</h2>
                 </div>
                 <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
                     <p style="color:#4b5563;margin:0 0 8px"><strong>Xin chào ' . htmlspecialchars($contact->name) . ',</strong></p>
                     <p style="color:#6b7280;font-size:14px;margin:0 0 16px">Cảm ơn bạn đã liên hệ với chúng tôi về: <em>"' . htmlspecialchars($contact->subject) . '"</em></p>
-                    <div style="background:#f0f7ff;border-left:4px solid #4f6ef7;padding:16px;border-radius:8px;margin:0 0 16px">
+                    <div style="background:#FFF0F3;border-left:4px solid #E63B6F;padding:16px;border-radius:8px;margin:0 0 16px">
                         <p style="color:#1a1a2e;margin:0;white-space:pre-wrap">' . htmlspecialchars($replyContent) . '</p>
                     </div>
                     <p style="color:#6b7280;font-size:13px;margin:0">Nếu cần thêm hỗ trợ, hãy trả lời email này hoặc liên hệ Hotline 1900-OCEAN.</p>

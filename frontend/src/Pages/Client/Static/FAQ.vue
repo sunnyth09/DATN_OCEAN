@@ -40,7 +40,7 @@ const faqItems = [
 <style scoped>
 .static-page { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
 .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
-.page-hero { background: linear-gradient(135deg, #1a56db 0%, #E63B6F 100%); color: #fff; padding: 56px 24px; text-align: center; }
+.page-hero { background: #E63B6F; color: #fff; padding: 56px 24px; text-align: center; }
 .page-hero h1 { font-size: 2rem; font-weight: 800; margin: 0 0 12px; }
 .hero-sub { font-size: 1rem; color: rgba(255,255,255,0.85); margin: 0; }
 .page-content { padding: 48px 24px 64px; }

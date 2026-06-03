@@ -45,6 +45,14 @@ const statuses = [
   { value: 'cancelled', label: 'Đã hủy' }
 ];
 
+statuses.splice(3, 0, { value: 'processing', label: 'Đang xử lý' });
+statuses.push(
+  { value: 'return_requested', label: 'Yêu cầu hoàn' },
+  { value: 'return_approved', label: 'Đã duyệt hoàn' },
+  { value: 'return_rejected', label: 'Từ chối hoàn' },
+  { value: 'returned', label: 'Đã nhận hàng hoàn' },
+  { value: 'refunded', label: 'Đã hoàn tiền' },
+);
 const fulfillmentOptions = statuses.filter(s => s.value !== 'all');
 
 // Luồng trạng thái tuần tự: không cho nhảy cóc
@@ -57,10 +65,21 @@ const statusTransitions = {
   'completed': ['completed'],
   'cancelled': ['cancelled'],
 };
+statusTransitions.confirmed = ['confirmed', 'processing', 'packing', 'cancelled'];
+statusTransitions.processing = ['processing', 'packing', 'shipping', 'cancelled'];
+statusTransitions.return_requested = ['return_requested'];
+statusTransitions.return_approved = ['return_approved'];
+statusTransitions.return_rejected = ['return_rejected'];
+statusTransitions.returned = ['returned'];
+statusTransitions.refunded = ['refunded'];
 
 const getAllowedFulfillmentOptions = (currentStatus) => {
   const allowed = statusTransitions[currentStatus] || [currentStatus];
   return fulfillmentOptions.filter(s => allowed.includes(s.value));
+};
+
+const isLockedFulfillmentStatus = (status) => {
+  return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returned', 'refunded'].includes(status);
 };
 
 // ===== Payment Status (Chỉ hiển thị, không cho admin sửa) =====
@@ -72,6 +91,9 @@ const paymentLabels = {
   'refunded': 'Hoàn tiền',
   'partially_refunded': 'Hoàn 1 phần',
 };
+
+paymentLabels.refund_pending = 'Chờ hoàn';
+paymentLabels.refund_failed = 'Hoàn lỗi';
 
 const fetchOrders = async (page = 1) => {
   loading.value = true;
@@ -238,11 +260,12 @@ const getStatusLabel = (status) => statuses.find(s => s.value === status)?.label
 
 const isAllSelected = computed({
   get() {
-    return orders.value.length > 0 && selectedOrders.value.length === orders.value.length;
+    const selectableOrders = orders.value.filter(o => !isLockedFulfillmentStatus(o.fulfillment_status));
+    return selectableOrders.length > 0 && selectedOrders.value.length === selectableOrders.length;
   },
   set(value) {
     if (value) {
-      selectedOrders.value = orders.value.map(o => o.order_id);
+      selectedOrders.value = orders.value.filter(o => !isLockedFulfillmentStatus(o.fulfillment_status)).map(o => o.order_id);
     } else {
       selectedOrders.value = [];
     }
@@ -262,6 +285,17 @@ const applyBulkStatus = async () => {
     if (allSameStatus) {
         const label = statuses.find(s => s.value === bulkFulfillmentStatus.value)?.label || bulkFulfillmentStatus.value;
         toast.error(`Tất cả ${selectedOrdersList.length} đơn đã ở trạng thái "${label}" rồi. Vui lòng chọn trạng thái tiếp theo!`);
+        return;
+    }
+
+    // Kiểm tra tính hợp lệ của luồng trạng thái
+    const invalidTransitions = selectedOrdersList.filter(o => {
+        const allowed = statusTransitions[o.fulfillment_status] || [o.fulfillment_status];
+        return !allowed.includes(bulkFulfillmentStatus.value);
+    });
+
+    if (invalidTransitions.length > 0) {
+        toast.error(`Có ${invalidTransitions.length} đơn hàng không thể chuyển sang trạng thái này do sai quy trình (vượt cấp hoặc đi lùi)!`);
         return;
     }
 
@@ -435,7 +469,7 @@ onUnmounted(() => {
                     </tr>
                     <tr v-for="order in orders" :key="order.order_id" :class="{'is-new-order': order.is_new, 'is-selected': selectedOrders.includes(order.order_id)}">
                         <td class="checkbox-cell">
-                            <input type="checkbox" :value="order.order_id" v-model="selectedOrders" class="order-checkbox" />
+                            <input type="checkbox" :value="order.order_id" v-model="selectedOrders" class="order-checkbox" :disabled="isLockedFulfillmentStatus(order.fulfillment_status)" :title="isLockedFulfillmentStatus(order.fulfillment_status) ? 'Không thể thao tác hàng loạt với đơn hàng đã đóng' : ''"/>
                         </td>
                         <td>
                             <div class="order-code-cell">
@@ -455,7 +489,7 @@ onUnmounted(() => {
                         <td>
                             <!-- Chỉnh CSS cho đẹp như badge, dùng thẻ select nhưng style sang chảnh -->
                             <div class="status-select-wrap" :class="'f-'+order.fulfillment_status">
-                                <select class="status-select" v-model="order.fulfillment_status" @change="updateOrderFulfillment(order)" :disabled="order.fulfillment_status === 'completed' || order.fulfillment_status === 'cancelled'">
+                                <select class="status-select" v-model="order.fulfillment_status" @change="updateOrderFulfillment(order)" :disabled="isLockedFulfillmentStatus(order.fulfillment_status)">
                                     <option v-for="s in getAllowedFulfillmentOptions(order._prevFulfillmentStatus || order.fulfillment_status)" :key="s.value" :value="s.value">{{ s.label }}</option>
                                 </select>
                             </div>
@@ -664,6 +698,9 @@ onUnmounted(() => {
 .f-packing, .f-shipping { background: rgba(0, 188, 212, 0.15); color: #0097a7; }
 .f-delivered, .f-completed { background: rgba(38, 166, 154, 0.15); color: #167a70; }
 .f-cancelled { background: rgba(239, 83, 80, 0.15); color: #c62828; }
+.f-return_requested, .f-return_approved { background: rgba(245, 158, 11, 0.15); color: #b45309; }
+.f-return_rejected { background: rgba(244, 114, 182, 0.15); color: #be185d; }
+.f-returned, .f-refunded { background: rgba(148, 163, 184, 0.18); color: #475569; }
 .status-select-wrap select { color: inherit; }
 
 :global(html.dark) .f-pending { background: rgba(255, 167, 38, 0.15) !important; color: #ffb74d !important; }
@@ -671,6 +708,9 @@ onUnmounted(() => {
 :global(html.dark) .f-packing, :global(html.dark) .f-shipping { background: rgba(0, 188, 212, 0.15) !important; color: #4fc3f7 !important; }
 :global(html.dark) .f-delivered, :global(html.dark) .f-completed { background: rgba(38, 166, 154, 0.15) !important; color: #4db6ac !important; }
 :global(html.dark) .f-cancelled { background: rgba(239, 83, 80, 0.15) !important; color: #e57373 !important; }
+:global(html.dark) .f-return_requested, :global(html.dark) .f-return_approved { background: rgba(245, 158, 11, 0.16) !important; color: #fdba74 !important; }
+:global(html.dark) .f-return_rejected { background: rgba(244, 114, 182, 0.16) !important; color: #f9a8d4 !important; }
+:global(html.dark) .f-returned, :global(html.dark) .f-refunded { background: rgba(148, 163, 184, 0.2) !important; color: #cbd5e1 !important; }
 
 /* Payment Badge (read-only) */
 .payment-badge {
@@ -683,7 +723,9 @@ onUnmounted(() => {
 .p-pending { background: rgba(255, 193, 7, 0.15); color: #f57f17; }
 .p-paid { background: rgba(38, 166, 154, 0.15); color: #167a70; }
 .p-failed { background: rgba(239, 83, 80, 0.15); color: #c62828; }
+.p-refund_pending { background: rgba(245, 158, 11, 0.15); color: #b45309; }
 .p-refunded { background: rgba(158, 158, 158, 0.15); color: #616161; }
+.p-refund_failed { background: rgba(239, 83, 80, 0.15); color: #c62828; }
 .p-partially_refunded { background: rgba(158, 158, 158, 0.15); color: #616161; }
 
 .actions-cell { display: flex; gap: 6px; }

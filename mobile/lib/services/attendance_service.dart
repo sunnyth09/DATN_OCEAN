@@ -7,7 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import '../config/app_config.dart';
 
 class AttendanceService {
-  static const String baseUrl = '${AppConfig.kBaseUrl}/attendance';
+  static String get baseUrl => '${AppConfig.kBaseUrl}/attendance';
   final _info = NetworkInfo();
 
   Future<String?> _getToken() async {

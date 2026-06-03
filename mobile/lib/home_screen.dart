@@ -141,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
-            'Ocean Shop',
+            'Quyền Sport',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
@@ -177,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             hintText: 'Bạn muốn tìm gì?',
             hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
             prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8)),
-            suffixIcon: const Icon(Icons.filter_list, color: Color(0xFF0EA5E9)),
+            suffixIcon: const Icon(Icons.filter_list, color: Color(0xFFE63B6F)),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 15),
           ),
@@ -215,7 +215,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF0284C7), Color(0xFF38BDF8)],
+          colors: [Color(0xFFE63B6F), Color(0xFFFF8FAB)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -230,16 +230,16 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text('LIMITED EDITION', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            child: const Text('HOT DEAL', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(height: 12),
           const Text(
-            'Mùa Hè Rực Rỡ\nCÙNG OCEAN PACK',
+            'Mùa Hè Sôi Động\nCÙNG QUYỀN SPORT',
             style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Giảm ngay 25% cho tất cả thiết bị lặn chuyên nghiệp.',
+            'Giảm ngay 25% cho tất cả đồ thể thao chính hãng.',
             style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 16),
@@ -247,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             onPressed: () {},
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF0369A1),
+              foregroundColor: const Color(0xFFE63B6F),
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -301,7 +301,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   /// Màu gradient theo index cho đẹp
   List<Color> _colorsForIndex(int index) {
     const palettes = [
-      [Color(0xFFE0F2FE), Color(0xFFBAE6FD)],
+      [Color(0xFFFFF0F3), Color(0xFFBAE6FD)],
       [Color(0xFFF0FDF4), Color(0xFFBBF7D0)],
       [Color(0xFFFFF7ED), Color(0xFFFED7AA)],
       [Color(0xFFFDF4FF), Color(0xFFF5D0FE)],
@@ -314,8 +314,8 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   }
 
   static const List<Color> _iconColors = [
-    Color(0xFF0284C7), Color(0xFF16A34A), Color(0xFFD97706),
-    Color(0xFF9333EA), Color(0xFFE11D48), Color(0xFF0EA5E9),
+    Color(0xFFE63B6F), Color(0xFF16A34A), Color(0xFFD97706),
+    Color(0xFF9333EA), Color(0xFFE11D48), Color(0xFFE63B6F),
     Color(0xFF059669), Color(0xFFCA8A04),
   ];
 
@@ -334,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                   context,
                   MaterialPageRoute(builder: (_) => const ProductListScreen()),
                 ),
-                child: const Text('Xem tất cả', style: TextStyle(color: Color(0xFF0EA5E9), fontWeight: FontWeight.w600)),
+                child: const Text('Xem tất cả', style: TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -565,11 +565,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     children: [
                       Text(
                         _formatPrice(rawPrice),
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF0284C7)),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFFE63B6F)),
                       ),
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: const Color(0xFF0284C7), borderRadius: BorderRadius.circular(8)),
+                        decoration: BoxDecoration(color: const Color(0xFFE63B6F), borderRadius: BorderRadius.circular(8)),
                         child: const Icon(Icons.shopping_cart_outlined, size: 14, color: Colors.white),
                       )
                     ],

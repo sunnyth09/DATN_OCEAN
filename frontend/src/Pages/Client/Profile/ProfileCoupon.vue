@@ -173,7 +173,7 @@ onMounted(fetchUserCoupons);
   width: 32px;
   height: 32px;
   border: 3px solid #e5e7eb;
-  border-top-color: #1a56db;
+  border-top-color: #E63B6F;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -291,7 +291,7 @@ onMounted(fetchUserCoupons);
 .code-text {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .coupon-expiry {
@@ -302,7 +302,7 @@ onMounted(fetchUserCoupons);
 
 .btn-copy {
   padding: 6px 12px;
-  background: #1a56db;
+  background: #E63B6F;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -313,7 +313,7 @@ onMounted(fetchUserCoupons);
 }
 
 .btn-copy:hover {
-  background: #1648b8;
+  background: #b50c4d;
 }
 
 .expired-overlay {
@@ -367,7 +367,7 @@ onMounted(fetchUserCoupons);
 
 .btn-explore {
   padding: 10px 24px;
-  background: #1a56db;
+  background: #E63B6F;
   color: #fff;
   text-decoration: none;
   border-radius: 10px;
@@ -377,8 +377,8 @@ onMounted(fetchUserCoupons);
 }
 
 .btn-explore:hover {
-  background: #1648b8;
+  background: #b50c4d;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(26, 86, 219, 0.2);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.2);
 }
 </style>

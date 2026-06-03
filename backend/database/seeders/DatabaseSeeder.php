@@ -53,5 +53,13 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CleanProductSeeder::class,
         ]);
+
+        // ========== COURT BOOKING SEEDERS ==========
+        $this->call([
+            CourtSeeder::class,
+            CourtServiceSeeder::class,
+            CourtMaintenanceSeeder::class,
+            CourtBookingSeeder::class,
+        ]);
     }
 }

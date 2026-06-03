@@ -11,56 +11,57 @@ class GeminiService
     private string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash';
 
     /**
-     * System prompt cấu hình "tính cách" cho chatbot Ocean Store
+     * System prompt cấu hình "tính cách" cho chatbot Quyền Sport
      */
     private string $systemPrompt = <<<'PROMPT'
-Bạn là Ocean AI — trợ lý mua sắm thông minh của Ocean Store, một cửa hàng thời trang và phụ kiện trực tuyến.
+Bạn là Quyền Sport AI — chuyên gia tư vấn thể thao, thời trang thể thao và trợ lý mua sắm thông minh của Quyền Sport.
+Nhiệm vụ của bạn không chỉ là trả lời câu hỏi mà còn là khơi gợi nhu cầu, tư vấn phong cách và mang lại trải nghiệm mua sắm tuyệt vời nhất.
 
-NGUYÊN TẮC GIAO TIẾP:
-- Luôn trả lời bằng tiếng Việt, thân thiện, chuyên nghiệp
-- Trả lời ngắn gọn, rõ ràng, đi thẳng vào vấn đề
-- KHÔNG sử dụng emoji trong câu trả lời
-- Nếu không biết câu trả lời, hãy thành thật và đề nghị liên hệ hotline: 1900-OCEAN
+NGUYÊN TẮC GIAO TIẾP VÀ TƯ VẤN (QUAN TRỌNG):
+- Luôn trả lời bằng tiếng Việt một cách tự nhiên, nhiệt tình, lịch sự và thấu hiểu khách hàng.
+- Trả lời ngắn gọn, súc tích nhưng truyền cảm hứng.
+- Đóng vai như một stylist chuyên nghiệp: tư vấn phối đồ (mix & match), xu hướng thời trang mới nhất.
+- LUÔN TÌM CƠ HỘI UP-SELL / CROSS-SELL: Khi khách hàng tìm một sản phẩm (VD: áo sơ mi), hãy chủ động gợi ý thêm quần, giày hoặc phụ kiện phù hợp để tạo thành một set đồ hoàn hảo.
+- KHÔNG sử dụng emoji trong câu trả lời để giữ sự chuyên nghiệp, sang trọng.
+- Nếu không biết câu trả lời hoặc vượt quá khả năng, hãy khéo léo đề nghị khách hàng liên hệ bộ phận hỗ trợ của Quyền Sport để được chuyên viên hỗ trợ.
+- Bạn chỉ là lớp tư vấn và hiểu ý định mua hàng. Không được tự bịa giá, tồn kho, tổng tiền, địa chỉ, mã đơn hoặc khẳng định đã đặt hàng nếu backend chưa trả kết quả thành công.
 
-QUY TẮC QUAN TRỌNG - BẮT BUỘC TUÂN THỦ:
-- Khi user gửi yêu cầu CHUNG CHUNG, MƠ HỒ (ví dụ: "Tìm sản phẩm", "Tôi muốn mua đồ", "Tra cứu đơn hàng", "Liên hệ hỗ trợ"), KHÔNG ĐƯỢC gọi function ngay. Thay vào đó, hãy HỎI LẠI để làm rõ nhu cầu cụ thể.
-- CHỈ gọi function khi user đã cung cấp ĐỦ THÔNG TIN CỤ THỂ (ví dụ: "Tìm áo khoác đen", "Đơn hàng ORD-123456", "Có mã giảm giá nào không?").
-- NGOẠI LỆ — Các yêu cầu sau ĐÃ ĐỦ RÕ RÀNG, gọi function ngay KHÔNG cần hỏi lại:
-  + "Gợi ý sản phẩm bán chạy", "Sản phẩm nổi bật", "Sản phẩm hot" → Gọi search_products (sẽ tự sắp xếp theo sold_count)
-  + "Chính sách đổi trả", "Chính sách vận chuyển", "Liên hệ", "Thanh toán" → Gọi get_store_info với topic tương ứng
-  + "Có mã giảm giá nào không?", "Voucher", "Khuyến mãi" → Gọi get_available_coupons
-  + "Xem đơn hàng của tôi" (khi đã đăng nhập) → Gọi get_order_status
-- Ví dụ cách hỏi lại (CHỈ khi yêu cầu thực sự mơ hồ):
-  + "Tìm sản phẩm" → Hỏi: "Bạn muốn tìm loại sản phẩm nào? (áo, quần, giày...) Có yêu cầu về màu sắc, size hay khoảng giá không?"
-  + "Tra cứu đơn hàng" (chưa đăng nhập) → Hỏi: "Bạn vui lòng cho tôi biết mã đơn hàng để tra cứu nhé."
+QUY TẮC SỬ DỤNG FUNCTION (BẮT BUỘC TUÂN THỦ CHÍNH XÁC):
+- Khi user yêu cầu CHUNG CHUNG (ví dụ: "Tìm quần áo", "Tư vấn đồ đi tiệc", "Mua quà sinh nhật"): KHÔNG ĐƯỢC gọi function ngay. Hãy ĐẶT 1-2 CÂU HỎI LÀM RÕ (VD: về giới tính, độ tuổi, sở thích màu sắc, form dáng, khoảng giá).
+- CHỈ gọi function `search_products` khi user đã cung cấp ĐỦ THÔNG TIN (ít nhất 1 keyword cụ thể như tên loại, màu sắc, size, hoặc dịp sử dụng).
+- Các trường hợp gọi function NGAY LẬP TỨC không cần hỏi lại:
+  + "Sản phẩm bán chạy", "Hot trend", "Sản phẩm mới" → Gọi `search_products` ngay.
+  + "Chính sách đổi trả/vận chuyển/bảo hành", "Liên hệ" → Gọi `get_store_info`.
+  + "Mã giảm giá", "Khuyến mãi", "Voucher" → Gọi `get_available_coupons`.
+  + "Xem đơn hàng của tôi", "Đơn hàng của tôi đang ở đâu" (khi đã đăng nhập) → Gọi `get_order_status`.
+  + Khi khách muốn mua/thêm sản phẩm vào giỏ và đã rõ `variant_id` + số lượng → gọi `add_to_cart`.
+  + Khi khách muốn đặt hàng/giao tới địa chỉ của tôi → gọi `get_my_addresses` nếu chưa có địa chỉ trong ngữ cảnh, sau đó gọi `prepare_order` khi đã có `address_id`.
+- Không gọi `confirm_order` trừ khi khách đã xem bản preview từ backend và xác nhận rõ ràng. Không bao giờ nói đơn hàng đã tạo nếu function chưa trả success.
 
-QUY TẮC VỀ CHÍNH SÁCH CỬA HÀNG:
-- Khi user hỏi về chính sách (đổi trả, vận chuyển, thanh toán, liên hệ), BẮT BUỘC gọi function get_store_info để lấy thông tin đầy đủ.
-- KHÔNG ĐƯỢC tự trả lời sơ sài từ kiến thức có sẵn. Luôn gọi function để đảm bảo thông tin chính xác và chi tiết.
-- Khi trả lời, liệt kê đầy đủ các điểm chính sách, không bỏ sót.
+QUY TẮC TRA CỨU ĐƠN HÀNG:
+- Trạng thái user: Đã đăng nhập (is_authenticated = true) → Tự động tra cứu đơn hàng bằng `get_order_status` không cần hỏi thêm.
+- Trạng thái user: Chưa đăng nhập → Lịch sự yêu cầu khách hàng cung cấp MÃ ĐƠN HÀNG và EMAIL hoặc SỐ ĐIỆN THOẠI để bảo mật thông tin trước khi tra cứu.
 
-THÔNG TIN CỬA HÀNG:
-- Tên: Ocean Store
+QUY TẮC ĐẶT HÀNG AN TOÀN:
+- Nếu khách chưa đăng nhập mà muốn thêm giỏ/đặt hàng, hãy nói khách cần đăng nhập trước.
+- Nếu sản phẩm có nhiều màu/size, phải yêu cầu khách chọn biến thể cụ thể trước khi thêm giỏ.
+- Giá, tồn kho, tổng tiền, phí ship, địa chỉ phải lấy từ function result. Không tự suy đoán.
+- Với đặt hàng, trước tiên dùng `prepare_order` để tạo bản xem trước. Sau đó khách phải xác nhận rõ ràng thì mới được gọi `confirm_order`.
+- Chỉ hỗ trợ COD hoặc chuyển khoản ngân hàng trong chatbot. Không hỏi thông tin thẻ thanh toán trong chat.
+
+KHI TRÌNH BÀY SẢN PHẨM HOẶC CHÍNH SÁCH:
+- Hiển thị giá luôn có định dạng VNĐ (VD: 500.000đ).
+- Nêu bật điểm mạnh của sản phẩm (chất liệu, kiểu dáng) dựa vào description.
+- Giới thiệu tối đa 3-4 sản phẩm phù hợp nhất, kèm lời khuyên vì sao nó hợp với khách.
+- Với câu hỏi chính sách, trình bày rõ ràng từng gạch đầu dòng từ dữ liệu lấy được qua `get_store_info`.
+
+THÔNG TIN CƠ BẢN CỦA QUYỀN SPORT (để trả lời nhanh nếu cần):
 - Địa chỉ: 134 Nguyễn Thị Định, P.Buôn Ma Thuột, Tỉnh Đắk Lắk
-- Hotline: 1900-OCEAN (1900 6232)
-- Email: contact@oceanstore.vn
+- Hotline: 1900-SPORT
+- Email: contact@quyensport.vn
 - Giờ làm việc: 8:00 - 22:00 hàng ngày
 
-KHẢ NĂNG CỦA BẠN:
-1. Tìm kiếm và gợi ý sản phẩm phù hợp
-2. Tra cứu đơn hàng (user đã đăng nhập hoặc dùng mã đơn + email/SĐT)
-3. Cung cấp thông tin mã giảm giá đang có
-4. Trả lời câu hỏi về chính sách, vận chuyển, đổi trả (luôn dùng get_store_info)
-5. Hướng dẫn mua hàng
-
-QUY TẮC TRA ĐƠN HÀNG:
-- Nếu user đã đăng nhập (is_authenticated = true): Tự động tra cứu đơn hàng theo tài khoản
-- Nếu user chưa đăng nhập: Yêu cầu cung cấp MÃ ĐƠN HÀNG và EMAIL hoặc SỐ ĐIỆN THOẠI để xác minh
-
-KHI TRẢ LỜI VỀ SẢN PHẨM:
-- Luôn hiển thị giá bằng VNĐ
-- Nếu có nhiều sản phẩm, giới thiệu tối đa 4-5 sản phẩm phù hợp nhất
-- Gợi ý xem chi tiết sản phẩm nếu khách quan tâm
+Hãy bắt đầu tương tác với sự tự tin của một Stylist hàng đầu!
 PROMPT;
 
     public function __construct()
@@ -126,16 +127,94 @@ PROMPT;
             ],
             [
                 'name' => 'get_product_detail',
-                'description' => 'Lấy thông tin chi tiết của một sản phẩm cụ thể theo tên hoặc slug',
+                'description' => 'Lấy thông tin chi tiết của một sản phẩm cụ thể theo product_id, slug hoặc tên sản phẩm',
                 'parameters' => [
                     'type' => 'object',
                     'properties' => [
+                        'product_id' => [
+                            'type' => 'number',
+                            'description' => 'ID sản phẩm nếu đã có từ kết quả tìm kiếm',
+                        ],
+                        'slug' => [
+                            'type' => 'string',
+                            'description' => 'Slug sản phẩm nếu đã có',
+                        ],
                         'product_name' => [
                             'type' => 'string',
                             'description' => 'Tên sản phẩm cần xem chi tiết',
                         ],
                     ],
-                    'required' => ['product_name'],
+                ],
+            ],
+            [
+                'name' => 'add_to_cart',
+                'description' => 'Thêm biến thể sản phẩm vào giỏ hàng. Chỉ dùng khi khách đã đăng nhập và đã chọn rõ variant_id/màu/size/số lượng.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'product_id' => [
+                            'type' => 'number',
+                            'description' => 'ID sản phẩm từ kết quả tìm kiếm hoặc chi tiết sản phẩm',
+                        ],
+                        'variant_id' => [
+                            'type' => 'number',
+                            'description' => 'ID biến thể cụ thể cần thêm vào giỏ',
+                        ],
+                        'quantity' => [
+                            'type' => 'number',
+                            'description' => 'Số lượng muốn mua, mặc định 1 nếu khách không nói rõ',
+                        ],
+                    ],
+                    'required' => ['variant_id'],
+                ],
+            ],
+            [
+                'name' => 'get_my_addresses',
+                'description' => 'Lấy danh sách địa chỉ giao hàng của khách hàng đã đăng nhập để chọn khi chuẩn bị đặt hàng.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => new \stdClass(),
+                ],
+            ],
+            [
+                'name' => 'prepare_order',
+                'description' => 'Tạo bản xem trước đơn hàng từ giỏ hàng hiện tại và địa chỉ đã chọn. Không tạo đơn thật; cần khách xác nhận sau preview.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'address_id' => [
+                            'type' => 'number',
+                            'description' => 'ID địa chỉ giao hàng thuộc khách hàng hiện tại',
+                        ],
+                        'payment_method' => [
+                            'type' => 'string',
+                            'enum' => ['cod', 'bank_transfer'],
+                            'description' => 'Phương thức thanh toán an toàn cho chatbot, mặc định cod',
+                        ],
+                        'coupon_applied' => [
+                            'type' => 'string',
+                            'description' => 'Mã giảm giá nếu khách yêu cầu áp dụng',
+                        ],
+                        'note' => [
+                            'type' => 'string',
+                            'description' => 'Ghi chú giao hàng nếu có',
+                        ],
+                    ],
+                    'required' => ['address_id'],
+                ],
+            ],
+            [
+                'name' => 'confirm_order',
+                'description' => 'Xác nhận tạo đơn hàng thật từ confirmation_token backend đã cấp sau prepare_order. Chỉ dùng khi khách đã xác nhận rõ ràng.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'confirmation_token' => [
+                            'type' => 'string',
+                            'description' => 'Token xác nhận đơn hàng từ bản preview',
+                        ],
+                    ],
+                    'required' => ['confirmation_token'],
                 ],
             ],
             [
@@ -190,6 +269,57 @@ PROMPT;
                 ],
             ],
         ];
+    }
+
+    public function extractProductSearchFilters(string $message): array
+    {
+        $apiKey = $this->getApiKey();
+        $url = "{$this->baseUrl}:generateContent?key={$apiKey}";
+
+        $payload = [
+            'system_instruction' => [
+                'parts' => [[
+                    'text' => 'Bạn chỉ trích xuất filter tìm kiếm sản phẩm cho Quyền Sport. Chỉ trả JSON hợp lệ, không markdown, không giải thích. Schema: {"is_product_search": boolean, "keyword": string|null, "category": string|null, "categories": string[], "color": string|null, "size": string|null, "min_price": number|null, "max_price": number|null}. Giá VNĐ: 500k=500000, 1tr=1000000, 2tr=2000000, 10tr=10000000. Không tự tạo product_id/variant_id. Không trả limit. Nếu câu không phải tìm sản phẩm thì is_product_search=false.'
+                ]],
+            ],
+            'contents' => [[
+                'role' => 'user',
+                'parts' => [['text' => mb_substr($message, 0, 500)]],
+            ]],
+            'generation_config' => [
+                'temperature' => 0,
+                'top_p' => 0.1,
+                'max_output_tokens' => 256,
+                'thinking_config' => ['thinking_budget' => 0],
+            ],
+        ];
+
+        try {
+            $response = Http::timeout(20)->post($url, $payload);
+            if (!$response->successful()) {
+                Log::warning('Gemini product filter extraction failed', [
+                    'status' => $response->status(),
+                ]);
+                return ['error' => true];
+            }
+
+            $parts = $response->json('candidates.0.content.parts') ?? [];
+            $text = '';
+            foreach ($parts as $part) {
+                $text .= $part['text'] ?? '';
+            }
+            $text = trim(preg_replace('/^```json|```$/m', '', $text));
+            $filters = json_decode($text, true);
+
+            if (!is_array($filters)) {
+                return ['error' => true];
+            }
+
+            return $filters;
+        } catch (\Throwable $e) {
+            Log::warning('Gemini product filter extraction exception', ['error' => $e->getMessage()]);
+            return ['error' => true];
+        }
     }
 
     /**
@@ -265,13 +395,13 @@ PROMPT;
                 if ($response->status() === 429) {
                     return [
                         'error' => true,
-                        'message' => 'Ocean AI đang bận, vui lòng thử lại sau vài giây!',
+                        'message' => 'Quyền Sport AI đang bận, vui lòng thử lại sau vài giây!',
                     ];
                 }
 
                 return [
                     'error' => true,
-                    'message' => 'Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau!',
+                    'message' => 'Quyền Sport AI đang gặp lỗi kết nối AI. Bạn có thể dùng các nút gợi ý nhanh hoặc nhập rõ hơn như: sản phẩm bán chạy, mã giảm giá, chính sách đổi trả, xem đơn hàng.',
                 ];
             }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/api_client.dart';
+import '../config/app_theme.dart';
 import 'main_wrapper.dart';
 import 'address_screen.dart';
 import '../config/app_config.dart';
@@ -256,9 +257,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         appBar: AppBar(
           title: const Text('Thanh toán', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 18)),
           backgroundColor: Colors.white, elevation: 0, centerTitle: true,
-          leading: IconButton(icon: const Icon(Icons.arrow_back, color: Color(0xFF0EA5E9)), onPressed: () => Navigator.pop(context)),
+          leading: IconButton(icon: const Icon(Icons.arrow_back, color: Color(0xFFE63B6F)), onPressed: () => Navigator.pop(context)),
         ),
-        body: const Center(child: CircularProgressIndicator(color: Color(0xFF0EA5E9))),
+        body: const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F))),
       );
     }
 
@@ -278,7 +279,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: fetchCheckoutData,
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE63B6F), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   child: const Text('Thử lại', style: TextStyle(color: Colors.white)),
                 ),
               ],
@@ -295,7 +296,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       appBar: AppBar(
         title: const Text('Thanh toán', style: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), fontSize: 18)),
         backgroundColor: Colors.white, elevation: 0, centerTitle: true,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Color(0xFF0EA5E9)), onPressed: () => Navigator.pop(context)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back, color: Color(0xFFE63B6F)), onPressed: () => Navigator.pop(context)),
       ),
       body: Stack(
         children: [
@@ -331,14 +332,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text('Tổng cộng', style: TextStyle(fontSize: 12, color: Color(0xFF475569))),
-                        Text(_formatPrice(grandTotal), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0284C7))),
+                        Text(_formatPrice(grandTotal), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFFE63B6F))),
                       ],
                     ),
                     ElevatedButton(
                       onPressed: placeOrder,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
-                        backgroundColor: const Color(0xFF0EA5E9),
+                        backgroundColor: const Color(0xFFE63B6F),
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       ),
@@ -369,7 +370,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Row(children: [
-                Icon(Icons.location_on_outlined, color: Color(0xFF0EA5E9), size: 20),
+                Icon(Icons.location_on_outlined, color: Color(0xFFE63B6F), size: 20),
                 SizedBox(width: 8),
                 Text('Địa chỉ nhận hàng', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 15)),
               ]),
@@ -389,7 +390,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 },
                 child: Text(
                   defaultAddress != null ? 'Thay đổi' : 'Thêm mới',
-                  style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF0EA5E9), fontSize: 13),
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFE63B6F), fontSize: 13),
                 ),
               ),
             ],
@@ -442,7 +443,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(children: [
-            Icon(Icons.payment_outlined, color: Color(0xFF0EA5E9), size: 20),
+            Icon(Icons.payment_outlined, color: Color(0xFFE63B6F), size: 20),
             SizedBox(width: 8),
             Text('Phương thức thanh toán', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 15)),
           ]),
@@ -465,24 +466,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFF0F9FF) : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFFE2E8F0), width: isSelected ? 1.5 : 1),
+          border: Border.all(color: isSelected ? const Color(0xFFE63B6F) : const Color(0xFFE2E8F0), width: isSelected ? 1.5 : 1),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: isSelected ? const Color(0xFF0EA5E9).withOpacity(0.1) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)),
-              child: Icon(icon, color: isSelected ? const Color(0xFF0EA5E9) : const Color(0xFF475569), size: 20),
+              decoration: BoxDecoration(color: isSelected ? const Color(0xFFE63B6F).withOpacity(0.1) : const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, color: isSelected ? const Color(0xFFE63B6F) : const Color(0xFF475569), size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isSelected ? const Color(0xFF0284C7) : const Color(0xFF0F172A))),
+                Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isSelected ? const Color(0xFFE63B6F) : const Color(0xFF0F172A))),
                 const SizedBox(height: 2),
                 Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
               ]),
             ),
-            Icon(isSelected ? Icons.radio_button_checked : Icons.radio_button_off, color: isSelected ? const Color(0xFF0284C7) : const Color(0xFFCBD5E1), size: 20),
+            Icon(isSelected ? Icons.radio_button_checked : Icons.radio_button_off, color: isSelected ? const Color(0xFFE63B6F) : const Color(0xFFCBD5E1), size: 20),
           ],
         ),
       ),
@@ -501,7 +502,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(children: [
-            Icon(Icons.local_offer_outlined, color: Color(0xFF0EA5E9), size: 20),
+            Icon(Icons.local_offer_outlined, color: Color(0xFFE63B6F), size: 20),
             SizedBox(width: 8),
             Text('Mã giảm giá', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 15)),
           ]),
@@ -518,7 +519,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     filled: true, fillColor: const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF0EA5E9))),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     isDense: true,
                   ),
@@ -528,7 +529,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ElevatedButton(
                 onPressed: _isApplyingCoupon ? null : _applyCoupon,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0EA5E9), foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xFFE63B6F), foregroundColor: Colors.white,
                   elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
@@ -568,7 +569,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.receipt_outlined, color: Color(0xFF0EA5E9), size: 20),
+            const Icon(Icons.receipt_outlined, color: Color(0xFFE63B6F), size: 20),
             const SizedBox(width: 8),
             Text('Sản phẩm (${cartItems.length})', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 15)),
           ]),
@@ -609,7 +610,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       Text('x$qty', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                     ]),
                   ),
-                  Text(lineTotal, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0284C7))),
+                  Text(lineTotal, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFE63B6F))),
                 ],
               ),
             );
@@ -625,7 +626,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const Text('Phí vận chuyển', style: TextStyle(fontSize: 13, color: Color(0xFF475569))),
               _isCalculatingShip
                 ? const Row(mainAxisSize: MainAxisSize.min, children: [
-                    SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF0EA5E9))),
+                    SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFE63B6F))),
                     SizedBox(width: 6),
                     Text('Đang tính...', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic)),
                   ])
@@ -642,7 +643,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             'Tổng cộng',
             _formatPrice((subtotal.toInt() + shippingFee - discountAmount).clamp(0, double.maxFinite.toInt())),
             labelBold: true,
-            valueColor: const Color(0xFF0284C7),
+            valueColor: const Color(0xFFE63B6F),
             valueFontSize: 16,
           ),
         ],

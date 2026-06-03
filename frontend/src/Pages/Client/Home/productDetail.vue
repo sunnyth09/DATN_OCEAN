@@ -10,6 +10,8 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/icons/AppIcon.vue';
 import VirtualTryOnModal from '@/components/VirtualTryOnModal.vue';
+import { useFlyToCart } from '@/composables/useFlyToCart';
+
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -17,7 +19,9 @@ const cartStore = useCartStore();
 // slug là computed để watch được khi route thay đổi (route param là :id, có thể là slug hoặc id)
 const slug = computed(() => route.params.id);
 const product = ref(null);
+const productImageRef = ref(null);
 const showTryOn = ref(false);
+const { flyToCart } = useFlyToCart();
 const tryOnEnabled = import.meta.env.VITE_TRYON_ENABLED !== 'false';
 const selectedVariant = ref(null);
 const selectedColor = ref(null);
@@ -100,7 +104,7 @@ const allImages = computed(() => {
 const fetchProduct = async (currentSlug) => {
     try {
         const response = await api.get(`/products/${currentSlug}`);
-        product.value = response.data;
+        product.value = response.data.data;
         // Reset selections khi đổi sản phẩm
         selectedVariant.value = null;
         selectedColor.value = null;
@@ -306,6 +310,16 @@ const addToCart = async () => {
         return false;
     }
 
+    if (selectedVariant.value.stock <= 0) {
+        showToast('Sản phẩm phiên bản này đã hết hàng!', 'error');
+        return false;
+    }
+
+    if (quantity.value > selectedVariant.value.stock) {
+        showToast(`Số lượng trong kho không đủ (chỉ còn ${selectedVariant.value.stock} sản phẩm)!`, 'error');
+        return false;
+    }
+
     if (quantity.value < 1) {
         showToast('Số lượng tối thiểu là 1!', 'error');
         return false;
@@ -318,6 +332,9 @@ const addToCart = async () => {
             quantity: quantity.value,
         });
         if (response.status === 'success') {
+            if (productImageRef.value) {
+                await flyToCart(productImageRef.value, '#cart-icon');
+            }
             showToast(response.message, 'success');
             return true;
         }
@@ -384,7 +401,6 @@ watch(slug, (newSlug, oldSlug) => {
 
 onMounted(() => {
     fetchProduct(slug.value);
-
     // === Affiliate: ghi nhận referral code từ URL ===
     const refCode = route.query.ref;
     if (refCode) {
@@ -406,6 +422,8 @@ onMounted(() => {
         }
     }
 });
+console.log(quantity.value);
+
 </script>
 
 <template>
@@ -429,7 +447,7 @@ onMounted(() => {
           </div>
         </div>
         <div class="pd-main-img">
-          <img :src="mainImageUrl" :alt="product.name" :key="activeImageIndex" />
+          <img ref="productImageRef" :src="mainImageUrl" :alt="product.name" :key="activeImageIndex" />
         </div>
       </div>
 
@@ -451,13 +469,24 @@ onMounted(() => {
           <span class="pd-price">{{ formatPrice(displayPriceInfo.current) }}</span>
           <span class="pd-price-old" v-if="displayPriceInfo.original">{{ formatPrice(displayPriceInfo.original) }}</span>
         </div>
+        
+        <!-- Stock -->
+        <div class="pd-stock">
+          <span class="pd-stock-label me-2">Số lượng còn:</span>
+          <span class="pd-stock-value" v-if="selectedVariant">{{ selectedVariant.stock }}</span>
+          <span class="pd-stock-value" v-else-if="product.variants"> {{ product.variants?.reduce((sum, variant) => sum + variant.stock, 0) ?? '---' }}</span>
+        </div>
 
         <!-- Tình trạng -->
         <div class="pd-status">
           <span class="pd-status-label">Tình trạng:</span>
-          <span class="pd-status-value in-stock">
+          <span class="pd-status-value in-stock" v-if="selectedVariant ? selectedVariant.stock > 0 : (product.variants?.reduce((sum, v) => sum + v.stock, 0) > 0)">
             <AppIcon name="check" size="14" stroke-width="2.5" />
             Còn hàng
+          </span>
+          <span class="pd-status-value out-of-stock" style="color: #ef4444;" v-else>
+            <AppIcon name="x" size="14" stroke-width="2.5" />
+            Hết hàng
           </span>
         </div>
 
@@ -481,24 +510,26 @@ onMounted(() => {
           <span class="pd-qty-label">Số lượng</span>
           <div class="pd-qty">
             <button @click="decreaseQuantity">−</button>
-            <input type="number" v-model="quantity" readonly />
+            <input type="number" v-model="quantity" />
             <button @click="increaseQuantity">+</button>
           </div>
         </div>
 
         <!-- CTA -->
         <div class="pd-cta">
-          <button class="pd-btn-cart" @click="addToCart" :disabled="addingToCart">
+          <button class="pd-btn-cart" @click="addToCart" :disabled="addingToCart || (selectedVariant && selectedVariant.stock <= 0)">
             <AppIcon name="cart" size="18" />
-            {{ addingToCart ? 'Đang thêm...' : 'Thêm Vào Giỏ Hàng' }}
+            {{ addingToCart ? 'Đang thêm...' : (selectedVariant && selectedVariant.stock <= 0 ? 'Hết hàng' : 'Thêm Vào Giỏ Hàng') }}
           </button>
-          <button class="pd-btn-buy" @click="buyNow" :disabled="addingToCart">Mua Ngay</button>
+          <button class="pd-btn-buy" @click="buyNow" :disabled="addingToCart || (selectedVariant && selectedVariant.stock <= 0)">
+            {{ selectedVariant && selectedVariant.stock <= 0 ? 'Hết hàng' : 'Đặt Hàng Nhanh' }}
+          </button>
         </div>
 
         <!-- AI Try-On -->
-        <button v-if="tryOnEnabled" class="pd-btn-tryon" @click="showTryOn = true" title="Thử áo bằng AI">
+        <button v-if="tryOnEnabled" class="pd-btn-tryon" @click="showTryOn = true" title="Thử đồ bằng AI">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-          ✨ Thử áo bằng AI
+          Thử đồ bằng AI
         </button>
 
         <!-- Perks -->
@@ -718,7 +749,7 @@ onMounted(() => {
 
 /* Info Panel */
 .pd-info { display: flex; flex-direction: column; }
-.pd-badge { display: inline-block; background: #E63B6F; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 4px 12px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; width: fit-content; }
+.pd-badge { display: inline-block; background: #E63B6F; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 4px 12px; border-radius: 16px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; width: fit-content; }
 .pd-title { font-size: 1.6rem; font-weight: 800; color: #2D3436; line-height: 1.3; margin: 0 0 12px; }
 
 .pd-rating { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
@@ -739,25 +770,25 @@ onMounted(() => {
 .pd-variants { margin-bottom: 20px; }
 .pd-var-label { font-size: 0.85rem; font-weight: 700; color: #2D3436; margin: 0 0 10px; }
 .pd-var-options { display: flex; flex-wrap: wrap; gap: 8px; }
-.pd-var-btn { padding: 8px 18px; border: 1.5px solid #E9ECEF; border-radius: 8px; background: #fff; font-size: 0.88rem; font-weight: 600; color: #2D3436; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.pd-var-btn { padding: 8px 18px; border: 1.5px solid #E9ECEF; border-radius: 20px; background: #fff; font-size: 0.88rem; font-weight: 600; color: #2D3436; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .pd-var-btn:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; }
 .pd-var-btn.active { border-color: #E63B6F; background: rgba(230,59,111,0.06); color: #E63B6F; }
 .pd-var-btn.disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Quantity */
-.pd-qty-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.pd-qty-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px;}
 .pd-qty-label { font-size: 0.9rem; font-weight: 600; color: #636E72; }
-.pd-qty { display: flex; align-items: center; border: 1.5px solid #E9ECEF; border-radius: 8px; overflow: hidden; }
+.pd-qty { display: flex; align-items: center; border: 1.5px solid #e63b6e7d; border-radius: 20px; overflow: hidden; }
 .pd-qty button { width: 40px; height: 40px; background: #fff; border: none; font-size: 1.1rem; cursor: pointer; color: #2D3436; transition: background 0.2s; }
 .pd-qty button:hover { background: #F8F9FA; }
 .pd-qty input { width: 48px; text-align: center; border: none; border-left: 1px solid #E9ECEF; border-right: 1px solid #E9ECEF; font-weight: 700; font-size: 0.95rem; outline: none; background: #fff; font-family: inherit; }
 
 /* CTA Buttons */
 .pd-cta { display: flex; gap: 12px; margin-bottom: 20px; }
-.pd-btn-cart { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 20px; background: #E63B6F; color: #fff; border: 2px solid #E63B6F; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.pd-btn-cart { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 12px; background: #E63B6F; color: #fff; border: 2px solid #E63B6F; border-radius: 28px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .pd-btn-cart:hover { background: #C4305D; border-color: #C4305D; }
 .pd-btn-cart:disabled { opacity: 0.6; cursor: not-allowed; }
-.pd-btn-buy { flex: 1; padding: 14px 20px; background: #fff; color: #E63B6F; border: 2px solid #E63B6F; border-radius: 8px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.pd-btn-buy { flex: 1; padding: 12px 12px; background: #fff; color: #E63B6F; border: 2px solid #E63B6F; border-radius: 28px; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: all 0.2s; font-family: inherit; }
 .pd-btn-buy:hover { background: #E63B6F; color: #fff; }
 
 /* AR Try-On Button */

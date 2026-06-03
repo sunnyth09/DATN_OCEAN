@@ -68,8 +68,16 @@ class AttendanceService
 
             $endTime = $shift->end_time;
 
-            if ($currentTime >= $bufferedStart && $currentTime <= $endTime) {
-                return $shift;
+            if ($bufferedStart > $endTime) {
+                // Ca vắt qua nửa đêm (VD: 22:00 đến 06:00)
+                if ($currentTime >= $bufferedStart || $currentTime <= $endTime) {
+                    return $shift;
+                }
+            } else {
+                // Ca bình thường trong ngày
+                if ($currentTime >= $bufferedStart && $currentTime <= $endTime) {
+                    return $shift;
+                }
             }
         }
 
@@ -162,12 +170,25 @@ class AttendanceService
             ];
         }
 
-        // 5. Kiểm tra đã check-in ca này hôm nay chưa
-        $existing = Attendance::where('user_id', $userId)
-            ->where('user_type', $userType)
-            ->where('work_date', $today)
-            ->where('work_shift_id', $currentShift->id)
-            ->first();
+        // 5. Kiểm tra đã check-in ca này hôm nay chưa (Có lock chống double-submit)
+        $lockKey = "checkin_{$userId}_{$currentShift->id}_{$today}";
+        $lock = \Illuminate\Support\Facades\Cache::lock($lockKey, 10);
+        
+        if (!$lock->get()) {
+            return [
+                'success'     => false,
+                'message'     => 'Hệ thống đang xử lý, vui lòng không nhấn liên tục.',
+                'data'        => null,
+                'status_code' => 429,
+            ];
+        }
+
+        try {
+            $existing = Attendance::where('user_id', $userId)
+                ->where('user_type', $userType)
+                ->where('work_date', $today)
+                ->where('work_shift_id', $currentShift->id)
+                ->first();
 
         if ($existing) {
             if ($existing->status === 'checked_in') {
@@ -224,6 +245,9 @@ class AttendanceService
             ],
             'status_code' => 200,
         ];
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
