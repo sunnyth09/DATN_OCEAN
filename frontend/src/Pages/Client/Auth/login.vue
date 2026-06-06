@@ -16,6 +16,37 @@ const router = useRouter();
 const authStore = useAuthStore();
 const { showToast } = useToast();
 
+// Cloudflare Turnstile CAPTCHA
+const turnstileToken = ref('');
+let turnstileWidgetId = null;
+
+const loadTurnstile = () => {
+  if (window.turnstile) { renderTurnstile(); return; }
+  const script = document.createElement('script');
+  script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
+  script.async = true;
+  window.onTurnstileLoad = () => renderTurnstile();
+  document.head.appendChild(script);
+};
+
+const renderTurnstile = () => {
+  const container = document.getElementById('turnstile-login');
+  if (!container || !window.turnstile) return;
+  container.innerHTML = '';
+  turnstileWidgetId = window.turnstile.render('#turnstile-login', {
+    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+    callback: (token) => { turnstileToken.value = token; },
+    'expired-callback': () => { turnstileToken.value = ''; },
+    'error-callback': () => { turnstileToken.value = ''; },
+    theme: 'light',
+  });
+};
+
+onMounted(() => { loadTurnstile(); });
+onBeforeUnmount(() => {
+  if (turnstileWidgetId !== null && window.turnstile) window.turnstile.remove(turnstileWidgetId);
+});
+
 const resolveRedirectTarget = (user) => {
   const redirect = Array.isArray(route.query.redirect)
     ? route.query.redirect[0]
@@ -77,11 +108,18 @@ const login = async () => {
 
   if (fieldErrors.email || fieldErrors.password) return;
 
+  // Validate CAPTCHA
+  if (!turnstileToken.value) {
+    showToast('Vui lòng xác thực CAPTCHA', 'danger');
+    return;
+  }
+
   isSubmitting.value = true;
   try {
     const response = await authService.login({
       email: email.value,
-      password: password.value
+      password: password.value,
+      turnstile_token: turnstileToken.value
     });
 
     if (response.data.status === 'success') {
@@ -100,6 +138,11 @@ const login = async () => {
       msg = 'Bạn đã thử quá nhiều lần! Vui lòng đợi 1 phút rồi thử lại.';
     }
     showToast(msg, 'danger');
+    // Reset CAPTCHA sau khi login thất bại
+    if (window.turnstile && turnstileWidgetId !== null) {
+      window.turnstile.reset(turnstileWidgetId);
+      turnstileToken.value = '';
+    }
   } finally {
     isSubmitting.value = false;
   }
@@ -169,8 +212,19 @@ const login = async () => {
                 <router-link to="/client/forgot-password" class="recover-link">Quên mật khẩu?</router-link>
               </div>
 
+              <!-- Cloudflare Turnstile CAPTCHA -->
+              <div class="captcha-wrapper">
+                <div class="captcha-box" v-show="!turnstileToken">
+                  <div id="turnstile-login"></div>
+                </div>
+                <div class="captcha-box success" v-if="turnstileToken">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  <span class="captcha-text">Xác thực thành công</span>
+                </div>
+              </div>
+
               <!-- Action -->
-              <button type="submit" class="btn-primary" :disabled="!isFormValid || isSubmitting">
+              <button type="submit" class="btn-primary" :disabled="!isFormValid || isSubmitting || !turnstileToken">
                 <span v-if="isSubmitting" class="spinner"></span>
                 <span>{{ isSubmitting ? 'ĐANG TIẾN HÀNH...' : 'ĐĂNG NHẬP' }}</span>
                 <svg v-if="!isSubmitting" class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
@@ -313,6 +367,7 @@ const login = async () => {
 .recover-link { color: #E63B6F; font-weight: 600; text-decoration: none; transition: 0.2s; }
 .recover-link:hover { text-decoration: underline; }
 
+.captcha-wrapper { display: flex; justify-content: flex-start; margin: 4px 0; }
 .captcha-box { display: flex; justify-content: flex-start; }
 .captcha-box.success { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;}
 .captcha-text { color: #15803d; font-weight: 600; font-size: 0.85rem; }
