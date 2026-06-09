@@ -93,9 +93,16 @@ class PostController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Post $post)
+    public function show($idOrSlug)
     {
-        //
+        $post = Post::with('category')
+            ->where('post_id', $idOrSlug)
+            ->orWhere('slug', $idOrSlug)
+            ->firstOrFail();
+
+        $post->increment('view_count');
+
+        return response()->json($post);
     }
 
     /**

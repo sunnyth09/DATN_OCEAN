@@ -319,6 +319,13 @@ watch(
                         {{ cat.name }}
                     </router-link>
                     <router-link
+                        to="/posts"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('post-list') || isRouteActive('post-detail') }"
+                    >
+                        Tin tức
+                    </router-link>
+                    <router-link
                         to="/contact"
                         class="nav-link"
                         :class="{ active: isRouteActive('contact') }"
@@ -444,6 +451,14 @@ watch(
                         @click="closeMobileMenu"
                     >
                         {{ cat.name }}
+                    </router-link>
+                    <router-link
+                        to="/posts"
+                        class="mobile-nav-link"
+                        :class="{ active: isRouteActive('post-list') || isRouteActive('post-detail') }"
+                        @click="closeMobileMenu"
+                    >
+                        Tin tức
                     </router-link>
                     <router-link
                         to="/contact"

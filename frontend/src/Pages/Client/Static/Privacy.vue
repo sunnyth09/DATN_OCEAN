@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="static-page">
     <section class="page-hero">
       <div class="container">

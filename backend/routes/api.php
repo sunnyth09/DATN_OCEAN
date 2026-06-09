@@ -19,6 +19,7 @@ use App\Http\Controllers\CouponController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\PostCategoryController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\PostCommentController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PosController;
@@ -96,6 +97,8 @@ Route::middleware('auth:api,admin')->group(function () {
     Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
     Route::get('/my/return-requests', [ReturnRequestController::class, 'myIndex']);
     Route::get('/my/return-requests/{id}', [ReturnRequestController::class, 'myShow']);
+
+    Route::post('/posts/{postId}/comments', [PostCommentController::class, 'store']);
 });
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
@@ -257,6 +260,11 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::put('/reviews/{id}/reject', [ProductCommentController::class, 'reject']);
     Route::delete('/reviews/{id}', [ProductCommentController::class, 'destroy']);
 
+    // Quản lý Bình luận bài viết (Duyệt)
+    Route::get('/post-comments', [PostCommentController::class, 'adminIndex']);
+    Route::put('/post-comments/{id}/approve', [PostCommentController::class, 'approve']);
+    Route::delete('/post-comments/{id}', [PostCommentController::class, 'destroy']);
+
     // Quản lý Liên hệ (Xem và trả lời)
     Route::get('/contacts', [ContactController::class, 'index']);
     Route::post('/contacts/{id}/reply', [ContactController::class, 'reply']);
@@ -359,6 +367,8 @@ Route::prefix('location')->group(function () {
     Route::get('/search', [LocationController::class, 'search']);
 });
 Route::get('/posts', [PostController::class, 'index']);
+Route::get('/posts/{id}', [PostController::class, 'show']);
+Route::get('/posts/{postId}/comments', [PostCommentController::class, 'getByPost']);
 
 // AI Chatbot (Public — tự detect auth nếu có JWT token, có rate limit chống abuse AI)
 Route::middleware('throttle:20,1')->post('/chatbot/message', [\App\Http\Controllers\ChatbotController::class, 'sendMessage']);

@@ -66,6 +66,9 @@ const routes = [
                     { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
                 ],
             },
+            // Blog/Posts pages
+            { path: "posts", name: "post-list", component: () => import("../Pages/Client/Home/PostList.vue"), meta: { title: 'Tin tức' } },
+            { path: "posts/:id", name: "post-detail", component: () => import("../Pages/Client/Home/PostDetail.vue"), meta: { title: 'Chi tiết bài viết' } },
             // Static pages
             { path: "brand-story", name: "brand-story", component: () => import("../Pages/Client/Static/BrandStory.vue"), meta: { title: 'Câu chuyện thương hiệu' } },
             { path: "careers", name: "careers", component: () => import("../Pages/Client/Static/Careers.vue"), meta: { title: 'Tuyển dụng' } },
@@ -232,6 +235,12 @@ const routes = [
                 name: "admin-post-edit",
                 component: () => import("../Pages/admin/AdminEditPost.vue"),
                 meta: { roles: ['admin'], title: 'Sửa bài viết' },
+            },
+            {
+                path: "post-comments",
+                name: "admin-post-comments",
+                component: () => import("../Pages/admin/AdminPostComments.vue"),
+                meta: { roles: ['admin', 'seller'], title: 'Duyệt bình luận bài viết' },
             },
             {
                 path: "post-category",
