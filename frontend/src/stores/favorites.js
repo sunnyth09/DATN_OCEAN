@@ -1,26 +1,15 @@
 import { ref } from 'vue';
 import { defineStore } from 'pinia';
-import Swal from 'sweetalert2';
 import api from '@/axios';
 import { useAuthStore } from '@/stores/auth';
-
-const Toast = Swal.mixin({
-    toast: true,
-    position: 'top-end',
-    showConfirmButton: false,
-    timer: 3000,
-    timerProgressBar: true,
-    didOpen: (toast) => {
-        toast.addEventListener('mouseenter', Swal.stopTimer);
-        toast.addEventListener('mouseleave', Swal.resumeTimer);
-    }
-});
+import { useToastStore } from '@/stores/toast';
 
 export const useFavoritesStore = defineStore('favorites', () => {
     const favoriteIds = ref([]);
     const isInitialized = ref(false);
     const isFetching = ref(false);
     const authStore = useAuthStore();
+    const toastStore = useToastStore();
 
     const isLoggedIn = () => authStore.isAuthenticated;
 
@@ -53,10 +42,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
 
     const toggleFavorite = async (productId) => {
         if (!isLoggedIn()) {
-            Toast.fire({
-                icon: 'warning',
-                title: 'Vui lòng đăng nhập để yêu thích sản phẩm'
-            });
+            toastStore.showToast('appToast', 'Vui lòng đăng nhập để yêu thích sản phẩm', 'warning');
             return false;
         }
 
@@ -72,10 +58,11 @@ export const useFavoritesStore = defineStore('favorites', () => {
         try {
             const response = await api.post('/profile/favorites/toggle', { product_id: productId });
             if (response.data?.status === 'success') {
-                Toast.fire({
-                    icon: originallyFavorited ? 'info' : 'success',
-                    title: originallyFavorited ? 'Đã bỏ yêu thích sản phẩm' : 'Đã thêm vào yêu thích'
-                });
+                toastStore.showToast(
+                    'appToast',
+                    originallyFavorited ? 'Đã bỏ yêu thích sản phẩm' : 'Đã thêm vào yêu thích',
+                    originallyFavorited ? 'info' : 'success'
+                );
                 isInitialized.value = true;
                 return true;
             }
@@ -91,10 +78,7 @@ export const useFavoritesStore = defineStore('favorites', () => {
                 }
             }
 
-            Toast.fire({
-                icon: 'error',
-                title: 'Có lỗi xảy ra, vui lòng thử lại.'
-            });
+            toastStore.showToast('appToast', 'Có lỗi xảy ra, vui lòng thử lại.', 'danger');
         }
 
         return false;

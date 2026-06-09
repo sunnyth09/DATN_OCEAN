@@ -27,12 +27,14 @@ class AdminUserController extends Controller
             });
         }
 
-        $users = $query->orderBy('created_at', 'DESC')->get();
+        $users = $query->orderBy('created_at', 'DESC')->paginate(20);
 
         return response()->json([
             'status' => 'success',
-            'data' => $users,
-            'total' => $users->count()
+            'data' => $users->items(),
+            'total' => $users->total(),
+            'current_page' => $users->currentPage(),
+            'last_page' => $users->lastPage(),
         ]);
     }
 
@@ -105,31 +107,18 @@ class AdminUserController extends Controller
             ], 422);
         }
 
-        $user = User::create([
-            'full_name' => $request->full_name,
-            'email'     => $request->email,
-            'password'  => $request->password,
-            'phone'     => $request->phone,
-            'role'      => $request->role ?? 'customer',
+        // FIX C2 compatibility: role/status không còn trong $fillable,
+        // dùng forceFill() cho các field nhạy cảm (safe vì đã có admin middleware)
+        $user = new User();
+        $user->full_name = $request->full_name;
+        $user->email     = $request->email;
+        $user->password  = $request->password;
+        $user->phone     = $request->phone;
+        $user->forceFill([
+            'role'   => $request->role ?? 'customer',
+            'status' => $request->status ?? 'active',
         ]);
-
-        if ($request->has('status')) {
-            DB::table('users')->where('user_id', $user->user_id)->update(['status' => $request->status]);
-            $user->status = $request->status;
-        }
-
-        if (in_array($user->role, ['admin', 'staff', 'seller'])) {
-            \App\Models\Admin::updateOrCreate(
-                ['email' => $user->email],
-                [
-                    'full_name' => $user->full_name,
-                    'password' => $user->password,
-                    'role' => $user->role,
-                    'phone' => $user->phone,
-                    'status' => $user->status ?? 'active'
-                ]
-            );
-        }
+        $user->save();
 
         return response()->json([
             'status' => 'success',
@@ -187,33 +176,20 @@ class AdminUserController extends Controller
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
         }
+
+        // FIX C2 compatibility: role/status dùng forceFill
+        $user->fill($data);
+        $sensitiveData = [];
         if ($request->filled('role')) {
-            $data['role'] = $request->role;
+            $sensitiveData['role'] = $request->role;
         }
         if ($request->filled('status')) {
-            $data['status'] = $request->status;
+            $sensitiveData['status'] = $request->status;
         }
-
-        $user->update($data);
-
-        if (in_array($user->role, ['admin', 'staff', 'seller'])) {
-            \App\Models\Admin::updateOrCreate(
-                ['email' => $user->email],
-                [
-                    'full_name' => $user->full_name,
-                    'role' => $user->role,
-                    'phone' => $user->phone,
-                    'status' => $user->status ?? 'active',
-                    'password' => $user->password
-                ]
-            );
-            // If password was changed, update it
-            if ($request->filled('password')) {
-                \App\Models\Admin::where('email', $user->email)->update(['password' => $user->password]);
-            }
-        } else {
-            \App\Models\Admin::where('email', $user->email)->delete();
+        if (!empty($sensitiveData)) {
+            $user->forceFill($sensitiveData);
         }
+        $user->save();
 
         return response()->json([
             'status' => 'success',
@@ -245,27 +221,7 @@ class AdminUserController extends Controller
             ], 403);
         }
 
-        $affected = DB::update("UPDATE users SET role = ?, updated_at = NOW() WHERE user_id = ?", [$role, $id]);
-        
-        $user = User::find($id);
-        if ($user) {
-            if (in_array($role, ['admin', 'staff', 'seller'])) {
-                \App\Models\Admin::updateOrCreate(
-                    ['email' => $user->email],
-                    [
-                        'full_name' => $user->full_name,
-                        'role' => $role,
-                        'phone' => $user->phone,
-                        'status' => $user->status ?? 'active',
-                        'password' => $user->password
-                    ]
-                );
-                // sync password if they were just created in admins table
-                \App\Models\Admin::where('email', $user->email)->update(['password' => $user->password]);
-            } else {
-                \App\Models\Admin::where('email', $user->email)->delete();
-            }
-        }
+        $affected = User::where('user_id', (int) $id)->update(['role' => $role, 'updated_at' => now()]);
 
         if ($affected === 0) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy user!'], 404);
@@ -300,7 +256,7 @@ class AdminUserController extends Controller
             ], 403);
         }
 
-        $affected = DB::update("UPDATE users SET status = ?, updated_at = NOW() WHERE user_id = ?", [$status, $id]);
+        $affected = User::where('user_id', (int) $id)->update(['status' => $status, 'updated_at' => now()]);
 
         if ($affected === 0) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy user!'], 404);

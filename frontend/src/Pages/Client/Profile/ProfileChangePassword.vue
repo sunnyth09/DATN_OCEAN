@@ -243,7 +243,7 @@ const submitChangePassword = async () => {
   background: #fff;
   box-sizing: border-box;
 }
-.form-input:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
+.form-input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230,59,111,0.12); }
 .form-input--error { border-color: #ef4444; }
 
 .eye-btn {
@@ -257,7 +257,7 @@ const submitChangePassword = async () => {
   display: flex;
   align-items: center;
 }
-.eye-btn:hover { color: #4f46e5; }
+.eye-btn:hover { color: #E63B6F; }
 
 .form-divider { height: 1px; background: #f3f4f6; }
 
@@ -279,7 +279,7 @@ const submitChangePassword = async () => {
 .form-actions { margin-top: 8px; }
 .btn-primary {
   padding: 11px 28px;
-  background: #4f46e5;
+  background: #E63B6F;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -293,7 +293,7 @@ const submitChangePassword = async () => {
   min-width: 180px;
   transition: background 0.2s;
 }
-.btn-primary:hover:not(:disabled) { background: #4338ca; }
+.btn-primary:hover:not(:disabled) { background: #b50c4d; }
 .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
 
 .spinner {

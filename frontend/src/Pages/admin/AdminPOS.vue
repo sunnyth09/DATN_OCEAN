@@ -868,7 +868,7 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 .scanner-toggle-btn.active {
-  background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+  background: linear-gradient(135deg, #FF6B9D, #E63B6F);
   color: white;
   border-color: transparent;
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
@@ -893,7 +893,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #0ea5e9, #3b82f6, #0ea5e9);
+  background: linear-gradient(90deg, #FF6B9D, #E63B6F, #FF6B9D);
   background-size: 200% 100%;
   animation: scannerLine 2s linear infinite;
 }
@@ -920,7 +920,7 @@ onUnmounted(() => {
 }
 .scanner-icon {
   font-size: 1.8rem;
-  color: #0ea5e9;
+  color: #E63B6F;
   transition: all 0.3s;
 }
 .scanner-icon.scanning {
@@ -960,7 +960,7 @@ onUnmounted(() => {
   transition: border-color 0.3s;
 }
 .barcode-input:focus {
-  border-color: #0ea5e9;
+  border-color: #E63B6F;
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
 }
 .barcode-submit-btn {
@@ -1444,7 +1444,7 @@ onUnmounted(() => {
 }
 .pay-method.active {
   border-color: #E63B6F;
-  background: linear-gradient(135deg, rgba(230, 59, 111, 0.06), rgba(3, 169, 244, 0.1));
+  background: linear-gradient(135deg, rgba(230, 59, 111, 0.06), rgba(230, 59, 111, 0.1));
 }
 .pay-method.active i,
 .pay-method.active span {
@@ -1584,7 +1584,7 @@ onUnmounted(() => {
   padding: 14px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, #E63B6F, var(--ocean-bright, #03a9f4));
+  background: linear-gradient(135deg, #FF6B9D, #E63B6F);
   color: white;
   font-size: 1rem;
   font-weight: 700;
@@ -1630,7 +1630,7 @@ onUnmounted(() => {
 }
 
 .variant-item.is-selected {
-    border-color: #0ea5e9;
+    border-color: #E63B6F;
     background-color: #FFF0F3;
 }
 

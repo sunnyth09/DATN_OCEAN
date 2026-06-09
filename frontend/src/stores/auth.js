@@ -53,8 +53,8 @@ const resolveAvatarUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
 
-  const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
-  return `${apiUrl}${path}`;
+  const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
+  return `${baseUrl}${path}`;
 };
 
 export const getDefaultRouteForRole = (role) => {

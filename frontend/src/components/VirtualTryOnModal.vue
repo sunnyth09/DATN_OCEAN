@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
           <!-- Controls -->
           <div class="tryon-controls">
             <button v-if="!resultImage && !isLoading" class="btn-primary" @click="submitTryOn" :disabled="!previewImage">
-              ✨ Tạo ảnh thử áo
+              Tạo ảnh thử áo
             </button>
             
             <button v-if="resultImage && !isLoading" class="btn-secondary" @click="reset">

@@ -15,12 +15,14 @@ class FlashSaleItem extends Model
         'campaign_price',
         'campaign_stock',
         'sold',
+        'min_qty',   // Số lượng tối thiểu của item này trong cart (combo mode)
     ];
 
     protected $casts = [
         'campaign_price' => 'float',
         'campaign_stock' => 'integer',
         'sold'           => 'integer',
+        'min_qty'        => 'integer',
     ];
 
     public function flashSale(): BelongsTo

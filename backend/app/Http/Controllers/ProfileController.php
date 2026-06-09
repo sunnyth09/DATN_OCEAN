@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\ChangePasswordRequest;
+use App\Http\Resources\UserProfileResource;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class ProfileController extends Controller
 {
@@ -40,23 +42,62 @@ class ProfileController extends Controller
             $user->date_of_birth = $validated['date_of_birth'] ?: null;
         }
 
-        // Xử lý upload ảnh nếu có
+        // FIX C9: Xử lý upload ảnh — reprocess bằng GD để loại bỏ metadata/mã độc
         if ($request->hasFile('avatar')) {
             // Xoá ảnh cũ nếu là ảnh nội bộ (không phải URL Google/bên ngoài)
             if ($user->avatar_url && !str_starts_with($user->avatar_url, 'http')) {
                 $oldPath = ltrim(str_replace('/storage', '', $user->avatar_url), '/');
                 Storage::disk('public')->delete($oldPath);
             }
-            $path = $request->file('avatar')->store('avatars', 'public');
-            $user->avatar_url = '/storage/' . $path;
+
+            $file = $request->file('avatar');
+
+            // Reprocess ảnh bằng GD — strip metadata, loại bỏ embedded content
+            $gdImage = @imagecreatefromstring(file_get_contents($file->getRealPath()));
+            if (!$gdImage) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'File ảnh không hợp lệ hoặc bị hỏng.',
+                    'errors'  => ['avatar' => ['File ảnh không hợp lệ hoặc bị hỏng.']],
+                ], 422);
+            }
+
+            // Tạo tên file unique (UUID) để tránh đoán tên
+            $extension = $file->getClientOriginalExtension() ?: 'jpg';
+            $uniqueName = 'avatars/' . Str::uuid() . '.' . $extension;
+            $savePath = storage_path('app/public/' . $uniqueName);
+
+            // Đảm bảo thư mục tồn tại
+            $dir = dirname($savePath);
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+
+            // Lưu ảnh đã được reprocess (loại bỏ EXIF metadata)
+            $saved = match (strtolower($extension)) {
+                'png'  => imagepng($gdImage, $savePath),
+                'gif'  => imagegif($gdImage, $savePath),
+                default => imagejpeg($gdImage, $savePath, 90),
+            };
+            imagedestroy($gdImage);
+
+            if (!$saved) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Không thể lưu ảnh đại diện.',
+                ], 500);
+            }
+
+            $user->avatar_url = '/storage/' . $uniqueName;
         }
 
         $user->saveQuietly();
 
+        // FIX C1: Dùng UserProfileResource để lọc data nhạy cảm
         return response()->json([
             'status'  => 'success',
             'message' => 'Cập nhật tài khoản thành công.',
-            'data'    => $user->fresh(),
+            'data'    => new UserProfileResource($user->fresh()),
         ], 200);
     }
 

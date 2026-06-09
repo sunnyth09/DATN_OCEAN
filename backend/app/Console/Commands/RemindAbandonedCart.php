@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\Cart;
 use App\Models\User;
 use App\Notifications\AbandonedCartNotification;
+use App\Services\LoyaltyService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -45,6 +46,12 @@ class RemindAbandonedCart extends Command
      * Đổi thành 1440 (= 24 giờ) để tránh spam ngày nhiều lần
      */
     const COOLDOWN_MINUTES = 1440;
+
+    public function __construct(
+        protected LoyaltyService $loyaltyService,
+    ) {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -118,12 +125,11 @@ class RemindAbandonedCart extends Command
                 // --- Đếm số item ---
                 $itemCount = $cart->items->count();
 
-                // --- Tặng điểm thưởng ---
-                DB::table('users')
-                    ->where('user_id', $user->user_id)
-                    ->increment('reward_points', self::REWARD_POINTS);
+                // --- Tặng điểm thưởng qua LoyaltyService (ghi transaction log + expiry) ---
+                $this->loyaltyService->earnAbandonedCart($user, $cart->cart_id);
 
-                $this->info("  💰 User #{$user->user_id}: +{self::REWARD_POINTS} điểm thưởng");
+                // Lấy số điểm tặng từ rule để hiển thị trong notification
+                $earnedPoints = self::REWARD_POINTS;
 
                 // --- Gửi notification (mail + database) ---
                 $user->notify(new AbandonedCartNotification($itemCount, self::REWARD_POINTS));

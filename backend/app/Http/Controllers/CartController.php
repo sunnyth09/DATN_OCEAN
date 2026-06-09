@@ -155,7 +155,14 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        $result = $this->cartService->buyAgain($userId, $orderId);
+        if (!$userId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bạn cần đăng nhập để thực hiện thao tác này.'
+            ], 401);
+        }
+
+        $result = $this->cartService->buyAgain($userId, (int) $orderId);
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
 

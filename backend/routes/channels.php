@@ -16,3 +16,11 @@ Broadcast::channel('admin-notifications', function ($user) {
 Broadcast::channel('pos-scanner.{sessionId}', function ($user, $sessionId) {
     return in_array($user->role, ['admin', 'seller', 'staff']); // POS staff
 }, ['guards' => ['api', 'admin']]);
+
+Broadcast::channel('court-booking.{date}', function ($user, $date) {
+    return (bool) $user;
+}, ['guards' => ['api', 'admin']]);
+
+Broadcast::channel('court-booking.court.{courtId}.{date}', function ($user, $courtId, $date) {
+    return (bool) $user;
+}, ['guards' => ['api', 'admin']]);

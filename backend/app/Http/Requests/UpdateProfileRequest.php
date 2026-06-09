@@ -17,31 +17,28 @@ class UpdateProfileRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
+     * FIX C3: date_of_birth — before:today, after:1900-01-01
+     * FIX C4: phone — regex chuẩn SĐT Việt Nam
+     * FIX C5: full_name — chỉ cho phép chữ cái, khoảng trắng, dấu gạch ngang, dấu chấm
+     *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'full_name'     => 'required|string|max:120',
+            'full_name'     => [
+                'required',
+                'string',
+                'max:120',
+                'regex:/^[\pL\s\-\.]+$/u', // FIX C5: Chỉ cho phép Unicode letters, spaces, hyphens, dots
+            ],
             'phone'         => [
                 'nullable',
                 'string',
-                'regex:/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/',
+                'max:20',
+                'regex:/^(0[2-9]|\+84[2-9])[0-9]{8,9}$/', // FIX C4: Chuẩn SĐT Việt Nam
             ],
-            'date_of_birth' => [
-                'nullable',
-                'date',
-                'before_or_equal:today',
-                function ($attribute, $value, $fail) {
-                    $user = $this->user() ?? auth('api')->user() ?? auth('admin')->user();
-                    if ($user && $value) {
-                        $dob = \Carbon\Carbon::parse($value);
-                        if ($dob->greaterThan($user->created_at)) {
-                            $fail('Ngày sinh không thể vượt quá thời gian tham gia hệ thống.');
-                        }
-                    }
-                },
-            ],
+            'date_of_birth' => 'nullable|date|before:today|after:1900-01-01', // FIX C3
             'avatar'        => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
     }
@@ -49,14 +46,17 @@ class UpdateProfileRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'full_name.required' => 'Họ và tên là bắt buộc.',
-            'full_name.max' => 'Họ và tên không được dài quá 120 ký tự.',
-            'phone.regex' => 'Số điện thoại không hợp lệ (phải là số điện thoại Việt Nam).',
-            'avatar.image' => 'File tải lên phải là hình ảnh (jpeg, png, jpg, gif).',
-            'avatar.mimes' => 'Hình ảnh phải có định dạng: jpeg, png, jpg, gif.',
-            'avatar.max' => 'Kích thước hình ảnh không được vượt quá 2MB.',
-            'date_of_birth.date' => 'Ngày sinh không hợp lệ.',
-            'date_of_birth.before_or_equal' => 'Ngày sinh không thể vượt quá ngày hiện tại.',
+            'full_name.required'      => 'Họ và tên là bắt buộc.',
+            'full_name.max'           => 'Họ và tên không được dài quá 120 ký tự.', // FIX L2: 255 → 120
+            'full_name.regex'         => 'Họ và tên chỉ được chứa chữ cái, khoảng trắng, dấu gạch ngang và dấu chấm.',
+            'phone.max'              => 'Số điện thoại không được dài quá 20 ký tự.',
+            'phone.regex'            => 'Số điện thoại không đúng định dạng Việt Nam (vd: 0912345678 hoặc +84912345678).',
+            'date_of_birth.date'     => 'Ngày sinh không hợp lệ.',
+            'date_of_birth.before'   => 'Ngày sinh phải trước ngày hôm nay.',
+            'date_of_birth.after'    => 'Ngày sinh không hợp lệ (quá xa trong quá khứ).',
+            'avatar.image'           => 'File tải lên phải là hình ảnh (jpeg, png, jpg, gif).',
+            'avatar.mimes'           => 'Hình ảnh phải có định dạng: jpeg, png, jpg, gif.',
+            'avatar.max'             => 'Kích thước hình ảnh không được vượt quá 2MB.',
         ];
     }
 }

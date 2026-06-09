@@ -35,28 +35,38 @@ class TryOnController extends Controller
         $product = Product::with('mainImage')->find($request->product_id);
         
         // Cố gắng tìm ảnh tốt nhất để gửi cho AI
-        $productImageUrl = '';
+        $productImagePath = '';
         if ($product->thumbnail_url && $product->thumbnail_url !== '0') {
-            $productImageUrl = $product->thumbnail_url;
+            $productImagePath = $product->thumbnail_url;
         } elseif ($product->mainImage) {
-            $productImageUrl = $product->mainImage->image_url;
+            $productImagePath = $product->mainImage->image_url;
         }
 
-        if (empty($productImageUrl)) {
+        if (empty($productImagePath)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Sản phẩm này chưa có ảnh để thử.'
             ], 400);
         }
 
-        // Chuyển relative path thành absolute URL nếu cần
-        if (!preg_match('/^https?:\/\//', $productImageUrl)) {
-            $productImageUrl = url('storage/' . ltrim($productImageUrl, '/'));
+        // Chuyển ảnh sản phẩm sang base64 data URI (vì Fashn.ai không truy cập được localhost)
+        $productImageUrl = $productImagePath;
+        if (!preg_match('/^https?:\/\//', $productImagePath)) {
+            // Ảnh nằm trong storage local → đọc file và encode base64
+            $storagePath = storage_path('app/public/' . ltrim($productImagePath, '/'));
+            if (file_exists($storagePath)) {
+                $mime = mime_content_type($storagePath) ?: 'image/jpeg';
+                $productImageUrl = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($storagePath));
+            } else {
+                // Fallback: dùng URL (chỉ hoạt động khi deploy với domain thật)
+                $productImageUrl = url('storage/' . ltrim($productImagePath, '/'));
+            }
         }
 
         // 3. Xử lý lưu tạm ảnh user
         $file = $request->file('user_image');
-        $fileName = 'tryon_' . auth()->id() . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $userId = auth('api')->id() ?? ('guest_' . substr(md5($request->ip()), 0, 8));
+        $fileName = 'tryon_' . $userId . '_' . time() . '.' . $file->getClientOriginalExtension();
         
         // Lưu vào private disk, tự xóa sau khi xử lý
         $path = $file->storeAs('tryon-uploads', $fileName, 'local');

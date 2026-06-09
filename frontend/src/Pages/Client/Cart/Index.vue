@@ -1,10 +1,13 @@
 ﻿<script setup>
-import { ref, computed, onMounted, watch } from 'vue';import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import FreeshipBar from '@/components/FreeshipBar.vue';
 import QuickAddSlider from '@/components/QuickAddSlider.vue';
 import { useCartUpsell } from '@/composables/useCartUpsell';
+import { productService } from '@/services/productService';
+import ProductCard from '@/components/ProductCard.vue';
 
 const router = useRouter();
 const cartItems = ref([]);
@@ -13,6 +16,8 @@ const loading = ref(true);
 const updating = ref({});
 const selectAll = ref(true);
 const toast = ref({ show: false, message: '', type: 'success' });
+let cartRequest = null;
+let cartRefreshPending = false;
 
 // ====== UPSELL & GAMIFICATION ======
 const { setTotalPrice, fetchUpsellData } = useCartUpsell();
@@ -160,21 +165,38 @@ const getVariantLabel = (item) => {
 
 // Lấy giỏ hàng
 const fetchCart = async (showGlobalLoading = true) => {
+    if (cartRequest) {
+        cartRefreshPending = true;
+        return cartRequest;
+    }
+
     if (showGlobalLoading) loading.value = true;
+    cartRequest = (async () => {
+        try {
+            const response = await api.get('/cart');
+            if (response.data.status === 'success') {
+                cartId.value = response.data.data.cart_id;
+                cartItems.value = response.data.data.items || [];
+                updateSelectAllState();
+            }
+        } catch (error) {
+            console.error('Error fetching cart:', error);
+            if (error.response?.status === 401) {
+                router.push({ name: 'login', query: { redirect: '/cart' } });
+            }
+        } finally {
+            if (showGlobalLoading) loading.value = false;
+        }
+    })();
+
     try {
-        const response = await api.get('/cart');
-        if (response.data.status === 'success') {
-            cartId.value = response.data.data.cart_id;
-            cartItems.value = response.data.data.items || [];
-            updateSelectAllState();
-        }
-    } catch (error) {
-        console.error('Error fetching cart:', error);
-        if (error.response?.status === 401) {
-            router.push({ name: 'login', query: { redirect: '/cart' } });
-        }
+        return await cartRequest;
     } finally {
-        if (showGlobalLoading) loading.value = false;
+        cartRequest = null;
+        if (cartRefreshPending) {
+            cartRefreshPending = false;
+            await fetchCart(false);
+        }
     }
 };
 
@@ -313,10 +335,28 @@ const proceedToCheckout = () => {
     router.push('/checkout');
 };
 
+const productRelated = ref([]);
+const getProductRelated = async () => {
+    try {
+        productRelated.value = await productService.getProductRelated();
+    } catch (error) {
+        console.error('Lỗi khi lấy danh sách sản phẩm liên quan:', error);
+    }
+};
+
+onMounted(() => {
+    getProductRelated();
+});
+
 // Đồng bộ totalPrice → shared composable (FreeshipBar phản ứng realtime)
 watch(totalPrice, (val) => {
     setTotalPrice(val);
 }, { immediate: true });
+
+const handleCartUpdated = async () => {
+    await fetchCart(false);
+    fetchUpsellData();
+};
 
 onMounted(async () => {
     await fetchCart();
@@ -324,10 +364,11 @@ onMounted(async () => {
     fetchUpsellData();
 
     // Khi QuickAddSlider thêm sản phẩm → cập nhật lại giỏ + upsell
-    window.addEventListener('cart-updated', async () => {
-        await fetchCart(false);
-        fetchUpsellData();
-    });
+    window.addEventListener('cart-updated', handleCartUpdated);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('cart-updated', handleCartUpdated);
 });
 </script>
 
@@ -591,6 +632,21 @@ onMounted(async () => {
             </div>
         </Transition>
     </Teleport>
+
+    <section>
+        <h2>Có thể bạn cũng quan tâm</h2>
+        <div class="container mb-5" v-if="productRelated.length">
+            <div class="row mt-3">
+                <div class="col-lg-3 mt-4" v-for="product in productRelated" :key="product.id">
+                    <ProductCard :product="product" :rows="3"/>
+                </div>
+            </div>
+        </div>
+        <div v-else class="empty-state">
+            <p>Không có sản phẩm liên quan</p>
+        </div>
+
+    </section>
 </template>
 
 <style scoped>

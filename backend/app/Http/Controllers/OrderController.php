@@ -4,65 +4,53 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\CancelOrderRequest;
+use App\Models\Order;
 use App\Services\OrderService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+/**
+ * OrderController — Xử lý đơn hàng phía khách hàng.
+ *
+ * Authorization:
+ *   - Tất cả routes qua middleware 'auth:api' (đặt ở routes/api.php).
+ *   - StoreOrderRequest::authorize() chặn admin guard.
+ *   - CancelOrderRequest::authorize() kiểm tra ownership.
+ *   - show() dùng OrderPolicy::view() via $this->authorize().
+ */
 class OrderController extends Controller
 {
     public function __construct(
         protected OrderService $orderService
     ) {}
 
-    private function getUserId()
+    /**
+     * GET /api/orders — Danh sách đơn hàng của user đang login.
+     */
+    public function index(Request $request): JsonResponse
     {
         $user = auth('api')->user();
 
-        if ($user) {
-            return $user->user_id;
-        }
-
-        if (auth('admin')->check()) {
-            return auth('admin')->user()->getKey();
-        }
-
-        return null;
-    }
-
-    public function index(Request $request)
-    {
-        $userId = $this->getUserId();
-
-        if (!$userId) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized'
-            ], 401);
-        }
-
         $orders = $this->orderService->getUserOrders(
-            $userId,
+            $user->user_id,
             $request->get('status', 'all')
         );
 
         return response()->json([
             'status' => 'success',
-            'data' => $orders
+            'data'   => $orders,
         ]);
     }
 
-    public function store(StoreOrderRequest $request)
+    /**
+     * POST /api/orders — Tạo đơn hàng mới.
+     * StoreOrderRequest::authorize() đã chặn admin guard.
+     */
+    public function store(StoreOrderRequest $request): JsonResponse
     {
-        $userId = $this->getUserId();
-
-        if (!$userId) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Bạn cần đăng nhập để đặt hàng!'
-            ], 401);
-        }
-
+        $user   = auth('api')->user();
         $result = $this->orderService->createOrder(
-            $userId,
+            $user->user_id,
             $request->validated(),
             $request
         );
@@ -73,45 +61,43 @@ class OrderController extends Controller
         );
     }
 
-    public function show($id)
+    /**
+     * GET /api/orders/{id} — Chi tiết đơn hàng.
+     * OrderPolicy::view() đảm bảo user chỉ xem đơn của mình.
+     */
+    public function show(int $id): JsonResponse
     {
-        $userId = $this->getUserId();
-
-        if (!$userId) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized'
-            ], 401);
-        }
-
-        $order = $this->orderService->getUserOrderDetail($userId, $id);
+        $order = Order::find($id);
 
         if (!$order) {
             return response()->json([
-                'status' => 'error',
-                'message' => 'Không tìm thấy đơn hàng hoặc đơn hàng không thuộc về bạn!'
+                'status'  => 'error',
+                'message' => 'Không tìm thấy đơn hàng!',
             ], 404);
         }
 
+        $this->authorize('view', $order); // 403 nếu không phải owner
+
+        // Load chi tiết đầy đủ
+        $detail = $this->orderService->getUserOrderDetail(
+            auth('api')->user()->user_id,
+            $id
+        );
+
         return response()->json([
             'status' => 'success',
-            'data' => $order
+            'data'   => $detail,
         ]);
     }
 
-    public function cancel(CancelOrderRequest $request, $id)
+    /**
+     * POST /api/orders/{id}/cancel — Hủy đơn hàng.
+     * CancelOrderRequest::authorize() đã kiểm tra ownership.
+     */
+    public function cancel(CancelOrderRequest $request, int $id): JsonResponse
     {
-        $userId = $this->getUserId();
-
-        if (!$userId) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized'
-            ], 401);
-        }
-
         $result = $this->orderService->cancelOrder(
-            $userId,
+            auth('api')->user()->user_id,
             $id,
             $request->cancel_reason
         );
@@ -122,31 +108,26 @@ class OrderController extends Controller
         );
     }
 
-    public function getOrderIdByCode($orderCode)
+    /**
+     * GET /api/orders/by-code/{orderCode} — Tra cứu order_id từ order_code.
+     */
+    public function getOrderIdByCode(string $orderCode): JsonResponse
     {
-        $userId = $this->getUserId();
-
-        if (!$userId) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Unauthorized'
-            ], 401);
-        }
-
-        $orderId = $this->orderService->getOrderIdByCode($userId, $orderCode);
+        $orderId = $this->orderService->getOrderIdByCode(
+            auth('api')->user()->user_id,
+            $orderCode
+        );
 
         if (!$orderId) {
             return response()->json([
-                'status' => 'error',
-                'message' => 'Không tìm thấy đơn hàng!'
+                'status'  => 'error',
+                'message' => 'Không tìm thấy đơn hàng!',
             ], 404);
         }
 
         return response()->json([
             'status' => 'success',
-            'data' => [
-                'order_id' => $orderId
-            ]
+            'data'   => ['order_id' => $orderId],
         ]);
     }
 }

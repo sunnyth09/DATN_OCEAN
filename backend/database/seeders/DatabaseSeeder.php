@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
         if (count($userExists) === 0) {
             DB::insert(
                 "INSERT INTO users (full_name, email, password, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                ['Normal User', 'user123@gmail.com', Hash::make('123456'), 'user', 'active', $now, $now]
+                ['Normal User', 'user123@gmail.com', Hash::make('123456'), 'customer', 'active', $now, $now]
             );
 
             echo "✅ Normal User created: user123@gmail.com / 123456\n";
@@ -49,9 +49,17 @@ class DatabaseSeeder extends Seeder
             CouponSeeder::class,
         ]);
 
-        // Gọi CleanProductSeeder — Xóa sạch + tạo 100 SP thời trang
+        // Gọi seeder catalog thể thao hiện tại
         $this->call([
-            CleanProductSeeder::class,
+            CurrentSportsCatalogSeeder::class,
+        ]);
+
+        // ========== COURT BOOKING SEEDERS ==========
+        $this->call([
+            CourtSeeder::class,
+            CourtServiceSeeder::class,
+            CourtMaintenanceSeeder::class,
+            CourtBookingSeeder::class,
         ]);
     }
 }

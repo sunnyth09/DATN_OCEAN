@@ -151,7 +151,7 @@ onMounted(() => {
 
 .btn-primary {
   padding: 10px 28px;
-  background: #4f46e5;
+  background: #E63B6F;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -165,7 +165,7 @@ onMounted(() => {
   transition: background 0.2s;
 }
 
-.btn-primary:hover { background: #4338ca; }
+.btn-primary:hover { background: #b50c4d; }
 
 @media (max-width: 640px) {
     .wishlist-grid {

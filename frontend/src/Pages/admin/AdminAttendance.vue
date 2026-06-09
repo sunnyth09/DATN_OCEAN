@@ -217,7 +217,9 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
     <!-- Header -->
     <div class="attendance-header">
       <div>
-        <h2 class="h4 mb-1 fw-bold text-gray-800">Chấm Công GPS</h2>
+        <h2 class="h4 mb-1 fw-bold text-gray-800">
+           <span class="text-primary me-1">#</span> Chấm Công GPS
+        </h2>
         <p class="text-muted small mb-0">{{ currentDate }}</p>
       </div>
       <div class="d-flex align-items-center gap-3">

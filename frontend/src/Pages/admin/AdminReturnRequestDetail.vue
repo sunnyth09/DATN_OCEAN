@@ -113,9 +113,14 @@ onMounted(() => {
 
 <template>
   <div class="admin-return-detail-page">
-    <button class="back-btn" @click="router.push({ name: 'admin-return-requests' })">
-      ← Quay lại danh sách
-    </button>
+    <div class="detail-header">
+      <div class="header-left">
+        <button class="btn-back" @click="router.push({ name: 'admin-return-requests' })">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Quay lại danh sách
+        </button>
+      </div>
+    </div>
 
     <div v-if="detailLoading" class="loading-state">
       <div class="spinner"></div>
@@ -125,9 +130,14 @@ onMounted(() => {
     <div v-else-if="detail" class="detail-grid">
       <section class="detail-card">
         <div class="detail-head">
-          <div>
-            <p class="eyebrow">Yêu cầu hoàn hàng</p>
-            <h1>#{{ detail.order?.order_code || detail.order_id }}</h1>
+          <div class="timeline-title-group">
+            <div class="timeline-title-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
+            <div>
+              <p class="eyebrow">Yêu cầu hoàn hàng</p>
+              <h1 class="page-title">Mã đơn <span class="order-code">#{{ detail.order?.order_code || detail.order_id }}</span></h1>
+            </div>
           </div>
           <span class="status-badge" :class="getReturnRequestStatusTone(detail.status)">
             {{ getReturnRequestStatusLabel(detail.status) }}
@@ -215,20 +225,48 @@ onMounted(() => {
 
 <style scoped>
 .admin-return-detail-page {
+  padding: 24px;
+  background-color: var(--background);
+  color: var(--text-main);
+  min-height: calc(100vh - 60px);
+  font-family: var(--font-primary);
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.back-btn {
-  width: fit-content;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  color: #475569;
-  border-radius: 10px;
-  padding: 10px 14px;
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--border-color);
+  background: var(--surface-container-low);
+  border-radius: 8px;
   font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-main);
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-back:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
 }
 
 .detail-grid {
@@ -238,32 +276,61 @@ onMounted(() => {
 }
 
 .detail-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 22px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 28px 32px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
 }
 
 .detail-head {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 20px;
+  align-items: center;
+  margin-bottom: 28px;
 }
 
-.detail-head h1,
-.detail-card h3 {
+.timeline-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.timeline-title-icon {
+  width: 48px; height: 48px;
+  background: rgba(230, 59, 111, 0.08);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 1.35rem;
+  font-weight: 800;
   margin: 0;
-  color: #0f172a;
+  color: var(--text-main);
+}
+
+.order-code {
+  color: var(--primary);
+}
+
+.detail-card h3 {
+  margin: 0 0 16px;
+  color: var(--text-main);
+  font-size: 1.15rem;
+  font-weight: 700;
 }
 
 .eyebrow {
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -271,27 +338,32 @@ onMounted(() => {
 .info-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid #f8fafc;
-  padding-bottom: 10px;
-  color: #475569;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+
+.info-row span:first-child {
+  color: var(--text-muted);
 }
 
 .detail-block {
-  margin-top: 22px;
-  padding-top: 22px;
-  border-top: 1px solid #f1f5f9;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
 }
 
 .detail-block p {
   margin: 10px 0 0;
-  color: #475569;
+  color: var(--text-main);
   line-height: 1.6;
 }
 
@@ -313,7 +385,7 @@ onMounted(() => {
 .field-label {
   display: block;
   margin: 16px 0 8px;
-  color: #334155;
+  color: var(--text-main);
   font-size: 0.9rem;
   font-weight: 700;
 }
@@ -322,10 +394,20 @@ onMounted(() => {
 .field-textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #dbe2ea;
+  border: 1.5px solid var(--border-color);
+  background: var(--surface-container-low);
   border-radius: 10px;
   padding: 12px 14px;
   font: inherit;
+  color: var(--text-main);
+  transition: all 0.2s;
+}
+
+.field-input:focus,
+.field-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
 .field-textarea {
@@ -336,40 +418,64 @@ onMounted(() => {
 .action-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 12px;
+  margin-top: 24px;
 }
 
 .action-btn {
   border: none;
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   font-weight: 700;
+  font-size: 0.95rem;
   color: #fff;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .action-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
-.action-btn--approve { background: #16a34a; }
-.action-btn--reject { background: #dc2626; }
-.action-btn--received { background: #f59e0b; }
-.action-btn--refund { background: #0f766e; }
+.action-btn--approve,
+.action-btn--received,
+.action-btn--refund {
+  background: var(--primary);
+}
+
+.action-btn--reject {
+  background: transparent;
+  border: 1.5px solid var(--danger, #ef5350);
+  color: var(--danger, #ef5350);
+}
+
+.action-btn--reject:hover {
+  background: var(--danger, #ef5350);
+  color: white;
+}
 
 .summary-box,
 .status-note {
-  margin-top: 22px;
+  margin-top: 24px;
   padding: 16px;
   border-radius: 12px;
-  background: #f8fafc;
-  color: #475569;
+  background: rgba(230, 59, 111, 0.05);
+  border: 1px solid rgba(230, 59, 111, 0.1);
+  color: var(--text-main);
 }
 
 .summary-box p {
   margin: 0 0 8px;
+  display: flex;
+  justify-content: space-between;
 }
 
 .summary-box p:last-child {
@@ -377,9 +483,21 @@ onMounted(() => {
 }
 
 .jump-link {
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 700;
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(230, 59, 111, 0.08);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.jump-link:hover {
+  background: var(--primary);
+  color: white;
 }
 
 .status-badge {

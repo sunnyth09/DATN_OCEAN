@@ -19,10 +19,13 @@ return [
 
     'allowed_methods' => ['*'],
 
-    // .env ip address
-    'allowed_origins' => ['*'],
+    // Chỉ cho phép frontend URL — thêm production URL khi deploy
+    'allowed_origins' => array_filter([
+        env('URL_CORS', 'http://127.0.0.1:3302'),
+        env('URL_CORS_LOCAL', 'http://localhost:3302'),
+    ]),
 
-    'allowed_origins_patterns' => ['*'],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
@@ -30,6 +33,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];

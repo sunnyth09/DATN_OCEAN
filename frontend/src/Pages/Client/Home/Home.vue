@@ -6,6 +6,24 @@ import ProductCard from "../../../components/ProductCard.vue";
 import ProductSkeleton from "../../../components/ProductSkeleton.vue";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
+import BaseSlider from '@/components/BaseSlider.vue'
+import { useSwiperOptions } from '@/composables/useSwiperOptions'
+
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
+
+
+const bannerOptions = useSwiperOptions({
+  slidesPerView: 1,
+  effect: 'fade'
+})
+
+const banners = [
+  {
+    id: 1,
+    title: 'Banner 1',
+    image: `${BASE_URL}/storage/banners/banner_1.jpg`
+  },
+]
 
 const router = useRouter();
 const Products = ref([]);
@@ -15,7 +33,6 @@ const isLoadingCategories = ref(true);
 const catalogStore = useCatalogStore();
 const { categories: storeCategories } = storeToRefs(catalogStore);
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
 
 const getImageUrl = (path) => {
     if (!path || path === '0') return '';
@@ -42,7 +59,9 @@ const mapProduct = (item) => {
     return {
         id: item.product_id, name: item.name,
         price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(currentPrice),
+        min_price: currentPrice,
         originalPrice: originalPrice ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(originalPrice) : null,
+        original_price: originalPrice,
         discount_percent: maxDiscount, is_on_sale: lowest?.is_on_sale || false,
         image: getImageUrl(item.thumbnail_url || item.mainImage?.image_url || null),
         badge: item.is_featured ? "Hot" : (maxDiscount > 0 ? "Sale" : null),
@@ -94,7 +113,6 @@ const featuredProduct = computed(() => {
 
 const catIcons = ['👟','🎒','⌚','👔','👗','🏃','🏷️'];
 const getCatIcon = (idx) => catIcons[idx % catIcons.length];
-const APP_URL = import.meta.env.VITE_API_URL || 'http://localhost:8383/';
 
 onMounted(() => {
     fetchCategories();
@@ -110,7 +128,7 @@ onMounted(() => {
         ══════════════════════════════════════════ -->
         <section class="hero-section">
             <div class="hero-bg">
-                <img :src="APP_URL + '/storage/banners/banner.png'" alt="hero" class="hero-bg-img" />
+                <img :src="BASE_URL + '/storage/banners/banner_1.jpg'" alt="hero" class="hero-bg-img" />
                 <div class="hero-overlay"></div>
             </div>
             <div class="hero-content">
@@ -166,7 +184,10 @@ onMounted(() => {
                         <span v-if="featuredProduct.discount_percent > 0" class="equip-discount-badge">Giảm giá {{ featuredProduct.discount_percent }}%</span>
                         <span v-else-if="featuredProduct.badge" class="equip-discount-badge">{{ featuredProduct.badge }}</span>
                         <h3 class="equip-big-name-custom">{{ featuredProduct.name }}</h3>
-                        <p class="equip-big-desc-custom">{{ featuredProduct.category_name }} · {{ featuredProduct.price }}</p>
+                        <p class="equip-big-desc-custom">
+                            <span v-if="featuredProduct.category_name">{{ featuredProduct.category_name }} &middot; </span>
+                            <span class="equip-price">{{ featuredProduct.price }}</span>
+                        </p>
                         <router-link :to="'/product/' + featuredProduct.id" class="equip-big-link-custom">
                             Mua ngay
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -368,27 +389,35 @@ onMounted(() => {
     background: #FFFFFF;
     border: 1px solid #EAEAEA;
     border-radius: 12px;
-    padding: 40px;
+    padding: 32px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     position: relative;
     overflow: hidden;
+    transition: box-shadow 0.3s ease;
+}
+.equip-big-card-custom:hover {
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
 }
 
 .equip-big-img-custom {
     width: 100%;
-    height: 220px;
+    height: 320px; /* Increased from 220px to make product larger */
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
+    background: #F8F9FA;
+    border-radius: 8px;
+    padding: 16px;
 }
 
 .equip-big-img-custom img {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    mix-blend-mode: multiply; /* Helps blend background if image has white bg */
 }
 
 .equip-big-info-custom {

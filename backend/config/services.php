@@ -67,4 +67,14 @@ return [
         'lng' => env('STORE_LNG'),
     ],
 
+    'sepay' => [
+        'api_key' => env('SEPAY_API_KEY', 'sepay_secret_token_12345'),
+    ],
+
+    'bank' => [
+        'bin'            => env('BANK_BIN'),
+        'account_number' => env('BANK_ACCOUNT_NUMBER'),
+        'account_name'   => env('BANK_ACCOUNT_NAME'),
+    ],
+
 ];

@@ -6,9 +6,20 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class CancelOrderRequest  extends FormRequest
 {
+    /**
+     * Chỉ owner của đơn hàng mới được hủy.
+     * Gate::before() trong OrderPolicy cho phép admin bypass nếu cần.
+     */
     public function authorize(): bool
     {
-        return true;
+        $user = auth('api')->user();
+        if (!$user) return false;
+
+        $orderId = $this->route('id');
+        if (!$orderId) return false;
+
+        $order = \App\Models\Order::find($orderId);
+        return $order && $user->user_id === $order->user_id;
     }
 
     public function rules(): array

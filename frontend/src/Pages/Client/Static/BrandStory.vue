@@ -65,7 +65,7 @@
 <style scoped>
 .static-page { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
 .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
-.page-hero { background: linear-gradient(135deg, #1a56db 0%, #E63B6F 100%); color: #fff; padding: 56px 24px; text-align: center; }
+.page-hero { background: #E63B6F; color: #fff; padding: 56px 24px; text-align: center; }
 .page-hero h1 { font-size: 2rem; font-weight: 800; margin: 0 0 12px; }
 .hero-sub { font-size: 1rem; color: rgba(255,255,255,0.85); margin: 0; max-width: 600px; margin: 0 auto; line-height: 1.6; }
 .page-content { padding: 48px 24px 64px; }
@@ -79,7 +79,7 @@
 .info-card p { font-size: 0.85rem; color: #6b7280; line-height: 1.6; margin: 0; }
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .stat-item { background: #FFF0F3; border-radius: 12px; padding: 24px 16px; text-align: center; }
-.stat-number { display: block; font-size: 1.5rem; font-weight: 800; color: #1a56db; margin-bottom: 6px; }
+.stat-number { display: block; font-size: 1.5rem; font-weight: 800; color: #E63B6F; margin-bottom: 6px; }
 .stat-label { font-size: 0.82rem; color: #6b7280; }
 .check-list { list-style: none; padding: 0; margin: 0; }
 .check-list li { padding: 10px 0 10px 28px; position: relative; font-size: 0.95rem; color: #4b5563; border-bottom: 1px solid #f3f4f6; }

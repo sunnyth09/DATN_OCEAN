@@ -19,6 +19,8 @@ class User extends Authenticatable implements JWTSubject
 
     /**
      * The attributes that are mass assignable.
+     * FIX C2: Loại bỏ role, status, reward_points khỏi fillable
+     * để tránh mass-assignment attack. Dùng forceFill() khi admin cần thay đổi.
      *
      * @var list<string>
      */
@@ -29,16 +31,19 @@ class User extends Authenticatable implements JWTSubject
         'phone',
         'avatar_url',
         'date_of_birth',
-        'reward_points',
         'google_id',
         'facebook_id',
-        'role',
-        'status',
         'referral_code',
         'referred_by',
         'affiliate_registered_at',
         'is_affiliate',
     ];
+
+    /**
+     * FIX C2: Các field nhạy cảm không cho phép mass-assignment.
+     * Phải dùng forceFill() hoặc gán trực tiếp khi admin thay đổi.
+     */
+    protected $guarded_attributes = ['role', 'status', 'reward_points'];
 
     /**
      * The attributes that should be hidden for serialization.

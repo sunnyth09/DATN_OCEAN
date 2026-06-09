@@ -16,9 +16,42 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        return response()->json(
-            $this->productService->listAdminProducts($request)
-        );
+        $result = $this->productService->listAdminProducts($request);
+
+        // Log search history if search term exists
+        if ($request->filled('search')) {
+            $userId = auth('api')->id();
+            $sessionId = $request->header('X-Session-ID'); // Hoặc lấy từ đâu tuỳ frontend gửi lên. Thường frontend nên gửi X-Session-ID. Hoặc có thể dùng cookie. Mặc định là request->session_id nếu truyền params.
+            if (!$sessionId) {
+                $sessionId = $request->query('session_id');
+            }
+
+            if ($userId || $sessionId) {
+                $query = \App\Models\SearchHistory::where('keyword', $request->search);
+                if ($userId) {
+                    $query->where('user_id', $userId);
+                } else {
+                    $query->where('session_id', $sessionId);
+                }
+
+                $record = $query->first();
+                if ($record) {
+                    $record->update([
+                        'updated_at' => now(),
+                        'results_count' => $result['total'] ?? 0
+                    ]);
+                } else {
+                    \App\Models\SearchHistory::create([
+                        'user_id' => $userId,
+                        'session_id' => $userId ? null : $sessionId,
+                        'keyword' => $request->search,
+                        'results_count' => $result['total'] ?? 0
+                    ]);
+                }
+            }
+        }
+
+        return response()->json($result);
     }
 
     /**
@@ -113,15 +146,15 @@ class ProductController extends Controller
             'status'            => 'required|in:draft,active,inactive,out_of_stock',
             'is_featured'       => 'boolean',
             'thumbnail'         => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4096',
-            'gallery'           => 'nullable|array',
+            'gallery'           => 'nullable|array|max:10',
             'gallery.*'         => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4096',
-            'variant_images'    => 'nullable|array',
+            'variant_images'    => 'nullable|array|max:20',
             'variant_images.*'  => 'nullable|array',
             'variant_images.*.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4096',
             'price'             => 'nullable|numeric|min:100000',
             'compare_at_price'  => 'nullable|numeric|min:100000',
             'stock'             => 'nullable|integer|min:0',
-            'sale_price'        => 'nullable|numeric|min:1',
+            'sale_price'        => 'nullable|numeric|min:1000|lte:price',
             'sale_starts_at'    => 'nullable|date',
             'sale_ends_at'      => 'nullable|date|after_or_equal:sale_starts_at',
             'variants'          => 'nullable|string',
@@ -153,12 +186,12 @@ class ProductController extends Controller
             'price'             => 'nullable|numeric|min:100000',
             'compare_at_price'  => 'nullable|numeric|min:100000',
             'stock'             => 'nullable|integer|min:0',
-            'sale_price'        => 'nullable|numeric|min:1',
+            'sale_price'        => 'nullable|numeric|min:1000|lte:price',
             'sale_starts_at'    => 'nullable|date',
             'sale_ends_at'      => 'nullable|date|after_or_equal:sale_starts_at',
-            'gallery'           => 'nullable|array',
+            'gallery'           => 'nullable|array|max:10',
             'gallery.*'         => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4096',
-            'variant_images'    => 'nullable|array',
+            'variant_images'    => 'nullable|array|max:20',
             'variant_images.*'  => 'nullable|array',
             'variant_images.*.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg,webp|max:4096',
             'deleted_gallery_ids'   => 'nullable|array',

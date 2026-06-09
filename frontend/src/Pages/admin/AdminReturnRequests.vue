@@ -47,10 +47,16 @@ onMounted(() => {
 
 <template>
   <div class="admin-returns-page">
-    <div class="page-header">
-      <div>
-        <h1>Yêu cầu hoàn hàng</h1>
-        <p>Theo dõi, duyệt, từ chối và xác nhận hoàn tiền cho các đơn hàng hoàn trả.</p>
+    <div class="page-header animate-in">
+      <div class="header-info">
+        <h1 class="page-title">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+          Yêu cầu hoàn hàng
+        </h1>
+        <p class="page-subtitle">Theo dõi, duyệt, từ chối và xác nhận hoàn tiền cho các đơn hàng hoàn trả.</p>
       </div>
     </div>
 
@@ -139,32 +145,66 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  font-family: var(--font-inter);
 }
 
-.page-header h1 {
-  margin: 0;
-  font-size: 1.55rem;
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 800;
   color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
 }
 
-.page-header p {
-  margin: 8px 0 0;
+.page-subtitle {
+  font-size: 0.9rem;
   color: var(--text-muted);
+  margin-top: 4px;
+  font-weight: 500;
+  margin-bottom: 0;
 }
 
 .toolbar {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
   flex-wrap: wrap;
+  margin-bottom: 14px;
+  background: var(--card-bg);
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
 }
 
 .search-input,
 .status-select {
-  background: #fff;
-  border: 1px solid #dbe2ea;
-  border-radius: 10px;
-  padding: 10px 14px;
+  background: var(--surface-container-low);
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 16px;
   min-height: 44px;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.search-input:focus,
+.status-select:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
 .search-input {
@@ -173,10 +213,11 @@ onMounted(() => {
 }
 
 .table-card {
-  background: #fff;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
   overflow: hidden;
+  box-shadow: var(--shadow-card);
 }
 
 .data-table {
@@ -184,26 +225,38 @@ onMounted(() => {
   border-collapse: collapse;
 }
 
-.data-table th,
-.data-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid #f1f5f9;
-  text-align: left;
-  vertical-align: top;
-}
-
 .data-table th {
-  background: #f8fafc;
-  font-size: 0.78rem;
+  padding: 14px 24px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #64748b;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--ocean-deepest);
+  text-align: left;
 }
 
-.strong { font-weight: 800; color: #0f172a; }
-.cell-stack { display: flex; flex-direction: column; gap: 4px; color: #475569; }
-.empty-cell { text-align: center; color: #64748b; padding: 40px 20px; }
-.view-link { color: #E63B6F; font-weight: 700; text-decoration: none; }
+.data-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s;
+  vertical-align: middle;
+  background: var(--card-bg);
+  color: var(--text-main);
+}
+
+.data-table tbody tr:hover td {
+  background: var(--hover-bg);
+}
+
+.strong { font-weight: 800; color: var(--primary); font-size: 0.95rem; }
+.cell-stack { display: flex; flex-direction: column; gap: 4px; color: var(--text-main); }
+.cell-stack span { color: var(--text-muted); font-size: 0.85rem; }
+.empty-cell { text-align: center; color: var(--text-muted); padding: 50px 20px; }
+.view-link { color: var(--primary); font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--surface-container-low); transition: all 0.2s; font-size: 0; }
+.view-link::before { content: "→"; font-size: 1.1rem; }
+.view-link:hover { border-color: var(--primary); background: rgba(230, 59, 111, 0.05); color: var(--primary); }
 
 .status-badge {
   display: inline-flex;

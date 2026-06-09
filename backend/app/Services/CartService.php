@@ -27,7 +27,7 @@ class CartService
         if ($user) return $user->user_id;
 
         if (auth('admin')->check()) {
-            return auth('admin')->user()->getKey();
+            abort(403, 'Tài khoản nhân viên/quản trị không thể sử dụng giỏ hàng của khách hàng. Vui lòng đăng nhập bằng tài khoản khách hàng.');
         }
 
         return null;

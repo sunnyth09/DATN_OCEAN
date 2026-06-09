@@ -16,7 +16,12 @@ class ProductComment extends Model
         'order_item_id',
         'rating',
         'content',
+        'images',
         'is_approved',
+    ];
+
+    protected $casts = [
+        'images' => 'json',
     ];
 
     /**

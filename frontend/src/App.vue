@@ -17,7 +17,7 @@ onMounted(() => {
 <style>
 /* Ngăn chặn thanh cuộn ngang gây ra bởi các thẻ full width (100vw) trên Windows/Linux */
 html, body {
-  overflow-x: hidden;
+  overflow-x: clip;
   max-width: 100%;
 }
 </style>

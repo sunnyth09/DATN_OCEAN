@@ -49,7 +49,7 @@ class AttendanceService
 
     /**
      * Tìm ca đang hoạt động dựa trên giờ hiện tại.
-     * Xét buffer (check-in sớm). Có hỗ trợ ca qua đêm.
+     * Xét buffer (check-in sớm).
      *
      * @return WorkShift|null
      */
@@ -61,47 +61,27 @@ class AttendanceService
         $shifts = WorkShift::active()->orderBy('start_time')->get();
 
         foreach ($shifts as $shift) {
-            $start = Carbon::createFromFormat('H:i:s', $shift->start_time);
-            $bufferedStart = clone $start;
-            $bufferedStart->subMinutes($shift->early_buffer_minutes);
-            $startTimeStr = $bufferedStart->format('H:i:s');
-            $endTimeStr = $shift->end_time;
+            // Tính giờ bắt đầu có buffer (cho phép check-in sớm)
+            $bufferedStart = Carbon::createFromFormat('H:i:s', $shift->start_time)
+                ->subMinutes($shift->early_buffer_minutes)
+                ->format('H:i:s');
 
-            if ($startTimeStr > $endTimeStr) {
-                // Ca xuyên đêm (vd: bắt đầu 23:00, kết thúc 06:00) 
-                // Hoặc buffer đẩy giờ bắt đầu về hôm qua
-                if ($currentTime >= $startTimeStr || $currentTime <= $endTimeStr) {
+            $endTime = $shift->end_time;
+
+            if ($bufferedStart > $endTime) {
+                // Ca vắt qua nửa đêm (VD: 22:00 đến 06:00)
+                if ($currentTime >= $bufferedStart || $currentTime <= $endTime) {
                     return $shift;
                 }
             } else {
                 // Ca bình thường trong ngày
-                if ($currentTime >= $startTimeStr && $currentTime <= $endTimeStr) {
+                if ($currentTime >= $bufferedStart && $currentTime <= $endTime) {
                     return $shift;
                 }
             }
         }
 
         return null;
-    }
-
-    /**
-     * Lấy ngày làm việc chuẩn (work_date) của một ca.
-     * Trả về hôm qua nếu đang ở đầu giờ sáng hôm nay nhưng ca thuộc về đêm qua.
-     */
-    public function getWorkDateForShift(WorkShift $shift): string
-    {
-        $now = Carbon::now();
-        $currentTime = $now->format('H:i:s');
-        
-        $start = Carbon::createFromFormat('H:i:s', $shift->start_time);
-        $bufferedStart = (clone $start)->subMinutes($shift->early_buffer_minutes)->format('H:i:s');
-        $endStr = $shift->end_time;
-
-        if ($bufferedStart > $endStr && $currentTime <= $endStr) {
-            return $now->copy()->subDay()->toDateString();
-        }
-
-        return $now->toDateString();
     }
 
     /**
@@ -114,19 +94,7 @@ class AttendanceService
      */
     public function isAssignedToShift(int $userId, string $userType, WorkShift $shift): bool
     {
-        $now = Carbon::now();
-        $currentTime = $now->format('H:i:s');
-        $dayOfWeek = $now->dayOfWeek; // 0=CN, 1=T2, ..., 6=T7
-
-        $start = Carbon::createFromFormat('H:i:s', $shift->start_time);
-        $bufferedStart = (clone $start)->subMinutes($shift->early_buffer_minutes)->format('H:i:s');
-        $endStr = $shift->end_time;
-
-        // Nếu ca xuyên đêm và đang nằm trong nửa sau của ca (sau 00:00)
-        // Thì thực chất đang điểm danh cho ngày hôm qua
-        if ($bufferedStart > $endStr && $currentTime <= $endStr) {
-            $dayOfWeek = $now->copy()->subDay()->dayOfWeek;
-        }
+        $dayOfWeek = Carbon::now()->dayOfWeek; // 0=CN, 1=T2, ..., 6=T7
 
         return ShiftAssignment::where('user_id', $userId)
             ->where('user_type', $userType)
@@ -144,6 +112,7 @@ class AttendanceService
         $lat      = (float) $data['latitude'];
         $lng      = (float) $data['longitude'];
         $accuracy = isset($data['accuracy']) ? (float) $data['accuracy'] : null;
+        $today    = now()->toDateString();
 
         // 1. Tìm ca hiện tại
         $currentShift = $this->findCurrentShift();
@@ -201,13 +170,25 @@ class AttendanceService
             ];
         }
 
-        // 5. Kiểm tra đã check-in ca này chưa
-        $workDate = $this->getWorkDateForShift($currentShift);
-        $existing = Attendance::where('user_id', $userId)
-            ->where('user_type', $userType)
-            ->where('work_date', $workDate)
-            ->where('work_shift_id', $currentShift->id)
-            ->first();
+        // 5. Kiểm tra đã check-in ca này hôm nay chưa (Có lock chống double-submit)
+        $lockKey = "checkin_{$userId}_{$currentShift->id}_{$today}";
+        $lock = \Illuminate\Support\Facades\Cache::lock($lockKey, 10);
+        
+        if (!$lock->get()) {
+            return [
+                'success'     => false,
+                'message'     => 'Hệ thống đang xử lý, vui lòng không nhấn liên tục.',
+                'data'        => null,
+                'status_code' => 429,
+            ];
+        }
+
+        try {
+            $existing = Attendance::where('user_id', $userId)
+                ->where('user_type', $userType)
+                ->where('work_date', $today)
+                ->where('work_shift_id', $currentShift->id)
+                ->first();
 
         if ($existing) {
             if ($existing->status === 'checked_in') {
@@ -237,7 +218,7 @@ class AttendanceService
             'user_type'                => $userType,
             'work_location_id'         => $validResult['location']->id,
             'work_shift_id'            => $currentShift->id,
-            'work_date'                => $workDate,
+            'work_date'                => $today,
             'check_in_at'              => now(),
             'ip_address'               => request()->ip(),
             'latitude'                 => $lat,
@@ -264,6 +245,9 @@ class AttendanceService
             ],
             'status_code' => 200,
         ];
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
@@ -358,18 +342,26 @@ class AttendanceService
      */
     public function getTodayStatus(int $userId, string $userType): array
     {
-        $now = Carbon::now();
-        $today = $now->toDateString();
-        $yesterday = $now->copy()->subDay()->toDateString();
+        $today     = now()->toDateString();
+        $dayOfWeek = Carbon::now()->dayOfWeek;
 
         // Lấy tất cả ca
         $shifts = WorkShift::active()->orderBy('start_time')->get();
 
-        // Lấy attendance cho cả hôm qua và hôm nay
+        // Lấy ca được phân cho hôm nay
+        $assignedShiftIds = ShiftAssignment::where('user_id', $userId)
+            ->where('user_type', $userType)
+            ->where('day_of_week', $dayOfWeek)
+            ->where('is_active', true)
+            ->pluck('work_shift_id')
+            ->toArray();
+
+        // Lấy attendance hôm nay
         $attendances = Attendance::where('user_id', $userId)
             ->where('user_type', $userType)
-            ->whereIn('work_date', [$yesterday, $today])
-            ->get();
+            ->where('work_date', $today)
+            ->get()
+            ->keyBy('work_shift_id');
 
         // Tìm ca hiện tại
         $currentShift = $this->findCurrentShift();
@@ -377,12 +369,8 @@ class AttendanceService
         // Build trạng thái từng ca
         $shiftsStatus = [];
         foreach ($shifts as $shift) {
-            $isAssigned = $this->isAssignedToShift($userId, $userType, $shift);
-            $workDateForShift = $this->getWorkDateForShift($shift);
-            
-            $att = $attendances->where('work_shift_id', $shift->id)
-                               ->where('work_date', $workDateForShift)
-                               ->first();
+            $isAssigned = in_array($shift->id, $assignedShiftIds);
+            $att = $attendances->get($shift->id);
 
             $locationName = null;
             if ($att && $att->work_location_id) {
@@ -412,10 +400,7 @@ class AttendanceService
         // Trạng thái tổng thể
         $overallState = 'not_checked_in';
         if ($currentShift) {
-            $workDateForCurrent = $this->getWorkDateForShift($currentShift);
-            $currentAtt = $attendances->where('work_shift_id', $currentShift->id)
-                                      ->where('work_date', $workDateForCurrent)
-                                      ->first();
+            $currentAtt = $attendances->get($currentShift->id);
             if ($currentAtt) {
                 $overallState = $currentAtt->status;
             }
@@ -428,7 +413,7 @@ class AttendanceService
                 'name'       => $currentShift->name,
                 'start_time' => $currentShift->start_time,
                 'end_time'   => $currentShift->end_time,
-                'is_assigned' => $this->isAssignedToShift($userId, $userType, $currentShift),
+                'is_assigned' => in_array($currentShift->id, $assignedShiftIds),
             ] : null,
             'shifts' => $shiftsStatus,
         ];

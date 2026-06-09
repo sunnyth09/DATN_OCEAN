@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Repositories\UserRepository;
+use App\Http\Resources\UserProfileResource;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +15,35 @@ class AuthService
     public function __construct(
         protected UserRepository $userRepository
     ) {}
+
+    // ─── CAPTCHA ───────────────────────────────────────────────────────
+
+    /**
+     * Xác thực Cloudflare Turnstile token
+     */
+    public function verifyTurnstile(?string $token): bool
+    {
+        // Tắt CAPTCHA khi đang ở môi trường local/dev
+        if (app()->environment('local', 'testing')) {
+            return true;
+        }
+
+        if (!$token) return false;
+
+        $secretKey = config('services.turnstile.secret_key');
+        if (!$secretKey) return false;
+
+        try {
+            $response = Http::asForm()->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+                'secret'   => $secretKey,
+                'response' => $token,
+            ]);
+            return $response->json('success', false);
+        } catch (\Exception $e) {
+            Log::error('Turnstile verification failed: ' . $e->getMessage());
+            return false;
+        }
+    }
 
     // ─── PASSWORD VALIDATION ───────────────────────────────────────────
 
@@ -42,6 +72,11 @@ class AuthService
 
         if ($validator->fails()) {
             return ['_status' => 422, 'status' => 'error', 'errors' => $validator->errors()->toArray()];
+        }
+
+        // Turnstile
+        if (!$this->verifyTurnstile($data['turnstile_token'] ?? null)) {
+            return ['_status' => 422, 'status' => 'error', 'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'];
         }
 
         $name     = trim($data['full_name'] ?? $data['name']);
@@ -99,6 +134,11 @@ class AuthService
 
         if ($validator->fails()) {
             return ['_status' => 422, 'status' => 'error', 'errors' => $validator->errors()->toArray()];
+        }
+
+        // Turnstile
+        if (!$this->verifyTurnstile($data['turnstile_token'] ?? null)) {
+            return ['_status' => 422, 'status' => 'error', 'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'];
         }
 
         $credentials = ['email' => strtolower(trim($data['email'])), 'password' => $data['password']];
@@ -163,10 +203,12 @@ class AuthService
         }
     }
 
+    // FIX C1: Dùng UserProfileResource để lọc data nhạy cảm
     public function me(): array
     {
         $guard = auth('admin')->check() ? 'admin' : 'api';
-        return ['status' => 'success', 'user' => auth($guard)->user()];
+        $user = auth($guard)->user();
+        return ['status' => 'success', 'user' => new UserProfileResource($user)];
     }
 
     public function logout(): array
@@ -209,13 +251,35 @@ class AuthService
             $googleName   = $googleUser['name'] ?? $googleUser['email'];
             $googleAvatar = $googleUser['picture'] ?? null;
 
-            // Find or create user
+            // Kiểm tra xem email này có thuộc về một Admin không
+            $admin = \App\Models\Admin::where('email', $googleEmail)->first();
+            if ($admin) {
+                if (isset($admin->status) && $admin->status !== 'active') {
+                    return ['_status' => 403, 'status' => 'error', 'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'];
+                }
+                
+                $token = auth('admin')->login($admin);
+                return [
+                    '_status'       => 200,
+                    'status'        => 'success',
+                    'message'       => 'Đăng nhập Google thành công!',
+                    'access_token'  => $token,
+                    'refresh_token' => $token,
+                    'token_type'    => 'Bearer',
+                    'expires_in'    => auth('admin')->factory()->getTTL() * 60,
+                    'role'          => $admin->role ?? 'admin',
+                    'user'          => clone $admin,
+                ];
+            }
+
+            // Find or create user (Customer)
             $user = $this->findOrCreateOAuthUser('google', $googleId, $googleEmail, $googleName, $googleAvatar);
 
             if (is_array($user) && isset($user['_status'])) return $user; // error response
 
             // JWT
-            $token = auth('api')->login($this->userRepository->findModel($user->user_id));
+            $model = $this->userRepository->findModel($user->user_id);
+            $token = auth('api')->login($model);
 
             return [
                 '_status'       => 200,
@@ -224,8 +288,8 @@ class AuthService
                 'access_token'  => $token,
                 'refresh_token' => $token,
                 'token_type'    => 'Bearer',
-                'expires_in'    => config('jwt.ttl', 60) * 60,
-                'role'          => $user->role,
+                'expires_in'    => auth('api')->factory()->getTTL() * 60,
+                'role'          => $user->role ?? 'customer',
                 'user'          => clone $user,
             ];
         } catch (\Exception $e) {
@@ -268,13 +332,36 @@ class AuthService
             $fbName   = $fbUser['name'] ?? 'Facebook User';
             $fbAvatar = $fbUser['picture']['data']['url'] ?? null;
 
-            // Find or create user
+            // Kiểm tra xem email này có thuộc về một Admin không
+            $admin = \App\Models\Admin::where('email', $fbEmail)->first();
+            if ($admin) {
+                if (isset($admin->status) && $admin->status !== 'active') {
+                    return ['_status' => 403, 'status' => 'error', 'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'];
+                }
+                
+                $token = auth('admin')->login($admin);
+                return [
+                    '_status'       => 200,
+                    'status'        => 'success',
+                    'message'       => 'Đăng nhập Facebook thành công!',
+                    'access_token'  => $token,
+                    'refresh_token' => $token,
+                    'token_type'    => 'Bearer',
+                    'expires_in'    => auth('admin')->factory()->getTTL() * 60,
+                    'role'          => $admin->role ?? 'admin',
+                    'user'          => clone $admin,
+                ];
+            }
+
+            // Find or create user (Customer)
             $user = $this->findOrCreateOAuthUser('facebook', $fbId, $fbEmail, $fbName, $fbAvatar);
 
             if (is_array($user) && isset($user['_status'])) return $user;
 
             // JWT
-            $token = auth('api')->login($this->userRepository->findModel($user->user_id));
+            // JWT
+            $model = $this->userRepository->findModel($user->user_id);
+            $token = auth('api')->login($model);
 
             return [
                 '_status'       => 200,
@@ -283,8 +370,8 @@ class AuthService
                 'access_token'  => $token,
                 'refresh_token' => $token,
                 'token_type'    => 'Bearer',
-                'expires_in'    => config('jwt.ttl', 60) * 60,
-                'role'          => $user->role,
+                'expires_in'    => auth('api')->factory()->getTTL() * 60,
+                'role'          => $user->role ?? 'customer',
                 'user'          => clone $user,
             ];
         } catch (\Exception $e) {

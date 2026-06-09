@@ -1,183 +1,3 @@
-<template>
-  <div class="work-shifts-container p-4">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="h4 mb-0 fw-bold text-gray-800">Quản lý Ca Làm Việc & Phân Ca</h2>
-    </div>
-
-    <!-- Tabs -->
-    <ul class="nav nav-tabs mb-4">
-      <li class="nav-item">
-        <button class="nav-link" :class="{ active: activeTab === 'shifts' }" @click="activeTab = 'shifts'">
-          <i class="bi bi-clock me-1"></i> Danh sách Ca
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link" :class="{ active: activeTab === 'assign' }" @click="activeTab = 'assign'; loadAssignments()">
-          <i class="bi bi-people me-1"></i> Phân Ca Nhân Viên
-        </button>
-      </li>
-    </ul>
-
-    <!-- ===== TAB 1: DANH SÁCH CA ===== -->
-    <div v-if="activeTab === 'shifts'">
-      <div class="d-flex justify-content-end mb-3">
-        <button class="btn btn-primary btn-sm rounded-pill px-3" @click="openShiftForm(null)" id="btn-add-shift">
-          <i class="bi bi-plus-lg me-1"></i> Thêm ca
-        </button>
-      </div>
-
-      <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th class="ps-4">ID</th>
-                  <th>Tên ca</th>
-                  <th>Bắt đầu</th>
-                  <th>Kết thúc</th>
-                  <th>Buffer sớm</th>
-                  <th>Trạng thái</th>
-                  <th class="text-end pe-4">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="loadingShifts">
-                  <td colspan="7" class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></td>
-                </tr>
-                <tr v-else-if="shifts.length === 0">
-                  <td colspan="7" class="text-center py-4 text-muted">Chưa có ca nào.</td>
-                </tr>
-                <tr v-else v-for="s in shifts" :key="s.id">
-                  <td class="ps-4 fw-medium text-muted">#{{ s.id }}</td>
-                  <td class="fw-bold">{{ s.name }}</td>
-                  <td><span class="badge text-bg-success">{{ s.start_time?.substring(0, 5) }}</span></td>
-                  <td><span class="badge text-bg-danger">{{ s.end_time?.substring(0, 5) }}</span></td>
-                  <td>{{ s.early_buffer_minutes }} phút</td>
-                  <td>
-                    <span class="badge" :class="s.is_active ? 'text-bg-success' : 'text-bg-secondary'">
-                      {{ s.is_active ? 'Hoạt động' : 'Tắt' }}
-                    </span>
-                  </td>
-                  <td class="text-end pe-4">
-                    <button class="btn btn-sm btn-outline-primary me-1" @click="openShiftForm(s)"><i class="bi bi-pencil"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" @click="deleteShift(s)"><i class="bi bi-trash"></i></button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== TAB 2: PHÂN CA NHÂN VIÊN ===== -->
-    <div v-if="activeTab === 'assign'">
-      <div v-if="loadingAssign" class="text-center py-5">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p class="text-muted mt-2">Đang tải bảng phân ca...</p>
-      </div>
-      <div v-else>
-        <div class="card shadow-sm border-0">
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-bordered align-middle mb-0 schedule-table">
-                <thead class="table-light">
-                  <tr>
-                    <th class="ps-3" style="min-width: 180px;">Nhân viên</th>
-                    <th v-for="day in dayLabels" :key="day.value" class="text-center" style="min-width: 120px;">
-                      {{ day.label }}
-                    </th>
-                    <th class="text-center" style="min-width: 80px;">Lưu</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="staff in assignData.staff" :key="staff.user_id">
-                    <td class="ps-3">
-                      <div class="fw-bold small">{{ staff.full_name }}</div>
-                      <span class="badge text-bg-light text-muted" style="font-size: 0.7rem;">{{ staff.role }}</span>
-                    </td>
-                    <td v-for="day in dayLabels" :key="day.value" class="text-center p-1">
-                      <div v-for="shift in assignData.shifts" :key="shift.id" class="form-check form-check-inline mb-0">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               :id="'cb-' + staff.user_id + '-' + shift.id + '-' + day.value"
-                               :checked="isAssigned(staff, shift.id, day.value)"
-                               @change="toggleAssign(staff, shift.id, day.value, $event)" />
-                        <label class="form-check-label small"
-                               :for="'cb-' + staff.user_id + '-' + shift.id + '-' + day.value"
-                               :class="getShiftLabelClass(shift.name)">
-                          {{ getShiftShortName(shift.name) }}
-                        </label>
-                      </div>
-                    </td>
-                    <td class="text-center">
-                      <button class="btn btn-sm btn-primary px-2 py-1" @click="saveStaffAssignment(staff)" :disabled="staff._saving">
-                        <span v-if="staff._saving" class="spinner-border spinner-border-sm"></span>
-                        <i v-else class="bi bi-check-lg"></i>
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <p class="text-muted small mt-2"><i class="bi bi-info-circle me-1"></i>Tick ca cho từng nhân viên theo ngày, sau đó nhấn nút <i class="bi bi-check-lg"></i> để lưu.</p>
-      </div>
-    </div>
-
-    <!-- ===== MODAL: Thêm/Sửa Ca ===== -->
-    <div v-if="showShiftModal" class="modal-overlay" @click.self="showShiftModal = false">
-      <div class="modal-box">
-        <div class="modal-header-custom">
-          <h5 class="fw-bold mb-0">{{ editingShift ? 'Sửa ca' : 'Thêm ca mới' }}</h5>
-          <button class="btn-close" @click="showShiftModal = false"></button>
-        </div>
-        <div class="modal-body-custom">
-          <div class="mb-3">
-            <label class="form-label fw-medium">Tên ca <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" v-model="shiftForm.name" placeholder="Ví dụ: Ca sáng" />
-          </div>
-          <div class="row g-3 mb-3">
-            <div class="col-6">
-              <label class="form-label fw-medium">Giờ bắt đầu <span class="text-danger">*</span></label>
-              <input type="time" class="form-control" v-model="shiftForm.start_time" />
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-medium">Giờ kết thúc <span class="text-danger">*</span></label>
-              <input type="time" class="form-control" v-model="shiftForm.end_time" />
-            </div>
-          </div>
-          <div class="row g-3 mb-3">
-            <div class="col-6">
-              <label class="form-label fw-medium">Buffer sớm (phút)</label>
-              <input type="number" class="form-control" v-model.number="shiftForm.early_buffer_minutes" min="0" max="120" />
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-medium">Trạng thái</label>
-              <select class="form-select" v-model="shiftForm.is_active">
-                <option :value="true">Hoạt động</option>
-                <option :value="false">Tắt</option>
-              </select>
-            </div>
-          </div>
-          <button class="btn btn-primary w-100 fw-bold" @click="submitShiftForm" :disabled="submittingShift">
-            <span v-if="submittingShift" class="spinner-border spinner-border-sm me-2"></span>
-            {{ editingShift ? 'Cập nhật' : 'Tạo mới' }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Toast -->
-    <Transition name="ws-toast">
-      <div v-if="toastVisible" class="ws-toast" :class="'ws-toast-' + toast.type">{{ toast.message }}</div>
-    </Transition>
-  </div>
-</template>
-
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
 import api from '../../axios';
@@ -317,34 +137,435 @@ const getShiftShortName = (name) => {
 };
 
 const getShiftLabelClass = (name) => {
-  if (name.includes('sáng')) return 'text-primary';
-  if (name.includes('chiều')) return 'text-success';
-  if (name.includes('tối')) return 'text-danger';
+  if (name.includes('sáng')) return 'shift-label-morning';
+  if (name.includes('chiều')) return 'shift-label-afternoon';
+  if (name.includes('tối')) return 'shift-label-night';
   return '';
 };
 
 onMounted(() => { fetchShifts(); });
 </script>
+<template>
+  <div class="admin-ws animate-in">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="header-left">
+        <h2 class="section-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Quản lý Ca Làm Việc & Phân Ca
+        </h2>
+        <p class="section-desc">Thiết lập ca làm việc và phân ca cho nhân viên theo ngày trong tuần.</p>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="ws-tabs ocean-card">
+      <button class="ws-tab" :class="{ active: activeTab === 'shifts' }" @click="activeTab = 'shifts'">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Danh sách Ca
+      </button>
+      <button class="ws-tab" :class="{ active: activeTab === 'assign' }" @click="activeTab = 'assign'; loadAssignments()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        Phân Ca Nhân Viên
+      </button>
+    </div>
+
+    <!-- ===== TAB 1: DANH SÁCH CA ===== -->
+    <div v-if="activeTab === 'shifts'">
+      <div class="tab-header-actions">
+        <button class="btn-create" @click="openShiftForm(null)" id="btn-add-shift">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Thêm ca
+        </button>
+      </div>
+
+      <div class="ocean-card table-wrapper">
+        <table class="ws-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Tên ca</th>
+              <th>Bắt đầu</th>
+              <th>Kết thúc</th>
+              <th>Buffer sớm</th>
+              <th class="status-th">Trạng thái</th>
+              <th class="actions-th">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="loadingShifts">
+              <td colspan="7" class="empty-cell"><div class="ws-spinner"></div></td>
+            </tr>
+            <tr v-else-if="shifts.length === 0">
+              <td colspan="7" class="empty-cell">Chưa có ca nào.</td>
+            </tr>
+            <tr v-else v-for="s in shifts" :key="s.id" class="ws-row">
+              <td class="id-cell">#{{ s.id }}</td>
+              <td>
+                <div class="shift-info-cell">
+                  <div class="shift-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <span class="shift-name">{{ s.name }}</span>
+                </div>
+              </td>
+              <td><span class="time-badge time-start">{{ s.start_time?.substring(0, 5) }}</span></td>
+              <td><span class="time-badge time-end">{{ s.end_time?.substring(0, 5) }}</span></td>
+              <td class="buffer-cell">{{ s.early_buffer_minutes }} phút</td>
+              <td class="status-cell">
+                <span class="ws-status-badge" :class="s.is_active ? 'status-active' : 'status-inactive'">
+                  {{ s.is_active ? 'Hoạt động' : 'Tắt' }}
+                </span>
+              </td>
+              <td class="actions-cell">
+                <button class="btn-action edit" @click="openShiftForm(s)" title="Sửa">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn-action delete" @click="deleteShift(s)" title="Vô hiệu hóa">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ===== TAB 2: PHÂN CA NHÂN VIÊN ===== -->
+    <div v-if="activeTab === 'assign'">
+      <div v-if="loadingAssign" class="loading-state">
+        <div class="ws-spinner"></div>
+        <p>Đang tải bảng phân ca...</p>
+      </div>
+      <div v-else>
+        <div class="ocean-card table-wrapper">
+          <table class="ws-table schedule-table">
+            <thead>
+              <tr>
+                <th style="min-width: 180px;">Nhân viên</th>
+                <th v-for="day in dayLabels" :key="day.value" class="text-center" style="min-width: 120px;">
+                  {{ day.label }}
+                </th>
+                <th class="text-center" style="min-width: 80px;">Lưu</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="staff in assignData.staff" :key="staff.user_id" class="ws-row">
+                <td>
+                  <div class="staff-assign-cell">
+                    <div class="assign-avatar">{{ (staff.full_name || '?')[0].toUpperCase() }}</div>
+                    <div>
+                      <div class="assign-name">{{ staff.full_name }}</div>
+                      <span class="assign-role">{{ staff.role }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td v-for="day in dayLabels" :key="day.value" class="text-center schedule-cell">
+                  <div v-for="shift in assignData.shifts" :key="shift.id" class="shift-check-item">
+                    <label class="shift-checkbox-label">
+                      <input type="checkbox"
+                             :checked="isAssigned(staff, shift.id, day.value)"
+                             @change="toggleAssign(staff, shift.id, day.value, $event)" />
+                      <span class="shift-check-text" :class="getShiftLabelClass(shift.name)">
+                        {{ getShiftShortName(shift.name) }}
+                      </span>
+                    </label>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <button class="btn-save-assign" @click="saveStaffAssignment(staff)" :disabled="staff._saving">
+                    <span v-if="staff._saving" class="ws-spinner-sm"></span>
+                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="schedule-hint">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Tick ca cho từng nhân viên theo ngày, sau đó nhấn nút lưu.
+        </p>
+      </div>
+    </div>
+
+    <!-- ===== MODAL: Thêm/Sửa Ca ===== -->
+    <Teleport to="body">
+    <Transition name="ws-modal">
+      <div v-if="showShiftModal" class="ws-modal-overlay" @click.self="showShiftModal = false">
+        <div class="ws-modal-box">
+          <div class="ws-modal-head">
+            <h3>{{ editingShift ? 'Sửa ca' : 'Thêm ca mới' }}</h3>
+            <button class="ws-btn-close" @click="showShiftModal = false">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <form @submit.prevent="submitShiftForm" class="ws-modal-body">
+            <div class="ws-form-group">
+              <label>Tên ca <span class="ws-required">*</span></label>
+              <input type="text" class="ws-form-control" v-model="shiftForm.name" placeholder="Ví dụ: Ca sáng" />
+            </div>
+            <div class="ws-form-row">
+              <div class="ws-form-group">
+                <label>Giờ bắt đầu <span class="ws-required">*</span></label>
+                <input type="time" class="ws-form-control" v-model="shiftForm.start_time" />
+              </div>
+              <div class="ws-form-group">
+                <label>Giờ kết thúc <span class="ws-required">*</span></label>
+                <input type="time" class="ws-form-control" v-model="shiftForm.end_time" />
+              </div>
+            </div>
+            <div class="ws-form-row">
+              <div class="ws-form-group">
+                <label>Buffer sớm (phút)</label>
+                <input type="number" class="ws-form-control" v-model.number="shiftForm.early_buffer_minutes" min="0" max="120" />
+              </div>
+              <div class="ws-form-group">
+                <label>Trạng thái</label>
+                <select class="ws-form-control ws-form-select" v-model="shiftForm.is_active">
+                  <option :value="true">Hoạt động</option>
+                  <option :value="false">Tắt</option>
+                </select>
+              </div>
+            </div>
+            <div class="ws-modal-footer">
+              <button type="button" @click="showShiftModal = false" class="ws-btn-outline">Hủy bỏ</button>
+              <button type="submit" class="ws-btn-primary" :disabled="submittingShift">
+                <svg v-if="!submittingShift" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span v-if="submittingShift" class="ws-spinner-sm"></span>
+                {{ submittingShift ? 'Đang lưu...' : (editingShift ? 'Cập nhật' : 'Tạo mới') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
+    </Teleport>
+
+    <!-- Toast -->
+    <Teleport to="body">
+    <Transition name="ws-toast">
+      <div v-if="toastVisible" class="ws-toast" :class="'ws-toast-' + toast.type">{{ toast.message }}</div>
+    </Transition>
+    </Teleport>
+  </div>
+</template>
 
 <style scoped>
-.work-shifts-container { max-width: 1400px; margin: 0 auto; }
+/* ===== Page Header ===== */
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.section-title { font-size: 1.4rem; font-weight: 700; color: var(--text-main); }
+.section-desc { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
 
-.schedule-table th, .schedule-table td { vertical-align: middle; }
-.schedule-table .form-check { margin: 2px 0; }
-.schedule-table .form-check-label { font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+/* ===== Tabs ===== */
+.ws-tabs { display: flex; gap: 4px; padding: 6px; margin-bottom: 20px; }
+.ws-tab {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 8px; border: none;
+  background: transparent; color: var(--text-muted);
+  font-weight: 600; font-size: 0.85rem; cursor: pointer;
+  transition: all 0.2s; font-family: var(--font-inter);
+}
+.ws-tab:hover { background: var(--hover-bg); color: var(--text-main); }
+.ws-tab.active { background: #E63B6F; color: white; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25); }
+.ws-tab.active svg { stroke: white; }
 
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9998; backdrop-filter: blur(3px); }
-.modal-box { background: white; border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
-.modal-header-custom { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #eee; }
-.modal-body-custom { padding: 24px; }
+.tab-header-actions { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 
-.ws-toast { position: fixed; bottom: 30px; right: 30px; padding: 14px 28px; border-radius: 12px; color: white; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index: 9999; }
-.ws-toast-success { background: linear-gradient(135deg, #10b981, #059669); }
-.ws-toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.btn-create {
+  display: flex; align-items: center; gap: 8px;
+  background: #E63B6F; color: white; border: none;
+  padding: 10px 20px; border-radius: 10px;
+  font-weight: 600; font-size: 0.85rem; cursor: pointer;
+  transition: all 0.2s; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25);
+  font-family: var(--font-inter);
+}
+.btn-create:hover { background: #d82f65; transform: translateY(-1px); }
+
+/* ===== Table ===== */
+.table-wrapper { overflow-x: auto; }
+.ws-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.ws-table th {
+  text-align: left; padding: 14px 16px; font-weight: 700; font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); border-bottom: 1px solid var(--border-color); background: var(--ocean-deepest);
+}
+.ws-table td { padding: 14px 16px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+.ws-row { transition: background 0.15s; }
+.ws-row:hover { background: var(--hover-bg); }
+.id-cell { color: var(--text-light); font-weight: 700; font-size: 0.8rem; }
+.empty-cell { text-align: center; padding: 40px !important; color: var(--text-light); }
+
+.shift-info-cell { display: flex; align-items: center; gap: 12px; }
+.shift-name { font-weight: 600; color: var(--text-main); }
+.shift-icon {
+  width: 36px; height: 36px; border-radius: 50%; background: #e8f5e9; color: #2e7d32;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.time-badge {
+  display: inline-flex; padding: 4px 10px; border-radius: 6px;
+  font-size: 0.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+}
+.time-start { background: #e8f5e9; color: #2e7d32; }
+.time-end { background: #ffebee; color: #c62828; }
+.buffer-cell { color: var(--text-muted); }
+
+.ws-status-badge {
+  display: inline-flex; align-items: center; padding: 5px 12px;
+  border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+}
+.status-active { background: #e8f5e9; color: #2e7d32; }
+.status-inactive { background: #f5f5f5; color: #757575; }
+
+.status-th, .actions-th { text-align: center !important; }
+.status-cell, .actions-cell { text-align: center; }
+.actions-cell { display: flex; gap: 6px; justify-content: center; }
+
+.btn-action {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s; border: 1.5px solid;
+}
+.btn-action.edit { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
+.btn-action.edit:hover { background: #bbdefb; color: #0d47a1; }
+.btn-action.delete { background: #ffebee; color: var(--primary); border-color: #ffcdd2; }
+.btn-action.delete:hover { background: #ffcdd2; color: #c62828; }
+
+/* Schedule Table */
+.schedule-table th { text-align: center; }
+.schedule-cell { padding: 8px 4px !important; }
+.shift-check-item { display: inline-flex; margin: 2px 2px; }
+.shift-checkbox-label { display: flex; align-items: center; gap: 3px; cursor: pointer; font-size: 0.8rem; }
+.shift-checkbox-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: #E63B6F; cursor: pointer; }
+.shift-check-text { font-weight: 700; font-size: 0.78rem; }
+.shift-label-morning { color: #1565c0; }
+.shift-label-afternoon { color: #2e7d32; }
+.shift-label-night { color: #c62828; }
+
+.staff-assign-cell { display: flex; align-items: center; gap: 12px; }
+.assign-avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: #E63B6F; color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
+}
+.assign-name { font-weight: 600; color: var(--text-main); font-size: 0.85rem; }
+.assign-role { font-size: 0.72rem; color: var(--text-muted); }
+
+.btn-save-assign {
+  width: 36px; height: 36px; border-radius: 8px; border: none;
+  background: #E63B6F; color: white; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.2s; box-shadow: 0 2px 8px rgba(230, 59, 111, 0.25);
+}
+.btn-save-assign:hover { background: #d82f65; transform: translateY(-1px); }
+.btn-save-assign:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.schedule-hint {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.82rem; color: var(--text-muted); margin-top: 12px;
+}
+
+.loading-state { text-align: center; padding: 60px 0; }
+.loading-state p { color: var(--text-muted); margin-top: 12px; font-size: 0.85rem; }
+
+/* Spinner */
+.ws-spinner {
+  width: 32px; height: 32px; border: 3px solid var(--border-color);
+  border-top-color: var(--primary); border-radius: 50%; animation: wsSpin 0.7s linear infinite;
+  margin: 0 auto;
+}
+.ws-spinner-sm {
+  width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff; border-radius: 50%; animation: wsSpin 0.6s linear infinite; display: inline-block;
+}
+@keyframes wsSpin { to { transform: rotate(360deg); } }
+.text-center { text-align: center; }
+</style>
+
+<!-- Non-scoped styles for Teleported modals/toasts -->
+<style>
+/* ===== WS Modal Overlay ===== */
+.ws-modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.ws-modal-box {
+  width: 100%; max-width: 520px; padding: 0;
+  background: var(--card-bg, #fff); border: 1px solid var(--border-color, #d9e8f0);
+  border-radius: 16px; overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+.ws-modal-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 24px; border-bottom: 1px solid var(--border-color, #d9e8f0);
+}
+.ws-modal-head h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main, #102a43); }
+.ws-btn-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted, #627d98); display: flex; align-items: center; justify-content: center;
+  padding: 4px; border-radius: 6px; transition: all 0.2s;
+}
+.ws-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, #E63B6F); }
+
+.ws-modal-body { padding: 24px; }
+.ws-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+/* Form */
+.ws-form-group { margin-bottom: 16px; }
+.ws-form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main, #102a43); margin-bottom: 8px; }
+.ws-required { color: var(--primary, #E63B6F); }
+.ws-form-control {
+  width: 100%; padding: 10px 14px; border-radius: 8px;
+  border: 1px solid var(--border-color, #d9e8f0); background: var(--ocean-deepest, #f0f7fa);
+  color: var(--text-main, #102a43); font-family: var(--font-inter, 'Inter', sans-serif);
+  font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
+}
+.ws-form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.ws-form-control::placeholder { color: var(--text-light, #9fb3c8); }
+.ws-form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23627d98' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+.ws-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 600px) { .ws-form-row { grid-template-columns: 1fr; } }
+
+/* Buttons */
+.ws-btn-outline {
+  padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color, #d9e8f0);
+  background: #fff; color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; font-family: var(--font-inter, 'Inter', sans-serif);
+}
+.ws-btn-outline:hover { border-color: var(--ocean-mid, #b3e0f2); background: var(--ocean-deepest, #f0f7fa); }
+.ws-btn-primary {
+  padding: 10px 20px; border-radius: 8px; border: none;
+  background: #E63B6F; color: #fff; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-inter, 'Inter', sans-serif);
+}
+.ws-btn-primary:hover { background: #d82f65; }
+.ws-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Toast */
+.ws-toast {
+  position: fixed; top: 24px; right: 24px; z-index: 2000;
+  padding: 14px 22px; border-radius: 10px; color: #fff;
+  font-size: 0.85rem; font-weight: 600;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+.ws-toast-success { background: var(--seafoam, #26a69a); }
+.ws-toast-error { background: var(--coral, #ef5350); }
+
+/* Transitions */
+.ws-modal-enter-active, .ws-modal-leave-active { transition: all 0.25s ease; }
+.ws-modal-enter-from, .ws-modal-leave-to { opacity: 0; }
+.ws-modal-enter-from .ws-modal-box, .ws-modal-leave-to .ws-modal-box { transform: scale(0.95) translateY(10px); }
+
 .ws-toast-enter-active { transition: all 0.3s ease; }
 .ws-toast-leave-active { transition: all 0.2s ease; }
-.ws-toast-enter-from, .ws-toast-leave-to { opacity: 0; transform: translateX(40px); }
-
-.nav-tabs .nav-link { color: #6b7280; font-weight: 500; }
-.nav-tabs .nav-link.active { color: #1d4ed8; font-weight: 600; border-color: #1d4ed8; border-bottom: 2px solid #1d4ed8; }
+.ws-toast-enter-from { opacity: 0; transform: translateX(40px); }
+.ws-toast-leave-to { opacity: 0; transform: translateX(40px); }
 </style>

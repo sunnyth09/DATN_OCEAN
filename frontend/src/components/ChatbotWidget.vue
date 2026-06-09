@@ -32,7 +32,7 @@
               </svg>
             </div>
             <div>
-              <h3 class="chat-title">{{ mode === 'live' ? 'Hỗ trợ viên' : 'Ocean AI' }}</h3>
+              <h3 class="chat-title">{{ mode === 'live' ? 'Hỗ trợ viên' : 'Quyền Sport AI' }}</h3>
               <p class="chat-subtitle">{{ mode === 'live' ? 'Sẵn sàng hỗ trợ bạn' : 'Trợ lý mua sắm thông minh' }}</p>
             </div>
           </div>
@@ -48,13 +48,13 @@
           <!-- Welcome message -->
           <div v-if="messages.length === 0" class="welcome-section">
             <div class="welcome-icon">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 12c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0"/>
                 <path d="M2 17c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0" opacity="0.5"/>
                 <path d="M2 7c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0" opacity="0.5"/>
               </svg>
             </div>
-            <h4 class="welcome-title">{{ mode === 'live' ? 'Kết nối thành công!' : 'Xin chào! Tôi là Ocean AI' }}</h4>
+            <h4 class="welcome-title">{{ mode === 'live' ? 'Kết nối thành công!' : 'Xin chào! Tôi là Quyền Sport AI' }}</h4>
             <p class="welcome-desc">{{ mode === 'live' ? 'Vui lòng đặt câu hỏi, chúng tôi sẽ phản hồi trong giây lát.' : 'Tôi có thể giúp bạn tìm sản phẩm, tra đơn hàng, xem khuyến mãi và nhiều hơn nữa!' }}</p>
           </div>
 
@@ -62,22 +62,29 @@
           <div v-for="(msg, idx) in messages" :key="idx" class="message-item" :class="msg.role">
             <!-- AI avatar -->
             <div v-if="msg.role === 'assistant'" class="msg-avatar">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 12c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0"/>
                 <path d="M2 17c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0" opacity="0.5"/>
               </svg>
             </div>
             <div class="msg-bubble" :class="msg.role">
               <div class="msg-text" v-html="formatMessage(msg.content)"></div>
+              <button v-if="msg.type === 'requires_login'" class="chatbot-action-btn primary full login-action-btn" @click="goToLogin">
+                Đăng nhập để tiếp tục
+              </button>
 
               <!-- Product Cards -->
               <div v-if="msg.data && msg.type === 'search_products'" class="product-cards">
-                <div v-for="product in msg.data" :key="product.product_id" class="product-card" @click="goToProduct(product.slug)">
-                  <img :src="getProductImage(product.thumbnail)" :alt="product.name" class="product-card-img" loading="lazy" />
+                <div v-for="product in msg.data" :key="product.product_id" class="product-card">
+                  <img :src="getProductImage(product.thumbnail)" :alt="product.name" class="product-card-img" loading="lazy" @click="goToProduct(product.slug)" />
                   <div class="product-card-info">
-                    <p class="product-card-name">{{ product.name }}</p>
+                    <p class="product-card-name" @click="goToProduct(product.slug)">{{ product.name }}</p>
                     <p class="product-card-price">{{ product.price }}</p>
                     <span v-if="product.category" class="product-card-cat">{{ product.category }}</span>
+                    <div v-if="product.variants?.length" class="chatbot-actions">
+                      <button class="chatbot-action-btn" @click="showVariantPicker(product)">Chọn màu/size</button>
+                      <button v-if="product.variants.length === 1" class="chatbot-action-btn primary" @click="addVariantToCart(product, product.variants[0])">Thêm giỏ</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -95,13 +102,30 @@
                 <p v-if="msg.data.short_description" class="pd-desc">{{ msg.data.short_description }}</p>
                 <div v-if="msg.data.variants && msg.data.variants.length" class="pd-variants">
                   <p class="pd-variants-title">Phiên bản:</p>
-                  <div v-for="(v, vi) in msg.data.variants.slice(0, 5)" :key="vi" class="pd-variant-row">
-                    <span class="pd-variant-name">{{ v.variant_name }}</span>
+                  <div v-for="(v, vi) in msg.data.variants.slice(0, 8)" :key="vi" class="pd-variant-row">
+                    <span class="pd-variant-name">{{ v.variant_name || [v.color, v.size].filter(Boolean).join(' / ') }}</span>
                     <span class="pd-variant-price">{{ v.price }}</span>
                     <span class="pd-variant-status" :class="v.stock > 0 ? 'in-stock' : 'out-stock'">{{ v.status }}</span>
+                    <button v-if="v.stock > 0" class="mini-add-btn" @click="addVariantToCart(msg.data, v)">Thêm</button>
                   </div>
                 </div>
-                <button v-if="msg.data.slug" class="pd-view-btn" @click="goToProduct(msg.data.slug)">Xem chi tiết sản phẩm</button>
+                <div class="chatbot-actions">
+                  <button v-if="msg.data.slug" class="pd-view-btn" @click="goToProduct(msg.data.slug)">Xem chi tiết sản phẩm</button>
+                  <button class="chatbot-action-btn" @click="getAddressesForOrder">Đặt hàng từ giỏ</button>
+                </div>
+              </div>
+
+              <!-- Variant Picker -->
+              <div v-if="msg.data && msg.type === 'variant_picker'" class="product-detail-card">
+                <h4 class="pd-name">Chọn màu/size cho {{ msg.data.name }}</h4>
+                <div class="pd-variants">
+                  <div v-for="variant in msg.data.variants" :key="variant.variant_id" class="pd-variant-row">
+                    <span class="pd-variant-name">{{ variant.variant_name || [variant.color, variant.size].filter(Boolean).join(' / ') }}</span>
+                    <span class="pd-variant-price">{{ variant.price }}</span>
+                    <span class="pd-variant-status" :class="variant.stock > 0 ? 'in-stock' : 'out-stock'">{{ variant.status }}</span>
+                    <button v-if="variant.stock > 0" class="mini-add-btn" @click="addVariantToCart(msg.data, variant)">Thêm</button>
+                  </div>
+                </div>
               </div>
 
               <!-- Order Card -->
@@ -152,13 +176,72 @@
                 </div>
               </div>
 
+              <!-- Cart Summary -->
+              <div v-if="msg.data && msg.type === 'cart_summary'" class="order-card chatbot-summary-card">
+                <div class="order-card-header">
+                  <span class="order-code">Giỏ hàng</span>
+                  <strong>{{ msg.data.total_price_formatted }}</strong>
+                </div>
+                <div class="order-card-body">
+                  <div v-for="item in msg.data.items?.slice(0, 4)" :key="item.cart_item_id" class="order-item-row">
+                    <span class="order-item-name">{{ item.product?.name }} {{ item.variant?.size ? `(${item.variant.size})` : '' }}</span>
+                    <span class="order-item-qty">x{{ item.quantity }}</span>
+                  </div>
+                  <button class="chatbot-action-btn primary full" @click="getAddressesForOrder">Đặt hàng từ giỏ</button>
+                </div>
+              </div>
+
+              <!-- Address Choices -->
+              <div v-if="msg.data && msg.type === 'get_my_addresses'" class="category-cards">
+                <div v-for="address in msg.data" :key="address.address_id" class="category-card">
+                  <div class="cat-info">
+                    <span class="cat-name">{{ address.recipient_name }} <small v-if="address.is_default">(Mặc định)</small></span>
+                    <span class="cat-count">{{ address.phone_masked }}</span>
+                  </div>
+                  <p class="address-summary">{{ address.summary }}</p>
+                  <button class="chatbot-action-btn primary full" @click="prepareOrder(address.address_id)">Giao tới địa chỉ này</button>
+                </div>
+              </div>
+
+              <!-- Order Preview -->
+              <div v-if="msg.data && msg.type === 'order_preview'" class="order-card chatbot-summary-card">
+                <div class="order-card-header">
+                  <span class="order-code">Xem trước đơn hàng</span>
+                  <strong>{{ msg.data.totals?.grand_total_formatted }}</strong>
+                </div>
+                <div class="order-card-body">
+                  <div v-for="item in msg.data.items" :key="item.cart_item_id" class="order-item-row">
+                    <span class="order-item-name">{{ item.name }} {{ item.size ? `(${item.size})` : '' }}</span>
+                    <span class="order-item-qty">x{{ item.quantity }}</span>
+                  </div>
+                  <div class="order-total"><span>Phí ship:</span><strong>{{ msg.data.totals?.shipping_fee_formatted }}</strong></div>
+                  <div class="order-total"><span>Thanh toán:</span><strong>{{ msg.data.payment_method_label || paymentMethodLabel(msg.data.payment_method) }}</strong></div>
+                  <div class="order-total"><span>Tổng:</span><strong>{{ msg.data.totals?.grand_total_formatted }}</strong></div>
+                  <p class="address-summary">Giao tới: {{ msg.data.address?.summary }}</p>
+                  <button class="chatbot-action-btn primary full" :disabled="confirmingOrder" @click="confirmOrder(msg.data.confirmation_token)">
+                    {{ confirmingOrder ? 'Đang xác nhận...' : 'Xác nhận đặt hàng' }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Order Confirmation -->
+              <div v-if="msg.data && msg.type === 'order_confirmation'" class="order-card chatbot-summary-card">
+                <div class="order-card-header">
+                  <span class="order-code">{{ msg.data.order_code }}</span>
+                  <span class="order-status status-confirmed">Đã tạo đơn</span>
+                </div>
+                <div class="order-card-body">
+                  <div class="order-total"><span>Tổng cộng:</span><strong>{{ formatCurrency(msg.data.grand_total) }}</strong></div>
+                </div>
+              </div>
+
             </div>
           </div>
 
           <!-- Typing indicator -->
           <div v-if="isTyping" class="message-item assistant">
             <div class="msg-avatar">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a56db" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 12c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0"/>
                 <path d="M2 17c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0" opacity="0.5"/>
               </svg>
@@ -230,6 +313,7 @@ const chatInput = ref(null);
 const mode = ref('ai'); // 'ai' or 'live'
 const sessionToken = ref(localStorage.getItem('ocean_live_chat_token') || '');
 const isConnecting = ref(false);
+const confirmingOrder = ref(false);
 let isConnectedLiveChat = false;
 
 /** Conversation history cho Gemini (role/parts format) */
@@ -327,12 +411,119 @@ function goToCategory(categoryName) {
 
 function formatMessage(text) {
   if (!text) return '';
-  // Basic markdown-like formatting
-  let formatted = text
+  const escaped = String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+  // Basic markdown-like formatting sau khi escape HTML để tránh AI/user chèn script
+  return escaped
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/\n/g, '<br/>');
-  return formatted;
+}
+
+function formatCurrency(value) {
+  const amount = Number(value || 0);
+  return amount.toLocaleString('vi-VN') + 'đ';
+}
+
+function paymentMethodLabel(method) {
+  if (method === 'bank_transfer') return 'Chuyển khoản ngân hàng';
+  return 'Thanh toán khi nhận hàng (COD)';
+}
+
+function pushAssistantMessage(content, type = 'text', data = null) {
+  messages.value.push({ role: 'assistant', content, type, data });
+  scrollToBottom();
+}
+
+function showVariantPicker(product) {
+  pushAssistantMessage(`Bạn chọn màu/size cho ${product.name} nhé.`, 'variant_picker', product);
+}
+
+function getAuthFriendlyMessage(error, fallback) {
+  if (error.response?.status === 401 || error.response?.data?.message === 'Unauthenticated.') {
+    return 'Bạn cần đăng nhập tài khoản khách hàng để thêm sản phẩm vào giỏ hàng hoặc đặt hàng.';
+  }
+  return error.response?.data?.message || fallback;
+}
+
+function goToLogin() {
+  isOpen.value = false;
+  router.push({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } });
+}
+
+async function addVariantToCart(product, variant) {
+  if (!variant?.variant_id || isTyping.value) return;
+  isTyping.value = true;
+  try {
+    const response = await api.post('/chatbot/cart/add', {
+      product_id: product.product_id,
+      variant_id: variant.variant_id,
+      quantity: 1,
+    });
+    const data = response.data;
+    pushAssistantMessage(data.message || 'Đã thêm sản phẩm vào giỏ hàng.', data.type || 'cart_summary', data.data);
+    window.dispatchEvent(new Event('cart-updated'));
+  } catch (error) {
+    const message = getAuthFriendlyMessage(error, 'Sản phẩm hiện không khả dụng hoặc không thể thêm vào giỏ hàng.');
+    const type = error.response?.status === 401 ? 'requires_login' : (error.response?.data?.type || 'error');
+    pushAssistantMessage(message, type, null);
+  } finally {
+    isTyping.value = false;
+  }
+}
+
+async function getAddressesForOrder() {
+  if (isTyping.value) return;
+  isTyping.value = true;
+  try {
+    const response = await api.get('/chatbot/addresses');
+    const data = response.data;
+    pushAssistantMessage(data.message, data.type || 'get_my_addresses', data.data);
+  } catch (error) {
+    const message = getAuthFriendlyMessage(error, 'Giỏ hàng của bạn đang trống hoặc chưa có sản phẩm được chọn để thanh toán.');
+    const type = error.response?.status === 401 ? 'requires_login' : 'error';
+    pushAssistantMessage(message, type, null);
+  } finally {
+    isTyping.value = false;
+  }
+}
+
+async function prepareOrder(addressId) {
+  if (isTyping.value) return;
+  isTyping.value = true;
+  try {
+    const response = await api.post('/chatbot/order/prepare', {
+      address_id: addressId,
+      payment_method: 'cod',
+    });
+    const data = response.data;
+    pushAssistantMessage(data.message || 'Vui lòng kiểm tra đơn hàng trước khi xác nhận.', data.type || 'order_preview', data.data);
+  } catch (error) {
+    const message = getAuthFriendlyMessage(error, 'Không thể chuẩn bị đơn hàng. Vui lòng kiểm tra giỏ hàng và địa chỉ.');
+    pushAssistantMessage(message, error.response?.status === 401 ? 'requires_login' : 'error', null);
+  } finally {
+    isTyping.value = false;
+  }
+}
+
+async function confirmOrder(token) {
+  if (!token || confirmingOrder.value) return;
+  confirmingOrder.value = true;
+  try {
+    const response = await api.post('/chatbot/order/confirm', { confirmation_token: token });
+    const data = response.data;
+    pushAssistantMessage(data.message || 'Đặt hàng thành công!', data.type || 'order_confirmation', data.data);
+    window.dispatchEvent(new Event('cart-updated'));
+  } catch (error) {
+    const message = getAuthFriendlyMessage(error, 'Không thể xác nhận đơn hàng. Vui lòng tạo lại bản xem trước.');
+    pushAssistantMessage(message, error.response?.status === 401 ? 'requires_login' : 'error', null);
+  } finally {
+    confirmingOrder.value = false;
+  }
 }
 
 function sendQuickAction(text) {
@@ -531,7 +722,7 @@ async function sendMessage() {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #1a56db 0%, #3b82f6 50%, #06b6d4 100%);
+  background: linear-gradient(135deg, #E63B6F 0%, #ff6b8b 50%, #b50c4d 100%);
   border: none;
   cursor: pointer;
   display: flex;
@@ -539,8 +730,8 @@ async function sendMessage() {
   justify-content: center;
   color: #fff;
   box-shadow:
-    0 4px 20px rgba(26, 86, 219, 0.4),
-    0 0 0 0 rgba(26, 86, 219, 0.3);
+    0 4px 20px rgba(230, 59, 111, 0.4),
+    0 0 0 0 rgba(230, 59, 111, 0.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   animation: bubble-pulse 2s ease-in-out infinite;
@@ -548,7 +739,7 @@ async function sendMessage() {
 
 .chatbot-bubble:hover {
   transform: scale(1.1);
-  box-shadow: 0 6px 28px rgba(26, 86, 219, 0.5);
+  box-shadow: 0 6px 28px rgba(230, 59, 111, 0.5);
 }
 
 .chatbot-bubble.is-open {
@@ -558,8 +749,8 @@ async function sendMessage() {
 }
 
 @keyframes bubble-pulse {
-  0%, 100% { box-shadow: 0 4px 20px rgba(26, 86, 219, 0.4), 0 0 0 0 rgba(26, 86, 219, 0.3); }
-  50% { box-shadow: 0 4px 20px rgba(26, 86, 219, 0.4), 0 0 0 12px rgba(26, 86, 219, 0); }
+  0%, 100% { box-shadow: 0 4px 20px rgba(230, 59, 111, 0.4), 0 0 0 0 rgba(230, 59, 111, 0.3); }
+  50% { box-shadow: 0 4px 20px rgba(230, 59, 111, 0.4), 0 0 0 12px rgba(230, 59, 111, 0); }
 }
 
 .unread-dot {
@@ -623,7 +814,7 @@ async function sendMessage() {
 
 /* ==================== HEADER ==================== */
 .chat-header {
-  background: linear-gradient(135deg, #1a56db 0%, #2563eb 60%, #06b6d4 100%);
+  background: linear-gradient(135deg, #E63B6F 0%, #ff6b8b 60%, #b50c4d 100%);
   padding: 16px 20px;
   display: flex;
   align-items: center;
@@ -751,7 +942,7 @@ async function sendMessage() {
 }
 
 .msg-bubble.user {
-  background: linear-gradient(135deg, #1a56db, #2563eb);
+  background: linear-gradient(135deg, #E63B6F, #b50c4d);
   color: #fff;
   border-bottom-right-radius: 4px;
 }
@@ -785,10 +976,10 @@ async function sendMessage() {
   transition: all 0.2s;
 }
 .product-card:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
+  background: #fff0f3;
+  border-color: #ffb2bf;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(26, 86, 219, 0.08);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.08);
 }
 
 .product-card-img {
@@ -833,6 +1024,66 @@ async function sendMessage() {
   margin-top: 4px;
 }
 
+.chatbot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chatbot-action-btn,
+.mini-add-btn {
+  border: 1px solid #fecdd3;
+  background: #fff;
+  color: #E63B6F;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chatbot-action-btn:hover,
+.mini-add-btn:hover {
+  background: #fff0f3;
+  border-color: #fb7185;
+}
+
+.chatbot-action-btn.primary {
+  background: #E63B6F;
+  border-color: #E63B6F;
+  color: #fff;
+}
+
+.chatbot-action-btn.full {
+  width: 100%;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.chatbot-action-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.mini-add-btn {
+  flex-shrink: 0;
+  padding: 4px 8px;
+}
+
+.address-summary {
+  margin: 6px 0 8px;
+  font-size: 0.76rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.chatbot-summary-card {
+  margin-top: 10px;
+}
+
 /* ==================== ORDER CARDS ==================== */
 .order-cards {
   display: flex;
@@ -860,7 +1111,7 @@ async function sendMessage() {
 .order-code {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .order-status {
@@ -1028,19 +1279,19 @@ async function sendMessage() {
 }
 .quick-toggle-btn:hover {
   border-color: #93c5fd;
-  color: #1a56db;
+  color: #E63B6F;
   background: #eff6ff;
 }
 .quick-toggle-btn.active {
-  border-color: #1a56db;
-  color: #1a56db;
+  border-color: #E63B6F;
+  color: #E63B6F;
   background: #eff6ff;
 }
 
 .quick-action-btn:hover {
   background: #eff6ff;
   border-color: #93c5fd;
-  color: #1a56db;
+  color: #E63B6F;
 }
 
 .quick-icon {
@@ -1076,7 +1327,7 @@ async function sendMessage() {
 }
 
 .chat-input:focus {
-  border-color: #1a56db;
+  border-color: #E63B6F;
   background: #fff;
 }
 
@@ -1088,7 +1339,7 @@ async function sendMessage() {
   height: 40px;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, #1a56db, #2563eb);
+  background: #E63B6F;
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -1099,7 +1350,7 @@ async function sendMessage() {
 }
 
 .chat-send-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1e40af, #1a56db);
+  background: #C4305D;
   transform: scale(1.05);
 }
 
@@ -1208,7 +1459,7 @@ async function sendMessage() {
   width: 100%;
   padding: 10px;
   border: none;
-  background: linear-gradient(135deg, #1a56db, #2563eb);
+  background: #E63B6F;
   color: #fff;
   font-size: 0.82rem;
   font-weight: 600;
@@ -1217,7 +1468,7 @@ async function sendMessage() {
   transition: background 0.2s;
 }
 .pd-view-btn:hover {
-  background: linear-gradient(135deg, #1e40af, #1a56db);
+  background: #C4305D;
 }
 
 /* ==================== CATEGORY CARDS ==================== */
@@ -1270,7 +1521,7 @@ async function sendMessage() {
 
 .cat-child-tag {
   font-size: 0.7rem;
-  color: #1a56db;
+  color: #E63B6F;
   background: #dbeafe;
   padding: 2px 8px;
   border-radius: 10px;

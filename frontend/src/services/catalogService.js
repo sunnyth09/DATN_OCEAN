@@ -5,8 +5,8 @@ export const extractCollection = (response) => {
 };
 
 export const catalogService = {
-  listProducts(params = {}) {
-    return api.get('/products', { params });
+  listProducts(params = {}, config = {}) {
+    return api.get('/products', { ...config, params });
   },
 
   listCategories() {
@@ -24,5 +24,17 @@ export const catalogService = {
         search,
       },
     });
+  },
+
+  viewProduct(productId) {
+    return api.post('/tracking/view-product', { product_id: productId });
+  },
+
+  getRecentlyViewed() {
+    return api.get('/tracking/recently-viewed');
+  },
+
+  getSearchHistory() {
+    return api.get('/tracking/search-history');
   },
 };

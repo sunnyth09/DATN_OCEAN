@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('password_resets_otp', function (Blueprint $table) {
             $table->id();
             $table->string('email')->index();
-            $table->string('otp', 6);
+            $table->string('otp', 255);
             $table->timestamp('expires_at');
             $table->timestamp('created_at')->nullable();
         });
