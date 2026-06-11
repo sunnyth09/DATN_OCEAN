@@ -22,6 +22,10 @@ class PaymentGatewayService
             return $this->handleMoMo($order);
         }
 
+        if ($paymentMethod === 'bank_transfer') {
+            return $this->handleBanking($order);
+        }
+
         return [
             'type' => 'normal',
             'body' => null,
@@ -110,5 +114,49 @@ class PaymentGatewayService
                 ],
             ];
         }
+    }
+
+    private function handleBanking($order): array
+    {
+        // Lấy thông tin tài khoản ngân hàng từ .env hoặc config
+        $bankBin  = env('BANK_BIN');
+        $bankAccount = env('BANK_ACCOUNT_NUMBER');
+        $accountName  = env('BANK_ACCOUNT_NAME');
+        $amount   = (int) $order->grand_total;
+        $orderCode = $order->order_code;
+
+        // VietQR API: https://img.vietqr.io/image/{BANK_BIN}-{ACCOUNT}-{template}.png
+        $qrUrl = "https://img.vietqr.io/image/{$bankBin}-{$bankAccount}-compact2.png"
+            . "?amount={$amount}"
+            . "&addInfo=" . urlencode($orderCode)
+            . "&accountName=" . urlencode($accountName);
+
+        $this->paymentRepository->create([
+            'order_id'       => $order->order_id,
+            'payment_method' => 'bank_transfer',
+            'amount'         => $order->grand_total,
+            'status'         => 'pending',
+        ]);
+
+        return [
+            'type' => 'redirect',
+            'body' => [
+                'status'         => 'success',
+                'message'        => 'Đơn hàng đã tạo. Vui lòng chuyển khoản để hoàn tất.',
+                'payment_method' => 'bank_transfer',
+                'banking_info'   => [
+                    'bank_bin'       => $bankBin,
+                    'account_number' => $bankAccount,
+                    'account_name'   => $accountName,
+                    'amount'         => $amount,
+                    'order_code'     => $orderCode,
+                    'qr_url'         => $qrUrl,
+                ],
+                'data' => [
+                    'order_code'  => $order->order_code,
+                    'grand_total' => $order->grand_total,
+                ],
+            ],
+        ];
     }
 }

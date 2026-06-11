@@ -20,14 +20,22 @@ class CourtBookingRealtimeEvent implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        $date = $this->payload['booking_date'] ?? now()->toDateString();
+        $date    = $this->payload['booking_date'] ?? now()->toDateString();
         $courtId = $this->payload['court_id'] ?? 'all';
+        $userId  = $this->payload['user_id'] ?? null;
 
-        return [
+        $channels = [
             new PrivateChannel("court-booking.{$date}"),
             new PrivateChannel("court-booking.court.{$courtId}.{$date}"),
             new PrivateChannel('admin-notifications'),
         ];
+
+        // Gửi thêm vào user private channel để user nhận thông báo realtime
+        if ($userId) {
+            $channels[] = new PrivateChannel("user.{$userId}");
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string

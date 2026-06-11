@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
+use Illuminate\Notifications\Notifiable;
 
 class Admin extends Authenticatable implements JWTSubject
 {
+    use Notifiable;
+
     protected $table = 'admins';
     protected $primaryKey = 'admin_id';
 

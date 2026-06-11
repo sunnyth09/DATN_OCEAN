@@ -252,7 +252,7 @@ const login = async () => {
         </div>
 
         <!-- RIGHT: Full Coverage Image Tile -->
-        <div class="auth-art-column" style="background-image: url('/images/ocean_bg.png');">
+        <div class="auth-art-column" style="background-image: url('/images/image_loginpage.png');">
            <!-- Image acts as cover background instead of floating element -->
         </div>
 

@@ -6,6 +6,24 @@ import ProductCard from "../../../components/ProductCard.vue";
 import ProductSkeleton from "../../../components/ProductSkeleton.vue";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
+import BaseSlider from '@/components/BaseSlider.vue'
+import { useSwiperOptions } from '@/composables/useSwiperOptions'
+
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
+
+
+const bannerOptions = useSwiperOptions({
+  slidesPerView: 1,
+  effect: 'fade'
+})
+
+const banners = [
+  {
+    id: 1,
+    title: 'Banner 1',
+    image: `${BASE_URL}/storage/banners/banner_1.jpg`
+  },
+]
 
 const router = useRouter();
 const Products = ref([]);
@@ -15,7 +33,6 @@ const isLoadingCategories = ref(true);
 const catalogStore = useCatalogStore();
 const { categories: storeCategories } = storeToRefs(catalogStore);
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
 
 const getImageUrl = (path) => {
     if (!path || path === '0') return '';
@@ -42,7 +59,9 @@ const mapProduct = (item) => {
     return {
         id: item.product_id, name: item.name,
         price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(currentPrice),
+        min_price: currentPrice,
         originalPrice: originalPrice ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(originalPrice) : null,
+        original_price: originalPrice,
         discount_percent: maxDiscount, is_on_sale: lowest?.is_on_sale || false,
         image: getImageUrl(item.thumbnail_url || item.mainImage?.image_url || null),
         badge: item.is_featured ? "Hot" : (maxDiscount > 0 ? "Sale" : null),
@@ -94,7 +113,6 @@ const featuredProduct = computed(() => {
 
 const catIcons = ['👟','🎒','⌚','👔','👗','🏃','🏷️'];
 const getCatIcon = (idx) => catIcons[idx % catIcons.length];
-const APP_URL = import.meta.env.VITE_API_URL || 'http://localhost:8383/';
 
 onMounted(() => {
     fetchCategories();
@@ -110,7 +128,7 @@ onMounted(() => {
         ══════════════════════════════════════════ -->
         <section class="hero-section">
             <div class="hero-bg">
-                <img :src="APP_URL + '/storage/banners/banner.png'" alt="hero" class="hero-bg-img" />
+                <img :src="BASE_URL + '/storage/banners/banner_1.jpg'" alt="hero" class="hero-bg-img" />
                 <div class="hero-overlay"></div>
             </div>
             <div class="hero-content">

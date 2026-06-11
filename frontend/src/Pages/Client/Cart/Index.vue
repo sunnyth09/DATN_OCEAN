@@ -6,6 +6,8 @@ import Swal from 'sweetalert2';
 import FreeshipBar from '@/components/FreeshipBar.vue';
 import QuickAddSlider from '@/components/QuickAddSlider.vue';
 import { useCartUpsell } from '@/composables/useCartUpsell';
+import { productService } from '@/services/productService';
+import ProductCard from '@/components/ProductCard.vue';
 
 const router = useRouter();
 const cartItems = ref([]);
@@ -333,6 +335,19 @@ const proceedToCheckout = () => {
     router.push('/checkout');
 };
 
+const productRelated = ref([]);
+const getProductRelated = async () => {
+    try {
+        productRelated.value = await productService.getProductRelated();
+    } catch (error) {
+        console.error('Lỗi khi lấy danh sách sản phẩm liên quan:', error);
+    }
+};
+
+onMounted(() => {
+    getProductRelated();
+});
+
 // Đồng bộ totalPrice → shared composable (FreeshipBar phản ứng realtime)
 watch(totalPrice, (val) => {
     setTotalPrice(val);
@@ -617,6 +632,21 @@ onUnmounted(() => {
             </div>
         </Transition>
     </Teleport>
+
+    <section>
+        <h2>Có thể bạn cũng quan tâm</h2>
+        <div class="container mb-5" v-if="productRelated.length">
+            <div class="row mt-3">
+                <div class="col-lg-3 mt-4" v-for="product in productRelated" :key="product.id">
+                    <ProductCard :product="product" :rows="3"/>
+                </div>
+            </div>
+        </div>
+        <div v-else class="empty-state">
+            <p>Không có sản phẩm liên quan</p>
+        </div>
+
+    </section>
 </template>
 
 <style scoped>

@@ -14,13 +14,13 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         // Verify Cloudflare Turnstile
-        // $turnstileToken = $request->input('turnstile_token');
-        // if (!$this->verifyTurnstile($turnstileToken)) {
-        //     return response()->json([
-        //         'status' => 'error',
-        //         'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
-        //     ], 422);
-        // }
+        $turnstileToken = $request->input('turnstile_token');
+        if (!$this->verifyTurnstile($turnstileToken)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+            ], 422);
+        }
 
         $result = $this->authService->register($request->all());
         $status = $result['_status'] ?? 200;
@@ -31,11 +31,56 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $result = $this->authService->login($request->all());
-        $status = $result['_status'] ?? 200;
-        unset($result['_status']);
+        // Verify Cloudflare Turnstile
+        $turnstileToken = $request->input('turnstile_token');
+        if (!$this->verifyTurnstile($turnstileToken)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+            ], 422);
+        }
 
-        return response()->json($result, $status);
+        $credentials = $request->only('email', 'password');
+
+        // BƯỚC 1: Thử đăng nhập Admin (nhân sự) trước
+        $adminToken = auth('admin')->attempt($credentials);
+        \Illuminate\Support\Facades\Log::info("Admin attempt result", ['token' => (bool)$adminToken]);
+        if ($adminToken) {
+            $user = auth('admin')->user();
+            if (isset($user->status) && $user->status !== 'active') {
+                auth('admin')->logout();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'
+                ], 403);
+            }
+            return $this->respondWithToken($adminToken, 'admin');
+        }
+
+        // BƯỚC 2: Thử đăng nhập Customer
+        if ($token = auth('api')->attempt($credentials)) {
+            $user = auth('api')->user();
+            if (isset($user->status) && $user->status !== 'active') {
+                auth('api')->logout();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'
+                ], 403);
+            }
+            if ($user->deleted_at !== null) {
+                auth('api')->logout();
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tài khoản của bạn đã bị xóa khỏi hệ thống!'
+                ], 403);
+            }
+            return $this->respondWithToken($token, 'customer');
+        }
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Email hoặc mật khẩu không chính xác!'
+        ], 401);
     }
 
     protected function respondWithToken($token, $guardType)

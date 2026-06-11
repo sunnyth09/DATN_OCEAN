@@ -29,6 +29,9 @@ class Attendance extends Model
         'wifi_bssid',
         'image_path',
         'check_out_image_path',
+        'face_verified',
+        'face_confidence',
+        'face_distance',
         'status',
         'is_flagged',
         'flag_note',
@@ -49,6 +52,9 @@ class Attendance extends Model
             'check_out_longitude'      => 'float',
             'check_out_accuracy'       => 'float',
             'check_out_distance_meters' => 'float',
+            'face_verified'            => 'boolean',
+            'face_confidence'          => 'float',
+            'face_distance'            => 'float',
             'is_flagged'               => 'boolean',
         ];
     }

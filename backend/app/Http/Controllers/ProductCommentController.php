@@ -21,60 +21,58 @@ class ProductCommentController extends Controller
             'content' => 'nullable|string|max:1000',
             'product_id' => 'required|exists:products,product_id',
             'order_item_id' => 'required|exists:order_items,order_item_id',
+            'images' => 'nullable|array|max:5',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        ],[
+            'rating.required' => 'Vui lòng nhập đánh giá',
+            'rating.integer' => 'Đánh giá phải là số nguyên',
+            'rating.min' => 'Đánh giá phải từ 1 đến 5 sao',
+            'rating.max' => 'Đánh giá phải từ 1 đến 5 sao',
+            'content.max' => 'Nội dung đánh giá không được vượt quá 1000 ký tự',
+            'product_id.required' => 'Vui lòng chọn sản phẩm',
+            'product_id.exists' => 'Sản phẩm không tồn tại',
+            'order_item_id.required' => 'Vui lòng chọn đơn hàng',
+            'order_item_id.exists' => 'Đơn hàng không tồn tại',
+            'images.max' => 'Chỉ được tải lên tối đa 5 ảnh',
+            'images.*.image' => 'Ảnh phải là định dạng ảnh',
+            'images.*.mimes' => 'Ảnh phải có định dạng jpeg, png, jpg, gif, webp',
+            'images.*.max' => 'Ảnh không được vượt quá 2MB',
         ]);
 
-        $userId = auth('api')->id();
-        $commenterType = 'user';
-        if (!$userId && auth('admin')->check()) {
-            $userId = auth('admin')->user()->getKey();
-            $commenterType = 'admin';
-        }
+        $userId = auth('api')->user()?->user_id;
         if (!$userId) {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
-        // Verify that the order item belongs to the user and is completed
+        // Verify order item
         $orderItem = OrderItem::with('order')->find($request->order_item_id);
-        
+
         if (!$orderItem) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy OrderItem trong DB.'], 404);
         }
-        if ($orderItem->order->user_id !== $userId) {
-            return response()->json(['status' => 'error', 'message' => 'Sản phẩm không thuộc đơn hàng của bạn.'], 403);
-        }
 
-        $validStatuses = ['completed', 'delivered'];
-        if (!in_array($orderItem->order->fulfillment_status, $validStatuses)) {
-             return response()->json([
-                 'status' => 'error', 
-                 'message' => 'Chỉ có thể đánh giá đơn hàng đã hoàn thành. Trạng thái hiện tại: ' . $orderItem->order->fulfillment_status
-             ], 400);
-        }
+        // Policy kiểm tra: ownership + order completed + chưa review
+        // Array syntax: [ModelClass, $argument] → Laravel resolve sang ProductCommentPolicy::create($user, $orderItem)
+        $this->authorize('create', [\App\Models\ProductComment::class, $orderItem]);
 
-        // Verify product matches
+        // Verify product matches item
         if ($orderItem->product_id != $request->product_id) {
             return response()->json([
-                'status' => 'error', 
-                'message' => 'Sản phẩm không khớp với đơn hàng. Tham số truyền lên: ' . $request->product_id . ', trong DB: ' . $orderItem->product_id
+                'status'  => 'error',
+                'message' => 'Sản phẩm không khớp với đơn hàng. Tham số truyền lên: ' . $request->product_id . ', trong DB: ' . $orderItem->product_id,
             ], 400);
-        }
-
-        // Check if already reviewed
-        $existing = ProductComment::where('order_item_id', $request->order_item_id)->first();
-        if ($existing) {
-            return response()->json(['status' => 'error', 'message' => 'Bạn đã đánh giá sản phẩm này trong đơn hàng rồi.'], 400);
         }
 
         DB::beginTransaction();
         try {
             $comment = ProductComment::create([
-                'product_id' => $request->product_id,
-                'user_id' => $userId,
-                'commenter_type' => $commenterType,
-                'order_item_id' => $request->order_item_id,
-                'rating' => $request->rating,
-                'content' => $request->content,
-                'is_approved' => 0,
+                'product_id'     => $request->product_id,
+                'user_id'        => $userId,
+                'commenter_type' => 'user',
+                'order_item_id'  => $request->order_item_id,
+                'rating'         => $request->rating,
+                'content'        => $request->content,
+                'is_approved'    => 0,
             ]);
 
             // Recalculate average rating for the product using approved comments
@@ -188,6 +186,8 @@ class ProductCommentController extends Controller
      */
     public function approve($id)
     {
+        $this->authorize('moderate', ProductComment::class); // Admin/Staff only
+
         $comment = ProductComment::findOrFail($id);
         $comment->is_approved = 1;
         $comment->save();
@@ -202,6 +202,8 @@ class ProductCommentController extends Controller
      */
     public function reject($id)
     {
+        $this->authorize('moderate', ProductComment::class); // Admin/Staff only
+
         $comment = ProductComment::findOrFail($id);
         $comment->is_approved = 0;
         $comment->save();
@@ -216,6 +218,8 @@ class ProductCommentController extends Controller
      */
     public function destroy($id)
     {
+        $this->authorize('delete', ProductComment::class); // Admin/Staff via Policy before(); customer via policy
+
         $comment = ProductComment::findOrFail($id);
         $productId = $comment->product_id;
         $comment->delete();

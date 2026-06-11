@@ -8,11 +8,17 @@ use App\Models\CourtBooking;
 use App\Models\CourtBookingStatusHistory;
 use App\Models\CourtBookingExtension;
 use App\Models\CourtBookingService;
+use App\Models\CourtBookingPayment;
 use App\Models\CourtService;
 use App\Models\Court;
+use App\Models\CourtPrice;
 use App\Services\CourtBookingWorkflowService;
+use App\Mail\CourtBookingConfirmedMail;
+use App\Mail\CourtBookingCancelledMail;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class CourtBookingAdminController extends Controller
 {
@@ -57,6 +63,9 @@ class CourtBookingAdminController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('booking_code', 'like', "%$search%")
+                  ->orWhere('customer_name', 'like', "%$search%")
+                  ->orWhere('customer_phone', 'like', "%$search%")
+                  ->orWhere('customer_email', 'like', "%$search%")
                   ->orWhereHas('user', function ($uq) use ($search) {
                       $uq->where('full_name', 'like', "%$search%")
                          ->orWhere('phone', 'like', "%$search%");
@@ -66,8 +75,8 @@ class CourtBookingAdminController extends Controller
 
         $bookings = $query->paginate($request->per_page ?? 20);
 
-        return response()->json([
-            'status' => 'success',
+            return response()->json([
+                'status' => 'success',
             'data' => $bookings
         ]);
     }
@@ -84,6 +93,9 @@ class CourtBookingAdminController extends Controller
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'payment_method' => 'nullable|in:cash,vnpay,momo,bank_transfer,pos_card,pos_transfer',
+            'customer_name' => 'nullable|string|max:120',
+            'customer_phone' => 'nullable|string|max:30',
+            'customer_email' => 'nullable|email|max:120',
             'note' => 'nullable|string|max:500',
         ]);
 
@@ -162,6 +174,9 @@ class CourtBookingAdminController extends Controller
                 'court_id' => $validated['court_id'],
                 'user_id' => $validated['user_id'] ?? null,
                 'staff_id' => auth()->guard('admin')->id(),
+                'customer_name' => $validated['customer_name'] ?? null,
+                'customer_phone' => $validated['customer_phone'] ?? null,
+                'customer_email' => $validated['customer_email'] ?? null,
                 'booking_date' => $validated['booking_date'],
                 'start_time' => $startTime,
                 'end_time' => $endTime,
@@ -228,26 +243,44 @@ class CourtBookingAdminController extends Controller
             ], 400);
         }
 
-        $oldStatus = $booking->status;
-        $booking->status = 'confirmed';
-        $booking->confirmed_at = now();
-        $booking->save();
-        $this->workflowService->logActivity('booking.confirmed', $booking, ['status' => $oldStatus], ['status' => 'confirmed'], 'admin', auth()->guard('admin')->id(), $request);
-        $this->workflowService->broadcast('CourtBookingStatusChanged', $booking, ['old_status' => $oldStatus, 'new_status' => 'confirmed']);
+        $booking = $this->workflowService->transition(
+            $booking,
+            'confirmed',
+            'admin',
+            auth()->guard('admin')->id(),
+            $request->note ?? 'Admin xac nhan booking',
+            ['confirmed_at' => now()],
+            $request
+        );
 
+        /*
         CourtBookingStatusHistory::create([
             'booking_id' => $booking->booking_id,
             'old_status' => $oldStatus,
             'new_status' => 'confirmed',
-            'note' => $request->note ?? 'Admin xác nhận booking',
+            'note'       => $request->note ?? 'Admin xác nhận booking',
             'actor_type' => 'admin',
-            'actor_id' => auth()->guard('admin')->id(),
+            'actor_id'   => auth()->guard('admin')->id(),
         ]);
+        */
+
+        // Gửi email xác nhận cho khách hàng
+        $booking->loadMissing(['user', 'court']);
+        if ($booking->user?->email) {
+            try {
+                Mail::to($booking->user->email)->queue(new CourtBookingConfirmedMail($booking));
+            } catch (\Exception $e) {
+                Log::warning('Failed to queue booking confirmed mail', [
+                    'booking_id' => $booking->booking_id,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
+        }
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Xác nhận booking thành công.',
-            'data' => $booking
+            'data'    => $booking,
         ]);
     }
 
@@ -258,7 +291,7 @@ class CourtBookingAdminController extends Controller
     {
         $booking = CourtBooking::findOrFail($id);
 
-        if (!in_array($booking->status, ['pending', 'confirmed'])) {
+        if ($booking->status !== 'confirmed') {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Booking phải ở trạng thái "Chờ duyệt" hoặc "Đã xác nhận" để check-in.'
@@ -271,13 +304,17 @@ class CourtBookingAdminController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
 
-        $oldStatus = $booking->status;
-        $booking->status = 'checked_in';
-        $booking->checked_in_at = now();
-        $booking->save();
-        $this->workflowService->logActivity('booking.checked_in', $booking, ['status' => $oldStatus], ['status' => 'checked_in'], 'admin', auth()->guard('admin')->id(), $request);
-        $this->workflowService->broadcast('CourtBookingStatusChanged', $booking, ['old_status' => $oldStatus, 'new_status' => 'checked_in']);
+        $booking = $this->workflowService->transition(
+            $booking,
+            'checked_in',
+            'admin',
+            auth()->guard('admin')->id(),
+            'Check-in nhan san',
+            ['checked_in_at' => now()],
+            $request
+        );
 
+        /*
         CourtBookingStatusHistory::create([
             'booking_id' => $booking->booking_id,
             'old_status' => $oldStatus,
@@ -286,6 +323,7 @@ class CourtBookingAdminController extends Controller
             'actor_type' => 'admin',
             'actor_id' => auth()->guard('admin')->id(),
         ]);
+        */
 
         return response()->json([
             'status' => 'success',
@@ -300,6 +338,11 @@ class CourtBookingAdminController extends Controller
     public function checkOut(Request $request, $id)
     {
         $booking = CourtBooking::with(['services', 'extensions'])->findOrFail($id);
+        $validated = $request->validate([
+            'payment_method' => 'nullable|in:cash,bank_transfer,pos_card,pos_transfer',
+            'transaction_code' => 'nullable|string|max:120',
+            'note' => 'nullable|string|max:255',
+        ]);
 
         if (!in_array($booking->status, ['checked_in', 'playing', 'extended'])) {
             return response()->json([
@@ -308,29 +351,71 @@ class CourtBookingAdminController extends Controller
             ], 400);
         }
 
-        $oldStatus = $booking->status;
-        $booking->status = 'completed';
-        $booking->checked_out_at = now();
-        $booking->payment_status = 'paid';
-        $booking->paid_amount = $booking->total_amount;
-        $booking->save();
-        $this->workflowService->logActivity('booking.completed', $booking, ['status' => $oldStatus], ['status' => 'completed'], 'admin', auth()->guard('admin')->id(), $request);
-        $this->workflowService->broadcast('CourtBookingStatusChanged', $booking, ['old_status' => $oldStatus, 'new_status' => 'completed']);
+        $remaining = (int) $booking->total_amount - (int) $booking->paid_amount;
+        if ($remaining > 0 && empty($validated['payment_method'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Booking con tien chua thanh toan. Vui long chon phuong thuc thu tien truoc khi check-out.',
+                'amount_due' => $remaining,
+            ], 422);
+        }
 
-        CourtBookingStatusHistory::create([
-            'booking_id' => $booking->booking_id,
-            'old_status' => $oldStatus,
-            'new_status' => 'completed',
-            'note' => 'Check-out trả sân & thanh toán',
-            'actor_type' => 'admin',
-            'actor_id' => auth()->guard('admin')->id(),
-        ]);
+        return DB::transaction(function () use ($booking, $request, $validated) {
+            $booking = CourtBooking::whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
+            $oldStatus = $booking->status;
+            $remaining = (int) $booking->total_amount - (int) $booking->paid_amount;
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Check-out thành công.',
-            'data' => $booking
-        ]);
+            // Nếu còn tiền chưa thanh toán → tự động ghi nhận thanh toán tiền mặt khi trả sân
+            if ($remaining > 0) {
+                CourtBookingPayment::create([
+                    'booking_id'       => $booking->booking_id,
+                    'payment_type'     => 'full',
+                    'payment_method'   => $validated['payment_method'],
+                    'transaction_code' => $validated['transaction_code'] ?? 'CHECKOUT-' . $booking->booking_code . '-' . now()->format('His'),
+                    'amount'           => $remaining,
+                    'status'           => 'success',
+                    'paid_at'          => now(),
+                    'note'             => 'Thanh toán khi check-out',
+                    'processed_by'     => auth()->guard('admin')->id(),
+                ]);
+                $booking->paid_amount = $booking->total_amount;
+                $booking->payment_method = $validated['payment_method'];
+            }
+
+            $booking->status = 'completed';
+            $booking->checked_out_at = now();
+            $booking->payment_status = 'paid';
+            $booking->save();
+
+            $this->workflowService->logActivity(
+                'booking.completed',
+                $booking,
+                ['status' => $oldStatus],
+                ['status' => 'completed', 'paid_amount' => $booking->paid_amount],
+                'admin',
+                auth()->guard('admin')->id(),
+                $request
+            );
+            $this->workflowService->broadcast('CourtBookingStatusChanged', $booking, [
+                'old_status' => $oldStatus,
+                'new_status' => 'completed',
+            ]);
+
+            CourtBookingStatusHistory::create([
+                'booking_id' => $booking->booking_id,
+                'old_status' => $oldStatus,
+                'new_status' => 'completed',
+                'note'       => 'Check-out trả sân & thanh toán',
+                'actor_type' => 'admin',
+                'actor_id'   => auth()->guard('admin')->id(),
+            ]);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Check-out thành công.',
+                'data'    => $booking->load(['payments']),
+            ]);
+        });
     }
 
     /**
@@ -346,30 +431,33 @@ class CourtBookingAdminController extends Controller
             'note' => 'nullable|string'
         ]);
 
-        $service = CourtService::findOrFail($validated['service_id']);
-        $subtotal = $service->unit_price * $validated['quantity'];
+        return DB::transaction(function () use ($booking, $validated, $request) {
+            $booking = CourtBooking::whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
+            $service = CourtService::findOrFail($validated['service_id']);
+            $subtotal = $service->unit_price * $validated['quantity'];
 
-        $bookingService = CourtBookingService::create([
-            'booking_id' => $booking->booking_id,
-            'service_id' => $service->service_id,
-            'quantity' => $validated['quantity'],
-            'unit_price' => $service->unit_price,
-            'subtotal' => $subtotal,
-            'note' => $validated['note'] ?? null,
-            'added_by' => auth()->guard('admin')->id(),
-        ]);
+            $bookingService = CourtBookingService::create([
+                'booking_id' => $booking->booking_id,
+                'service_id' => $service->service_id,
+                'quantity' => $validated['quantity'],
+                'unit_price' => $service->unit_price,
+                'subtotal' => $subtotal,
+                'note' => $validated['note'] ?? null,
+                'added_by' => auth()->guard('admin')->id(),
+            ]);
 
-        $booking->service_amount += $subtotal;
-        $booking->total_amount += $subtotal;
-        $booking->save();
-        $this->workflowService->logActivity('booking.service.added', $booking, null, $bookingService->toArray(), 'admin', auth()->guard('admin')->id(), $request);
-        $this->workflowService->broadcast('CourtBookingServiceAdded', $booking, ['service_amount' => $booking->service_amount, 'total_amount' => $booking->total_amount]);
+            $booking->service_amount += $subtotal;
+            $booking->total_amount += $subtotal;
+            $booking->save();
+            $this->workflowService->logActivity('booking.service.added', $booking, null, $bookingService->toArray(), 'admin', auth()->guard('admin')->id(), $request);
+            $this->workflowService->broadcast('CourtBookingServiceAdded', $booking, ['service_amount' => $booking->service_amount, 'total_amount' => $booking->total_amount]);
 
         return response()->json([
             'status' => 'success',
             'message' => 'Thêm dịch vụ thành công.',
-            'data' => $bookingService->load('service')
-        ]);
+                'data' => $bookingService->load('service')
+            ]);
+        });
     }
 
     /**
@@ -382,6 +470,9 @@ class CourtBookingAdminController extends Controller
         $validated = $request->validate([
             'extension_minutes' => 'required|integer|min:15',
         ]);
+
+        return DB::transaction(function () use ($booking, $validated, $request) {
+            $booking = CourtBooking::whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
 
         $newEndTime = Carbon::parse($booking->end_time)
             ->addMinutes($validated['extension_minutes'])
@@ -433,7 +524,35 @@ class CourtBookingAdminController extends Controller
             ], 400);
         }
 
-        $extraAmount = (100000 / 60) * $validated['extension_minutes'];
+        // Lấy giá thực tế từ court_prices theo ngày/giờ
+        $bookingDate  = $booking->booking_date instanceof \Carbon\Carbon
+            ? $booking->booking_date
+            : \Carbon\Carbon::parse($booking->booking_date);
+        $dayOfWeek = $bookingDate->dayOfWeek;
+        $dayType   = in_array($dayOfWeek, [0, 6]) ? 'weekend' : 'weekday';
+        $currentEndTime = $booking->end_time;
+
+        $courtPrice = CourtPrice::where('court_id', $booking->court_id)
+            ->where('is_active', true)
+            ->where(function ($q) use ($dayType) {
+                $q->where('day_type', $dayType)->orWhere('day_type', 'all');
+            })
+            ->where('from_time', '<=', $currentEndTime)
+            ->where('to_time', '>=', $newEndTime)
+            ->first();
+
+        // Fallback: lấy bất kỳ giá nào của sân trong ngày này
+        if (!$courtPrice) {
+            $courtPrice = CourtPrice::where('court_id', $booking->court_id)
+                ->where('is_active', true)
+                ->where(function ($q) use ($dayType) {
+                    $q->where('day_type', $dayType)->orWhere('day_type', 'all');
+                })
+                ->first();
+        }
+
+        $pricePerHour = $courtPrice ? (float) $courtPrice->price_per_hour : 100000;
+        $extraAmount  = (int) round(($pricePerHour / 60) * $validated['extension_minutes']);
 
         $extension = CourtBookingExtension::create([
             'booking_id' => $booking->booking_id,
@@ -472,6 +591,7 @@ class CourtBookingAdminController extends Controller
             'message' => 'Gia hạn thành công.',
             'data' => $extension
         ]);
+        });
     }
 
     /**
@@ -480,7 +600,7 @@ class CourtBookingAdminController extends Controller
     public function update(Request $request, $id)
     {
         $booking = CourtBooking::findOrFail($id);
-        $booking->update($request->only(['note', 'payment_method', 'payment_status']));
+        $booking->update($request->only(['note', 'payment_method']));
 
         return response()->json([
             'status' => 'success',
@@ -522,8 +642,8 @@ class CourtBookingAdminController extends Controller
                 $validated['reason'] ?? 'Admin cancelled booking',
                 [
                     'cancel_reason_type' => 'other',
-                    'cancel_reason' => $validated['reason'] ?? 'Admin cancelled booking',
-                    'cancelled_at' => now(),
+                    'cancel_reason'      => $validated['reason'] ?? 'Admin cancelled booking',
+                    'cancelled_at'       => now(),
                 ],
                 $request
             );
@@ -531,10 +651,23 @@ class CourtBookingAdminController extends Controller
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
 
+        // Gửi email thông báo hủy cho khách hàng
+        $booking->loadMissing(['user', 'court']);
+        if ($booking->user?->email) {
+            try {
+                Mail::to($booking->user->email)->queue(new CourtBookingCancelledMail($booking, null, 'admin'));
+            } catch (\Exception $e) {
+                Log::warning('Failed to queue booking cancelled mail (admin)', [
+                    'booking_id' => $booking->booking_id,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
+        }
+
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Booking cancelled successfully.',
-            'data' => $booking,
+            'data'    => $booking,
         ]);
     }
 
@@ -825,6 +958,7 @@ class CourtBookingAdminController extends Controller
                     'service_revenue' => $serviceRevenue,
                     'completion_rate' => $totalBookings > 0 ? round(($completedBookings / $totalBookings) * 100, 1) : 0,
                     'no_show_rate' => $totalBookings > 0 ? round(($noShowBookings / $totalBookings) * 100, 1) : 0,
+                    'avg_revenue_per_booking' => $completedBookings > 0 ? (int) round($totalRevenue / $completedBookings) : 0,
                 ],
                 'revenue_by_court' => $revenueByCourt,
                 'revenue_by_day' => $revenueByDay,

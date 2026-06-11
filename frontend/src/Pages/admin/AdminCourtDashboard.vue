@@ -19,6 +19,7 @@ let pollingInterval = null;
 let nowInterval = null;
 let clockInterval = null;
 let fetchInFlight = null;
+let adminChannel = null;   // WebSocket channel
 const nowMinutes = ref(0); // minutes since midnight
 
 // Real-time clock
@@ -112,21 +113,51 @@ const bookingsByCourt = computed(() => {
 onMounted(async () => {
     updateNow();
     updateClock();
-    nowInterval = setInterval(updateNow, 30000); // update timeline every 30s
+    nowInterval  = setInterval(updateNow, 30000);  // update timeline every 30s
     clockInterval = setInterval(updateClock, 1000); // update clock every 1s
     await fetchAll();
-    pollingInterval = setInterval(fetchAll, 30000);
+    // Polling fallback (60s) - WebSocket là primary source
+    pollingInterval = setInterval(fetchAll, 60000);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     // Scroll to current time
     nextTick(() => scrollToNow());
+    // Subscribe WebSocket channel để nhận event thời gian thực
+    subscribeAdminChannel();
 });
 
 onUnmounted(() => {
     if (pollingInterval) clearInterval(pollingInterval);
-    if (nowInterval) clearInterval(nowInterval);
-    if (clockInterval) clearInterval(clockInterval);
+    if (nowInterval)     clearInterval(nowInterval);
+    if (clockInterval)   clearInterval(clockInterval);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
+    leaveAdminChannel();
 });
+
+// ---- WebSocket: nhận realtime events từ admin-notifications channel ----
+const subscribeAdminChannel = () => {
+    try {
+        if (!window.Echo) return;
+        adminChannel = window.Echo.private('admin-notifications')
+            .listen('.CourtBookingCreated', () => fetchAll())
+            .listen('.CourtBookingStatusChanged', () => fetchAll())
+            .listen('.CourtBookingCancelled', () => fetchAll())
+            .listen('.CourtBookingPaymentUpdated', () => fetchAll())
+            .listen('.CourtBookingServiceAdded', () => fetchAll())
+            .listen('.CourtSlotLocked', () => fetchAll())
+            .listen('.CourtSlotReleased', () => fetchAll());
+    } catch (e) {
+        console.warn('AdminDashboard: WebSocket subscribe failed, using polling fallback', e);
+    }
+};
+
+const leaveAdminChannel = () => {
+    try {
+        if (window.Echo) {
+            window.Echo.leave('admin-notifications');
+        }
+    } catch (e) {}
+    adminChannel = null;
+};
 
 const updateNow = () => {
     const now = new Date();
@@ -198,6 +229,7 @@ const bookingBlockColor = (status) => {
         'extended': { bg: 'rgba(111, 66, 193, 0.12)', border: '#6f42c1', text: '#59359a' },
         'completed': { bg: 'rgba(25, 135, 84, 0.08)', border: '#198754', text: '#0f5132' },
         'cancelled': { bg: 'rgba(108, 117, 125, 0.08)', border: '#6c757d', text: '#495057' },
+        'expired': { bg: 'rgba(108, 117, 125, 0.08)', border: '#6c757d', text: '#495057' },
     };
     return map[status] || map['confirmed'];
 };
@@ -205,12 +237,28 @@ const bookingBlockColor = (status) => {
 const formatTime = (t) => t ? t.substring(0, 5) : '';
 const formatCurrency = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0);
 
-const getStatusText = (status) => {
+const getStatusText = (bookingOrStatus) => {
+    if (!bookingOrStatus) return '';
+    const status = typeof bookingOrStatus === 'object' ? bookingOrStatus.status : bookingOrStatus;
+    
+    if (status === 'checked_in') {
+        if (typeof bookingOrStatus === 'object' && bookingOrStatus.booking_date && bookingOrStatus.start_time) {
+            const now = new Date();
+            const dateStr = String(bookingOrStatus.booking_date).split('T')[0];
+            const startDateTime = new Date(`${dateStr}T${bookingOrStatus.start_time}`);
+            if (now >= startDateTime) {
+                return 'Đang chơi';
+            }
+        }
+        return 'Đã check-in';
+    }
+
     const map = {
-        'pending': 'Chờ duyệt', 'confirmed': 'Đã xác nhận', 'checked_in': 'Đang chơi',
+        'pending': 'Chờ duyệt', 'confirmed': 'Đã xác nhận',
         'playing': 'Đang chơi', 'extended': 'Gia hạn', 'completed': 'Hoàn thành',
         'cancelled': 'Đã hủy', 'no_show': 'Không đến'
     };
+    map.expired = 'Hết hạn';
     return map[status] || status;
 };
 
@@ -275,14 +323,54 @@ const handleCheckIn = async (bookingId) => {
     }
 };
 
-const handleCheckOut = async (bookingId) => {
+const buildCheckOutPayload = async (booking) => {
+    const amountDue = Math.max(Number(booking?.total_amount || 0) - Number(booking?.paid_amount || 0), 0);
+    if (amountDue <= 0) {
+        return {};
+    }
+
+    const payment = await Swal.fire({
+        title: 'Thu tien con lai',
+        html: `Booking con <b>${formatCurrency(amountDue)}</b> chua thanh toan.`,
+        input: 'select',
+        inputOptions: {
+            cash: 'Tien mat',
+            bank_transfer: 'Chuyen khoan',
+            pos_card: 'The POS',
+            pos_transfer: 'POS transfer'
+        },
+        inputPlaceholder: 'Chon phuong thuc thanh toan',
+        showCancelButton: true,
+        confirmButtonText: 'Xac nhan thu tien',
+        cancelButtonText: 'Huy',
+        inputValidator: (value) => !value ? 'Vui long chon phuong thuc thanh toan' : undefined
+    });
+
+    if (!payment.isConfirmed) {
+        return null;
+    }
+
+    return {
+        payment_method: payment.value,
+        note: 'Checkout payment'
+    };
+};
+
+const handleCheckOut = async (bookingOrId) => {
+    const booking = typeof bookingOrId === 'object' ? bookingOrId : selectedBooking.value;
+    const bookingId = booking?.booking_id || booking?.id || bookingOrId;
+    const payload = await buildCheckOutPayload(booking);
+    if (payload === null) {
+        return;
+    }
+
     const result = await Swal.fire({
         title: 'Check-out & Thanh toán', text: 'Trả sân và hoàn tất?', icon: 'warning',
         showCancelButton: true, confirmButtonColor: '#dc3545', confirmButtonText: 'Check-out', cancelButtonText: 'Hủy'
     });
     if (result.isConfirmed) {
         try {
-            await store.adminCheckOut(bookingId);
+            await store.adminCheckOut(bookingId, payload);
             toast.success('Check-out thành công');
             closeModal('bookingDetailModal');
             fetchAll();
@@ -489,7 +577,7 @@ const handleCreatePosBooking = async () => {
                                 <div class="col-6">
                                     <div class="scheduler-modal__field">
                                         <span class="scheduler-modal__field-label">Trạng thái</span>
-                                        <span class="status-badge" :class="'status-badge--' + selectedBooking.status">{{ getStatusText(selectedBooking.status) }}</span>
+                                        <span class="status-badge" :class="'status-badge--' + selectedBooking.status">{{ getStatusText(selectedBooking) }}</span>
                                     </div>
                                 </div>
                                 <div class="col-12">
@@ -513,10 +601,10 @@ const handleCreatePosBooking = async () => {
                         <button v-if="selectedBooking.status === 'pending'" class="btn btn-primary btn-sm rounded-pill px-3" @click="handleConfirm(selectedBooking.booking_id || selectedBooking.id)">
                             <i class="bi bi-check-circle me-1"></i> Xác nhận
                         </button>
-                        <button v-if="['pending', 'confirmed'].includes(selectedBooking.status)" class="btn btn-success btn-sm rounded-pill px-3" @click="handleCheckIn(selectedBooking.booking_id || selectedBooking.id)">
+                        <button v-if="selectedBooking.status === 'confirmed'" class="btn btn-success btn-sm rounded-pill px-3" @click="handleCheckIn(selectedBooking.booking_id || selectedBooking.id)">
                             <i class="bi bi-box-arrow-in-right me-1"></i> Check-in
                         </button>
-                        <button v-if="['checked_in', 'playing', 'extended'].includes(selectedBooking.status)" class="btn btn-danger btn-sm rounded-pill px-3" @click="handleCheckOut(selectedBooking.booking_id || selectedBooking.id)">
+                        <button v-if="['checked_in', 'playing', 'extended'].includes(selectedBooking.status)" class="btn btn-danger btn-sm rounded-pill px-3" @click="handleCheckOut(selectedBooking)">
                             <i class="bi bi-box-arrow-right me-1"></i> Check-out
                         </button>
                         <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" @click="closeModal('bookingDetailModal')">Đóng</button>

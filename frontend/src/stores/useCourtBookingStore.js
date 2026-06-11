@@ -125,7 +125,7 @@ export const useCourtBookingStore = defineStore('courtBooking', () => {
   const recordAdminPayment = (id, payload) => wrapAction(() => courtBookingService.recordAdminPayment(id, payload));
   const qrCheckInBooking = (id, payload) => wrapAction(() => courtBookingService.qrCheckInBooking(id, payload));
   const adminCheckIn = (id) => wrapAction(() => courtBookingService.checkInBooking(id));
-  const adminCheckOut = (id) => wrapAction(() => courtBookingService.checkOutBooking(id));
+  const adminCheckOut = (id, payload = {}) => wrapAction(() => courtBookingService.checkOutBooking(id, payload));
   const addServiceToBooking = (id, payload) => wrapAction(() => courtBookingService.addServiceToBooking(id, payload));
   const extendBooking = (id, payload) => wrapAction(() => courtBookingService.extendBooking(id, payload));
 

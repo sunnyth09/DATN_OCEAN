@@ -63,6 +63,12 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 
 WORKDIR /var/www
 
+# Install PHP dependencies at build time so runtime boot does not depend on
+# a fresh networked composer install for an empty vendor volume.
+COPY composer.json composer.lock ./
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+RUN mkdir -p /opt/vendor && cp -a /var/www/vendor/. /opt/vendor/
+
 # Copy source code
 COPY . .
 

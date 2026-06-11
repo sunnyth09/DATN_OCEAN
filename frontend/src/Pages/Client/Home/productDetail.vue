@@ -113,6 +113,8 @@ const fetchProduct = async (currentSlug) => {
 
         if (product.value.product_id) {
             fetchReviews(product.value.product_id);
+            // Ghi nhận lịch sử xem sản phẩm
+            api.post('/tracking/view-product', { product_id: product.value.product_id }).catch(() => {});
         }
         fetchRelatedProducts(currentSlug);
 
@@ -310,6 +312,16 @@ const addToCart = async () => {
         return false;
     }
 
+    if (selectedVariant.value.stock <= 0) {
+        showToast('Sản phẩm phiên bản này đã hết hàng!', 'error');
+        return false;
+    }
+
+    if (quantity.value > selectedVariant.value.stock) {
+        showToast(`Số lượng trong kho không đủ (chỉ còn ${selectedVariant.value.stock} sản phẩm)!`, 'error');
+        return false;
+    }
+
     if (quantity.value < 1) {
         showToast('Số lượng tối thiểu là 1!', 'error');
         return false;
@@ -459,13 +471,24 @@ console.log(quantity.value);
           <span class="pd-price">{{ formatPrice(displayPriceInfo.current) }}</span>
           <span class="pd-price-old" v-if="displayPriceInfo.original">{{ formatPrice(displayPriceInfo.original) }}</span>
         </div>
+        
+        <!-- Stock -->
+        <div class="pd-stock">
+          <span class="pd-stock-label me-2">Số lượng còn:</span>
+          <span class="pd-stock-value" v-if="selectedVariant">{{ selectedVariant.stock }}</span>
+          <span class="pd-stock-value" v-else-if="product.variants"> {{ product.variants?.reduce((sum, variant) => sum + variant.stock, 0) ?? '---' }}</span>
+        </div>
 
         <!-- Tình trạng -->
         <div class="pd-status">
           <span class="pd-status-label">Tình trạng:</span>
-          <span class="pd-status-value in-stock">
+          <span class="pd-status-value in-stock" v-if="selectedVariant ? selectedVariant.stock > 0 : (product.variants?.reduce((sum, v) => sum + v.stock, 0) > 0)">
             <AppIcon name="check" size="14" stroke-width="2.5" />
             Còn hàng
+          </span>
+          <span class="pd-status-value out-of-stock" style="color: #ef4444;" v-else>
+            <AppIcon name="x" size="14" stroke-width="2.5" />
+            Hết hàng
           </span>
         </div>
 
@@ -496,11 +519,13 @@ console.log(quantity.value);
 
         <!-- CTA -->
         <div class="pd-cta">
-          <button class="pd-btn-cart" @click="addToCart" :disabled="addingToCart">
+          <button class="pd-btn-cart" @click="addToCart" :disabled="addingToCart || (selectedVariant && selectedVariant.stock <= 0)">
             <AppIcon name="cart" size="18" />
-            {{ addingToCart ? 'Đang thêm...' : 'Thêm Vào Giỏ Hàng' }}
+            {{ addingToCart ? 'Đang thêm...' : (selectedVariant && selectedVariant.stock <= 0 ? 'Hết hàng' : 'Thêm Vào Giỏ Hàng') }}
           </button>
-          <button class="pd-btn-buy" @click="buyNow" :disabled="addingToCart">Mua Ngay</button>
+          <button class="pd-btn-buy" @click="buyNow" :disabled="addingToCart || (selectedVariant && selectedVariant.stock <= 0)">
+            {{ selectedVariant && selectedVariant.stock <= 0 ? 'Hết hàng' : 'Đặt Hàng Nhanh' }}
+          </button>
         </div>
 
         <!-- AI Try-On -->

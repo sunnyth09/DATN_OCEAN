@@ -258,6 +258,18 @@ const routes = [
                 meta: { roles: ['admin', 'seller', 'staff'], title: 'Chấm Công' },
             },
             {
+                path: "face-register",
+                name: "admin-face-register",
+                component: () => import("../Pages/admin/FaceRegister.vue"),
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Đăng ký Khuôn mặt' },
+            },
+            {
+                path: "face-management",
+                name: "admin-face-management",
+                component: () => import("../Pages/admin/AdminFaceManagement.vue"),
+                meta: { roles: ['admin'], title: 'Quản lý Khuôn mặt' },
+            },
+            {
                 path: "stats",
                 name: "admin-stats",
                 component: () => import("../Pages/admin/AdminStats.vue"),
@@ -305,6 +317,12 @@ const routes = [
                 name: "admin-court-reports",
                 component: () => import("../Pages/admin/AdminCourtReports.vue"),
                 meta: { roles: ['admin'], title: 'Thống Kê Sân' },
+            },
+            {
+                path: "notifications",
+                name: "admin-notifications",
+                component: () => import("../Pages/admin/AdminNotifications.vue"),
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thông báo hệ thống' },
             },
         ],
     },
