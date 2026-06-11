@@ -83,6 +83,10 @@ const checkInResult = ref(null);
 const faceRegistered = ref(null); // null = loading, true/false
 const faceEncodingCount = ref(0);
 
+// Face scanning UI state
+const scanningPhase = ref(''); // '' | 'capture' | 'gps' | 'face_scan' | 'done' | 'error'
+const scanResult = ref(null); // { match, confidence, message }
+
 // Current shift info
 const currentShift = computed(() => todayData.value?.current_shift || null);
 const shiftsStatus = computed(() => todayData.value?.shifts || []);
@@ -151,19 +155,31 @@ const getGeolocation = () => {
 const handleCheckIn = async () => {
     loading.value = true;
     checkInResult.value = null;
+    scanResult.value = null;
+    scanningPhase.value = 'capture';
     try {
+        // Phase 1: Chụp ảnh
+        await sleep(400);
         const imageBase64 = captureImage();
         if (!imageBase64) throw new Error("Không thể chụp ảnh, hãy đảm bảo camera hoạt động!");
 
-        // Face detection
         const hasFace = await detectFace(imageBase64);
         if (!hasFace) {
+            scanningPhase.value = 'error';
+            scanResult.value = { match: false, confidence: 0, message: 'Không phát hiện khuôn mặt!' };
             showToast("Không phát hiện khuôn mặt! Vui lòng đưa mặt vào camera rồi thử lại.", "error");
             loading.value = false;
+            setTimeout(() => { scanningPhase.value = ''; scanResult.value = null; }, 3000);
             return;
         }
 
+        // Phase 2: GPS
+        scanningPhase.value = 'gps';
         const position = await getGeolocation();
+
+        // Phase 3: Face scanning (gửi lên server xác thực)
+        scanningPhase.value = 'face_scan';
+
         const payload = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -173,43 +189,78 @@ const handleCheckIn = async () => {
         };
 
         const res = await api.post('/admin/attendance/check-in', payload);
+
+        // Phase 4: Done
+        scanningPhase.value = 'done';
+        scanResult.value = {
+            match: res.data.data?.face_verified ?? true,
+            confidence: res.data.data?.face_confidence ?? 100,
+            message: 'Xác thực thành công!',
+        };
         showToast(res.data.message || 'Check-in thành công!', 'success');
         attendanceNote.value = '';
         checkInResult.value = res.data.data;
         fetchTodayStatus();
+        setTimeout(() => { scanningPhase.value = ''; }, 4000);
     } catch (error) {
+        scanningPhase.value = 'error';
         const msg = error.response?.data?.message || error.message || "Lỗi Check-in";
+        const isFaceFail = error.response?.status === 403;
+        scanResult.value = {
+            match: false,
+            confidence: error.response?.data?.data?.face_confidence ?? 0,
+            message: isFaceFail ? 'Khuôn mặt không khớp!' : msg,
+        };
         showToast(msg, 'error');
         if (error.response?.data?.data) checkInResult.value = error.response.data.data;
+        setTimeout(() => { scanningPhase.value = ''; scanResult.value = null; }, 4000);
     } finally { loading.value = false; }
 };
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // --- CHECK-OUT ---
 const handleCheckOut = async () => {
     loading.value = true;
+    scanResult.value = null;
+    scanningPhase.value = 'capture';
     try {
+        await sleep(400);
         const imageBase64 = captureImage();
         if (!imageBase64) throw new Error("Không thể chụp ảnh!");
 
         const hasFace = await detectFace(imageBase64);
         if (!hasFace) {
+            scanningPhase.value = 'error';
+            scanResult.value = { match: false, confidence: 0, message: 'Không phát hiện khuôn mặt!' };
             showToast("Không phát hiện khuôn mặt! Vui lòng đưa mặt vào camera.", "error");
             loading.value = false;
+            setTimeout(() => { scanningPhase.value = ''; scanResult.value = null; }, 3000);
             return;
         }
 
+        scanningPhase.value = 'gps';
         const position = await getGeolocation();
+
+        scanningPhase.value = 'face_scan';
         const res = await api.post('/admin/attendance/check-out', {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
             image: imageBase64,
         });
+
+        scanningPhase.value = 'done';
+        scanResult.value = { match: true, confidence: 100, message: 'Check-out thành công!' };
         showToast(res.data.message || 'Check-out thành công!', 'success');
         checkInResult.value = null;
         fetchTodayStatus();
+        setTimeout(() => { scanningPhase.value = ''; }, 4000);
     } catch (error) {
+        scanningPhase.value = 'error';
+        scanResult.value = { match: false, confidence: 0, message: error.response?.data?.message || 'Lỗi Check-out' };
         showToast(error.response?.data?.message || error.message || "Lỗi Check-out", 'error');
+        setTimeout(() => { scanningPhase.value = ''; scanResult.value = null; }, 4000);
     } finally { loading.value = false; }
 };
 
@@ -335,11 +386,49 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
       <div class="col-lg-7">
         <div class="card shadow-sm border-0 h-100">
           <div class="card-body p-4 d-flex flex-column justify-content-center align-items-center text-center">
-            <!-- Camera -->
-            <div class="mb-4 w-100 px-3 position-relative">
+            <!-- Camera + Face Scan Overlay -->
+            <div class="mb-4 w-100 px-3 position-relative camera-box">
               <video ref="videoElement" autoplay playsinline class="w-100 rounded shadow-sm border" style="max-height: 280px; background: #000; object-fit: cover;"></video>
               <canvas ref="canvasElement" style="display: none;"></canvas>
-              <div class="face-hint">
+
+              <!-- Face scan overlay -->
+              <Transition name="scan-fade">
+                <div v-if="scanningPhase" class="face-scan-overlay">
+                  <!-- Scanning animation -->
+                  <div v-if="scanningPhase === 'face_scan'" class="scan-animation">
+                    <div class="scan-circle">
+                      <div class="scan-line"></div>
+                    </div>
+                    <div class="scan-corners">
+                      <span class="corner tl"></span><span class="corner tr"></span>
+                      <span class="corner bl"></span><span class="corner br"></span>
+                    </div>
+                  </div>
+
+                  <!-- Success -->
+                  <div v-if="scanningPhase === 'done'" class="scan-result scan-success">
+                    <i class="bi bi-shield-fill-check"></i>
+                    <span>{{ scanResult?.message || 'Xác thực thành công!' }}</span>
+                    <small v-if="scanResult?.confidence">{{ scanResult.confidence }}%</small>
+                  </div>
+
+                  <!-- Error -->
+                  <div v-if="scanningPhase === 'error'" class="scan-result scan-error">
+                    <i class="bi bi-shield-fill-x"></i>
+                    <span>{{ scanResult?.message || 'Xác thực thất bại' }}</span>
+                  </div>
+
+                  <!-- Phase label -->
+                  <div v-if="['capture','gps','face_scan'].includes(scanningPhase)" class="scan-phase-label">
+                    <span v-if="scanningPhase === 'capture'"><i class="bi bi-camera-fill me-1"></i>Đang chụp ảnh...</span>
+                    <span v-if="scanningPhase === 'gps'"><i class="bi bi-geo-alt-fill me-1"></i>Đang lấy GPS...</span>
+                    <span v-if="scanningPhase === 'face_scan'"><i class="bi bi-person-bounding-box me-1"></i>Đang quét khuôn mặt...</span>
+                  </div>
+                </div>
+              </Transition>
+
+              <!-- Default hint -->
+              <div v-if="!scanningPhase" class="face-hint">
                 <i class="bi bi-person-bounding-box me-1"></i> Đưa mặt vào camera
               </div>
             </div>
@@ -351,9 +440,27 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
             </div>
 
             <!-- Loading -->
-            <div v-if="loading || gpsLoading" class="mb-3">
+            <div v-if="(loading || gpsLoading) && !scanningPhase" class="mb-3">
               <div class="spinner-border text-primary" role="status"></div>
               <p class="text-muted small mt-2 mb-0">{{ gpsLoading ? 'Đang lấy vị trí GPS...' : 'Đang xử lý...' }}</p>
+            </div>
+
+            <!-- Scanning progress steps -->
+            <div v-if="scanningPhase && scanningPhase !== 'done' && scanningPhase !== 'error'" class="scan-steps mb-3">
+              <div class="scan-step" :class="{ active: scanningPhase === 'capture', done: ['gps','face_scan'].includes(scanningPhase) }">
+                <i class="bi" :class="['gps','face_scan'].includes(scanningPhase) ? 'bi-check-circle-fill' : 'bi-camera-fill'"></i>
+                <span>Chụp ảnh</span>
+              </div>
+              <div class="scan-step-line" :class="{ done: ['gps','face_scan'].includes(scanningPhase) }"></div>
+              <div class="scan-step" :class="{ active: scanningPhase === 'gps', done: scanningPhase === 'face_scan' }">
+                <i class="bi" :class="scanningPhase === 'face_scan' ? 'bi-check-circle-fill' : 'bi-geo-alt-fill'"></i>
+                <span>GPS</span>
+              </div>
+              <div class="scan-step-line" :class="{ done: scanningPhase === 'face_scan' }"></div>
+              <div class="scan-step" :class="{ active: scanningPhase === 'face_scan' }">
+                <i class="bi bi-person-bounding-box"></i>
+                <span>Face ID</span>
+              </div>
             </div>
 
             <!-- Buttons -->
@@ -398,7 +505,7 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
             </div>
 
             <div class="mt-3 text-muted small">
-              <i class="bi bi-shield-lock me-1"></i> GPS + ảnh selfie được thu thập tự động.
+              <i class="bi bi-shield-lock me-1"></i> GPS + ảnh selfie + Face ID được thu thập tự động.
             </div>
           </div>
         </div>
@@ -430,7 +537,89 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
 .result-label { color: #6b7280; font-size: 0.9rem; }
 .result-value { font-size: 0.9rem; }
 
-.face-hint { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; }
+.camera-box { border-radius: 16px; overflow: hidden; }
+.face-hint { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; z-index: 2; }
+
+/* Face scan overlay */
+.face-scan-overlay {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.45);
+  border-radius: 8px;
+}
+.scan-fade-enter-active { transition: opacity 0.3s; }
+.scan-fade-leave-active { transition: opacity 0.2s; }
+.scan-fade-enter-from, .scan-fade-leave-to { opacity: 0; }
+
+/* Scanning circle + line */
+.scan-animation { position: relative; width: 180px; height: 220px; }
+.scan-circle {
+  width: 100%; height: 100%;
+  border: 3px solid rgba(59,130,246,0.6);
+  border-radius: 50%;
+  position: relative; overflow: hidden;
+  animation: scan-pulse 1.5s ease-in-out infinite;
+}
+@keyframes scan-pulse {
+  0%, 100% { border-color: rgba(59,130,246,0.4); box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+  50% { border-color: rgba(59,130,246,0.9); box-shadow: 0 0 20px 4px rgba(59,130,246,0.3); }
+}
+.scan-line {
+  position: absolute; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+  animation: scan-sweep 1.8s ease-in-out infinite;
+}
+@keyframes scan-sweep {
+  0% { top: 10%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 90%; opacity: 0; }
+}
+.scan-corners { position: absolute; inset: -6px; }
+.corner { position: absolute; width: 24px; height: 24px; border-color: #3b82f6; border-style: solid; border-width: 0; }
+.corner.tl { top: 0; left: 0; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 8px; }
+.corner.tr { top: 0; right: 0; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 8px; }
+.corner.bl { bottom: 0; left: 0; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 8px; }
+.corner.br { bottom: 0; right: 0; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 8px; }
+
+/* Scan results */
+.scan-result {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; color: white;
+  animation: result-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes result-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.scan-result i { font-size: 3rem; }
+.scan-result span { font-size: 1rem; font-weight: 600; }
+.scan-result small { font-size: 0.85rem; opacity: 0.8; }
+.scan-success i { color: #34d399; }
+.scan-error i { color: #f87171; }
+
+.scan-phase-label {
+  position: absolute; bottom: 16px;
+  background: rgba(0,0,0,0.7); color: white;
+  padding: 6px 18px; border-radius: 20px;
+  font-size: 0.8rem; font-weight: 500;
+}
+
+/* Scan steps progress */
+.scan-steps {
+  display: flex; align-items: center; justify-content: center; gap: 0;
+}
+.scan-step {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  color: #94a3b8; font-size: 0.7rem; font-weight: 600;
+  transition: all 0.3s; min-width: 60px;
+}
+.scan-step i { font-size: 1.2rem; }
+.scan-step.active { color: #3b82f6; }
+.scan-step.active i { animation: step-bounce 0.6s ease; }
+@keyframes step-bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+.scan-step.done { color: #10b981; }
+.scan-step-line { width: 30px; height: 2px; background: #e2e8f0; margin: 0 4px; margin-bottom: 18px; transition: background 0.3s; }
+.scan-step-line.done { background: #10b981; }
 
 .btn-checkin-action { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; transition: all 0.3s; }
 .btn-checkin-action:hover { background: linear-gradient(135deg, #059669, #047857); transform: translateY(-2px); box-shadow: 0 8px 25px rgba(16,185,129,0.4) !important; color: white; }
