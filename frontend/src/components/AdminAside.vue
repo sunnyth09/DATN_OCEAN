@@ -129,6 +129,10 @@
             <span class="submenu-dot"></span>
             <span>Đánh giá</span>
           </router-link>
+          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/tickets" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Khiếu nại</span>
+          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Thống kê</span>
@@ -247,7 +251,7 @@ const handleLogout = async () => {
   });
   if (result.isConfirmed) {
     await authStore.logout();
-    router.push('/');
+    window.location.href = '/client/login';
   }
 };
 </script>

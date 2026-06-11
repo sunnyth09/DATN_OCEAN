@@ -40,6 +40,7 @@ use App\Http\Controllers\Api\Admin\CourtScheduleAdminController;
 use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
 use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
 use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
+use App\Http\Controllers\TicketController;
 // Add this line to run the route: http://localhost:8000/api
 Route::get('/', function () {
     return response()->json([
@@ -142,6 +143,9 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
     Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
     Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
+    // Khiếu nại của tôi
+    Route::get('/tickets', [TicketController::class, 'clientIndex']);
+    Route::post('/tickets', [TicketController::class, 'clientStore']);
 });
 
 // Cart routes (Protected - cần JWT token user/admin)
@@ -203,9 +207,12 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::get('/coupons/{id}/usages', [CouponController::class, 'getCouponUsages']);
 
     // Flash Sale Management (Admin only)
-    Route::post('/flash-sale', [FlashSaleController::class, 'store']);
-    Route::post('/flash-sale/{id}/initialize', [FlashSaleController::class, 'initialize']);
-
+    Route::get('/flash-sale', [\App\Http\Controllers\Admin\FlashSaleController::class, 'adminIndex']);
+    Route::get('/flash-sale/search-products', [\App\Http\Controllers\Admin\FlashSaleController::class, 'searchProducts']);
+    Route::post('/flash-sale', [\App\Http\Controllers\Admin\FlashSaleController::class, 'store']);
+    Route::put('/flash-sale/{id}', [\App\Http\Controllers\Admin\FlashSaleController::class, 'update']);
+    Route::delete('/flash-sale/{id}', [\App\Http\Controllers\Admin\FlashSaleController::class, 'destroy']);
+    Route::post('/flash-sale/{id}/initialize', [\App\Http\Controllers\Admin\FlashSaleController::class, 'initialize']);
     // ── Affiliate Management (Admin) ──
     Route::get('/affiliate/conversions', [AdminAffiliateController::class, 'conversions']);
     Route::put('/affiliate/conversions/{id}/approve', [AdminAffiliateController::class, 'approveConversion']);
@@ -280,6 +287,11 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::get('/live-chats/{id}', [\App\Http\Controllers\Admin\AdminChatController::class, 'getMessages']);
     Route::post('/live-chats/{id}/reply', [\App\Http\Controllers\Admin\AdminChatController::class, 'replyMessage']);
     Route::post('/live-chats/{id}/close', [\App\Http\Controllers\Admin\AdminChatController::class, 'closeSession']);
+
+    // Quản lý Khiếu nại
+    Route::get('/tickets', [TicketController::class, 'adminIndex']);
+    Route::get('/tickets/{id}', [TicketController::class, 'adminShow']);
+    Route::put('/tickets/{id}', [TicketController::class, 'adminUpdate']);
 });
 
 // ==========================================

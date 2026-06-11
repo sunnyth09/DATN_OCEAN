@@ -83,6 +83,7 @@ const addProductToItems = (product) => {
         product_id: product.product_id,
         product: product, // Giữ metadata để hiển thị trong table
         campaign_price: product.base_price,
+        discount_percent: 0,
         campaign_stock: 1, // Default
         sold: 0
     });
@@ -93,6 +94,24 @@ const addProductToItems = (product) => {
 
 const removeItem = (index) => {
     form.value.items.splice(index, 1);
+};
+
+const onDiscountPercentChange = (item) => {
+    const basePrice = item.product?.base_price || 0;
+    if (basePrice > 0) {
+        let dp = parseFloat(item.discount_percent) || 0;
+        dp = Math.min(100, Math.max(0, dp));
+        item.campaign_price = Math.max(0, basePrice - (basePrice * dp / 100));
+    }
+};
+
+const onCampaignPriceChange = (item) => {
+    const basePrice = item.product?.base_price || 0;
+    if (basePrice > 0) {
+        const cp = parseFloat(item.campaign_price) || 0;
+        let dp = Math.round((1 - cp / basePrice) * 100);
+        item.discount_percent = Math.max(0, dp);
+    }
 };
 
 // -- CRUD Logic --
@@ -122,7 +141,14 @@ const openEdit = (fs) => {
         start_time: fs.start_time.slice(0, 16),
         end_time: fs.end_time.slice(0, 16),
         status: fs.status,
-        items: fs.items.map(i => ({ ...i })) // clone list
+        items: fs.items.map(i => {
+            const basePrice = i.product?.base_price || 0;
+            let dp = 0;
+            if (basePrice > 0) {
+                dp = Math.max(0, Math.round((1 - i.campaign_price / basePrice) * 100));
+            }
+            return { ...i, discount_percent: dp };
+        })
     };
     errors.value = {};
     isModalOpen.value = true;
@@ -224,7 +250,7 @@ onMounted(fetchFlashSales);
                     <button class="btn-close" @click="isModalOpen = false"></button>
                 </div>
                 
-                <div class="card-body overflow-auto">
+                <div class="card-body" style="overflow: visible;">
                     <!-- General Settings -->
                     <div class="row g-3 mb-4">
                         <div class="col-md-6">
@@ -258,7 +284,7 @@ onMounted(fetchFlashSales);
                     <h6 class="fw-bold mb-3">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                      Danh sách sản phẩm Sale</h6>
-                    <div class="position-relative mb-3">
+                    <div class="position-relative mb-3" style="z-index: 1055;">
                         <input v-model="productSearchTerm" @input="searchProducts" type="text" 
                                class="form-control shadow-sm" placeholder="🔍 Gõ tên để thêm sản phẩm vào sự kiện..." />
                         
@@ -275,11 +301,13 @@ onMounted(fetchFlashSales);
                         </ul>
                     </div>
 
-                    <table class="table table-bordered align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Tên sản phẩm</th>
-                                <th width="200">Giá Sale (VNĐ)</th>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light position-sticky top-0 shadow-sm">
+                                <tr>
+                                    <th>Tên sản phẩm</th>
+                                <th width="120">Giảm giá (%)</th>
+                                <th width="180">Giá Sale (VNĐ)</th>
                                 <th width="150">Số lượng cấp FB</th>
                                 <th width="100">Đã bán</th>
                                 <th width="80">Xóa</th>
@@ -294,7 +322,13 @@ onMounted(fetchFlashSales);
                                     </div>
                                 </td>
                                 <td>
-                                    <input v-model="item.campaign_price" type="number" class="form-control form-control-sm" />
+                                    <div class="input-group input-group-sm">
+                                        <input v-model="item.discount_percent" @input="onDiscountPercentChange(item)" type="number" min="0" max="100" class="form-control" />
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <input v-model="item.campaign_price" @input="onCampaignPriceChange(item)" type="number" class="form-control form-control-sm" />
                                     <small class="text-danger" v-if="errors[`items.${index}.campaign_price`]">{{ errors[`items.${index}.campaign_price`][0] }}</small>
                                 </td>
                                 <td>
@@ -311,6 +345,7 @@ onMounted(fetchFlashSales);
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                     <small class="text-danger">{{ errors.items?.[0] }}</small>
 
                 </div>
