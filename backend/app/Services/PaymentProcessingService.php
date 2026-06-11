@@ -447,6 +447,13 @@ class PaymentProcessingService
             $methodLabel = 'Ví MoMo';
         }
 
+        $methodLabel = 'VNPay';
+        if ($order->payment_method === 'bank_transfer') {
+            $methodLabel = 'Chuyển khoản ngân hàng (SePay)';
+        } elseif ($order->payment_method === 'momo') {
+            $methodLabel = 'Ví MoMo';
+        }
+
         $emailUser = config('mail.mailers.smtp.username');
         $emailPass = config('mail.mailers.smtp.password');
 
@@ -460,6 +467,8 @@ class PaymentProcessingService
             return false;
         }
 
+        $transport = new \Symfony\Component\Mailer\Transport\Mip\EsmtpTransport('smtp.gmail.com', 587, false);
+        // Fallback ESmtpTransport
         $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport('smtp.gmail.com', 587, false);
         $transport->setUsername($emailUser);
         $transport->setPassword($emailPass);

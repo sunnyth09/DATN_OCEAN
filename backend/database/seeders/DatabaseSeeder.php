@@ -61,5 +61,13 @@ class DatabaseSeeder extends Seeder
             CourtMaintenanceSeeder::class,
             CourtBookingSeeder::class,
         ]);
+
+        // ========== COURT BOOKING SEEDERS ==========
+        $this->call([
+            CourtSeeder::class,
+            CourtServiceSeeder::class,
+            CourtMaintenanceSeeder::class,
+            CourtBookingSeeder::class,
+        ]);
     }
 }
