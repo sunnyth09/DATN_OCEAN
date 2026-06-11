@@ -88,6 +88,25 @@ services:
     working_dir: /app
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3302"
 
+  # FACE VERIFICATION SERVICE (Python + dlib)
+  face-service:
+    build:
+      context: ./face-service
+      dockerfile: Dockerfile
+    container_name: ocean_face_service
+    restart: unless-stopped
+    expose:
+      - "8001"
+    environment:
+      - FACE_TOLERANCE=0.45
+      - MAX_ENCODINGS_PER_REQUEST=10
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
 volumes:
   mysql_data:
   meilisearch_data:

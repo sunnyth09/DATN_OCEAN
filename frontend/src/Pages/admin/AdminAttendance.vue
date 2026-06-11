@@ -79,6 +79,10 @@ const attendanceNote = ref('');
 const todayData = ref(null);
 const checkInResult = ref(null);
 
+// Face verification status
+const faceRegistered = ref(null); // null = loading, true/false
+const faceEncodingCount = ref(0);
+
 // Current shift info
 const currentShift = computed(() => todayData.value?.current_shift || null);
 const shiftsStatus = computed(() => todayData.value?.shifts || []);
@@ -110,6 +114,19 @@ const fetchTodayStatus = async () => {
         }
     } catch {
         todayData.value = { state: 'not_checked_in', current_shift: null, shifts: [] };
+    }
+};
+
+// --- FACE STATUS ---
+const fetchFaceStatus = async () => {
+    try {
+        const res = await api.get('/admin/face/status');
+        if (res.data.status === 'success') {
+            faceRegistered.value = res.data.data.registered;
+            faceEncodingCount.value = res.data.data.encoding_count;
+        }
+    } catch {
+        faceRegistered.value = null;
     }
 };
 
@@ -208,7 +225,7 @@ const getShiftStateBadge = (state) => {
 };
 
 // --- LIFECYCLE ---
-onMounted(() => { updateClock(); clockInterval = setInterval(updateClock, 1000); startCamera(); fetchTodayStatus(); });
+onMounted(() => { updateClock(); clockInterval = setInterval(updateClock, 1000); startCamera(); fetchTodayStatus(); fetchFaceStatus(); });
 onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
 </script>
 
@@ -236,6 +253,26 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
     <div class="row g-4 mt-1">
       <!-- Cột Trái -->
       <div class="col-lg-5">
+        <!-- Face Warning -->
+        <div v-if="faceRegistered === false" class="card shadow-sm border-0 mb-3 face-warning-card">
+          <div class="card-body p-3 d-flex align-items-center gap-3">
+            <i class="bi bi-exclamation-triangle-fill text-warning fs-4"></i>
+            <div>
+              <p class="fw-bold mb-1 small">Chưa đăng ký khuôn mặt</p>
+              <p class="text-muted mb-2" style="font-size: 0.8rem;">Hệ thống yêu cầu xác thực khuôn mặt khi chấm công.</p>
+              <router-link to="/admin/face-register" class="btn btn-warning btn-sm" id="btn-go-face-register">
+                <i class="bi bi-person-bounding-box me-1"></i> Đăng ký ngay
+              </router-link>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="faceRegistered === true" class="d-flex align-items-center gap-2 mb-3">
+          <span class="badge" style="background: #dcfce7; color: #166534; font-size: 0.75rem;">
+            <i class="bi bi-shield-fill-check me-1"></i>Face ID: {{ faceEncodingCount }} ảnh
+          </span>
+        </div>
+
         <!-- Trạng thái từng ca -->
         <div class="card shadow-sm border-0 mb-3">
           <div class="card-body p-4">
@@ -281,6 +318,13 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
               <div v-if="checkInResult.accuracy" class="result-item">
                 <span class="result-label">GPS accuracy:</span>
                 <span class="result-value" :class="checkInResult.accuracy > 100 ? 'text-warning' : 'text-success'">±{{ Math.round(checkInResult.accuracy) }}m</span>
+              </div>
+              <div v-if="checkInResult.face_verified !== null && checkInResult.face_verified !== undefined" class="result-item">
+                <span class="result-label">Face ID:</span>
+                <span class="result-value" :class="checkInResult.face_verified ? 'text-success' : 'text-danger'">
+                  {{ checkInResult.face_verified ? '✓ Xác thực' : '✗ Không khớp' }}
+                  <span v-if="checkInResult.face_confidence" class="ms-1 opacity-75">({{ checkInResult.face_confidence }}%)</span>
+                </span>
               </div>
             </div>
           </div>
@@ -399,4 +443,7 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
 .att-toast-enter-active { transition: all 0.3s ease; }
 .att-toast-leave-active { transition: all 0.2s ease; }
 .att-toast-enter-from, .att-toast-leave-to { opacity: 0; transform: translateX(40px); }
+
+.face-warning-card { border: 1px solid #fbbf24 !important; background: #fffbeb; animation: face-warn-pulse 3s ease-in-out infinite; }
+@keyframes face-warn-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(251,191,36,0); } 50% { box-shadow: 0 0 0 4px rgba(251,191,36,0.2); } }
 </style>

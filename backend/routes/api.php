@@ -95,6 +95,7 @@ Route::middleware('auth:api,admin')->group(function () {
 
     // Try-on
     Route::middleware('throttle:10,1')->post('/try-on', [TryOnController::class, 'process']);
+    Route::middleware('throttle:5,1')->post('/try-on/generate-360', [TryOnController::class, 'generate360Views']);
 
     // Return requests
     Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
@@ -318,6 +319,16 @@ Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin'
     Route::middleware('throttle:10,1')->post('/attendance/check-out', [\App\Http\Controllers\AttendanceController::class, 'checkOut']);
     Route::get('/attendance/today', [\App\Http\Controllers\AttendanceController::class, 'today']);
     Route::get('/attendance/my-history', [\App\Http\Controllers\AttendanceController::class, 'myHistory']);
+
+    // Face Registration & Verification (tất cả nhân viên)
+    Route::middleware('throttle:10,1')->post('/face/register', [\App\Http\Controllers\FaceEncodingController::class, 'register']);
+    Route::get('/face/status', [\App\Http\Controllers\FaceEncodingController::class, 'status']);
+    Route::delete('/face/{id}', [\App\Http\Controllers\FaceEncodingController::class, 'destroy']);
+    Route::post('/face/reset', [\App\Http\Controllers\FaceEncodingController::class, 'reset']);
+
+    // Face Management (admin only)
+    Route::get('/face/management', [\App\Http\Controllers\FaceEncodingController::class, 'management']);
+    Route::post('/face/reset-user/{userId}', [\App\Http\Controllers\FaceEncodingController::class, 'adminResetUser']);
 
     // Tổng quan (Dashboard)
     Route::get('/dashboard', [\App\Http\Controllers\AdminDashboardController::class, 'getDashboardData']);

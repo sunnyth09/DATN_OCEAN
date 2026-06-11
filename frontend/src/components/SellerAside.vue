@@ -29,6 +29,16 @@
         <span>Chấm công</span>
       </router-link>
 
+      <router-link to="/seller/face-register" class="nav-item" active-class="nav-item--active">
+        <div class="nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </div>
+        <span>Đăng ký khuôn mặt</span>
+      </router-link>
+
       <router-link to="/seller/order" class="nav-item" active-class="nav-item--active">
         <div class="nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
