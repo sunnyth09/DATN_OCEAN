@@ -8,9 +8,14 @@ use Illuminate\Validation\Rule;
 
 class UpdateReturnRequestStatusRequest extends FormRequest
 {
+    /**
+     * Chỉ admin/staff mới được xử lý yêu cầu hoàn hàng.
+     * Route đã có middleware 'role:admin,staff' nhưng FormRequest cũng verify để defense-in-depth.
+     */
     public function authorize(): bool
     {
-        return true;
+        return auth('admin')->check()
+            && in_array(auth('admin')->user()->role, ['admin', 'staff'], true);
     }
 
     public function rules(): array

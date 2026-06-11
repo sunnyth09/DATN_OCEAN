@@ -113,6 +113,8 @@ const fetchProduct = async (currentSlug) => {
 
         if (product.value.product_id) {
             fetchReviews(product.value.product_id);
+            // Ghi nhận lịch sử xem sản phẩm
+            api.post('/tracking/view-product', { product_id: product.value.product_id }).catch(() => {});
         }
         fetchRelatedProducts(currentSlug);
 

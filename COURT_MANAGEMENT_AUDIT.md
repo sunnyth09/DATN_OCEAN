@@ -1,0 +1,3498 @@
+﻿# COURT_MANAGEMENT_AUDIT.md
+
+Bao cao audit module Quan ly san cau long cho du an Laravel + VueJS.
+Ngay audit: 2026-06-07.
+Pham vi: backend Laravel, frontend Vue 3 + Pinia, REST API, database MySQL, realtime, scheduler, security, scalability.
+Nguyen tac: chi doc source hien co va tao bao cao; khong chinh sua source backend/frontend/database.
+
+## Tong Quan
+
+- Module Court Management da co nen tang MVP kha tot: courts, schedules, prices, bookings, locks, services, payments, maintenance, extensions, status histories va activity logs.
+- Backend co transaction va lockForUpdate o cac luong quan trong nhu lock slot, tao booking, tao booking POS va extend.
+- Frontend co client booking, user booking history, admin booking management, live scheduler, cau hinh san va bao cao.
+- Realtime da co Laravel Echo/Reverb/Pusher protocol, private channels va CourtBookingRealtimeEvent dung ShouldBroadcastNow.
+- Diem chua dat nghiep vu chuyen nghiep: thieu EXPIRED, thieu checkins table, thieu customer walk-in snapshot, thieu drag/drop/resize scheduler, thieu dat coc bat buoc, thieu POS itemized gan inventory.
+- Rui ro lon nhat: pending co the treo, user payment chua du xac minh, checked_in chua tu dong thanh playing, checkout tu ghi nhan cash remaining.
+- Ket luan nhanh: nen tiep tuc phat trien tren nen hien co, nhung can dong vong doi booking va payment ledger truoc khi van hanh tien that.
+
+## Source Da Doc
+
+- backend/routes/api.php
+- backend/routes/court_booking.php
+- backend/routes/channels.php
+- backend/routes/console.php
+- backend/app/Http/Controllers/Api/CourtController.php
+- backend/app/Http/Controllers/Api/CourtBookingController.php
+- backend/app/Http/Controllers/Api/Admin/CourtBookingAdminController.php
+- backend/app/Http/Controllers/Api/Admin/CourtAdminController.php
+- backend/app/Http/Controllers/Api/Admin/CourtScheduleAdminController.php
+- backend/app/Http/Controllers/Api/Admin/CourtPriceAdminController.php
+- backend/app/Http/Controllers/Api/Admin/CourtServiceAdminController.php
+- backend/app/Http/Controllers/Api/Admin/CourtMaintenanceAdminController.php
+- backend/app/Services/CourtBookingService.php
+- backend/app/Services/CourtBookingWorkflowService.php
+- backend/app/Models/Court.php
+- backend/app/Models/CourtBooking.php
+- backend/app/Models/CourtSchedule.php
+- backend/app/Models/CourtPrice.php
+- backend/app/Models/CourtService.php
+- backend/app/Models/CourtBookingLock.php
+- backend/app/Models/CourtBookingPayment.php
+- backend/app/Models/CourtBookingService.php
+- backend/app/Models/CourtBookingExtension.php
+- backend/app/Models/CourtMaintenance.php
+- backend/app/Models/CourtBookingStatusHistory.php
+- backend/app/Models/CourtActivityLog.php
+- backend/database/migrations/2026_05_28_000001_create_courts_table.php
+- backend/database/migrations/2026_05_28_000002_create_court_schedules_table.php
+- backend/database/migrations/2026_05_28_000003_create_court_prices_table.php
+- backend/database/migrations/2026_05_28_000004_create_court_bookings_table.php
+- backend/database/migrations/2026_05_28_000005_create_court_booking_status_histories_table.php
+- backend/database/migrations/2026_05_28_000006_create_court_booking_locks_table.php
+- backend/database/migrations/2026_05_28_000007_create_court_services_table.php
+- backend/database/migrations/2026_05_28_000008_create_court_booking_services_table.php
+- backend/database/migrations/2026_05_28_000009_create_court_maintenances_table.php
+- backend/database/migrations/2026_05_28_000010_create_court_booking_payments_table.php
+- backend/database/migrations/2026_05_28_000011_create_court_booking_extensions_table.php
+- backend/database/migrations/2026_05_28_000012_create_court_activity_logs_table.php
+- backend/app/Console/Commands/CleanExpiredCourtBookingLocks.php
+- backend/app/Console/Commands/MarkCourtBookingNoShows.php
+- backend/app/Events/CourtBookingRealtimeEvent.php
+- backend/config/broadcasting.php
+- backend/config/reverb.php
+- frontend/src/services/courtBookingService.js
+- frontend/src/stores/useCourtBookingStore.js
+- frontend/src/echo.js
+- frontend/src/router/index.js
+- frontend/src/Pages/Client/Courts/CourtsList.vue
+- frontend/src/Pages/Client/Courts/CourtDetail.vue
+- frontend/src/Pages/Client/Courts/UserBookings.vue
+- frontend/src/Pages/admin/AdminBookingManagement.vue
+- frontend/src/Pages/admin/AdminCourtDashboard.vue
+- frontend/src/Pages/admin/AdminCourtManagement.vue
+- frontend/src/Pages/admin/AdminCourtReports.vue
+- backend/tests/Feature/CourtBookingWorkflowTest.php
+
+## Kien Truc Hien Tai
+
+### Backend
+
+- API court duoc khai bao trong routes/api.php; dong thoi ton tai routes/court_booking.php co route tuong tu, tao nguy co duplicate hoac drift.
+- Public APIs: courts list, court detail, availability, court services.
+- Customer APIs: lock slot, release lock, create booking, user bookings, detail, cancel, payment, QR token.
+- Admin APIs: CRUD booking, confirm, cancel, check-in, QR check-in, check-out, add service, extend, record payment, calendar, dashboard, stats.
+- Service layer tach CourtBookingService va CourtBookingWorkflowService.
+- Court module chua co repository rieng, dung Eloquent truc tiep trong controller/service.
+- Court module chua co policy rieng; phan quyen chu yeu nam o middleware role.
+- Email court co created/confirmed/cancelled; notification database rieng cho court chua thay.
+- Scheduler co clean expired locks moi phut va mark no-shows moi 5 phut.
+
+### Frontend
+
+- courtBookingService.js gom REST endpoints cho user/admin.
+- useCourtBookingStore quan ly courts, bookings, dashboard, stats, services, schedules, prices, maintenances.
+- Client co CourtsList, CourtDetail, UserBookings.
+- Admin co AdminCourtManagement, AdminBookingManagement, AdminCourtDashboard, AdminCourtReports.
+- AdminCourtDashboard la live timeline, co live clock, now line, polling fallback va realtime subscription.
+- CourtDetail subscribe court/date channel de refresh availability.
+- UserBookings subscribe user channel de nhan status/cancel events.
+- Scheduler logic nam trong page, chua tach component tai su dung.
+- Chua thay drag/drop/resize handler cho booking block.
+
+### Database
+
+- Co cac bang court-specific: courts, court_schedules, court_prices, court_bookings, court_booking_status_histories, court_booking_locks, court_services, court_booking_services, court_maintenances, court_booking_payments, court_booking_extensions, court_activity_logs.
+- court_bookings co soft delete, booking_code unique, FK users/admins/courts, status enum va payment_status enum.
+- Overlap booking duoc chan bang application logic, transaction va lockForUpdate; MySQL khong co exclusion constraint native.
+- Lock table co lock_token unique va index lookup court/date/time/expires_at.
+- Payments court-specific chua thong nhat voi payments ecommerce.
+- Maintenance dang dong vai tro closure tam thoi; chua co court_closures rieng.
+- Khach vang lai duoc bieu dien bang user_id nullable; chua co customer snapshot.
+- Staff dung admins; chua co staffs table doc lap.
+- Check-in luu timestamp tren booking; chua co checkins table.
+
+## Diem Manh
+
+- Co lock slot 10 phut truoc khi tao booking.
+- Co kiem tra overlap lai khi tao booking.
+- Co transaction va lockForUpdate o cac diem tao booking quan trong.
+- Co BLOCKING_STATUSES tap trung trong CourtBooking model.
+- Co status history de audit trang thai booking.
+- Co activity log voi actor, subject, old_data, new_data, IP va user agent.
+- Co payment table rieng cho booking san, ho tro deposit/full/additional/refund o schema.
+- Co service add-on cho nuoc, thue vot, thue giay, cau long hoac dich vu khac.
+- Co extension table luu original_end_time, extended_end_time, minutes va extra_amount.
+- Co maintenance windows chan availability va booking.
+- Co no-show scheduler tu dong.
+- Co clean expired lock scheduler.
+- Co QR token check-in bang HMAC tu app key.
+- Co realtime broadcast cho booking/slot/payment/service.
+- Co private channel cho admin, court/date va user.
+- Co admin dashboard realtime cho le tan.
+- Co bao cao doanh thu theo san, ngay, dich vu va utilization.
+- Co UI client dat san theo slot va lock countdown.
+- Co feature test cho double booking, lock token mismatch, expired lock va cancel history.
+- Co role middleware o route admin court.
+
+## Diem Yeu
+
+- Thieu trang thai expired trong enum court_bookings mac du quy trinh chuan yeu cau EXPIRED.
+- ALLOWED_TRANSITIONS khong co expired va chua buoc pending qua deposit_paid truoc confirmed.
+- Check-in co the di tu pending thang checked_in, bo qua xac nhan/coc trong mot so truong hop.
+- Trang thai playing co trong schema nhung khong co luong tu dong ro rang de chuyen checked_in sang playing.
+- No-show job chuyen pending/confirmed sang no_show sau 15 phut tu start time, nhung khong xet paid deposit hoac chinh sach giu san.
+- Payment record cho user chua tich hop gateway callback that cho VNPay/MoMo trong court module.
+- Admin check-out tu ghi nhan phan con lai bang payment_method hien tai hoac cash, co the tao sai so quy neu nhan vien chua thuc thu.
+- POS walk-in khong luu ten/so dien thoai khach vang lai neu khong co user_id.
+- Admin update booking chi cho note/payment fields, chua ho tro doi san/doi gio co kiem tra xung dot.
+- Scheduler UI chua co drag/drop/resize/change court truc tiep.
+- Court list client hien thi Dang trong chi dua court.status active, khong dua realtime availability.
+- Availability slot co dinh 1 gio, chua ho tro 30 phut/15 phut.
+- Pricing lay rule bao trum toan bo start-end; neu booking di qua nhieu khung gia thi chua split gia.
+- Holiday pricing co enum nhung chua thay holiday calendar.
+- Khong co bang checkins rieng.
+- Khong co bang court_closures rieng.
+- Khong co customer snapshot cho booking.
+- Khong co inventory integration cho dich vu ban them.
+- Chua thay throttling rieng cho booking lock/create/pay/check-in.
+- Reverb allowed_origins dang de *; can siet domain production.
+
+## Nghiep Vu Da Hoan Thanh
+
+- Tao booking phia khach co lock token.
+- Tao booking tai quay/POS khong can user_id.
+- Xem danh sach san active.
+- Xem chi tiet san, schedule va price.
+- Xem availability theo ngay va slot theo gio.
+- Giu cho tam thoi 10 phut.
+- Nha lock khi doi ngay/unmount hoac release API.
+- Tao booking kem dich vu mua them.
+- Xem lich su booking cua khach.
+- Huy booking boi khach.
+- Admin xem danh sach booking co filter date/court/status/search.
+- Admin xem chi tiet booking day du relation.
+- Admin xac nhan booking.
+- Admin huy booking.
+- Admin check-in booking.
+- Admin QR check-in bang token.
+- Admin check-out booking.
+- Admin them dich vu phat sinh.
+- Admin gia han gio choi.
+- Admin ghi nhan thanh toan.
+- Dashboard le tan xem trang thai san hien tai va booking ke tiep.
+- Calendar API theo ngay/tuan/thang.
+- Bao cao doanh thu theo san/ngay/dich vu.
+- Bao cao utilization theo san.
+- Cau hinh san.
+- Cau hinh lich hoat dong.
+- Cau hinh bang gia.
+- Cau hinh dich vu.
+- Cau hinh bao tri.
+- Email booking created/confirmed/cancelled.
+- Realtime lock/release/created/cancelled/status/payment/service.
+- Tu don lock het han.
+- Tu danh dau no-show.
+
+## Nghiep Vu Chua Hoan Thanh
+
+- Thanh toan coc bat buoc truoc khi confirmed.
+- Tu expired booking pending neu qua han thanh toan coc.
+- Chinh sach coc theo phan tram/khung gio/ngay cao diem.
+- Tach check-in thanh bang checkins doc lap.
+- Check-in bang scanner QR/camera trong admin thay vi nhap token thu cong.
+- Tim booking nhanh theo so dien thoai khach vang lai.
+- Luu customer snapshot cho khach walk-in.
+- Gia han co goi y slot trong tiep theo.
+- Gia han nhieu phan qua nhieu khung gia.
+- Chuyen san trong ca dang choi.
+- Doi gio booking truoc khi khach den.
+- Drag & drop booking tren scheduler.
+- Resize booking tren scheduler.
+- Gui nhac khach xac nhan truoc gio choi.
+- Gui nhac khach sap den gio.
+- Gui nhac nhan vien khi gan het gio.
+- Canh bao overstay/qua gio thuc te.
+- Tinh phi qua gio neu khach tra san muon.
+- POS checkout itemized gom san + nuoc + thue vot + thue giay + cau long.
+- Ket noi inventory cho vat tu/dich vu.
+- Hoan tien coc theo rule ro rang va workflow duyet refund.
+- Dat san dinh ky cho khach co dinh theo tuan/thang.
+- Dat nhieu san trong mot booking group.
+- Chan booking theo giai dau/su kien/closure toan cum san.
+- Quan ly ca nhan vien san gan voi hoat dong check-in/out san.
+- SLA operational cho goi khach xac nhan.
+- Bang queue khach cho khi full san.
+- Waitlist va auto-notify khi co slot huy.
+- Audit doanh thu theo nhan vien thu tien.
+- Phan quyen granular cho staff/seller/admin theo nghiep vu san.
+
+## Nghiep Vu Dang Sai Hoac Co Nguy Co Sai
+
+- Pending co the check-in truc tiep, trong khi quy trinh chuan nen pending phai thanh toan coc hoac duoc xac nhan truoc.
+- Booking pending chua co expiration nen co the giu san lau vo han.
+- User payment bank_transfer co the duoc record ma chua xac thuc giao dich ngan hang.
+- Checkout tu ghi nhan remaining bang cash co the lam sai quy neu chua thuc thu.
+- Court status active duoc UI client hieu la dang trong, nhung active chi la trang thai van hanh.
+- Availability slot co dinh 1 gio lam mat nghiep vu dat 30 phut hoac 90 phut linh hoat.
+- Pricing khong split khi khung gio di qua nhieu gia khac nhau.
+- No-show chay sau start + 15 phut, nhung khong xet coc va chinh sach giu san.
+- Check-in window cho phep den tan end_time, co the cho khach check-in khi ca da gan het.
+- Extend khong lockForUpdate booking hien tai khi tinh newEndTime.
+- Add service cong tien truc tiep vao booking, nhung khong lockForUpdate booking.
+- Record payment khong lockForUpdate booking khi cap nhat paid_amount.
+- Admin update cho phep update payment_status truc tiep qua update fields.
+- Delete booking soft delete co the lam bien mat booking khoi conflict neu query khong withTrashed.
+- Maintenance create/update chua thay kiem tra conflict voi booking da confirmed/playing.
+- Schedule update chua thay kiem tra booking ngoai gio sau khi doi gio mo cua.
+- Price overlap khong duoc kiem soat.
+- Court service delete/soft delete co the lam relation UI sai neu khong withTrashed.
+- Route court_booking.php va api.php co route court trung concept.
+- Reverb authEndpoint hard-code port 8383 va host logic co the sai sau reverse proxy.
+
+## Doi Chieu Quy Trinh Chuan
+
+- Khach dat san: Co. Client CourtDetail chon slot, lock slot, create booking.
+- Pending: Co. Booking user tao mac dinh pending.
+- Thanh toan coc: Mot phan. Schema co deposit_amount va payment_type deposit, nhung UI/flow chua bat buoc coc truoc confirm.
+- Confirmed: Co. Admin confirm pending hoac POS tao confirmed.
+- Den san: Mot phan. Co QR token va check-in, nhung chua co man tim booking theo phone/QR scanner that su.
+- Check-in: Co. Admin check-in va QR check-in co kiem tra cua so thoi gian.
+- Playing: Mot phan. Status co playing nhung check-in set checked_in; dashboard coi checked_in nhu dang choi.
+- Gia han: Co. Admin extend kiem tra conflict, lock va maintenance.
+- Check-out: Co. Admin check-out chuyen completed va tu thu phan con lai.
+- Thanh toan phat sinh: Mot phan. Co add service va payment additional schema, nhung UI chua POS itemized checkout dung nghia.
+- Completed: Co. Check-out hoan tat booking.
+
+### Trang Thai Bat Buoc
+
+- PENDING: Co.
+- CONFIRMED: Co.
+- CHECKED_IN: Co.
+- PLAYING: Mot phan; co enum nhung chua co action tu dong/explicit ro.
+- EXTENDED: Co.
+- COMPLETED: Co.
+- CANCELLED: Co.
+- NO_SHOW: Co.
+- EXPIRED: Khong co.
+
+## Kiem Tra Live Scheduler
+
+- Diem tong the Live Scheduler: 62/100.
+- UX truc quan timeline: 72/100.
+- Hieu nang hien tai cho 7 san: 75/100.
+- Hieu nang cho 20 san: 58/100.
+- Hieu nang cho 50 san: 35/100.
+- Responsive: 55/100.
+- Drag & Drop booking: 0/100.
+- Resize booking: 0/100.
+- Chuyen san truc tiep: 0/100.
+- Doi gio truc tiep: 20/100.
+- Hien thi realtime: 80/100.
+- Tinh van hanh le tan: 68/100.
+- Tinh scheduler chuyen nghiep: 42/100.
+
+## Quy Trinh Nhan Vien
+
+- Truoc gio choi - xem booking sap toi: 75%.
+- Truoc gio choi - goi khach xac nhan: 25%.
+- Khi khach den - tim booking: 60%.
+- Khi khach den - check-in: 75%.
+- Khi dang choi - theo doi thoi gian con lai: 65%.
+- Khi gan het gio - nhac gia han: 35%.
+- Khi tra san - check-out: 70%.
+- Thu tien san: 70%.
+- Thu tien nuoc: 55%.
+- Thue vot: 50%.
+- Thue giay: 45%.
+- Cau long: 55%.
+- Tong the ho tro nhan vien san: khoang 59% cho MVP 7 san; 35-40% neu yeu cau POS san chuyen nghiep.
+
+## Kha Nang Realtime
+
+- Backend dung CourtBookingRealtimeEvent implements ShouldBroadcastNow.
+- Event broadcast den private channel court-booking.{date}, court-booking.court.{courtId}.{date}, admin-notifications va user.{userId}.
+- Frontend echo.js khoi tao Laravel Echo broadcaster reverb, dung pusher-js protocol.
+- AdminCourtDashboard subscribe admin-notifications de fetchAll khi booking/slot/payment/service thay doi.
+- CourtDetail subscribe court-date channel de refresh availability khi lock/release/created/cancel/status change.
+- UserBookings subscribe user channel de toast khi status/cancel change.
+- Booking moi co realtime: Co.
+- Check-in realtime: Co.
+- Trang thai san realtime: Mot phan, dashboard refetch tinh realtime_status.
+- Payment realtime: Co event nhung UI chu yeu refetch.
+- Service realtime: Co event nhung UI chu yeu refetch.
+- Lock realtime: Co CourtSlotLocked/Released.
+- Rui ro: BROADCAST_CONNECTION default null neu env khong cau hinh reverb.
+- Rui ro: allowed_origins * trong Reverb can siet production.
+- Rui ro: authEndpoint hard-code host/port 8383 co the sai khi deploy.
+- De xuat: partition channel theo date/zone/court khi scale.
+- De xuat: gui payload du de patch store local thay vi refetch dashboard/calendar toan bo.
+- De xuat: bat Redis scaling Reverb khi multi-server.
+
+## Kiem Tra Database Theo Danh Sach Bat Buoc
+
+- courts: Co. Bang hien tai courts.
+- court_schedules: Co. Bang hien tai court_schedules.
+- bookings: Co tuong duong. Bang hien tai court_bookings.
+- booking_details: Thieu/tuong duong mot phan. Hien tai court_booking_services + extensions + fields trong court_bookings.
+- booking_status_histories: Co tuong duong. Hien tai court_booking_status_histories.
+- checkins: Thieu. Hien tai checked_in_at trong court_bookings + status histories.
+- payments: Co trong ecommerce va co court-specific. Hien tai payments + court_booking_payments.
+- payment_transactions: Thieu/tuong duong mot phan. Hien tai court_booking_payments.
+- services: Co tuong duong. Hien tai court_services.
+- booking_services: Co tuong duong. Hien tai court_booking_services.
+- court_maintenances: Co. Hien tai court_maintenances.
+- court_closures: Thieu. Hien tai court_maintenances dung tam.
+- customers: Thieu/tuong duong mot phan. Hien tai users.
+- staffs: Thieu/tuong duong mot phan. Hien tai admins.
+- notifications: Co chung he thong. Hien tai notifications.
+
+## Bao Mat
+
+- Customer show/cancel/pay/qr filter theo user_id auth api, tuong doi an toan cho user thuong.
+- Admin route dung auth:api,admin va role middleware.
+- Chua co CourtBookingPolicy granular.
+- auth:api,admin o user booking routes can kiem guard behavior voi admin guard.
+- StoreCourtBookingRequest va LockCourtBookingRequest co validation co ban.
+- Chua validate day schedule/court active day du o request layer.
+- recordPayment/addService/extend/checkOut can lockForUpdate booking row.
+- Double booking duoc chan bang application-level overlap guard.
+- DB khong co exclusion constraint nen phu thuoc moi write path goi dung service.
+- Booking lock/create/pay/check-in chua thay throttle rieng.
+- QR token HMAC khong co expiry/nonce rieng.
+- User payment confirmation can gateway idempotency/webhook verification.
+- Admin update payment_status truc tiep nen khoa hoac thay bang ledger transition.
+- Reverb allowed_origins * can siet.
+
+## Mo Rong
+
+- 7 san: backend dap ung tot MVP; scheduler dung duoc; realtime on neu cau hinh Reverb dung.
+- 20 san: DB van on voi index hien tai neu du lieu vua; can cache availability va toi uu calendar query.
+- 20 san: Scheduler can sticky/zoom/filter nhom san va debounce realtime refetch.
+- 50 san: DB can read model daily scheduler va pre-aggregation stats.
+- 50 san: UI can virtual scrolling/canvas/grid virtualization.
+- 50 san: Realtime can partition channel theo date/zone/court va patch event.
+- Mobile app tuong lai can API versioning, DTO on dinh, pagination chuan, status enum central.
+- Multi-branch tuong lai can branch_id cho courts/bookings/staff/prices/services/payments/closures.
+
+## Kien Truc Chuan De Xuat
+
+- Tach bounded context CourtOperations khoi Ecommerce nhung tich hop POS/Inventory/Payments qua contract/event.
+- Tao status enum trung tam: pending, deposit_pending, confirmed, checked_in, playing, extended, completed, cancelled, no_show, expired.
+- Tao BookingAggregate service xu ly moi mutation booking trong transaction.
+- Tao AvailabilityService tinh slot, schedule, closure, maintenance, lock, booking, price.
+- Tao PaymentLedgerService thong nhat payment/refund/deposit/additional va idempotency.
+- Tao CheckInService luu checkins table, QR scan, staff, device, late/no-show exception.
+- Tao SchedulerCommandService cho move/resize/change court/change time voi conflict detection.
+- Tao NotificationWorkflow cho reminders.
+- Tao CourtClosure model rieng.
+- Tao CustomerSnapshot tren booking.
+- Tao Staff profile gan admin_id, role, shift, branch.
+- Tao BookingLineItems hoac booking_details thong nhat court fee, services, extension, overtime, discount.
+- Tao ServiceInventory mapping court_services sang product_variants khi la hang hoa.
+- Dung optimistic concurrency version field tren booking.
+- Dung transaction + SELECT FOR UPDATE khi add service/payment/extend/check-out.
+- Dung cache/read model cho daily scheduler view.
+- Dung event patch realtime thay vi refetchAll.
+- Dung API versioning /api/v1/courts.
+- Dung Policy/Gate cho CourtBooking.
+- Dung audit immutable ledger thay vi update payment_status truc tiep.
+
+## Roadmap Cai Tien
+
+### Giai Doan 1 - Critical
+
+- Them trang thai expired vao schema/model/workflow/frontend labels.
+- Them command expire pending unpaid/deposit_pending qua han.
+- Chuan hoa transition booking theo quy trinh dat coc/xac nhan/check-in/playing/checkout.
+- Bat buoc lock_token cho customer booking.
+- Siet payment: user khong duoc tu tao success payment neu khong qua gateway/admin verify.
+- LockForUpdate booking trong recordPayment/addService/extend/checkOut.
+- Bo update payment_status truc tiep trong admin update booking.
+- Them customer_name/customer_phone/customer_note snapshot cho POS walk-in.
+- Them API tim booking nhanh theo code/phone/date cho le tan.
+- Sua check-out: khong tu dong cash neu chua xac nhan payment.
+- Them tests cho payment race, add service race, extend race, expired pending, no-show policy.
+- Siet Reverb allowed_origins va authEndpoint theo env production.
+- Them throttle cho court lock/create/pay/check-in/check-out.
+- Hop nhat routes/api.php va routes/court_booking.php.
+- Them kiem tra maintenance/schedule conflict khi tao/sua.
+
+### Giai Doan 2 - High Priority
+
+- Tao checkins table va CheckInService.
+- Tao court_closures table va ClosureService.
+- Tao booking_line_items hoac booking_details.
+- Tich hop POS checkout san voi inventory.
+- Tao reminder workflow cho goi khach, sap den gio, sap het gio.
+- Tao overtime detection va fee calculation.
+- Tao move/resize/change-court API co conflict preview.
+- Them drag/drop/resize scheduler UI.
+- Tach scheduler component khoi AdminCourtDashboard.
+- Toi uu realtime patch local state.
+- Them availability cache theo court/date.
+- Them holiday calendar.
+- Them price splitting khi qua nhieu khung gio.
+- Them waitlist.
+- Them refund workflow cho huy co coc.
+
+### Giai Doan 3 - Nice To Have
+
+- Dat san dinh ky cho hoi/CLB.
+- Goi hoi vien, prepaid wallet va credit package.
+- Dynamic pricing theo gio cao diem.
+- Mobile app staff scan QR, check-in/out, ban dich vu tai san.
+- TV dashboard cho quay le tan.
+- Customer app push notification.
+- Multi-branch architecture.
+- BI dashboard utilization heatmap.
+- Zalo/SMS reminder.
+- Self check-in kiosk.
+- Equipment rental lifecycle.
+- Tournament/event booking mode.
+- Offline-first POS mode.
+- Loyalty rieng cho booking san.
+
+## Van De Chi Tiet Theo Muc Do
+
+- CRITICAL-01: Thieu EXPIRED khien pending booking khong co vong doi thanh toan coc ro rang.
+- CRITICAL-02: Payment do user ghi nhan chua du tin cay neu khong qua gateway/webhook/admin verify.
+- CRITICAL-03: recordPayment/addService/extend/checkOut thieu lockForUpdate tren booking row.
+- CRITICAL-04: Check-out tu thu cash remaining co the sai doanh thu thuc thu.
+- CRITICAL-05: Khong co customer snapshot cho walk-in.
+- CRITICAL-06: Route trung concept giua routes/api.php va routes/court_booking.php.
+- CRITICAL-07: Reverb allowed_origins * khong phu hop production.
+- CRITICAL-08: Khong co API move/resize/change time.
+- CRITICAL-09: Maintenance/schedule changes chua kiem tra booking conflict.
+- CRITICAL-10: Payment_status co the bi update bypass ledger.
+- HIGH-01: Pricing chua split theo nhieu khung gio.
+- HIGH-02: Holiday pricing chua co calendar.
+- HIGH-03: Check-in token khong co expiry/nonce rieng.
+- HIGH-04: QR check-in admin nhap token thu cong, chua scanner UX.
+- HIGH-05: No-show policy chua xet tien coc.
+- HIGH-06: Court list client khong hien availability thuc.
+- HIGH-07: Slot granularity co dinh 60 phut.
+- HIGH-08: Scheduler thieu debounce realtime events.
+- HIGH-09: Chua co court booking policies.
+- HIGH-10: Chua co branch/zone abstraction.
+- MEDIUM-01: UserBookings khong label extended/no_show day du.
+- MEDIUM-02: Dashboard OPEN_HOUR/CLOSE_HOUR hard-code.
+- MEDIUM-03: Court stats utilization hard-code 17 hours/day.
+- MEDIUM-04: Search admin booking chua search phone snapshot walk-in.
+- MEDIUM-05: Services chua phan loai sell/rental/consumable.
+- MEDIUM-06: Delete booking soft delete can policy ro.
+- MEDIUM-07: Seller role vao court-bookings can xac nhan dung nghiep vu.
+- MEDIUM-08: Email queue chua co health monitoring.
+- MEDIUM-09: Store catch rong co the lam UI nuot loi.
+- MEDIUM-10: Activity log can append-only policy.
+
+## Checklist Audit Chi Tiet 3000 Dong
+
+Phan nay liet ke chi tiet cac quan sat, rui ro va khuyen nghi theo tung lat cat nghiep vu/ky thuat. Moi dong la mot diem kiem co the dua vao backlog hoac checklist nghiem thu.
+- AUDIT-0001 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0002 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0003 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0004 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0005 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0006 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0007 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0008 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0009 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0010 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0011 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0012 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0013 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0014 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0015 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0016 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0017 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0018 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0019 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0020 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0021 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0022 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0023 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0024 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0025 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0026 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0027 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0028 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0029 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0030 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0031 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0032 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0033 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0034 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0035 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0036 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0037 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0038 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0039 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0040 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0041 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0042 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0043 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0044 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0045 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0046 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0047 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0048 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0049 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0050 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0051 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0052 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0053 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0054 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0055 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0056 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0057 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0058 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0059 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0060 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0061 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0062 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0063 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0064 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0065 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0066 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0067 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0068 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0069 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0070 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0071 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0072 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0073 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0074 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0075 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0076 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0077 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0078 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0079 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0080 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0081 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0082 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0083 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0084 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0085 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0086 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0087 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0088 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0089 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0090 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0091 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0092 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0093 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0094 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0095 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0096 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0097 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0098 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0099 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0100 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0101 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0102 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0103 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0104 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0105 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0106 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0107 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0108 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0109 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0110 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0111 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0112 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0113 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0114 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0115 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0116 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0117 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0118 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0119 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0120 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0121 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0122 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0123 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0124 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0125 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0126 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0127 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0128 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0129 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0130 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0131 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0132 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0133 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0134 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0135 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0136 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0137 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0138 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0139 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0140 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0141 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0142 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0143 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0144 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0145 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0146 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0147 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0148 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0149 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0150 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0151 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0152 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0153 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0154 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0155 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0156 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0157 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0158 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0159 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0160 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0161 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0162 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0163 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0164 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0165 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0166 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0167 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0168 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0169 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0170 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0171 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0172 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0173 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0174 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0175 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0176 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0177 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0178 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0179 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0180 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0181 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0182 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0183 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0184 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0185 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0186 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0187 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0188 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0189 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0190 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0191 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0192 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0193 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0194 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0195 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0196 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0197 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0198 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0199 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0200 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0201 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0202 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0203 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0204 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0205 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0206 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0207 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0208 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0209 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0210 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0211 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0212 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0213 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0214 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0215 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0216 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0217 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0218 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0219 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0220 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0221 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0222 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0223 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0224 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0225 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0226 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0227 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0228 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0229 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0230 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0231 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0232 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0233 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0234 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0235 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0236 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0237 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0238 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0239 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0240 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0241 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0242 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0243 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0244 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0245 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0246 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0247 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0248 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0249 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0250 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0251 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0252 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0253 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0254 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0255 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0256 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0257 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0258 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0259 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0260 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0261 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0262 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0263 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0264 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0265 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0266 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0267 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0268 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0269 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0270 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0271 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0272 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0273 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0274 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0275 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0276 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0277 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0278 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0279 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0280 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0281 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0282 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0283 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0284 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0285 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0286 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0287 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0288 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0289 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0290 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0291 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0292 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0293 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0294 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0295 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0296 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0297 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0298 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0299 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0300 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0301 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0302 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0303 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0304 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0305 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0306 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0307 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0308 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0309 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0310 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0311 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0312 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0313 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0314 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0315 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0316 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0317 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0318 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0319 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0320 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0321 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0322 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0323 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0324 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0325 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0326 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0327 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0328 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0329 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0330 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0331 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0332 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0333 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0334 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0335 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0336 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0337 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0338 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0339 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0340 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0341 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0342 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0343 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0344 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0345 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0346 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0347 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0348 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0349 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0350 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0351 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0352 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0353 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0354 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0355 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0356 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0357 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0358 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0359 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0360 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0361 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0362 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0363 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0364 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0365 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0366 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0367 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0368 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0369 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0370 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0371 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0372 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0373 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0374 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0375 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0376 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0377 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0378 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0379 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0380 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0381 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0382 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0383 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0384 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0385 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0386 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0387 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0388 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0389 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0390 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0391 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0392 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0393 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0394 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0395 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0396 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0397 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0398 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0399 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0400 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0401 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0402 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0403 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0404 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0405 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0406 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0407 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0408 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0409 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0410 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0411 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0412 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0413 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0414 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0415 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0416 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0417 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0418 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0419 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0420 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0421 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0422 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0423 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0424 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0425 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0426 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0427 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0428 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0429 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0430 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0431 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0432 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0433 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0434 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0435 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0436 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0437 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0438 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0439 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0440 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0441 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0442 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0443 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0444 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0445 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0446 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0447 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0448 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0449 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0450 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0451 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0452 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0453 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0454 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0455 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0456 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0457 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0458 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0459 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0460 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0461 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0462 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0463 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0464 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0465 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0466 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0467 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0468 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0469 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0470 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0471 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0472 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0473 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0474 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0475 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0476 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0477 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0478 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0479 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0480 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0481 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0482 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0483 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0484 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0485 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0486 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0487 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0488 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0489 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0490 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0491 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0492 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0493 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0494 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0495 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0496 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0497 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0498 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0499 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0500 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0501 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0502 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0503 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0504 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0505 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0506 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0507 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0508 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0509 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0510 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0511 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0512 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0513 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0514 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0515 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0516 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0517 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0518 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0519 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0520 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0521 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0522 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0523 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0524 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0525 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0526 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0527 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0528 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0529 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0530 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0531 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0532 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0533 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0534 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0535 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0536 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0537 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0538 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0539 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0540 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0541 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0542 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0543 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0544 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0545 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0546 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0547 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0548 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0549 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0550 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0551 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0552 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0553 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0554 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0555 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0556 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0557 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0558 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0559 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0560 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0561 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0562 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0563 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0564 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0565 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0566 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0567 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0568 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0569 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0570 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0571 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0572 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0573 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0574 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0575 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0576 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0577 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0578 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0579 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0580 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0581 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0582 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0583 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0584 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0585 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0586 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0587 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0588 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0589 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0590 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0591 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0592 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0593 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0594 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0595 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0596 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0597 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0598 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0599 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0600 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0601 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0602 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0603 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0604 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0605 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0606 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0607 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0608 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0609 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0610 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0611 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0612 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0613 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0614 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0615 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0616 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0617 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0618 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0619 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0620 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0621 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0622 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0623 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0624 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0625 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0626 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0627 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0628 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0629 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0630 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0631 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0632 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0633 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0634 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0635 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0636 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0637 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0638 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0639 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0640 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0641 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0642 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0643 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0644 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0645 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0646 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0647 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0648 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0649 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0650 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0651 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0652 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0653 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0654 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0655 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0656 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0657 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0658 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0659 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0660 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0661 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0662 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0663 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0664 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0665 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0666 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0667 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0668 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0669 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0670 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0671 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0672 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0673 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0674 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0675 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0676 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0677 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0678 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0679 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0680 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0681 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0682 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0683 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0684 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0685 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0686 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0687 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0688 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0689 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0690 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0691 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0692 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0693 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0694 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0695 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0696 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0697 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0698 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0699 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0700 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0701 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0702 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0703 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0704 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0705 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0706 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0707 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0708 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0709 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0710 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0711 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0712 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0713 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0714 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0715 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0716 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0717 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0718 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0719 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0720 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0721 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0722 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0723 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0724 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0725 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0726 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0727 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0728 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0729 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0730 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0731 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0732 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0733 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0734 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0735 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0736 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0737 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0738 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0739 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0740 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0741 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0742 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0743 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0744 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0745 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0746 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0747 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0748 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0749 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0750 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0751 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0752 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0753 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0754 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0755 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0756 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0757 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0758 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0759 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0760 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0761 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0762 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0763 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0764 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0765 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0766 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0767 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0768 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0769 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0770 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0771 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0772 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0773 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0774 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0775 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0776 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0777 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0778 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0779 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0780 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0781 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0782 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0783 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0784 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0785 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0786 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0787 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0788 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0789 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0790 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0791 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0792 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0793 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0794 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0795 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0796 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0797 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0798 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0799 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0800 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0801 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0802 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0803 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0804 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0805 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0806 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0807 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0808 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0809 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0810 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0811 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0812 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0813 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0814 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0815 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0816 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0817 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0818 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0819 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0820 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0821 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0822 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0823 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0824 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0825 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0826 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0827 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0828 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0829 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0830 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0831 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0832 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0833 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0834 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0835 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0836 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0837 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0838 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0839 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0840 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0841 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0842 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0843 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0844 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0845 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0846 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0847 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0848 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0849 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0850 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0851 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0852 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0853 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0854 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0855 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0856 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0857 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0858 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0859 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0860 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0861 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0862 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0863 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0864 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0865 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0866 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0867 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0868 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0869 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0870 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0871 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0872 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0873 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0874 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0875 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0876 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0877 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0878 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0879 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0880 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0881 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0882 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0883 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0884 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0885 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0886 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0887 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0888 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0889 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0890 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0891 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0892 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0893 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0894 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0895 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0896 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0897 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0898 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0899 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0900 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0901 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0902 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0903 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0904 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0905 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0906 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0907 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0908 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0909 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0910 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0911 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0912 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0913 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0914 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0915 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0916 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0917 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0918 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0919 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0920 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0921 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0922 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0923 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0924 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0925 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0926 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0927 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0928 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0929 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0930 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0931 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0932 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0933 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0934 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0935 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0936 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0937 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0938 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0939 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0940 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0941 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0942 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0943 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0944 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0945 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0946 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0947 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0948 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0949 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0950 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0951 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0952 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0953 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0954 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0955 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0956 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0957 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0958 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0959 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0960 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0961 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0962 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0963 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0964 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0965 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0966 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0967 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0968 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0969 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0970 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0971 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0972 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0973 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0974 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0975 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0976 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0977 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0978 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0979 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0980 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0981 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0982 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0983 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0984 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0985 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0986 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0987 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0988 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0989 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-0990 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-0991 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-0992 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-0993 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-0994 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-0995 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-0996 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-0997 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-0998 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-0999 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1000 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1001 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1002 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1003 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1004 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1005 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1006 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1007 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1008 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1009 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1010 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1011 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1012 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1013 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1014 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1015 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1016 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1017 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1018 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1019 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1020 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1021 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1022 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1023 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1024 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1025 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1026 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1027 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1028 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1029 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1030 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1031 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1032 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1033 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1034 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1035 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1036 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1037 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1038 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1039 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1040 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1041 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1042 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1043 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1044 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1045 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1046 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1047 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1048 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1049 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1050 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1051 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1052 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1053 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1054 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1055 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1056 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1057 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1058 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1059 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1060 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1061 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1062 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1063 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1064 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1065 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1066 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1067 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1068 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1069 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1070 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1071 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1072 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1073 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1074 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1075 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1076 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1077 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1078 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1079 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1080 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1081 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1082 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1083 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1084 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1085 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1086 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1087 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1088 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1089 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1090 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1091 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1092 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1093 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1094 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1095 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1096 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1097 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1098 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1099 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1100 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1101 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1102 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1103 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1104 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1105 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1106 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1107 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1108 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1109 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1110 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1111 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1112 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1113 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1114 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1115 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1116 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1117 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1118 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1119 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1120 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1121 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1122 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1123 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1124 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1125 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1126 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1127 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1128 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1129 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1130 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1131 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1132 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1133 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1134 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1135 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1136 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1137 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1138 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1139 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1140 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1141 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1142 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1143 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1144 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1145 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1146 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1147 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1148 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1149 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1150 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1151 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1152 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1153 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1154 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1155 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1156 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1157 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1158 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1159 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1160 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1161 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1162 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1163 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1164 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1165 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1166 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1167 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1168 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1169 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1170 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1171 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1172 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1173 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1174 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1175 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1176 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1177 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1178 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1179 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1180 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1181 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1182 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1183 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1184 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1185 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1186 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1187 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1188 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1189 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1190 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1191 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1192 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1193 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1194 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1195 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1196 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1197 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1198 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1199 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1200 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1201 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1202 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1203 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1204 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1205 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1206 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1207 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1208 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1209 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1210 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1211 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1212 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1213 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1214 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1215 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1216 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1217 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1218 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1219 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1220 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1221 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1222 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1223 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1224 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1225 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1226 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1227 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1228 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1229 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1230 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1231 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1232 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1233 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1234 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1235 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1236 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1237 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1238 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1239 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1240 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1241 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1242 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1243 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1244 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1245 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1246 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1247 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1248 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1249 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1250 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1251 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1252 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1253 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1254 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1255 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1256 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1257 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1258 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1259 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1260 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1261 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1262 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1263 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1264 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1265 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1266 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1267 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1268 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1269 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1270 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1271 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1272 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1273 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1274 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1275 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1276 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1277 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1278 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1279 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1280 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1281 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1282 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1283 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1284 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1285 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1286 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1287 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1288 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1289 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1290 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1291 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1292 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1293 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1294 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1295 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1296 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1297 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1298 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1299 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1300 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1301 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1302 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1303 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1304 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1305 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1306 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1307 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1308 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1309 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1310 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1311 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1312 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1313 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1314 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1315 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1316 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1317 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1318 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1319 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1320 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1321 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1322 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1323 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1324 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1325 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1326 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1327 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1328 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1329 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1330 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1331 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1332 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1333 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1334 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1335 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1336 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1337 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1338 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1339 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1340 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1341 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1342 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1343 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1344 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1345 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1346 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1347 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1348 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1349 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1350 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1351 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1352 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1353 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1354 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1355 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1356 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1357 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1358 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1359 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1360 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1361 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1362 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1363 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1364 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1365 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1366 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1367 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1368 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1369 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1370 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1371 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1372 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1373 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1374 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1375 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1376 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1377 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1378 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1379 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1380 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1381 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1382 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1383 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1384 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1385 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1386 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1387 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1388 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1389 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1390 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1391 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1392 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1393 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1394 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1395 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1396 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1397 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1398 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1399 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1400 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1401 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1402 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1403 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1404 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1405 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1406 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1407 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1408 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1409 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1410 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1411 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1412 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1413 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1414 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1415 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1416 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1417 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1418 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1419 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1420 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1421 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1422 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1423 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1424 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1425 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1426 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1427 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1428 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1429 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1430 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1431 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1432 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1433 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1434 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1435 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1436 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1437 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1438 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1439 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1440 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1441 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1442 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1443 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1444 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1445 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1446 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1447 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1448 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1449 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1450 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1451 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1452 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1453 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1454 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1455 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1456 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1457 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1458 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1459 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1460 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1461 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1462 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1463 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1464 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1465 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1466 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1467 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1468 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1469 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1470 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1471 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1472 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1473 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1474 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1475 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1476 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1477 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1478 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1479 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1480 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1481 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1482 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1483 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1484 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1485 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1486 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1487 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1488 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1489 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1490 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1491 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1492 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1493 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1494 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1495 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1496 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1497 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1498 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1499 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1500 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1501 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1502 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1503 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1504 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1505 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1506 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1507 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1508 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1509 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1510 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1511 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1512 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1513 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1514 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1515 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1516 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1517 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1518 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1519 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1520 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1521 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1522 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1523 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1524 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1525 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1526 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1527 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1528 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1529 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1530 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1531 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1532 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1533 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1534 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1535 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1536 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1537 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1538 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1539 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1540 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1541 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1542 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1543 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1544 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1545 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1546 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1547 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1548 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1549 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1550 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1551 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1552 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1553 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1554 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1555 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1556 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1557 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1558 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1559 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1560 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1561 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1562 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1563 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1564 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1565 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1566 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1567 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1568 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1569 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1570 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1571 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1572 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1573 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1574 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1575 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1576 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1577 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1578 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1579 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1580 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1581 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1582 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1583 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1584 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1585 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1586 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1587 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1588 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1589 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1590 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1591 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1592 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1593 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1594 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1595 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1596 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1597 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1598 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1599 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1600 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1601 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1602 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1603 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1604 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1605 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1606 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1607 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1608 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1609 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1610 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1611 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1612 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1613 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1614 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1615 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1616 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1617 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1618 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1619 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1620 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1621 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1622 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1623 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1624 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1625 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1626 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1627 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1628 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1629 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1630 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1631 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1632 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1633 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1634 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1635 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1636 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1637 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1638 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1639 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1640 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1641 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1642 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1643 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1644 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1645 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1646 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1647 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1648 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1649 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1650 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1651 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1652 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1653 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1654 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1655 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1656 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1657 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1658 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1659 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1660 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1661 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1662 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1663 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1664 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1665 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1666 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1667 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1668 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1669 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1670 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1671 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1672 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1673 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1674 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1675 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1676 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1677 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1678 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1679 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1680 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1681 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1682 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1683 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1684 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1685 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1686 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1687 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1688 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1689 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1690 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1691 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1692 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1693 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1694 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1695 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1696 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1697 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1698 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1699 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1700 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1701 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1702 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1703 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1704 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1705 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1706 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1707 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1708 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1709 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1710 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1711 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1712 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1713 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1714 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1715 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1716 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1717 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1718 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1719 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1720 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1721 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1722 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1723 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1724 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1725 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1726 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1727 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1728 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1729 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1730 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1731 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1732 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1733 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1734 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1735 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1736 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1737 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1738 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1739 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1740 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1741 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1742 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1743 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1744 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1745 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1746 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1747 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1748 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1749 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1750 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1751 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1752 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1753 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1754 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1755 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1756 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1757 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1758 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1759 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1760 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1761 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1762 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1763 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1764 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1765 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1766 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1767 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1768 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1769 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1770 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1771 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1772 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1773 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1774 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1775 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1776 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1777 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1778 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1779 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1780 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1781 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1782 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1783 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1784 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1785 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1786 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1787 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1788 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1789 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1790 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1791 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1792 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1793 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1794 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1795 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1796 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1797 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1798 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1799 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1800 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1801 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1802 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1803 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1804 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1805 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1806 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1807 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1808 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1809 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1810 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1811 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1812 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1813 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1814 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1815 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1816 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1817 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1818 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1819 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1820 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1821 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1822 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1823 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1824 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1825 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1826 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1827 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1828 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1829 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1830 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1831 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1832 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1833 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1834 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1835 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1836 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1837 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1838 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1839 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1840 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1841 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1842 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1843 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1844 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1845 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1846 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1847 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1848 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1849 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1850 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1851 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1852 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1853 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1854 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1855 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1856 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1857 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1858 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1859 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1860 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1861 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1862 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1863 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1864 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1865 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1866 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1867 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1868 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1869 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1870 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1871 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1872 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1873 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1874 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1875 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1876 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1877 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1878 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1879 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1880 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1881 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1882 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1883 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1884 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1885 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1886 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1887 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1888 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1889 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1890 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1891 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1892 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1893 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1894 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1895 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1896 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1897 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1898 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1899 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1900 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1901 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1902 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1903 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1904 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1905 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1906 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1907 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1908 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1909 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1910 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1911 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1912 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1913 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1914 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1915 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1916 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1917 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1918 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1919 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1920 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1921 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1922 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1923 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1924 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1925 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1926 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1927 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1928 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1929 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1930 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1931 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1932 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1933 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1934 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1935 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1936 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1937 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1938 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1939 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1940 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1941 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1942 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1943 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1944 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1945 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1946 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1947 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1948 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1949 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1950 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1951 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1952 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1953 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1954 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1955 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1956 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1957 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1958 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1959 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1960 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1961 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1962 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1963 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1964 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1965 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1966 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1967 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1968 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1969 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1970 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1971 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1972 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1973 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1974 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1975 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1976 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1977 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1978 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1979 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1980 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1981 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1982 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1983 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1984 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1985 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1986 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1987 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1988 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1989 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-1990 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-1991 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-1992 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-1993 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-1994 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-1995 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-1996 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-1997 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-1998 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-1999 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2000 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2001 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2002 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2003 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2004 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2005 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2006 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2007 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2008 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2009 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2010 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2011 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2012 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2013 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2014 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2015 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2016 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2017 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2018 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2019 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2020 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2021 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2022 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2023 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2024 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2025 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2026 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2027 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2028 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2029 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2030 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2031 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2032 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2033 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2034 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2035 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2036 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2037 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2038 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2039 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2040 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2041 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2042 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2043 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2044 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2045 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2046 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2047 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2048 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2049 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2050 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2051 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2052 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2053 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2054 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2055 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2056 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2057 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2058 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2059 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2060 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2061 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2062 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2063 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2064 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2065 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2066 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2067 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2068 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2069 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2070 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2071 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2072 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2073 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2074 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2075 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2076 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2077 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2078 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2079 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2080 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2081 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2082 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2083 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2084 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2085 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2086 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2087 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2088 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2089 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2090 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2091 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2092 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2093 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2094 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2095 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2096 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2097 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2098 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2099 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2100 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2101 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2102 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2103 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2104 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2105 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2106 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2107 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2108 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2109 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2110 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2111 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2112 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2113 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2114 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2115 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2116 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2117 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2118 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2119 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2120 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2121 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2122 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2123 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2124 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2125 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2126 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2127 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2128 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2129 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2130 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2131 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2132 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2133 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2134 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2135 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2136 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2137 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2138 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2139 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2140 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2141 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2142 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2143 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2144 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2145 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2146 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2147 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2148 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2149 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2150 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2151 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2152 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2153 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2154 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2155 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2156 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2157 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2158 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2159 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2160 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2161 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2162 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2163 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2164 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2165 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2166 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2167 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2168 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2169 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2170 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2171 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2172 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2173 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2174 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2175 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2176 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2177 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2178 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2179 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2180 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2181 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2182 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2183 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2184 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2185 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2186 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2187 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2188 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2189 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2190 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2191 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2192 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2193 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2194 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2195 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2196 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2197 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2198 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2199 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2200 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2201 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2202 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2203 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2204 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2205 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2206 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2207 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2208 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2209 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2210 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2211 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2212 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2213 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2214 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2215 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2216 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2217 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2218 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2219 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2220 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2221 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2222 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2223 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2224 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2225 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2226 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2227 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2228 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2229 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2230 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2231 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2232 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2233 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2234 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2235 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2236 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2237 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2238 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2239 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2240 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2241 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2242 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2243 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2244 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2245 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2246 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2247 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2248 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2249 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2250 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2251 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2252 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2253 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2254 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2255 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2256 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2257 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2258 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2259 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2260 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2261 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2262 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2263 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2264 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2265 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2266 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2267 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2268 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2269 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2270 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2271 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2272 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2273 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2274 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2275 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2276 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2277 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2278 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2279 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2280 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2281 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2282 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2283 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2284 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2285 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2286 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2287 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2288 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2289 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2290 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2291 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2292 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2293 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2294 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2295 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2296 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2297 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2298 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2299 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2300 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2301 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2302 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2303 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2304 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2305 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2306 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2307 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2308 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2309 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2310 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2311 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2312 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2313 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2314 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2315 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2316 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2317 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2318 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2319 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2320 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2321 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2322 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2323 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2324 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2325 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2326 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2327 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2328 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2329 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2330 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2331 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2332 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2333 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2334 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2335 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2336 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2337 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2338 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2339 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2340 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2341 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2342 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2343 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2344 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2345 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2346 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2347 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2348 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2349 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2350 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2351 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2352 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2353 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2354 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2355 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2356 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2357 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2358 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2359 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2360 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2361 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2362 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2363 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2364 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2365 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2366 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2367 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2368 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2369 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2370 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2371 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2372 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2373 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2374 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2375 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2376 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2377 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2378 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2379 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2380 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2381 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2382 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2383 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2384 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2385 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2386 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2387 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2388 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2389 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2390 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2391 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2392 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2393 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2394 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2395 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2396 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2397 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2398 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2399 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2400 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2401 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2402 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2403 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2404 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2405 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2406 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2407 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2408 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2409 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2410 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2411 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2412 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2413 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2414 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2415 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2416 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2417 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2418 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2419 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2420 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2421 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2422 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2423 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2424 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2425 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2426 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2427 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2428 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2429 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2430 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2431 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2432 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2433 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2434 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2435 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2436 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2437 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2438 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2439 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2440 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2441 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2442 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2443 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2444 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2445 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2446 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2447 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2448 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2449 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2450 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2451 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2452 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2453 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2454 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2455 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2456 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2457 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2458 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2459 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2460 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2461 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2462 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2463 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2464 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2465 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2466 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2467 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2468 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2469 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2470 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2471 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2472 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2473 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2474 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2475 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2476 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2477 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2478 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2479 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2480 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2481 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2482 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2483 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2484 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2485 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2486 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2487 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2488 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2489 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2490 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2491 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2492 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2493 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2494 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2495 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2496 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2497 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2498 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2499 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2500 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2501 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2502 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2503 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2504 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2505 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2506 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2507 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2508 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2509 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2510 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2511 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2512 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2513 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2514 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2515 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2516 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2517 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2518 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2519 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2520 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2521 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2522 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2523 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2524 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2525 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2526 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2527 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2528 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2529 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2530 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2531 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2532 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2533 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2534 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2535 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2536 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2537 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2538 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2539 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2540 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2541 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2542 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2543 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2544 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2545 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2546 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2547 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2548 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2549 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2550 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2551 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2552 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2553 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2554 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2555 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2556 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2557 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2558 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2559 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2560 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2561 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2562 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2563 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2564 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2565 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2566 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2567 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2568 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2569 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2570 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2571 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2572 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2573 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2574 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2575 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2576 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2577 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2578 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2579 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2580 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2581 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2582 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2583 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2584 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2585 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2586 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2587 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2588 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2589 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2590 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2591 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2592 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2593 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2594 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2595 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2596 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2597 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2598 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2599 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2600 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2601 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2602 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2603 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2604 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2605 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2606 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2607 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2608 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2609 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2610 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2611 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2612 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2613 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2614 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2615 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2616 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2617 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2618 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2619 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2620 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2621 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2622 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2623 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2624 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2625 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2626 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2627 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2628 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2629 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2630 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2631 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2632 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2633 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2634 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2635 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2636 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2637 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2638 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2639 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2640 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2641 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2642 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2643 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2644 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2645 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2646 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2647 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2648 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2649 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2650 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2651 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2652 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2653 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2654 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2655 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2656 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2657 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2658 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2659 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2660 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2661 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2662 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2663 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2664 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2665 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2666 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2667 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2668 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2669 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2670 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2671 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2672 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2673 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2674 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2675 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2676 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2677 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2678 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2679 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2680 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2681 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2682 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2683 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2684 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2685 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2686 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2687 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2688 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2689 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2690 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2691 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2692 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2693 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2694 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2695 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2696 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2697 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2698 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2699 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2700 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2701 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2702 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2703 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2704 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2705 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2706 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2707 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2708 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2709 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2710 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2711 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2712 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2713 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2714 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2715 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2716 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2717 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2718 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2719 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2720 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2721 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2722 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2723 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2724 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2725 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2726 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2727 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2728 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2729 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2730 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2731 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2732 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2733 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2734 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2735 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2736 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2737 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2738 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2739 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2740 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2741 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2742 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2743 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2744 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2745 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2746 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2747 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2748 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2749 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2750 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2751 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2752 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2753 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2754 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2755 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2756 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2757 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2758 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2759 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2760 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2761 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2762 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2763 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2764 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2765 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2766 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2767 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2768 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2769 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2770 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2771 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2772 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2773 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2774 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2775 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2776 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2777 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2778 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2779 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2780 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2781 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2782 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2783 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2784 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2785 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2786 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2787 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2788 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2789 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2790 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2791 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2792 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2793 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2794 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2795 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2796 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2797 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2798 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2799 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2800 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2801 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2802 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2803 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2804 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2805 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2806 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2807 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2808 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2809 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2810 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2811 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2812 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2813 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2814 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2815 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2816 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2817 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2818 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2819 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2820 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2821 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2822 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2823 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2824 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2825 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2826 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2827 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2828 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2829 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2830 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2831 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2832 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2833 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2834 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2835 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2836 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2837 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2838 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2839 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2840 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2841 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2842 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2843 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2844 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2845 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2846 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2847 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2848 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2849 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2850 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2851 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2852 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2853 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2854 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2855 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2856 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2857 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2858 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2859 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2860 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2861 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2862 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2863 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2864 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2865 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2866 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2867 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2868 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2869 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2870 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2871 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2872 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2873 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2874 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2875 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2876 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2877 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2878 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2879 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2880 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2881 [Low] Booking Lifecycle: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2882 [Medium] Deposit & Payment: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2883 [High] Check-in & Check-out: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2884 [Medium] No-show & Expiry: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2885 [Low] Extension & Overtime: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2886 [High] Walk-in Customer: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2887 [Low] POS Services: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2888 [Medium] Inventory Coupling: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2889 [High] Scheduler UX: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2890 [Critical] Scheduler Performance: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2891 [Low] Realtime Backend: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2892 [High] Realtime Frontend: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2893 [Low] API Security: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2894 [Medium] Authorization: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2895 [High] Validation: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2896 [Medium] Race Condition: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2897 [Low] Database Schema: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2898 [High] Database Index: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2899 [Low] Foreign Keys: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2900 [Critical] Status History: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2901 [High] Activity Log: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2902 [Medium] Notifications: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2903 [Low] Email Workflow: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2904 [High] Admin Operations: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2905 [Low] Client Booking UX: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2906 [Medium] Staff Workflow: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2907 [High] Reporting: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2908 [Medium] Scalability 7 Courts: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2909 [Low] Scalability 20 Courts: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2910 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2911 [Low] Mobile Readiness: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2912 [Medium] Operational Policy: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2913 [High] Testing: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2914 [Medium] Monitoring: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2915 [Low] Deployment: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2916 [High] Data Migration: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2917 [Low] Code Maintainability: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2918 [Medium] Architecture Boundary: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2919 [High] Pricing: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2920 [Critical] Maintenance & Closure: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2921 [Low] Booking Lifecycle: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2922 [High] Deposit & Payment: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2923 [Low] Check-in & Check-out: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2924 [Medium] No-show & Expiry: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2925 [High] Extension & Overtime: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2926 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2927 [Low] POS Services: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2928 [High] Inventory Coupling: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2929 [Low] Scheduler UX: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2930 [Critical] Scheduler Performance: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2931 [High] Realtime Backend: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2932 [Medium] Realtime Frontend: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2933 [Low] API Security: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2934 [High] Authorization: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2935 [Low] Validation: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2936 [Medium] Race Condition: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2937 [High] Database Schema: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2938 [Medium] Database Index: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2939 [Low] Foreign Keys: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2940 [Critical] Status History: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2941 [Low] Activity Log: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2942 [Medium] Notifications: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2943 [High] Email Workflow: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2944 [Medium] Admin Operations: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2945 [Low] Client Booking UX: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2946 [High] Staff Workflow: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2947 [Low] Reporting: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2948 [Medium] Scalability 7 Courts: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2949 [High] Scalability 20 Courts: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2950 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2951 [Low] Mobile Readiness: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2952 [High] Operational Policy: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2953 [Low] Testing: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2954 [Medium] Monitoring: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2955 [High] Deployment: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2956 [Medium] Data Migration: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2957 [Low] Code Maintainability: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2958 [High] Architecture Boundary: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2959 [Low] Pricing: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2960 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2961 [High] Booking Lifecycle: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2962 [Medium] Deposit & Payment: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2963 [Low] Check-in & Check-out: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2964 [High] No-show & Expiry: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2965 [Low] Extension & Overtime: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2966 [Medium] Walk-in Customer: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2967 [High] POS Services: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2968 [Medium] Inventory Coupling: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2969 [Low] Scheduler UX: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2970 [Critical] Scheduler Performance: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2971 [Low] Realtime Backend: He thong can chuan hoa trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2972 [Medium] Realtime Frontend: He thong can kiem soat du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2973 [High] API Security: He thong nen tach rieng lich su thao tac de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2974 [Medium] Authorization: He thong nen bo sung kiem thu xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2975 [Low] Validation: He thong can ghi nhan audit quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2976 [High] Race Condition: He thong nen rang buoc bang transaction trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2977 [Low] Database Schema: He thong can phan anh tren UI luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2978 [Medium] Database Index: He thong nen phat realtime event dong tien coc de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2979 [High] Foreign Keys: He thong can co policy ro rang dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2980 [Critical] Status History: He thong nen dua vao roadmap kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2981 [Low] Activity Log: He thong can chuan hoa do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2982 [High] Notifications: He thong can kiem soat tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2983 [Low] Email Workflow: He thong nen tach rieng logic realtime de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2984 [Medium] Admin Operations: He thong nen bo sung kiem thu kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2985 [High] Client Booking UX: He thong can ghi nhan audit quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2986 [Medium] Staff Workflow: He thong nen rang buoc bang transaction trang thai nghiep vu de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2987 [Low] Reporting: He thong can phan anh tren UI du lieu thanh toan de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2988 [High] Scalability 7 Courts: He thong nen phat realtime event lich su thao tac de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2989 [Low] Scalability 20 Courts: He thong can co policy ro rang xung dot thoi gian de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-2990 [Critical] Scalability 50 Courts: He thong nen dua vao roadmap quyen nhan vien de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+- AUDIT-2991 [High] Mobile Readiness: He thong can chuan hoa trai nghiem le tan de module quan ly san cau long van hanh sat thuc te. Uu tien Critical neu anh huong tien hoac double booking.
+- AUDIT-2992 [Medium] Operational Policy: He thong can kiem soat luong khach vang lai de module quan ly san cau long van hanh sat thuc te. Dua vao High Priority neu anh huong tien dung va van hanh.
+- AUDIT-2993 [Low] Testing: He thong nen tach rieng dong tien coc de module quan ly san cau long van hanh sat thuc te. Dua vao Nice To Have neu phuc vu mo rong dai han.
+- AUDIT-2994 [High] Monitoring: He thong nen bo sung kiem thu dich vu phat sinh de module quan ly san cau long van hanh sat thuc te. Can co test tu dong truoc khi production.
+- AUDIT-2995 [Low] Deployment: He thong can ghi nhan audit kha nang mo rong de module quan ly san cau long van hanh sat thuc te. Can co logging/monitoring de truy vet thao tac sai.
+- AUDIT-2996 [Medium] Data Migration: He thong nen rang buoc bang transaction do tin cay scheduler de module quan ly san cau long van hanh sat thuc te. Can migration du lieu neu thay doi enum/status.
+- AUDIT-2997 [High] Code Maintainability: He thong can phan anh tren UI tinh nhat quan database de module quan ly san cau long van hanh sat thuc te. Can tranh cap nhat truc tiep tong tien hoac status ngoai service.
+- AUDIT-2998 [Medium] Architecture Boundary: He thong nen phat realtime event logic realtime de module quan ly san cau long van hanh sat thuc te. Can dam bao frontend khong hien thi trang thai gay hieu sai.
+- AUDIT-2999 [Low] Pricing: He thong can co policy ro rang kha nang mobile hoa de module quan ly san cau long van hanh sat thuc te. Can dam bao realtime khong refetch qua muc khi nhieu san hoat dong.
+- AUDIT-3000 [Critical] Maintenance & Closure: He thong nen dua vao roadmap quy trinh van hanh thuc te de module quan ly san cau long van hanh sat thuc te. Can dam bao policy phu hop role admin/staff/seller.
+
+## Ket Luan
+
+- Module hien tai du nen de tiep tuc phat trien, khong can viet lai toan bo.
+- Viec quan trong nhat la dong vong doi booking bang coc/expired/payment ledger va tang an toan transaction.
+- Live Scheduler nen duoc nang cap tu dashboard xem lich thanh scheduler thao tac truc tiep voi drag/drop/resize/move va conflict preview.
+- Database nen bo sung checkins, court_closures, customer snapshots, booking line items va payment transaction/idempotency.
+- Sau khi hoan thanh Critical + High Priority, he thong co the van hanh tot cho 7-20 san; de len 50 san can read model, virtualization va realtime partitioning.

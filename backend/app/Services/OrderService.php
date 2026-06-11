@@ -8,6 +8,7 @@ use App\Repositories\OrderRepository;
 use App\Repositories\CartRepository;
 use App\Repositories\AddressRepository;
 use App\Repositories\ProductVariantRepository;
+use App\Services\ComboService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -20,6 +21,7 @@ class OrderService
         protected AddressRepository $addressRepository,
         protected ProductVariantRepository $variantRepository,
         protected CouponService $couponService,
+        protected ComboService $comboService,
         protected ShippingService $shippingService,
         protected PaymentGatewayService $paymentGatewayService,
         protected AffiliateService $affiliateService,
@@ -32,7 +34,7 @@ class OrderService
 
         $orders->getCollection()->transform(function ($order) {
             $order->is_reviewed = $order->items->every(
-                fn ($item) => $item->comment !== null
+                fn($item) => $item->comment !== null
             );
             $order->latest_return_request = $order->returnRequests
                 ->sortByDesc('requested_at')
@@ -105,7 +107,11 @@ class OrderService
             $discountAmount = $couponResult['discount_amount'];
             $couponId = $couponResult['coupon']?->id;
 
-            $grandTotal = $subtotal + $shippingFee - $discountAmount;
+            // Áp dụng Combo/Bundle (Flash Sale combo + Auto-apply Combo Voucher)
+            $comboResult   = $this->comboService->applyAllCombos($userId, $cartItems, $subtotal);
+            $comboDiscount = $comboResult['discount_amount'];
+
+            $grandTotal = max(0, $subtotal + $shippingFee - $discountAmount - $comboDiscount);
 
             $result = DB::transaction(function () use (
                 $userId,
@@ -115,6 +121,8 @@ class OrderService
                 $cartItems,
                 $subtotal,
                 $discountAmount,
+                $comboDiscount,
+                $comboResult,
                 $shippingFee,
                 $grandTotal,
                 $couponId,
@@ -138,6 +146,7 @@ class OrderService
                     'discount_amount' => $discountAmount,
                     'shipping_fee' => $shippingFee,
                     'grand_total' => $grandTotal,
+                    'combo_discount' => $comboDiscount,
                 ]);
 
                 foreach ($cartItems as $cartItem) {
@@ -171,6 +180,14 @@ class OrderService
                     $this->couponService->markCouponAsUsed(
                         $userId,
                         $couponResult['coupon']
+                    );
+                }
+
+                // Đánh dấu đã dùng combo vouchers (auto-apply)
+                if (!empty($comboResult['applied_combo_vouchers'])) {
+                    $this->comboService->markVouchersAsUsed(
+                        $comboResult['applied_combo_vouchers'],
+                        $userId
                     );
                 }
 

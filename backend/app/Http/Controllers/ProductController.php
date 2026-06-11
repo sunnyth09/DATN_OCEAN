@@ -16,9 +16,42 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        return response()->json(
-            $this->productService->listAdminProducts($request)
-        );
+        $result = $this->productService->listAdminProducts($request);
+
+        // Log search history if search term exists
+        if ($request->filled('search')) {
+            $userId = auth('api')->id();
+            $sessionId = $request->header('X-Session-ID'); // Hoặc lấy từ đâu tuỳ frontend gửi lên. Thường frontend nên gửi X-Session-ID. Hoặc có thể dùng cookie. Mặc định là request->session_id nếu truyền params.
+            if (!$sessionId) {
+                $sessionId = $request->query('session_id');
+            }
+
+            if ($userId || $sessionId) {
+                $query = \App\Models\SearchHistory::where('keyword', $request->search);
+                if ($userId) {
+                    $query->where('user_id', $userId);
+                } else {
+                    $query->where('session_id', $sessionId);
+                }
+
+                $record = $query->first();
+                if ($record) {
+                    $record->update([
+                        'updated_at' => now(),
+                        'results_count' => $result['total'] ?? 0
+                    ]);
+                } else {
+                    \App\Models\SearchHistory::create([
+                        'user_id' => $userId,
+                        'session_id' => $userId ? null : $sessionId,
+                        'keyword' => $request->search,
+                        'results_count' => $result['total'] ?? 0
+                    ]);
+                }
+            }
+        }
+
+        return response()->json($result);
     }
 
     /**

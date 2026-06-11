@@ -6,9 +6,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreOrderRequest  extends FormRequest
 {
+    /**
+     * Chỉ customer (api guard) mới được tạo đơn hàng.
+     * Admin/staff sử dụng POS hoặc admin panel riêng.
+     */
     public function authorize(): bool
     {
-        return true;
+        return auth('api')->check() && !auth('admin')->check();
     }
 
     public function rules(): array

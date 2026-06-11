@@ -19,7 +19,7 @@ class CourtBooking extends Model
     protected $primaryKey = 'booking_id';
 
     const BLOCKING_STATUSES = ['pending', 'confirmed', 'checked_in', 'playing', 'extended'];
-    const FREE_STATUSES     = ['cancelled', 'completed', 'no_show'];
+    const FREE_STATUSES     = ['cancelled', 'completed', 'no_show', 'expired'];
 
     protected $fillable = [
         'booking_code', 'user_id', 'staff_id', 'court_id',
@@ -27,6 +27,7 @@ class CourtBooking extends Model
         'status', 'original_price', 'discount_amount', 'service_amount',
         'total_amount', 'deposit_amount', 'paid_amount',
         'payment_status', 'payment_method',
+        'customer_name', 'customer_phone', 'customer_email',
         'checked_in_at', 'checked_out_at', 'confirmed_at', 'cancelled_at',
         'cancel_reason_type', 'cancel_reason', 'note', 'source',
     ];

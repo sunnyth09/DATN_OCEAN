@@ -86,15 +86,19 @@ class SepayController extends Controller
                 $order->update(['payment_status' => 'paid']);
 
                 // Log the payment
-                Payment::create([
-                    'order_id' => $order->order_id,
-                    'payment_method' => 'bank_transfer',
-                    'transaction_code' => $transactionId,
-                    'amount' => $transferAmount,
-                    'status' => 'success',
-                    'paid_at' => now(),
-                    'gateway_response' => $payload,
-                ]);
+                Payment::updateOrCreate(
+                    [
+                        'order_id' => $order->order_id,
+                        'payment_method' => 'bank_transfer',
+                    ],
+                    [
+                        'transaction_code' => $transactionId,
+                        'amount' => $transferAmount,
+                        'status' => 'success',
+                        'paid_at' => now(),
+                        'gateway_response' => $payload,
+                    ]
+                );
 
                 // Clear cart, send email confirmation and send socket updates
                 $this->paymentService->dispatchPostPaymentActions($order);

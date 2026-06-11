@@ -90,8 +90,8 @@ export const courtBookingService = {
   checkInBooking(id) {
     return api.post(`/admin/court-bookings/${id}/check-in`);
   },
-  checkOutBooking(id) {
-    return api.post(`/admin/court-bookings/${id}/check-out`);
+  checkOutBooking(id, payload = {}) {
+    return api.post(`/admin/court-bookings/${id}/check-out`, payload);
   },
   addServiceToBooking(id, payload) {
     return api.post(`/admin/court-bookings/${id}/services`, payload);

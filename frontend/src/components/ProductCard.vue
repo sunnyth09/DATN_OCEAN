@@ -8,6 +8,8 @@ import { useFlyToCart } from "@/composables/useFlyToCart";
 import AppIcon from "@/icons/AppIcon.vue";
 import api from "@/axios";
 
+const APP_URL = import.meta.env.VITE_APP_URL || 'http://localhost:8383/';
+
 const props = defineProps({
     product: {
         type: Object,
@@ -106,11 +108,12 @@ const formatCurrency = (value) => {
         return "Liên hệ";
     }
 
-    if (typeof value === "number") {
+    const num = Number(value);
+    if (!isNaN(num)) {
         return new Intl.NumberFormat("vi-VN", {
             style: "currency",
             currency: "VND",
-        }).format(value);
+        }).format(num);
     }
 
     return value;
@@ -150,8 +153,31 @@ const productLink = computed(() => {
     return "/product";
 });
 
-const productImage = computed(() => props.product.image || props.product.thumbnail_url || "");
-const productCategory = computed(() => props.product.category_name || props.product.category || "");
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
+
+const productImage = computed(() => props.product.image || props.product.thumbnail_url || props.product.main_image?.thumbnail_url || "");
+const productImageUrl = computed(() => {
+    let path = productImage.value;
+    if (!path || path === "0") return "";
+    if (path.startsWith("http")) return path;
+    if (path.startsWith("/storage/") || path.startsWith("storage/")) {
+        const cleanPath = path.startsWith("/") ? path : `/${path}`;
+        return `${BASE_URL}${cleanPath}`;
+    }
+    return `${BASE_URL}/storage/${path}`;
+});
+const variantImageUrl = computed(() => {
+    if (!selectedVariant.value?.image_url || selectedVariant.value.image_url === '0') return productImageUrl.value;
+    let path = selectedVariant.value.image_url;
+    if (path.startsWith("http")) return path;
+    if (path.startsWith("/storage/") || path.startsWith("storage/")) {
+        const cleanPath = path.startsWith("/") ? path : `/${path}`;
+        return `${BASE_URL}${cleanPath}`;
+    }
+    return `${BASE_URL}/storage/${path}`;
+});
+
+const productCategory = computed(() => props.product.category_name || props.product.category?.name || "");
 const productId = computed(() => props.product.id || props.product.product_id || null);
 const defaultVariantId = computed(() =>
     props.product.variant_id ||
@@ -160,11 +186,11 @@ const defaultVariantId = computed(() =>
     props.product.lowestPriceVariant?.variant_id ||
     null,
 );
-const currentPrice = computed(() => formatCurrency(props.product.price));
+const currentPrice = computed(() => formatCurrency(props.product.min_price || 0));
 const originalPrice = computed(() => {
-    if (!props.product.originalPrice) return "";
-    if (props.product.originalPrice === props.product.price) return "";
-    return formatCurrency(props.product.originalPrice);
+    if (!props.product.original_price) return "";
+    if (props.product.original_price === props.product.min_price) return "";
+    return formatCurrency(props.product.original_price);
 });
 
 const handleToggleFav = async (event) => {
@@ -314,7 +340,7 @@ const handleAddToCart = async (event) => {
                     <img
                         ref="productImageRef"
                         v-if="productImage"
-                        :src="productImage"
+                        :src="productImageUrl"
                         :alt="product.name"
                         class="product-image"
                         loading="lazy"
@@ -371,7 +397,7 @@ const handleAddToCart = async (event) => {
                     <div class="vmodal-header">
                         <div class="vmodal-product-snippet">
                             <img 
-                                :src="selectedVariant?.image_url && selectedVariant?.image_url !== '0' ? 'http://localhost:8383/storage/' + selectedVariant.image_url : productImage" 
+                                :src="variantImageUrl" 
                                 :alt="product.name" 
                                 class="vmodal-product-img" 
                             />
