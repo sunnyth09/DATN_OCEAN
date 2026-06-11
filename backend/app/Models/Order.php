@@ -32,6 +32,7 @@ class Order extends Model
         'completed_at',
         'cancelled_at',
         'cancel_reason',
+        'combo_discount',
     ];
 
     public function user()

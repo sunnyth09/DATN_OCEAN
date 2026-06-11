@@ -6,9 +6,13 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreReturnRequestRequest extends FormRequest
 {
+    /**
+     * Chỉ customer đăng nhập mới được tạo yêu cầu hoàn hàng.
+     * Logic verify đơn hàng thuộc về user được kiểm tra trong ReturnRequestService.
+     */
     public function authorize(): bool
     {
-        return true;
+        return auth('api')->check() && !auth('admin')->check();
     }
 
     public function rules(): array

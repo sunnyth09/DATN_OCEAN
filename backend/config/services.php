@@ -77,4 +77,10 @@ return [
         'account_name'   => env('BANK_ACCOUNT_NAME'),
     ],
 
+    // Face Verification Microservice (internal Docker network)
+    'face' => [
+        'url'     => env('FACE_SERVICE_URL', 'http://face-service:8001'),
+        'timeout' => env('FACE_SERVICE_TIMEOUT', 15),
+    ],
+
 ];

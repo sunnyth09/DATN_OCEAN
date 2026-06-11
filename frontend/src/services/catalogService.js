@@ -25,4 +25,16 @@ export const catalogService = {
       },
     });
   },
+
+  viewProduct(productId) {
+    return api.post('/tracking/view-product', { product_id: productId });
+  },
+
+  getRecentlyViewed() {
+    return api.get('/tracking/recently-viewed');
+  },
+
+  getSearchHistory() {
+    return api.get('/tracking/search-history');
+  },
 };

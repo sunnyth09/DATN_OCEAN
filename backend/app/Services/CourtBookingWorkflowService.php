@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\CourtBookingRealtimeEvent;
+use App\Mail\CourtBookingCancelledMail;
 use App\Models\CourtActivityLog;
 use App\Models\CourtBooking;
 use App\Models\CourtBookingPayment;
@@ -11,13 +12,18 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\Admin\CourtBookingNotification;
+use App\Models\Admin;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class CourtBookingWorkflowService
 {
     private const ALLOWED_TRANSITIONS = [
-        'pending' => ['confirmed', 'checked_in', 'cancelled', 'no_show'],
+        'pending' => ['confirmed', 'cancelled', 'no_show', 'expired'],
         'confirmed' => ['checked_in', 'cancelled', 'no_show'],
         'checked_in' => ['playing', 'extended', 'completed'],
         'playing' => ['extended', 'completed'],
@@ -25,6 +31,7 @@ class CourtBookingWorkflowService
         'completed' => [],
         'cancelled' => [],
         'no_show' => [],
+        'expired' => [],
     ];
 
     public function transition(
@@ -37,7 +44,7 @@ class CourtBookingWorkflowService
         ?Request $request = null
     ): CourtBooking {
         return DB::transaction(function () use ($booking, $newStatus, $actorType, $actorId, $note, $updates, $request) {
-            $booking->refresh();
+            $booking = CourtBooking::whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
             $oldStatus = $booking->status;
 
             if (!in_array($newStatus, self::ALLOWED_TRANSITIONS[$oldStatus] ?? [], true)) {
@@ -70,6 +77,15 @@ class CourtBookingWorkflowService
 
             $eventName = $newStatus === 'cancelled' ? 'CourtBookingCancelled' : 'CourtBookingStatusChanged';
             $this->broadcast($eventName, $booking, ['old_status' => $oldStatus, 'new_status' => $newStatus]);
+            $this->notifyUser($booking, $eventName, [
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'note' => $note,
+            ]);
+
+            if ($newStatus === 'cancelled') {
+                $this->notifyAdmins($booking, 'cancelled');
+            }
 
             return $booking;
         });
@@ -110,14 +126,29 @@ class CourtBookingWorkflowService
 
         if ($refundAmount > 0) {
             CourtBookingPayment::create([
-                'booking_id' => $booking->booking_id,
-                'payment_type' => 'refund',
-                'payment_method' => $booking->payment_method ?: 'cash',
+                'booking_id'       => $booking->booking_id,
+                'payment_type'     => 'refund',
+                'payment_method'   => $booking->payment_method ?: 'cash',
                 'transaction_code' => 'RF-' . $booking->booking_code . '-' . Str::upper(Str::random(4)),
-                'amount' => $refundAmount,
-                'status' => 'pending',
-                'note' => "Refund pending. Cancellation fee: {$feeAmount}",
+                'amount'           => $refundAmount,
+                'status'           => 'pending',
+                'note'             => "Refund pending. Cancellation fee: {$feeAmount}",
             ]);
+        }
+
+        // Gửi email thông báo hủy cho khách hàng
+        $booking->loadMissing(['user', 'court']);
+        if ($booking->user?->email) {
+            try {
+                Mail::to($booking->user->email)->queue(
+                    new CourtBookingCancelledMail($booking, $refundAmount > 0 ? $refundAmount : null, 'user')
+                );
+            } catch (\Exception $e) {
+                Log::warning('Failed to queue booking cancelled mail (user)', [
+                    'booking_id' => $booking->booking_id,
+                    'error'      => $e->getMessage(),
+                ]);
+            }
         }
 
         return $booking;
@@ -131,8 +162,9 @@ class CourtBookingWorkflowService
         ?Request $request = null
     ): CourtBookingPayment {
         return DB::transaction(function () use ($booking, $data, $actorType, $actorId, $request) {
+            $booking = CourtBooking::whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
             $amount = (int) ($data['amount'] ?? max(0, $booking->total_amount - $booking->paid_amount));
-            $status = in_array($data['payment_method'], ['cash', 'bank_transfer', 'pos_card', 'pos_transfer'], true)
+            $status = $actorType === 'admin' && in_array($data['payment_method'], ['cash', 'bank_transfer', 'pos_card', 'pos_transfer'], true)
                 ? 'success'
                 : 'pending';
 
@@ -151,7 +183,9 @@ class CourtBookingWorkflowService
 
             if ($payment->status === 'success') {
                 $booking->paid_amount = min($booking->total_amount, $booking->paid_amount + $amount);
-                $booking->payment_status = $booking->paid_amount >= $booking->total_amount ? 'paid' : 'partially_paid';
+                $booking->payment_status = $booking->paid_amount >= $booking->total_amount
+                    ? 'paid'
+                    : ($payment->payment_type === 'deposit' ? 'deposit_paid' : 'partially_paid');
                 $booking->payment_method = $data['payment_method'];
                 $booking->save();
             }
@@ -160,6 +194,14 @@ class CourtBookingWorkflowService
             $this->broadcast('CourtBookingPaymentUpdated', $booking, [
                 'payment_status' => $booking->payment_status,
                 'paid_amount' => $booking->paid_amount,
+            ]);
+            $this->notifyUser($booking, 'CourtBookingPaymentUpdated', [
+                'payment_status' => $booking->payment_status,
+                'paid_amount' => $booking->paid_amount,
+                'amount' => $payment->amount,
+                'payment_method' => $payment->payment_method,
+                'payment_type' => $payment->payment_type,
+                'payment_record_status' => $payment->status,
             ]);
 
             return $payment;
@@ -183,29 +225,138 @@ class CourtBookingWorkflowService
         }
     }
 
+    // check in window: từ 30 phút trước đến khi kết thúc thời gian đặt sân
     public function assertCheckInWindow(CourtBooking $booking): void
     {
         $startAt = Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . $booking->start_time);
         $endAt = Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . $booking->end_time);
 
         if (now()->lt($startAt->copy()->subMinutes(30)) || now()->gt($endAt)) {
-            throw new InvalidArgumentException('Booking is outside the allowed check-in window.');
+            throw new InvalidArgumentException('Chỉ được check-in trong khoảng 30 phút trước khi bắt đầu đến khi kết thúc thời gian đặt sân.');
         }
     }
 
     public function broadcast(string $eventName, CourtBooking $booking, array $extra = []): void
     {
         CourtBookingRealtimeEvent::dispatch($eventName, array_merge([
+            'booking_id'     => $booking->booking_id,
+            'booking_code'   => $booking->booking_code,
+            'court_id'       => $booking->court_id,
+            'user_id'        => $booking->user_id,   // Để gửi đến user private channel
+            'booking_date'   => $booking->booking_date->format('Y-m-d'),
+            'start_time'     => $booking->start_time,
+            'end_time'       => $booking->end_time,
+            'status'         => $booking->status,
+            'payment_status' => $booking->payment_status,
+            'total_amount'   => $booking->total_amount,
+        ], $extra));
+    }
+
+    public function notifyAdmins(CourtBooking $booking, string $eventType): void
+    {
+        try {
+            $admins = Admin::all();
+            Notification::send($admins, new CourtBookingNotification($booking, $eventType));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to notify admins about court booking', [
+                'booking_id' => $booking->booking_id,
+                'event_type' => $eventType,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function notifyUser(CourtBooking $booking, string $eventName, array $extra = []): void
+    {
+        if (!$booking->user_id) {
+            return;
+        }
+
+        $booking->loadMissing('court');
+        $statusLabels = [
+            'pending' => 'chờ xác nhận',
+            'confirmed' => 'đã xác nhận',
+            'checked_in' => 'đã check-in',
+            'playing' => 'đang chơi',
+            'extended' => 'đã gia hạn',
+            'completed' => 'đã hoàn thành',
+            'cancelled' => 'đã hủy',
+            'no_show' => 'vắng mặt',
+            'expired' => 'đã hết hạn',
+        ];
+
+        $paymentLabels = [
+            'unpaid' => 'chưa thanh toán',
+            'deposit_paid' => 'đã cọc',
+            'partially_paid' => 'thanh toán một phần',
+            'paid' => 'đã thanh toán',
+            'refunded' => 'đã hoàn tiền',
+            'partially_refunded' => 'hoàn tiền một phần',
+        ];
+
+        $title = match ($eventName) {
+            'CourtBookingCreated' => 'Đặt sân thành công',
+            'CourtBookingCancelled' => 'Lịch đặt sân đã hủy',
+            'CourtBookingPaymentUpdated' => 'Thanh toán đặt sân cập nhật',
+            default => 'Lịch đặt sân cập nhật',
+        };
+
+        $courtName = $booking->court?->court_name ?? 'sân';
+        $time = "{$booking->booking_date->format('d/m/Y')} {$booking->start_time}-{$booking->end_time}";
+
+        $paymentStatus = $paymentLabels[$booking->payment_status] ?? $booking->payment_status;
+        $bookingStatus = $statusLabels[$booking->status] ?? $booking->status;
+
+        $message = match ($eventName) {
+            'CourtBookingCreated' =>
+            "Booking {$booking->booking_code} tại {$courtName} lúc {$time} đang chờ xác nhận.",
+
+            'CourtBookingCancelled' =>
+            "Booking {$booking->booking_code} tại {$courtName} đã được hủy.",
+
+            'CourtBookingPaymentUpdated' =>
+            "Trạng thái thanh toán của booking {$booking->booking_code} đã được cập nhật thành {$paymentStatus}.",
+
+            default =>
+            "Booking {$booking->booking_code} tại {$courtName} lúc {$time} đã được cập nhật sang trạng thái {$bookingStatus}.",
+        };
+
+        $notificationData = array_merge([
+            'title' => $title,
+            'message' => $message,
+            'type' => 'court_booking',
+            'event' => $eventName,
             'booking_id' => $booking->booking_id,
             'booking_code' => $booking->booking_code,
             'court_id' => $booking->court_id,
+            'court_name' => $courtName,
             'booking_date' => $booking->booking_date->format('Y-m-d'),
             'start_time' => $booking->start_time,
             'end_time' => $booking->end_time,
             'status' => $booking->status,
             'payment_status' => $booking->payment_status,
             'total_amount' => $booking->total_amount,
-        ], $extra));
+        ], $extra);
+
+        try {
+            DB::table('notifications')->insert([
+                'id' => (string) Str::uuid(),
+                'type' => 'court_booking',
+                'notifiable_type' => \App\Models\User::class,
+                'notifiable_id' => $booking->user_id,
+                'data' => json_encode($notificationData, JSON_UNESCAPED_UNICODE),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            event(new \App\Events\UserNotificationEvent((int) $booking->user_id, $notificationData));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to create court booking notification', [
+                'booking_id' => $booking->booking_id,
+                'event' => $eventName,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function logActivity(

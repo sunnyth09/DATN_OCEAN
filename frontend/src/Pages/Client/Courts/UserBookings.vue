@@ -1,8 +1,20 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useCourtBookingStore } from '@/stores/useCourtBookingStore';
+import { useAuthStore } from '@/stores/auth';
 import Swal from 'sweetalert2';
 import '@/assets/court-management.css';
+
+import QRCode from 'qrcode';
+
+const generateQrImgUrl = async (text, size = 220) => {
+    try {
+        return await QRCode.toDataURL(text, { width: size, margin: 2, color: { dark: '#1a1a2e', light: '#ffffff' } });
+    } catch (err) {
+        console.error("QR Code generation error", err);
+        return '';
+    }
+};
 
 const toast = {
     success: (msg) => Swal.fire({ icon: 'success', title: msg, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 }),
@@ -13,11 +25,55 @@ const toast = {
 import { useRouter } from 'vue-router';
 
 const store = useCourtBookingStore();
+const authStore = useAuthStore();
 const router = useRouter();
+let userChannel = null;
 
 onMounted(async () => {
     await store.fetchUserBookings();
+    subscribeUserChannel();
 });
+
+onUnmounted(() => {
+    leaveUserChannel();
+});
+
+// Subscribe WebSocket channel - nhận thông báo realtime khi admin xác nhận/hủy
+const subscribeUserChannel = () => {
+    try {
+        const userId = authStore.user?.user_id || authStore.user?.id;
+        if (!userId || !window.Echo) return;
+
+        userChannel = window.Echo.private(`user.${userId}`)
+            .listen('.CourtBookingStatusChanged', (event) => {
+                const statusLabels = {
+                    confirmed: 'đã được xác nhận ✅',
+                    cancelled: 'đã bị hủy ❌',
+                    completed: 'đã hoàn thành ✅',
+                    no_show: 'bị đánh dấu vắng mặt ⚠️',
+                };
+                const label = statusLabels[event.new_status] || `chuyển sang ${event.new_status}`;
+                toast.info(`Lịch đặt sân #${event.booking_code} ${label}`);
+                store.fetchUserBookings();
+            })
+            .listen('.CourtBookingCancelled', (event) => {
+                toast.warning(`Lịch đặt sân #${event.booking_code} đã bị hủy`);
+                store.fetchUserBookings();
+            });
+    } catch (e) {
+        console.warn('UserBookings: WebSocket subscribe failed', e);
+    }
+};
+
+const leaveUserChannel = () => {
+    try {
+        const userId = authStore.user?.user_id || authStore.user?.id;
+        if (userId && window.Echo) {
+            window.Echo.leave(`user.${userId}`);
+        }
+    } catch (e) {}
+    userChannel = null;
+};
 
 const formatCurrency = (value) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
@@ -31,13 +87,34 @@ const formatTime = (timeStr) => {
     return timeStr ? timeStr.substring(0, 5) : '';
 };
 
-const getStatusBadge = (status) => {
+const getStatusBadge = (bookingOrStatus) => {
+    const status = typeof bookingOrStatus === 'object' ? bookingOrStatus.status : bookingOrStatus;
+
+    if (status === 'checked_in') {
+        let isPlaying = false;
+        if (typeof bookingOrStatus === 'object' && bookingOrStatus.booking_date && bookingOrStatus.start_time) {
+            const now = new Date();
+            const dateStr = String(bookingOrStatus.booking_date).split('T')[0];
+            const startDateTime = new Date(`${dateStr}T${bookingOrStatus.start_time}`);
+            if (now >= startDateTime) {
+                isPlaying = true;
+            }
+        }
+        return { 
+            class: 'status-badge--checked_in', 
+            text: isPlaying ? 'Đang chơi' : 'Đã check-in', 
+            icon: isPlaying ? 'bi-play-circle' : 'bi-check2-all' 
+        };
+    }
+
     const badges = {
         'pending': { class: 'status-badge--pending', text: 'Chờ duyệt', icon: 'bi-hourglass-split' },
         'confirmed': { class: 'status-badge--confirmed', text: 'Đã xác nhận', icon: 'bi-check-circle' },
-        'checked_in': { class: 'status-badge--checked_in', text: 'Đang chơi', icon: 'bi-play-circle' },
+        'playing': { class: 'status-badge--checked_in', text: 'Đang chơi', icon: 'bi-play-circle' },
+        'extended': { class: 'status-badge--extended', text: 'Đã gia hạn', icon: 'bi-clock-history' },
         'completed': { class: 'status-badge--completed', text: 'Hoàn thành', icon: 'bi-check-circle-fill' },
-        'cancelled': { class: 'status-badge--cancelled', text: 'Đã hủy', icon: 'bi-x-circle' }
+        'cancelled': { class: 'status-badge--cancelled', text: 'Đã hủy', icon: 'bi-x-circle' },
+        'no_show': { class: 'status-badge--cancelled', text: 'Không đến', icon: 'bi-exclamation-circle' }
     };
     return badges[status] || { class: 'status-badge--pending', text: status, icon: 'bi-question-circle' };
 };
@@ -100,12 +177,40 @@ const handlePay = async (booking) => {
 const showQr = async (booking) => {
     try {
         const res = await store.getBookingQr(booking.booking_id || booking.id);
+        const qrToken = res?.data?.data?.qr_token || res?.data?.qr_token || '';
+        const bookingCode = res?.data?.data?.booking_code || booking.booking_code || '';
+
+        if (!qrToken) {
+            toast.error('Không lấy được mã QR');
+            return;
+        }
+
+        // Tạo ảnh QR
+        const qrImgUrl = await generateQrImgUrl(qrToken, 220);
+
         await Swal.fire({
-            title: 'Mã QR check-in',
-            html: `<div style="word-break:break-all;font-size:13px">${res?.data?.qr_token || ''}</div>`,
-            icon: 'info'
+            title: '🏸 Mã QR Check-in',
+            html: `
+                <div style="text-align:center;padding:12px 0">
+                    <img
+                        src="${qrImgUrl}"
+                        alt="QR Code check-in"
+                        style="width:220px;height:220px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);border:2px solid #e9ecef"
+                        onerror="this.onerror=null;this.src='';this.parentElement.innerHTML='<div style=\'color:#dc3545;font-size:13px\'>Kh\u00f4ng t\u1ea3i đ\u01b0\u1ee3c QR, vui l\u00f2ng th\u1eed l\u1ea1i</div>'"
+                    />
+                    <div style="margin-top:14px;font-family:monospace;font-size:13px;color:#6c757d;background:#f8f9fa;padding:8px 12px;border-radius:8px;word-break:break-all">
+                        <strong>Mã đặt sân:</strong> ${bookingCode}
+                    </div>
+                    <p style="margin-top:10px;font-size:13px;color:#6c757d">Đưa mã này cho nhân viên quét khi đến sân</p>
+                </div>
+            `,
+            showConfirmButton: true,
+            confirmButtonText: 'Đóng',
+            confirmButtonColor: '#0d6efd',
+            width: 360,
         });
     } catch (e) {
+        console.error('QR error:', e);
         toast.error('Không lấy được mã QR');
     }
 };
@@ -162,9 +267,9 @@ const goToDetail = (courtId) => {
                         <div class="d-flex align-items-center gap-2">
                             <span class="fw-bold" style="font-size: 0.9rem;">Mã Booking: {{ booking.booking_code || `#${booking.booking_id || booking.id}` }}</span>
                         </div>
-                        <span class="status-badge" :class="getStatusBadge(booking.status).class">
-                            <i :class="getStatusBadge(booking.status).icon" style="font-size: 0.7rem;"></i>
-                            {{ getStatusBadge(booking.status).text }}
+                        <span class="status-badge" :class="getStatusBadge(booking).class">
+                            <i :class="getStatusBadge(booking).icon" style="font-size: 0.7rem;"></i>
+                            {{ getStatusBadge(booking).text }}
                         </span>
                     </div>
                     

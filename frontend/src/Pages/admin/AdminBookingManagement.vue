@@ -145,7 +145,47 @@ const handleCheckIn = async (id) => {
     }
 };
 
-const handleCheckOut = async (id) => {
+const buildCheckOutPayload = async (booking) => {
+    const amountDue = Math.max(Number(booking?.total_amount || 0) - Number(booking?.paid_amount || 0), 0);
+    if (amountDue <= 0) {
+        return {};
+    }
+
+    const payment = await Swal.fire({
+        title: 'Thu tien con lai',
+        html: `Booking con <b>${formatCurrency(amountDue)}</b> chua thanh toan.`,
+        input: 'select',
+        inputOptions: {
+            cash: 'Tien mat',
+            bank_transfer: 'Chuyen khoan',
+            pos_card: 'The POS',
+            pos_transfer: 'POS transfer'
+        },
+        inputPlaceholder: 'Chon phuong thuc thanh toan',
+        showCancelButton: true,
+        confirmButtonText: 'Xac nhan thu tien',
+        cancelButtonText: 'Huy',
+        inputValidator: (value) => !value ? 'Vui long chon phuong thuc thanh toan' : undefined
+    });
+
+    if (!payment.isConfirmed) {
+        return null;
+    }
+
+    return {
+        payment_method: payment.value,
+        note: 'Checkout payment'
+    };
+};
+
+const handleCheckOut = async (bookingOrId) => {
+    const booking = typeof bookingOrId === 'object' ? bookingOrId : null;
+    const id = booking?.booking_id || booking?.id || bookingOrId;
+    const payload = await buildCheckOutPayload(booking);
+    if (payload === null) {
+        return;
+    }
+
     const result = await Swal.fire({
         title: 'Xác nhận Check-out',
         text: 'Khách hàng trả sân và hoàn tất thanh toán?',
@@ -157,7 +197,7 @@ const handleCheckOut = async (id) => {
     });
     if(result.isConfirmed) {
         try {
-            await store.adminCheckOut(id);
+            await store.adminCheckOut(id, payload);
             toast.success('Check-out thành công');
             fetchBookings();
         } catch (e) {}
@@ -276,19 +316,34 @@ const handleCreatePosBooking = async () => {
     } catch (e) {}
 };
 
-const getStatusBadgeClass = (status) => 'status-badge--' + (status === 'playing' || status === 'extended' ? 'checked_in' : status);
+const getStatusBadgeClass = (status) => 'status-badge--' + (status === 'playing' || status === 'extended' ? 'checked_in' : (status === 'expired' ? 'cancelled' : status));
 
-const getStatusText = (status) => {
+const getStatusText = (bookingOrStatus) => {
+    if (!bookingOrStatus) return '';
+    const status = typeof bookingOrStatus === 'object' ? bookingOrStatus.status : bookingOrStatus;
+
+    if (status === 'checked_in') {
+        if (typeof bookingOrStatus === 'object' && bookingOrStatus.booking_date && bookingOrStatus.start_time) {
+            const now = new Date();
+            const dateStr = String(bookingOrStatus.booking_date).split('T')[0];
+            const startDateTime = new Date(`${dateStr}T${bookingOrStatus.start_time}`);
+            if (now >= startDateTime) {
+                return 'Đang chơi';
+            }
+        }
+        return 'Đã check-in';
+    }
+
     const map = {
         'pending': 'Chờ duyệt',
         'confirmed': 'Đã xác nhận',
-        'checked_in': 'Đang chơi',
         'playing': 'Đang chơi',
         'extended': 'Đã gia hạn',
         'completed': 'Hoàn thành',
         'cancelled': 'Đã hủy',
         'no_show': 'Không đến'
     };
+    map.expired = 'Hết hạn';
     return map[status] || status;
 };
 
@@ -488,7 +543,7 @@ const clearFilters = () => {
                             <td>
                                 <span class="status-badge" :class="getStatusBadgeClass(booking.status)">
                                     <span v-if="['checked_in', 'playing', 'extended'].includes(booking.status)" class="pulse-dot pulse-dot--playing"></span>
-                                    {{ getStatusText(booking.status) }}
+                                    {{ getStatusText(booking) }}
                                 </span>
                             </td>
                             <td class="text-end pe-4">
@@ -508,12 +563,12 @@ const clearFilters = () => {
                                                 <i class="bi bi-check-circle"></i> Xác nhận Booking
                                             </a>
                                         </li>
-                                        <li v-if="['pending', 'confirmed'].includes(booking.status)">
+                                        <li v-if="booking.status === 'confirmed'">
                                             <a class="dropdown-item d-flex align-items-center gap-2" href="#" @click.prevent="handleCheckIn(booking.booking_id || booking.id)" style="color: var(--court-available);">
                                                 <i class="bi bi-box-arrow-in-right"></i> Check-in Nhận Sân
                                             </a>
                                         </li>
-                                        <li v-if="['pending', 'confirmed'].includes(booking.status)">
+                                        <li v-if="booking.status === 'confirmed'">
                                             <a class="dropdown-item d-flex align-items-center gap-2" href="#" @click.prevent="handleQrCheckIn(booking)" style="color: var(--court-playing);">
                                                 <i class="bi bi-qr-code"></i> QR Check-in
                                             </a>
@@ -540,7 +595,7 @@ const clearFilters = () => {
                                         </li>
                                         <li v-if="['checked_in', 'playing', 'extended'].includes(booking.status)"><hr class="dropdown-divider"></li>
                                         <li v-if="['checked_in', 'playing', 'extended'].includes(booking.status)">
-                                            <a class="dropdown-item d-flex align-items-center gap-2 fw-bold" href="#" @click.prevent="handleCheckOut(booking.booking_id || booking.id)" style="color: var(--court-closed);">
+                                            <a class="dropdown-item d-flex align-items-center gap-2 fw-bold" href="#" @click.prevent="handleCheckOut(booking)" style="color: var(--court-closed);">
                                                 <i class="bi bi-box-arrow-right"></i> Check-out Trả Sân
                                             </a>
                                         </li>
@@ -592,7 +647,7 @@ const clearFilters = () => {
                                     <p class="text-muted mb-1" style="font-size: 0.8rem; text-transform: uppercase;">Trạng thái</p>
                                     <div>
                                         <span class="status-badge" :class="getStatusBadgeClass(selectedBooking.status)">
-                                            {{ getStatusText(selectedBooking.status) }}
+                                            {{ getStatusText(selectedBooking) }}
                                         </span>
                                     </div>
                                 </div>

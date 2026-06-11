@@ -2,18 +2,25 @@
 
 namespace App\Services;
 
-use App\Models\Order;
-use App\Models\Payment;
 use App\Models\Cart;
 use App\Models\CartItem;
-use App\Services\VNPayService;
+use App\Models\Order;
+use App\Models\Payment;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class PaymentProcessingService
 {
+    private const CALLBACK_SOURCE_RETURN = 'return';
+    private const CALLBACK_SOURCE_IPN = 'ipn';
+
+    private const POST_PAYMENT_STATUS_PROCESSING = 'processing';
+    private const POST_PAYMENT_STATUS_COMPLETED = 'completed';
+    private const POST_PAYMENT_STATUS_FAILED = 'failed';
+
+    private const POST_PAYMENT_LOCK_TIMEOUT_SECONDS = 300;
+
     /**
      * Mapping VNPay response codes → thông báo tiếng Việt
      */
@@ -33,217 +40,352 @@ class PaymentProcessingService
     ];
 
     /**
-     * Xử lý VNPay Return URL (user redirect)
+     * Return URL chỉ ghi nhận callback và trả trạng thái cho UI.
+     * Không được chạy side effects tại đây.
      */
     public function handleVnpayReturn(array $queryParams, string $ip): array
     {
-        // Verify checksum
         $result = VNPayService::verifyReturn($queryParams);
 
         if (!$result['isValid']) {
             Log::warning('VNPay Return: Invalid secure hash', ['params' => $queryParams, 'ip' => $ip]);
+
             return [
-                '_status'        => 400,
-                'status'         => 'error',
-                'message'        => 'Chữ ký không hợp lệ. Giao dịch có thể bị giả mạo.',
+                '_status' => 400,
+                'status' => 'error',
+                'message' => 'Chữ ký không hợp lệ. Giao dịch có thể bị giả mạo.',
                 'payment_status' => 'failed',
             ];
         }
 
-        // Process in transaction
-        $order = DB::transaction(function () use ($result, $queryParams, $ip) {
+        $outcome = DB::transaction(function () use ($result, $queryParams, $ip) {
             $order = Order::where('order_code', $result['txnRef'])->lockForUpdate()->first();
 
-            if (!$order) return null;
-            if ($order->payment_status === 'paid') return $order; // idempotent
+            if (!$order) {
+                return ['type' => 'order_not_found'];
+            }
 
-            if ($result['responseCode'] === '00') {
-                // Verify amount
-                if (abs($result['amount'] - $order->grand_total) > 1) {
-                    Log::error('VNPay Return: Amount mismatch', [
-                        'vnpay_amount' => $result['amount'],
-                        'order_total'  => $order->grand_total,
-                        'ip'           => $ip,
-                    ]);
-                    return 'amount_mismatch';
-                }
+            if (abs($result['amount'] - $order->grand_total) > 1) {
+                Log::error('VNPay Return: Amount mismatch', [
+                    'order_code' => $order->order_code,
+                    'vnpay_amount' => $result['amount'],
+                    'order_total' => $order->grand_total,
+                    'ip' => $ip,
+                ]);
 
-                $order->update(['payment_status' => 'paid']);
-                $this->upsertPayment($order, $result, $queryParams, 'success');
+                return ['type' => 'amount_mismatch'];
+            }
 
-                Log::info('VNPay Return: Payment success', [
-                    'order_code'     => $order->order_code,
-                    'transaction_no' => $result['transactionNo'],
-                    'ip'             => $ip,
+            $payment = $this->getOrCreateVnpayPayment($order);
+            $callbackStatus = $result['responseCode'] === '00' ? 'success' : 'failed';
+
+            $this->syncPaymentFromCallback(
+                $payment,
+                $order,
+                $result,
+                $queryParams,
+                self::CALLBACK_SOURCE_RETURN,
+                $callbackStatus,
+                false
+            );
+
+            $order->refresh();
+            $payment->refresh();
+
+            $isConfirmed = $this->isPaymentConfirmed($order, $payment);
+
+            if ($callbackStatus === 'failed' && !$isConfirmed) {
+                Log::info('VNPay Return: Payment failed before confirmation', [
+                    'order_code' => $order->order_code,
+                    'response_code' => $result['responseCode'],
+                    'ip' => $ip,
+                ]);
+
+                return [
+                    'type' => 'failed',
+                    'order' => $order,
+                    'payment' => $payment,
+                    'result' => $result,
+                ];
+            }
+
+            if ($callbackStatus === 'failed' && $isConfirmed) {
+                Log::warning('VNPay Return: Ignored conflicting failed callback after confirmation', [
+                    'order_code' => $order->order_code,
+                    'transaction_no' => $payment->transaction_code,
+                    'response_code' => $result['responseCode'],
+                    'ip' => $ip,
                 ]);
             } else {
-                $order->update(['payment_status' => 'failed']);
-                $this->upsertPayment($order, $result, $queryParams, 'failed');
-
-                Log::info('VNPay Return: Payment failed', [
-                    'order_code'    => $order->order_code,
-                    'response_code' => $result['responseCode'],
-                    'ip'            => $ip,
+                Log::info('VNPay Return: Callback recorded', [
+                    'order_code' => $order->order_code,
+                    'transaction_no' => $result['transactionNo'],
+                    'confirmed' => $isConfirmed,
+                    'ip' => $ip,
                 ]);
             }
 
-            return $order;
+            return [
+                'type' => $isConfirmed ? 'confirmed' : 'awaiting_ipn',
+                'order' => $order,
+                'payment' => $payment,
+                'result' => $result,
+            ];
         });
 
-        // Process result
-        if ($order === null) {
+        if ($outcome['type'] === 'order_not_found') {
             Log::error('VNPay Return: Order not found', ['txnRef' => $result['txnRef']]);
-            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng.', 'payment_status' => 'failed'];
-        }
-
-        if ($order === 'amount_mismatch') {
-            return ['_status' => 400, 'status' => 'error', 'message' => 'Số tiền thanh toán không khớp với đơn hàng.', 'payment_status' => 'failed'];
-        }
-
-        // Success
-        if ($order->payment_status === 'paid' && $result['responseCode'] === '00') {
-            $this->dispatchPostPaymentActions($order);
 
             return [
-                '_status'        => 200,
-                'status'         => 'success',
-                'message'        => 'Thanh toán thành công!',
-                'payment_status' => 'paid',
-                'data'           => [
-                    'order_code'     => $order->order_code,
-                    'grand_total'    => $order->grand_total,
-                    'transaction_no' => $result['transactionNo'],
-                    'bank_code'      => $result['bankCode'],
-                    'pay_date'       => $result['payDate'],
+                '_status' => 404,
+                'status' => 'error',
+                'message' => 'Không tìm thấy đơn hàng.',
+                'payment_status' => 'failed',
+            ];
+        }
+
+        if ($outcome['type'] === 'amount_mismatch') {
+            return [
+                '_status' => 400,
+                'status' => 'error',
+                'message' => 'Số tiền thanh toán không khớp với đơn hàng.',
+                'payment_status' => 'failed',
+            ];
+        }
+
+        $order = $outcome['order'];
+        $payment = $outcome['payment'];
+
+        if ($outcome['type'] === 'failed') {
+            return [
+                '_status' => 200,
+                'status' => 'error',
+                'message' => $this->getResponseMessage($result['responseCode']),
+                'payment_status' => $order->payment_status,
+                'data' => [
+                    'order_code' => $order->order_code,
+                    'grand_total' => $order->grand_total,
+                    'response_code' => $result['responseCode'],
                 ],
             ];
         }
 
-        // Failed
+        if ($outcome['type'] === 'awaiting_ipn') {
+            return [
+                '_status' => 202,
+                'status' => 'processing',
+                'message' => 'Giao dịch đã được ghi nhận. Hệ thống đang chờ IPN từ VNPay để xác nhận thanh toán.',
+                'payment_status' => $order->payment_status,
+                'data' => [
+                    'order_code' => $order->order_code,
+                    'grand_total' => $order->grand_total,
+                    'transaction_no' => $payment->transaction_code,
+                ],
+            ];
+        }
+
         return [
-            '_status'        => 200,
-            'status'         => 'error',
-            'message'        => $this->getResponseMessage($result['responseCode']),
-            'payment_status' => 'failed',
-            'data'           => [
-                'order_code'    => $order->order_code,
-                'grand_total'   => $order->grand_total,
-                'response_code' => $result['responseCode'],
+            '_status' => 200,
+            'status' => 'success',
+            'message' => 'Thanh toán thành công!',
+            'payment_status' => $order->payment_status,
+            'data' => [
+                'order_code' => $order->order_code,
+                'grand_total' => $order->grand_total,
+                'transaction_no' => $payment->transaction_code,
+                'bank_code' => $result['bankCode'],
+                'pay_date' => $result['payDate'],
+                'confirmed_at' => optional($payment->confirmed_at)->toDateTimeString(),
+                'post_payment_status' => $payment->post_payment_status,
             ],
         ];
     }
 
     /**
-     * Xử lý VNPay IPN (server-to-server)
+     * IPN là nguồn xác nhận thanh toán chính.
+     * Tại đây vừa confirm payment, vừa claim quyền chạy side effects đúng 1 lần.
      */
     public function handleVnpayIpn(array $queryParams, string $ip): array
     {
         Log::info('VNPay IPN received', [
             'txnRef' => $queryParams['vnp_TxnRef'] ?? 'N/A',
-            'ip'     => $ip,
+            'ip' => $ip,
         ]);
 
         $result = VNPayService::verifyReturn($queryParams);
 
         if (!$result['isValid']) {
             Log::warning('VNPay IPN: Invalid checksum', ['ip' => $ip]);
+
             return ['RspCode' => '97', 'Message' => 'Invalid Checksum'];
         }
 
-        $rspCode    = '00';
-        $rspMessage = 'Confirm Success';
-
-        DB::transaction(function () use ($result, $queryParams, $ip, &$rspCode, &$rspMessage) {
+        $outcome = DB::transaction(function () use ($result, $queryParams, $ip) {
             $order = Order::where('order_code', $result['txnRef'])->lockForUpdate()->first();
 
             if (!$order) {
-                $rspCode = '01';
-                $rspMessage = 'Order not Found';
-                return;
-            }
-
-            if ($order->payment_status === 'paid') {
-                $rspCode = '02';
-                $rspMessage = 'Order already confirmed';
-                return;
+                return ['type' => 'order_not_found'];
             }
 
             if (abs($result['amount'] - $order->grand_total) > 1) {
                 Log::error('VNPay IPN: Amount mismatch', [
+                    'order_code' => $order->order_code,
                     'vnpay_amount' => $result['amount'],
-                    'order_total'  => $order->grand_total,
-                    'ip'           => $ip,
+                    'order_total' => $order->grand_total,
+                    'ip' => $ip,
                 ]);
-                $rspCode = '04';
-                $rspMessage = 'Invalid Amount';
-                return;
+
+                return ['type' => 'amount_mismatch'];
             }
 
-            if ($result['responseCode'] === '00') {
-                $order->update(['payment_status' => 'paid']);
-                $this->upsertPayment($order, $result, $queryParams, 'success');
+            $payment = $this->getOrCreateVnpayPayment($order);
+            $callbackStatus = $result['responseCode'] === '00' ? 'success' : 'failed';
 
-                Log::info('VNPay IPN: Payment confirmed', [
-                    'order_code'     => $order->order_code,
-                    'transaction_no' => $result['transactionNo'],
-                    'ip'             => $ip,
-                ]);
+            $this->syncPaymentFromCallback(
+                $payment,
+                $order,
+                $result,
+                $queryParams,
+                self::CALLBACK_SOURCE_IPN,
+                $callbackStatus,
+                $callbackStatus === 'success'
+            );
 
-                $this->dispatchPostPaymentActions($order);
-            } else {
-                $order->update(['payment_status' => 'failed']);
-                $this->upsertPayment($order, $result, $queryParams, 'failed');
+            $payment->refresh();
+            $order->refresh();
 
+            if ($callbackStatus === 'failed') {
                 Log::info('VNPay IPN: Payment failed', [
-                    'order_code'    => $order->order_code,
+                    'order_code' => $order->order_code,
                     'response_code' => $result['responseCode'],
+                    'ip' => $ip,
                 ]);
+
+                return ['type' => 'failed'];
             }
+
+            $shouldRunSideEffects = $this->claimPostPaymentProcessing($payment, self::CALLBACK_SOURCE_IPN);
+
+            Log::info('VNPay IPN: Payment confirmed', [
+                'order_code' => $order->order_code,
+                'transaction_no' => $payment->transaction_code,
+                'side_effects_claimed' => $shouldRunSideEffects,
+                'post_payment_status' => $payment->post_payment_status,
+                'ip' => $ip,
+            ]);
+
+            return [
+                'type' => 'success',
+                'order_id' => $order->order_id,
+                'payment_id' => $payment->payment_id,
+                'should_run_side_effects' => $shouldRunSideEffects,
+            ];
         });
 
-        return ['RspCode' => $rspCode, 'Message' => $rspMessage];
+        if ($outcome['type'] === 'order_not_found') {
+            return ['RspCode' => '01', 'Message' => 'Order not Found'];
+        }
+
+        if ($outcome['type'] === 'amount_mismatch') {
+            return ['RspCode' => '04', 'Message' => 'Invalid Amount'];
+        }
+
+        if ($outcome['type'] === 'failed') {
+            return ['RspCode' => '00', 'Message' => 'Confirm Success'];
+        }
+
+        if ($outcome['should_run_side_effects']) {
+            $order = Order::with(['items', 'user'])->find($outcome['order_id']);
+
+            if (!$order) {
+                $this->markPostPaymentFailed($outcome['payment_id'], 'Order missing after payment confirmation.');
+
+                return ['RspCode' => '99', 'Message' => 'Post-payment actions failed'];
+            }
+
+            try {
+                $this->dispatchPostPaymentActions($order);
+                $this->markPostPaymentCompleted($outcome['payment_id']);
+            } catch (\Throwable $e) {
+                Log::error('VNPay IPN: Post-payment actions failed', [
+                    'order_id' => $outcome['order_id'],
+                    'payment_id' => $outcome['payment_id'],
+                    'error' => $e->getMessage(),
+                ]);
+
+                $this->markPostPaymentFailed($outcome['payment_id'], $e->getMessage());
+
+                return ['RspCode' => '99', 'Message' => 'Post-payment actions failed'];
+            }
+        }
+
+        return ['RspCode' => '00', 'Message' => 'Confirm Success'];
     }
 
     /**
-     * Dispatch email + notification + cart cleanup
+     * Dispatch email + notification + cart cleanup.
+     * Hàm này chỉ nên được gọi sau khi IPN đã claim quyền xử lý.
      */
     public function dispatchPostPaymentActions(Order $order): void
     {
-        // Cart cleanup
+        $payment = $this->getPaymentForOrder($order);
+
+        if (!$payment) {
+            throw new \RuntimeException('Missing payment row for post-payment actions.');
+        }
+
         try {
-            $cart = Cart::where('user_id', $order->user_id)->where('status', 'active')->first();
-            if ($cart) {
-                $orderVariantIds = $order->items()->pluck('variant_id')->toArray();
-                CartItem::where('cart_id', $cart->cart_id)
-                    ->whereIn('variant_id', $orderVariantIds)
-                    ->where('selected', true)
-                    ->delete();
+            if (!$this->hasCompletedPostPaymentStep($payment, 'cart_cleanup')) {
+                $cart = Cart::where('user_id', $order->user_id)
+                    ->where('status', 'active')
+                    ->first();
+
+                if ($cart) {
+                    $orderVariantIds = $order->items()->pluck('variant_id')->filter()->toArray();
+
+                    if ($orderVariantIds !== []) {
+                        CartItem::where('cart_id', $cart->cart_id)
+                            ->whereIn('variant_id', $orderVariantIds)
+                            ->where('selected', true)
+                            ->delete();
+                    }
+                }
+
+                $this->markPostPaymentStepCompleted($payment, 'cart_cleanup');
 
                 Log::info('VNPay post-payment: Cart items cleared', [
                     'order_code' => $order->order_code,
-                    'user_id'    => $order->user_id,
+                    'user_id' => $order->user_id,
                 ]);
             }
         } catch (\Exception $e) {
             Log::error('VNPay post-payment: Cart cleanup failed', [
                 'order_code' => $order->order_code,
-                'error'      => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
+            throw $e;
         }
 
-        // Admin realtime event
         try {
-            event(new \App\Events\OrderCreatedAdmin($order));
+            if (!$this->hasCompletedPostPaymentStep($payment, 'admin_event')) {
+                event(new \App\Events\OrderCreatedAdmin($order));
+                $this->markPostPaymentStepCompleted($payment, 'admin_event');
+            }
         } catch (\Exception $e) {
             Log::error('VNPay post-payment: Realtime event failed', [
                 'order_code' => $order->order_code,
-                'error'      => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
+            throw $e;
         }
 
-        // Email + notification
         try {
-            $this->sendPaymentConfirmationEmail($order);
+            if (!$this->hasCompletedPostPaymentStep($payment, 'customer_email')) {
+                $this->sendPaymentConfirmationEmail($order);
+                $this->markPostPaymentStepCompleted($payment, 'customer_email');
+            }
 
             $methodLabel = 'VNPay';
             if ($order->payment_method === 'bank_transfer') {
@@ -252,40 +394,58 @@ class PaymentProcessingService
                 $methodLabel = 'Ví MoMo';
             }
 
-            $notificationData = [
-                'title'       => 'Thanh toán thành công',
-                'message'     => 'Đơn hàng ' . $order->order_code . ' đã được thanh toán thành công qua ' . $methodLabel . '.',
-                'order_code'  => $order->order_code,
-                'grand_total' => $order->grand_total,
-                'type'        => 'payment_success',
-            ];
+            if (!$this->hasCompletedPostPaymentStep($payment, 'user_notification')) {
+                $paymentEventKey = $this->makePostPaymentKey($order->order_code, $this->resolveTransactionCode($order));
+                $notificationData = [
+                    'title' => 'Thanh toán thành công',
+                    'message' => 'Đơn hàng ' . $order->order_code . ' đã được thanh toán thành công qua ' . $methodLabel . '.',
+                    'order_code' => $order->order_code,
+                    'grand_total' => $order->grand_total,
+                    'type' => 'payment_success',
+                    'payment_event_key' => $paymentEventKey,
+                ];
 
-            DB::table('notifications')->insert([
-                'id'              => Str::uuid(),
-                'type'            => 'App\\Notifications\\OrderPaidNotification',
-                'notifiable_type' => \App\Models\User::class,
-                'notifiable_id'   => $order->user_id,
-                'data'            => json_encode($notificationData),
-                'read_at'         => null,
-                'created_at'      => Carbon::now(),
-                'updated_at'      => Carbon::now(),
-            ]);
+                DB::table('notifications')->updateOrInsert(
+                    ['id' => $this->makeNotificationId($paymentEventKey)],
+                    [
+                        'type' => 'App\\Notifications\\OrderPaidNotification',
+                        'notifiable_type' => \App\Models\User::class,
+                        'notifiable_id' => $order->user_id,
+                        'data' => json_encode($notificationData),
+                        'read_at' => null,
+                        'created_at' => Carbon::now(),
+                        'updated_at' => Carbon::now(),
+                    ]
+                );
 
-            event(new \App\Events\UserNotificationEvent($order->user_id, $notificationData));
+                event(new \App\Events\UserNotificationEvent($order->user_id, $notificationData));
+                $this->markPostPaymentStepCompleted($payment, 'user_notification');
+            }
         } catch (\Exception $e) {
             Log::error('VNPay post-payment: Email/notification failed', [
                 'order_code' => $order->order_code,
-                'error'      => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
+            throw $e;
         }
     }
 
-    public function sendPaymentConfirmationEmail(Order $order): void
+    public function sendPaymentConfirmationEmail(Order $order): bool
     {
-        $order->load(['items', 'user']);
+        $order->loadMissing(['items', 'user']);
         $user = $order->user;
 
-        if (!$user || empty($user->email)) return;
+        if (!$user || empty($user->email)) {
+            return false;
+        }
+
+        $methodLabel = 'VNPay';
+        if ($order->payment_method === 'bank_transfer') {
+            $methodLabel = 'Chuyển khoản ngân hàng (SePay)';
+        } elseif ($order->payment_method === 'momo') {
+            $methodLabel = 'Ví MoMo';
+        }
 
         $methodLabel = 'VNPay';
         if ($order->payment_method === 'bank_transfer') {
@@ -304,7 +464,7 @@ class PaymentProcessingService
 
         if (!$emailUser || !$emailPass) {
             Log::warning('Skip sending payment confirmation email: mail credentials missing.');
-            return;
+            return false;
         }
 
         $transport = new \Symfony\Component\Mailer\Transport\Mip\EsmtpTransport('smtp.gmail.com', 587, false);
@@ -384,27 +544,212 @@ class PaymentProcessingService
 
         Log::info('Payment confirmation email sent', [
             'order_code' => $order->order_code,
-            'to'         => $user->email,
+            'to' => $user->email,
+        ]);
+
+        return true;
+    }
+
+    private function getOrCreateVnpayPayment(Order $order): Payment
+    {
+        $payment = Payment::where('order_id', $order->order_id)
+            ->where('payment_method', 'vnpay')
+            ->first();
+
+        if ($payment) {
+            return $payment;
+        }
+
+        return Payment::create([
+            'order_id' => $order->order_id,
+            'payment_method' => 'vnpay',
+            'amount' => $order->grand_total,
+            'status' => 'pending',
         ]);
     }
 
-    private function upsertPayment(Order $order, array $result, array $queryParams, string $status): void
-    {
-        $data = [
-            'transaction_code' => $result['transactionNo'],
-            'amount'           => $result['amount'],
-            'status'           => $status,
-            'gateway_response' => $queryParams,
+    private function syncPaymentFromCallback(
+        Payment $payment,
+        Order $order,
+        array $result,
+        array $queryParams,
+        string $source,
+        string $callbackStatus,
+        bool $confirmPayment
+    ): void {
+        $gatewayResponse = $this->mergeGatewayResponse($payment->gateway_response, $source, $queryParams, $result);
+        $isAlreadyConfirmed = $this->isPaymentConfirmed($order, $payment);
+
+        $attributes = [
+            'transaction_code' => $result['transactionNo'] ?: $payment->transaction_code,
+            'amount' => $result['amount'],
+            'gateway_response' => $gatewayResponse,
         ];
 
-        if ($status === 'success') {
-            $data['paid_at'] = now();
+        if ($callbackStatus === 'failed') {
+            if ($isAlreadyConfirmed) {
+                $attributes['status'] = 'success';
+
+                Log::warning('VNPay callback ignored because payment is already confirmed', [
+                    'order_code' => $order->order_code,
+                    'source' => $source,
+                    'response_code' => $result['responseCode'],
+                    'transaction_no' => $result['transactionNo'] ?? null,
+                ]);
+            } else {
+                $attributes['status'] = 'failed';
+
+                if ($source === self::CALLBACK_SOURCE_IPN && $order->payment_status !== 'paid') {
+                    $order->update(['payment_status' => 'failed']);
+                }
+            }
+        } elseif ($confirmPayment || $payment->status === 'success' || $isAlreadyConfirmed) {
+            $attributes['status'] = 'success';
+        } elseif ($payment->status === null) {
+            $attributes['status'] = 'pending';
         }
 
-        Payment::updateOrCreate(
-            ['order_id' => $order->order_id, 'payment_method' => 'vnpay'],
-            $data
+        if ($confirmPayment) {
+            $attributes['paid_at'] = $payment->paid_at ?? now();
+            $attributes['confirmed_at'] = $payment->confirmed_at ?? now();
+            $attributes['confirmed_source'] = $payment->confirmed_source ?? $source;
+
+            if ($order->payment_status !== 'paid') {
+                $order->update(['payment_status' => 'paid']);
+            }
+        } elseif ($callbackStatus === 'failed') {
+            $attributes['confirmed_source'] = $payment->confirmed_source;
+        }
+
+        $payment->forceFill($attributes)->save();
+    }
+
+    private function mergeGatewayResponse(
+        mixed $existingGatewayResponse,
+        string $source,
+        array $queryParams,
+        array $result
+    ): array {
+        $gatewayResponse = is_array($existingGatewayResponse) ? $existingGatewayResponse : [];
+        $callbacks = $gatewayResponse['callbacks'] ?? [];
+        $history = $callbacks[$source] ?? [];
+
+        $history[] = [
+            'received_at' => now()->toDateTimeString(),
+            'response_code' => $result['responseCode'] ?? null,
+            'transaction_no' => $result['transactionNo'] ?? null,
+            'payload' => $queryParams,
+        ];
+
+        $callbacks[$source] = $history;
+        $gatewayResponse['callbacks'] = $callbacks;
+
+        return $gatewayResponse;
+    }
+
+    private function claimPostPaymentProcessing(Payment $payment, string $source): bool
+    {
+        if ($payment->post_payment_status === self::POST_PAYMENT_STATUS_COMPLETED) {
+            return false;
+        }
+
+        if (
+            $payment->post_payment_status === self::POST_PAYMENT_STATUS_PROCESSING
+            && !$this->isPostPaymentProcessingStale($payment)
+        ) {
+            return false;
+        }
+
+        $payment->forceFill([
+            'post_payment_key' => $this->makePostPaymentKey($payment->order->order_code, $payment->transaction_code),
+            'post_payment_status' => self::POST_PAYMENT_STATUS_PROCESSING,
+            'post_payment_started_at' => now(),
+            'post_payment_processed_at' => null,
+            'post_payment_source' => $source,
+            'post_payment_last_error' => null,
+        ])->save();
+
+        return true;
+    }
+
+    private function isPostPaymentProcessingStale(Payment $payment): bool
+    {
+        if (!$payment->post_payment_started_at) {
+            return true;
+        }
+
+        return $payment->post_payment_started_at->lt(
+            now()->subSeconds(self::POST_PAYMENT_LOCK_TIMEOUT_SECONDS)
         );
+    }
+
+    private function markPostPaymentCompleted(int $paymentId): void
+    {
+        Payment::whereKey($paymentId)->update([
+            'post_payment_status' => self::POST_PAYMENT_STATUS_COMPLETED,
+            'post_payment_processed_at' => now(),
+            'post_payment_last_error' => null,
+        ]);
+    }
+
+    private function markPostPaymentFailed(int $paymentId, string $errorMessage): void
+    {
+        Payment::whereKey($paymentId)->update([
+            'post_payment_status' => self::POST_PAYMENT_STATUS_FAILED,
+            'post_payment_last_error' => mb_substr($errorMessage, 0, 2000),
+        ]);
+    }
+
+    private function isPaymentConfirmed(Order $order, Payment $payment): bool
+    {
+        return $order->payment_status === 'paid' || $payment->confirmed_at !== null;
+    }
+
+    private function makePostPaymentKey(string $orderCode, ?string $transactionCode): string
+    {
+        return $orderCode . ':' . ($transactionCode ?: 'no-transaction');
+    }
+
+    private function resolveTransactionCode(Order $order): ?string
+    {
+        return Payment::where('order_id', $order->order_id)
+            ->where('payment_method', $order->payment_method)
+            ->value('transaction_code');
+    }
+
+    private function getPaymentForOrder(Order $order): ?Payment
+    {
+        return Payment::where('order_id', $order->order_id)
+            ->where('payment_method', $order->payment_method)
+            ->first();
+    }
+
+    private function hasCompletedPostPaymentStep(Payment $payment, string $step): bool
+    {
+        $steps = $payment->gateway_response['post_payment_steps'] ?? [];
+
+        return !empty($steps[$step]['completed_at']);
+    }
+
+    private function markPostPaymentStepCompleted(Payment $payment, string $step): void
+    {
+        $gatewayResponse = is_array($payment->gateway_response) ? $payment->gateway_response : [];
+        $steps = $gatewayResponse['post_payment_steps'] ?? [];
+
+        $steps[$step] = [
+            'completed_at' => now()->toDateTimeString(),
+        ];
+
+        $gatewayResponse['post_payment_steps'] = $steps;
+
+        $payment->forceFill([
+            'gateway_response' => $gatewayResponse,
+        ])->save();
+    }
+
+    private function makeNotificationId(string $paymentEventKey): string
+    {
+        return substr(hash('sha256', 'payment-success:' . $paymentEventKey), 0, 36);
     }
 
     private function getResponseMessage(string $code): string

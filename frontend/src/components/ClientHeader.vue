@@ -5,10 +5,10 @@ import { useRoute, useRouter } from "vue-router";
 import api from "../axios.js";
 import { broadcastLogout } from "../sessionSync.js";
 import Swal from "sweetalert2";
-import SearchModal from "./SearchModal.vue";
 import AppIcon from "@/icons/AppIcon.vue";
 import { useCartStore } from "@/stores/cart";
 import { useCatalogStore } from "@/stores/catalog";
+import { catalogService, extractCollection } from "@/services/catalogService";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 const route = useRoute();
@@ -25,7 +25,6 @@ const userAvatar = ref(null);
 const isAdmin = ref(false);
 const showDropdown = ref(false);
 const unreadNotificationCount = ref(0);
-const isSearchModalOpen = ref(false);
 const isMobileMenuOpen = ref(false);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
@@ -77,9 +76,110 @@ const toggleAccountMenu = () => {
     }
 };
 
-const openSearch = () => {
-    isSearchModalOpen.value = true;
-    closeMobileMenu();
+// Inline Search State & Logic
+const searchInputRef = ref(null);
+const isSearchExpanded = ref(false);
+const searchQuery = ref("");
+const searchResults = ref([]);
+const isSearching = ref(false);
+const showDropdownResult = ref(false);
+const searchHistory = ref([]);
+const recentlyViewed = ref([]);
+let searchTimeout = null;
+
+const fetchSearchHistoryAndRecentlyViewed = async () => {
+    try {
+        const [historyRes, recentlyRes] = await Promise.all([
+            catalogService.getSearchHistory(),
+            catalogService.getRecentlyViewed()
+        ]);
+        searchHistory.value = historyRes.data?.data || [];
+        recentlyViewed.value = recentlyRes.data?.data || [];
+    } catch (e) {
+        console.error('Lỗi lấy lịch sử tìm kiếm:', e);
+    }
+};
+
+const toggleSearch = () => {
+    isSearchExpanded.value = !isSearchExpanded.value;
+    if (isSearchExpanded.value) {
+        fetchSearchHistoryAndRecentlyViewed();
+        setTimeout(() => {
+            searchInputRef.value?.focus();
+        }, 100);
+    } else {
+        searchQuery.value = "";
+        searchResults.value = [];
+        showDropdownResult.value = false;
+    }
+};
+
+const handleSearchFocus = () => {
+    showDropdownResult.value = true;
+};
+
+const handleSearchBlur = () => {
+    setTimeout(() => {
+        showDropdownResult.value = false;
+    }, 200);
+};
+
+const performSearch = async (query) => {
+    if (!query.trim()) {
+        searchResults.value = [];
+        showDropdownResult.value = false;
+        return;
+    }
+    isSearching.value = true;
+    showDropdownResult.value = true;
+    try {
+        const res = await catalogService.searchProducts(query, { limit: 5 });
+        searchResults.value = extractCollection(res) || [];
+    } catch (e) {
+        console.error("Lỗi tìm kiếm:", e);
+        searchResults.value = [];
+    } finally {
+        isSearching.value = false;
+    }
+};
+
+watch(searchQuery, (newVal) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        performSearch(newVal);
+    }, 300);
+});
+
+const executeSearch = (query = null) => {
+    const finalQuery = typeof query === 'string' ? query : searchQuery.value;
+    if (finalQuery.trim()) {
+        router.push({ name: 'product-list', query: { search: finalQuery.trim() } });
+        isSearchExpanded.value = false;
+        showDropdownResult.value = false;
+        searchQuery.value = finalQuery.trim();
+    }
+};
+
+const getImageUrl = (item) => {
+    const path = item.thumbnail_url || item.image || item.mainImage?.image_url;
+    if (!path || path === '0') return '';
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    const url = BASE_URL.endsWith('/') ? BASE_URL : BASE_URL + '/';
+    return `${url}storage/${path}`;
+};
+
+const formatPrice = (value) => {
+    const num = Number(value);
+    if (!isNaN(num)) {
+        return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(num);
+    }
+    return value || 'Liên hệ';
+};
+
+const goToProduct = (slug) => {
+    router.push(`/product/${slug}`);
+    isSearchExpanded.value = false;
+    showDropdownResult.value = false;
 };
 
 const handleDocumentClick = (event) => {
@@ -91,6 +191,13 @@ const handleDocumentClick = (event) => {
 
     if (!target.closest(".account-dropdown")) {
         closeAccountMenu();
+    }
+    
+    if (!target.closest(".search-wrapper")) {
+        showDropdownResult.value = false;
+        if (!searchQuery.value) {
+            isSearchExpanded.value = false;
+        }
     }
 };
 
@@ -303,8 +410,8 @@ watch(
             <div class="header-left">
                 <!-- Logo -->
                 <router-link to="/" class="logo">
-                    <img :src="BASE_URL + '/storage/logo/logo.png'" alt="Logo" class="logo-img"
-                        style="width: 120px; height: auto" />
+                    <img :src="BASE_URL + '/storage/logo/LOGO_QS.png'" alt="Logo" class="logo-img"
+                        style="width: 75px; height: auto" />
                 </router-link>
 
                 <!-- Navigation Links -->
@@ -319,6 +426,13 @@ watch(
                         {{ cat.name }}
                     </router-link>
                     <router-link
+                        to="/courts"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('courts') }"
+                    >
+                        Sân thể thao
+                    </router-link>
+                    <router-link
                         to="/contact"
                         class="nav-link"
                         :class="{ active: isRouteActive('contact') }"
@@ -329,7 +443,7 @@ watch(
             </div>
 
             <div class="header-actions">
-                <button
+                <!-- <button
                     type="button"
                     class="icon-btn mobile-nav-toggle"
                     :aria-expanded="isMobileMenuOpen"
@@ -337,13 +451,102 @@ watch(
                     @click.stop="toggleMobileMenu"
                 >
                     <AppIcon name="menu" stroke-width="2.2" />
-                </button>
+                </button> -->
 
                 <!-- Search -->
+                <!-- Inline Expandable Search -->
                 <div class="search-wrapper">
-                    <button type="button" class="icon-btn search-icon-btn" @click="openSearch">
-                        <AppIcon name="search" />
-                    </button>
+                    <div
+                        class="search-container"
+                        :class="{ 'is-expanded': isSearchExpanded }"
+                    >
+                        <input
+                            type="text"
+                            class="search-input"
+                            v-model="searchQuery"
+                            ref="searchInputRef"
+                            @keyup.enter="executeSearch"
+                            @blur="handleSearchBlur"
+                            @focus="handleSearchFocus"
+                            placeholder="Tìm kiếm sản phẩm..."
+                        />
+                        <button
+                            class="icon-btn search-icon-btn"
+                            @click="toggleSearch"
+                        >
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Search dropdown results -->
+                    <div class="search-dropdown-box" v-if="isSearchExpanded && showDropdownResult">
+                        <div v-if="isSearching" class="search-msg">Đang tìm kiếm...</div>
+                        
+                        <!-- Lịch sử tìm kiếm & Gợi ý (khi chưa gõ) -->
+                        <div v-else-if="!searchQuery" class="search-suggestions">
+                            <div class="search-history-section" v-if="searchHistory.length">
+                                <div class="suggestion-header" style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF; display:flex; justify-content: space-between">
+                                    <span>Lịch sử tìm kiếm</span>
+                                </div>
+                                <ul class="search-list">
+                                    <li v-for="(history, i) in searchHistory" :key="'h-'+i" class="search-item" @click.stop="executeSearch(history.keyword)">
+                                        <AppIcon name="search" size="14" style="margin-right: 8px; color: #636E72" />
+                                        <div class="search-item-info">
+                                            <div class="search-item-name" style="font-weight: 500;">{{ history.keyword }}</div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div class="recently-viewed-section" v-if="recentlyViewed.length">
+                                <div class="suggestion-header" style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF;">
+                                    <span>Sản phẩm vừa xem</span>
+                                </div>
+                                <ul class="search-list">
+                                    <li v-for="item in recentlyViewed" :key="'r-'+item.product_id" class="search-item" @click.stop="goToProduct(item.product.slug)">
+                                        <img :src="getImageUrl(item.product)" class="search-item-img" />
+                                        <div class="search-item-info">
+                                            <div class="search-item-name">{{ item.product.name }}</div>
+                                            <div class="search-item-price">{{ formatPrice(item.product.min_price) }}</div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div v-if="!searchHistory.length && !recentlyViewed.length" class="search-msg">
+                                Nhập từ khóa để tìm kiếm...
+                            </div>
+                        </div>
+
+                        <!-- Kết quả tìm kiếm -->
+                        <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản phẩm phù hợp.</div>
+                        <template v-else>
+                            <ul class="search-list">
+                                <li v-for="item in searchResults" :key="item.product_id" class="search-item" @click.stop="goToProduct(item.slug)">
+                                    <img :src="getImageUrl(item)" class="search-item-img" />
+                                    <div class="search-item-info">
+                                        <div class="search-item-name">{{ item.name }}</div>
+                                        <div class="search-item-price">{{ formatPrice(item.min_price) }}</div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <div v-if="searchResults.length > 0" class="search-view-all" @click.stop="executeSearch()">
+                                Xem tất cả kết quả
+                            </div>
+                        </template>
+                    </div>
                 </div>
 
                 <!-- Thông báo -->
@@ -491,7 +694,6 @@ watch(
         </div>
     </Transition>
 
-    <!-- Draggable Flash Sale Widget -->
     <div class="floating-flash-sale" :style="{ left: flashSalePos.x + 'px', top: flashSalePos.y + 'px' }"
         @mousedown="startDrag" @touchstart="startDrag" @click="handleFlashSaleClick">
         <div class="flash-sale-badge">
@@ -499,8 +701,6 @@ watch(
             <span>FLASH SALE</span>
         </div>
     </div>
-
-    <SearchModal v-model="isSearchModalOpen" />
 </template>
 
 <style scoped>
@@ -509,7 +709,7 @@ watch(
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #F8F9FA;
-    position: sticky;
+    /* position: sticky; */
     top: 0;
     z-index: 1030;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
@@ -606,10 +806,135 @@ watch(
 }
 
 /* INLINE EXPANDABLE SEARCH */
+
+
 .search-wrapper {
     position: relative;
     display: flex;
     align-items: center;
+}
+.search-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    width: 36px; /* only icon width */
+    height: 36px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    border-radius: 20px;
+    background: transparent;
+}
+.search-container.is-expanded {
+    width: 280px;
+    background: #f1f5f9;
+    padding-left: 12px;
+}
+.search-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    width: 0;
+    opacity: 0;
+    transition:
+        opacity 0.3s,
+        width 0.3s;
+    font-size: 0.9rem;
+    color: #111;
+}
+.search-container.is-expanded .search-input {
+    width: flex-grow;
+    flex: 1;
+    opacity: 1;
+}
+.search-icon-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* SEARCH DROPDOWN */
+.search-dropdown-box {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 380px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    z-index: 300;
+}
+.search-msg {
+    padding: 24px;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.95rem;
+}
+.search-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.search-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.search-item:last-child {
+    border-bottom: none;
+}
+.search-item:hover {
+    background: #f8fafc;
+}
+.search-item-img {
+    width: 54px;
+    height: 54px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #e2e8f0;
+    flex-shrink: 0;
+}
+.search-item-info {
+    flex: 1;
+    overflow: hidden;
+}
+.search-item-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0f172a;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+.search-item-price {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #E63B6F; /* Ocean blue theme */
+}
+.search-view-all {
+    padding: 14px;
+    text-align: center;
+    background: #f8fafc;
+    color: #E63B6F;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-top: 1px solid #e2e8f0;
+}
+.search-view-all:hover {
+    background: #e2e8f0;
 }
 
 /* CART BADGE */

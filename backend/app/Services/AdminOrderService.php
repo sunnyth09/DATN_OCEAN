@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Repositories\AdminOrderRepository;
 use App\Models\Order;
+use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,7 +39,8 @@ class AdminOrderService
 
     public function __construct(
         protected AdminOrderRepository $orderRepository,
-        protected AffiliateService $affiliateService
+        protected AffiliateService $affiliateService,
+        protected LoyaltyService $loyaltyService,
     ) {}
 
     /**
@@ -166,6 +168,27 @@ class AdminOrderService
             // Đồng bộ affiliate
             if (isset($updates['fulfillment_status'])) {
                 $this->affiliateService->updateConversionOnStatusChange($order, $updates['fulfillment_status']);
+
+                // Tích điểm loyalty khi đơn DELIVERED hoặc COMPLETED
+                if (in_array($updates['fulfillment_status'], [
+                    OrderStatus::DELIVERED->value,
+                    OrderStatus::COMPLETED->value,
+                ], true) && $order->user) {
+                    try {
+                        $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
+
+                        // Bonus đơn đầu tiên
+                        $isFirstOrder = Order::where('user_id', $order->user_id)
+                            ->where('fulfillment_status', OrderStatus::COMPLETED->value)
+                            ->count() === 1;
+
+                        if ($isFirstOrder) {
+                            $this->loyaltyService->earnFirstOrder($order->user, $order->fresh());
+                        }
+                    } catch (\Exception $e) {
+                        Log::error("LoyaltyEarn failed for order #{$order->order_id}: " . $e->getMessage());
+                    }
+                }
             }
 
             return ['_status' => 200, 'status' => 'success', 'message' => 'Cập nhật trạng thái thành công!'];
@@ -270,10 +293,24 @@ class AdminOrderService
 
             DB::commit();
 
-            // Affiliate sync
+            // Affiliate sync + Loyalty earn
             if ($newFulfillmentStatus) {
+                $isDeliveredOrCompleted = in_array($newFulfillmentStatus, [
+                    OrderStatus::DELIVERED->value,
+                    OrderStatus::COMPLETED->value,
+                ], true);
+
                 foreach ($orders as $order) {
                     $this->affiliateService->updateConversionOnStatusChange($order->fresh(), $newFulfillmentStatus);
+
+                    // Tích điểm loyalty
+                    if ($isDeliveredOrCompleted && $order->user) {
+                        try {
+                            $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
+                        } catch (\Exception $e) {
+                            Log::error("LoyaltyEarn bulk failed for order #{$order->order_id}: " . $e->getMessage());
+                        }
+                    }
                 }
             }
 

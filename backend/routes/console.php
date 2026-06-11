@@ -93,7 +93,23 @@ Schedule::command('court-bookings:clean-expired-locks')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
 
+Schedule::command('court-bookings:expire-pending --minutes=15')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
+
 Schedule::command('court-bookings:mark-no-shows --grace=15')
     ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+/**
+ * ── 5. Expire điểm thưởng hết hạn ──
+ *
+ * Chạy lúc 02:00 sáng mỗi ngày.
+ * Quét loyalty_transactions type=earn đã quá expires_at → ghi expire transaction.
+ */
+Schedule::command('loyalty:expire-points')
+    ->dailyAt('02:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/scheduler.log'));

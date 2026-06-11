@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../config/app_theme.dart';
@@ -9,7 +8,7 @@ import 'category_screen.dart';
 import 'cart_screen.dart';
 import 'order_screen.dart';
 import 'profile_screen.dart';
-
+import 'court_booking_screen.dart';
 
 class MainWrapper extends StatefulWidget {
   final int initialIndex;
@@ -27,7 +26,7 @@ class _MainWrapperState extends State<MainWrapper> {
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialIndex;
+    _selectedIndex = widget.initialIndex.clamp(0, 5);
     _fetchCartCount();
   }
 
@@ -39,9 +38,9 @@ class _MainWrapperState extends State<MainWrapper> {
       if (res.statusCode == 200) {
         final data = res.data['data'];
         if (data != null && data['items'] != null) {
-          int count = 0;
-          for (var item in data['items']) {
-            count += (int.tryParse(item['quantity'].toString()) ?? 1);
+          var count = 0;
+          for (final item in data['items']) {
+            count += int.tryParse(item['quantity'].toString()) ?? 1;
           }
           if (mounted) setState(() => _cartBadgeCount = count);
         }
@@ -49,24 +48,21 @@ class _MainWrapperState extends State<MainWrapper> {
     } catch (_) {}
   }
 
- 
-  void _onItemTapped(int index) async {
-    // Chặn luồng nếu nhấn tab yêu cầu đăng nhập
+  Future<void> _onItemTapped(int index) async {
     if (index >= 2) {
       final loggedIn = await AuthService.isLoggedIn();
       if (!loggedIn) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Vui lòng đăng nhập để tiếp tục')),
+            const SnackBar(content: Text('Vui long dang nhap de tiep tuc')),
           );
           Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
         }
         return;
       }
     }
-    setState(() {
-      _selectedIndex = index;
-    });
+
+    setState(() => _selectedIndex = index);
     _fetchCartCount();
   }
 
@@ -78,8 +74,9 @@ class _MainWrapperState extends State<MainWrapper> {
         children: [
           const HomeScreen(),
           const CategoryScreen(),
-          CartScreen(key: ValueKey('cart_$_selectedIndex')), // Recreates to fetch fresh data
-          OrderScreen(key: ValueKey('order_$_selectedIndex')), // Also recreate OrderScreen
+          CourtBookingScreen(key: ValueKey('court_booking_$_selectedIndex')),
+          CartScreen(key: ValueKey('cart_$_selectedIndex')),
+          OrderScreen(key: ValueKey('order_$_selectedIndex')),
           ProfileScreen(key: ValueKey('profile_$_selectedIndex')),
         ],
       ),
@@ -99,13 +96,13 @@ class _MainWrapperState extends State<MainWrapper> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNavItem(Icons.home_outlined, Icons.home, 'Trang chủ', 0),
-              _buildNavItem(Icons.grid_view_outlined, Icons.grid_view, 'Sản phẩm', 1),
-              _buildNavItem(Icons.shopping_cart_outlined, Icons.shopping_cart, 'Giỏ hàng', 2, badgeCount: _cartBadgeCount),
-              _buildNavItem(Icons.receipt_long_outlined, Icons.receipt_long, 'Đơn hàng', 3),
-              _buildNavItem(Icons.person_outline, Icons.person, 'Cá nhân', 4),
+              _buildNavItem(Icons.home_outlined, Icons.home, 'Home', 0),
+              _buildNavItem(Icons.grid_view_outlined, Icons.grid_view, 'Shop', 1),
+              _buildNavItem(Icons.sports_tennis_outlined, Icons.sports_tennis, 'San', 2),
+              _buildNavItem(Icons.shopping_cart_outlined, Icons.shopping_cart, 'Cart', 3, badgeCount: _cartBadgeCount),
+              _buildNavItem(Icons.receipt_long_outlined, Icons.receipt_long, 'Orders', 4),
+              _buildNavItem(Icons.person_outline, Icons.person, 'Me', 5),
             ],
           ),
         ),
@@ -115,36 +112,52 @@ class _MainWrapperState extends State<MainWrapper> {
 
   Widget _buildNavItem(IconData unselectedIcon, IconData selectedIcon, String label, int index, {int badgeCount = 0}) {
     final isSelected = _selectedIndex == index;
-    return GestureDetector(
-      onTap: () => _onItemTapped(index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primarySoft : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Icon(isSelected ? selectedIcon : unselectedIcon, color: isSelected ? AppColors.primary : const Color(0xFF94A3B8), size: 24),
-                if (badgeCount > 0)
-                  Positioned(
-                    right: -6, top: -4,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                      child: Text(badgeCount > 99 ? '99+' : badgeCount.toString(), style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _onItemTapped(index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primarySoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    isSelected ? selectedIcon : unselectedIcon,
+                    color: isSelected ? AppColors.primary : const Color(0xFF94A3B8),
+                    size: 23,
                   ),
-              ],
-            ),
-            if (isSelected) const SizedBox(height: 4),
-            if (isSelected) Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary)),
-          ],
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: -6,
+                      top: -4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                        child: Text(
+                          badgeCount > 99 ? '99+' : badgeCount.toString(),
+                          style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              if (isSelected) const SizedBox(height: 4),
+              if (isSelected)
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                ),
+            ],
+          ),
         ),
       ),
     );

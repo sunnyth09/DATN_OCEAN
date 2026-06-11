@@ -51,6 +51,25 @@
         </div>
 
         <div class="backoffice-header__actions">
+          <router-link to="/admin/notifications" class="shell-icon-btn position-relative" title="Thông báo">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span v-if="unreadCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem; padding: 0.25em 0.4em;">
+              {{ unreadCount > 99 ? '99+' : unreadCount }}
+            </span>
+          </router-link>
+
           <button
             type="button"
             class="shell-icon-btn"
@@ -124,10 +143,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
 import { useUiStore } from '@/stores/ui';
+import axios from 'axios';
+import Swal from 'sweetalert2';
 
 const props = defineProps({
   sidebarComponent: {
@@ -187,13 +208,70 @@ watch(
   },
 );
 
+const unreadCount = ref(0);
+
+const fetchUnreadCount = async () => {
+  try {
+    const response = await axios.get('/api/admin/notifications?unread_only=true&per_page=1');
+    if (response.data.success) {
+      unreadCount.value = response.data.unread_count || response.data.total || 0;
+    }
+  } catch (error) {
+    console.error('Failed to fetch notifications count', error);
+  }
+};
+
 onMounted(() => {
   syncSidebarForViewport();
   window.addEventListener('resize', syncSidebarForViewport);
+  
+  fetchUnreadCount();
+
+  if (window.Echo) {
+    const handleNotification = (e, eventType) => {
+        // Increment unread count
+        unreadCount.value++;
+        
+        let message = `Đơn đặt sân ${e.booking_code} có cập nhật mới.`;
+        if (eventType === 'CourtBookingCreated' || e.status === 'pending') {
+            message = `Có đơn đặt sân mới: ${e.booking_code}`;
+        } else if (eventType === 'CourtBookingCancelled' || e.status === 'cancelled') {
+            message = `Đơn đặt sân ${e.booking_code} đã bị hủy.`;
+        }
+
+        // Show Toast
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'info',
+          title: 'Thông báo',
+          text: message,
+          showConfirmButton: false,
+          timer: 5000,
+          timerProgressBar: true,
+          didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer);
+            toast.addEventListener('mouseleave', Swal.resumeTimer);
+          }
+        });
+    };
+
+    window.Echo.private('admin-notifications')
+      .listen('.CourtBookingCreated', (e) => handleNotification(e, 'CourtBookingCreated'))
+      .listen('.CourtBookingCancelled', (e) => handleNotification(e, 'CourtBookingCancelled'))
+      .listen('.booking.status.updated', (e) => {
+          if (e.status === 'cancelled') {
+              handleNotification(e, 'CourtBookingCancelled');
+          }
+      });
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', syncSidebarForViewport);
+  if (window.Echo) {
+    window.Echo.leave('admin-notifications');
+  }
 });
 </script>
 

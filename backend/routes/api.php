@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Broadcast;
 
 Broadcast::routes(['middleware' => ['api', 'auth:api,admin']]);
+
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ProductController;
@@ -41,6 +42,9 @@ use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
 use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
 use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\ComboController;
+use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\Api\Client\TrackingController;
 // Add this line to run the route: http://localhost:8000/api
 Route::get('/', function () {
     return response()->json([
@@ -92,6 +96,7 @@ Route::middleware('auth:api,admin')->group(function () {
 
     // Try-on
     Route::middleware('throttle:10,1')->post('/try-on', [TryOnController::class, 'process']);
+    Route::middleware('throttle:5,1')->post('/try-on/generate-360', [TryOnController::class, 'generate360Views']);
 
     // Return requests
     Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
@@ -146,6 +151,13 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     // Khiếu nại của tôi
     Route::get('/tickets', [TicketController::class, 'clientIndex']);
     Route::post('/tickets', [TicketController::class, 'clientStore']);
+});
+
+// Tracking routes (Public, optional auth logic handled inside controller)
+Route::prefix('tracking')->group(function () {
+    Route::post('/view-product', [TrackingController::class, 'viewProduct']);
+    Route::get('/recently-viewed', [TrackingController::class, 'getRecentlyViewed']);
+    Route::get('/search-history', [TrackingController::class, 'getSearchHistory']);
 });
 
 // Cart routes (Protected - cần JWT token user/admin)
@@ -206,6 +218,16 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::delete('/coupons/{id}', [CouponController::class, 'destroy']);
     Route::get('/coupons/{id}/usages', [CouponController::class, 'getCouponUsages']);
 
+    // ── Combo/Bundle (Flash Sale Combo + Auto Voucher) ──
+    Route::post('/combos/flash-sale', [ComboController::class, 'storeFlashCombo']);
+    Route::post('/combos/voucher', [ComboController::class, 'storeComboVoucher']);
+
+    // ── Loyalty (Admin) ──
+    Route::get('/loyalty/rules', [LoyaltyController::class, 'adminListRules']);
+    Route::put('/loyalty/rules/{key}', [LoyaltyController::class, 'adminUpdateRule']);
+    Route::post('/loyalty/users/{userId}/adjust', [LoyaltyController::class, 'adminAdjust']);
+    Route::get('/loyalty/users/{userId}/history', [LoyaltyController::class, 'adminUserHistory']);
+
     // Flash Sale Management (Admin only)
     Route::get('/flash-sale', [\App\Http\Controllers\Admin\FlashSaleController::class, 'adminIndex']);
     Route::get('/flash-sale/search-products', [\App\Http\Controllers\Admin\FlashSaleController::class, 'searchProducts']);
@@ -258,6 +280,12 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::get('/users', [AdminUserController::class, 'index']);
     Route::get('/users/{id}', [AdminUserController::class, 'show']);
 
+    // Admin Notifications
+    Route::get('/notifications', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'destroy']);
+
     // Quản lý Đánh giá sản phẩm (Duyệt)
     Route::get('/reviews', [ProductCommentController::class, 'adminIndex']);
     Route::put('/reviews/{id}/approve', [ProductCommentController::class, 'approve']);
@@ -303,6 +331,16 @@ Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin'
     Route::middleware('throttle:10,1')->post('/attendance/check-out', [\App\Http\Controllers\AttendanceController::class, 'checkOut']);
     Route::get('/attendance/today', [\App\Http\Controllers\AttendanceController::class, 'today']);
     Route::get('/attendance/my-history', [\App\Http\Controllers\AttendanceController::class, 'myHistory']);
+
+    // Face Registration & Verification (tất cả nhân viên)
+    Route::middleware('throttle:10,1')->post('/face/register', [\App\Http\Controllers\FaceEncodingController::class, 'register']);
+    Route::get('/face/status', [\App\Http\Controllers\FaceEncodingController::class, 'status']);
+    Route::delete('/face/{id}', [\App\Http\Controllers\FaceEncodingController::class, 'destroy']);
+    Route::post('/face/reset', [\App\Http\Controllers\FaceEncodingController::class, 'reset']);
+
+    // Face Management (admin only)
+    Route::get('/face/management', [\App\Http\Controllers\FaceEncodingController::class, 'management']);
+    Route::post('/face/reset-user/{userId}', [\App\Http\Controllers\FaceEncodingController::class, 'adminResetUser']);
 
     // Tổng quan (Dashboard)
     Route::get('/dashboard', [\App\Http\Controllers\AdminDashboardController::class, 'getDashboardData']);
@@ -363,6 +401,27 @@ Route::get('brands', [BrandController::class, 'index']);
 // Coupons (Công khai)
 Route::get('coupons/public', [CouponController::class, 'getPublicCoupons']);
 
+// ==========================================
+// COMBO / BUNDLE PROMOTION (Public)
+// ==========================================
+// Danh sách flash sale combo + combo voucher đang active
+Route::get('/combos', [ComboController::class, 'index']);
+// Kiểm tra cart eligible + preview discount (cần auth)
+Route::middleware('auth:api')->post('/combos/check-cart', [ComboController::class, 'checkCart']);
+
+// ==========================================
+// LOYALTY (Điểm thưởng)
+// ==========================================
+// Quy tắc earn/burn (public — user xem)
+Route::get('/loyalty/rules', [LoyaltyController::class, 'rules']);
+
+// Routes yêu cầu đăng nhập
+Route::middleware('auth:api')->prefix('loyalty')->group(function () {
+    Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
+    Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
+    Route::post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
+});
+
 // API Địa chỉ Việt Nam (Public)
 Route::prefix('location')->group(function () {
     Route::get('/provinces', [LocationController::class, 'getProvinces']);
@@ -404,7 +463,7 @@ Route::post('/payment/sepay-webhook', [\App\Http\Controllers\SepayController::cl
 // ██ DEBUG ROUTES — Chạy thủ công scheduler commands (XÓA KHI PRODUCTION)
 // =====================================================================
 // ⚠️ DEBUG ROUTES — Được bảo vệ bởi auth + role:admin (FIX C7: không còn public)
-Route::middleware(['auth:api,admin', 'role:admin'])->prefix('debug')->group(function () {
+Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
     Route::get('/run-abandoned-cart', function () {
         try {
             \Illuminate\Support\Facades\Artisan::call('app:remind-abandoned-cart');

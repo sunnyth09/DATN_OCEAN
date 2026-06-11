@@ -7,8 +7,10 @@ use App\Models\CourtBooking;
 use App\Models\CourtBookingLock;
 use App\Models\CourtBookingStatusHistory;
 use App\Models\CourtMaintenance;
+use App\Mail\CourtBookingCreatedMail;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Facades\Mail;
 
 class CourtBookingService
 {
@@ -285,6 +287,20 @@ class CourtBookingService
 
             app(CourtBookingWorkflowService::class)->logActivity('booking.created', $booking, null, $booking->toArray(), 'user', $userId, request());
             app(CourtBookingWorkflowService::class)->broadcast('CourtBookingCreated', $booking);
+            app(CourtBookingWorkflowService::class)->notifyUser($booking, 'CourtBookingCreated');
+            app(CourtBookingWorkflowService::class)->notifyAdmins($booking, 'created');
+
+            // Gửi email xác nhận đặt sân cho khách (qua queue để không block response)
+            if ($booking->user?->email) {
+                try {
+                    Mail::to($booking->user->email)->queue(new CourtBookingCreatedMail($booking));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Failed to queue booking created mail', [
+                        'booking_id' => $booking->booking_id,
+                        'error'      => $e->getMessage(),
+                    ]);
+                }
+            }
 
             return $booking;
         });

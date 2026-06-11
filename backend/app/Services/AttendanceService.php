@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\ShiftAssignment;
 use App\Models\WorkLocation;
 use App\Models\WorkShift;
+use App\Services\FaceVerificationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -209,10 +210,32 @@ class AttendanceService
             }
         }
 
-        // 6. Lưu ảnh selfie
+        // 6. Face Verification (nếu đã đăng ký)
+        $faceResult = null;
+        if (!empty($data['image'])) {
+            $faceService = app(FaceVerificationService::class);
+            $faceResult = $faceService->verifyForAttendance($userId, $userType, $data['image']);
+
+            // Nếu đã đăng ký nhưng không match → chặn
+            if ($faceResult['registered'] && !$faceResult['match']) {
+                return [
+                    'success'     => false,
+                    'message'     => 'Xác thực khuôn mặt thất bại. Khuôn mặt không khớp với ảnh đã đăng ký.',
+                    'data'        => [
+                        'face_confidence' => $faceResult['confidence'] ?? 0,
+                        'face_distance'   => $faceResult['distance'] ?? 1.0,
+                    ],
+                    'status_code' => 403,
+                ];
+            }
+            // Nếu chưa đăng ký → cảnh báo nhưng vẫn cho qua (grace period)
+            // TODO: Sau khi rollout xong, chuyển sang chặn luôn nếu chưa đăng ký
+        }
+
+        // 7. Lưu ảnh selfie
         $imagePath = $this->saveBase64Image($data['image'] ?? null, 'checkin_' . $userId);
 
-        // 7. Tạo attendance record
+        // 8. Tạo attendance record
         $attendance = Attendance::create([
             'user_id'                  => $userId,
             'user_type'                => $userType,
@@ -227,6 +250,9 @@ class AttendanceService
             'check_in_distance_meters' => $validResult['distance_meters'],
             'status'                   => 'checked_in',
             'image_path'               => $imagePath,
+            'face_verified'            => $faceResult ? $faceResult['match'] : null,
+            'face_confidence'          => $faceResult ? $faceResult['confidence'] : null,
+            'face_distance'            => $faceResult ? $faceResult['distance'] : null,
             'note'                     => $data['note'] ?? null,
         ]);
 
@@ -241,6 +267,8 @@ class AttendanceService
                 'location_name'   => $validResult['location']->name,
                 'distance_meters' => $validResult['distance_meters'],
                 'accuracy'        => $accuracy,
+                'face_verified'   => $faceResult ? $faceResult['match'] : null,
+                'face_confidence' => $faceResult ? round(($faceResult['confidence'] ?? 0) * 100) : null,
                 'status'          => $attendance->status,
             ],
             'status_code' => 200,
@@ -292,6 +320,24 @@ class AttendanceService
                 );
                 $checkOutDistance = $result['distance_meters'];
                 $outsideRange = !$result['is_valid'];
+            }
+        }
+
+        // Face verification cho check-out
+        $faceResult = null;
+        if (!empty($data['image'])) {
+            $faceService = app(FaceVerificationService::class);
+            $faceResult = $faceService->verifyForAttendance($userId, $userType, $data['image']);
+
+            if ($faceResult['registered'] && !$faceResult['match']) {
+                return [
+                    'success'     => false,
+                    'message'     => 'Xác thực khuôn mặt thất bại khi check-out.',
+                    'data'        => [
+                        'face_confidence' => $faceResult['confidence'] ?? 0,
+                    ],
+                    'status_code' => 403,
+                ];
             }
         }
 
