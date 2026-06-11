@@ -272,6 +272,12 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::get('/users', [AdminUserController::class, 'index']);
     Route::get('/users/{id}', [AdminUserController::class, 'show']);
 
+    // Admin Notifications
+    Route::get('/notifications', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'destroy']);
+
     // Quản lý Đánh giá sản phẩm (Duyệt)
     Route::get('/reviews', [ProductCommentController::class, 'adminIndex']);
     Route::put('/reviews/{id}/approve', [ProductCommentController::class, 'approve']);

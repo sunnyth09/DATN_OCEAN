@@ -318,18 +318,32 @@ const handleCreatePosBooking = async () => {
 
 const getStatusBadgeClass = (status) => 'status-badge--' + (status === 'playing' || status === 'extended' ? 'checked_in' : (status === 'expired' ? 'cancelled' : status));
 
-const getStatusText = (status) => {
+const getStatusText = (bookingOrStatus) => {
+    if (!bookingOrStatus) return '';
+    const status = typeof bookingOrStatus === 'object' ? bookingOrStatus.status : bookingOrStatus;
+
+    if (status === 'checked_in') {
+        if (typeof bookingOrStatus === 'object' && bookingOrStatus.booking_date && bookingOrStatus.start_time) {
+            const now = new Date();
+            const dateStr = String(bookingOrStatus.booking_date).split('T')[0];
+            const startDateTime = new Date(`${dateStr}T${bookingOrStatus.start_time}`);
+            if (now >= startDateTime) {
+                return 'Đang chơi';
+            }
+        }
+        return 'Đã check-in';
+    }
+
     const map = {
         'pending': 'Chờ duyệt',
         'confirmed': 'Đã xác nhận',
-        'checked_in': 'Đang chơi',
         'playing': 'Đang chơi',
         'extended': 'Đã gia hạn',
         'completed': 'Hoàn thành',
         'cancelled': 'Đã hủy',
         'no_show': 'Không đến'
     };
-    map.expired = 'Het han';
+    map.expired = 'Hết hạn';
     return map[status] || status;
 };
 
@@ -529,7 +543,7 @@ const clearFilters = () => {
                             <td>
                                 <span class="status-badge" :class="getStatusBadgeClass(booking.status)">
                                     <span v-if="['checked_in', 'playing', 'extended'].includes(booking.status)" class="pulse-dot pulse-dot--playing"></span>
-                                    {{ getStatusText(booking.status) }}
+                                    {{ getStatusText(booking) }}
                                 </span>
                             </td>
                             <td class="text-end pe-4">
@@ -633,7 +647,7 @@ const clearFilters = () => {
                                     <p class="text-muted mb-1" style="font-size: 0.8rem; text-transform: uppercase;">Trạng thái</p>
                                     <div>
                                         <span class="status-badge" :class="getStatusBadgeClass(selectedBooking.status)">
-                                            {{ getStatusText(selectedBooking.status) }}
+                                            {{ getStatusText(selectedBooking) }}
                                         </span>
                                     </div>
                                 </div>

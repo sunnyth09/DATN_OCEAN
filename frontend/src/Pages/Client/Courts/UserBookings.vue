@@ -87,13 +87,34 @@ const formatTime = (timeStr) => {
     return timeStr ? timeStr.substring(0, 5) : '';
 };
 
-const getStatusBadge = (status) => {
+const getStatusBadge = (bookingOrStatus) => {
+    const status = typeof bookingOrStatus === 'object' ? bookingOrStatus.status : bookingOrStatus;
+
+    if (status === 'checked_in') {
+        let isPlaying = false;
+        if (typeof bookingOrStatus === 'object' && bookingOrStatus.booking_date && bookingOrStatus.start_time) {
+            const now = new Date();
+            const dateStr = String(bookingOrStatus.booking_date).split('T')[0];
+            const startDateTime = new Date(`${dateStr}T${bookingOrStatus.start_time}`);
+            if (now >= startDateTime) {
+                isPlaying = true;
+            }
+        }
+        return { 
+            class: 'status-badge--checked_in', 
+            text: isPlaying ? 'Đang chơi' : 'Đã check-in', 
+            icon: isPlaying ? 'bi-play-circle' : 'bi-check2-all' 
+        };
+    }
+
     const badges = {
         'pending': { class: 'status-badge--pending', text: 'Chờ duyệt', icon: 'bi-hourglass-split' },
         'confirmed': { class: 'status-badge--confirmed', text: 'Đã xác nhận', icon: 'bi-check-circle' },
-        'checked_in': { class: 'status-badge--checked_in', text: 'Đang chơi', icon: 'bi-play-circle' },
+        'playing': { class: 'status-badge--checked_in', text: 'Đang chơi', icon: 'bi-play-circle' },
+        'extended': { class: 'status-badge--extended', text: 'Đã gia hạn', icon: 'bi-clock-history' },
         'completed': { class: 'status-badge--completed', text: 'Hoàn thành', icon: 'bi-check-circle-fill' },
-        'cancelled': { class: 'status-badge--cancelled', text: 'Đã hủy', icon: 'bi-x-circle' }
+        'cancelled': { class: 'status-badge--cancelled', text: 'Đã hủy', icon: 'bi-x-circle' },
+        'no_show': { class: 'status-badge--cancelled', text: 'Không đến', icon: 'bi-exclamation-circle' }
     };
     return badges[status] || { class: 'status-badge--pending', text: status, icon: 'bi-question-circle' };
 };
@@ -246,9 +267,9 @@ const goToDetail = (courtId) => {
                         <div class="d-flex align-items-center gap-2">
                             <span class="fw-bold" style="font-size: 0.9rem;">Mã Booking: {{ booking.booking_code || `#${booking.booking_id || booking.id}` }}</span>
                         </div>
-                        <span class="status-badge" :class="getStatusBadge(booking.status).class">
-                            <i :class="getStatusBadge(booking.status).icon" style="font-size: 0.7rem;"></i>
-                            {{ getStatusBadge(booking.status).text }}
+                        <span class="status-badge" :class="getStatusBadge(booking).class">
+                            <i :class="getStatusBadge(booking).icon" style="font-size: 0.7rem;"></i>
+                            {{ getStatusBadge(booking).text }}
                         </span>
                     </div>
                     

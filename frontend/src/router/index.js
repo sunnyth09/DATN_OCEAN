@@ -306,6 +306,12 @@ const routes = [
                 component: () => import("../Pages/admin/AdminCourtReports.vue"),
                 meta: { roles: ['admin'], title: 'Thống Kê Sân' },
             },
+            {
+                path: "notifications",
+                name: "admin-notifications",
+                component: () => import("../Pages/admin/AdminNotifications.vue"),
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thông báo hệ thống' },
+            },
         ],
     },
 

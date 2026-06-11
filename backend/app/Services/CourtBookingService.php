@@ -287,6 +287,8 @@ class CourtBookingService
 
             app(CourtBookingWorkflowService::class)->logActivity('booking.created', $booking, null, $booking->toArray(), 'user', $userId, request());
             app(CourtBookingWorkflowService::class)->broadcast('CourtBookingCreated', $booking);
+            app(CourtBookingWorkflowService::class)->notifyUser($booking, 'CourtBookingCreated');
+            app(CourtBookingWorkflowService::class)->notifyAdmins($booking, 'created');
 
             // Gửi email xác nhận đặt sân cho khách (qua queue để không block response)
             if ($booking->user?->email) {

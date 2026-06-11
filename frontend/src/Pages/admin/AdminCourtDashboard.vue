@@ -237,13 +237,28 @@ const bookingBlockColor = (status) => {
 const formatTime = (t) => t ? t.substring(0, 5) : '';
 const formatCurrency = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0);
 
-const getStatusText = (status) => {
+const getStatusText = (bookingOrStatus) => {
+    if (!bookingOrStatus) return '';
+    const status = typeof bookingOrStatus === 'object' ? bookingOrStatus.status : bookingOrStatus;
+    
+    if (status === 'checked_in') {
+        if (typeof bookingOrStatus === 'object' && bookingOrStatus.booking_date && bookingOrStatus.start_time) {
+            const now = new Date();
+            const dateStr = String(bookingOrStatus.booking_date).split('T')[0];
+            const startDateTime = new Date(`${dateStr}T${bookingOrStatus.start_time}`);
+            if (now >= startDateTime) {
+                return 'Đang chơi';
+            }
+        }
+        return 'Đã check-in';
+    }
+
     const map = {
-        'pending': 'Chờ duyệt', 'confirmed': 'Đã xác nhận', 'checked_in': 'Đang chơi',
+        'pending': 'Chờ duyệt', 'confirmed': 'Đã xác nhận',
         'playing': 'Đang chơi', 'extended': 'Gia hạn', 'completed': 'Hoàn thành',
         'cancelled': 'Đã hủy', 'no_show': 'Không đến'
     };
-    map.expired = 'Het han';
+    map.expired = 'Hết hạn';
     return map[status] || status;
 };
 
@@ -562,7 +577,7 @@ const handleCreatePosBooking = async () => {
                                 <div class="col-6">
                                     <div class="scheduler-modal__field">
                                         <span class="scheduler-modal__field-label">Trạng thái</span>
-                                        <span class="status-badge" :class="'status-badge--' + selectedBooking.status">{{ getStatusText(selectedBooking.status) }}</span>
+                                        <span class="status-badge" :class="'status-badge--' + selectedBooking.status">{{ getStatusText(selectedBooking) }}</span>
                                     </div>
                                 </div>
                                 <div class="col-12">

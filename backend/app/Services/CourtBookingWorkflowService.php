@@ -14,6 +14,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\Admin\CourtBookingNotification;
+use App\Models\Admin;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -74,6 +77,15 @@ class CourtBookingWorkflowService
 
             $eventName = $newStatus === 'cancelled' ? 'CourtBookingCancelled' : 'CourtBookingStatusChanged';
             $this->broadcast($eventName, $booking, ['old_status' => $oldStatus, 'new_status' => $newStatus]);
+            $this->notifyUser($booking, $eventName, [
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'note' => $note,
+            ]);
+
+            if ($newStatus === 'cancelled') {
+                $this->notifyAdmins($booking, 'cancelled');
+            }
 
             return $booking;
         });
@@ -183,6 +195,14 @@ class CourtBookingWorkflowService
                 'payment_status' => $booking->payment_status,
                 'paid_amount' => $booking->paid_amount,
             ]);
+            $this->notifyUser($booking, 'CourtBookingPaymentUpdated', [
+                'payment_status' => $booking->payment_status,
+                'paid_amount' => $booking->paid_amount,
+                'amount' => $payment->amount,
+                'payment_method' => $payment->payment_method,
+                'payment_type' => $payment->payment_type,
+                'payment_record_status' => $payment->status,
+            ]);
 
             return $payment;
         });
@@ -230,6 +250,113 @@ class CourtBookingWorkflowService
             'payment_status' => $booking->payment_status,
             'total_amount'   => $booking->total_amount,
         ], $extra));
+    }
+
+    public function notifyAdmins(CourtBooking $booking, string $eventType): void
+    {
+        try {
+            $admins = Admin::all();
+            Notification::send($admins, new CourtBookingNotification($booking, $eventType));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to notify admins about court booking', [
+                'booking_id' => $booking->booking_id,
+                'event_type' => $eventType,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function notifyUser(CourtBooking $booking, string $eventName, array $extra = []): void
+    {
+        if (!$booking->user_id) {
+            return;
+        }
+
+        $booking->loadMissing('court');
+        $statusLabels = [
+            'pending' => 'chờ xác nhận',
+            'confirmed' => 'đã xác nhận',
+            'checked_in' => 'đã check-in',
+            'playing' => 'đang chơi',
+            'extended' => 'đã gia hạn',
+            'completed' => 'đã hoàn thành',
+            'cancelled' => 'đã hủy',
+            'no_show' => 'vắng mặt',
+            'expired' => 'đã hết hạn',
+        ];
+
+        $paymentLabels = [
+            'unpaid' => 'chưa thanh toán',
+            'deposit_paid' => 'đã cọc',
+            'partially_paid' => 'thanh toán một phần',
+            'paid' => 'đã thanh toán',
+            'refunded' => 'đã hoàn tiền',
+            'partially_refunded' => 'hoàn tiền một phần',
+        ];
+
+        $title = match ($eventName) {
+            'CourtBookingCreated' => 'Đặt sân thành công',
+            'CourtBookingCancelled' => 'Lịch đặt sân đã hủy',
+            'CourtBookingPaymentUpdated' => 'Thanh toán đặt sân cập nhật',
+            default => 'Lịch đặt sân cập nhật',
+        };
+
+        $courtName = $booking->court?->court_name ?? 'sân';
+        $time = "{$booking->booking_date->format('d/m/Y')} {$booking->start_time}-{$booking->end_time}";
+
+        $paymentStatus = $paymentLabels[$booking->payment_status] ?? $booking->payment_status;
+        $bookingStatus = $statusLabels[$booking->status] ?? $booking->status;
+
+        $message = match ($eventName) {
+            'CourtBookingCreated' =>
+            "Booking {$booking->booking_code} tại {$courtName} lúc {$time} đang chờ xác nhận.",
+
+            'CourtBookingCancelled' =>
+            "Booking {$booking->booking_code} tại {$courtName} đã được hủy.",
+
+            'CourtBookingPaymentUpdated' =>
+            "Trạng thái thanh toán của booking {$booking->booking_code} đã được cập nhật thành {$paymentStatus}.",
+
+            default =>
+            "Booking {$booking->booking_code} tại {$courtName} lúc {$time} đã được cập nhật sang trạng thái {$bookingStatus}.",
+        };
+
+        $notificationData = array_merge([
+            'title' => $title,
+            'message' => $message,
+            'type' => 'court_booking',
+            'event' => $eventName,
+            'booking_id' => $booking->booking_id,
+            'booking_code' => $booking->booking_code,
+            'court_id' => $booking->court_id,
+            'court_name' => $courtName,
+            'booking_date' => $booking->booking_date->format('Y-m-d'),
+            'start_time' => $booking->start_time,
+            'end_time' => $booking->end_time,
+            'status' => $booking->status,
+            'payment_status' => $booking->payment_status,
+            'total_amount' => $booking->total_amount,
+        ], $extra);
+
+        try {
+            DB::table('notifications')->insert([
+                'id' => (string) Str::uuid(),
+                'type' => 'court_booking',
+                'notifiable_type' => \App\Models\User::class,
+                'notifiable_id' => $booking->user_id,
+                'data' => json_encode($notificationData, JSON_UNESCAPED_UNICODE),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            event(new \App\Events\UserNotificationEvent((int) $booking->user_id, $notificationData));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to create court booking notification', [
+                'booking_id' => $booking->booking_id,
+                'event' => $eventName,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function logActivity(
