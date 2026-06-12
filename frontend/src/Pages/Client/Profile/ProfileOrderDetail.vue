@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
@@ -13,6 +13,7 @@ import {
   getReturnRequestStatusLabel,
   getReturnRequestStatusTone,
 } from '@/utils/orderStatus';
+import axios from 'axios';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -198,6 +199,89 @@ const goBack = () => {
   router.push({ name: 'profile-orders' });
 };
 
+// ====== TICKET (KHIẾU NẠI) LOGIC ======
+const showTicketModal = ref(false);
+const selectedItemForTicket = ref(null);
+const ticketReason = ref('Hàng lỗi, hỏng');
+const ticketDesc = ref('');
+const ticketImage = ref(null);
+const ticketError = ref('');
+
+const ticketReasons = [
+  'Hàng lỗi, hỏng',
+  'Giao sai sản phẩm / Phân loại',
+  'Thiếu hàng',
+  'Sản phẩm không giống mô tả',
+  'Hàng giả, hàng nhái',
+  'Lý do khác'
+];
+
+const openTicketModal = (item) => {
+  selectedItemForTicket.value = item;
+  ticketReason.value = 'Hàng lỗi, hỏng';
+  ticketDesc.value = '';
+  ticketImage.value = null;
+  ticketError.value = '';
+  showTicketModal.value = true;
+};
+
+const closeTicketModal = () => {
+  showTicketModal.value = false;
+  selectedItemForTicket.value = null;
+};
+
+const handleImageUpload = (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    if (file.size > 2 * 1024 * 1024) {
+      ticketError.value = 'Kích thước ảnh tối đa 2MB';
+      ticketImage.value = null;
+      return;
+    }
+    ticketImage.value = file;
+    ticketError.value = '';
+  }
+};
+
+const submitTicket = async () => {
+  if (!ticketDesc.value.trim()) {
+    ticketError.value = 'Vui lòng nhập mô tả chi tiết';
+    return;
+  }
+  
+  actionLoading.value = true;
+  ticketError.value = '';
+  
+  try {
+    const formData = new FormData();
+    formData.append('order_id', order.value.order_id);
+    formData.append('product_id', selectedItemForTicket.value.product_id);
+    formData.append('reason', ticketReason.value);
+    formData.append('description', ticketDesc.value);
+    if (ticketImage.value) {
+      formData.append('image', ticketImage.value);
+    }
+    
+    const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8383/api';
+    const res = await axios.post(`${BASE_URL}/profile/tickets`, formData, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    if (res.data.status === 'success') {
+      showToast('Đã gửi khiếu nại thành công! Chúng tôi sẽ xử lý sớm nhất.', 'success');
+      closeTicketModal();
+    }
+  } catch (error) {
+    console.error("Lỗi gửi khiếu nại:", error);
+    ticketError.value = error.response?.data?.message || 'Có lỗi xảy ra khi gửi khiếu nại';
+  } finally {
+    actionLoading.value = false;
+  }
+};
+
 onMounted(() => {
   fetchOrderDetail();
 });
@@ -333,6 +417,14 @@ onMounted(() => {
                 <div class="item-name">{{ item.product_name }}</div>
                 <div class="item-variant" v-if="item.variant_name">Phân loại: {{ item.variant_name }}</div>
                 <div class="item-qty">x{{ item.quantity }}</div>
+                
+                <button 
+                  v-if="['delivered', 'completed'].includes(order.fulfillment_status)"
+                  class="btn-ticket mt-2"
+                  @click="openTicketModal(item)"
+                >
+                  ⚠ Khiếu nại
+                </button>
               </div>
               <div class="item-price">
                 <div class="line-total">{{ formatPrice(item.line_total) }}</div>
@@ -419,6 +511,54 @@ onMounted(() => {
             <button class="btn-cancel-dismiss" @click="dismissReturnModal">Quay lại</button>
             <button class="btn-cancel-confirm return-confirm-btn" :disabled="submittingReturnRequest" @click="submitReturnRequest">
               {{ submittingReturnRequest ? 'Đang gửi...' : 'Gửi yêu cầu hoàn hàng' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+    <!-- Ticket Modal -->
+    <Transition name="modal">
+      <div v-if="showTicketModal" class="cancel-modal-overlay" @click.self="closeTicketModal">
+        <div class="cancel-modal-box">
+          <div class="cancel-modal-header">
+            <h5>Gửi Khiếu Nại Sản Phẩm</h5>
+            <button class="cancel-modal-close" @click="closeTicketModal">×</button>
+          </div>
+          <div class="cancel-modal-body">
+            <p class="cancel-modal-desc">
+              Sản phẩm: <strong>{{ selectedItemForTicket?.product_name }}</strong>
+            </p>
+            
+            <div class="ticket-form-group">
+              <label>Lý do khiếu nại:</label>
+              <select v-model="ticketReason" class="ticket-select">
+                <option v-for="r in ticketReasons" :key="r" :value="r">{{ r }}</option>
+              </select>
+            </div>
+            
+            <div class="ticket-form-group">
+              <label>Mô tả chi tiết vấn đề:</label>
+              <textarea 
+                v-model="ticketDesc" 
+                placeholder="Vui lòng mô tả rõ tình trạng sản phẩm..." 
+                class="cancel-custom-input"
+                rows="3"
+                @input="ticketError = ''"
+              ></textarea>
+            </div>
+            
+            <div class="ticket-form-group">
+              <label>Hình ảnh minh chứng (Tùy chọn, tối đa 2MB):</label>
+              <input type="file" accept="image/*" @change="handleImageUpload" class="ticket-file-input">
+            </div>
+
+            <p v-if="ticketError" class="cancel-validation-error">{{ ticketError }}</p>
+          </div>
+          <div class="cancel-modal-footer">
+            <button class="btn-cancel-dismiss" @click="closeTicketModal">Hủy</button>
+            <button class="btn-cancel-confirm ticket-submit-btn" @click="submitTicket" :disabled="actionLoading">
+              <span v-if="actionLoading" class="spinner-small"></span>
+              <span v-else>Gửi Khiếu Nại</span>
             </button>
           </div>
         </div>
@@ -830,7 +970,56 @@ onMounted(() => {
 .return-confirm-btn:hover {
   background: #c53061;
 }
+.ticket-submit-btn { background: #1d4ed8; }
+.ticket-submit-btn:hover { background: #1e40af; }
 .modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-from .cancel-modal-box, .modal-leave-to .cancel-modal-box { transform: scale(0.95) translateY(10px); }
+
+/* Ticket Styles */
+.btn-ticket {
+  background: none;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-ticket:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+.ticket-form-group {
+  margin-bottom: 16px;
+}
+.ticket-form-group label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+.ticket-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  font-family: inherit;
+  color: #0f172a;
+}
+.ticket-select:focus { border-color: #1d4ed8; }
+.ticket-file-input {
+  width: 100%;
+  font-size: 0.85rem;
+  padding: 8px 0;
+  color: #64748b;
+}
 </style>

@@ -140,7 +140,12 @@ class FlashSaleController extends Controller
         $flashSaleId = (int) $request->flash_sale_id;
         $productId   = (int) $request->product_id;
         $quantity    = (int) ($request->quantity ?? 1);
-        $userId      = auth('api')->user()?->user_id ?? auth('admin')->user()?->getKey();
+        $user        = auth('api')->user() ?? auth('admin')->user();
+        $userId      = $user ? ($user->user_id ?? $user->getKey()) : null;
+
+        if (!$userId || !$user) {
+            return response()->json(['message' => 'Vui lòng đăng nhập để tiếp tục.'], 401);
+        }
 
         $flashSale = Cache::remember("flash_sale_meta_{$flashSaleId}", 10, fn () => FlashSale::find($flashSaleId));
 
@@ -175,11 +180,129 @@ class FlashSaleController extends Controller
         Redis::incrby($userPurchaseKey, $quantity);
         Redis::expire($userPurchaseKey, $ttl);
 
+        // Chuẩn bị thông tin đơn hàng
+        $orderCode = 'FS-' . strtoupper(uniqid());
+        $defaultAddress = $user->addresses()->where('is_default', true)->first() ?? $user->addresses()->first();
+        $addressId = $defaultAddress ? $defaultAddress->address_id : null;
+        
+        $shippingAddress = $request->shipping_address ?? 'Địa chỉ mặc định';
+        if ($defaultAddress && $shippingAddress === 'Địa chỉ mặc định') {
+            $shippingAddress = implode(', ', array_filter([
+                $defaultAddress->address_line,
+                $defaultAddress->ward,
+                $defaultAddress->district,
+                $defaultAddress->province
+            ]));
+        }
+
+        // Đưa vào Queue để tạo đơn hàng trong Database
+        \App\Jobs\OrderProcessingJob::dispatch(
+            $flashSaleId,
+            $productId,
+            $userId,
+            $quantity,
+            $addressId,
+            $request->recipient_name,
+            $request->recipient_phone,
+            $shippingAddress,
+            $request->payment_method ?? 'cod',
+            $orderCode
+        );
+
         return response()->json([
             'status'     => 'success',
             'message'    => '🎉 Đặt hàng thành công!',
-            'order_code' => 'FS-' . strtoupper(uniqid()),
+            'order_code' => $orderCode,
             'remaining'  => (int) $remaining,
         ], 200);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ADMIN METHODS
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function adminIndex()
+    {
+        $flashSales = FlashSale::with('items.product')->orderBy('created_at', 'desc')->get();
+        return response()->json(['status' => 'success', 'data' => $flashSales]);
+    }
+
+    public function searchProducts(Request $request)
+    {
+        $query = $request->query('query');
+        $products = \App\Models\Product::where('name', 'like', "%{$query}%")
+            ->limit(10)
+            ->get(['product_id', 'name', 'thumbnail_url as thumbnail', 'base_price', 'stock']);
+            
+        return response()->json(['status' => 'success', 'data' => $products]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string',
+            'start_time' => 'required|date',
+            'end_time' => 'required|date|after:start_time',
+            'status' => 'required|in:draft,active,ended',
+            'items' => 'array',
+            'items.*.product_id' => 'required|exists:products,product_id',
+            'items.*.campaign_price' => 'required|numeric|min:0',
+            'items.*.campaign_stock' => 'required|integer|min:1',
+        ]);
+
+        $flashSale = FlashSale::create($request->only(['name', 'start_time', 'end_time', 'status']));
+
+        if ($request->has('items')) {
+            foreach ($request->items as $item) {
+                FlashSaleItem::create([
+                    'flash_sale_id' => $flashSale->id,
+                    'product_id' => $item['product_id'],
+                    'campaign_price' => $item['campaign_price'],
+                    'campaign_stock' => $item['campaign_stock'],
+                    'sold' => 0
+                ]);
+            }
+        }
+
+        return response()->json(['status' => 'success', 'message' => 'Created successfully']);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $flashSale = FlashSale::findOrFail($id);
+        
+        $request->validate([
+            'name' => 'required|string',
+            'start_time' => 'required|date',
+            'end_time' => 'required|date|after:start_time',
+            'status' => 'required|in:draft,active,ended',
+            'items' => 'array',
+        ]);
+
+        $flashSale->update($request->only(['name', 'start_time', 'end_time', 'status']));
+
+        FlashSaleItem::where('flash_sale_id', $id)->delete();
+        if ($request->has('items')) {
+            foreach ($request->items as $item) {
+                FlashSaleItem::create([
+                    'flash_sale_id' => $flashSale->id,
+                    'product_id' => $item['product_id'],
+                    'campaign_price' => $item['campaign_price'],
+                    'campaign_stock' => $item['campaign_stock'],
+                    'sold' => $item['sold'] ?? 0
+                ]);
+            }
+        }
+
+        return response()->json(['status' => 'success', 'message' => 'Updated successfully']);
+    }
+
+    public function destroy($id)
+    {
+        $flashSale = FlashSale::findOrFail($id);
+        FlashSaleItem::where('flash_sale_id', $id)->delete();
+        $flashSale->delete();
+        
+        return response()->json(['status' => 'success', 'message' => 'Deleted successfully']);
     }
 }

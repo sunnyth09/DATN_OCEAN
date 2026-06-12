@@ -13,7 +13,7 @@ class FlashSaleService
     public function syncStockToRedis(FlashSale $flashSale): void
     {
         foreach ($flashSale->items as $item) {
-            $key = "flash_sale_stock_{$item->product_id}";
+            $key = "flash_sale_{$flashSale->id}_product_{$item->product_id}_stock";
             $remainingStock = max(0, $item->campaign_stock - $item->sold);
             
             // Set số lượng trên Redis
@@ -31,16 +31,10 @@ class FlashSaleService
     public function revertStockFromRedis(FlashSale $flashSale): void
     {
         foreach ($flashSale->items as $item) {
-            $key = "flash_sale_stock_{$item->product_id}";
+            $key = "flash_sale_{$flashSale->id}_product_{$item->product_id}_stock";
             
             if (Redis::exists($key)) {
                 $remainingStockOnRedis = (int) Redis::get($key);
-                
-                // Trả hàng ế lại kho thật MySQL
-                $product = $item->product;
-                if ($product) {
-                    $product->increment('stock', $remainingStockOnRedis); 
-                }
                 
                 // Update số lượng thực sự đã bán được tại bảng master-detail
                 $actualSold = $item->campaign_stock - $remainingStockOnRedis;
