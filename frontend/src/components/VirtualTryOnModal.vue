@@ -126,7 +126,7 @@ onBeforeUnmount(() => {
           <div class="tryon-header">
             <h3 class="tryon-title">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-              AI Virtual Try-On
+              Phòng Thử Đồ Ảo
               <span class="badge active">Powered by AI</span>
             </h3>
             <button class="tryon-close" @click="closeModal" title="Đóng">
@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
           <!-- Controls -->
           <div class="tryon-controls">
             <button v-if="!resultImage && !isLoading" class="btn-primary" @click="submitTryOn" :disabled="!previewImage">
-              Tạo ảnh thử áo
+              Bắt đầu thử đồ
             </button>
             
             <button v-if="resultImage && !isLoading" class="btn-secondary" @click="reset">

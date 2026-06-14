@@ -22,9 +22,8 @@ class AffiliateController extends Controller
     public function __construct(
         protected AffiliateService $affiliateService
     ) {
-        // Áp dụng customer.only cho tất cả methods
-        // (ngoại trừ trackClick vốn là public)
-        $this->middleware('customer.only')->except('trackClick');
+        // Middleware 'customer.only' được áp dụng ở route level (routes/api.php)
+        // Laravel 12 không hỗ trợ $this->middleware() trong controller constructor.
     }
 
     /**

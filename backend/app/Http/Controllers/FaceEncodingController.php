@@ -39,13 +39,17 @@ class FaceEncodingController extends Controller
     public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'images'          => 'required|array|min:1|max:5',
-            'images.*.image'  => 'required|string|max:2800000', // ~2MB base64
-            'images.*.label'  => 'nullable|string|max:50',
+            'images'              => 'required|array|min:1|max:5',
+            'images.*.image'      => 'required|string|max:2800000', // ~2MB base64
+            'images.*.descriptor' => 'required|array|size:128',     // 128-dim vector từ face-api.js
+            'images.*.descriptor.*' => 'numeric',                   // Mỗi phần tử là số
+            'images.*.label'      => 'nullable|string|max:50',
         ], [
-            'images.required'       => 'Vui lòng chụp ít nhất 1 ảnh.',
-            'images.max'            => 'Tối đa 5 ảnh đăng ký.',
-            'images.*.image.max'    => 'Ảnh quá lớn (tối đa ~2MB).',
+            'images.required'              => 'Vui lòng chụp ít nhất 1 ảnh.',
+            'images.max'                   => 'Tối đa 5 ảnh đăng ký.',
+            'images.*.image.max'           => 'Ảnh quá lớn (tối đa ~2MB).',
+            'images.*.descriptor.required' => 'Thiếu dữ liệu khuôn mặt. Vui lòng chụp lại.',
+            'images.*.descriptor.size'     => 'Dữ liệu khuôn mặt không hợp lệ (cần 128-dim vector).',
         ]);
 
         $user = $this->attendanceService->resolveUser();

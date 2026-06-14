@@ -142,12 +142,15 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::post('/favorites/toggle', [FavoriteController::class, 'toggle']);
 
     // ── Affiliate (Hoa hồng giới thiệu) ──
-    Route::post('/affiliate/register', [AffiliateController::class, 'register']);
-    Route::get('/affiliate/profile', [AffiliateController::class, 'profile']);
-    Route::get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
-    Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
-    Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
-    Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
+    // customer.only: chặn admin/staff sử dụng (trackClick public nằm ngoài group)
+    Route::middleware('customer.only')->group(function () {
+        Route::post('/affiliate/register', [AffiliateController::class, 'register']);
+        Route::get('/affiliate/profile', [AffiliateController::class, 'profile']);
+        Route::get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
+        Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
+        Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
+        Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
+    });
     // Khiếu nại của tôi
     Route::get('/tickets', [TicketController::class, 'clientIndex']);
     Route::post('/tickets', [TicketController::class, 'clientStore']);

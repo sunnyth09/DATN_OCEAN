@@ -1,6 +1,6 @@
 <template>
   <div class="static-page">
-    <section class="page-hero">
+        <section class="page-hero">
       <div class="container">
         <h1>Liên Hệ Hỗ Trợ</h1>
         <p class="hero-sub">Chúng tôi luôn sẵn sàng lắng nghe bạn</p>
@@ -9,41 +9,25 @@
     <section class="page-content container">
       <div class="contact-grid">
         <div class="contact-card">
-          <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2">
-              <path
-                d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
-            </svg></div>
+          <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div>
           <h3>Hotline</h3>
           <p class="contact-value">1900-OCEAN (1900 6232)</p>
           <p class="contact-note">Thứ 2 - CN: 8:00 - 21:00</p>
         </div>
         <div class="contact-card">
-          <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg></div>
+          <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
           <h3>Email</h3>
           <p class="contact-value">support@oceanstore.vn</p>
           <p class="contact-note">Phản hồi trong 24 giờ</p>
         </div>
         <div class="contact-card">
-          <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg></div>
+          <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
           <h3>Showroom</h3>
-          <p class="contact-value">134 Nguyễn Thị Định</p>
-          <p class="contact-note">P. Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+          <p class="contact-value">101 Y Ngông</p>
+          <p class="contact-note">P. Tân Lập, TP. Buôn Ma Thuột, Đắk Lắk</p>
         </div>
         <div class="contact-card">
-          <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2">
-              <path
-                d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-            </svg></div>
+          <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div>
           <h3>Live Chat</h3>
           <p class="contact-value">Chat trực tuyến</p>
           <p class="contact-note">Phản hồi tức thì 24/7</p>
@@ -54,11 +38,11 @@
         <div class="map-block">
           <div class="map-header">
             <h2>Bản đồ cửa hàng</h2>
-            <p>Địa chỉ: 134 Nguyễn Thị Định, P. Buôn Ma Thuột, Đắk Lắk</p>
+            <p>Địa chỉ: 101 Y Ngông, P. Tân Lập, TP.Buôn Ma Thuột, Đắk Lắk</p>
           </div>
           <div class="map-frame">
             <iframe
-              src="https://www.google.com/maps?q=134+Nguyễn+Thị+Định,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
+              src="https://www.google.com/maps?q=101+Y+Ngông,+P.+Tân+Lập,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
               loading="lazy"
               referrerpolicy="no-referrer-when-downgrade"
               title="Bản đồ Ocean Store"
@@ -254,207 +238,48 @@ const submitContact = async () => {
 </script>
 
 <style scoped>
-.static-page {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+.static-page { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+.container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+.page-hero { background: #E63B6F; color: #fff; padding: 56px 24px; text-align: center; }
+.page-hero h1 { font-size: 2rem; font-weight: 800; margin: 0 0 12px; }
+.hero-sub { font-size: 1rem; color: rgba(255,255,255,0.85); margin: 0; }
+.page-content { padding: 48px 24px 64px; }
+.contact-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 48px; }
+.contact-card { background: #F8F9FA; border: 1px solid #FFE0E8; border-radius: 12px; padding: 24px; text-align: center; transition: box-shadow 0.2s; }
+.contact-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+.contact-icon { width: 48px; height: 48px; border-radius: 12px; background: #FFF0F3; color: #E63B6F; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+.contact-card h3 { font-size: 0.95rem; font-weight: 700; color: #2D3436; margin-bottom: 8px; }
+.contact-value { font-size: 0.9rem; font-weight: 600; color: #1a56db; margin-bottom: 4px; }
+.contact-note { font-size: 0.78rem; color: #9ca3af; margin: 0; }
+.contact-layout { display: grid; grid-template-columns: minmax(320px, 1.1fr) minmax(320px, 1fr); gap: 24px; margin-bottom: 36px; align-items: stretch; }
+.map-block { display: flex; flex-direction: column; background: #fff; border: 1px solid #E9ECEF; border-radius: 18px; overflow: hidden; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04); height: 100%; }
+.map-header { display: flex; flex-direction: column; gap: 6px; padding: 24px; }
+.map-header h2 { margin: 0; font-size: 1.2rem; font-weight: 700; color: #1f2937; }
+.map-header p { margin: 0; color: #4b5563; font-size: 0.95rem; }
+.map-frame { width: 100%; flex: 1; min-height: 0; border-top: 1px solid #E9ECEF; overflow: hidden; }
+.map-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.content-block { display: flex; flex-direction: column; justify-content: flex-start; background: #fff; border: 1px solid #E9ECEF; border-radius: 18px; padding: 24px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04); height: 100%; }
+.content-block h2 { font-size: 1.3rem; font-weight: 700; color: #2D3436; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }
+.contact-form { display: flex; flex-direction: column; gap: 16px; }
+.contact-form button { align-self: flex-start; }
+
+.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: #333; margin-bottom: 6px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #E9ECEF; border-radius: 10px; font-size: 0.9rem; font-family: inherit; color: #2D3436; background: #F8F9FA; outline: none; transition: border-color 0.2s; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #E63B6F; background: #fff; }
+.form-group textarea { resize: vertical; }
+.btn-primary { padding: 13px 32px; border: none; border-radius: 10px; background: #E63B6F; color: #fff; font-size: 0.95rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: background 0.2s; align-self: flex-start; }
+.btn-primary:hover { background: #C4305D; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.alert-success { background: #e8f5e9; border: 1px solid #c8e6c9; color: #2e7d32; padding: 12px 16px; border-radius: 10px; font-size: 0.9rem; font-weight: 500; }
+.alert-error { background: #ffebee; border: 1px solid #ffcdd2; color: #c62828; padding: 12px 16px; border-radius: 10px; font-size: 0.9rem; font-weight: 500; }
+.field-error { display: block; color: #dc2626; font-size: 0.8rem; margin-top: 4px; }
+@media (max-width: 1024px) {
+  .contact-grid { grid-template-columns: 1fr 1fr; }
 }
-
-.container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
-.page-hero {
-  background: #E63B6F;
-  color: #fff;
-  padding: 56px 24px;
-  text-align: center;
-}
-
-.page-hero h1 {
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0 0 12px;
-}
-
-.hero-sub {
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.85);
-  margin: 0;
-}
-
-.page-content {
-  padding: 48px 24px 64px;
-}
-
-.contact-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 48px;
-}
-
-.contact-card {
-  background: #F8F9FA;
-  border: 1px solid #FFE0E8;
-  border-radius: 12px;
-  padding: 24px;
-  text-align: center;
-  transition: box-shadow 0.2s;
-}
-
-.contact-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-}
-
-.contact-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: #FFF0F3;
-  color: #E63B6F;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 12px;
-}
-
-.contact-card h3 {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #2D3436;
-  margin-bottom: 8px;
-}
-
-.contact-value {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: green;
-  margin-bottom: 4px;
-}
-
-.contact-note {
-  font-size: 0.78rem;
-  color: #9ca3af;
-  margin: 0;
-}
-
-.content-block {
-  margin-bottom: 36px;
-}
-
-.content-block h2 {
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: #2D3436;
-  margin-bottom: 20px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #FFF0F3;
-}
-
-.contact-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-row-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.form-group label {
-  display: block;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 6px;
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1.5px solid #E9ECEF;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-family: inherit;
-  color: #2D3436;
-  background: #F8F9FA;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  border-color: #E63B6F;
-  background: #fff;
-}
-
-.form-group textarea {
-  resize: vertical;
-}
-
-.btn-primary {
-  padding: 13px 32px;
-  border: none;
-  border-radius: 10px;
-  background: #E63B6F;
-  color: #fff;
-  font-size: 0.95rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.2s;
-  align-self: flex-start;
-}
-
-.btn-primary:hover {
-  background: #C4305D;
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.alert-success {
-  background: #e8f5e9;
-  border: 1px solid #c8e6c9;
-  color: #2e7d32;
-  padding: 12px 16px;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.alert-error {
-  background: #ffebee;
-  border: 1px solid #ffcdd2;
-  color: #c62828;
-  padding: 12px 16px;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.field-error {
-  display: block;
-  color: #dc2626;
-  font-size: 0.8rem;
-  margin-top: 4px;
-}
-
-@media (max-width: 768px) {
-  .contact-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .form-row-2 {
-    grid-template-columns: 1fr;
-  }
+@media (max-width: 860px) {
+  .contact-layout { grid-template-columns: 1fr; }
+  .contact-grid { grid-template-columns: 1fr; }
+  .form-row-2 { grid-template-columns: 1fr; }
 }
 </style>

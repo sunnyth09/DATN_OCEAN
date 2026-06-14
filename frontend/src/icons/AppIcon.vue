@@ -142,15 +142,10 @@ const isDecorative = computed(() => props.decorative && !props.title);
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </template>
     <template v-else-if="normalizedName === 'ticket'">
-      <path d="M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
-      <path d="M12 4l-2 2" />
-      <path d="M12 4l2 2" />
-      <path d="M8 12H8.01" />
-      <path d="M12 12h.01" />
-      <path d="M16 12h.01" />
-      <path d="M8 16h.01" />
-      <path d="M12 16h.01" />
-      <path d="M16 16h.01" />
+      <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+      <path d="M13 5v2" />
+      <path d="M13 17v2" />
+      <path d="M13 11v2" />
     </template>
     <template v-else-if="normalizedName === 'voucher'">
       <path d="M4 5h16a2 2 0 0 1 2 2v10a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V7a2 2 0 0 1 2-2z" />

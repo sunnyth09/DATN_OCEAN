@@ -399,6 +399,9 @@ const placeOrder = async () => {
         }
 
         if (res.data.status === 'success') {
+            // Cập nhật lại giỏ hàng trên header
+            window.dispatchEvent(new Event('cart-updated'));
+            
             // Xóa referral_code sau khi đặt hàng thành công
             localStorage.removeItem('affiliate_ref');
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {

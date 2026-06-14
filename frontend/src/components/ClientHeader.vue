@@ -428,16 +428,17 @@ watch(
                     <router-link
                         to="/courts"
                         class="nav-link"
-                        :class="{ active: isRouteActive('courts') }"
+                        :class="{ active: isRouteActive('courts-list') }"
                     >
-                        Sân thể thao
+                        Sân Thể Thao
                     </router-link>
+
                     <router-link
                         to="/contact"
                         class="nav-link"
                         :class="{ active: isRouteActive('contact') }"
                     >
-                        Liên hệ
+                        Liên Hệ
                     </router-link>
                 </nav>
             </div>
@@ -548,6 +549,10 @@ watch(
                         </template>
                     </div>
                 </div>
+                <!-- Săn Voucher -->
+                <router-link to="/coupon" class="icon-btn" title="Săn Voucher">
+                    <AppIcon name="ticket" />
+                </router-link>
 
                 <!-- Thông báo -->
                 <router-link to="/profile/notifications" class="icon-btn notif-icon-btn" v-if="isLoggedIn">
@@ -777,7 +782,7 @@ watch(
     border-radius: 2px;
 }
 
-/* HEADER ACTIONS */
+
 .header-actions {
     display: flex;
     align-items: center;

@@ -14,11 +14,8 @@ use Symfony\Component\HttpFoundation\Response;
  *       return response()->json(['message' => '...'], 403);
  *   }
  *
- * Sử dụng:
+ * Sử dụng (route-level):
  *   Route::middleware(['auth:api', 'customer.only'])->group(...)
- *
- * Hoặc trong constructor:
- *   $this->middleware('customer.only');
  */
 class EnsureCustomerOnly
 {

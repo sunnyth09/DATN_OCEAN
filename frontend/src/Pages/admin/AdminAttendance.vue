@@ -1,6 +1,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import api from '../../axios';
+import { useFaceApi } from '../../composables/useFaceApi';
+
+// --- FACE API ---
+const { modelsLoaded, modelsLoading, loadModels, getFaceDescriptor } = useFaceApi();
 
 // --- TOAST ---
 const toastVisible = ref(false);
@@ -54,21 +58,14 @@ const captureImage = () => {
     return canvas.toDataURL('image/jpeg', 0.8);
 };
 
-// --- FACE DETECTION ---
-const detectFace = async (imageBase64) => {
-    // Dùng FaceDetector API (Chrome/Edge native)
-    if (!('FaceDetector' in window)) return true; // Fallback: bỏ qua nếu browser không hỗ trợ
-
+// --- FACE DETECTION (dùng face-api.js thay vì FaceDetector API) ---
+const detectFaceFromCanvas = async (canvas) => {
+    if (!modelsLoaded.value) return true; // Fallback: cho qua nếu model chưa load
     try {
-        const img = new Image();
-        img.src = imageBase64;
-        await new Promise((resolve) => { img.onload = resolve; });
-
-        const detector = new FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
-        const faces = await detector.detect(img);
-        return faces.length > 0;
+        const result = await getFaceDescriptor(canvas);
+        return result; // trả về {descriptor, detection} hoặc null
     } catch {
-        return true; // Nếu lỗi, cho phép qua (graceful fallback)
+        return null;
     }
 };
 
@@ -158,20 +155,37 @@ const handleCheckIn = async () => {
     scanResult.value = null;
     scanningPhase.value = 'capture';
     try {
-        // Phase 1: Chụp ảnh
+        // Phase 1: Chụp ảnh + detect face + extract descriptor
         await sleep(400);
-        const imageBase64 = captureImage();
-        if (!imageBase64) throw new Error("Không thể chụp ảnh, hãy đảm bảo camera hoạt động!");
+        const canvas = canvasElement.value;
+        const video = videoElement.value;
+        if (!video || !canvas) throw new Error('Camera không sẵn sàng!');
 
-        const hasFace = await detectFace(imageBase64);
-        if (!hasFace) {
-            scanningPhase.value = 'error';
-            scanResult.value = { match: false, confidence: 0, message: 'Không phát hiện khuôn mặt!' };
-            showToast("Không phát hiện khuôn mặt! Vui lòng đưa mặt vào camera rồi thử lại.", "error");
-            loading.value = false;
-            setTimeout(() => { scanningPhase.value = ''; scanResult.value = null; }, 3000);
-            return;
+        // Vẽ video lên canvas
+        const w = video.videoWidth || 640;
+        const h = video.videoHeight || 480;
+        if (w === 0 || h === 0) throw new Error('Không thể chụp ảnh, hãy đảm bảo camera hoạt động!');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+
+        // Detect face + extract descriptor từ canvas
+        const faceResult = await detectFaceFromCanvas(canvas);
+
+        if (!faceResult || faceResult === true) {
+            // faceResult === true nghĩa là model chưa load (fallback)
+            // faceResult === null nghĩa là không phát hiện khuôn mặt
+            if (faceResult === null) {
+                scanningPhase.value = 'error';
+                scanResult.value = { match: false, confidence: 0, message: 'Không phát hiện khuôn mặt!' };
+                showToast('Không phát hiện khuôn mặt! Vui lòng đưa mặt vào camera rồi thử lại.', 'error');
+                loading.value = false;
+                setTimeout(() => { scanningPhase.value = ''; scanResult.value = null; }, 3000);
+                return;
+            }
         }
+
+        const imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        const descriptor = faceResult && faceResult !== true ? faceResult.descriptor : null;
 
         // Phase 2: GPS
         scanningPhase.value = 'gps';
@@ -186,6 +200,7 @@ const handleCheckIn = async () => {
             accuracy: position.coords.accuracy,
             note: attendanceNote.value,
             image: imageBase64,
+            descriptor: descriptor, // 128-dim vector (hoặc null)
         };
 
         const res = await api.post('/admin/attendance/check-in', payload);
@@ -204,7 +219,7 @@ const handleCheckIn = async () => {
         setTimeout(() => { scanningPhase.value = ''; }, 4000);
     } catch (error) {
         scanningPhase.value = 'error';
-        const msg = error.response?.data?.message || error.message || "Lỗi Check-in";
+        const msg = error.response?.data?.message || error.message || 'Lỗi Check-in';
         const isFaceFail = error.response?.status === 403;
         scanResult.value = {
             match: false,
@@ -226,18 +241,29 @@ const handleCheckOut = async () => {
     scanningPhase.value = 'capture';
     try {
         await sleep(400);
-        const imageBase64 = captureImage();
-        if (!imageBase64) throw new Error("Không thể chụp ảnh!");
+        const canvas = canvasElement.value;
+        const video = videoElement.value;
+        if (!video || !canvas) throw new Error('Camera không sẵn sàng!');
 
-        const hasFace = await detectFace(imageBase64);
-        if (!hasFace) {
+        const w = video.videoWidth || 640;
+        const h = video.videoHeight || 480;
+        if (w === 0 || h === 0) throw new Error('Không thể chụp ảnh!');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+
+        const faceResult = await detectFaceFromCanvas(canvas);
+
+        if (faceResult === null) {
             scanningPhase.value = 'error';
             scanResult.value = { match: false, confidence: 0, message: 'Không phát hiện khuôn mặt!' };
-            showToast("Không phát hiện khuôn mặt! Vui lòng đưa mặt vào camera.", "error");
+            showToast('Không phát hiện khuôn mặt! Vui lòng đưa mặt vào camera.', 'error');
             loading.value = false;
             setTimeout(() => { scanningPhase.value = ''; scanResult.value = null; }, 3000);
             return;
         }
+
+        const imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        const descriptor = faceResult && faceResult !== true ? faceResult.descriptor : null;
 
         scanningPhase.value = 'gps';
         const position = await getGeolocation();
@@ -248,6 +274,7 @@ const handleCheckOut = async () => {
             longitude: position.coords.longitude,
             accuracy: position.coords.accuracy,
             image: imageBase64,
+            descriptor: descriptor,
         });
 
         scanningPhase.value = 'done';
@@ -259,7 +286,7 @@ const handleCheckOut = async () => {
     } catch (error) {
         scanningPhase.value = 'error';
         scanResult.value = { match: false, confidence: 0, message: error.response?.data?.message || 'Lỗi Check-out' };
-        showToast(error.response?.data?.message || error.message || "Lỗi Check-out", 'error');
+        showToast(error.response?.data?.message || error.message || 'Lỗi Check-out', 'error');
         setTimeout(() => { scanningPhase.value = ''; scanResult.value = null; }, 4000);
     } finally { loading.value = false; }
 };
@@ -276,7 +303,7 @@ const getShiftStateBadge = (state) => {
 };
 
 // --- LIFECYCLE ---
-onMounted(() => { updateClock(); clockInterval = setInterval(updateClock, 1000); startCamera(); fetchTodayStatus(); fetchFaceStatus(); });
+onMounted(async () => { updateClock(); clockInterval = setInterval(updateClock, 1000); startCamera(); fetchTodayStatus(); fetchFaceStatus(); await loadModels(); });
 onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
 </script>
 

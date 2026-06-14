@@ -14,11 +14,13 @@ class AttendanceCheckInRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'latitude'  => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
-            'accuracy'  => 'nullable|numeric|min:0|max:10000',
-            'note'      => 'nullable|string|max:500',
-            'image'     => 'nullable|string|max:2097152', // ~2MB base64
+            'latitude'      => 'required|numeric|between:-90,90',
+            'longitude'     => 'required|numeric|between:-180,180',
+            'accuracy'      => 'nullable|numeric|min:0|max:10000',
+            'note'          => 'nullable|string|max:500',
+            'image'         => 'nullable|string|max:2097152', // ~2MB base64
+            'descriptor'    => 'nullable|array|size:128',     // 128-dim vector từ face-api.js
+            'descriptor.*'  => 'numeric',
         ];
     }
 

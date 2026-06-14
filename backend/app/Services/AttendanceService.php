@@ -210,11 +210,12 @@ class AttendanceService
             }
         }
 
-        // 6. Face Verification (nếu đã đăng ký)
+        // 6. Face Verification (nhận descriptor từ frontend)
         $faceResult = null;
-        if (!empty($data['image'])) {
+        $descriptor = $data['descriptor'] ?? null;
+        if ($descriptor || !empty($data['image'])) {
             $faceService = app(FaceVerificationService::class);
-            $faceResult = $faceService->verifyForAttendance($userId, $userType, $data['image']);
+            $faceResult = $faceService->verifyForAttendance($userId, $userType, $descriptor);
 
             // Nếu đã đăng ký nhưng không match → chặn
             if ($faceResult['registered'] && !$faceResult['match']) {
@@ -229,7 +230,7 @@ class AttendanceService
                 ];
             }
             // Nếu chưa đăng ký → cảnh báo nhưng vẫn cho qua (grace period)
-            // TODO: Sau khi rollout xong, chuyển sang chặn luôn nếu chưa đăng ký
+            // TODO(security): Sau khi rollout xong, chuyển sang chặn luôn nếu chưa đăng ký
         }
 
         // 7. Lưu ảnh selfie
@@ -325,9 +326,10 @@ class AttendanceService
 
         // Face verification cho check-out
         $faceResult = null;
-        if (!empty($data['image'])) {
+        $descriptor = $data['descriptor'] ?? null;
+        if ($descriptor || !empty($data['image'])) {
             $faceService = app(FaceVerificationService::class);
-            $faceResult = $faceService->verifyForAttendance($userId, $userType, $data['image']);
+            $faceResult = $faceService->verifyForAttendance($userId, $userType, $descriptor);
 
             if ($faceResult['registered'] && !$faceResult['match']) {
                 return [

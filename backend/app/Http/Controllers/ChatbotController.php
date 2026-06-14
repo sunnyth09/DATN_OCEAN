@@ -1022,7 +1022,7 @@ class ChatbotController extends Controller
 
         return [
             'status'  => 'success',
-            'message' => $info['title'],
+            'message' => $info['title'] . "\n" . implode("\n", array_map(fn($line) => "• {$line}", $info['content'])),
             'data'    => $info,
         ];
     }

@@ -529,9 +529,9 @@ console.log(quantity.value);
         </div>
 
         <!-- AI Try-On -->
-        <button v-if="tryOnEnabled" class="pd-btn-tryon" @click="showTryOn = true" title="Thử đồ bằng AI">
+        <button v-if="tryOnEnabled" class="pd-btn-tryon" @click="showTryOn = true" title="Thử Đồ Ảo (AI)">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
-          Thử đồ bằng AI
+          Thử Đồ Ảo (AI)
         </button>
 
         <!-- Perks -->

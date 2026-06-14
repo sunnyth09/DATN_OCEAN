@@ -670,8 +670,7 @@ html.dark .swal2-popup {
 /* Modern Icons Override */
 .swal2-icon {
   border-width: 0 !important;
-  width: 4rem !important;
-  height: 4rem !important;
+  transform: scale(0.85);
   margin: 0 auto 1rem !important;
 }
 

@@ -1,8 +1,12 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import api from '../../axios';
+import { useFaceApi } from '../../composables/useFaceApi';
 
 const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
+
+// --- FACE API ---
+const { modelsLoaded, modelsLoading, modelsError, loadModels, getFaceDescriptor, detectFace } = useFaceApi();
 
 // --- TOAST ---
 const toastVisible = ref(false);
@@ -77,19 +81,46 @@ const fetchFaceStatus = async () => {
   }
 };
 
-// --- CAPTURE PHOTO ---
-const handleCapture = () => {
-  if (allCaptured.value) return;
-  const image = captureImage();
-  if (!image) {
-    showToast('Không thể chụp ảnh. Hãy kiểm tra camera!', 'error');
+// --- CAPTURE PHOTO (với face-api.js) ---
+const capturingFace = ref(false);
+const handleCapture = async () => {
+  if (allCaptured.value || capturingFace.value) return;
+
+  if (!modelsLoaded.value) {
+    showToast('AI models chưa sẵn sàng. Vui lòng đợi...', 'error');
     return;
   }
-  capturedPhotos.value.push({
-    image,
-    label: currentLabel.value?.key || `photo_${currentStep.value + 1}`,
-  });
-  showToast(`Đã chụp "${currentLabel.value?.name}" ✓`, 'success');
+
+  capturingFace.value = true;
+  try {
+    // Detect face + extract descriptor từ video element
+    const faceResult = await getFaceDescriptor(videoElement.value);
+
+    if (!faceResult) {
+      showToast('Không phát hiện khuôn mặt! Hãy đưa mặt vào vòng tròn.', 'error');
+      return;
+    }
+
+    // Chụp ảnh sau khi đã xác nhận có khuôn mặt
+    const image = captureImage();
+    if (!image) {
+      showToast('Không thể chụp ảnh. Hãy kiểm tra camera!', 'error');
+      return;
+    }
+
+    const label = currentLabel.value?.key || `photo_${currentStep.value + 1}`;
+    capturedPhotos.value.push({
+      image,
+      descriptor: faceResult.descriptor, // 128-dim vector
+      label,
+      confidence: Math.round(faceResult.detection.score * 100),
+    });
+    showToast(`Đã chụp "${currentLabel.value?.name}" ✓ (${Math.round(faceResult.detection.score * 100)}%)`, 'success');
+  } catch (err) {
+    showToast('Lỗi xử lý khuôn mặt. Vui lòng thử lại.', 'error');
+  } finally {
+    capturingFace.value = false;
+  }
 };
 
 // --- REMOVE PHOTO ---
@@ -104,10 +135,21 @@ const handleRegister = async () => {
     return;
   }
 
+  // Kiểm tra tất cả ảnh đều có descriptor
+  const missingDescriptor = capturedPhotos.value.some(p => !p.descriptor);
+  if (missingDescriptor) {
+    showToast('Một số ảnh chưa có dữ liệu khuôn mặt. Vui lòng chụp lại.', 'error');
+    return;
+  }
+
   isRegistering.value = true;
   try {
     const res = await api.post('/admin/face/register', {
-      images: capturedPhotos.value,
+      images: capturedPhotos.value.map(p => ({
+        image: p.image,
+        descriptor: p.descriptor, // 128-dim vector
+        label: p.label,
+      })),
     });
 
     if (res.data.status === 'success') {
@@ -144,7 +186,7 @@ const handleReset = async () => {
 };
 
 // --- LIFECYCLE ---
-onMounted(() => { startCamera(); fetchFaceStatus(); });
+onMounted(async () => { startCamera(); fetchFaceStatus(); await loadModels(); });
 onUnmounted(() => { stopCamera(); });
 </script>
 
@@ -212,8 +254,20 @@ onUnmounted(() => { stopCamera(); });
                   <div class="face-circle"></div>
                 </div>
 
+                <!-- Model loading -->
+                <div v-if="modelsLoading" class="capture-instruction" style="background: rgba(59,130,246,0.8);">
+                  <span class="spinner-border spinner-border-sm me-1"></span> Đang tải AI model...
+                </div>
+                <!-- Model error -->
+                <div v-else-if="modelsError" class="capture-instruction" style="background: rgba(239,68,68,0.8);">
+                  <i class="bi bi-exclamation-triangle me-1"></i> {{ modelsError }}
+                </div>
+                <!-- Capturing face -->
+                <div v-else-if="capturingFace" class="capture-instruction" style="background: rgba(59,130,246,0.8);">
+                  <span class="spinner-border spinner-border-sm me-1"></span> Đang phân tích khuôn mặt...
+                </div>
                 <!-- Current step instruction -->
-                <div v-if="currentLabel" class="capture-instruction">
+                <div v-else-if="currentLabel" class="capture-instruction">
                   <span class="capture-emoji">{{ currentLabel.icon }}</span>
                   {{ currentLabel.instruction }}
                 </div>
@@ -234,10 +288,12 @@ onUnmounted(() => { stopCamera(); });
 
               <!-- Capture button -->
               <button v-if="!allCaptured" @click="handleCapture"
+                :disabled="!modelsLoaded || capturingFace"
                 class="btn btn-capture d-flex align-items-center justify-content-center"
                 id="btn-capture-face">
-                <i class="bi bi-camera-fill me-2 fs-5"></i>
-                Chụp {{ currentLabel?.name }}
+                <span v-if="capturingFace" class="spinner-border spinner-border-sm me-2"></span>
+                <i v-else class="bi bi-camera-fill me-2 fs-5"></i>
+                {{ capturingFace ? 'Đang xử lý...' : `Chụp ${currentLabel?.name}` }}
               </button>
 
               <!-- Register button -->
@@ -267,7 +323,7 @@ onUnmounted(() => { stopCamera(); });
                 <div v-for="(photo, i) in capturedPhotos" :key="i" class="captured-photo-item">
                   <img :src="photo.image" alt="captured" class="captured-photo-img" />
                   <div class="captured-photo-overlay">
-                    <span class="captured-photo-label">{{ labels[i]?.name }}</span>
+                    <span class="captured-photo-label">{{ labels[i]?.name }} <small v-if="photo.confidence">({{ photo.confidence }}%)</small></span>
                     <button @click="removePhoto(i)" class="captured-photo-remove" title="Xóa ảnh này và ảnh sau">
                       <i class="bi bi-x-lg"></i>
                     </button>

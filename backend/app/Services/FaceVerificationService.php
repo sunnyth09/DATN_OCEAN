@@ -3,136 +3,29 @@
 namespace App\Services;
 
 use App\Models\FaceEncoding;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Service gọi đến Python Face Verification Microservice.
- * 
+ * Service xác thực khuôn mặt — PHP thuần (không cần Python).
+ *
+ * Encoding/Descriptor được tạo bởi face-api.js trên browser (128-dim vector).
+ * Backend chỉ lưu trữ và so sánh bằng euclidean distance.
+ *
  * Flow:
- * 1. Register: Nhân viên chụp 3-5 ảnh → encode → lưu vectors vào DB
- * 2. Verify:   Khi chấm công → gửi ảnh + encodings đã lưu → so khớp
+ * 1. Register: Browser chụp ảnh → face-api.js tạo 128-dim descriptor → gửi lên Laravel lưu DB
+ * 2. Verify:   Browser chụp selfie → face-api.js tạo descriptor → gửi lên Laravel so khớp
  */
 class FaceVerificationService
 {
     /**
-     * URL của Python Face Service (internal Docker network).
-     */
-    private string $serviceUrl;
-
-    /**
-     * Timeout cho HTTP request đến face service (giây).
-     */
-    private int $timeout;
-
-    public function __construct()
-    {
-        $this->serviceUrl = rtrim(config('services.face.url', 'http://face-service:8001'), '/');
-        $this->timeout    = (int) config('services.face.timeout', 15);
-    }
-
-    // ================================================================
-    //  ENCODE — Gửi ảnh, nhận 128-dim encoding vector
-    // ================================================================
-
-    /**
-     * Gửi ảnh base64 đến face service để encode.
+     * Ngưỡng euclidean distance cho phép (tolerance).
+     * Distance ≤ tolerance → cùng 1 người (MATCH).
+     * Distance > tolerance → khác người (REJECT).
      *
-     * @param  string $base64Image Ảnh base64 (có hoặc không có header)
-     * @return array  ['success' => bool, 'encoding' => array|null, 'message' => string]
+     * 0.45 là ngưỡng nghiêm ngặt (strict). Có thể tăng lên 0.5 nếu cần linh hoạt hơn.
      */
-    public function encodeFace(string $base64Image): array
-    {
-        try {
-            $response = Http::timeout($this->timeout)
-                ->post("{$this->serviceUrl}/encode", [
-                    'image' => $base64Image,
-                ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                return [
-                    'success'  => $data['success'] ?? false,
-                    'encoding' => $data['encoding'] ?? null,
-                    'message'  => $data['message'] ?? '',
-                ];
-            }
-
-            Log::warning('Face encode failed', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
-
-            return [
-                'success'  => false,
-                'encoding' => null,
-                'message'  => 'Face service trả về lỗi: ' . ($response->json('detail') ?? 'Unknown error'),
-            ];
-        } catch (\Exception $e) {
-            Log::error('Face service connection error (encode)', ['error' => $e->getMessage()]);
-            return [
-                'success'  => false,
-                'encoding' => null,
-                'message'  => 'Không thể kết nối đến Face Service. Vui lòng thử lại sau.',
-            ];
-        }
-    }
-
-    // ================================================================
-    //  VERIFY — Gửi ảnh + encodings đã đăng ký, nhận match result
-    // ================================================================
-
-    /**
-     * Verify ảnh mới với danh sách encodings đã đăng ký.
-     *
-     * @param  string $base64Image         Ảnh mới (base64)
-     * @param  array  $registeredEncodings Danh sách encoding vectors (128-dim mỗi cái)
-     * @return array  ['match' => bool, 'distance' => float, 'confidence' => float, 'message' => string]
-     */
-    public function verify(string $base64Image, array $registeredEncodings): array
-    {
-        try {
-            $response = Http::timeout($this->timeout)
-                ->post("{$this->serviceUrl}/verify", [
-                    'image'                 => $base64Image,
-                    'registered_encodings'  => $registeredEncodings,
-                ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                return [
-                    'success'    => $data['success'] ?? false,
-                    'match'      => $data['match'] ?? false,
-                    'distance'   => $data['distance'] ?? 1.0,
-                    'confidence' => $data['confidence'] ?? 0.0,
-                    'message'    => $data['message'] ?? '',
-                ];
-            }
-
-            Log::warning('Face verify failed', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
-
-            return [
-                'success'    => false,
-                'match'      => false,
-                'distance'   => 1.0,
-                'confidence' => 0.0,
-                'message'    => 'Face service trả về lỗi.',
-            ];
-        } catch (\Exception $e) {
-            Log::error('Face service connection error (verify)', ['error' => $e->getMessage()]);
-            return [
-                'success'    => false,
-                'match'      => false,
-                'distance'   => 1.0,
-                'confidence' => 0.0,
-                'message'    => 'Không thể kết nối đến Face Service.',
-            ];
-        }
-    }
+    private const TOLERANCE = 0.45;
 
     // ================================================================
     //  REGISTER — Đăng ký khuôn mặt (nhiều ảnh)
@@ -140,11 +33,11 @@ class FaceVerificationService
 
     /**
      * Đăng ký khuôn mặt cho một nhân viên.
-     * Nhận nhiều ảnh base64, encode từng ảnh và lưu vào DB.
+     * Nhận descriptor (128-dim) từ frontend, lưu vào DB.
      *
      * @param  int    $userId
      * @param  string $userType
-     * @param  array  $images    [['image' => base64, 'label' => 'front'], ...]
+     * @param  array  $images    [['image' => base64, 'descriptor' => [128 floats], 'label' => 'front'], ...]
      * @return array
      */
     public function registerFaces(int $userId, string $userType, array $images): array
@@ -154,33 +47,39 @@ class FaceVerificationService
 
         foreach ($images as $index => $item) {
             $base64Image = $item['image'] ?? '';
+            $descriptor = $item['descriptor'] ?? null;
             $label = $item['label'] ?? ('photo_' . ($index + 1));
 
-            if (empty($base64Image)) {
-                $results[] = ['index' => $index, 'success' => false, 'message' => 'Ảnh trống.'];
-                continue;
-            }
-
-            // Encode qua Python service
-            $encodeResult = $this->encodeFace($base64Image);
-
-            if (!$encodeResult['success'] || !$encodeResult['encoding']) {
+            // Validate descriptor
+            if (!$descriptor || !is_array($descriptor) || count($descriptor) !== 128) {
                 $results[] = [
                     'index'   => $index,
                     'success' => false,
-                    'message' => $encodeResult['message'] ?: 'Không tìm thấy khuôn mặt.',
+                    'message' => 'Descriptor không hợp lệ (cần 128-dim vector).',
                 ];
                 continue;
+            }
+
+            // Validate mỗi phần tử là số
+            foreach ($descriptor as $val) {
+                if (!is_numeric($val)) {
+                    $results[] = [
+                        'index'   => $index,
+                        'success' => false,
+                        'message' => 'Descriptor chứa giá trị không hợp lệ.',
+                    ];
+                    continue 2;
+                }
             }
 
             // Lưu ảnh vào storage
             $imagePath = $this->saveRegistrationImage($base64Image, $userId, $label);
 
-            // Lưu encoding vào DB
+            // Lưu descriptor vào DB
             FaceEncoding::create([
                 'user_id'    => $userId,
                 'user_type'  => $userType,
-                'encoding'   => $encodeResult['encoding'],
+                'encoding'   => $descriptor, // 128-dim vector (cast to JSON by model)
                 'image_path' => $imagePath ?? '',
                 'label'      => $label,
                 'is_active'  => true,
@@ -211,16 +110,16 @@ class FaceVerificationService
 
     /**
      * Xác thực khuôn mặt cho chấm công.
-     * Lấy encodings đã đăng ký từ DB, gửi lên Python service so khớp.
+     * Nhận descriptor từ frontend, so khớp với descriptors đã lưu trong DB.
      *
-     * @param  int    $userId
-     * @param  string $userType
-     * @param  string $base64Image Ảnh selfie khi check-in/out
+     * @param  int        $userId
+     * @param  string     $userType
+     * @param  array|null $descriptor 128-dim descriptor vector từ browser
      * @return array  ['match' => bool, 'confidence' => float, 'distance' => float, 'registered' => bool]
      */
-    public function verifyForAttendance(int $userId, string $userType, string $base64Image): array
+    public function verifyForAttendance(int $userId, string $userType, ?array $descriptor): array
     {
-        // Lấy tất cả encodings active của user
+        // Lấy tất cả descriptors active của user
         $faceEncodings = FaceEncoding::ofUser($userId, $userType)->get();
 
         if ($faceEncodings->isEmpty()) {
@@ -233,17 +132,77 @@ class FaceVerificationService
             ];
         }
 
-        $encodings = $faceEncodings->pluck('encoding')->toArray();
+        // Nếu không có descriptor từ frontend (model chưa load, fallback)
+        if (!$descriptor || count($descriptor) !== 128) {
+            return [
+                'registered' => true,
+                'match'      => false,
+                'confidence' => 0.0,
+                'distance'   => 1.0,
+                'message'    => 'Không nhận được dữ liệu khuôn mặt. Vui lòng thử lại.',
+            ];
+        }
 
-        // Gọi Python service verify
-        $result = $this->verify($base64Image, $encodings);
+        // So khớp với tất cả encodings đã đăng ký
+        $registeredDescriptors = $faceEncodings->pluck('encoding')->toArray();
+
+        return $this->verifyDescriptor($descriptor, $registeredDescriptors);
+    }
+
+    // ================================================================
+    //  VERIFY DESCRIPTOR — So khớp bằng PHP
+    // ================================================================
+
+    /**
+     * So khớp descriptor mới với danh sách descriptors đã đăng ký.
+     * Tính euclidean distance và quyết định match/không match.
+     *
+     * @param  array  $newDescriptor          128-dim vector
+     * @param  array  $registeredDescriptors  Mảng các 128-dim vectors
+     * @param  float  $tolerance              Ngưỡng distance cho phép
+     * @return array  ['match' => bool, 'confidence' => float, 'distance' => float]
+     */
+    public function verifyDescriptor(array $newDescriptor, array $registeredDescriptors, float $tolerance = self::TOLERANCE): array
+    {
+        if (empty($registeredDescriptors)) {
+            return [
+                'registered' => true,
+                'match'      => false,
+                'confidence' => 0.0,
+                'distance'   => 1.0,
+                'message'    => 'Không có dữ liệu khuôn mặt đã đăng ký.',
+            ];
+        }
+
+        $minDistance = PHP_FLOAT_MAX;
+
+        foreach ($registeredDescriptors as $registered) {
+            $distance = $this->euclideanDistance($newDescriptor, $registered);
+            if ($distance < $minDistance) {
+                $minDistance = $distance;
+            }
+        }
+
+        // Confidence: chuyển distance → confidence (0-1)
+        // distance = 0 → confidence = 1.0 (perfect match)
+        // distance = tolerance → confidence ≈ 0.5
+        // distance > tolerance → confidence < 0.5
+        $confidence = max(0.0, min(1.0, 1.0 - ($minDistance / ($tolerance * 2))));
+        $isMatch = $minDistance <= $tolerance;
+
+        Log::info('Face verification (PHP)', [
+            'match'      => $isMatch,
+            'distance'   => round($minDistance, 4),
+            'confidence' => round($confidence, 4),
+            'tolerance'  => $tolerance,
+        ]);
 
         return [
             'registered' => true,
-            'match'      => $result['match'],
-            'confidence' => $result['confidence'],
-            'distance'   => $result['distance'],
-            'message'    => $result['message'],
+            'match'      => $isMatch,
+            'distance'   => round($minDistance, 4),
+            'confidence' => round($confidence, 4),
+            'message'    => $isMatch ? 'Xác thực thành công!' : 'Khuôn mặt không khớp.',
         ];
     }
 
@@ -273,6 +232,28 @@ class FaceVerificationService
     // ================================================================
     //  PRIVATE HELPERS
     // ================================================================
+
+    /**
+     * Tính Euclidean Distance giữa 2 vectors.
+     *
+     * Công thức: distance = √[(a₁-b₁)² + (a₂-b₂)² + ... + (a₁₂₈-b₁₂₈)²]
+     *
+     * @param  array $a Vector 1 (128-dim)
+     * @param  array $b Vector 2 (128-dim)
+     * @return float    Khoảng cách (0 = giống hoàn toàn)
+     */
+    private function euclideanDistance(array $a, array $b): float
+    {
+        $sum = 0.0;
+        $length = min(count($a), count($b));
+
+        for ($i = 0; $i < $length; $i++) {
+            $diff = (float) $a[$i] - (float) $b[$i];
+            $sum += $diff * $diff;
+        }
+
+        return sqrt($sum);
+    }
 
     /**
      * Lưu ảnh đăng ký khuôn mặt vào storage.
