@@ -7,6 +7,7 @@
 /// ============================================================
 
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
@@ -18,7 +19,14 @@ class AppConfig {
 
   /// ── URL LOCAL (Development/Emulator) ──
   /// LƯU Ý: Lấy IP từ file .env (API_IP)
-  static String get _localIp => dotenv.env['API_IP'] ?? '127.0.0.1';
+  static String get _localIp {
+    if (kIsWeb) {
+      // Khi chạy trên Web (Chrome), luôn gọi thẳng vào localhost (127.0.0.1)
+      return '127.0.0.1';
+    }
+    // Khi chạy Mobile: Emulator dùng 10.0.2.2, máy thật dùng LAN IP
+    return dotenv.env['API_IP'] ?? '10.0.2.2';
+  }
   static String get kLocalBaseUrl => 'http://$_localIp:8383/api';
   static String get kLocalStorageUrl => 'http://$_localIp:8383/storage';
 

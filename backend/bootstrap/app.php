@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'          => \App\Http\Middleware\RoleMiddleware::class,
             'customer.only' => \App\Http\Middleware\EnsureCustomerOnly::class,
         ]);
+        $middleware->redirectGuestsTo(fn (\Illuminate\Http\Request $request) => $request->is('api/*') ? abort(response()->json(['message' => 'Unauthenticated.'], 401)) : route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(function (\Illuminate\Http\Request $request, \Throwable $e) {

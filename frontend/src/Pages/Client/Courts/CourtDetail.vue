@@ -479,21 +479,30 @@ const proceedBooking = async () => {
                                 </span>
                             </div>
 
-                            <div class="time-slot-grid">
-                                <button v-for="slot in availableSlots" :key="slot.start_time"
-                                    class="time-slot"
-                                    :class="{
-                                        'time-slot--selected': isSlotSelected(slot),
-                                        'time-slot--booked': slot.status === 'booked',
-                                        'time-slot--unavailable': slot.status === 'locked' || slot.status === 'maintenance' || slot.status === 'past' || slot.status === 'closed'
-                                    }"
-                                    :disabled="slot.status !== 'available'"
-                                    @click="toggleSlot(slot)"
-                                    :title="getSlotStatusLabel(slot.status)">
-                                    <span class="time-slot__time">{{ formatTime(slot.start_time) }}</span>
-                                    <span v-if="slot.price && slot.status === 'available'" class="time-slot__price">{{ formatCurrency(slot.price) }}</span>
-                                    <span v-else-if="slot.status !== 'available'" class="time-slot__price">{{ getSlotStatusLabel(slot.status) }}</span>
-                                </button>
+                            <div class="client-timeline-wrapper">
+                                <div class="client-timeline">
+                                    <div v-for="slot in availableSlots" :key="slot.start_time"
+                                        class="client-timeline-slot"
+                                        :class="{
+                                            'slot--selected': isSlotSelected(slot),
+                                            'slot--available': slot.status === 'available',
+                                            'slot--booked': slot.status === 'booked',
+                                            'slot--unavailable': ['locked', 'maintenance', 'past', 'closed'].includes(slot.status)
+                                        }"
+                                        @click="slot.status === 'available' && toggleSlot(slot)"
+                                        :title="getSlotStatusLabel(slot.status) + (slot.price && slot.status === 'available' ? ' - ' + formatCurrency(slot.price) : '')"
+                                    >
+                                        <div class="slot-time-label">{{ formatTime(slot.start_time) }}</div>
+                                        <div class="slot-bar">
+                                            <i v-if="slot.status === 'booked'" class="bi bi-x"></i>
+                                            <i v-else-if="isSlotSelected(slot)" class="bi bi-check2"></i>
+                                        </div>
+                                    </div>
+                                    <!-- End label for the last slot -->
+                                    <div class="client-timeline-slot client-timeline-slot--end" v-if="availableSlots.length > 0">
+                                        <div class="slot-time-label">{{ formatTime(availableSlots[availableSlots.length - 1].end_time) }}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -638,4 +647,86 @@ const proceedBooking = async () => {
     color: #fff !important;
     box-shadow: 0 2px 8px rgba(230, 59, 111, 0.25);
 }
+
+/* Client Timeline */
+.client-timeline-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    padding: 20px 0 10px 0;
+    scrollbar-width: thin;
+}
+.client-timeline {
+    display: flex;
+    align-items: flex-start;
+    min-width: max-content;
+    padding: 0 10px;
+}
+.client-timeline-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 60px; /* Thinner for 30 min slots */
+    position: relative;
+    cursor: pointer;
+}
+.client-timeline-slot--end {
+    width: auto;
+    cursor: default;
+}
+.slot-time-label {
+    font-size: 0.75rem;
+    color: var(--text-muted, #6c757d);
+    font-weight: 600;
+    margin-bottom: 8px;
+    transform: translateX(-50%);
+}
+.client-timeline-slot--end .slot-time-label {
+    transform: translateX(-50%);
+}
+.slot-bar {
+    height: 40px;
+    width: 100%;
+    background: #e9ecef;
+    border-right: 1px solid rgba(255,255,255,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 1.2rem;
+    color: white;
+}
+.client-timeline-slot:first-child .slot-bar {
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+}
+.client-timeline-slot:nth-last-child(2) .slot-bar {
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    border-right: none;
+}
+
+.slot--available .slot-bar {
+    background: rgba(25, 135, 84, 0.15); /* light green */
+}
+.slot--available:hover .slot-bar {
+    background: rgba(25, 135, 84, 0.3);
+}
+
+.slot--selected .slot-bar {
+    background: var(--court-primary) !important;
+    box-shadow: 0 0 8px rgba(230, 59, 111, 0.4);
+    z-index: 2;
+}
+
+.slot--booked .slot-bar {
+    background: rgba(220, 53, 69, 0.15); /* light red */
+    color: #dc3545;
+    cursor: not-allowed;
+}
+
+.slot--unavailable .slot-bar {
+    background: #e9ecef;
+    cursor: not-allowed;
+}
+
 </style>

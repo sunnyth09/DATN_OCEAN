@@ -1,11 +1,21 @@
 <template>
-  <aside class="sidebar">
+  <aside class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
     <!-- Brand -->
     <div class="sidebar-brand">
-      <div class="brand-icon">
-        <img src="../../public/favicon.ico" alt="logo-ocean" width="100" height="60">
+      <div class="brand-icon" v-show="!collapsed">
+        <img src="../../public/favicon.ico" alt="logo-ocean" width="45" >
       </div>
       <h2 class="brand-title">Kênh Bán</h2>
+      <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">
+        <svg v-if="collapsed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="13 17 18 12 13 7"></polyline>
+          <polyline points="6 17 11 12 6 7"></polyline>
+        </svg>
+        <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="11 17 6 12 11 7"></polyline>
+          <polyline points="18 17 13 12 18 7"></polyline>
+        </svg>
+      </button>
     </div>
 
     <!-- Nav -->
@@ -93,7 +103,7 @@
     <!-- Footer (User Profile) -->
     <div class="sidebar-footer">
       <div class="user-profile">
-        <div class="user-avatar-circle"><img :src="userAvatar" alt="" width="50" height="50" style="border-radius: 50%;"></div>
+        <div class="user-avatar-circle"><img :src="userAvatar" alt="" width="36" height="36" style="border-radius: 50%;"></div>
         <div class="user-details" @click="handleLogout" style="cursor: pointer;" title="Nhấn để đăng xuất">
           <span class="user-name-bold">{{ userName }}</span>
           <span class="user-email-text">{{ userRole }}</span>
@@ -107,11 +117,26 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
+import { useUiStore } from '@/stores/ui';
+
+const BASE_URL = import.meta.env.VITE_APP_URL || 'http://localhost:8383';
+
+const props = defineProps({
+  collapsed: {
+    type: Boolean,
+    default: false
+  }
+});
 
 const router = useRouter();
+const uiStore = useUiStore();
 const userName = ref('Seller');
 const userRole = ref('Seller');
 const userAvatar = ref('');
+
+const toggleSidebar = () => {
+  uiStore.toggleBackofficeSidebar();
+};
 
 onMounted(() => {
   const userData = sessionStorage.getItem('user');
@@ -119,7 +144,6 @@ onMounted(() => {
     try {
       const user = JSON.parse(userData);
       const path = user.avatar_url || '';
-      const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
       
       userName.value = user.full_name || user.name || 'Seller';
       userAvatar.value = path.startsWith('http') ? path : (path ? `${BASE_URL}${path}` : ''); 
@@ -158,35 +182,100 @@ const handleLogout = async () => {
   flex-direction: column;
   flex-shrink: 0;
   border-right: 1px solid var(--border-color, #eee);
+  transition: width 0.3s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
+
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background-color: var(--border-color, #eee);
+  border-radius: 4px;
+}
+
+.sidebar--collapsed {
+  width: 80px;
+}
+
+.sidebar--collapsed .brand-title,
+.sidebar--collapsed .sidebar-nav span,
+.sidebar--collapsed .user-details {
+  display: none;
+}
+
+.sidebar--collapsed .brand-icon {
+  display: none;
+}
+
+.sidebar--collapsed .aside-toggle-btn {
+  margin-left: 0;
+}
+
+.sidebar--collapsed .sidebar-brand {
+  padding: 0;
+  justify-content: center;
+}
+
+.sidebar--collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar--collapsed .user-profile {
+  justify-content: center;
+  padding: 8px 0;
+}
+
 
 /* Brand */
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 22px;
-  height: 70px;
+  gap: 10px;
+  padding: 0 16px;
+  height: 56px;
   border-bottom: 1px solid var(--border-color, #eee);
   flex-shrink: 0;
 }
 
 .brand-icon {
-  width: 40px;
-  height: 40px;
+  width: auto;
+  height: auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .brand-title {
-  font-size: 1.4rem;
-  margin-left: 5px;
-  margin-top: 5px;
+  font-size: 1.15rem;
+  margin-left: 0;
+  margin-top: 0;
   font-weight: 700;
   color: var(--text-main, #000);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+}
+
+.aside-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #666);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.aside-toggle-btn:hover {
+  background: var(--hover-bg, #f3f4f6);
+  color: #E63B6F;
 }
 
 /* Nav */
@@ -200,8 +289,8 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
+  padding: 8px 14px;
+  border-radius: 5px;
   color: var(--text-muted, #666);
   text-decoration: none;
   font-size: 0.925rem;
@@ -215,6 +304,12 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: center;
   opacity: 0.7;
+}
+
+.nav-icon svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s;
 }
 
 .nav-item:hover {
@@ -234,20 +329,20 @@ const handleLogout = async () => {
 
 /* Footer */
 .sidebar-footer {
-  padding: 16px;
+  padding: 12px;
   border-top: 1px solid var(--border-color, #eee);
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 4px;
+  gap: 10px;
+  padding: 0px 4px;
 }
 
 .user-avatar-circle {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--hover-bg, #FFF0F3);
   color: #E63B6F;
@@ -255,7 +350,7 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -267,14 +362,14 @@ const handleLogout = async () => {
 }
 
 .user-name-bold {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-main, #1a1a1a);
   line-height: 1.2;
 }
 
 .user-email-text {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-light, #888);
   white-space: nowrap;
   overflow: hidden;

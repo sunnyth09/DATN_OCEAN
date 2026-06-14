@@ -96,7 +96,7 @@ class CourtController extends Controller
 
         while ($current->lt($close)) {
             $slotStart = $current->format('H:i:s');
-            $slotEnd = $current->copy()->addHour()->format('H:i:s');
+            $slotEnd = $current->copy()->addMinutes(30)->format('H:i:s');
 
             // Determine status
             $status = 'available';
@@ -150,13 +150,13 @@ class CourtController extends Controller
             $price = 0;
             foreach ($prices as $p) {
                 if ($slotStart >= $p->from_time && $slotEnd <= $p->to_time) {
-                    $price = $p->price_per_hour;
+                    $price = $p->price_per_hour / 2;
                     break;
                 }
             }
             // Fallback price
             if ($price == 0 && $prices->isNotEmpty()) {
-                $price = $prices->first()->price_per_hour;
+                $price = $prices->first()->price_per_hour / 2;
             }
 
             $slots[] = [
@@ -168,7 +168,7 @@ class CourtController extends Controller
                 'lock_expires_at' => $lockExpiresAt,
             ];
 
-            $current->addHour();
+            $current->addMinutes(30);
         }
 
         return response()->json([
