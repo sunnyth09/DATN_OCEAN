@@ -23,6 +23,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool isLoadingComments = true;
   Map<String, dynamic> _product = {};
   bool isLoadingDetails = true;
+  List<dynamic> relatedProducts = [];
 
   @override
   void initState() {
@@ -30,6 +31,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _product = Map<String, dynamic>.from(widget.product);
     fetchProductDetails();
     fetchComments();
+    fetchRelatedProducts();
   }
 
   Future<void> fetchProductDetails() async {
@@ -88,6 +90,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     } catch (_) {
       if (mounted) setState(() => isLoadingComments = false);
     }
+  }
+
+  Future<void> fetchRelatedProducts() async {
+    try {
+      final slug = _product['slug'];
+      final id = _product['id'] ?? _product['product_id'];
+      final endpoint = slug != null && slug.toString().isNotEmpty
+          ? '/products/$slug/related'
+          : '/products/$id/related';
+      final res = await ApiClient().dio.get(endpoint);
+      if (res.data['status'] == 'success') {
+        if (mounted) setState(() => relatedProducts = res.data['data'] ?? []);
+      }
+    } catch (_) {}
   }
 
   void _handleActionSelected(String actionStr) async {
@@ -403,6 +419,41 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
+
+                // Related Products
+                if (relatedProducts.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(20), color: Colors.white,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Sản phẩm tương tự', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                            GestureDetector(
+                              onTap: () {},
+                              child: const Text('Xem tất cả →', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFE63B6F))),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 220,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: relatedProducts.length > 6 ? 6 : relatedProducts.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 12),
+                            itemBuilder: (context, index) {
+                              final rp = relatedProducts[index] as Map<String, dynamic>;
+                              return _buildRelatedProductCard(rp);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -543,5 +594,61 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Widget _imagePlaceholder() {
     return Container(width: double.infinity, height: 350, color: const Color(0xFFF1F5F9), child: const Center(child: Icon(Icons.image_not_supported, size: 60, color: Colors.grey)));
+  }
+
+  Widget _buildRelatedProductCard(Map<String, dynamic> rp) {
+    final name = rp['name']?.toString() ?? 'Sản phẩm';
+    final thumbnail = rp['thumbnail_url']?.toString() ?? '';
+    final imageUrl = AppConfig.imageUrl(thumbnail);
+    final minPrice = rp['min_price'] ?? 0;
+    final categoryName = rp['category'] is Map ? (rp['category']['name'] ?? '') : '';
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => ProductDetailScreen(product: rp),
+        ));
+      },
+      child: Container(
+        width: 150,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE9ECEF)),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(14), topRight: Radius.circular(14)),
+              child: imageUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      width: 150, height: 130,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(width: 150, height: 130, color: const Color(0xFFF1F5F9)),
+                      errorWidget: (_, __, ___) => Container(width: 150, height: 130, color: const Color(0xFFF1F5F9), child: const Icon(Icons.image, color: Colors.grey)),
+                    )
+                  : Container(width: 150, height: 130, color: const Color(0xFFF1F5F9), child: const Icon(Icons.image, color: Colors.grey)),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (categoryName.isNotEmpty)
+                    Text(categoryName, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 6),
+                  Text(_formatPrice(minPrice), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFFE63B6F))),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

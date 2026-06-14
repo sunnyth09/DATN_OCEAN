@@ -10,6 +10,11 @@ import 'favorite_screen.dart';
 import 'edit_profile_screen.dart';
 import 'pos_scanner_screen.dart';
 import 'attendance_screen.dart';
+import 'my_coupons_screen.dart';
+import 'return_requests_screen.dart';
+import 'flash_sale_screen.dart';
+import 'coupon_screen.dart';
+import 'booking_history_screen.dart';
 import '../config/app_config.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -266,6 +271,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }),
                 _buildMenuItem(Icons.favorite_border, 'Sản phẩm yêu thích', () {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const FavoriteScreen()));
+                }),
+                _buildMenuItem(Icons.confirmation_number_outlined, 'Mã giảm giá của tôi', () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const MyCouponsScreen()));
+                }),
+                _buildMenuItem(Icons.assignment_return_outlined, 'Yêu cầu hoàn hàng', () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ReturnRequestsScreen()));
+                }),
+                _buildMenuItem(Icons.sports_tennis, 'Lịch sử đặt sân', () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const BookingHistoryScreen()));
+                }),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 10),
+                  child: Text('Khám phá', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8))),
+                ),
+                _buildMenuItem(Icons.flash_on, 'Flash Sale', () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const FlashSaleScreen()));
+                }),
+                _buildMenuItem(Icons.local_offer_outlined, 'Săn Voucher', () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const CouponScreen()));
                 }),
                 _buildMenuItem(Icons.article_outlined, 'Chính sách & Quy định', () {}),
                 const SizedBox(height: 16),

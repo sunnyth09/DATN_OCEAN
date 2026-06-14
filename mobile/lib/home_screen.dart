@@ -4,6 +4,8 @@ import 'services/auth_service.dart';
 import 'productDetail.dart';
 import 'screens/product_list_screen.dart';
 import 'screens/notification_screen.dart';
+import 'screens/flash_sale_screen.dart';
+import 'screens/coupon_screen.dart';
 import 'package:dio/dio.dart';
 import 'services/api_client.dart';
 import 'widgets/shimmer_loading.dart';
@@ -125,6 +127,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               SliverToBoxAdapter(child: _buildHeader()),
               SliverToBoxAdapter(child: _buildSearchBar()),
               SliverToBoxAdapter(child: _buildHeroBanner()),
+              SliverToBoxAdapter(child: _buildQuickActions()),
               SliverToBoxAdapter(child: _buildCategories()),
               _buildProductsSection(),
             ],
@@ -243,18 +246,82 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFFE63B6F),
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            child: const Text('Khám phá ngay', style: TextStyle(fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const FlashSaleScreen()));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFFE63B6F),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                child: const Text('Khám phá ngay', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const FlashSaleScreen()));
+                },
+                icon: const Icon(Icons.flash_on, size: 16, color: Colors.white),
+                label: const Text('Flash Sale', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.white.withOpacity(0.5)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                ),
+              ),
+            ],
           )
         ],
+      ),
+    );
+  }
+
+  // ===== QUICK ACTION BUTTONS =====
+  Widget _buildQuickActions() {
+    final actions = [
+      {'icon': Icons.flash_on, 'label': 'Flash Sale', 'color': const Color(0xFFE63B6F), 'screen': const FlashSaleScreen()},
+      {'icon': Icons.confirmation_number_outlined, 'label': 'Voucher', 'color': const Color(0xFF3B82F6), 'screen': const CouponScreen()},
+      {'icon': Icons.sports_tennis, 'label': 'Đặt sân', 'color': const Color(0xFF10B981), 'screen': null},
+      {'icon': Icons.grid_view_rounded, 'label': 'Sản phẩm', 'color': const Color(0xFFF59E0B), 'screen': const ProductListScreen()},
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: actions.map((action) {
+          final icon = action['icon'] as IconData;
+          final label = action['label'] as String;
+          final color = action['color'] as Color;
+          final screen = action['screen'] as Widget?;
+
+          return GestureDetector(
+            onTap: () {
+              if (screen != null) {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+              }
+            },
+            child: Column(
+              children: [
+                Container(
+                  width: 56, height: 56,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: color, size: 26),
+                ),
+                const SizedBox(height: 8),
+                Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }

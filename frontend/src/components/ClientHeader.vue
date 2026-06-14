@@ -411,7 +411,7 @@ watch(
                 <!-- Logo -->
                 <router-link to="/" class="logo">
                     <img :src="BASE_URL + '/storage/logo/LOGO_QS.png'" alt="Logo" class="logo-img"
-                        style="width: 75px; height: auto" />
+                        width="70" height="auto" />
                 </router-link>
 
                 <!-- Navigation Links -->

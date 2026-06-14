@@ -1,3 +1,6 @@
+# Environment variables (sensitive - do NOT commit)
+.env
+
 # Miscellaneous
 *.class
 *.log
