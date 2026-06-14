@@ -652,7 +652,7 @@ html.dark .swal2-popup {
 }
 
 /* Title & Text */
-.swal2-title {
+.swal2-popup:not(.swal2-toast) .swal2-title {
   color: var(--text-main) !important;
   font-size: 1.25rem !important;
   font-weight: 700 !important;
@@ -667,25 +667,97 @@ html.dark .swal2-popup {
   line-height: 1.5 !important;
 }
 
-/* Modern Icons Override */
-.swal2-icon {
-  border-width: 0 !important;
-  width: 4rem !important;
-  height: 4rem !important;
+/* Modern Icons Override (Only for modal popups, NOT toasts) */
+.swal2-popup:not(.swal2-toast) .swal2-icon {
+  font-size: 0.85em !important;
   margin: 0 auto 1rem !important;
 }
 
-.swal2-icon.swal2-success {
-  background: #dcfce7 !important;
-  color: #16a34a !important;
+.swal2-popup:not(.swal2-toast) .swal2-icon.swal2-success {
+  border: none !important;
+  background-color: transparent !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 11.08V12a10 10 0 11-5.93-9.14'/%3E%3Cpolyline points='22 4 12 14.01 9 11.01'/%3E%3C/svg%3E") !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  width: 72px !important;
+  height: 72px !important;
 }
 
-.swal2-icon.swal2-success [class^="swal2-success-line"] {
-  background-color: #16a34a !important;
+.swal2-popup:not(.swal2-toast) .swal2-icon.swal2-success [class^="swal2-success-line"],
+.swal2-popup:not(.swal2-toast) .swal2-icon.swal2-success .swal2-success-ring,
+.swal2-popup:not(.swal2-toast) .swal2-icon.swal2-success .swal2-success-fix,
+.swal2-popup:not(.swal2-toast) .swal2-icon.swal2-success .swal2-success-circular-line-left,
+.swal2-popup:not(.swal2-toast) .swal2-icon.swal2-success .swal2-success-circular-line-right {
+  display: none !important;
 }
 
-.swal2-icon.swal2-success .swal2-success-ring {
-  border-color: rgba(22, 163, 74, 0.2) !important;
+/* Elegant Toast Styles */
+.swal2-popup.swal2-toast {
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid var(--border-color) !important;
+  background: var(--card-bg) !important;
+  width: auto !important;
+  max-width: 400px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.swal2-popup.swal2-toast .swal2-icon {
+  margin: 0 !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  border: none !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+}
+
+.swal2-popup.swal2-toast .swal2-icon.swal2-success {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 11.08V12a10 10 0 11-5.93-9.14'/%3E%3Cpolyline points='22 4 12 14.01 9 11.01'/%3E%3C/svg%3E") !important;
+}
+.swal2-popup.swal2-toast .swal2-icon.swal2-success [class^="swal2-success-line"],
+.swal2-popup.swal2-toast .swal2-icon.swal2-success .swal2-success-ring,
+.swal2-popup.swal2-toast .swal2-icon.swal2-success .swal2-success-fix,
+.swal2-popup.swal2-toast .swal2-icon.swal2-success .swal2-success-circular-line-left,
+.swal2-popup.swal2-toast .swal2-icon.swal2-success .swal2-success-circular-line-right {
+  display: none !important;
+}
+
+.swal2-popup.swal2-toast .swal2-icon.swal2-error {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E") !important;
+}
+.swal2-popup.swal2-toast .swal2-icon.swal2-error [class^="swal2-x-mark"] {
+  display: none !important;
+}
+
+.swal2-popup.swal2-toast .swal2-icon.swal2-info {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='16' x2='12' y2='12'/%3E%3Cline x1='12' y1='8' x2='12.01' y2='8'/%3E%3C/svg%3E") !important;
+}
+.swal2-popup.swal2-toast .swal2-icon.swal2-info .swal2-icon-content {
+  display: none !important;
+}
+
+.swal2-popup.swal2-toast .swal2-icon.swal2-warning {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cline x1='12' y1='9' x2='12' y2='13'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E") !important;
+}
+.swal2-popup.swal2-toast .swal2-icon.swal2-warning .swal2-icon-content {
+  display: none !important;
+}
+
+.swal2-popup.swal2-toast .swal2-title {
+  margin: 0 !important;
+  font-size: 0.95rem !important;
+  font-weight: 600 !important;
+  color: var(--text-main) !important;
+  line-height: 1.4 !important;
+  flex: 1 !important;
+  text-align: left !important;
+  word-break: break-word !important;
 }
 
 .swal2-icon.swal2-warning {
@@ -734,10 +806,12 @@ html.dark .swal2-popup {
 .swal2-confirm {
   background: var(--primary) !important;
   color: white !important;
+  border: 1px solid var(--primary) !important;
 }
 
 .swal2-confirm:hover {
   background: var(--primary-dark) !important;
+  border-color: var(--primary-dark) !important;
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(230, 59, 111, 0.25) !important;
 }
@@ -754,14 +828,14 @@ html.dark .swal2-popup {
 }
 
 .swal2-cancel {
-  background: #f1f5f9 !important;
-  color: #475569 !important;
-  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--primary) !important;
+  border: 1px solid var(--primary) !important;
 }
 
 .swal2-cancel:hover {
-  background: #e2e8f0 !important;
-  color: #0f172a !important;
+  background: var(--primary) !important;
+  color: #ffffff !important;
   transform: translateY(-2px);
 }
 

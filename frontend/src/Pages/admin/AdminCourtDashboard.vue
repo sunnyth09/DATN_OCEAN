@@ -289,12 +289,24 @@ const handleBookingClick = async (booking) => {
 
 // Click on empty slot to create booking
 const handleSlotClick = (court, hourOffset) => {
-    const startHour = OPEN_HOUR + hourOffset;
+    const startHour = OPEN_HOUR + Math.floor(hourOffset);
+    const startMins = (hourOffset % 1) === 0.5 ? 30 : 0;
+    const startTimeStr = `${startHour.toString().padStart(2, '0')}:${startMins.toString().padStart(2, '0')}`;
+
+    // Default duration: 1 hour (2 slots of 30m)
+    let endHour = startHour + 1;
+    let endMins = startMins;
+    if (endHour > CLOSE_HOUR || (endHour === CLOSE_HOUR && endMins > 0)) {
+        endHour = CLOSE_HOUR;
+        endMins = 0;
+    }
+    const endTimeStr = `${endHour.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+
     posForm.value = {
         court_id: court.court_id,
         booking_date: filterDate.value,
-        start_time: `${startHour.toString().padStart(2, '0')}:00`,
-        end_time: `${(startHour + 1).toString().padStart(2, '0')}:00`,
+        start_time: startTimeStr,
+        end_time: endTimeStr,
         payment_method: 'cash',
         note: ''
     };
@@ -517,9 +529,9 @@ const handleCreatePosBooking = async () => {
                     </div>
 
                     <div v-for="court in courtsData" :key="court.court_id" class="scheduler-row">
-                        <!-- Grid lines (hourly) -->
-                        <div v-for="h in TOTAL_HOURS" :key="'grid-' + h" class="scheduler-row__gridline" :style="{ left: ((h - 1) / TOTAL_HOURS * 100) + '%', width: (100 / TOTAL_HOURS) + '%' }"
-                             @click="handleSlotClick(court, h - 1)">
+                        <!-- Grid lines (30-min) -->
+                        <div v-for="h in (TOTAL_HOURS * 2)" :key="'grid-' + h" class="scheduler-row__gridline" :style="{ left: ((h - 1) / (TOTAL_HOURS * 2) * 100) + '%', width: (100 / (TOTAL_HOURS * 2)) + '%' }"
+                             @click="handleSlotClick(court, (h - 1) / 2)">
                         </div>
 
                         <!-- Booking blocks -->

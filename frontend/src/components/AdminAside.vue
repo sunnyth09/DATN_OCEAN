@@ -1,11 +1,105 @@
+<script setup>
+import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import Swal from 'sweetalert2';
+import AppIcon from '@/icons/AppIcon.vue';
+import { useAuthStore } from '@/stores/auth';
+import { useUiStore } from '@/stores/ui';
+
+const BASE_URL = import.meta.env.VITE_APP_URL || 'http://localhost:8383';
+
+const props = defineProps({
+  collapsed: {
+    type: Boolean,
+    default: false
+  }
+});
+
+const router = useRouter();
+const authStore = useAuthStore();
+const uiStore = useUiStore();
+const userName = ref('Admin');
+const userEmail = ref('');
+const userAvatar = ref('');
+const userRole = ref('Manager');
+const userRoleRaw = ref('');
+const isStoreMenuOpen = ref(true); // Mặc định mở theo ảnh mẫu
+const isStaffMenuOpen = ref(false); // Mặc định đóng
+const isCourtMenuOpen = ref(false ); // Mặc định mở
+
+const userInitial = computed(() => (userName.value?.[0] || 'A').toUpperCase());
+
+const toggleSidebar = () => {
+  uiStore.toggleBackofficeSidebar();
+};
+
+const handleSubmenuClick = (menu) => {
+  if (props.collapsed) {
+    uiStore.toggleBackofficeSidebar();
+    if (menu === 'court') isCourtMenuOpen.value = true;
+    if (menu === 'store') isStoreMenuOpen.value = true;
+    if (menu === 'staff') isStaffMenuOpen.value = true;
+  } else {
+    if (menu === 'court') isCourtMenuOpen.value = !isCourtMenuOpen.value;
+    if (menu === 'store') isStoreMenuOpen.value = !isStoreMenuOpen.value;
+    if (menu === 'staff') isStaffMenuOpen.value = !isStaffMenuOpen.value;
+  }
+};
+
+onMounted(() => {
+  const userData = sessionStorage.getItem('user');
+  if (userData) {
+    try {
+      const user = JSON.parse(userData);
+      const path = user.avatar_url;
+      
+      userName.value = user.full_name || user.name || 'Admin';
+      userEmail.value = user.email || '';
+      userRoleRaw.value = user.role;
+      userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
+      
+      if (path) {
+        userAvatar.value = path.startsWith('http') ? path : `${BASE_URL}${path}`;
+      }
+    } catch (e) {
+      console.error("Failed to parse user data", e);
+    }
+  }
+});
+
+const handleLogout = async () => {
+  const result = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc chắn muốn đăng xuất?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Đăng xuất',
+      cancelButtonText: 'Hủy'
+  });
+  if (result.isConfirmed) {
+    await authStore.logout();
+    router.push('/');
+  }
+};
+</script>
 <template>
-  <aside class="sidebar">
+  <aside class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
     <!-- Brand -->
     <div class="sidebar-brand">
-      <div class="brand-icon">
-        <img src="../../public/favicon.ico" alt="logo-ocean" width="100" height="60">
+      <div class="brand-icon" v-show="!collapsed">
+        <img :src="BASE_URL + '/storage/logo/LOGO_QS.png'" alt="logo-ocean" width="45" >
       </div>
-      <h2 class="brand-title">Admin</h2>
+      <h2 class="brand-title"> Quản trị </h2>
+      <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">
+        <svg v-if="collapsed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="13 17 18 12 13 7"></polyline>
+          <polyline points="6 17 11 12 6 7"></polyline>
+        </svg>
+        <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="11 17 6 12 11 7"></polyline>
+          <polyline points="18 17 13 12 18 7"></polyline>
+        </svg>
+      </button>
     </div>
 
     <!-- Nav -->
@@ -50,7 +144,7 @@
         <span>Bán hàng (POS)</span>
       </router-link>
 
-      <div v-if="['admin', 'staff', 'seller'].includes(userRoleRaw)" class="nav-item" @click="isCourtMenuOpen = !isCourtMenuOpen" :class="{ 'nav-item--open': isCourtMenuOpen }">
+      <div v-if="['admin', 'staff', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('court')" :class="{ 'nav-item--open': isCourtMenuOpen }">
         <div class="nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -86,7 +180,7 @@
         </div>
       </transition>
 
-      <div v-if="['admin', 'seller', 'staff'].includes(userRoleRaw)" class="nav-item" @click="isStoreMenuOpen = !isStoreMenuOpen" :class="{ 'nav-item--open': isStoreMenuOpen }">
+      <div v-if="['admin', 'seller', 'staff'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('store')" :class="{ 'nav-item--open': isStoreMenuOpen }">
         <div class="nav-icon">
           <AppIcon name="store" />
         </div>
@@ -136,7 +230,7 @@
         </div>
       </transition>
 
-      <div v-if="['admin'].includes(userRoleRaw)" class="nav-item" @click="isStaffMenuOpen = !isStaffMenuOpen" :class="{ 'nav-item--open': isStaffMenuOpen }">
+      <div v-if="['admin'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('staff')" :class="{ 'nav-item--open': isStaffMenuOpen }">
         <div class="nav-icon">
           <AppIcon name="users" />
         </div>
@@ -183,7 +277,7 @@
     <!-- Footer (User Profile) -->
     <div class="sidebar-footer">
       <div class="user-profile">
-        <div v-if="userAvatar" class="user-avatar-circle"><img :src="userAvatar" alt="" width="50" height="50" style="border-radius: 50%;"></div>
+        <div v-if="userAvatar" class="user-avatar-circle"><img :src="userAvatar" alt="" width="36" height="36" style="border-radius: 50%;"></div>
         <div v-else class="user-avatar-circle">{{ userInitial }}</div>
         <div class="user-details" @click="handleLogout" style="cursor: pointer;" title="Nhấn để đăng xuất">
           <span class="user-name-bold">{{ userName }}</span>
@@ -194,102 +288,114 @@
   </aside>
 </template>
 
-<script setup>
-import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import Swal from 'sweetalert2';
-import AppIcon from '@/icons/AppIcon.vue';
-import { useAuthStore } from '@/stores/auth';
 
-const router = useRouter();
-const authStore = useAuthStore();
-const userName = ref('Admin');
-const userEmail = ref('');
-const userAvatar = ref('');
-const userRole = ref('Manager');
-const userRoleRaw = ref('');
-const isStoreMenuOpen = ref(true); // Mặc định mở theo ảnh mẫu
-const isStaffMenuOpen = ref(false); // Mặc định đóng
-const isCourtMenuOpen = ref(true); // Mặc định mở
-
-const userInitial = computed(() => (userName.value?.[0] || 'A').toUpperCase());
-
-onMounted(() => {
-  const userData = sessionStorage.getItem('user');
-  if (userData) {
-    try {
-      const user = JSON.parse(userData);
-      const path = user.avatar_url;
-      const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
-      
-      userName.value = user.full_name || user.name || 'Admin';
-      userEmail.value = user.email || '';
-      userRoleRaw.value = user.role;
-      userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
-      
-      if (path) {
-        userAvatar.value = path.startsWith('http') ? path : `${BASE_URL}${path}`;
-      }
-    } catch (e) {
-      console.error("Failed to parse user data", e);
-    }
-  }
-});
-
-const handleLogout = async () => {
-  const result = await Swal.fire({
-      title: 'Xác nhận',
-      text: 'Bạn có chắc chắn muốn đăng xuất?',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Đăng xuất',
-      cancelButtonText: 'Hủy'
-  });
-  if (result.isConfirmed) {
-    await authStore.logout();
-    router.push('/');
-  }
-};
-</script>
 
 <style scoped>
 .sidebar {
   width: 250px;
-  min-height: 100vh;
+  height: 100vh;
+
   background: var(--card-bg, #fff);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   border-right: 1px solid var(--border-color, #eee);
+  transition: width 0.3s ease;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
+
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background-color: var(--border-color, #eee);
+  border-radius: 4px;
+}
+
+.sidebar--collapsed {
+  width: 80px;
+}
+
+.sidebar--collapsed .brand-title,
+.sidebar--collapsed .sidebar-nav span,
+.sidebar--collapsed .dropdown-arrow,
+.sidebar--collapsed .nav-submenu,
+.sidebar--collapsed .user-details {
+  display: none;
+}
+
+.sidebar--collapsed .brand-icon {
+  display: none;
+}
+
+.sidebar--collapsed .aside-toggle-btn {
+  margin-left: 0;
+}
+
+.sidebar--collapsed .sidebar-brand {
+  padding: 0;
+  justify-content: center;
+}
+
+.sidebar--collapsed .nav-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar--collapsed .user-profile {
+  justify-content: center;
+  padding: 8px 0;
+}
+
 
 /* Brand */
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 22px;
-  height: 70px;
+  gap: 10px;
+  padding: 0 16px;
+  height: 56px;
   border-bottom: 1px solid var(--border-color, #eee);
   flex-shrink: 0;
 }
 
 .brand-icon {
-  width: 40px;
-  height: 40px;
+  width: auto;
+  height: auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .brand-title {
-  font-size: 1.4rem;
-  margin-left: 5px;
-  margin-top: 5px;
+  font-size: 1.15rem;
+  margin-left: 0;
+  margin-top: 0;
   font-weight: 700;
   color: var(--text-main, #000);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+}
+
+.aside-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #666);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.aside-toggle-btn:hover {
+  background: var(--hover-bg, #f3f4f6);
+  color: #E63B6F;
 }
 
 /* Nav */
@@ -303,8 +409,8 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
+  padding: 8px 14px;
+  border-radius: 5px;
   color: var(--text-muted, #666);
   text-decoration: none;
   font-size: 0.925rem;
@@ -318,6 +424,12 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: center;
   opacity: 0.7;
+}
+
+.nav-icon svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s;
 }
 
 .dropdown-arrow {
@@ -391,12 +503,12 @@ const handleLogout = async () => {
 }
 
 .submenu-item--active {
-  color: #1d4ed8 !important;
+  color: #E63B6F !important;
   font-weight: 600;
 }
 
 .submenu-item--active .submenu-dot {
-  background: #1d4ed8 !important;
+  background: #E63B6F !important;
 }
 
 /* Transitions */
@@ -414,20 +526,26 @@ const handleLogout = async () => {
 
 /* Footer */
 .sidebar-footer {
-  padding: 16px;
+  padding: 12px;
   border-top: 1px solid var(--border-color, #eee);
+
+  position: sticky;
+  bottom: 0;
+  background: white;
+  z-index: 10;
+  margin-top: 10px;
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 4px;
+  gap: 10px;
+  padding: 0px 4px;
 }
 
 .user-avatar-circle {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: var(--hover-bg, #eef2ff);
   color: var(--ocean-blue, #1d4ed8);
@@ -435,7 +553,7 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   flex-shrink: 0;
 }
 
@@ -446,14 +564,14 @@ const handleLogout = async () => {
 }
 
 .user-name-bold {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: var(--text-main, #1a1a1a);
   line-height: 1.2;
 }
 
 .user-email-text {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-light, #888);
   white-space: nowrap;
   overflow: hidden;

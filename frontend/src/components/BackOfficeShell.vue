@@ -12,37 +12,17 @@
 
     <div
       class="backoffice-sidebar-shell"
-      :class="{ 'backoffice-sidebar-shell--open': isSidebarOpen }"
+      :class="{ 
+        'backoffice-sidebar-shell--open': isSidebarOpen,
+        'backoffice-sidebar-shell--collapsed': !isSidebarOpen
+      }"
     >
-      <component :is="sidebarComponent" />
+      <component :is="sidebarComponent" :collapsed="!isSidebarOpen" />
     </div>
 
     <div class="backoffice-main">
       <header class="backoffice-header">
         <div class="backoffice-header__leading">
-          <button
-            type="button"
-            class="shell-icon-btn shell-icon-btn--menu"
-            :aria-expanded="isSidebarOpen"
-            title="Mở menu điều hướng"
-            @click="toggleSidebar"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="3" y1="6" x2="21" y2="6"></line>
-              <line x1="3" y1="12" x2="21" y2="12"></line>
-              <line x1="3" y1="18" x2="21" y2="18"></line>
-            </svg>
-          </button>
-
           <div class="backoffice-header__meta">
             <p v-if="sectionLabel" class="backoffice-header__eyebrow">
               {{ sectionLabel }}
@@ -195,6 +175,8 @@ const closeSidebar = () => {
 
 const syncSidebarForViewport = () => {
   if (window.innerWidth >= 1024) {
+    uiStore.setBackofficeSidebarOpen(true);
+  } else {
     closeSidebar();
   }
 };
@@ -285,8 +267,16 @@ onUnmounted(() => {
 }
 
 .backoffice-sidebar-shell {
-  width: var(--shell-sidebar-width);
+  width: var(--shell-sidebar-width, 250px);
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  transition: width 0.3s ease;
+}
+
+.backoffice-sidebar-shell--collapsed {
+  width: 80px;
 }
 
 .backoffice-main {
@@ -306,10 +296,6 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(14px);
-  box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 0;
-  z-index: 20;
 }
 
 .backoffice-header__leading {
@@ -345,10 +331,6 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-}
-
-.shell-icon-btn--menu {
-  display: none;
 }
 
 .shell-icon-btn,
@@ -408,17 +390,13 @@ onUnmounted(() => {
     padding: 20px;
   }
 
-  .shell-icon-btn--menu {
-    display: inline-flex;
-  }
-
   .backoffice-sidebar-shell {
     position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
     z-index: 40;
-    width: min(86vw, var(--shell-sidebar-width));
+    width: min(86vw, var(--shell-sidebar-width, 250px));
     transform: translateX(-100%);
     transition: transform 0.24s ease;
     pointer-events: none;
@@ -427,6 +405,10 @@ onUnmounted(() => {
   .backoffice-sidebar-shell--open {
     transform: translateX(0);
     pointer-events: auto;
+  }
+
+  .backoffice-sidebar-shell--collapsed {
+    width: min(86vw, var(--shell-sidebar-width, 250px)); /* Ignore collapsed state on mobile */
   }
 
   .backoffice-scrim {
