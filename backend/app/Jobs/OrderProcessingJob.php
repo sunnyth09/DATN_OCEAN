@@ -2,10 +2,10 @@
 
 namespace App\Jobs;
 
-use App\Models\FlashSale;
+use App\Models\FlashSaleItem;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -36,6 +36,7 @@ class OrderProcessingJob implements ShouldQueue
 
     public function __construct(
         public readonly int    $flashSaleId,
+        public readonly int    $productId,
         public readonly int    $userId,
         public readonly int    $quantity,
         public readonly ?int   $addressId,
@@ -52,16 +53,27 @@ class OrderProcessingJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $flashSale = FlashSale::with('product')->find($this->flashSaleId);
+        $flashSaleItem = FlashSaleItem::with('product')
+            ->where('flash_sale_id', $this->flashSaleId)
+            ->where('product_id', $this->productId)
+            ->first();
 
-        if (!$flashSale) {
-            Log::error("[OrderProcessingJob] FlashSale #{$this->flashSaleId} không tồn tại.");
+        if (!$flashSaleItem) {
+            Log::error("[OrderProcessingJob] FlashSaleItem (FlashSale #{$this->flashSaleId}, Product #{$this->productId}) không tồn tại.");
             $this->rollbackRedisStock();
             return;
         }
 
-        DB::transaction(function () use ($flashSale) {
-            $unitPrice  = $flashSale->sale_price;
+        // Lấy variant đầu tiên của sản phẩm để lưu vào order_items (do flash sale không cho chọn variant)
+        $variant = ProductVariant::where('product_id', $this->productId)->first();
+        if (!$variant) {
+            Log::error("[OrderProcessingJob] Sản phẩm #{$this->productId} không có variant nào khả dụng.");
+            $this->rollbackRedisStock();
+            return;
+        }
+
+        DB::transaction(function () use ($flashSaleItem, $variant) {
+            $unitPrice  = $flashSaleItem->campaign_price;
             $subtotal   = $unitPrice * $this->quantity;
             $shippingFee = 0; // Flash sale: freeship
             $grandTotal = $subtotal;
@@ -76,7 +88,7 @@ class OrderProcessingJob implements ShouldQueue
                 'shipping_address' => $this->shippingAddress,
                 'note'             => "Flash Sale #{$this->flashSaleId}",
                 'payment_method'   => $this->paymentMethod,
-                'payment_status'   => 'pending',
+                'payment_status'   => 'unpaid',
                 'fulfillment_status' => 'pending',
                 'subtotal'         => $subtotal,
                 'discount_amount'  => 0,
@@ -87,17 +99,24 @@ class OrderProcessingJob implements ShouldQueue
 
             // 2. Tạo order item từ flash sale
             OrderItem::create([
-                'order_id'   => $order->order_id,
-                'product_id' => $flashSale->product_id,
-                'variant_id' => $flashSale->variant_id,
-                'quantity'   => $this->quantity,
-                'unit_price' => $unitPrice,
-                'subtotal'   => $subtotal,
+                'order_id'     => $order->order_id,
+                'product_id'   => $this->productId,
+                'variant_id'   => $variant->variant_id,
+                'product_name' => $flashSaleItem->product->name,
+                'variant_name' => $variant->variant_name,
+                'sku'          => $variant->sku,
+                'color'        => $variant->color,
+                'size'         => $variant->size,
+                'quantity'     => $this->quantity,
+                'unit_price'   => $unitPrice,
+                'line_total'   => $subtotal,
             ]);
 
-            // 3. Cập nhật sold_count trong flash_sales
-            FlashSale::where('id', $this->flashSaleId)
-                     ->increment('sold_count', $this->quantity);
+            // 3. Cập nhật sold_count trong flash_sale_items
+            $flashSaleItem->increment('sold', $this->quantity);
+
+            // 4. Trừ tồn kho trong bảng product_variants
+            $variant->decrement('stock', $this->quantity);
 
             Log::info("[OrderProcessingJob] Tạo đơn #{$this->orderCode} thành công cho user #{$this->userId}, flash_sale #{$this->flashSaleId}.");
         });
@@ -119,11 +138,11 @@ class OrderProcessingJob implements ShouldQueue
     private function rollbackRedisStock(): void
     {
         try {
-            $key = "flash_sale_stock_{$this->flashSaleId}";
+            $key = "flash_sale_{$this->flashSaleId}_product_{$this->productId}_stock";
             Redis::incrby($key, $this->quantity);
             Log::info("[OrderProcessingJob] Đã hoàn {$this->quantity} stock về Redis key: {$key}");
         } catch (\Exception $e) {
-            Log::critical("[OrderProcessingJob] Không thể hoàn stock Redis! Key: flash_sale_stock_{$this->flashSaleId}. Error: {$e->getMessage()}");
+            Log::critical("[OrderProcessingJob] Không thể hoàn stock Redis! Key: {$key}. Error: {$e->getMessage()}");
         }
     }
 }

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import api from '@/axios';
 import { useCartUpsell } from '@/composables/useCartUpsell';
 import { useToast } from '@/composables/useToast';
@@ -10,8 +10,13 @@ import { orderService } from '@/services/orderService';
 import AppIcon from '@/icons/AppIcon.vue';
 
 const router = useRouter();
+const route = useRoute();
 const cartItems = ref([]);
 const loading = ref(true);
+
+const isFlashSale = computed(() => !!route.query.flash_sale_id && !!route.query.product_id);
+const flashSaleId = computed(() => route.query.flash_sale_id);
+const flashSaleProductId = computed(() => route.query.product_id);
 const { showToast } = useToast();
 
 const { state: upsellState, fetchUpsellData } = useCartUpsell();
@@ -72,6 +77,37 @@ const fetchCart = async () => {
         if (error.response?.status === 401) {
             router.push({ name: 'login', query: { redirect: '/checkout' } });
         }
+    }
+};
+
+// Lấy sản phẩm Flash Sale thay vì giỏ hàng
+const fetchFlashSaleData = async () => {
+    try {
+        const { data } = await api.get('flash-sale');
+        const list = data.data ?? [];
+        const item = list.find(s => s.id == flashSaleId.value && s.product_id == flashSaleProductId.value);
+        if (item) {
+            cartItems.value = [{
+                cart_item_id: 'fs_' + item.id,
+                product: {
+                    name: item.product_name,
+                    thumbnail_url: item.product_thumbnail,
+                },
+                variant: {
+                    price: item.sale_price,
+                    color: 'Flash Sale',
+                    size: 'Đặc biệt'
+                },
+                quantity: 1,
+            }];
+            shippingFee.value = 0; // Flash sale freeship
+        } else {
+            showToast('Không tìm thấy sản phẩm Flash Sale này.', 'error');
+            router.push('/flash-sale');
+        }
+    } catch (e) {
+        showToast('Lỗi khi tải dữ liệu Flash Sale.', 'error');
+        router.push('/flash-sale');
     }
 };
 
@@ -339,7 +375,29 @@ const placeOrder = async () => {
 
     placingOrder.value = true;
     try {
-        const res = await orderService.createProfileOrder(payload);
+        let res;
+        if (isFlashSale.value) {
+            const fsAddress = showAddAddressForm.value 
+                ? `${payload.address_line}, ${payload.ward}, ${payload.district}, ${payload.province}`
+                : formatFullAddress(addresses.value.find(a => a.address_id === payload.address_id));
+            
+            const fsPhone = showAddAddressForm.value ? payload.phone : (addresses.value.find(a => a.address_id === payload.address_id)?.phone);
+            const fsName = showAddAddressForm.value ? payload.recipient_name : (addresses.value.find(a => a.address_id === payload.address_id)?.recipient_name);
+
+            const fsPayload = {
+                flash_sale_id: flashSaleId.value,
+                product_id: flashSaleProductId.value,
+                quantity: 1,
+                recipient_name: fsName,
+                recipient_phone: fsPhone,
+                shipping_address: fsAddress,
+                payment_method: payload.payment_method,
+            };
+            res = await api.post('flash-sale/buy', fsPayload);
+        } else {
+            res = await orderService.createProfileOrder(payload);
+        }
+
         if (res.data.status === 'success') {
             // Xóa referral_code sau khi đặt hàng thành công
             localStorage.removeItem('affiliate_ref');
@@ -363,15 +421,16 @@ const placeOrder = async () => {
             // === Banking: hiển thị QR code chuyển khoản ===
             if (res.data.payment_method === 'bank_transfer' && res.data.banking_info) {
                 bankingInfo.value = res.data.banking_info;
-                bankingOrderCode.value = res.data.data?.order_code || '';
+                bankingOrderCode.value = res.data.data?.order_code || res.data.order_code || '';
                 showBankingModal.value = true;
                 return;
             }
 
-            // === Flow mặc định (COD) ===
+            // === Flow mặc định (COD hoặc Flash Sale) ===
             showToast('Đặt hàng thành công! Vui lòng kiểm tra email.', 'success');
             setTimeout(() => {
-                router.push({ name: 'order-success', params: { order_code: res.data.data.order_code } });
+                const finalOrderCode = res.data.data?.order_code || res.data.order_code;
+                router.push({ name: 'order-success', params: { order_code: finalOrderCode } });
             }, 1000);
         }
     } catch (error) {
@@ -383,6 +442,9 @@ const placeOrder = async () => {
             msg = error.response.statusText;
         } else if (error.message) {
             msg = error.message;
+        }
+        if (error.response?.data?.sold_out) {
+            msg = 'Rất tiếc! Sản phẩm đã hết hàng.';
         }
         showToast(msg, 'error');
     } finally {
@@ -399,7 +461,13 @@ const getProductImage = (item) => {
 };
 
 onMounted(async () => {
-    await Promise.all([fetchCart(), fetchAddresses(), fetchCoupons(), fetchUpsellData()]);
+    const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData()];
+    if (isFlashSale.value) {
+        promises.push(fetchFlashSaleData());
+    } else {
+        promises.push(fetchCart());
+    }
+    await Promise.all(promises);
     loading.value = false;
 });
 </script>
@@ -634,7 +702,7 @@ onMounted(async () => {
                                     </div>
                                 </label>
 
-                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'momo' }">
+                                <label v-if="!isFlashSale" class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'momo' }">
                                     <input type="radio" v-model="paymentMethod" value="momo" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
@@ -647,7 +715,7 @@ onMounted(async () => {
                                     </div>
                                 </label>
 
-                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'vnpay' }">
+                                <label v-if="!isFlashSale" class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'vnpay' }">
                                     <input type="radio" v-model="paymentMethod" value="vnpay" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">

@@ -1,10 +1,27 @@
-﻿<script setup>
+<script setup>
+import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import AppIcon from '@/icons/AppIcon.vue';
 import FlashSaleBoard from '@/components/FlashSaleBoard.vue';
+import api from '@/axios.js';
 
 const route = useRoute();
 const targetId = route.query.id ? parseInt(route.query.id) : null;
+const items = ref([]);
+
+onMounted(async () => {
+    try {
+        const { data } = await api.get('flash-sale');
+        const list = data.data ?? [];
+        if (targetId) {
+            items.value = list.filter(item => item.id === targetId);
+        } else {
+            items.value = list;
+        }
+    } catch (e) {
+        console.error('Lỗi tải danh sách flash sale', e);
+    }
+});
 </script>
 
 <template>
@@ -32,8 +49,13 @@ const targetId = route.query.id ? parseInt(route.query.id) : null;
       <div class="content-inner">
 
         <!-- Board component -->
-        <div class="board-wrapper">
-          <FlashSaleBoard :flash-sale-id="targetId ?? undefined" />
+        <div class="boards-container">
+          <div class="board-wrapper" v-for="item in items" :key="item.item_id">
+            <FlashSaleBoard :item-id="item.item_id" />
+          </div>
+          <div v-if="items.length === 0" class="text-center py-5">
+             <h4 class="text-muted">Hiện tại không có chương trình Flash Sale nào.</h4>
+          </div>
         </div>
 
         <!-- Quy tắc -->
@@ -159,16 +181,24 @@ const targetId = route.query.id ? parseInt(route.query.id) : null;
 }
 
 .content-inner {
-  max-width: 560px;
+  max-width: 1140px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 32px;
 }
 
 /* Board wrapper nổi lên so với hero */
+.boards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+}
+
 .board-wrapper {
-  margin-top: -32px;
+  display: flex;
+  justify-content: center;
+  width: 100%;
 }
 
 /* ── RULES CARD ── */
@@ -176,7 +206,10 @@ const targetId = route.query.id ? parseInt(route.query.id) : null;
   background: #fff;
   border: 1px solid #F1F3F5;
   border-radius: 14px;
-  padding: 20px 22px;
+  padding: 24px 22px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .rules-title {

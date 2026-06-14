@@ -233,6 +233,10 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span>
             <span>Đánh giá</span>
           </router-link>
+          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/tickets" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Khiếu nại</span>
+          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Thống kê</span>
@@ -303,6 +307,43 @@ const handleLogout = async () => {
 </template>
 
 
+onMounted(() => {
+  const userData = sessionStorage.getItem('user');
+  if (userData) {
+    try {
+      const user = JSON.parse(userData);
+      const path = user.avatar_url;
+      const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
+      
+      userName.value = user.full_name || user.name || 'Admin';
+      userEmail.value = user.email || '';
+      userRoleRaw.value = user.role;
+      userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
+      
+      if (path) {
+        userAvatar.value = path.startsWith('http') ? path : `${BASE_URL}${path}`;
+      }
+    } catch (e) {
+      console.error("Failed to parse user data", e);
+    }
+  }
+});
+
+const handleLogout = async () => {
+  const result = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc chắn muốn đăng xuất?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Đăng xuất',
+      cancelButtonText: 'Hủy'
+  });
+  if (result.isConfirmed) {
+    await authStore.logout();
+    window.location.href = '/client/login';
+  }
+};
+</script>
 
 <style scoped>
 .sidebar {
