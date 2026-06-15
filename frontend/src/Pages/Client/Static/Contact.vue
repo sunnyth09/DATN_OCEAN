@@ -265,23 +265,29 @@ const submitContact = async () => {
 }
 
 .page-hero {
-  background: #E63B6F;
+  background: linear-gradient(135deg, #e63b6f, #a0204e);
   color: #fff;
-  padding: 56px 24px;
-  text-align: center;
+  border-radius: 16px;
+  padding: 32px;
+  margin: 24px auto 28px;
+  max-width: 900px;
+  width: calc(100% - 48px);
+  position: relative;
+  overflow: hidden;
+  text-align: left;
 }
-
-.page-hero h1 {
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0 0 12px;
+.page-hero::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
 }
-
-.hero-sub {
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.85);
-  margin: 0;
-}
+.page-hero h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 8px; position: relative; z-index: 1; }
+.hero-sub { opacity: 0.85; font-size: 0.95rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.6; }
 
 .page-content {
   padding: 48px 24px 64px;

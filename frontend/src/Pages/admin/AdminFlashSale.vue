@@ -1,11 +1,17 @@
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, computed } from 'vue';
 import api from '@/axios.js';
 import Swal from 'sweetalert2';
 import { Toast } from 'bootstrap';
 
 // -- States --
 const flashSales = ref([]);
+const searchQuery = ref('');
+const filteredFlashSales = computed(() => {
+    if (!searchQuery.value) return flashSales.value;
+    const q = searchQuery.value.toLowerCase();
+    return flashSales.value.filter(fs => fs.name && fs.name.toLowerCase().includes(q));
+});
 const isModalOpen = ref(false);
 const isEditing = ref(false);
 const errors = ref({});
@@ -21,10 +27,13 @@ const showToast = (message, type = 'success') => {
   });
 };
 
-const STATUS_LABELS = {
-    'draft': { text: 'Nháp', class: 'bg-secondary' },
-    'active': { text: 'Đang chạy', class: 'bg-success' },
-    'ended': { text: 'Đã kết thúc', class: 'bg-danger' },
+const getStatusLabel = (status) => {
+    const map = {
+        'active': { text: 'Đang chạy', class: 'active' },
+        'draft': { text: 'Bản nháp', class: 'draft' },
+        'ended': { text: 'Đã kết thúc', class: 'inactive' }
+    };
+    return map[status] || map['draft'];
 };
 
 // Form data
@@ -199,17 +208,57 @@ onMounted(fetchFlashSales);
 </script>
 
 <template>
-    <div class="admin-fs-container container-fluid py-4">
-        <div class="d-flex justify-content-between mb-4">
-            <h4>⚡ Quản lý Flash Sale Campaign</h4>
-            <button class="btn btn-primary" @click="openCreate">+ Tạo Campaign</button>
+    <div class="post-page px-4 pt-4">
+        <!-- Page Header -->
+        <div class="page-header animate-in">
+            <div class="header-info">
+                <h1 class="page-title">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    Quản lý Flash Sale Campaign
+                </h1>
+                <p class="page-subtitle">Quản lý các chương trình Flash Sale, chiến dịch giảm giá</p>
+            </div>
+            <button class="btn-primary" @click="openCreate">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Tạo Campaign
+            </button>
+        </div>
+
+        <!-- Filters & Search -->
+        <div class="filters-bar ocean-card animate-in" style="animation-delay: 0.1s">
+            <div class="search-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                    type="text"
+                    v-model="searchQuery"
+                    placeholder="Tìm kiếm chiến dịch theo tên..."
+                    class="search-input"
+                />
+            </div>
+            <div class="filter-stats">
+                <span class="stat-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg>
+                    {{ flashSales.length }} chiến dịch
+                </span>
+            </div>
         </div>
 
         <!-- LIST VIEW -->
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
-                <table class="table table-hover align-middle">
-                    <thead class="table-light">
+        <div class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
+            <div class="table-header">
+                <span class="table-count">
+                    <strong>{{ filteredFlashSales.length }}</strong> chiến dịch tìm thấy
+                </span>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
                         <tr>
                             <th>Tên Campaign</th>
                             <th>Thời gian bắt đầu</th>
@@ -220,25 +269,48 @@ onMounted(fetchFlashSales);
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="isLoading"><td colspan="6" class="text-center">Đang tải...</td></tr>
-                        <tr v-else-if="flashSales.length === 0"><td colspan="6" class="text-center">Chưa có chiến dịch Flash Sale nào.</td></tr>
-                        <tr v-for="fs in flashSales" :key="fs.id">
-                            <td class="fw-bold">{{ fs.name }}</td>
-                            <td>{{ new Date(fs.start_time).toLocaleString('vi-VN') }}</td>
-                            <td>{{ new Date(fs.end_time).toLocaleString('vi-VN') }}</td>
-                            <td>{{ fs.items?.length || 0 }} Sản phẩm</td>
-                            <td>
-                                <span :class="['badge', STATUS_LABELS[fs.status]?.class || 'bg-secondary']">
-                                    {{ STATUS_LABELS[fs.status]?.text || fs.status }}
-                                </span>
-                            </td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-info me-1" @click="openEdit(fs)">Sửa</button>
-                                <button class="btn btn-sm btn-outline-danger" @click="handleDelete(fs.id)">Xóa</button>
-                            </td>
-                        </tr>
+                        <tr v-if="isLoading"><td colspan="6" class="text-center" style="padding: 24px;">Đang tải...</td></tr>
+                        <template v-else-if="filteredFlashSales.length > 0">
+                            <tr v-for="fs in filteredFlashSales" :key="fs.id">
+                                <td>
+                                    <div class="post-title-cell">
+                                        <span class="post-title" :title="fs.name">{{ fs.name }}</span>
+                                    </div>
+                                </td>
+                                <td>{{ new Date(fs.start_time).toLocaleString('vi-VN') }}</td>
+                                <td>{{ new Date(fs.end_time).toLocaleString('vi-VN') }}</td>
+                                <td>{{ fs.items?.length || 0 }} Sản phẩm</td>
+                                <td>
+                                    <span class="status-badge" :class="getStatusLabel(fs.status).class">
+                                        {{ getStatusLabel(fs.status).text }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button @click="openEdit(fs)" class="btn-action edit" title="Chỉnh sửa">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                        </button>
+                                        <button @click="handleDelete(fs.id)" class="btn-action delete" title="Xóa">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
+            </div>
+            
+            <!-- Empty State -->
+            <div v-if="!isLoading && filteredFlashSales.length === 0" class="empty-state">
+                <span class="empty-emoji">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                </span>
+                <h3>Không tìm thấy chiến dịch</h3>
+                <p>{{ searchQuery ? 'Thử từ khóa khác.' : 'Bắt đầu bằng cách thêm chiến dịch Flash Sale đầu tiên.' }}</p>
+                <button v-if="!searchQuery" @click="openCreate" class="btn-primary mt-3" style="display:inline-flex; margin: 0 auto;">Tạo chiến dịch ngay</button>
             </div>
         </div>
 
@@ -370,6 +442,118 @@ onMounted(fetchFlashSales);
 </template>
 
 <style scoped>
+.post-page { font-family: var(--font-inter); padding-bottom: 2rem;}
+
+/* Header */
+.page-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+}
+.page-title {
+    font-size: 1.5rem; font-weight: 800; color: var(--text-main);
+    display: flex; align-items: center; gap: 12px;
+}
+.page-subtitle { font-size: 0.9rem; color: var(--text-muted); margin-top: 4px; font-weight: 500; }
+
+/* Buttons */
+.btn-primary {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 22px; border-radius: 8px; border: none;
+    background: #E63B6F; color: white; text-decoration: none;
+    font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
+}
+.btn-primary:hover {
+    background: var(--ocean-bright); transform: translateY(-2px); color: white;
+    box-shadow: 0 6px 14px rgba(3, 169, 244, 0.3);
+}
+
+/* Filters */
+.filters-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; margin-bottom: 24px; gap: 16px;
+}
+.search-box {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--ocean-deepest); border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 10px 16px; flex: 1; max-width: 400px;
+    transition: all 0.2s;
+}
+.search-box:focus-within {
+    border-color: #E63B6F; background: white;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+}
+.search-box svg { color: var(--text-light); flex-shrink: 0; }
+.search-input {
+    background: none; border: none; outline: none;
+    color: var(--text-main); font-family: var(--font-inter);
+    font-size: 0.9rem; width: 100%;
+}
+.search-input::placeholder { color: var(--text-light); }
+
+.filter-stats { display: flex; gap: 8px; flex-shrink: 0; }
+.stat-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest); color: var(--text-muted);
+    font-size: 0.8rem; font-weight: 600;
+}
+.stat-pill svg { color: #E63B6F; }
+
+/* Table */
+.table-header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); }
+.table-count { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+.table-count strong { color: var(--text-main); font-weight: 800; }
+
+.table-wrapper { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; text-align: left; }
+.data-table th {
+    padding: 14px 24px; font-size: 0.72rem; font-weight: 700;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
+    border-bottom: 1px solid var(--border-color); background: var(--ocean-deepest);
+}
+.data-table :deep(td) {
+    padding: 14px 24px; border-bottom: 1px solid var(--border-color);
+    transition: background 0.15s; vertical-align: middle;
+}
+.data-table :deep(tbody tr:hover td) { background: var(--hover-bg); }
+
+/* Custom Row Styles */
+.post-title-cell { display: flex; align-items: center; gap: 8px; }
+.post-title { font-weight: 600; color: var(--text-main); font-size: 0.95rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+
+.status-badge {
+    display: inline-flex; align-items: center; padding: 4px 10px;
+    border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+}
+.status-badge.active { background: rgba(230, 59, 111, 0.08); color: #0284c7; }
+.status-badge.inactive { background: #f1f5f9; color: #64748b; }
+.status-badge.draft { background: #fef3c7; color: #d97706; }
+
+.action-buttons { display: flex; gap: 8px; }
+.btn-action {
+    background: none; border: none; padding: 6px; border-radius: 6px;
+    cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+}
+.btn-action.edit { color: #E63B6F; background: rgba(230, 59, 111, 0.08); }
+.btn-action.delete { color: var(--coral); background: #fee2e2; }
+.btn-action:hover { transform: scale(1.1); }
+
+/* Empty */
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.empty-state h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px; }
+.empty-state p { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .filters-bar { flex-direction: column; gap: 12px; align-items: stretch; }
+    .search-box { max-width: 100%; }
+    .filter-stats { justify-content: flex-start; }
+}
+
 .fs-modal-overlay {
     position: fixed;
     top: 0; left: 0; width: 100vw; height: 100vh;

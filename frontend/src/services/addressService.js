@@ -7,7 +7,7 @@ const getGhnHeaders = () => {
   const token = import.meta.env.VITE_TOKEN_GHN;
   const shopId = import.meta.env.VITE_SHOPID_GHN;
 
-  if (!token || !shopId) {
+  if (!token || !shopId || token.includes('here') || shopId.includes('here')) {
     return null;
   }
 
@@ -37,30 +37,60 @@ export const addressService = {
     return api.put(`/profile/addresses/${addressId}/default`);
   },
 
-  listProvinces() {
+  async listProvinces() {
+    const headers = getGhnHeaders();
+    if (!headers) {
+      const response = await axios.get('https://provinces.open-api.vn/api/p/');
+      return {
+        data: {
+          data: response.data.map(item => ({
+            ProvinceID: item.code,
+            ProvinceName: item.name,
+          })),
+        },
+      };
+    }
     return axios.get(`${GHN_BASE_URL}/master-data/province`, {
-      headers: {
-        ...getGhnHeaders(),
-      },
+      headers,
     });
   },
 
-  listDistricts(provinceCode) {
+  async listDistricts(provinceCode) {
+    const headers = getGhnHeaders();
+    if (!headers) {
+      const response = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
+      return {
+        data: {
+          data: (response.data.districts || []).map(item => ({
+            DistrictID: item.code,
+            DistrictName: item.name,
+          })),
+        },
+      };
+    }
     return axios.get(`${GHN_BASE_URL}/master-data/district`, {
-      headers: {
-        ...getGhnHeaders(),
-      },
+      headers,
       params: {
         province_id: provinceCode,
       },
     });
   },
 
-  listWards(districtCode) {
+  async listWards(districtCode) {
+    const headers = getGhnHeaders();
+    if (!headers) {
+      const response = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
+      return {
+        data: {
+          data: (response.data.wards || []).map(item => ({
+            WardCode: String(item.code),
+            WardName: item.name,
+          })),
+        },
+      };
+    }
     return axios.get(`${GHN_BASE_URL}/master-data/ward`, {
-      headers: {
-        ...getGhnHeaders(),
-      },
+      headers,
       params: {
         district_id: districtCode,
       },
