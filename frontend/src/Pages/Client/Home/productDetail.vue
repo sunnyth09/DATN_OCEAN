@@ -301,12 +301,9 @@ const showToast = (message, type = 'success') => {
     setTimeout(() => { toast.value.show = false; }, 3000);
 };
 
-const addToCart = async () => {
-    if (!authStore.isAuthenticated) {
-        router.push({ name: 'login', query: { redirect: route.fullPath } });
-        return false;
-    }
 
+
+const addToCart = async () => {
     if (!selectedVariant.value) {
         showToast('Vui lòng chọn phiên bản sản phẩm!', 'error');
         return false;
@@ -333,6 +330,30 @@ const addToCart = async () => {
             variantId: selectedVariant.value.variant_id,
             quantity: quantity.value,
         });
+
+        if (response.status === 'unauthenticated') {
+            let cartItems = JSON.parse(localStorage.getItem("cart_items") || "[]");
+            const index = cartItems.findIndex(
+                (item) => item.variant_id === selectedVariant.value.variant_id
+            );
+            if (index !== -1) {
+                cartItems[index].quantity += quantity.value;
+            } else {
+                cartItems.push({
+                    variant_id: selectedVariant.value.variant_id,
+                    quantity: quantity.value,
+                });
+            }
+            localStorage.setItem("cart_items", JSON.stringify(cartItems));
+
+            if (productImageRef.value) {
+                await flyToCart(productImageRef.value, '#cart-icon');
+            }
+            showToast('Đã thêm vào giỏ hàng', 'success');
+            window.dispatchEvent(new Event('cart-updated'));
+            return true;
+        }
+
         if (response.status === 'success') {
             if (productImageRef.value) {
                 await flyToCart(productImageRef.value, '#cart-icon');

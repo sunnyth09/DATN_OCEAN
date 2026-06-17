@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
@@ -8,8 +8,12 @@ import QuickAddSlider from '@/components/QuickAddSlider.vue';
 import { useCartUpsell } from '@/composables/useCartUpsell';
 import { productService } from '@/services/productService';
 import ProductCard from '@/components/ProductCard.vue';
+import { pinia } from '@/stores';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
+
 const cartItems = ref([]);
 const cartId = ref(null);
 const loading = ref(true);
@@ -20,7 +24,7 @@ let cartRequest = null;
 let cartRefreshPending = false;
 
 // ====== UPSELL & GAMIFICATION ======
-const { setTotalPrice, fetchUpsellData } = useCartUpsell();
+const { state: upsellState, setTotalPrice, fetchUpsellData } = useCartUpsell();
 
 // ====== VARIANT CHANGE MODAL ======
 const variantModal = ref({
@@ -129,6 +133,31 @@ const confirmVariantChange = async () => {
     if (!item) return;
 
     variantModal.value.confirming = true;
+
+    if (!authStore.isAuthenticated) {
+        let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+        const idx = localItems.findIndex(i => i.variant_id === item.variant_id);
+        if (idx !== -1) {
+            const newVariantId = modalSelectedVariant.value.variant_id;
+            const existingIdx = localItems.findIndex(i => i.variant_id === newVariantId);
+            
+            if (existingIdx !== -1 && existingIdx !== idx) {
+                localItems[existingIdx].quantity += item.quantity;
+                localItems.splice(idx, 1);
+            } else {
+                localItems[idx].variant_id = newVariantId;
+            }
+            
+            localStorage.setItem('cart_items', JSON.stringify(localItems));
+            showToast('Đã cập nhật phân loại sản phẩm!', 'success');
+            closeVariantModal();
+            await fetchCart(false);
+            window.dispatchEvent(new Event('cart-updated'));
+        }
+        variantModal.value.confirming = false;
+        return;
+    }
+
     try {
         const res = await api.put(`/cart/items/${item.cart_item_id}/variant`, {
             variant_id: modalSelectedVariant.value.variant_id,
@@ -150,6 +179,7 @@ const confirmVariantChange = async () => {
         variantModal.value.confirming = false;
     }
 };
+
 
 // Helper: lấy variant_name hiển thị
 const getVariantLabel = (item) => {
@@ -173,15 +203,35 @@ const fetchCart = async (showGlobalLoading = true) => {
     if (showGlobalLoading) loading.value = true;
     cartRequest = (async () => {
         try {
-            const response = await api.get('/cart');
-            if (response.data.status === 'success') {
-                cartId.value = response.data.data.cart_id;
-                cartItems.value = response.data.data.items || [];
-                updateSelectAllState();
+            if (authStore.isAuthenticated) {
+                const response = await api.get('/cart');
+                if (response.data.status === 'success') {
+                    cartId.value = response.data.data.cart_id;
+                    cartItems.value = response.data.data.items || [];
+                    updateSelectAllState();
+                }
+            } else {
+                const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+                if (localItems.length === 0) {
+                    cartId.value = null;
+                    cartItems.value = [];
+                    selectAll.value = false;
+                } else {
+                    const response = await api.post('/cart/guest-details', { items: localItems });
+                    if (response.data.status === 'success') {
+                        cartId.value = null;
+                        cartItems.value = response.data.data.items || [];
+                        updateSelectAllState();
+
+                        if (response.data.data.freeship_threshold) {
+                            upsellState.freeshipThreshold = response.data.data.freeship_threshold;
+                        }
+                    }
+                }
             }
         } catch (error) {
             console.error('Error fetching cart:', error);
-            if (error.response?.status === 401) {
+            if (error.response?.status === 401 && authStore.isAuthenticated) {
                 router.push({ name: 'login', query: { redirect: '/cart' } });
             }
         } finally {
@@ -200,6 +250,7 @@ const fetchCart = async (showGlobalLoading = true) => {
     }
 };
 
+
 // Cập nhật trạng thái "Chọn tất cả"
 const updateSelectAllState = () => {
     if (cartItems.value.length === 0) {
@@ -214,6 +265,18 @@ const toggleSelectAll = async () => {
     const newState = !selectAll.value;
     selectAll.value = newState;
     
+    if (!authStore.isAuthenticated) {
+        let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+        localItems.forEach(item => {
+            item.selected = newState;
+        });
+        localStorage.setItem('cart_items', JSON.stringify(localItems));
+        cartItems.value.forEach(item => {
+            item.selected = newState;
+        });
+        return;
+    }
+    
     const promises = cartItems.value.map(item => {
         item.selected = newState;
         return api.put(`/cart/items/${item.cart_item_id}`, { selected: newState }).catch(() => {});
@@ -225,6 +288,17 @@ const toggleSelectAll = async () => {
 const toggleSelect = async (item) => {
     item.selected = !item.selected;
     updateSelectAllState();
+
+    if (!authStore.isAuthenticated) {
+        let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+        const idx = localItems.findIndex(i => i.variant_id === item.variant_id);
+        if (idx !== -1) {
+            localItems[idx].selected = item.selected;
+            localStorage.setItem('cart_items', JSON.stringify(localItems));
+        }
+        return;
+    }
+
     try {
         await api.put(`/cart/items/${item.cart_item_id}`, { selected: item.selected });
     } catch (error) {
@@ -243,14 +317,29 @@ const updateQuantity = async (item, newQuantity) => {
 
     const oldQuantity = item.quantity;
     item.quantity = newQuantity;
-    item.line_total = item.variant.price * newQuantity;
-    updating.value[item.cart_item_id] = true;
+    if (item.variant) {
+        item.line_total = item.variant.price * newQuantity;
+    }
 
+    if (!authStore.isAuthenticated) {
+        let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+        const idx = localItems.findIndex(i => i.variant_id === item.variant_id);
+        if (idx !== -1) {
+            localItems[idx].quantity = newQuantity;
+            localStorage.setItem('cart_items', JSON.stringify(localItems));
+        }
+        window.dispatchEvent(new Event('cart-updated'));
+        return;
+    }
+
+    updating.value[item.cart_item_id] = true;
     try {
         await api.put(`/cart/items/${item.cart_item_id}`, { quantity: newQuantity });
     } catch (error) {
         item.quantity = oldQuantity;
-        item.line_total = item.variant.price * oldQuantity;
+        if (item.variant) {
+            item.line_total = item.variant.price * oldQuantity;
+        }
         const msg = error.response?.data?.message || 'Không thể cập nhật số lượng.';
         showToast(msg, 'error');
     } finally {
@@ -269,6 +358,17 @@ const removeItem = async (item) => {
       cancelButtonText: 'Hủy'
     });
     if (!result.isConfirmed) return;
+
+    if (!authStore.isAuthenticated) {
+        cartItems.value = cartItems.value.filter(i => i.variant_id !== item.variant_id);
+        let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+        localItems = localItems.filter(i => i.variant_id !== item.variant_id);
+        localStorage.setItem('cart_items', JSON.stringify(localItems));
+        showToast('Đã xóa sản phẩm khỏi giỏ hàng!', 'success');
+        updateSelectAllState();
+        window.dispatchEvent(new Event('cart-updated'));
+        return;
+    }
 
     try {
         await api.delete(`/cart/items/${item.cart_item_id}`);
@@ -293,6 +393,14 @@ const clearCart = async () => {
     });
     if (!result.isConfirmed) return;
 
+    if (!authStore.isAuthenticated) {
+        cartItems.value = [];
+        localStorage.removeItem('cart_items');
+        showToast('Đã xóa toàn bộ giỏ hàng!', 'success');
+        window.dispatchEvent(new Event('cart-updated'));
+        return;
+    }
+
     try {
         await api.delete('/cart');
         cartItems.value = [];
@@ -302,6 +410,7 @@ const clearCart = async () => {
         showToast('Không thể xóa giỏ hàng. Vui lòng thử lại.', 'error');
     }
 };
+
 
 // Tính tổng
 const selectedItems = computed(() => cartItems.value.filter(i => i.selected));
@@ -329,9 +438,19 @@ const showToast = (message, type = 'success') => {
     setTimeout(() => { toast.value.show = false; }, 3000);
 };
 
+const hasInvalidStockSelected = computed(() => {
+    return selectedItems.value.some(item => {
+        return !item.variant || item.variant.stock <= 0 || item.quantity > item.variant.stock || item.variant.status !== 'active';
+    });
+});
+
 // Chuyển tới trang thanh toán
 const proceedToCheckout = () => {
     if (selectedItems.value.length === 0) return;
+    if (hasInvalidStockSelected.value) {
+        showToast('Vui lòng loại bỏ hoặc đổi phân loại các sản phẩm hết hàng/vượt quá tồn kho.', 'error');
+        return;
+    }
     router.push('/checkout');
 };
 
@@ -471,12 +590,18 @@ onUnmounted(() => {
                                 </button>
                             </div>
 
-                            <div class="item-stock" v-if="item.variant?.stock <= 5 && item.variant?.stock > 0">
+                            <div class="item-stock" v-if="item.variant?.stock <= 5 && item.variant?.stock > 0 && item.quantity <= item.variant.stock">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                                 Chỉ còn {{ item.variant.stock }} sản phẩm
                             </div>
                             <div class="item-unavailable-badge" v-if="item.variant?.status !== 'active'">
                                 Sản phẩm ngừng kinh doanh
+                            </div>
+                            <div class="item-unavailable-badge out-of-stock" v-else-if="item.variant?.stock <= 0">
+                                Sản phẩm tạm hết hàng
+                            </div>
+                            <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
+                                Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
                             </div>
                         </div>
 
@@ -523,7 +648,11 @@ onUnmounted(() => {
 
                     <p class="summary-note">Phí vận chuyển sẽ được tính ở bước thanh toán</p>
 
-                    <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0">
+                    <p v-if="hasInvalidStockSelected" class="stock-warning-text">
+                        Vui lòng bỏ chọn hoặc đổi phân loại các sản phẩm đã hết hàng / vượt quá tồn kho.
+                    </p>
+
+                    <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0 || hasInvalidStockSelected">
                         Tiến Hành Thanh Toán ({{ totalSelectedQuantity }})
                     </button>
 
@@ -875,6 +1004,24 @@ onUnmounted(() => {
     color: #dc2626;
     font-weight: 600;
     margin-top: 6px;
+}
+.item-low-stock-badge {
+    font-size: 0.78rem;
+    color: #f59e0b;
+    font-weight: 600;
+    margin-top: 6px;
+}
+.stock-warning-text {
+    font-size: 0.8rem;
+    color: #dc2626;
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin: 10px 0 16px;
+    text-align: center;
+    font-weight: 600;
+    line-height: 1.4;
 }
 
 /* Price & Quantity */
