@@ -335,7 +335,7 @@ class PaymentProcessingService
         }
 
         try {
-            if (!$this->hasCompletedPostPaymentStep($payment, 'cart_cleanup')) {
+            if ($order->user_id && !$this->hasCompletedPostPaymentStep($payment, 'cart_cleanup')) {
                 $cart = Cart::where('user_id', $order->user_id)
                     ->where('status', 'active')
                     ->first();
@@ -394,7 +394,7 @@ class PaymentProcessingService
                 $methodLabel = 'Ví MoMo';
             }
 
-            if (!$this->hasCompletedPostPaymentStep($payment, 'user_notification')) {
+            if ($order->user_id && !$this->hasCompletedPostPaymentStep($payment, 'user_notification')) {
                 $paymentEventKey = $this->makePostPaymentKey($order->order_code, $this->resolveTransactionCode($order));
                 $notificationData = [
                     'title' => 'Thanh toán thành công',

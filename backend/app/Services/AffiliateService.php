@@ -214,7 +214,7 @@ class AffiliateService
      */
     public function createConversionFromOrder(Order $order, ?string $referralCode): void
     {
-        if (!$referralCode) {
+        if (!$referralCode || !$order->user_id) {
             return;
         }
 

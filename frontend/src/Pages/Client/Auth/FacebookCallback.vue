@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { onMounted, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { authService } from '@/services/authService';
@@ -24,15 +24,18 @@ onMounted(async () => {
     const response = await authService.exchangeFacebookCode(code);
 
     if (response.data.status === 'success') {
-      authStore.setSession(response.data.access_token, {
+      await authStore.setSession(response.data.access_token, {
         isLoggedIn: true,
         ...response.data.user
       });
 
       status.value = 'success';
 
+      const redirect = sessionStorage.getItem('auth_redirect');
+      sessionStorage.removeItem('auth_redirect');
+
       setTimeout(() => {
-        router.push(getDefaultRouteForRole(response.data.user?.role));
+        router.push(redirect || getDefaultRouteForRole(response.data.user?.role));
       }, 1500);
     }
   } catch (error) {

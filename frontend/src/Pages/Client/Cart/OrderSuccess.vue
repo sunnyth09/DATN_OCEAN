@@ -1,12 +1,14 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import ProductCard from "@/components/ProductCard.vue";
 import { catalogService } from "@/services/catalogService";
 import { orderService } from "@/services/orderService";
+import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
 const orderCode = route.params.order_code || "";
+const authStore = useAuthStore();
 const relatedProducts = ref([]);
 const loading = ref(true);
 const orderId = ref(null);
@@ -41,7 +43,7 @@ const fetchOrderId = async () => {
     }
 };
 
-if (orderCode) {
+if (orderCode && authStore.isAuthenticated) {
     fetchOrderId();
 }
 onMounted(() => {
@@ -89,6 +91,7 @@ onMounted(() => {
 
             <div class="action-buttons">
                 <router-link
+                    v-if="authStore.isAuthenticated"
                     :to="'/profile/orders/' + orderId"
                     class="btn-outline-brown"
                     >Xem đơn hàng của tôi</router-link

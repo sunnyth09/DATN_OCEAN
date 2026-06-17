@@ -67,13 +67,15 @@ class CouponService
         }
 
         if ($coupon->usage_limit_per_user !== null) {
-            $userUsedCount = $this->couponRepository->getUserCouponUsedCount(
-                $userId,
-                $coupon->id
-            );
+            if ($userId > 0) {
+                $userUsedCount = $this->couponRepository->getUserCouponUsedCount(
+                    $userId,
+                    $coupon->id
+                );
 
-            if ($userUsedCount >= $coupon->usage_limit_per_user) {
-                return $this->invalid('Bạn đã hết lượt sử dụng mã này!');
+                if ($userUsedCount >= $coupon->usage_limit_per_user) {
+                    return $this->invalid('Bạn đã hết lượt sử dụng mã này!');
+                }
             }
         }
 
@@ -103,10 +105,12 @@ class CouponService
     {
         $this->couponRepository->incrementUsage($coupon);
 
-        $this->couponRepository->increaseUserCouponUsage(
-            $userId,
-            $coupon->id
-        );
+        if ($userId > 0) {
+            $this->couponRepository->increaseUserCouponUsage(
+                $userId,
+                $coupon->id
+            );
+        }
     }
 
     private function invalid(string $message): array
