@@ -7,8 +7,7 @@ import { useCartStore } from "@/stores/cart";
 import { useFlyToCart } from "@/composables/useFlyToCart";
 import AppIcon from "@/icons/AppIcon.vue";
 import api from "@/axios";
-
-const APP_URL = import.meta.env.VITE_APP_URL || 'http://localhost:8383/';
+import { getStorageUrl } from "@/utils/url";
 
 const props = defineProps({
     product: {
@@ -103,6 +102,25 @@ const selectColor = (color) => {
     }
 };
 
+const getHexCode = (colorName) => {
+    if (!colorName) return '#ccc';
+    const colorMap = {
+        'đỏ': '#ef4444', 'red': '#ef4444',
+        'xanh dương': '#3b82f6', 'xanh': '#3b82f6', 'blue': '#3b82f6',
+        'xanh lá': '#22c55e', 'green': '#22c55e',
+        'vàng': '#eab308', 'yellow': '#eab308',
+        'đen': '#171717', 'black': '#171717',
+        'trắng': '#ffffff', 'white': '#ffffff',
+        'hồng': '#ec4899', 'pink': '#ec4899',
+        'tím': '#a855f7', 'purple': '#a855f7',
+        'nâu': '#78350f', 'brown': '#78350f',
+        'cam': '#f97316', 'orange': '#f97316',
+        'xám': '#6b7280', 'grey': '#6b7280', 'gray': '#6b7280'
+    };
+    const key = colorName.toString().toLowerCase().trim();
+    return colorMap[key] || '#e2e8f0'; // fallback color
+};
+
 const formatCurrency = (value) => {
     if (value === null || value === undefined || value === "") {
         return "Liên hệ";
@@ -153,28 +171,15 @@ const productLink = computed(() => {
     return "/product";
 });
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
-
 const productImage = computed(() => props.product.image || props.product.thumbnail_url || props.product.main_image?.thumbnail_url || "");
 const productImageUrl = computed(() => {
     let path = productImage.value;
     if (!path || path === "0") return "";
-    if (path.startsWith("http")) return path;
-    if (path.startsWith("/storage/") || path.startsWith("storage/")) {
-        const cleanPath = path.startsWith("/") ? path : `/${path}`;
-        return `${BASE_URL}${cleanPath}`;
-    }
-    return `${BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
 });
 const variantImageUrl = computed(() => {
     if (!selectedVariant.value?.image_url || selectedVariant.value.image_url === '0') return productImageUrl.value;
-    let path = selectedVariant.value.image_url;
-    if (path.startsWith("http")) return path;
-    if (path.startsWith("/storage/") || path.startsWith("storage/")) {
-        const cleanPath = path.startsWith("/") ? path : `/${path}`;
-        return `${BASE_URL}${cleanPath}`;
-    }
-    return `${BASE_URL}/storage/${path}`;
+    return getStorageUrl(selectedVariant.value.image_url);
 });
 
 const productCategory = computed(() => props.product.category_name || props.product.category?.name || "");
@@ -392,7 +397,7 @@ const handleAddToCart = async (event) => {
     <Teleport to="body">
         <Transition name="vmodal">
             <div v-if="showVariantModal" class="vmodal-overlay" @click.self="showVariantModal = false">
-                <div class="vmodal-box">
+                <div class="vmodal-box" role="dialog" aria-modal="true" aria-labelledby="vmodal-title">
                     <!-- Header -->
                     <div class="vmodal-header">
                         <div class="vmodal-product-snippet">
@@ -402,7 +407,7 @@ const handleAddToCart = async (event) => {
                                 class="vmodal-product-img" 
                             />
                             <div class="vmodal-product-info">
-                                <h3 class="vmodal-title">Chọn phân loại hàng</h3>
+                                <h3 id="vmodal-title" class="vmodal-title">Chọn phân loại hàng</h3>
                                 <p class="vmodal-product-name" :title="product.name">{{ product.name }}</p>
                             </div>
                         </div>
@@ -423,7 +428,11 @@ const handleAddToCart = async (event) => {
                                     class="vmodal-opt-btn"
                                     :class="{ active: selectedColor === color }"
                                     @click="selectColor(color)"
-                                >{{ color }}</button>
+                                    :title="color"
+                                >
+                                    <span class="color-swatch-circle" :style="{ backgroundColor: getHexCode(color) }"></span>
+                                    {{ color }}
+                                </button>
                             </div>
                         </div>
 
@@ -467,7 +476,7 @@ const handleAddToCart = async (event) => {
                             <div class="vmodal-qty-row">
                                 <div class="vmodal-qty">
                                     <button type="button" @click="decreaseQuantity" :disabled="!selectedVariant">−</button>
-                                    <input type="text" v-model.number="quantity" min="1" :max="selectedVariant?.stock || 999" :disabled="!selectedVariant" />
+                                    <input type="number" inputmode="numeric" pattern="[0-9]*" v-model.number="quantity" min="1" :max="selectedVariant?.stock || 999" :disabled="!selectedVariant" />
                                     <button type="button" @click="increaseQuantity" :disabled="!selectedVariant">+</button>
                                 </div>
                                 <span class="vmodal-stock-info" v-if="selectedVariant">
@@ -482,7 +491,6 @@ const handleAddToCart = async (event) => {
 
                     <!-- Footer -->
                     <div class="vmodal-footer">
-                        <button class="vmodal-btn-cancel" @click="showVariantModal = false">Hủy bỏ</button>
                         <button
                             class="vmodal-btn-confirm"
                             :disabled="!selectedVariant || selectedVariant.stock <= 0 || confirming"
@@ -861,23 +869,18 @@ const handleAddToCart = async (event) => {
     color: #0f172a;
     font-weight: 700;
 }
-.vmodal-btn-cancel {
-    flex: 1;
-    padding: 11px;
-    border: 1.5px solid #d9e2ec;
-    border-radius: 10px;
-    background: #fff;
-    color: #627d98;
-    font-size: 0.92rem;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.18s;
+.color-swatch-circle {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: inline-block;
+    border: 1px solid rgba(0,0,0,0.15);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+    flex-shrink: 0;
 }
-.vmodal-btn-cancel:hover { background: #f8fafc; border-color: #94a3b8; }
 .vmodal-btn-confirm {
-    flex: 2;
-    padding: 11px;
+    width: 100%;
+    padding: 12px;
     border: none;
     border-radius: 10px;
     background: linear-gradient(135deg, #E63B6F, #B50C4D);

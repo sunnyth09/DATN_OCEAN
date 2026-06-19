@@ -97,7 +97,7 @@ const barStyle = computed(() => ({
     height: 34px;
     background: linear-gradient(135deg, #fff3e0 0%, #e8f5e9 100%);
     border-radius: 50%;
-    color: #f4811f;
+    color: #E63B6F;
     flex-shrink: 0;
 }
 
@@ -136,7 +136,7 @@ const barStyle = computed(() => ({
 }
 
 .freeship-badge.badge-done {
-    background: linear-gradient(90deg, #22c55e, #16a34a);
+    background: linear-gradient(90deg, #E63B6F, #ca3a60);
     color: #fff;
 }
 
@@ -155,7 +155,7 @@ const barStyle = computed(() => ({
     top: 0;
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #FF6B35 0%, #F7C948 50%, #2ECC71 100%);
+    background: #E63B6F;
     background-size: 200% 100%;
     transition: width 0.65s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;

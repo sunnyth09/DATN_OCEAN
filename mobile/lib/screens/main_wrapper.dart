@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../config/app_theme.dart';
-import '../home_screen.dart';
 import '../services/auth_service.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 import 'category_screen.dart';
 import 'cart_screen.dart';
@@ -22,12 +22,15 @@ class MainWrapper extends StatefulWidget {
 class _MainWrapperState extends State<MainWrapper> {
   late int _selectedIndex;
   int _cartBadgeCount = 0;
+  final GlobalKey<CartScreenState> _cartScreenKey = GlobalKey<CartScreenState>();
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex.clamp(0, 5);
-    _fetchCartCount();
+    if (_selectedIndex == 3) {
+      _fetchCartCount();
+    }
   }
 
   Future<void> _fetchCartCount() async {
@@ -49,6 +52,8 @@ class _MainWrapperState extends State<MainWrapper> {
   }
 
   Future<void> _onItemTapped(int index) async {
+    if (index == _selectedIndex) return;
+
     if (index >= 2) {
       final loggedIn = await AuthService.isLoggedIn();
       if (!loggedIn) {
@@ -56,14 +61,29 @@ class _MainWrapperState extends State<MainWrapper> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Vui long dang nhap de tiep tuc')),
           );
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginScreen()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
         }
         return;
       }
     }
 
     setState(() => _selectedIndex = index);
-    _fetchCartCount();
+    if (index == 3) {
+      await _fetchCartCount();
+      _cartScreenKey.currentState?.fetchCartSilently();
+    }
+  }
+
+  void _switchToTab(int index) {
+    if (!mounted || index == _selectedIndex) return;
+    setState(() => _selectedIndex = index);
+    if (index == 3) {
+      _fetchCartCount();
+      _cartScreenKey.currentState?.fetchCartSilently();
+    }
   }
 
   @override
@@ -74,10 +94,10 @@ class _MainWrapperState extends State<MainWrapper> {
         children: [
           const HomeScreen(),
           const CategoryScreen(),
-          CourtBookingScreen(key: ValueKey('court_booking_$_selectedIndex')),
-          CartScreen(key: ValueKey('cart_$_selectedIndex')),
-          OrderScreen(key: ValueKey('order_$_selectedIndex')),
-          ProfileScreen(key: ValueKey('profile_$_selectedIndex')),
+          const CourtBookingScreen(),
+          CartScreen(key: _cartScreenKey, onContinueShopping: () => _switchToTab(1)),
+          const OrderScreen(),
+          const ProfileScreen(),
         ],
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
@@ -89,7 +109,11 @@ class _MainWrapperState extends State<MainWrapper> {
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
+          ),
         ],
       ),
       child: SafeArea(
@@ -98,10 +122,31 @@ class _MainWrapperState extends State<MainWrapper> {
           child: Row(
             children: [
               _buildNavItem(Icons.home_outlined, Icons.home, 'Home', 0),
-              _buildNavItem(Icons.grid_view_outlined, Icons.grid_view, 'Shop', 1),
-              _buildNavItem(Icons.sports_tennis_outlined, Icons.sports_tennis, 'San', 2),
-              _buildNavItem(Icons.shopping_cart_outlined, Icons.shopping_cart, 'Cart', 3, badgeCount: _cartBadgeCount),
-              _buildNavItem(Icons.receipt_long_outlined, Icons.receipt_long, 'Orders', 4),
+              _buildNavItem(
+                Icons.grid_view_outlined,
+                Icons.grid_view,
+                'Shop',
+                1,
+              ),
+              _buildNavItem(
+                Icons.sports_tennis_outlined,
+                Icons.sports_tennis,
+                'San',
+                2,
+              ),
+              _buildNavItem(
+                Icons.shopping_cart_outlined,
+                Icons.shopping_cart,
+                'Cart',
+                3,
+                badgeCount: _cartBadgeCount,
+              ),
+              _buildNavItem(
+                Icons.receipt_long_outlined,
+                Icons.receipt_long,
+                'Orders',
+                4,
+              ),
               _buildNavItem(Icons.person_outline, Icons.person, 'Me', 5),
             ],
           ),
@@ -110,7 +155,13 @@ class _MainWrapperState extends State<MainWrapper> {
     );
   }
 
-  Widget _buildNavItem(IconData unselectedIcon, IconData selectedIcon, String label, int index, {int badgeCount = 0}) {
+  Widget _buildNavItem(
+    IconData unselectedIcon,
+    IconData selectedIcon,
+    String label,
+    int index, {
+    int badgeCount = 0,
+  }) {
     final isSelected = _selectedIndex == index;
     return Expanded(
       child: GestureDetector(
@@ -130,7 +181,9 @@ class _MainWrapperState extends State<MainWrapper> {
                 children: [
                   Icon(
                     isSelected ? selectedIcon : unselectedIcon,
-                    color: isSelected ? AppColors.primary : const Color(0xFF94A3B8),
+                    color: isSelected
+                        ? AppColors.primary
+                        : const Color(0xFF94A3B8),
                     size: 23,
                   ),
                   if (badgeCount > 0)
@@ -139,10 +192,17 @@ class _MainWrapperState extends State<MainWrapper> {
                       top: -4,
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
                         child: Text(
                           badgeCount > 99 ? '99+' : badgeCount.toString(),
-                          style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 8,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -154,7 +214,11 @@ class _MainWrapperState extends State<MainWrapper> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
             ],
           ),

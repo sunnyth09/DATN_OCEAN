@@ -1,56 +1,118 @@
-/// ============================================================
-/// CẤU HÌNH TẬP TRUNG CHO TOÀN BỘ ỨNG DỤNG MOBILE
-/// ============================================================
-/// Chỉ cần thay đổi URL ở ĐÂY, toàn bộ app sẽ tự cập nhật.
-/// - Khi chạy trên máy local (emulator): dùng kLocalBaseUrl
-/// - Khi chạy với server thật (production): dùng kProductionBaseUrl
-/// ============================================================
-
-
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
-  AppConfig._(); // Ngăn tạo instance
+  AppConfig._();
 
-  /// ── URL CƠ BẢN CỦA API (Production) ──
   static const String kProductionBaseUrl = 'https://api.ocean.pro.vn/api';
-  static const String kProductionStorageUrl = 'https://api.ocean.pro.vn/storage';
+  static const String kProductionStorageUrl =
+      'https://api.ocean.pro.vn/storage';
 
-  /// ── URL LOCAL (Development/Emulator) ──
-  /// LƯU Ý: Lấy IP từ file .env (API_IP)
+  static const String _apiBaseUrlOverride = String.fromEnvironment(
+    'API_BASE_URL',
+  );
+  static const String _storageBaseUrlOverride = String.fromEnvironment(
+    'STORAGE_BASE_URL',
+  );
+  static const String _apiIpOverride = String.fromEnvironment('API_IP');
+
+  static const bool isProduction = bool.fromEnvironment('IS_PRODUCTION');
+  static const String ghnToken = String.fromEnvironment('TOKEN_GHN', defaultValue: 'aca8eb35-5c9d-11f0-9ca3-d63c9cb9975d');
+  static const String ghnShopId = String.fromEnvironment('GHN_SHOP_ID', defaultValue: '5881673');
+
   static String get _localIp {
     if (kIsWeb) {
-      // Khi chạy trên Web (Chrome), luôn gọi thẳng vào localhost (127.0.0.1)
       return '127.0.0.1';
     }
-    // Khi chạy Mobile: Emulator dùng 10.0.2.2, máy thật dùng LAN IP
-    return dotenv.env['API_IP'] ?? '10.0.2.2';
+    return _apiIpOverride.isNotEmpty ? _apiIpOverride : '10.0.2.2';
   }
+
   static String get kLocalBaseUrl => 'http://$_localIp:8383/api';
   static String get kLocalStorageUrl => 'http://$_localIp:8383/storage';
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // 👇 CHUYỂN ĐỔI Ở ĐÂY: true = dùng server thật
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  static const bool isProduction = false;
+  static String get kBaseUrl {
+    if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
+    return isProduction ? kProductionBaseUrl : kLocalBaseUrl;
+  }
 
-  /// Base URL cho API (tự động chọn theo isProduction)
-  static String get kBaseUrl => isProduction ? kProductionBaseUrl : kLocalBaseUrl;
+  static String get kStorageUrl {
+    if (_storageBaseUrlOverride.isNotEmpty) return _storageBaseUrlOverride;
+    return isProduction ? kProductionStorageUrl : kLocalStorageUrl;
+  }
 
-  /// Base URL cho ảnh/video (tự động chọn theo isProduction)
-  static String get kStorageUrl => isProduction ? kProductionStorageUrl : kLocalStorageUrl;
-
-  /// Tạo URL đầy đủ cho ảnh từ đường dẫn relative
-  /// VD: 'products/abc.jpg' → 'https://api.ocean.pro.vn/storage/products/abc.jpg'
-  static String imageUrl(String? rawImage) {
-    if (rawImage == null || rawImage.isEmpty) return '';
-    if (rawImage.startsWith('http')) return rawImage;
-    // Production: dùng /storage/ trực tiếp (nhanh hơn image-proxy)
-    // Local: dùng /api/image-proxy?path= (vì storage link chưa config)
-    if (isProduction) {
-      return '$kStorageUrl/$rawImage';
+  static String? _normalizeImagePath(String? rawImage) {
+    final value = rawImage?.trim();
+    if (value == null || value.isEmpty || value == '0') {
+      return null;
     }
-    return '$kBaseUrl/image-proxy?path=$rawImage';
+
+    if (value.startsWith('http')) {
+      return value;
+    }
+
+    if (value.startsWith('/storage/')) {
+      return value.substring('/storage/'.length);
+    }
+
+    if (value.startsWith('storage/')) {
+      return value.substring('storage/'.length);
+    }
+
+    if (value.startsWith('/')) {
+      return value.substring(1);
+    }
+
+    return value;
+  }
+
+  static String imageUrl(String? rawImage) {
+    final normalized = _normalizeImagePath(rawImage);
+    if (normalized == null) return '';
+    
+    if (normalized.startsWith('http')) {
+      if (!isProduction && !kIsWeb) {
+        String url = normalized;
+        if (url.contains('127.0.0.1')) {
+          url = url.replaceAll('127.0.0.1', _localIp);
+        } else if (url.contains('localhost')) {
+          url = url.replaceAll('localhost', _localIp);
+        }
+        return url;
+      }
+      return normalized;
+    }
+
+    if (isProduction) {
+      return '$kStorageUrl/$normalized';
+    }
+
+    return '$kLocalStorageUrl/$normalized';
+  }
+
+  static String productImageUrl(Map<dynamic, dynamic>? product) {
+    if (product == null) return '';
+
+    final mainImage = product['main_image'];
+    final images = product['images'];
+    final variants = product['variants'];
+
+    final candidates = <dynamic>[
+      if (mainImage is Map) mainImage['image_url'],
+      if (mainImage is String) mainImage,
+      product['thumbnail_url'],
+      product['image_url'],
+      if (images is List)
+        ...images.map((image) => image is Map ? image['image_url'] : null),
+      if (variants is List)
+        ...variants.map((variant) => variant is Map ? variant['image_url'] : null),
+    ];
+
+    for (final candidate in candidates) {
+      final resolvedUrl = imageUrl(candidate?.toString());
+      if (resolvedUrl.isNotEmpty) {
+        return resolvedUrl;
+      }
+    }
+
+    return '';
   }
 }

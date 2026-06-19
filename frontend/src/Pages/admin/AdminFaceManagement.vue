@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../../axios';
 import Swal from 'sweetalert2';
+import { getAbsoluteUrl } from '@/utils/url';
 
 const loading = ref(true);
 const search = ref('');
@@ -9,7 +10,6 @@ const staffList = ref([]);
 const stats = ref({ total: 0, registered_count: 0, not_registered: 0 });
 const filter = ref('all'); // 'all' | 'registered' | 'not_registered'
 const expandedUser = ref(null);
-const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
 
 // --- FETCH DATA ---
 const fetchData = async () => {
@@ -78,7 +78,7 @@ const toggleExpand = (adminId) => {
 // --- AVATAR ---
 const getAvatar = (staff) => {
   if (!staff.avatar_url) return null;
-  return staff.avatar_url.startsWith('http') ? staff.avatar_url : `${BASE_URL}${staff.avatar_url}`;
+  return getAbsoluteUrl(staff.avatar_url);
 };
 
 const getInitial = (name) => (name?.[0] || '?').toUpperCase();
@@ -90,7 +90,7 @@ const getRoleBadge = (role) => {
 
 const getFaceImage = (path) => {
   if (!path) return null;
-  return path.startsWith('http') ? path : `${BASE_URL}${path}`;
+  return getAbsoluteUrl(path);
 };
 
 onMounted(() => fetchData());

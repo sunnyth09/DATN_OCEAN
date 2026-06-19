@@ -3,6 +3,7 @@ import { ref, nextTick, onMounted } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
+import { getAbsoluteUrl, getStorageUrl } from '@/utils/url';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -26,7 +27,6 @@ const filterRating = ref('');      // '' | 1-5
 
 const pagination = ref({ current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null, total: 0 });
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const formatDate = (d) => d ? new Date(d).toLocaleString('vi-VN', {
@@ -35,12 +35,12 @@ const formatDate = (d) => d ? new Date(d).toLocaleString('vi-VN', {
 
 const avatarUrl = (path) => {
   if (!path) return 'https://ui-avatars.com/api/?name=U&background=1d4ed8&color=fff&size=40';
-  return path.startsWith('http') ? path : `${BASE_URL}${path}`;
+  return getAbsoluteUrl(path);
 };
 
 const thumbUrl = (path) => {
   if (!path) return 'https://via.placeholder.com/48x48?text=SP';
-  return path.startsWith('http') ? path : `${BASE_URL}/storage/${path}`;
+  return getStorageUrl(path);
 };
 
 // ─── Fetch ────────────────────────────────────────────────────────────────────

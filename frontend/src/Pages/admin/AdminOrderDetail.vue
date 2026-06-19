@@ -3,6 +3,7 @@ import { ref, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { Toast, Modal } from 'bootstrap';
+import { getStorageUrl } from '@/utils/url';
 
 const route = useRoute();
 const router = useRouter();
@@ -250,9 +251,9 @@ const getPaymentBadgeClass = (status) => {
 };
 
 const getProductImage = (item) => {
-  if (item.variant?.image_url) return `http://localhost:8383/storage/${item.variant.image_url}`;
-  if (item.product?.main_image) return `http://localhost:8383/storage/${item.product.main_image}`;
-  if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return `http://localhost:8383/storage/${item.product.thumbnail_url}`;
+  if (item.variant?.image_url) return getStorageUrl(item.variant.image_url);
+  if (item.product?.main_image) return getStorageUrl(item.product.main_image);
+  if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return getStorageUrl(item.product.thumbnail_url);
   return 'https://placehold.co/80x80?text=No+Img';
 };
 
@@ -286,6 +287,8 @@ const getStepStatus = (stepKey) => {
 };
 
 const isSyncingGhn = ref(false);
+const isPrinting = ref(false);
+const isCanceling = ref(false);
 
 const syncGhn = async () => {
   isSyncingGhn.value = true;
@@ -296,14 +299,45 @@ const syncGhn = async () => {
       fetchOrder();
     }
   } catch (error) {
-    Swal.fire({
-      icon: 'error',
-      title: 'Lỗi đồng bộ GHN',
-      text: error.response?.data?.message || 'Không thể đồng bộ',
-      confirmButtonText: 'Đóng'
-    });
+    toast.error(error.response?.data?.message || 'Không thể đồng bộ GHN');
   } finally {
     isSyncingGhn.value = false;
+  }
+};
+
+const printLabel = async () => {
+  if (!order.value?.ghn_order_code) return;
+  isPrinting.value = true;
+  try {
+    const res = await api.post('/ghn/print-label', { order_code: order.value.ghn_order_code });
+    if (res.data.code === 200 && res.data.data?.token) {
+      const printUrl = `https://dev-online-gateway.ghn.vn/a5/public-api/printA5?token=${res.data.data.token}`;
+      window.open(printUrl, '_blank');
+    } else {
+      toast.error('Không thể in vận đơn GHN');
+    }
+  } catch (error) {
+    toast.error('Lỗi khi in vận đơn');
+  } finally {
+    isPrinting.value = false;
+  }
+};
+
+const cancelGhnOrder = async () => {
+  if (!order.value?.ghn_order_code) return;
+  if (!confirm('Bạn có chắc chắn muốn hủy vận đơn này trên hệ thống GHN?')) return;
+  isCanceling.value = true;
+  try {
+    const res = await api.post('/ghn/cancel-order', { order_code: order.value.ghn_order_code });
+    if (res.data.code === 200) {
+      toast.success('Đã hủy vận đơn trên GHN thành công!');
+    } else {
+      toast.error(res.data.message || 'Không thể hủy vận đơn GHN');
+    }
+  } catch (error) {
+    toast.error('Lỗi khi hủy vận đơn GHN');
+  } finally {
+    isCanceling.value = false;
   }
 };
 
@@ -519,10 +553,19 @@ onMounted(() => fetchOrder());
               <div style="display:flex; align-items:center; gap: 10px;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 Giao hàng
+                <span v-if="order.ghn_order_code" class="status-badge badge-success sm ms-2">Mã GHN: {{ order.ghn_order_code }}</span>
               </div>
-              <button class="btn-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
-                 {{ isSyncingGhn ? 'Đang đẩy...' : 'Đẩy qua GHN' }}
-              </button>
+              <div style="display: flex; gap: 8px;">
+                <button v-if="!order.ghn_order_code" class="btn-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
+                   {{ isSyncingGhn ? 'Đang đẩy...' : 'Đẩy qua GHN' }}
+                </button>
+                <button v-if="order.ghn_order_code" class="btn-print" @click="printLabel" :disabled="isPrinting">
+                   {{ isPrinting ? 'Đang tạo...' : 'In vận đơn' }}
+                </button>
+                <button v-if="order.ghn_order_code" class="btn-cancel-ghn" @click="cancelGhnOrder" :disabled="isCanceling">
+                   Hủy vận đơn
+                </button>
+              </div>
             </h3>
             <div class="info-rows">
               <div class="info-row">
@@ -640,6 +683,33 @@ onMounted(() => fetchOrder());
 .order-code { color: var(--primary); }
 .page-sub { margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted); }
 .header-badges { display: flex; gap: 8px; align-items: center; }
+
+/* Custom Buttons */
+.btn-ghn, .btn-print, .btn-cancel-ghn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-ghn:disabled, .btn-print:disabled, .btn-cancel-ghn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-ghn {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-print {
+  background: #4db6ac;
+  color: #fff;
+}
+.btn-cancel-ghn {
+  background: #e57373;
+  color: #fff;
+}
  
 /* Badges */
 .status-badge {

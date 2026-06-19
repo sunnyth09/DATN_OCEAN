@@ -297,9 +297,10 @@
 import { ref, nextTick, onMounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../axios.js';
+import { getAppBaseUrl } from '@/utils/url';
 
 const router = useRouter();
-const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
+const BASE_URL = getAppBaseUrl();
 
 const isOpen = ref(false);
 const hasUnread = ref(false);

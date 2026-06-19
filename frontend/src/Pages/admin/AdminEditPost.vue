@@ -5,6 +5,7 @@ import { useRouter, useRoute } from 'vue-router';
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 import { Toast } from 'bootstrap';
+import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
 const route = useRoute();
@@ -121,12 +122,7 @@ const fetchPost = async () => {
             post.seo_keywords = data.seo_keywords || "";
             
             if(data.thumbnail_url) {
-                if (data.thumbnail_url.startsWith('http')) {
-                    post.thumbnailPreview = data.thumbnail_url;
-                } else {
-                    const storageUrl = import.meta.env.VITE_API_STORAGE || "http://localhost:8383";
-                    post.thumbnailPreview = `${storageUrl}/${data.thumbnail_url}`;
-                }
+                post.thumbnailPreview = getStorageUrl(data.thumbnail_url);
             }
         }
     } catch(err) {

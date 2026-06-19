@@ -63,7 +63,13 @@ class AddressController extends Controller
             'address_type' => 'nullable|in:home,office,other',
             'is_default' => 'nullable|boolean',
         ]);
-
+        $phoneRegex = '/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/';
+        if (!preg_match($phoneRegex, $validated['phone'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Số điện thoại không hợp lệ!',
+            ], 422);
+        }
         // Thêm location codes nếu có
         foreach (['ward_code', 'district_code', 'province_code'] as $codeField) {
             if ($request->has($codeField) && is_numeric($request->input($codeField))) {
@@ -122,6 +128,13 @@ class AddressController extends Controller
             'address_type' => 'nullable|in:home,office,other',
             'is_default' => 'nullable|boolean',
         ]);
+        $phoneRegex = '/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/';
+        if (!preg_match($phoneRegex, $validated['phone'])) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Số điện thoại không hợp lệ!',
+            ], 422);
+        }
 
         // Thêm location codes nếu có
         foreach (['ward_code', 'district_code', 'province_code'] as $codeField) {

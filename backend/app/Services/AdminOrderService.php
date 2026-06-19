@@ -346,6 +346,12 @@ class AdminOrderService
 
         try {
             $result = \App\Services\GHNService::createOrder($order);
+            
+            if (isset($result['data']['order_code'])) {
+                $order->ghn_order_code = $result['data']['order_code'];
+                $order->save();
+            }
+
             return [
                 '_status' => 200,
                 'status'  => 'success',

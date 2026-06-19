@@ -5,8 +5,9 @@ import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import { getAbsoluteUrl, getAppBaseUrl } from '@/utils/url';
 
-const BASE_URL = import.meta.env.VITE_APP_URL || 'http://localhost:8383';
+const BASE_URL = getAppBaseUrl();
 
 const props = defineProps({
   collapsed: {
@@ -59,7 +60,7 @@ onMounted(() => {
       userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
       
       if (path) {
-        userAvatar.value = path.startsWith('http') ? path : `${BASE_URL}${path}`;
+        userAvatar.value = getAbsoluteUrl(path);
       }
     } catch (e) {
       console.error("Failed to parse user data", e);
@@ -305,45 +306,6 @@ const handleLogout = async () => {
     </div>
   </aside>
 </template>
-
-
-onMounted(() => {
-  const userData = sessionStorage.getItem('user');
-  if (userData) {
-    try {
-      const user = JSON.parse(userData);
-      const path = user.avatar_url;
-      const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
-      
-      userName.value = user.full_name || user.name || 'Admin';
-      userEmail.value = user.email || '';
-      userRoleRaw.value = user.role;
-      userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
-      
-      if (path) {
-        userAvatar.value = path.startsWith('http') ? path : `${BASE_URL}${path}`;
-      }
-    } catch (e) {
-      console.error("Failed to parse user data", e);
-    }
-  }
-});
-
-const handleLogout = async () => {
-  const result = await Swal.fire({
-      title: 'Xác nhận',
-      text: 'Bạn có chắc chắn muốn đăng xuất?',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Đăng xuất',
-      cancelButtonText: 'Hủy'
-  });
-  if (result.isConfirmed) {
-    await authStore.logout();
-    window.location.href = '/client/login';
-  }
-};
-</script>
 
 <style scoped>
 .sidebar {

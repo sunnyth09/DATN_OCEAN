@@ -1,11 +1,11 @@
 import axios from 'axios';
 import api from '@/axios';
 
-const GHN_BASE_URL = 'https://online-gateway.ghn.vn/shiip/public-api';
+const GHN_BASE_URL = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
 
 const getGhnHeaders = () => {
-  const token = import.meta.env.VITE_TOKEN_GHN;
-  const shopId = import.meta.env.VITE_SHOPID_GHN;
+  const token = import.meta.env.VITE_TOKEN_GHN_SANBOX;
+  const shopId = import.meta.env.VITE_SHOPID_GHN_SANBOX;
 
   if (!token || !shopId) {
     return null;
@@ -13,6 +13,7 @@ const getGhnHeaders = () => {
 
   return {
     token: token,
+    shop_id: shopId,
   };
 };
 

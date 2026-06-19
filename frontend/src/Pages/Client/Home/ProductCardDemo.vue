@@ -303,6 +303,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '../../../axios';
+import { getStorageUrl } from '@/utils/url';
 
 const products = ref([]);
 const isLoading = ref(true);
@@ -312,9 +313,7 @@ const getImageUrl = (product) => {
     try {
         const imagePath = product.thumbnail_url || (product.mainImage ? product.mainImage.image_url : null);
         if (!imagePath) return '/placeholder-product.jpg';
-        if (imagePath.startsWith('http')) return imagePath;
-        const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
-        return `${baseUrl}/storage/${imagePath}`;
+        return getStorageUrl(imagePath);
     } catch {
         return '/placeholder-product.jpg';
     }

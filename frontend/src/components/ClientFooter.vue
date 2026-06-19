@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import api from '../axios.js';
 import Swal from 'sweetalert2';
+import { getAppBaseUrl } from '@/utils/url';
 
 const newsletterEmail = ref('');
 
@@ -16,7 +17,7 @@ const submitNewsletter = async () => {
   }
 };
 
-const BASE_URL = import.meta.env.VITE_BASE_URL;
+const BASE_URL = getAppBaseUrl();
 </script>
 
 <template>
