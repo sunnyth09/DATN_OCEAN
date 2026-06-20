@@ -41,9 +41,9 @@ const routes = [
             { path: "flash-sale", name: "flash-sale", component: () => import("../Pages/Client/Home/FlashSale.vue"), meta: { title: 'Flash Sale' } },
             { path: "coupon", name: "coupon", component: () => import("../Pages/Client/Home/Coupon.vue"), meta: { title: 'Mã giảm giá' } },
             // Cart
-            { path: "cart", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { requiresAuth: true, title: 'Giỏ hàng' } },
-            { path: "checkout", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { requiresAuth: true, title: 'Thanh toán' } },
-            { path: "order-success/:order_code?", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { requiresAuth: true, title: 'Đặt hàng thành công' } },
+            { path: "cart", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { title: 'Giỏ hàng' } },
+            { path: "checkout", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { title: 'Thanh toán' } },
+            { path: "order-success/:order_code?", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { title: 'Đặt hàng thành công' } },
             // Payment
             { path: "payment/result", name: "payment-result", component: () => import("../Pages/Client/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } },
             // Profile

@@ -171,7 +171,12 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
     Route::delete('/items/{id}', [CartController::class, 'removeItem']);
     Route::delete('/', [CartController::class, 'clearCart']);
     Route::post('/buy-again/{orderId}', [CartController::class, 'buyAgain']);
+    Route::post('/sync', [CartController::class, 'sync']);
 });
+
+Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
+Route::post('/orders/guest', [OrderController::class, 'storeGuest']);
+
 
 // ==========================================
 // FLASH SALE routes

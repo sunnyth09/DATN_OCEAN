@@ -63,6 +63,51 @@ class OrderController extends Controller
     }
 
     /**
+     * POST /api/orders/guest — Tạo đơn hàng mới cho khách vãng lai.
+     */
+    public function storeGuest(Request $request): JsonResponse
+    {
+        $request->validate([
+            'recipient_name' => 'required|string|max:255',
+            'phone'          => 'required|string|max:20',
+            'province'       => 'required|string|max:100',
+            'district'       => 'required|string|max:100',
+            'ward'           => 'required|string|max:100',
+            'address_line'   => 'required|string|max:255',
+            'province_code'  => 'nullable',
+            'district_code'  => 'nullable',
+            'ward_code'      => 'nullable',
+            'payment_method' => 'required|string|in:cod,vnpay,momo,bank_transfer',
+            'coupon_applied' => 'nullable|string',
+            'note'           => 'nullable|string|max:500',
+            'referral_code'  => 'nullable|string|max:20',
+            'items'          => 'required|array|min:1',
+            'items.*.variant_id' => 'required|integer|exists:product_variants,variant_id',
+            'items.*.quantity'   => 'required|integer|min:1',
+        ], [
+            'payment_method.required' => 'Vui lòng chọn phương thức thanh toán.',
+            'payment_method.in'       => 'Phương thức thanh toán không hợp lệ.',
+            'recipient_name.required' => 'Vui lòng nhập họ tên người nhận.',
+            'phone.required'          => 'Vui lòng nhập số điện thoại.',
+            'province.required'       => 'Vui lòng chọn Tỉnh/Thành phố.',
+            'district.required'       => 'Vui lòng chọn Quận/Huyện.',
+            'ward.required'           => 'Vui lòng chọn Phường/Xã.',
+            'address_line.required'   => 'Vui lòng nhập địa chỉ chi tiết.',
+            'items.required'          => 'Giỏ hàng trống.',
+        ]);
+
+        $result = $this->orderService->createGuestOrder(
+            $request->all(),
+            $request
+        );
+
+        return response()->json(
+            $result['body'],
+            $result['status_code'] ?? 200
+        );
+    }
+
+    /**
      * GET /api/orders/{id} — Chi tiết đơn hàng.
      * OrderPolicy::view() đảm bảo user chỉ xem đơn của mình.
      */

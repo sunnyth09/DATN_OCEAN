@@ -79,7 +79,7 @@ const handleLogout = async () => {
   });
   if (result.isConfirmed) {
     await authStore.logout();
-    router.push('/');
+    router.push('/client/login');
   }
 };
 </script>

@@ -7,10 +7,12 @@ import { useToast } from '@/composables/useToast';
 import AddressSelector from '@/components/AddressSelector.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
+import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/icons/AppIcon.vue';
 
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
 const cartItems = ref([]);
 const loading = ref(true);
 
@@ -68,15 +70,32 @@ const formatPrice = (price) => {
 // Lấy giỏ hàng
 const fetchCart = async () => {
     try {
-        const response = await api.get('/cart');
-        if (response.data.status === 'success') {
-            cartItems.value = (response.data.data.items || []).filter(i => i.selected);
-            if (cartItems.value.length === 0) {
+        if (authStore.isAuthenticated) {
+            const response = await api.get('/cart');
+            if (response.data.status === 'success') {
+                cartItems.value = (response.data.data.items || []).filter(i => i.selected);
+                if (cartItems.value.length === 0) {
+                    router.push('/cart');
+                }
+            }
+        } else {
+            const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+            const selectedLocalItems = localItems.filter(i => i.selected !== false);
+            if (selectedLocalItems.length === 0) {
                 router.push('/cart');
+                return;
+            }
+            const response = await api.post('/cart/guest-details', { items: selectedLocalItems });
+            if (response.data.status === 'success') {
+                cartItems.value = response.data.data.items || [];
+                if (response.data.data.freeship_threshold) {
+                    upsellState.freeshipThreshold = response.data.data.freeship_threshold;
+                }
             }
         }
     } catch (error) {
-        if (error.response?.status === 401) {
+        console.error('Lỗi khi tải giỏ hàng thanh toán:', error);
+        if (error.response?.status === 401 && authStore.isAuthenticated) {
             router.push({ name: 'login', query: { redirect: '/checkout' } });
         }
     }
@@ -115,6 +134,12 @@ const fetchFlashSaleData = async () => {
 
 // Lấy danh sách địa chỉ
 const fetchAddresses = async () => {
+    if (!authStore.isAuthenticated) {
+        addresses.value = [];
+        selectedAddressId.value = null;
+        showAddAddressForm.value = true;
+        return;
+    }
     try {
         const res = await addressService.listProfileAddresses();
         addresses.value = res.data?.data || [];
@@ -136,6 +161,10 @@ const fetchAddresses = async () => {
 
 // Lấy danh sách mã giảm giá khả dụng
 const fetchCoupons = async () => {
+    if (!authStore.isAuthenticated) {
+        availableCoupons.value = [];
+        return;
+    }
     loadingCoupons.value = true;
     try {
         // Fetch các mã giảm giá user ĐÃ LƯU
@@ -421,12 +450,27 @@ const placeOrder = async () => {
             };
             res = await api.post('flash-sale/buy', fsPayload);
         } else {
-            res = await orderService.createProfileOrder(payload);
+            if (authStore.isAuthenticated) {
+                res = await orderService.createProfileOrder(payload);
+            } else {
+                const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+                payload.items = localItems.filter(i => i.selected !== false).map(i => ({
+                    variant_id: i.variant_id,
+                    quantity: i.quantity,
+                }));
+                res = await api.post('/orders/guest', payload);
+            }
         }
 
         if (res.data.status === 'success') {
             // Xóa referral_code sau khi đặt hàng thành công
             localStorage.removeItem('affiliate_ref');
+            
+            // Xóa giỏ hàng local của guest
+            if (!authStore.isAuthenticated && !isFlashSale.value) {
+                localStorage.removeItem('cart_items');
+                window.dispatchEvent(new Event('cart-updated'));
+            }
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {
                 showToast('Đang chuyển đến cổng thanh toán VNPay...', 'success');
                 setTimeout(() => {
@@ -453,7 +497,11 @@ const placeOrder = async () => {
             }
 
             // === Flow mặc định (COD hoặc Flash Sale) ===
-            showToast('Đặt hàng thành công! Vui lòng kiểm tra email.', 'success');
+            if (!authStore.isAuthenticated && !isFlashSale.value) {
+                showToast('Đặt hàng thành công! chúng tôi sẽ liên hệ sớm nhất cho bạn để xác nhận đơn hàng', 'success');
+            } else {
+                showToast('Đặt hàng thành công! Vui lòng kiểm tra email.', 'success');
+            }
             setTimeout(() => {
                 const finalOrderCode = res.data.data?.order_code || res.data.order_code;
                 router.push({ name: 'order-success', params: { order_code: finalOrderCode } });
@@ -596,7 +644,7 @@ onMounted(async () => {
                         </div>
                         <div class="section-body block-border">
                             <div class="address-tabs">
-                                <button class="add-tab" :class="{ 'active': !showAddAddressForm }"
+                                <button v-if="authStore.isAuthenticated" class="add-tab" :class="{ 'active': !showAddAddressForm }"
                                     @click="useSavedAddresses">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2">
@@ -817,7 +865,7 @@ onMounted(async () => {
                                         <div class="coupon-tag"><AppIcon name="voucher" size="20" color="#111" class="me-1" />{{ appliedCoupon.code }}</div>
                                         <button class="btn-remove-coupon" @click="removingCoupon">Gỡ bỏ</button>
                                     </div>
-                                    <div class="text-right mt-1">
+                                    <div v-if="authStore.isAuthenticated" class="text-right mt-1">
                                         <button class="btn-select-coupon" @click="openCouponModal">Chọn mã có
                                             sẵn</button>
                                     </div>

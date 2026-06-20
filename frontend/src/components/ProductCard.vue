@@ -237,7 +237,28 @@ const handleConfirmAddToCart = async () => {
         });
 
         if (result.status === "unauthenticated") {
-            router.push({ name: "login", query: { redirect: productLink.value } });
+            // lưu localstorage khi chưa login từ modal
+            let cartItems = JSON.parse(localStorage.getItem("cart_items") || "[]");
+            const index = cartItems.findIndex(
+                (item) => item.variant_id === selectedVariant.value.variant_id
+            );
+            if (index !== -1) {
+                cartItems[index].quantity += quantity.value;
+            } else {
+                cartItems.push({
+                    variant_id: selectedVariant.value.variant_id,
+                    quantity: quantity.value,
+                });
+            }
+            localStorage.setItem("cart_items", JSON.stringify(cartItems));
+
+            if (productImageRef.value) {
+                await flyToCart(productImageRef.value, '#cart-icon');
+            }
+
+            showToast("Đã thêm vào giỏ hàng (tạm thời)", "success");
+            showVariantModal.value = false;
+            window.dispatchEvent(new Event('cart-updated'));
             return;
         }
 
@@ -302,8 +323,28 @@ const handleAddToCart = async (event) => {
                 quantity: 1,
             });
 
+            // lưu localstorage khi chưa login
             if (result.status === "unauthenticated") {
-                router.push({ name: "login", query: { redirect: productLink.value } });
+                let cartItems = JSON.parse(localStorage.getItem("cart_items") || "[]");
+                const index = cartItems.findIndex(
+                    (item) => item.variant_id === activeVariant.variant_id
+                );
+                if (index !== -1) {
+                    cartItems[index].quantity += 1;
+                } else {
+                    cartItems.push({
+                        variant_id: activeVariant.variant_id,
+                        quantity: 1,
+                    });
+                }
+                localStorage.setItem("cart_items", JSON.stringify(cartItems));
+
+                if (productImageRef.value) {
+                    await flyToCart(productImageRef.value, '#cart-icon');
+                }
+
+                showToast("Đã thêm vào giỏ hàng (tạm thời)", "success");
+                window.dispatchEvent(new Event('cart-updated'));
                 return;
             }
 

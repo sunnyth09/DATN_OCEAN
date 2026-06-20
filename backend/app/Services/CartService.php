@@ -213,6 +213,57 @@ class CartService
         return ['_status' => 200, 'status' => 'success', 'message' => 'Đã xóa sản phẩm khỏi giỏ hàng!'];
     }
 
+    /**
+     * Đồng bộ giỏ hàng từ localStorage sau khi login (có stock capping và xử lý hết hàng)
+     */
+    public function syncCart(int $userId, array $items): array
+    {
+        $cart = $this->cartRepository->getOrCreateActiveCart($userId);
+
+        foreach ($items as $item) {
+            $variant = ProductVariant::find($item['variant_id']);
+            if (!$variant || $variant->status !== 'active') {
+                continue;
+            }
+
+            $existingItem = CartItem::where('cart_id', $cart->cart_id)
+                ->where('variant_id', $item['variant_id'])
+                ->first();
+
+            $currentQty = $existingItem ? $existingItem->quantity : 0;
+            $targetQty = $currentQty + $item['quantity'];
+
+            if ($variant->stock <= 0) {
+                if (!$existingItem) {
+                    CartItem::create([
+                        'cart_id'    => $cart->cart_id,
+                        'variant_id' => $item['variant_id'],
+                        'quantity'   => 1,
+                        'selected'   => false,
+                    ]);
+                }
+            } else {
+                $finalQty = min($targetQty, $variant->stock);
+                if ($existingItem) {
+                    $existingItem->update(['quantity' => $finalQty]);
+                } else {
+                    CartItem::create([
+                        'cart_id'    => $cart->cart_id,
+                        'variant_id' => $item['variant_id'],
+                        'quantity'   => $finalQty,
+                        'selected'   => true,
+                    ]);
+                }
+            }
+        }
+
+        return [
+            'status'  => 'success',
+            'message' => 'Đồng bộ giỏ hàng thành công!',
+            'count'   => $this->getCartCount($userId)
+        ];
+    }
+
     // ─── CLEAR CART ────────────────────────────────────────────────────
 
     /**

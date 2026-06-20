@@ -85,6 +85,8 @@ class ComboService
      */
     public function markVouchersAsUsed(array $vouchers, int $userId): void
     {
+        if ($userId <= 0) return;
+
         foreach ($vouchers as $voucher) {
             $voucher->increment('used_count');
 
@@ -310,6 +312,7 @@ class ComboService
      */
     private function userCanUseVoucher(int $userId, Coupon $voucher): bool
     {
+        if ($userId <= 0) return true;
         if (!$voucher->user_usage_limit) return true;
 
         $used = UserCoupon::where('user_id', $userId)

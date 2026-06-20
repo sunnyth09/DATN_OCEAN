@@ -245,6 +245,197 @@ class OrderService
         }
     }
 
+    public function createGuestOrder(array $data, Request $request): array
+    {
+        try {
+            if (empty($data['items'])) {
+                return $this->error('Giỏ hàng trống!', 400);
+            }
+
+            $items = collect($data['items']);
+            $variantIds = $items->pluck('variant_id')->toArray();
+            $variants = \App\Models\ProductVariant::whereIn('variant_id', $variantIds)
+                ->with('product')
+                ->get()
+                ->keyBy('variant_id');
+
+            $cartItems = $items->map(function ($item) use ($variants) {
+                $variant = $variants->get($item['variant_id']);
+                if (!$variant) return null;
+
+                return (object)[
+                    'variant_id' => $item['variant_id'],
+                    'quantity'   => $item['quantity'],
+                    'variant'    => $variant,
+                ];
+            })->filter()->values();
+
+            if ($cartItems->isEmpty()) {
+                return $this->error('Vui lòng chọn sản phẩm để thanh toán!', 400);
+            }
+
+            $subtotal = $this->calculateSubtotalAndValidateStock($cartItems);
+
+            $couponResult = [
+                'success' => true,
+                'coupon' => null,
+                'discount_amount' => 0
+            ];
+            if (!empty($data['coupon_applied'])) {
+                $couponResult = $this->couponService->applyCoupon(
+                    0,
+                    $data['coupon_applied'],
+                    $subtotal
+                );
+                if (!$couponResult['success']) {
+                    return $this->error($couponResult['message'], 400);
+                }
+            }
+
+            $addressObj = (object)[
+                'recipient_name' => $data['recipient_name'],
+                'phone'          => $data['phone'],
+                'province'       => $data['province'],
+                'district'       => $data['district'],
+                'ward'           => $data['ward'],
+                'address_line'   => $data['address_line'],
+                'province_code'  => $data['province_code'] ?? null,
+                'district_code'  => $data['district_code'] ?? null,
+                'ward_code'      => $data['ward_code'] ?? null,
+            ];
+
+            $shippingFee = $this->shippingService->calculateShippingFee(
+                $addressObj,
+                $subtotal,
+                $couponResult['coupon']
+            );
+
+            $discountAmount = $couponResult['discount_amount'];
+            $couponId = $couponResult['coupon']?->id;
+
+            $comboResult   = $this->comboService->applyAllCombos(0, $cartItems, $subtotal);
+            $comboDiscount = $comboResult['discount_amount'];
+
+            $grandTotal = max(0, $subtotal + $shippingFee - $discountAmount - $comboDiscount);
+
+            $result = DB::transaction(function () use (
+                $data,
+                $request,
+                $addressObj,
+                $cartItems,
+                $subtotal,
+                $discountAmount,
+                $comboDiscount,
+                $comboResult,
+                $shippingFee,
+                $grandTotal,
+                $couponId,
+                $couponResult
+            ) {
+                $this->lockAndValidateStock($cartItems);
+
+                $order = $this->orderRepository->create([
+                    'order_code' => $this->generateOrderCode(),
+                    'user_id' => null,
+                    'address_id' => null,
+                    'promotion_id' => $couponId,
+                    'recipient_name' => $addressObj->recipient_name,
+                    'recipient_phone' => $addressObj->phone,
+                    'shipping_address' => $this->makeFullAddress($addressObj),
+                    'note' => $data['note'] ?? null,
+                    'payment_method' => $data['payment_method'],
+                    'payment_status' => 'unpaid',
+                    'fulfillment_status' => 'pending',
+                    'subtotal' => $subtotal,
+                    'discount_amount' => $discountAmount,
+                    'shipping_fee' => $shippingFee,
+                    'grand_total' => $grandTotal,
+                    'combo_discount' => $comboDiscount,
+                ]);
+
+                foreach ($cartItems as $cartItem) {
+                    $this->orderRepository->createItem([
+                        'order_id' => $order->order_id,
+                        'product_id' => $cartItem->variant->product_id,
+                        'variant_id' => $cartItem->variant_id,
+                        'product_name' => $cartItem->variant->product->name,
+                        'variant_name' => $cartItem->variant->variant_name,
+                        'sku' => $cartItem->variant->sku,
+                        'color' => $cartItem->variant->color,
+                        'size' => $cartItem->variant->size,
+                        'quantity' => $cartItem->quantity,
+                        'unit_price' => $cartItem->variant->price,
+                        'line_total' => $cartItem->variant->price * $cartItem->quantity,
+                    ]);
+
+                    $this->variantRepository->decrementStock(
+                        $cartItem->variant_id,
+                        $cartItem->quantity
+                    );
+                }
+
+                $this->orderRepository->createStatusHistory([
+                    'order_id' => $order->order_id,
+                    'new_status' => OrderStatus::PENDING->value,
+                    'note' => 'Khách vãng lai đặt đơn hàng mới',
+                ]);
+
+                if ($couponId) {
+                    $this->couponService->markCouponAsUsed(
+                        0,
+                        $couponResult['coupon']
+                    );
+                }
+
+                $paymentResult = $this->paymentGatewayService->handlePayment(
+                    $order,
+                    $data['payment_method'],
+                    $request
+                );
+
+                if ($paymentResult['type'] === 'redirect') {
+                    return [
+                        'status_code' => 200,
+                        'body' => $paymentResult['body'],
+                        '_order' => $order,
+                    ];
+                }
+
+                $this->dispatchOrderCreatedEvent($order);
+
+                return [
+                    'status_code' => 200,
+                    'body' => [
+                        'status' => 'success',
+                        'message' => 'Đặt hàng thành công!',
+                        'data' => [
+                            'order_code' => $order->order_code,
+                            'grand_total' => $order->grand_total,
+                        ],
+                    ],
+                    '_order' => $order,
+                ];
+            });
+
+            if (isset($result['_order'])) {
+                $this->affiliateService->createConversionFromOrder(
+                    $result['_order'],
+                    $data['referral_code'] ?? null
+                );
+                unset($result['_order']);
+            }
+
+            return $result;
+        } catch (\Exception $e) {
+            Log::error('Guest Order creation failed: ' . $e->getMessage());
+
+            return $this->error(
+                'Đã xảy ra lỗi khi tạo đơn hàng: ' . $e->getMessage(),
+                500
+            );
+        }
+    }
+
     public function cancelOrder(int $userId, int $orderId, string $reason): array
     {
         $order = $this->orderRepository->findUserOrder($userId, $orderId);
