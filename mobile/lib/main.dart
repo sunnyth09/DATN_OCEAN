@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/main_wrapper.dart';
@@ -10,7 +9,6 @@ import 'config/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
   await initializeDateFormatting('vi_VN', null);
   await initializeDateFormatting('vi', null);
 
@@ -20,16 +18,17 @@ void main() async {
   // Kiểm tra trạng thái đăng nhập từ SecureStorage (thay thế SharedPreferences cũ)
   final isLoggedIn = await AuthService.isLoggedIn();
 
-  runApp(MyApp(
-    isFirstLaunch: isFirstLaunch,
-    isLoggedIn: isLoggedIn,
-  ));
+  runApp(MyApp(isFirstLaunch: isFirstLaunch, isLoggedIn: isLoggedIn));
 }
 
 class MyApp extends StatelessWidget {
   final bool isFirstLaunch;
   final bool isLoggedIn;
-  const MyApp({super.key, required this.isFirstLaunch, required this.isLoggedIn});
+  const MyApp({
+    super.key,
+    required this.isFirstLaunch,
+    required this.isLoggedIn,
+  });
 
   @override
   Widget build(BuildContext context) {

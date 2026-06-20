@@ -279,7 +279,7 @@ const routes = [
                 path: "stats",
                 name: "admin-stats",
                 component: () => import("../Pages/admin/AdminStats.vue"),
-                meta: { roles: ['admin', 'staff'], title: 'Thống kê' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thống kê' },
             },
             {
                 path: "attendance-list",
@@ -304,7 +304,7 @@ const routes = [
                 path: "courts",
                 name: "admin-courts",
                 component: () => import("../Pages/admin/AdminCourtManagement.vue"),
-                meta: { roles: ['admin', 'staff'], title: 'Quản lý Hệ thống Sân' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Quản lý Hệ thống Sân' },
             },
             {
                 path: "court-bookings",

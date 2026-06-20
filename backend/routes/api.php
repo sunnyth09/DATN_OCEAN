@@ -45,7 +45,7 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\Api\Client\TrackingController;
-// Add this line to run the route: http://localhost:8000/api
+// API root health response.
 Route::get('/', function () {
     return response()->json([
         'status' => 'success',
@@ -460,7 +460,7 @@ Route::middleware('throttle:30,1')->post('/payment/vnpay-ipn', [\App\Http\Contro
 // MoMo Payment Gateway
 Route::middleware('throttle:30,1')->get('/payment/momo-return', [\App\Http\Controllers\MoMoController::class, 'momoReturn']);
 
-Route::post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
+Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
 
 // SePay Webhook
 Route::post('/payment/sepay-webhook', [\App\Http\Controllers\SepayController::class, 'handleWebhook']);
@@ -587,8 +587,6 @@ Route::get('image-proxy', function (\Illuminate\Http\Request $request) {
         'X-Content-Type-Options' => 'nosniff',
     ]);
 });
-Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
-
 // ==========================================
 // COURT BOOKING ROUTES
 // ==========================================
@@ -632,3 +630,15 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
     Route::get('/courts-dashboard', [CourtBookingAdminController::class, 'dashboard']);
     Route::get('/courts-stats', [CourtBookingAdminController::class, 'stats']);
 });
+
+// ==========================================
+// GHN Integration routes
+// ==========================================
+Route::post('/ghn-webhook', [\App\Http\Controllers\GhnWebhookController::class, 'handle']);
+
+Route::prefix('ghn')->group(function () {
+    Route::post('/leadtime', [\App\Http\Controllers\GhnController::class, 'getLeadtime']);
+    Route::post('/cancel-order', [\App\Http\Controllers\GhnController::class, 'cancelOrder']);
+    Route::post('/print-label', [\App\Http\Controllers\GhnController::class, 'printLabel']);
+});
+

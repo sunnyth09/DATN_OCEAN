@@ -5,8 +5,9 @@ import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import { getAbsoluteUrl, getAppBaseUrl } from '@/utils/url';
 
-const BASE_URL = import.meta.env.VITE_APP_URL || 'http://localhost:8383';
+const BASE_URL = getAppBaseUrl();
 
 const props = defineProps({
   collapsed: {
@@ -59,7 +60,7 @@ onMounted(() => {
       userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
       
       if (path) {
-        userAvatar.value = path.startsWith('http') ? path : `${BASE_URL}${path}`;
+        userAvatar.value = getAbsoluteUrl(path);
       }
     } catch (e) {
       console.error("Failed to parse user data", e);
@@ -305,8 +306,6 @@ const handleLogout = async () => {
     </div>
   </aside>
 </template>
-
-
 
 <style scoped>
 .sidebar {

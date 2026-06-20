@@ -11,18 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('recently_viewed_products', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('user_id')->nullable()->index();
-            $table->string('session_id')->nullable()->index();
-            $table->unsignedBigInteger('product_id')->index();
-            $table->timestamp('viewed_at')->useCurrent();
-            $table->timestamps();
+        if (!Schema::hasTable('recently_viewed_products')) {
+            Schema::create('recently_viewed_products', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('user_id')->nullable();
+                $table->string('session_id')->nullable()->index();
+                $table->foreignId('product_id')->constrained()->onDelete('cascade');
+                $table->timestamp('viewed_at')->useCurrent();
+                $table->timestamps();
 
-            // Foreign keys
-            $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
-            $table->foreign('product_id')->references('product_id')->on('products')->onDelete('cascade');
-        });
+                $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
+            });
+        }
     }
 
     /**

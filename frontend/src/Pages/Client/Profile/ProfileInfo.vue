@@ -161,9 +161,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
+import { getAppBaseUrl } from '@/utils/url';
 
-// Lấy base URL từ env (ví dụ: http://localhost:8383)
-const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
+// Base URL for profile assets.
+const BASE_URL = getAppBaseUrl();
 const router = useRouter();
 
 // FIX M2: Allowed file types for avatar upload

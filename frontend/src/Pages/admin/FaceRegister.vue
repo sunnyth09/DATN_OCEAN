@@ -1,8 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import api from '../../axios';
-
-const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
+import { getAbsoluteUrl } from '@/utils/url';
 
 // --- TOAST ---
 const toastVisible = ref(false);
@@ -175,7 +174,7 @@ onUnmounted(() => { stopCamera(); });
           </h6>
           <div class="registered-photos">
             <div v-for="enc in faceStatus.encodings" :key="enc.id" class="registered-photo-card">
-              <img v-if="enc.image_path" :src="enc.image_path.startsWith('http') ? enc.image_path : (BASE_URL + enc.image_path)" alt="face" class="registered-photo-img" />
+              <img v-if="enc.image_path" :src="getAbsoluteUrl(enc.image_path)" alt="face" class="registered-photo-img" />
               <div class="registered-photo-label">{{ enc.label }}</div>
               <div class="registered-photo-date">{{ enc.created_at }}</div>
             </div>

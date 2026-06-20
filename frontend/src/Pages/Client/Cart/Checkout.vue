@@ -42,6 +42,8 @@ const formAddress = ref({
 
 // --- GHN Data ---
 const isCalculatingFee = ref(false);
+const leadtimeDate = ref(null);
+const serviceId = ref(53320); // Default GHN service ID for normal delivery
 
 // --- Thanh toán & Khác ---
 const paymentMethod = ref('cod'); // cod, vnpay, momo, banking
@@ -263,9 +265,25 @@ const getShippingFee = async (district_id, ward_code) => {
             wardCode: ward_code,
             weight: 3000,
         });
+
+        // Lấy leadtime
+        const res = await api.post('/ghn/leadtime', {
+            to_district_id: Number(district_id),
+            to_ward_code: String(ward_code),
+        });
+
+        if (res.data.code === 200 && res.data.data) {
+            const timestamp = res.data.data.leadtime * 1000;
+            const date = new Date(timestamp);
+            leadtimeDate.value = date.toLocaleDateString('vi-VN');
+        } else {
+            leadtimeDate.value = null;
+        }
+
     } catch (error) {
         console.error("Lỗi tính phí vận chuyển GHN:", error.response?.data || error.message);
         shippingFee.value = 0;
+        leadtimeDate.value = null;
     } finally {
         isCalculatingFee.value = false;
     }
@@ -379,8 +397,16 @@ const placeOrder = async () => {
     };
 
     if (showAddAddressForm.value) {
+        const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
         if (!formAddress.value.recipient_name.trim()) return showToast('Vui lòng nhập họ tên người nhận', 'error');
-        if (!formAddress.value.phone.trim()) return showToast('Vui lòng nhập số điện thoại', 'error');
+        if (!formAddress.value.phone.trim()) {
+            showToast('Vui lòng nhập số điện thoại', 'error');
+            return;
+        }
+        if (!formAddress.value.phone.match(phoneRegex)) {
+            showToast('Vui lòng nhập số điện thoại hợp lệ', 'error');
+            return;
+        }    
         if (!formAddress.value.province) return showToast('Vui lòng chọn Tỉnh/Thành phố', 'error');
         if (!formAddress.value.district) return showToast('Vui lòng chọn Quận/Huyện', 'error');
         if (!formAddress.value.ward) return showToast('Vui lòng chọn Phường/Xã', 'error');
@@ -699,6 +725,13 @@ onMounted(async () => {
                                         </div>
                                     </div>
                                 </label>
+                            </div>
+
+                            <div class="checkout-divider"></div>
+
+                            <div v-if="leadtimeDate" class="leadtime-notice">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-2 text-green-600"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                <span>Dự kiến giao hàng vào: <strong>{{ leadtimeDate }}</strong></span>
                             </div>
 
                             <div class="checkout-divider"></div>

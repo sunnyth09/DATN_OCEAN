@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * OrderController — Xử lý đơn hàng phía khách hàng.
@@ -121,7 +122,7 @@ class OrderController extends Controller
             ], 404);
         }
 
-        $this->authorize('view', $order); // 403 nếu không phải owner
+        Gate::authorize('view', $order); // 403 nếu không phải owner
 
         // Load chi tiết đầy đủ
         $detail = $this->orderService->getUserOrderDetail(

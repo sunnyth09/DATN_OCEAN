@@ -13,7 +13,8 @@ import {
   getReturnRequestStatusLabel,
   getReturnRequestStatusTone,
 } from '@/utils/orderStatus';
-import axios from 'axios';
+import api from '@/axios';
+import { getStorageUrl } from '@/utils/url';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -38,16 +39,16 @@ const formatPrice = (price) => {
 
 const getProductImage = (item) => {
     if (item.variant?.image_url) {
-        return item.variant.image_url.startsWith('http') ? item.variant.image_url : `http://localhost:8383/storage/${item.variant.image_url}`;
+        return getStorageUrl(item.variant.image_url);
     }
     
     if (item.product?.images && item.product.images.length > 0) {
         const defaultImage = item.product.images.find(img => img.is_main) || item.product.images[0];
-        return defaultImage.image_url.startsWith('http') ? defaultImage.image_url : `http://localhost:8383/storage/${defaultImage.image_url}`;
+        return getStorageUrl(defaultImage.image_url);
     }
     
     if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') {
-        return item.product.thumbnail_url.startsWith('http') ? item.product.thumbnail_url : `http://localhost:8383/storage/${item.product.thumbnail_url}`;
+        return getStorageUrl(item.product.thumbnail_url);
     }
     
     return '/placeholder.png';
@@ -262,10 +263,8 @@ const submitTicket = async () => {
       formData.append('image', ticketImage.value);
     }
     
-    const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8383/api';
-    const res = await axios.post(`${BASE_URL}/profile/tickets`, formData, {
+    const res = await api.post('/profile/tickets', formData, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
         'Content-Type': 'multipart/form-data'
       }
     });

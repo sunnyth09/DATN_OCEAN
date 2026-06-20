@@ -75,7 +75,7 @@ onMounted(() => {
             <h1 class="success-title">Đặt hàng thành công!</h1>
 
             <p class="success-message">
-                Cảm ơn bạn đã mua sắm tại <strong>Ocean</strong>. Đơn hàng của
+                Cảm ơn bạn đã mua sắm tại <strong>Quyền Sport</strong>. Đơn hàng của
                 bạn đã được tiếp nhận và đang trong quá trình xử lý.
             </p>
 

@@ -9,8 +9,9 @@ import AppIcon from "@/icons/AppIcon.vue";
 import { useCartStore } from "@/stores/cart";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
+import { getAppBaseUrl } from "@/utils/url";
 
-const BASE_URL = import.meta.env.VITE_BASE_URL;
+const BASE_URL = getAppBaseUrl();
 const route = useRoute();
 const router = useRouter();
 const cartStore = useCartStore();
@@ -25,6 +26,7 @@ const userAvatar = ref(null);
 const isAdmin = ref(false);
 const showDropdown = ref(false);
 const unreadNotificationCount = ref(0);
+const showNotificationPopup = ref(false);
 const isMobileMenuOpen = ref(false);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
@@ -270,20 +272,10 @@ watch(isLoggedIn, (val) => {
             window.Echo.private('user.' + userData.user_id)
                 .listen('.UserNotificationEvent', (e) => { // . means it ignores Broadcast namespace
                     unreadNotificationCount.value++;
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'info',
-                        title: e.notification?.title || 'Thông báo mới',
-                        text: e.notification?.message || 'Bạn có thông báo mới',
-                        showConfirmButton: false,
-                        timer: 5000,
-                        timerProgressBar: true,
-                        didOpen: (toast) => {
-                            toast.addEventListener('mouseenter', Swal.stopTimer)
-                            toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        }
-                    });
+                    showNotificationPopup.value = true;
+                    setTimeout(() => {
+                        showNotificationPopup.value = false;
+                    }, 4000);
                 });
         }
     } else {
@@ -550,19 +542,27 @@ watch(
                 </div>
 
                 <!-- Thông báo -->
-                <router-link to="/profile/notifications" class="icon-btn notif-icon-btn" v-if="isLoggedIn">
-                    <div class="cart-icon-wrapper">
-                        <AppIcon name="bell" />
-                        <span v-if="unreadNotificationCount > 0" class="cart-badge">{{
-                            unreadNotificationCount > 99 ? "99+" : unreadNotificationCount
-                        }}</span>
-                    </div>
-                </router-link>
+                <div class="header-notif-container" v-if="isLoggedIn">
+                    <router-link to="/profile/notifications" class="icon-btn notif-icon-btn">
+                        <div class="cart-icon-wrapper">
+                            <AppIcon name="bell" />
+                            <span v-if="unreadNotificationCount > 0" class="cart-badge">{{
+                                unreadNotificationCount > 99 ? "99+" : unreadNotificationCount
+                            }}</span>
+                        </div>
+                    </router-link>
+
+                    <transition name="notif-popup-slide">
+                        <div v-if="showNotificationPopup" class="new-notif-popup" @click="router.push('/profile/notifications'); showNotificationPopup = false">
+                            Bạn có thông báo mới
+                        </div>
+                    </transition>
+                </div>
 
                 <!-- Giỏ hàng -->
                 <router-link to="/cart" id="cart-icon" class="icon-btn cart-icon-btn">
                     <div class="cart-icon-wrapper">
-                        <AppIcon name="order" />
+                        <AppIcon name="cart" />
                         <span v-if="cartCount > 0" class="cart-badge">{{
                             cartCount > 99 ? "99+" : cartCount
                         }}</span>
@@ -1266,6 +1266,53 @@ watch(
         transform: scale(1);
         box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
     }
+}
+
+.header-notif-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.new-notif-popup {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: -10px; /* Căn phải hoặc tùy chỉnh */
+    background: #fff;
+    color: #1a2b4a;
+    padding: 10px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 1000;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+}
+
+.new-notif-popup::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 20px;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    transform: rotate(45deg);
+    border-top: 1px solid #e2e8f0;
+    border-left: 1px solid #e2e8f0;
+}
+
+.notif-popup-slide-enter-active,
+.notif-popup-slide-leave-active {
+    transition: all 0.3s ease;
+}
+
+.notif-popup-slide-enter-from,
+.notif-popup-slide-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
 }
 
 @media (max-width: 768px) {

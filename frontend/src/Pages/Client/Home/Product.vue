@@ -5,6 +5,7 @@ import ProductCard from "../../../components/ProductCard.vue";
 import ProductSkeleton from "../../../components/ProductSkeleton.vue";
 import { catalogService } from "@/services/catalogService";
 import { useCatalogStore } from "@/stores/catalog";
+import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
 const route = useRoute();
@@ -34,12 +35,9 @@ let fetchTimer = null;
 let productRequestController = null;
 let latestProductRequest = 0;
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
-
 const getImageUrl = (path) => {
     if (!path || path === '0') return '';
-    if (path.startsWith('http')) return path;
-    return `${BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
 };
 
 // ── Pagination ──
@@ -99,7 +97,9 @@ const fetchProducts = async () => {
             return {
                 id: item.product_id, name: item.name,
                 price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(currentPrice),
+                min_price: currentPrice,
                 originalPrice: originalPrice ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(originalPrice) : null,
+                original_price: originalPrice,
                 discount_percent: maxDiscount,
                 is_on_sale: lowest?.is_on_sale || false,
                 image: getImageUrl(item.thumbnail_url || item.mainImage?.image_url || null),

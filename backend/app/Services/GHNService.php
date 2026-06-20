@@ -12,14 +12,14 @@ class GHNService
      */
     public static function createOrder($order)
     {
-        $token = env('VITE_TOKEN_GHN', '');
-        $shopId = env('VITE_SHOPID_GHN', '');
+        $token = env('VITE_TOKEN_GHN_SANBOX', '');
+        $shopId = env('VITE_SHOPID_GHN_SANBOX', '');
 
         if (empty($token) || empty($shopId)) {
-            throw new \Exception('Chưa cấu hình VITE_TOKEN_GHN hoặc VITE_SHOPID_GHN trong .env');
+            throw new \Exception('Chưa cấu hình VITE_TOKEN_GHN_SANBOX hoặc VITE_SHOPID_GHN_SANBOX trong .env');
         }
 
-        $url = 'https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create';
+        $url = 'https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create';
 
         // Lấy thông tin địa chỉ từ order
         $address = $order->address;
@@ -45,7 +45,7 @@ class GHNService
         foreach ($order->items as $item) {
             $weight = 1200; // Mặc định 1.2kg mỗi sản phẩm nếu không có data thật
             $totalWeight += $weight * $item->quantity;
-            
+
             $items[] = [
                 'name' => $item->product_name . ' - ' . $item->variant_name,
                 'quantity' => (int)$item->quantity,
@@ -95,6 +95,68 @@ class GHNService
         } catch (\Exception $e) {
             Log::error('GHN Exception: ' . $e->getMessage());
             throw $e;
+        }
+    }
+
+    public static function calculateLeadtime($data)
+    {
+        $token = env('VITE_TOKEN_GHN_SANBOX', '');
+        $shopId = env('VITE_SHOPID_GHN_SANBOX', '');
+
+        try {
+            $response = Http::withHeaders([
+                'Token' => $token,
+                'ShopId' => $shopId,
+            ])->post('https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/leadtime', [
+                'from_district_id' => 1444, // Default shop district if not provided
+                'from_ward_code' => '20308', // Default shop ward
+                'to_district_id' => (int)$data['to_district_id'],
+                'to_ward_code' => (string)$data['to_ward_code'],
+                'service_id' => 53320, // Default service ID or passed from data
+            ]);
+
+            return $response->json();
+        } catch (\Exception $e) {
+            Log::error('GHN Leadtime Error: ' . $e->getMessage());
+            return ['code' => 500, 'message' => 'Internal Server Error'];
+        }
+    }
+
+    public static function cancelOrder($orderCode)
+    {
+        $token = env('VITE_TOKEN_GHN_SANBOX', '');
+        $shopId = env('VITE_SHOPID_GHN_SANBOX', '');
+
+        try {
+            $response = Http::withHeaders([
+                'Token' => $token,
+                'ShopId' => $shopId,
+            ])->post('https://dev-online-gateway.ghn.vn/shiip/public-api/v2/switch-status/cancel', [
+                'order_codes' => [$orderCode]
+            ]);
+
+            return $response->json();
+        } catch (\Exception $e) {
+            Log::error('GHN Cancel Order Error: ' . $e->getMessage());
+            return ['code' => 500, 'message' => 'Internal Server Error'];
+        }
+    }
+
+    public static function printLabel($orderCode)
+    {
+        $token = env('VITE_TOKEN_GHN_SANBOX', '');
+
+        try {
+            $response = Http::withHeaders([
+                'Token' => $token,
+            ])->post('https://dev-online-gateway.ghn.vn/a5/public-api/printA5/gen-token', [
+                'order_codes' => [$orderCode]
+            ]);
+
+            return $response->json();
+        } catch (\Exception $e) {
+            Log::error('GHN Print Label Error: ' . $e->getMessage());
+            return ['code' => 500, 'message' => 'Internal Server Error'];
         }
     }
 }

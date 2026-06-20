@@ -11,17 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('search_histories', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('user_id')->nullable()->index();
-            $table->string('session_id')->nullable()->index();
-            $table->string('keyword')->index();
-            $table->integer('results_count')->default(0);
-            $table->timestamps();
+        if (!Schema::hasTable('search_histories')) {
+            Schema::create('search_histories', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedBigInteger('user_id')->nullable()->index();
+                $table->string('session_id')->nullable()->index();
+                $table->string('keyword')->index();
+                $table->integer('results_count')->default(0);
+                $table->timestamps();
 
-            // Foreign keys
-            $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
-        });
+                // Foreign keys
+                $table->foreign('user_id')->references('user_id')->on('users')->onDelete('cascade');
+            });
+        }
     }
 
     /**

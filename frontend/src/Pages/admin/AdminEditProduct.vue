@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 import AdminCategoryFormTree from "@/components/AdminCategoryFormTree.vue";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
+import { getAppBaseUrl } from '@/utils/url';
 
 let quillShort = null;
 let quillLong = null;
@@ -84,7 +85,7 @@ const product = reactive({
     deleted_variant_image_ids: [],
 });
 
-const storageUrl = import.meta.env.VITE_API_STORAGE || "http://localhost:8383/storage";
+const storageUrl = import.meta.env.VITE_API_STORAGE || `${getAppBaseUrl()}/storage`;
 
 const handleFetchCategories = async () => {
     try {

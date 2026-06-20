@@ -149,9 +149,7 @@
 
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
-import axios from 'axios';
-import ClientHeader from '@/components/ClientHeader.vue';
-import Footer_client from '@/Pages/Includes/Layouts/Footer_client.vue';
+import api from '@/axios';
 
 const form = reactive({ name: '', email: '', subject: '', message: '' });
 const isSubmitting = ref(false);
@@ -219,8 +217,7 @@ const submitContact = async () => {
 
   isSubmitting.value = true;
   try {
-    const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8383/api';
-    const res = await axios.post(`${baseUrl}/SubmitContact`, { ...form, turnstile_token: turnstileToken.value });
+    const res = await api.post('/SubmitContact', { ...form, turnstile_token: turnstileToken.value });
     successMsg.value = res.data.message;
     // Reset form
     form.name = '';
