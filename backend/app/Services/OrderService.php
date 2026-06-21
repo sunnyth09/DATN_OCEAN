@@ -25,7 +25,8 @@ class OrderService
         protected ShippingService $shippingService,
         protected PaymentGatewayService $paymentGatewayService,
         protected AffiliateService $affiliateService,
-        protected ReturnRequestService $returnRequestService
+        protected ReturnRequestService $returnRequestService,
+        protected WalletService $walletService
     ) {}
 
     public function getUserOrders(int $userId, string $status = 'all')
@@ -113,6 +114,31 @@ class OrderService
 
             $grandTotal = max(0, $subtotal + $shippingFee - $discountAmount - $comboDiscount);
 
+            // ── Wallet Discount ──────────────────────────────────────────
+            $useWallet            = !empty($data['use_wallet']);
+            $walletDepositUsed    = 0;
+            $walletCommissionUsed = 0;
+            $walletTotalDiscount  = 0;
+
+            if ($useWallet && $grandTotal > 0) {
+                $requestedWalletAmount = (float) ($data['wallet_amount'] ?? 0);
+
+                if ($requestedWalletAmount > 0) {
+                    // Preview để validate giới hạn
+                    $preview = $this->walletService->previewDiscount($userId, $grandTotal);
+                    $walletTotalDiscount = min($requestedWalletAmount, $preview['max_total_discount']);
+                }
+            }
+
+            // Tính grand_total sau wallet discount
+            $paymentMethod   = $data['payment_method'];
+            $grandTotalAfterWallet = max(0, $grandTotal - $walletTotalDiscount);
+
+            // Nếu ví trả hết → payment_method = 'wallet'
+            if ($grandTotalAfterWallet == 0 && $walletTotalDiscount > 0) {
+                $paymentMethod = 'wallet';
+            }
+
             $result = DB::transaction(function () use (
                 $userId,
                 $data,
@@ -125,10 +151,28 @@ class OrderService
                 $comboResult,
                 $shippingFee,
                 $grandTotal,
+                $grandTotalAfterWallet,
                 $couponId,
-                $couponResult
+                $couponResult,
+                $useWallet,
+                $walletTotalDiscount,
+                &$walletDepositUsed,
+                &$walletCommissionUsed,
+                $paymentMethod
             ) {
                 $this->lockAndValidateStock($cartItems);
+
+                // Áp dụng wallet discount (trong transaction để đảm bảo atomic)
+                if ($useWallet && $walletTotalDiscount > 0) {
+                    $walletResult = $this->walletService->applyOrderDiscount(
+                        $userId,
+                        $walletTotalDiscount,
+                        0 // orderId chưa có, sẽ update reference sau
+                    );
+                    $walletDepositUsed    = $walletResult['deposit_used'];
+                    $walletCommissionUsed = $walletResult['commission_used'];
+                    $walletTotalDiscount  = $walletResult['total_discount'];
+                }
 
                 $order = $this->orderRepository->create([
                     'order_code' => $this->generateOrderCode(),
@@ -139,13 +183,15 @@ class OrderService
                     'recipient_phone' => $address->phone,
                     'shipping_address' => $this->makeFullAddress($address),
                     'note' => $data['note'] ?? null,
-                    'payment_method' => $data['payment_method'],
-                    'payment_status' => 'unpaid',
+                    'payment_method' => $paymentMethod,
+                    'payment_status' => $grandTotalAfterWallet == 0 ? 'paid' : 'unpaid',
                     'fulfillment_status' => 'pending',
                     'subtotal' => $subtotal,
                     'discount_amount' => $discountAmount,
+                    'wallet_deposit_discount' => $walletDepositUsed,
+                    'wallet_commission_discount' => $walletCommissionUsed,
                     'shipping_fee' => $shippingFee,
-                    'grand_total' => $grandTotal,
+                    'grand_total' => $grandTotalAfterWallet,
                     'combo_discount' => $comboDiscount,
                 ]);
 
@@ -465,6 +511,19 @@ class OrderService
                 $items = $this->orderRepository->getOrderItems($order->order_id);
 
                 $this->variantRepository->restoreStockFromOrderItems($items);
+
+                // ── Hoàn ví nếu đơn có dùng wallet discount ──
+                $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
+
+                if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
+                    $this->walletService->reverseOrderDiscount(
+                        $order->user_id,
+                        $walletDeposit,
+                        $walletCommission,
+                        $order->order_id
+                    );
+                }
             });
 
             return [

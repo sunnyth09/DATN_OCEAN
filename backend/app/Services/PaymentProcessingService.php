@@ -21,6 +21,10 @@ class PaymentProcessingService
 
     private const POST_PAYMENT_LOCK_TIMEOUT_SECONDS = 300;
 
+    public function __construct(
+        protected ?WalletService $walletService = null
+    ) {}
+
     /**
      * Mapping VNPay response codes → thông báo tiếng Việt
      */
@@ -56,6 +60,11 @@ class PaymentProcessingService
                 'message' => 'Chữ ký không hợp lệ. Giao dịch có thể bị giả mạo.',
                 'payment_status' => 'failed',
             ];
+        }
+
+        // ── Wallet Deposit (WDP prefix) ──
+        if (str_starts_with($result['txnRef'], 'WDP')) {
+            return $this->handleWalletDepositReturn($result);
         }
 
         $outcome = DB::transaction(function () use ($result, $queryParams, $ip) {
@@ -218,6 +227,11 @@ class PaymentProcessingService
             Log::warning('VNPay IPN: Invalid checksum', ['ip' => $ip]);
 
             return ['RspCode' => '97', 'Message' => 'Invalid Checksum'];
+        }
+
+        // ── Wallet Deposit (WDP prefix) ──
+        if (str_starts_with($result['txnRef'], 'WDP')) {
+            return $this->handleWalletDepositIpn($result);
         }
 
         $outcome = DB::transaction(function () use ($result, $queryParams, $ip) {
@@ -755,5 +769,135 @@ class PaymentProcessingService
     private function getResponseMessage(string $code): string
     {
         return self::VNPAY_RESPONSE_MESSAGES[$code] ?? 'Giao dịch không thành công. Mã lỗi: ' . $code;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // WALLET DEPOSIT VIA VNPAY
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * VNPay Return cho wallet deposit — trả kết quả cho UI.
+     */
+    private function handleWalletDepositReturn(array $result): array
+    {
+        $depositCode = $result['txnRef'];
+        $isSuccess   = $result['responseCode'] === '00';
+
+        if (!$isSuccess) {
+            return [
+                '_status' => 200,
+                'status'  => 'error',
+                'message' => $this->getResponseMessage($result['responseCode']),
+                'payment_status' => 'failed',
+                'data' => [
+                    'deposit_code' => $depositCode,
+                    'type'         => 'wallet_deposit',
+                ],
+            ];
+        }
+
+        return [
+            '_status' => 200,
+            'status'  => 'success',
+            'message' => 'Nạp tiền vào ví thành công!',
+            'payment_status' => 'paid',
+            'data' => [
+                'deposit_code' => $depositCode,
+                'amount'       => $result['amount'],
+                'type'         => 'wallet_deposit',
+            ],
+        ];
+    }
+
+    /**
+     * VNPay IPN cho wallet deposit — xác nhận + credit vào ví.
+     */
+    private function handleWalletDepositIpn(array $result): array
+    {
+        $depositCode = $result['txnRef'];
+
+        if ($result['responseCode'] !== '00') {
+            Log::info('VNPay IPN: Wallet deposit payment failed', [
+                'deposit_code'  => $depositCode,
+                'response_code' => $result['responseCode'],
+            ]);
+
+            DB::table('wallet_deposits')
+                ->where('deposit_code', $depositCode)
+                ->where('status', 'pending')
+                ->update(['status' => 'failed', 'updated_at' => now()]);
+
+            return ['RspCode' => '00', 'Message' => 'Confirm Success'];
+        }
+
+        try {
+            DB::transaction(function () use ($depositCode, $result) {
+                $deposit = DB::table('wallet_deposits')
+                    ->where('deposit_code', $depositCode)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$deposit) {
+                    Log::warning('VNPay IPN Wallet: Deposit code not found', ['code' => $depositCode]);
+                    return;
+                }
+
+                if ($deposit->status === 'completed') {
+                    return; // Idempotency
+                }
+
+                // Verify amount
+                if (abs($result['amount'] - (float) $deposit->amount) > 1) {
+                    Log::error('VNPay IPN Wallet: Amount mismatch', [
+                        'deposit_code' => $depositCode,
+                        'expected'     => $deposit->amount,
+                        'received'     => $result['amount'],
+                    ]);
+                    return;
+                }
+
+                // Credit vào ví
+                $this->walletService->credit(
+                    userId: $deposit->user_id,
+                    amount: (float) $deposit->amount,
+                    type: 'deposit',
+                    opts: [
+                        'description' => 'Nạp ví qua VNPay',
+                        'metadata'    => [
+                            'deposit_code'   => $depositCode,
+                            'transaction_no' => $result['transactionNo'],
+                            'bank_code'      => $result['bankCode'],
+                            'method'         => 'vnpay',
+                        ],
+                    ]
+                );
+
+                // Cập nhật trạng thái deposit
+                DB::table('wallet_deposits')
+                    ->where('deposit_code', $depositCode)
+                    ->update([
+                        'status'                 => 'completed',
+                        'gateway_transaction_id' => $result['transactionNo'],
+                        'completed_at'           => now(),
+                        'updated_at'             => now(),
+                    ]);
+
+                Log::info('VNPay IPN Wallet: Deposit completed', [
+                    'user_id'      => $deposit->user_id,
+                    'deposit_code' => $depositCode,
+                    'amount'       => $deposit->amount,
+                ]);
+            });
+
+            return ['RspCode' => '00', 'Message' => 'Confirm Success'];
+
+        } catch (\Exception $e) {
+            Log::error('VNPay IPN Wallet: Deposit processing error', [
+                'deposit_code' => $depositCode,
+                'error'        => $e->getMessage(),
+            ]);
+
+            return ['RspCode' => '99', 'Message' => 'Unknown error'];
+        }
     }
 }

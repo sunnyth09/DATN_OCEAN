@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Models\AffiliateConversion;
 use App\Repositories\AffiliateRepository;
 use App\Repositories\AffiliateClickRepository;
 use App\Repositories\AffiliateConversionRepository;
@@ -18,7 +19,8 @@ class AffiliateService
         protected AffiliateRepository $affiliateRepo,
         protected AffiliateClickRepository $clickRepo,
         protected AffiliateConversionRepository $conversionRepo,
-        protected AffiliateWithdrawalRepository $withdrawalRepo
+        protected AffiliateWithdrawalRepository $withdrawalRepo,
+        protected WalletService $walletService
     ) {}
 
     // =====================================================================
@@ -273,6 +275,9 @@ class AffiliateService
 
             if (in_array($newStatus, [OrderStatus::COMPLETED->value, OrderStatus::DELIVERED->value], true)) {
                 $this->conversionRepo->updateStatusByOrderId($order->order_id, 'approved');
+
+                // ★ Auto-deposit commission vào ví affiliate
+                $this->depositCommissionToWallet($order);
             }
 
             if (in_array($newStatus, [
@@ -346,6 +351,68 @@ class AffiliateService
         }
         $this->withdrawalRepo->updateStatus($id, 'paid');
         return $this->success('Đã đánh dấu thanh toán thành công!');
+    }
+
+    // =====================================================================
+    // WALLET INTEGRATION
+    // =====================================================================
+
+    /**
+     * Auto-deposit hoa hồng vào ví affiliate khi order completed/delivered.
+     * Nạp vào commission_balance (không phải deposit_balance).
+     */
+    private function depositCommissionToWallet(Order $order): void
+    {
+        try {
+            $conversion = $this->conversionRepo->findByOrderId($order->order_id);
+
+            if (!$conversion) {
+                return;
+            }
+
+            // Chống duplicate: check đã deposit chưa
+            $alreadyDeposited = \App\Models\WalletTransaction::where('reference_type', AffiliateConversion::class)
+                ->where('reference_id', $conversion->id)
+                ->where('type', 'commission')
+                ->exists();
+
+            if ($alreadyDeposited) {
+                Log::info('Affiliate commission already deposited to wallet', [
+                    'conversion_id' => $conversion->id,
+                    'order_id'      => $order->order_id,
+                ]);
+                return;
+            }
+
+            $this->walletService->credit(
+                userId: $conversion->referrer_id,
+                amount: (float) $conversion->commission_amount,
+                type: 'commission',  // → chảy vào commission_balance
+                opts: [
+                    'reference_type' => AffiliateConversion::class,
+                    'reference_id'   => $conversion->id,
+                    'description'    => "Hoa hồng affiliate đơn #{$order->order_code}",
+                    'metadata'       => [
+                        'order_id'        => $order->order_id,
+                        'order_code'      => $order->order_code,
+                        'total_amount'    => $conversion->total_amount,
+                        'commission_rate' => $conversion->commission_rate,
+                    ],
+                ]
+            );
+
+            Log::info('Affiliate commission deposited to wallet', [
+                'referrer_id'       => $conversion->referrer_id,
+                'commission_amount' => $conversion->commission_amount,
+                'order_code'        => $order->order_code,
+            ]);
+
+        } catch (\Exception $e) {
+            // Không throw — wallet lỗi không ảnh hưởng affiliate status flow
+            Log::error('Affiliate commission wallet deposit failed: ' . $e->getMessage(), [
+                'order_id' => $order->order_id,
+            ]);
+        }
     }
 
     // =====================================================================

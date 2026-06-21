@@ -24,6 +24,8 @@ class Order extends Model
         'fulfillment_status',
         'subtotal',
         'discount_amount',
+        'wallet_deposit_discount',
+        'wallet_commission_discount',
         'shipping_fee',
         'grand_total',
         'email_sent',

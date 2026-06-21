@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast';
 import AddressSelector from '@/components/AddressSelector.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
+import { walletService } from '@/services/walletService';
 import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/icons/AppIcon.vue';
 
@@ -61,6 +62,11 @@ const checkingCoupon = ref(false);
 const showCouponModal = ref(false);
 const availableCoupons = ref([]);
 const loadingCoupons = ref(false);
+
+// --- Wallet ---
+const useWallet = ref(false);
+const walletPreview = ref(null); // { deposit_available, commission_available, max_commission, total_available }
+const walletLoading = ref(false);
 
 // Format tiền VND
 const formatPrice = (price) => {
@@ -326,7 +332,38 @@ const discount = computed(() => {
 });
 
 const total = computed(() => {
-    return Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
+    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
+    return Math.max(0, base - walletDiscount.value);
+});
+
+// --- Wallet ---
+const walletDiscount = computed(() => {
+    if (!useWallet.value || !walletPreview.value) return 0;
+    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value;
+    return Math.min(walletPreview.value.total_available || 0, Math.max(0, maxDiscount));
+});
+
+const fetchWalletPreview = async () => {
+    if (!authStore.isAuthenticated) return;
+    walletLoading.value = true;
+    try {
+        const res = await walletService.previewDiscount(subtotal.value);
+        if (res.data?.status === 'success') {
+            walletPreview.value = res.data.data;
+        }
+    } catch (e) {
+        console.error('Wallet preview error', e);
+    } finally {
+        walletLoading.value = false;
+    }
+};
+
+watch(subtotal, () => {
+    if (authStore.isAuthenticated) fetchWalletPreview();
+});
+
+watch(useWallet, (val) => {
+    if (val && !walletPreview.value) fetchWalletPreview();
 });
 
 // Appy coupon (Mã cứng mockup cho UI: OCEAN10)
@@ -394,6 +431,8 @@ const placeOrder = async () => {
         note: note.value,
         coupon_applied: appliedCoupon.value?.code || null,
         referral_code: localStorage.getItem('affiliate_ref') || null,
+        use_wallet: useWallet.value && walletDiscount.value > 0,
+        wallet_amount: useWallet.value ? walletDiscount.value : 0,
     };
 
     if (showAddAddressForm.value) {
@@ -536,6 +575,7 @@ const getProductImage = (item) => {
 
 onMounted(async () => {
     const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData()];
+    if (authStore.isAuthenticated) promises.push(fetchWalletPreview());
     if (isFlashSale.value) {
         promises.push(fetchFlashSaleData());
     } else {
@@ -899,6 +939,42 @@ onMounted(async () => {
 
                                     <div class="summary-divider variant-dashed"></div>
 
+                                    <!-- WALLET DISCOUNT WIDGET -->
+                                    <div v-if="authStore.isAuthenticated && walletPreview && walletPreview.total_available > 0" class="wallet-checkout-widget">
+                                        <label class="wallet-toggle">
+                                            <input type="checkbox" v-model="useWallet" />
+                                            <div class="wt-switch">
+                                                <div class="wt-knob"></div>
+                                            </div>
+                                            <div class="wt-info">
+                                                <span class="wt-label">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M16 12h.01"/><path d="M2 10h20"/>
+                                                    </svg>
+                                                    Dùng ví thanh toán
+                                                </span>
+                                                <span class="wt-balance">Khả dụng: <strong>{{ formatPrice(walletPreview.total_available) }}</strong></span>
+                                            </div>
+                                        </label>
+                                        <div v-if="useWallet && walletDiscount > 0" class="wallet-discount-detail">
+                                            <div v-if="walletPreview.deposit_used > 0" class="wd-row">
+                                                <span>Từ số dư nạp</span>
+                                                <span class="wd-val">-{{ formatPrice(walletPreview.deposit_used) }}</span>
+                                            </div>
+                                            <div v-if="walletPreview.commission_used > 0" class="wd-row">
+                                                <span>Từ hoa hồng</span>
+                                                <span class="wd-val">-{{ formatPrice(walletPreview.commission_used) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="useWallet && walletDiscount > 0" class="total-row wallet-discount-row">
+                                        <span>Giảm từ ví</span>
+                                        <span class="discount-val" style="color: #8b5cf6; font-weight: 700;">-{{ formatPrice(walletDiscount) }}</span>
+                                    </div>
+
+                                    <div class="summary-divider variant-dashed"></div>
+
                                     <div class="total-final-row">
                                         <span class="total-label">Tổng cộng</span>
                                         <span class="total-price">{{ formatPrice(total) }}</span>
@@ -989,6 +1065,59 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Wallet Checkout Widget */
+.wallet-checkout-widget {
+  margin: 12px 0;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  border-radius: 12px;
+  padding: 14px;
+}
+.wallet-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.wallet-toggle input { display: none; }
+.wt-switch {
+  width: 40px; height: 22px;
+  background: #d1d5db;
+  border-radius: 11px;
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.wallet-toggle input:checked ~ .wt-switch { background: #8b5cf6; }
+.wt-knob {
+  width: 18px; height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px; left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.wallet-toggle input:checked ~ .wt-switch .wt-knob { transform: translateX(18px); }
+.wt-info { display: flex; flex-direction: column; gap: 2px; }
+.wt-label {
+  font-size: 0.85rem; font-weight: 600; color: #1f2937;
+  display: flex; align-items: center; gap: 6px;
+}
+.wt-balance { font-size: 0.78rem; color: #8b5cf6; }
+.wallet-discount-detail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #e9d5ff;
+}
+.wd-row {
+  display: flex; justify-content: space-between;
+  font-size: 0.8rem; color: #6b7280;
+  padding: 3px 0;
+}
+.wd-val { color: #8b5cf6; font-weight: 600; }
+.wallet-discount-row { background: #faf5ff; border-radius: 8px; padding: 8px 12px; margin: 4px 0; }
+
 .checkout-page {
     padding: 40px 0 80px;
     font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);

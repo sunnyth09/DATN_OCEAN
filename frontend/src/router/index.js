@@ -62,6 +62,7 @@ const routes = [
                     { path: "wishlist", name: "profile-wishlist", component: () => import("../Pages/Client/Profile/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
                     { path: "coupons", name: "profile-coupons", component: () => import("../Pages/Client/Profile/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
                     { path: "affiliate", name: "profile-affiliate", component: () => import("../Pages/Client/Profile/ProfileAffiliate.vue"), meta: { title: 'Affiliate' } },
+                    { path: "wallet", name: "profile-wallet", component: () => import("../Pages/Client/Profile/ProfileWallet.vue"), meta: { title: 'Ví của tôi' } },
                     { path: "court-bookings", name: "profile-court-bookings", component: () => import("../Pages/Client/Courts/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
                     { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
                 ],
@@ -214,6 +215,12 @@ const routes = [
                 name: "admin-flash-sale",
                 component: () => import("../Pages/admin/AdminFlashSale.vue"),
                 meta: { roles: ['admin'], title: 'Quản lý Flash Sale' },
+            },
+            {
+                path: "wallet-deposits",
+                name: "admin-wallet-deposits",
+                component: () => import("../Pages/admin/AdminWalletDeposits.vue"),
+                meta: { roles: ['admin'], title: 'Ví & Nạp tiền' },
             },
             {
                 path: "post",

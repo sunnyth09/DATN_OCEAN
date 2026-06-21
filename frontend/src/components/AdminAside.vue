@@ -238,6 +238,10 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span>
             <span>Khiếu nại</span>
           </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/wallet-deposits" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Ví & Nạp tiền</span>
+          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Thống kê</span>

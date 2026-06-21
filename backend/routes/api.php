@@ -44,6 +44,8 @@ use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\WalletController;
+use App\Http\Controllers\AdminWalletController;
 use App\Http\Controllers\Api\Client\TrackingController;
 // API root health response.
 Route::get('/', function () {
@@ -232,6 +234,14 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::put('/loyalty/rules/{key}', [LoyaltyController::class, 'adminUpdateRule']);
     Route::post('/loyalty/users/{userId}/adjust', [LoyaltyController::class, 'adminAdjust']);
     Route::get('/loyalty/users/{userId}/history', [LoyaltyController::class, 'adminUserHistory']);
+
+    // ── Wallet (Ví cá nhân — Admin) ──
+    Route::get('/wallets/deposits/pending', [AdminWalletController::class, 'pendingDeposits']);
+    Route::post('/wallets/deposits/{depositId}/confirm', [AdminWalletController::class, 'confirmDeposit']);
+    Route::post('/wallets/deposits/{depositId}/reject', [AdminWalletController::class, 'rejectDeposit']);
+    Route::get('/wallets', [AdminWalletController::class, 'index']);
+    Route::get('/wallets/{userId}', [AdminWalletController::class, 'show']);
+    Route::post('/wallets/{userId}/adjust', [AdminWalletController::class, 'adjust']);
 
     // Flash Sale Management (Admin only)
     Route::get('/flash-sale', [\App\Http\Controllers\Admin\FlashSaleController::class, 'adminIndex']);
@@ -425,6 +435,29 @@ Route::middleware('auth:api')->prefix('loyalty')->group(function () {
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
     Route::post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
+});
+
+// ==========================================
+// WALLET (Ví cá nhân)
+// ==========================================
+Route::middleware('auth:api')->prefix('wallet')->group(function () {
+    Route::get('/', [WalletController::class, 'index']);                  // Số dư + thống kê
+    Route::get('/history', [WalletController::class, 'history']);          // Lịch sử giao dịch
+    Route::get('/preview-discount', [WalletController::class, 'previewDiscount']); // Preview giảm giá checkout
+
+    // Nạp tiền ví (rate limited: 5 requests/phút)
+    Route::middleware('throttle:5,1')->post('/deposit/init', [\App\Http\Controllers\WalletDepositController::class, 'initDeposit']);
+
+    // Rút tiền ví (rate limited: 3 requests/phút)
+    Route::middleware('throttle:3,1')->post('/withdraw', [WalletController::class, 'withdraw']);
+    Route::get('/withdrawals', [WalletController::class, 'withdrawals']);
+
+    // Tài khoản ngân hàng liên kết
+    Route::get('/bank-accounts', [\App\Http\Controllers\UserBankAccountController::class, 'index']);
+    Route::post('/bank-accounts', [\App\Http\Controllers\UserBankAccountController::class, 'store']);
+    Route::put('/bank-accounts/{id}', [\App\Http\Controllers\UserBankAccountController::class, 'update']);
+    Route::delete('/bank-accounts/{id}', [\App\Http\Controllers\UserBankAccountController::class, 'destroy']);
+    Route::post('/bank-accounts/{id}/default', [\App\Http\Controllers\UserBankAccountController::class, 'setDefault']);
 });
 
 // API Địa chỉ Việt Nam (Public)
