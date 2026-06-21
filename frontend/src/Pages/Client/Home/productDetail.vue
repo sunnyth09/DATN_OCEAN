@@ -583,6 +583,41 @@ const shareToFacebook = async () => {
     }
 };
 
+const isSharing = ref(false);
+const shareToFacebook = async () => {
+    if (!product.value) return;
+    
+    // Tạo URL chia sẻ (giả lập sử dụng URL hiện tại)
+    const shareUrl = window.location.href;
+    const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+    
+    // Mở popup chia sẻ
+    window.open(fbShareUrl, 'facebook-share-dialog', 'width=800,height=600');
+    
+    // Gọi API cộng điểm ngay sau khi nhấn chia sẻ
+    // Trong thực tế cần verify từ webhook của FB, nhưng đây là MVP
+    if (authStore.isAuthenticated) {
+        isSharing.value = true;
+        try {
+            const res = await loyaltyService.socialShare(product.value.product_id);
+            if (res.data?.status === 'success') {
+                showToast('Bạn đã nhận được 30 điểm thưởng từ việc chia sẻ!', 'success');
+                // Cập nhật lại điểm trong store nếu cần
+            }
+        } catch (error) {
+            // Có thể bỏ qua lỗi hoặc hiển thị nếu cần (ví dụ: đã nhận điểm hôm nay rồi)
+            const msg = error.response?.data?.message;
+            if (msg) {
+                showToast(msg, 'success'); // Vẫn báo success nhưng nội dung là info (ví dụ đã nhận rồi)
+            }
+        } finally {
+            isSharing.value = false;
+        }
+    } else {
+        showToast('Bạn có thể đăng nhập để nhận 30 điểm khi chia sẻ sản phẩm!', 'success');
+    }
+};
+
 // Watch route slug để reload dữ liệu khi điều hướng sang SP khác
 watch(slug, (newSlug, oldSlug) => {
   if (newSlug && newSlug !== oldSlug) {

@@ -457,6 +457,16 @@ Route::middleware('auth:api')->prefix('loyalty')->group(function () {
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
     Route::post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
+    Route::post('/social-share', [LoyaltyController::class, 'socialShare']); // Chia sẻ MXH +30đ
+});
+
+// ==========================================
+// WALLET (Ví điện tử)
+// ==========================================
+Route::middleware('auth:api')->prefix('wallet')->group(function () {
+    Route::get('/summary', [WalletController::class, 'summary']);         // Tóm tắt ví điện tử
+    Route::get('/history', [WalletController::class, 'history']);         // Lịch sử giao dịch ví
+    Route::post('/withdraw', [WalletController::class, 'withdraw']);       // Yêu cầu rút tiền
 });
 
 // ==========================================

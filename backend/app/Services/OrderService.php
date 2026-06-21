@@ -5,11 +5,13 @@ namespace App\Services;
 use App\Enums\OrderStatus;
 use App\Exceptions\OrderException;
 use App\Models\OrderStatusHistory;
+use App\Models\Order;
 use App\Repositories\OrderRepository;
 use App\Repositories\CartRepository;
 use App\Repositories\AddressRepository;
 use App\Repositories\ProductVariantRepository;
 use App\Services\ComboService;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -207,6 +209,8 @@ class OrderService
                     'shipping_fee' => $shippingFee,
                     'grand_total' => $grandTotalAfterWallet,
                     'combo_discount' => $comboDiscount,
+                    'wallet_spent' => $data['payment_method'] === 'wallet' ? $grandTotal : 0.00,
+                    'is_abandoned_checkout' => $isAbandonedCheckout,
                 ]);
 
                 foreach ($cartItems as $cartItem) {
@@ -255,6 +259,22 @@ class OrderService
                 $cartItemIds = $cartItems->pluck('cart_item_id')->filter()->values()->toArray();
                 if (!empty($cartItemIds)) {
                     $this->cartRepository->deleteItems($cartItemIds);
+                }
+
+                // Reset trạng thái giỏ hàng bỏ quên
+                if ($isAbandonedCheckout && $cart) {
+                    $cart->update(['is_abandoned_reminded' => false]);
+                }
+
+                // Thực hiện trừ tiền từ ví nếu thanh toán bằng ví
+                if ($data['payment_method'] === 'wallet') {
+                    $this->walletService->spend(
+                        $userId,
+                        $grandTotal,
+                        "Thanh toán đơn hàng #{$order->order_code}",
+                        $order->order_id,
+                        Order::class
+                    );
                 }
 
                 $paymentResult = $this->paymentGatewayService->handlePayment(
