@@ -404,7 +404,7 @@ const shareToFacebook = async () => {
         try {
             const res = await loyaltyService.socialShare(product.value.product_id);
             if (res.data?.status === 'success') {
-                showToast('Bạn đã nhận được 30 điểm thưởng từ việc chia sẻ!', 'success');
+                showToast('Bạn đã nhận được 10 điểm thưởng từ việc chia sẻ!', 'success');
                 // Cập nhật lại điểm trong store nếu cần
             }
         } catch (error) {
@@ -417,7 +417,7 @@ const shareToFacebook = async () => {
             isSharing.value = false;
         }
     } else {
-        showToast('Bạn có thể đăng nhập để nhận 30 điểm khi chia sẻ sản phẩm!', 'success');
+        showToast('Bạn có thể đăng nhập để nhận 10 điểm khi chia sẻ sản phẩm!', 'success');
     }
 };
 
@@ -594,7 +594,7 @@ console.log(quantity.value);
         <!-- Social Share for Loyalty Points -->
         <button class="pd-btn-share" @click="shareToFacebook" :disabled="isSharing">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-          Chia sẻ Facebook nhận +30 điểm
+          Chia sẻ Facebook nhận +10 điểm
         </button>
 
         <PremiumUpgrade :current-variant="selectedVariant" :all-variants="sortedVariants" @upgrade="handleUpgrade" />

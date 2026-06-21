@@ -22,7 +22,7 @@ const earnEvents = [
   { icon: '🎂', label: 'Sinh nhật khách hàng',          points: '+100 điểm',          color: '#ec4899' },
   { icon: '👥', label: 'Giới thiệu bạn bè thành công',  points: '+200 điểm',          color: '#3b82f6' },
   { icon: '🛍️', label: 'Hoàn tất đơn bỏ quên giỏ',    points: '+30 điểm',           color: '#f97316' },
-  { icon: '📣', label: 'Chia sẻ sản phẩm mạng xã hội', points: '+30 điểm',           color: '#06b6d4' },
+  { icon: '📣', label: 'Chia sẻ sản phẩm mạng xã hội', points: '+10 điểm',           color: '#06b6d4' },
 ];
 
 // ── Computed ───────────────────────────────────────────────────────

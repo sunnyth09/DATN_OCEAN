@@ -35,6 +35,7 @@ class StoreOrderRequest  extends FormRequest
             'coupon_applied' => 'nullable|string',
             'note' => 'nullable|string|max:500',
             'referral_code' => 'nullable|string|max:20',
+            'reward_points_used' => 'nullable|integer|min:0',
         ];
     }
     
@@ -43,6 +44,8 @@ class StoreOrderRequest  extends FormRequest
         return [            
             'payment_method.required' => 'Vui lòng chọn phương thức thanh toán.',
             'payment_method.in' => 'Phương thức thanh toán không hợp lệ.',
+            'reward_points_used.integer' => 'Số điểm thưởng không hợp lệ.',
+            'reward_points_used.min' => 'Số điểm thưởng không thể nhỏ hơn 0.',
         ];
     }
 }

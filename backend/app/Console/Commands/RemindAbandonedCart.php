@@ -37,9 +37,9 @@ class RemindAbandonedCart extends Command
 
     /**
      * Số PHÚT giỏ hàng không tương tác để coi là "bỏ quên"
-     * TEST: 5 phút | Production: đổi thành 240 (= 4 tiếng)
+     * Yêu cầu: 24 giờ = 1440 phút
      */
-    const ABANDONED_MINUTES = 1;
+    const ABANDONED_MINUTES = 1440;
 
     /**
      * Số PHÚT giữa 2 lần gửi thông báo (tránh spam)

@@ -114,6 +114,20 @@ class OrderService
             $comboResult   = $this->comboService->applyAllCombos($userId, $cartItems, $subtotal);
             $comboDiscount = $comboResult['discount_amount'];
 
+            // === TÍNH TOÁN ĐIỂM THƯỞNG ===
+            $rewardPointsUsed = (int) ($data['reward_points_used'] ?? 0);
+            $rewardDiscount = 0;
+            $user = null;
+            if ($rewardPointsUsed > 0) {
+                $user = \App\Models\User::find($userId);
+                if (!$user || $user->reward_points < $rewardPointsUsed) {
+                    return $this->error('Số điểm thưởng không đủ!', 400);
+                }
+                // 1 điểm = 100đ
+                $rewardDiscount = $rewardPointsUsed * 100; 
+                $discountAmount += $rewardDiscount;
+            }
+
             $grandTotal = max(0, $subtotal + $shippingFee - $discountAmount - $comboDiscount);
 
             // Kiểm tra giỏ hàng bỏ quên
@@ -124,6 +138,7 @@ class OrderService
 
             $result = DB::transaction(function () use (
                 $userId,
+                $user,
                 $data,
                 $request,
                 $address,
@@ -137,7 +152,8 @@ class OrderService
                 $couponId,
                 $couponResult,
                 $cart,
-                $isAbandonedCheckout
+                $isAbandonedCheckout,
+                $rewardPointsUsed
             ) {
                 $this->lockAndValidateStock($cartItems);
 
@@ -201,6 +217,15 @@ class OrderService
                     $this->couponService->markCouponAsUsed(
                         $userId,
                         $couponResult['coupon']
+                    );
+                }
+
+                // Trừ điểm thưởng
+                if ($rewardPointsUsed > 0 && $user) {
+                    app(\App\Services\LoyaltyService::class)->burnPoints(
+                        $user,
+                        $rewardPointsUsed,
+                        $order
                     );
                 }
 
