@@ -210,7 +210,7 @@ class LoyaltyController extends Controller
                 userId: $userId,
                 delta: (int) $request->delta,
                 description: $request->description,
-                adminId: $admin->id,
+                adminId: $admin->user_id,
             );
 
             return response()->json([
