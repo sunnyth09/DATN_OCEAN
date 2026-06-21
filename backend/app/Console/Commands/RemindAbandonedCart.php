@@ -125,14 +125,11 @@ class RemindAbandonedCart extends Command
                 // --- Đếm số item ---
                 $itemCount = $cart->items->count();
 
-                // --- Tặng điểm thưởng qua LoyaltyService (ghi transaction log + expiry) ---
-                $this->loyaltyService->earnAbandonedCart($user, $cart->cart_id);
-
-                // Lấy số điểm tặng từ rule để hiển thị trong notification
-                $earnedPoints = self::REWARD_POINTS;
+                // --- Đánh dấu giỏ hàng đã được nhắc nhở để cộng điểm khi checkout ---
+                $cart->update(['is_abandoned_reminded' => true]);
 
                 // --- Gửi notification (mail + database) ---
-                $user->notify(new AbandonedCartNotification($itemCount, self::REWARD_POINTS));
+                $user->notify(new AbandonedCartNotification($itemCount, 30));
 
                 $this->info("  ✅ Đã nhắc nhở: {$user->full_name} ({$user->email}) - {$itemCount} SP");
                 $successCount++;

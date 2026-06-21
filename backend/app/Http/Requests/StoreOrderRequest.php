@@ -31,7 +31,7 @@ class StoreOrderRequest  extends FormRequest
             'district_code' => 'nullable',
             'ward_code' => 'nullable',
 
-            'payment_method' => 'required|in:cod,vnpay,momo,bank_transfer',
+            'payment_method' => 'required|in:cod,vnpay,momo,bank_transfer,wallet',
             'coupon_applied' => 'nullable|string',
             'note' => 'nullable|string|max:500',
             'referral_code' => 'nullable|string|max:20',

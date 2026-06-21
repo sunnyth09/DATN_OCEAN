@@ -88,6 +88,14 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Quan hệ: User có 1 Wallet (ví điện tử)
+     */
+    public function wallet()
+    {
+        return $this->hasOne(Wallet::class, 'user_id', 'user_id');
+    }
+
+    /**
      * Quan hệ: User có nhiều UserCoupon (mã giảm giá đã lưu)
      */
     public function userCoupons()

@@ -5,12 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\ProductComment;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Exception;
 
 class ProductCommentController extends Controller
 {
+    public function __construct(
+        protected LoyaltyService $loyaltyService
+    ) {}  
     /**
      * Store a newly created comment.
      */
@@ -65,6 +70,17 @@ class ProductCommentController extends Controller
 
         DB::beginTransaction();
         try {
+            // Lưu ảnh nếu có
+            $imagePaths = [];
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    if ($image && $image->isValid()) {
+                        $path = $image->store('product_comments', 'public');
+                        $imagePaths[] = $path;
+                    }
+                }
+            }
+
             $comment = ProductComment::create([
                 'product_id'     => $request->product_id,
                 'user_id'        => $userId,
@@ -73,7 +89,22 @@ class ProductCommentController extends Controller
                 'rating'         => $request->rating,
                 'content'        => $request->content,
                 'is_approved'    => 0,
+                'images'         => !empty($imagePaths) ? json_encode($imagePaths) : null,
             ]);
+
+            // ── Tích điểm Loyalty ──────────────────────────────────────────
+            $user = auth('api')->user();
+            if ($user) {
+                // +20 điểm khi viết nhận xét có nội dung
+                if (!empty(trim($request->content ?? ''))) {
+                    $this->loyaltyService->earnFromReview($user, $comment->id);
+                }
+                // +50 điểm bonus khi đính kèm hình ảnh
+                if (!empty($imagePaths)) {
+                    $this->loyaltyService->earnFromReviewWithImage($user, $comment->id);
+                }
+            }
+            // ───────────────────────────────────────────────────────────────
 
             // Recalculate average rating for the product using approved comments
             $this->recalculateProductRating($request->product_id);
