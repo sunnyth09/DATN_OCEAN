@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\WalletController;
 use App\Http\Controllers\Api\Client\TrackingController;
 // Add this line to run the route: http://localhost:8000/api
 Route::get('/', function () {
@@ -420,6 +421,16 @@ Route::middleware('auth:api')->prefix('loyalty')->group(function () {
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
     Route::post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
+    Route::post('/social-share', [LoyaltyController::class, 'socialShare']); // Chia sẻ MXH +30đ
+});
+
+// ==========================================
+// WALLET (Ví điện tử)
+// ==========================================
+Route::middleware('auth:api')->prefix('wallet')->group(function () {
+    Route::get('/summary', [WalletController::class, 'summary']);         // Tóm tắt ví điện tử
+    Route::get('/history', [WalletController::class, 'history']);         // Lịch sử giao dịch ví
+    Route::post('/withdraw', [WalletController::class, 'withdraw']);       // Yêu cầu rút tiền
 });
 
 // API Địa chỉ Việt Nam (Public)

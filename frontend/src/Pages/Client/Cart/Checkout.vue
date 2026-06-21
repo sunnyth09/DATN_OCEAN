@@ -42,7 +42,8 @@ const formAddress = ref({
 const isCalculatingFee = ref(false);
 
 // --- Thanh toán & Khác ---
-const paymentMethod = ref('cod'); // cod, vnpay, momo, banking
+const paymentMethod = ref('cod'); // cod, vnpay, momo, banking, wallet
+const walletBalance = ref(0);
 const note = ref('');
 
 // --- Banking QR Modal ---
@@ -77,6 +78,18 @@ const fetchCart = async () => {
         if (error.response?.status === 401) {
             router.push({ name: 'login', query: { redirect: '/checkout' } });
         }
+    }
+};
+
+// Lấy số dư ví điện tử
+const fetchWalletBalance = async () => {
+    try {
+        const response = await api.get('/wallet/summary');
+        if (response.data.status === 'success') {
+            walletBalance.value = response.data.data.balance || 0;
+        }
+    } catch (error) {
+        console.error('Lỗi khi lấy số dư ví:', error);
     }
 };
 
@@ -461,7 +474,7 @@ const getProductImage = (item) => {
 };
 
 onMounted(async () => {
-    const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData()];
+    const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData(), fetchWalletBalance()];
     if (isFlashSale.value) {
         promises.push(fetchFlashSaleData());
     } else {
@@ -725,6 +738,22 @@ onMounted(async () => {
                                     <div class="payment-info-simple">
                                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#005a9e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                                         <span class="payment-name-simple">VNPay</span>
+                                    </div>
+                                </label>
+
+                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'wallet', 'is-disabled': walletBalance < total }">
+                                    <input type="radio" v-model="paymentMethod" value="wallet" :disabled="walletBalance < total" class="hidden-radio" />
+                                    <div class="ac-left">
+                                        <div class="radio-indicator">
+                                            <div class="radio-dot"></div>
+                                        </div>
+                                    </div>
+                                    <div class="payment-info-simple">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8d6e63" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+                                        <span class="payment-name-simple">
+                                            Ví điện tử (Ocean Pay) - <strong>{{ formatPrice(walletBalance) }}</strong>
+                                            <span v-if="walletBalance < total" style="color: #ef4444; font-size: 11px; margin-left: 8px;">(Số dư không đủ)</span>
+                                        </span>
                                     </div>
                                 </label>
                             </div>

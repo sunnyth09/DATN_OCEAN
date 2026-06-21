@@ -35,8 +35,8 @@
               <circle cx="12" cy="10" r="3" />
             </svg></div>
           <h3>Showroom</h3>
-          <p class="contact-value">134 Nguyễn Thị Định</p>
-          <p class="contact-note">P. Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+          <p class="contact-value">101 Y Ngông</p>
+          <p class="contact-note">Phường Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
         </div>
         <div class="contact-card">
           <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -51,21 +51,28 @@
       </div>
 
       <div class="contact-layout">
-        <div class="map-block">
-          <div class="map-header">
-            <h2>Bản đồ cửa hàng</h2>
-            <p>Địa chỉ: 134 Nguyễn Thị Định, P. Buôn Ma Thuột, Đắk Lắk</p>
-          </div>
-          <div class="map-frame">
+        <div class="info-panel">
+          <div class="mini-map">
             <iframe
-              src="https://www.google.com/maps?q=134+Nguyễn+Thị+Định,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
+              src="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
               loading="lazy"
               referrerpolicy="no-referrer-when-downgrade"
-              title="Bản đồ Ocean Store"
+              title="Mini map Ocean Sport"
             ></iframe>
           </div>
+          <div class="location-meta">
+            <h3>Showroom OCEAN SPORT</h3>
+            <p>101 Y Ngông, Phường Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+            <a
+              href="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Xem bản đồ lớn
+            </a>
+          </div>
         </div>
-        <div class="content-block">
+        <div class="form-panel">
           <h2>Gửi yêu cầu hỗ trợ</h2>
           <form @submit.prevent="submitContact" class="contact-form" novalidate>
           <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
@@ -259,7 +266,7 @@ const submitContact = async () => {
 }
 
 .container {
-  max-width: 900px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 0 24px;
 }
@@ -284,7 +291,7 @@ const submitContact = async () => {
 }
 
 .page-content {
-  padding: 48px 24px 64px;
+  padding: 24px 24px 64px;
 }
 
 .contact-grid {
@@ -295,10 +302,10 @@ const submitContact = async () => {
 }
 
 .contact-card {
-  background: #F8F9FA;
-  border: 1px solid #FFE0E8;
-  border-radius: 12px;
-  padding: 24px;
+  background: #f8f9fa;
+  border: 1px solid #e9eef5;
+  border-radius: 10px;
+  padding: 18px 14px;
   text-align: center;
   transition: box-shadow 0.2s;
 }
@@ -308,48 +315,94 @@ const submitContact = async () => {
 }
 
 .contact-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: #FFF0F3;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #fff0f3;
   color: #E63B6F;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 12px;
+  margin: 0 auto 10px;
 }
 
 .contact-card h3 {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #2D3436;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .contact-value {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: green;
+  color: #374151;
   margin-bottom: 4px;
 }
 
 .contact-note {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #9ca3af;
   margin: 0;
 }
 
-.content-block {
-  margin-bottom: 36px;
+.contact-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
 }
 
-.content-block h2 {
+.info-panel {
+  border-radius: 8px;
+}
+
+.mini-map {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e9ecef;
+  aspect-ratio: 16 / 10;
+}
+
+.mini-map iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.location-meta {
+  margin-top: 12px;
+}
+
+.location-meta h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.location-meta p {
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
+.location-meta a {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #dc2626;
+  text-decoration: underline;
+}
+
+.form-panel {
+  border-radius: 8px;
+}
+
+.form-panel h2 {
   font-size: 1.3rem;
   font-weight: 700;
   color: #2D3436;
-  margin-bottom: 20px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #FFF0F3;
+  margin-bottom: 14px;
 }
 
 .contact-form {
@@ -399,9 +452,9 @@ const submitContact = async () => {
 }
 
 .btn-primary {
-  padding: 13px 32px;
+  padding: 12px 24px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #E63B6F;
   color: #fff;
   font-size: 0.95rem;
@@ -451,6 +504,10 @@ const submitContact = async () => {
 @media (max-width: 768px) {
   .contact-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .contact-layout {
+    grid-template-columns: 1fr;
   }
 
   .form-row-2 {

@@ -11,6 +11,7 @@ import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/icons/AppIcon.vue';
 import VirtualTryOnModal from '@/components/VirtualTryOnModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
+import { loyaltyService } from '@/services/loyaltyService';
 
 const route = useRoute();
 const router = useRouter();
@@ -391,6 +392,41 @@ const handleUpgrade = (premiumVariant) => {
     showToast(`Đã nâng cấp lên phiên bản ${premiumVariant.color || ''} ${premiumVariant.size || ''}`.trim(), 'success');
 };
 
+const isSharing = ref(false);
+const shareToFacebook = async () => {
+    if (!product.value) return;
+    
+    // Tạo URL chia sẻ (giả lập sử dụng URL hiện tại)
+    const shareUrl = window.location.href;
+    const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+    
+    // Mở popup chia sẻ
+    window.open(fbShareUrl, 'facebook-share-dialog', 'width=800,height=600');
+    
+    // Gọi API cộng điểm ngay sau khi nhấn chia sẻ
+    // Trong thực tế cần verify từ webhook của FB, nhưng đây là MVP
+    if (authStore.isAuthenticated) {
+        isSharing.value = true;
+        try {
+            const res = await loyaltyService.socialShare(product.value.product_id);
+            if (res.data?.status === 'success') {
+                showToast('Bạn đã nhận được 30 điểm thưởng từ việc chia sẻ!', 'success');
+                // Cập nhật lại điểm trong store nếu cần
+            }
+        } catch (error) {
+            // Có thể bỏ qua lỗi hoặc hiển thị nếu cần (ví dụ: đã nhận điểm hôm nay rồi)
+            const msg = error.response?.data?.message;
+            if (msg) {
+                showToast(msg, 'success'); // Vẫn báo success nhưng nội dung là info (ví dụ đã nhận rồi)
+            }
+        } finally {
+            isSharing.value = false;
+        }
+    } else {
+        showToast('Bạn có thể đăng nhập để nhận 30 điểm khi chia sẻ sản phẩm!', 'success');
+    }
+};
+
 // Watch route slug để reload dữ liệu khi điều hướng sang SP khác
 watch(slug, (newSlug, oldSlug) => {
     if (newSlug && newSlug !== oldSlug) {
@@ -539,6 +575,12 @@ console.log(quantity.value);
           <div class="pd-perk"><AppIcon name="arrow-right" size="16" /> Giao hàng miễn phí</div>
           <div class="pd-perk"><AppIcon name="shield" size="16" /> Bảo hành chính hãng</div>
         </div>
+
+        <!-- Social Share for Loyalty Points -->
+        <button class="pd-btn-share" @click="shareToFacebook" :disabled="isSharing">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+          Chia sẻ Facebook nhận +30 điểm
+        </button>
 
         <PremiumUpgrade :current-variant="selectedVariant" :all-variants="sortedVariants" @upgrade="handleUpgrade" />
       </div>
@@ -818,8 +860,30 @@ console.log(quantity.value);
 }
 
 /* Perks */
-.pd-perks { display: flex; gap: 24px; padding: 16px 0; border-top: 1px solid #E9ECEF; margin-bottom: 20px; }
+.pd-perks { display: flex; gap: 24px; padding: 16px 0; border-top: 1px solid #E9ECEF; margin-bottom: 16px; }
 .pd-perk { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #636E72; font-weight: 500; }
+
+/* Share Button */
+.pd-btn-share {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #1877F2;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+  font-family: inherit;
+}
+.pd-btn-share:hover { background: #166FE5; }
+.pd-btn-share:disabled { opacity: 0.7; cursor: not-allowed; }
 
 /* ── TABS ── */
 .pd-tabs-section { margin-bottom: 48px; }

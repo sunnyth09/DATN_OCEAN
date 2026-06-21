@@ -9,6 +9,7 @@ import AppIcon from "@/icons/AppIcon.vue";
 import { useCartStore } from "@/stores/cart";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
+import { loyaltyService } from "@/services/loyaltyService";
 
 const BASE_URL = import.meta.env.VITE_BASE_URL;
 const route = useRoute();
@@ -26,6 +27,7 @@ const isAdmin = ref(false);
 const showDropdown = ref(false);
 const unreadNotificationCount = ref(0);
 const isMobileMenuOpen = ref(false);
+const headerRewardPoints = ref(0);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
@@ -250,6 +252,17 @@ const fetchUnreadNotificationCount = async () => {
     }
 };
 
+const fetchHeaderRewardPoints = async () => {
+    const token = sessionStorage.getItem("auth_token");
+    if (!token) { headerRewardPoints.value = 0; return; }
+    try {
+        const res = await loyaltyService.getSummary();
+        headerRewardPoints.value = res.data?.data?.current_balance ?? 0;
+    } catch (e) {
+        headerRewardPoints.value = 0;
+    }
+};
+
 let notificationUserId = null;
 
 const leaveNotificationChannel = () => {
@@ -262,6 +275,7 @@ const leaveNotificationChannel = () => {
 watch(isLoggedIn, (val) => {
     if (val) {
         fetchUnreadNotificationCount();
+        fetchHeaderRewardPoints();
         const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
         if (window.Echo && userData && userData.user_id) {
             if (notificationUserId === userData.user_id) return;
@@ -288,6 +302,7 @@ watch(isLoggedIn, (val) => {
         }
     } else {
         unreadNotificationCount.value = 0;
+        headerRewardPoints.value = 0;
         leaveNotificationChannel();
     }
 }, { immediate: true });
@@ -601,6 +616,13 @@ watch(
                                         </div>
                                     </div>
                                 </div>
+                                <!-- Điểm thưởng mini trong header dropdown -->
+                                <router-link v-if="headerRewardPoints >= 0" to="/profile/loyalty" class="header-loyalty-row" @click="closeAccountMenu">
+                                    <span class="header-loyalty-icon">🏆</span>
+                                    <span class="header-loyalty-label">Số điểm:</span>
+                                    <span class="header-loyalty-pts">{{ new Intl.NumberFormat('vi-VN').format(headerRewardPoints) }} điểm</span>
+                                    <span class="header-loyalty-arrow">›</span>
+                                </router-link>
                                 <div class="dropdown-divider"></div>
                                 <router-link to="/profile" class="account-menu-item">Tài khoản của tôi</router-link>
                                 <router-link v-if="isAdmin" to="/admin" class="account-menu-item">Quản trị</router-link>
@@ -1044,6 +1066,45 @@ watch(
     height: 1px;
     background: #f0f0f0;
     margin: 4px 0;
+}
+
+/* Loyalty points row in header dropdown */
+.header-loyalty-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #fff7ed, #fef3f2);
+    border-radius: 10px;
+    text-decoration: none;
+    margin: 4px 0;
+    border: 1px solid #fed7aa;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.header-loyalty-row:hover {
+    background: linear-gradient(135deg, #ffedd5, #ffe4e6);
+    border-color: #E63B6F;
+}
+.header-loyalty-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.header-loyalty-label {
+    font-size: 0.78rem;
+    color: #92400e;
+    font-weight: 500;
+}
+.header-loyalty-pts {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #E63B6F;
+    flex: 1;
+}
+.header-loyalty-arrow {
+    color: #E63B6F;
+    font-size: 1.1rem;
+    font-weight: 700;
 }
 
 .account-menu-item {

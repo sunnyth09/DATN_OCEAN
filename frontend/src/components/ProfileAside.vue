@@ -9,6 +9,10 @@
       <div class="aside-user-info">
         <h3 class="aside-user-name">{{ userName }}</h3>
         <p class="aside-user-email">{{ userEmail }}</p>
+        <!-- Điểm thưởng mini badge -->
+        <div v-if="rewardPoints > 0" class="aside-points-badge">
+          🏆 <strong>{{ formatPoints(rewardPoints) }}</strong> điểm
+        </div>
       </div>
     </div>
 
@@ -111,6 +115,37 @@
         <span>Affiliate</span>
       </router-link>
 
+      <!-- ── Ví tiền ── -->
+      <router-link
+        to="/profile/wallet"
+        class="aside-nav-item aside-nav-item--wallet"
+        active-class="aside-nav-item--active"
+      >
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
+            <line x1="1" y1="10" x2="23" y2="10"/>
+            <circle cx="17" cy="15" r="2" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <span>Ví tiền</span>
+      </router-link>
+
+      <!-- ── Điểm thưởng ── -->
+      <router-link
+        to="/profile/loyalty"
+        class="aside-nav-item aside-nav-item--loyalty"
+        active-class="aside-nav-item--active"
+      >
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+          </svg>
+        </div>
+        <span>Điểm thưởng</span>
+        <span v-if="rewardPoints > 0" class="aside-points-pill">{{ formatPoints(rewardPoints) }}</span>
+      </router-link>
+
       <router-link
         to="/profile/change-password"
         class="aside-nav-item"
@@ -175,6 +210,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { loyaltyService } from '@/services/loyaltyService';
 import Swal from 'sweetalert2';
 
 const router = useRouter();
@@ -186,6 +222,24 @@ const userName = computed(() => authStore.displayName);
 const userEmail = computed(() => authStore.email);
 const userInitial = computed(() => authStore.userInitial);
 const userAvatar = computed(() => authStore.avatarUrl || '');
+
+// Điểm thưởng
+const rewardPoints = ref(0);
+
+const formatPoints = (n) => new Intl.NumberFormat('vi-VN').format(n ?? 0);
+
+const fetchRewardPoints = async () => {
+  try {
+    const token = sessionStorage.getItem('auth_token');
+    if (!token) return;
+    const res = await loyaltyService.getSummary();
+    if (res.data?.status === 'success') {
+      rewardPoints.value = res.data.data?.current_balance ?? 0;
+    }
+  } catch (e) {
+    // silent fail
+  }
+};
 
 // FIX M5: Xác định role để ẩn menu items không phù hợp
 const isCustomerRole = computed(() => {
@@ -202,8 +256,9 @@ const handleAuthLogout = () => {
   router.push('/client/login');
 };
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('auth-logout', handleAuthLogout);
+  await fetchRewardPoints();
 });
 
 onUnmounted(() => {
@@ -246,6 +301,20 @@ const handleLogout = async () => {
   gap: 14px;
   background-color:  #E63B6F;
   color: #fff;
+}
+
+.aside-points-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+}
+.aside-points-badge strong {
+  font-weight: 700;
 }
 
 .aside-avatar {
@@ -342,6 +411,25 @@ const handleLogout = async () => {
 .aside-nav-item--active .aside-nav-icon {
   opacity: 1;
   color: #E63B6F;
+}
+
+/* Điểm thưởng pill badge */
+.aside-points-pill {
+  margin-left: auto;
+  background: linear-gradient(135deg, #E63B6F, #f97316);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  min-width: 28px;
+  text-align: center;
+}
+
+/* Loyalty nav item star highlight */
+.aside-nav-item--loyalty .aside-nav-icon svg {
+  stroke: #f59e0b;
 }
 
 .aside-nav-divider {

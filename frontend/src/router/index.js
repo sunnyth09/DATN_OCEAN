@@ -62,6 +62,8 @@ const routes = [
                     { path: "wishlist", name: "profile-wishlist", component: () => import("../Pages/Client/Profile/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
                     { path: "coupons", name: "profile-coupons", component: () => import("../Pages/Client/Profile/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
                     { path: "affiliate", name: "profile-affiliate", component: () => import("../Pages/Client/Profile/ProfileAffiliate.vue"), meta: { title: 'Affiliate' } },
+                    { path: "loyalty", name: "profile-loyalty", component: () => import("../Pages/Client/Profile/ProfileLoyalty.vue"), meta: { title: 'Điểm thưởng' } },
+                    { path: "wallet", name: "profile-wallet", component: () => import("../Pages/Client/Profile/ProfileWallet.vue"), meta: { title: 'Ví tiền' } },
                     { path: "court-bookings", name: "profile-court-bookings", component: () => import("../Pages/Client/Courts/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
                     { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
                 ],
