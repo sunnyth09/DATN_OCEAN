@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast';
 import AddressSelector from '@/components/AddressSelector.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
+import { loyaltyService } from '@/services/loyaltyService';
 import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/icons/AppIcon.vue';
 
@@ -46,7 +47,8 @@ const leadtimeDate = ref(null);
 const serviceId = ref(53320); // Default GHN service ID for normal delivery
 
 // --- Thanh toán & Khác ---
-const paymentMethod = ref('cod'); // cod, vnpay, momo, banking
+const paymentMethod = ref('cod'); // cod, vnpay, momo, banking, wallet
+const walletBalance = ref(0);
 const note = ref('');
 
 // --- Banking QR Modal ---
@@ -98,6 +100,35 @@ const fetchCart = async () => {
         if (error.response?.status === 401 && authStore.isAuthenticated) {
             router.push({ name: 'login', query: { redirect: '/checkout' } });
         }
+    }
+};
+
+// Lấy số dư ví điện tử
+const fetchWalletBalance = async () => {
+    try {
+        const response = await api.get('/wallet/summary');
+        if (response.data.status === 'success') {
+            walletBalance.value = response.data.data.balance || 0;
+        }
+    } catch (error) {
+        console.error('Lỗi khi lấy số dư ví:', error);
+    }
+};
+
+// Lấy điểm thưởng (Loyalty Points)
+const loyaltyPoints = ref(0);
+const useLoyaltyPoints = ref(false);
+const inputPoints = ref(0);
+
+const fetchLoyaltyPoints = async () => {
+    if (!authStore.isAuthenticated) return;
+    try {
+        const res = await loyaltyService.getSummary();
+        if (res.data?.status === 'success') {
+            loyaltyPoints.value = res.data.data.current_balance || 0;
+        }
+    } catch (e) {
+        console.error('Lỗi khi lấy điểm thưởng:', e);
     }
 };
 
@@ -325,8 +356,36 @@ const discount = computed(() => {
     }
 });
 
+const maxPointsCanUse = computed(() => {
+    let max = loyaltyPoints.value;
+    const totalBeforeLoyalty = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
+    const maxForTotal = Math.floor(totalBeforeLoyalty / 100);
+    return Math.min(max, maxForTotal);
+});
+
+watch(useLoyaltyPoints, (val) => {
+    if (val) {
+        inputPoints.value = maxPointsCanUse.value;
+    } else {
+        inputPoints.value = 0;
+    }
+});
+
+watch(inputPoints, (val) => {
+    if (val > maxPointsCanUse.value) {
+        inputPoints.value = maxPointsCanUse.value;
+    } else if (val < 0) {
+        inputPoints.value = 0;
+    }
+});
+
+const loyaltyDiscount = computed(() => {
+    if (!useLoyaltyPoints.value) return 0;
+    return (inputPoints.value || 0) * 100;
+});
+
 const total = computed(() => {
-    return Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
+    return Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value);
 });
 
 // Appy coupon (Mã cứng mockup cho UI: OCEAN10)
@@ -394,6 +453,7 @@ const placeOrder = async () => {
         note: note.value,
         coupon_applied: appliedCoupon.value?.code || null,
         referral_code: localStorage.getItem('affiliate_ref') || null,
+        reward_points_used: useLoyaltyPoints.value ? inputPoints.value : 0,
     };
 
     if (showAddAddressForm.value) {
@@ -535,7 +595,7 @@ const getProductImage = (item) => {
 };
 
 onMounted(async () => {
-    const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData()];
+    const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData(), fetchWalletBalance(), fetchLoyaltyPoints()];
     if (isFlashSale.value) {
         promises.push(fetchFlashSaleData());
     } else {
@@ -808,6 +868,22 @@ onMounted(async () => {
                                         <span class="payment-name-simple">VNPay</span>
                                     </div>
                                 </label>
+
+                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'wallet', 'is-disabled': walletBalance < total }">
+                                    <input type="radio" v-model="paymentMethod" value="wallet" :disabled="walletBalance < total" class="hidden-radio" />
+                                    <div class="ac-left">
+                                        <div class="radio-indicator">
+                                            <div class="radio-dot"></div>
+                                        </div>
+                                    </div>
+                                    <div class="payment-info-simple">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8d6e63" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+                                        <span class="payment-name-simple">
+                                            Ví điện tử (Ocean Pay) - <strong>{{ formatPrice(walletBalance) }}</strong>
+                                            <span v-if="walletBalance < total" style="color: #ef4444; font-size: 11px; margin-left: 8px;">(Số dư không đủ)</span>
+                                        </span>
+                                    </div>
+                                </label>
                             </div>
                         </div>
                     </section>
@@ -871,6 +947,24 @@ onMounted(async () => {
                                     </div>
                                 </div>
 
+                                <!-- Tiêu điểm thưởng -->
+                                <div v-if="authStore.isAuthenticated && loyaltyPoints > 0" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
+                                            <input type="checkbox" v-model="useLoyaltyPoints" style="width: 16px; height: 16px; accent-color: #ef4444;" />
+                                            Sử dụng điểm thưởng
+                                        </label>
+                                        <span style="font-size: 0.9rem; color: #ef4444; font-weight: 600;">Bạn có: {{ loyaltyPoints }} điểm</span>
+                                    </div>
+                                    <div v-if="useLoyaltyPoints" style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                                        <input type="number" v-model="inputPoints" :max="maxPointsCanUse" min="0" style="width: 100px; padding: 6px; border: 1px solid #fca5a5; border-radius: 4px; text-align: center; outline: none;" />
+                                        <span style="font-size: 0.9rem; color: #666;">điểm = <strong style="color: #ef4444;">-{{ formatPrice(loyaltyDiscount) }}</strong></span>
+                                    </div>
+                                    <div v-if="useLoyaltyPoints && maxPointsCanUse < loyaltyPoints" style="font-size: 0.8rem; color: #f59e0b; margin-top: 4px;">
+                                        * Chỉ có thể tiêu tối đa {{ maxPointsCanUse }} điểm cho đơn hàng này.
+                                    </div>
+                                </div>
+
                                 <div class="totals-section">
                                     <div class="total-row">
                                         <span>Tạm tính ({{ totalQuantity }} sản phẩm)</span>
@@ -888,11 +982,12 @@ onMounted(async () => {
                                            Chỉ cần mua thêm {{ formatPrice(upsellState.freeshipThreshold - subtotal) }} để được Freeship
                                         </small>
                                     </div>
-                                    <div class="total-row" v-if="discount > 0 || shippingDiscount > 0">
-                                        <span>Voucher Giảm giá</span>
+                                    <div class="total-row" v-if="discount > 0 || shippingDiscount > 0 || loyaltyDiscount > 0">
+                                        <span>Giảm giá</span>
                                         <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
-                                            <span class="discount-val mb-2" v-if="discount > 0" style="color: #ef4444;">- {{ formatPrice(discount) }}</span>
-                                            <span class="free-badge" v-if="shippingDiscount > 0" style="color: #10b981;">Freeship: - {{ formatPrice(shippingDiscount) }}</span>
+                                            <span class="discount-val mb-2" v-if="discount > 0" style="color: #ef4444;">Voucher: - {{ formatPrice(discount) }}</span>
+                                            <span class="free-badge mb-2" v-if="shippingDiscount > 0" style="color: #10b981;">Freeship: - {{ formatPrice(shippingDiscount) }}</span>
+                                            <span class="discount-val mb-2" v-if="loyaltyDiscount > 0" style="color: #ef4444;">Điểm thưởng: - {{ formatPrice(loyaltyDiscount) }}</span>
                                         </div>
                                     </div>
 

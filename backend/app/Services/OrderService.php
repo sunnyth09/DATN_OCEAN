@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Models\OrderStatusHistory;
+use App\Models\Order;
 use App\Repositories\OrderRepository;
 use App\Repositories\CartRepository;
 use App\Repositories\AddressRepository;
 use App\Repositories\ProductVariantRepository;
 use App\Services\ComboService;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -25,7 +27,8 @@ class OrderService
         protected ShippingService $shippingService,
         protected PaymentGatewayService $paymentGatewayService,
         protected AffiliateService $affiliateService,
-        protected ReturnRequestService $returnRequestService
+        protected ReturnRequestService $returnRequestService,
+        protected WalletService $walletService
     ) {}
 
     public function getUserOrders(int $userId, string $status = 'all')
@@ -111,10 +114,31 @@ class OrderService
             $comboResult   = $this->comboService->applyAllCombos($userId, $cartItems, $subtotal);
             $comboDiscount = $comboResult['discount_amount'];
 
+            // === TÍNH TOÁN ĐIỂM THƯỞNG ===
+            $rewardPointsUsed = (int) ($data['reward_points_used'] ?? 0);
+            $rewardDiscount = 0;
+            $user = null;
+            if ($rewardPointsUsed > 0) {
+                $user = \App\Models\User::find($userId);
+                if (!$user || $user->reward_points < $rewardPointsUsed) {
+                    return $this->error('Số điểm thưởng không đủ!', 400);
+                }
+                // 1 điểm = 100đ
+                $rewardDiscount = $rewardPointsUsed * 100; 
+                $discountAmount += $rewardDiscount;
+            }
+
             $grandTotal = max(0, $subtotal + $shippingFee - $discountAmount - $comboDiscount);
+
+            // Kiểm tra giỏ hàng bỏ quên
+            $isAbandonedCheckout = false;
+            if ($cart && $cart->is_abandoned_reminded) {
+                $isAbandonedCheckout = true;
+            }
 
             $result = DB::transaction(function () use (
                 $userId,
+                $user,
                 $data,
                 $request,
                 $address,
@@ -126,9 +150,20 @@ class OrderService
                 $shippingFee,
                 $grandTotal,
                 $couponId,
-                $couponResult
+                $couponResult,
+                $cart,
+                $isAbandonedCheckout,
+                $rewardPointsUsed
             ) {
                 $this->lockAndValidateStock($cartItems);
+
+                // Nếu thanh toán bằng ví, kiểm tra số dư trước
+                if ($data['payment_method'] === 'wallet') {
+                    $wallet = $this->walletService->getWallet($userId);
+                    if ($wallet->balance < $grandTotal) {
+                        throw new \Exception("Số dư ví không đủ để thanh toán đơn hàng (Cần: " . number_format($grandTotal, 0, ',', '.') . "đ, Hiện có: " . number_format($wallet->balance, 0, ',', '.') . "đ)");
+                    }
+                }
 
                 $order = $this->orderRepository->create([
                     'order_code' => $this->generateOrderCode(),
@@ -140,13 +175,15 @@ class OrderService
                     'shipping_address' => $this->makeFullAddress($address),
                     'note' => $data['note'] ?? null,
                     'payment_method' => $data['payment_method'],
-                    'payment_status' => 'unpaid',
+                    'payment_status' => $data['payment_method'] === 'wallet' ? 'paid' : 'unpaid',
                     'fulfillment_status' => 'pending',
                     'subtotal' => $subtotal,
                     'discount_amount' => $discountAmount,
                     'shipping_fee' => $shippingFee,
                     'grand_total' => $grandTotal,
                     'combo_discount' => $comboDiscount,
+                    'wallet_spent' => $data['payment_method'] === 'wallet' ? $grandTotal : 0.00,
+                    'is_abandoned_checkout' => $isAbandonedCheckout,
                 ]);
 
                 foreach ($cartItems as $cartItem) {
@@ -183,6 +220,15 @@ class OrderService
                     );
                 }
 
+                // Trừ điểm thưởng
+                if ($rewardPointsUsed > 0 && $user) {
+                    app(\App\Services\LoyaltyService::class)->burnPoints(
+                        $user,
+                        $rewardPointsUsed,
+                        $order
+                    );
+                }
+
                 // Đánh dấu đã dùng combo vouchers (auto-apply)
                 if (!empty($comboResult['applied_combo_vouchers'])) {
                     $this->comboService->markVouchersAsUsed(
@@ -194,6 +240,22 @@ class OrderService
                 $this->cartRepository->deleteItems(
                     $cartItems->pluck('cart_item_id')->toArray()
                 );
+
+                // Reset trạng thái giỏ hàng bỏ quên
+                if ($isAbandonedCheckout && $cart) {
+                    $cart->update(['is_abandoned_reminded' => false]);
+                }
+
+                // Thực hiện trừ tiền từ ví nếu thanh toán bằng ví
+                if ($data['payment_method'] === 'wallet') {
+                    $this->walletService->spend(
+                        $userId,
+                        $grandTotal,
+                        "Thanh toán đơn hàng #{$order->order_code}",
+                        $order->order_id,
+                        Order::class
+                    );
+                }
 
                 $paymentResult = $this->paymentGatewayService->handlePayment(
                     $order,

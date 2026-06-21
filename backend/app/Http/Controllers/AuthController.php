@@ -13,6 +13,13 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        // $turnstileToken = $request->input('turnstile_token');
+        // if (!$this->authService->verifyTurnstile($turnstileToken)) {
+        //     return response()->json([
+        //         'status' => 'error',
+        //         'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+        //     ], 422);
+        // }
         $result = $this->authService->register($request->all());
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
@@ -34,7 +41,6 @@ class AuthController extends Controller
         //         'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
         //     ], 422);
         // }
-
         $credentials = $request->only('email', 'password');
         // \Illuminate\Support\Facades\Log::info("Login attempt", $credentials);
 
