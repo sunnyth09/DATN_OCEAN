@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/main_wrapper.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'config/app_theme.dart';
+import 'firebase_options.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('vi_VN', null);
   await initializeDateFormatting('vi', null);
+
+  // Khởi tạo Firebase TRƯỚC khi dùng FCM
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Khởi tạo NotificationService → xin quyền + đăng ký FCM handlers
+  await NotificationService().initialize();
 
   final prefs = await SharedPreferences.getInstance();
   final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;

@@ -47,6 +47,25 @@ use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\AdminWalletController;
 use App\Http\Controllers\Api\Client\TrackingController;
+use App\Http\Controllers\Api\DeviceTokenController;
+
+
+use App\Services\FcmService;
+// use Illuminate\Http\Request;
+
+Route::post('/test-push', function (Request $request, FcmService $fcm) {
+    // Truyền token của cái máy Flutter mà bạn muốn test vào body request
+    $token = $request->input('token');
+
+    $success = $fcm->sendNotification(
+        $token,
+        '🚀 Test Thông Báo!',
+        'Nếu bạn thấy dòng này, Laravel và Firebase đã thông nhau!',
+        ['screen' => 'home'] // Data gửi kèm
+    );
+
+    return response()->json(['success' => $success]);
+});
 // API root health response.
 Route::get('/', function () {
     return response()->json([
@@ -104,7 +123,10 @@ Route::middleware('auth:api,admin')->group(function () {
     Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
     Route::get('/my/return-requests', [ReturnRequestController::class, 'myIndex']);
     Route::get('/my/return-requests/{id}', [ReturnRequestController::class, 'myShow']);
-});
+
+    // Device token
+    });
+    Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
 Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
