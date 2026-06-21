@@ -614,7 +614,7 @@ const shareToFacebook = async () => {
             isSharing.value = false;
         }
     } else {
-        showToast('Bạn có thể đăng nhập để nhận 30 điểm khi chia sẻ sản phẩm!', 'success');
+        showToast('Bạn có thể đăng nhập để nhận 10 điểm khi chia sẻ sản phẩm!', 'success');
     }
 };
 

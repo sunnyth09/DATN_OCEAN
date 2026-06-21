@@ -141,6 +141,23 @@ const fetchBuyNowItem = async () => {
     }
 };
 
+// Lấy điểm thưởng (Loyalty Points)
+const loyaltyPoints = ref(0);
+const useLoyaltyPoints = ref(false);
+const inputPoints = ref(0);
+
+const fetchLoyaltyPoints = async () => {
+    if (!authStore.isAuthenticated) return;
+    try {
+        const res = await loyaltyService.getSummary();
+        if (res.data?.status === 'success') {
+            loyaltyPoints.value = res.data.data.current_balance || 0;
+        }
+    } catch (e) {
+        console.error('Lỗi khi lấy điểm thưởng:', e);
+    }
+};
+
 // Lấy sản phẩm Flash Sale thay vì giỏ hàng
 const fetchFlashSaleData = async () => {
     try {
@@ -367,6 +384,34 @@ const discount = computed(() => {
         disc = value;
         return Math.min(disc, subtotal.value);
     }
+});
+
+const maxPointsCanUse = computed(() => {
+    let max = loyaltyPoints.value;
+    const totalBeforeLoyalty = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
+    const maxForTotal = Math.floor(totalBeforeLoyalty / 100);
+    return Math.min(max, maxForTotal);
+});
+
+watch(useLoyaltyPoints, (val) => {
+    if (val) {
+        inputPoints.value = maxPointsCanUse.value;
+    } else {
+        inputPoints.value = 0;
+    }
+});
+
+watch(inputPoints, (val) => {
+    if (val > maxPointsCanUse.value) {
+        inputPoints.value = maxPointsCanUse.value;
+    } else if (val < 0) {
+        inputPoints.value = 0;
+    }
+});
+
+const loyaltyDiscount = computed(() => {
+    if (!useLoyaltyPoints.value) return 0;
+    return (inputPoints.value || 0) * 100;
 });
 
 const total = computed(() => {
@@ -1039,6 +1084,24 @@ onMounted(async () => {
                                     <div v-if="authStore.isAuthenticated" class="text-right mt-1">
                                         <button class="btn-select-coupon" @click="openCouponModal">Chọn mã có
                                             sẵn</button>
+                                    </div>
+                                </div>
+
+                                <!-- Tiêu điểm thưởng -->
+                                <div v-if="authStore.isAuthenticated && loyaltyPoints > 0" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
+                                            <input type="checkbox" v-model="useLoyaltyPoints" style="width: 16px; height: 16px; accent-color: #ef4444;" />
+                                            Sử dụng điểm thưởng
+                                        </label>
+                                        <span style="font-size: 0.9rem; color: #ef4444; font-weight: 600;">Bạn có: {{ loyaltyPoints }} điểm</span>
+                                    </div>
+                                    <div v-if="useLoyaltyPoints" style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                                        <input type="number" v-model="inputPoints" :max="maxPointsCanUse" min="0" style="width: 100px; padding: 6px; border: 1px solid #fca5a5; border-radius: 4px; text-align: center; outline: none;" />
+                                        <span style="font-size: 0.9rem; color: #666;">điểm = <strong style="color: #ef4444;">-{{ formatPrice(loyaltyDiscount) }}</strong></span>
+                                    </div>
+                                    <div v-if="useLoyaltyPoints && maxPointsCanUse < loyaltyPoints" style="font-size: 0.8rem; color: #f59e0b; margin-top: 4px;">
+                                        * Chỉ có thể tiêu tối đa {{ maxPointsCanUse }} điểm cho đơn hàng này.
                                     </div>
                                 </div>
 
