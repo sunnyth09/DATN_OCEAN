@@ -70,6 +70,7 @@ class OrderController extends Controller
         $request->validate([
             'recipient_name' => 'required|string|max:255',
             'phone'          => 'required|string|max:20',
+            'email'          => 'required|email|max:255',
             'province'       => 'required|string|max:100',
             'district'       => 'required|string|max:100',
             'ward'           => 'required|string|max:100',
@@ -89,6 +90,8 @@ class OrderController extends Controller
             'payment_method.in'       => 'Phương thức thanh toán không hợp lệ.',
             'recipient_name.required' => 'Vui lòng nhập họ tên người nhận.',
             'phone.required'          => 'Vui lòng nhập số điện thoại.',
+            'email.required'          => 'Vui lòng nhập email để nhận xác nhận đơn hàng.',
+            'email.email'             => 'Email không hợp lệ.',
             'province.required'       => 'Vui lòng chọn Tỉnh/Thành phố.',
             'district.required'       => 'Vui lòng chọn Quận/Huyện.',
             'ward.required'           => 'Vui lòng chọn Phường/Xã.',

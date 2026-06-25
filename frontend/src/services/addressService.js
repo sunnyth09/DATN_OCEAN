@@ -39,34 +39,18 @@ export const addressService = {
         return api.put(`/profile/addresses/${addressId}/default`);
     },
 
+    // Danh sách Tỉnh/Quận/Phường lấy qua backend proxy (provinces.open-api.vn,
+    // không cần token GHN). Backend trả về key tương thích GHN: ProvinceID/ProvinceName...
     listProvinces() {
-        return axios.get(`${GHN_BASE_URL}/master-data/province`, {
-            headers: {
-                ...getGhnHeaders(),
-            },
-        });
+        return api.get('/location/provinces');
     },
 
     listDistricts(provinceCode) {
-        return axios.get(`${GHN_BASE_URL}/master-data/district`, {
-            headers: {
-                ...getGhnHeaders(),
-            },
-            params: {
-                province_id: provinceCode,
-            },
-        });
+        return api.get(`/location/districts/${provinceCode}`);
     },
 
     listWards(districtCode) {
-        return axios.get(`${GHN_BASE_URL}/master-data/ward`, {
-            headers: {
-                ...getGhnHeaders(),
-            },
-            params: {
-                district_id: districtCode,
-            },
-        });
+        return api.get(`/location/wards/${districtCode}`);
     },
 
     async getShippingFee({ districtCode, wardCode, weight = 1000, serviceTypeId = 2 }) {

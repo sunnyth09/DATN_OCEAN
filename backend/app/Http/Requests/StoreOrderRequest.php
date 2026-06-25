@@ -31,6 +31,14 @@ class StoreOrderRequest  extends FormRequest
             'district_code' => 'nullable',
             'ward_code' => 'nullable',
 
+            // Email nhận xác nhận đơn hàng (tùy chọn; mặc định dùng email tài khoản)
+            'email' => 'nullable|email|max:255',
+
+            // Mua nhanh (Buy Now): đặt trực tiếp sản phẩm, không lấy từ giỏ
+            'items' => 'nullable|array|min:1',
+            'items.*.variant_id' => 'required_with:items|integer|exists:product_variants,variant_id',
+            'items.*.quantity' => 'required_with:items|integer|min:1',
+
             'payment_method' => 'required|in:cod,vnpay,momo,bank_transfer,wallet',
             'coupon_applied' => 'nullable|string',
             'note' => 'nullable|string|max:500',

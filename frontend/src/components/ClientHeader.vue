@@ -468,6 +468,8 @@ watch(
                         :class="{ 'is-expanded': isSearchExpanded }"
                     >
                         <input
+                            id="site-search"
+                            name="search"
                             type="text"
                             class="search-input"
                             v-model="searchQuery"
@@ -476,6 +478,7 @@ watch(
                             @blur="handleSearchBlur"
                             @focus="handleSearchFocus"
                             placeholder="Tìm kiếm sản phẩm..."
+                            aria-label="Tìm kiếm sản phẩm"
                         />
                         <button
                             class="icon-btn search-icon-btn"

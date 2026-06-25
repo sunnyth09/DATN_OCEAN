@@ -625,7 +625,6 @@ onUnmounted(() => {
                             <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
                                 Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
                             </div>
-                        </div>
 
                             <div class="item-price">{{ formatPrice(item.variant?.price) }}</div>
                         </div>
@@ -690,12 +689,7 @@ onUnmounted(() => {
                             <div class="vat-note">(Đã bao gồm VAT nếu có)</div>
                         </div>
                     </div>
-
-                    <div class="coupon-section">
-                        <input type="text" class="coupon-input" placeholder="Mã giảm giá" />
-                        <button class="btn-apply-coupon">Áp dụng</button>
-                    </div>
-
+                      
                     <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0">
                         Thanh toán
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -821,7 +815,7 @@ onUnmounted(() => {
         <div class="container mb-5" v-if="productRelated.length">
             <div class="row mt-3">
                 <div class="col-lg-3 mt-4" v-for="product in productRelated" :key="product.id">
-                    <ProductCard :product="product" :rows="3" />
+                    <ProductCard :product="product" />
                 </div>
             </div>
         </div>

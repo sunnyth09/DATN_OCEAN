@@ -70,18 +70,24 @@ class SendOrderEmails extends Command
 
         foreach ($pendingOrders as $order) {
             try {
-                // Lấy user từ relationship
+                // Lấy user (có thể null nếu là khách vãng lai)
                 $user = $order->user;
-                if (!$user || empty($user->email)) {
-                    $this->warn("  ⚠ Đơn {$order->order_code}: user không có email, đánh dấu bỏ qua.");
+
+                // Email nhận xác nhận: ưu tiên email lưu trên đơn (guest nhập ở checkout),
+                // fallback về email tài khoản (khách đăng nhập).
+                $recipientEmail = $order->email ?: ($user->email ?? null);
+
+                if (empty($recipientEmail)) {
+                    $this->warn("  ⚠ Đơn {$order->order_code}: không có email, đánh dấu bỏ qua.");
                     $order->update(['email_sent' => true]); // Đánh dấu để không query lại
                     continue;
                 }
 
                 // ─── Bước 2: Gửi email qua SMTP ───
-                $this->sendEmail($order, $user);
+                $this->sendEmail($order, $recipientEmail);
 
-                // --- Bước 2.1: Tạo thông báo in-app (vào DB) ---
+                // --- Bước 2.1: Tạo thông báo in-app (chỉ cho khách đã đăng nhập) ---
+                if ($user) {
                 try {
                     $notificationData = [
                         'title'       => 'Đặt hàng thành công',
@@ -107,11 +113,12 @@ class SendOrderEmails extends Command
                 } catch (\Exception $ex) {
                     Log::error("Save order notification failed for {$order->order_code}: " . $ex->getMessage());
                 }
+                } // end if ($user)
 
                 // ─── Bước 3: Đánh dấu đã gửi ───
                 $order->update(['email_sent' => true]);
 
-                $this->info("  ✅ Đơn {$order->order_code} → {$user->email}");
+                $this->info("  ✅ Đơn {$order->order_code} → {$recipientEmail}");
                 $successCount++;
 
             } catch (\Exception $e) {
@@ -132,7 +139,7 @@ class SendOrderEmails extends Command
      * Giữ nguyên template HTML gốc từ OrderController cũ,
      * nhưng dùng biến MAIL_* từ .env thay vì EMAIL_USER/EMAIL_PASS
      */
-    private function sendEmail(Order $order, $user): void
+    private function sendEmail(Order $order, string $recipientEmail): void
     {
         $emailUser = env('MAIL_USERNAME', env('EMAIL_USER'));
         $emailPass = env('MAIL_PASSWORD', env('EMAIL_PASS'));
@@ -218,7 +225,7 @@ class SendOrderEmails extends Command
 
         $emailMessage = (new \Symfony\Component\Mime\Email())
             ->from($emailUser)
-            ->to($user->email)
+            ->to($recipientEmail)
             ->subject('Xác nhận đơn hàng ' . $order->order_code . ' - Ocean Store')
             ->html($htmlBody);
 
