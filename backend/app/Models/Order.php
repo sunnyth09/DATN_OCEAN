@@ -17,6 +17,7 @@ class Order extends Model
         'promotion_id',
         'recipient_name',
         'recipient_phone',
+        'email',
         'shipping_address',
         'note',
         'payment_method',

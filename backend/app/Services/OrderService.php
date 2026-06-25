@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
+use App\Exceptions\OrderException;
 use App\Models\OrderStatusHistory;
 use App\Repositories\OrderRepository;
 use App\Repositories\CartRepository;
@@ -75,16 +76,28 @@ class OrderService
         try {
             $address = $this->resolveAddress($userId, $data);
 
-            $cart = $this->cartRepository->getActiveCart($userId);
+            // Mua nhanh (Buy Now): đặt trực tiếp sản phẩm được truyền vào,
+            // KHÔNG lấy từ giỏ hàng và KHÔNG ảnh hưởng tới giỏ hàng hiện có.
+            $isDirectOrder = !empty($data['items']) && is_array($data['items']);
 
-            if (!$cart) {
-                return $this->error('Giỏ hàng trống!', 400);
-            }
+            if ($isDirectOrder) {
+                $cartItems = $this->buildDirectItems($data['items']);
 
-            $cartItems = $this->cartRepository->getSelectedCartItems($cart->cart_id);
+                if ($cartItems->isEmpty()) {
+                    return $this->error('Sản phẩm không hợp lệ!', 400);
+                }
+            } else {
+                $cart = $this->cartRepository->getActiveCart($userId);
 
-            if ($cartItems->isEmpty()) {
-                return $this->error('Vui lòng chọn sản phẩm để thanh toán!', 400);
+                if (!$cart) {
+                    return $this->error('Giỏ hàng trống!', 400);
+                }
+
+                $cartItems = $this->cartRepository->getSelectedCartItems($cart->cart_id);
+
+                if ($cartItems->isEmpty()) {
+                    return $this->error('Vui lòng chọn sản phẩm để thanh toán!', 400);
+                }
             }
 
             $subtotal = $this->calculateSubtotalAndValidateStock($cartItems);
@@ -181,6 +194,7 @@ class OrderService
                     'promotion_id' => $couponId,
                     'recipient_name' => $address->recipient_name,
                     'recipient_phone' => $address->phone,
+                    'email' => $data['email'] ?? null,
                     'shipping_address' => $this->makeFullAddress($address),
                     'note' => $data['note'] ?? null,
                     'payment_method' => $paymentMethod,
@@ -237,9 +251,11 @@ class OrderService
                     );
                 }
 
-                $this->cartRepository->deleteItems(
-                    $cartItems->pluck('cart_item_id')->toArray()
-                );
+                // Chỉ xóa item khỏi giỏ khi đặt từ giỏ (buy-now không có cart_item_id)
+                $cartItemIds = $cartItems->pluck('cart_item_id')->filter()->values()->toArray();
+                if (!empty($cartItemIds)) {
+                    $this->cartRepository->deleteItems($cartItemIds);
+                }
 
                 $paymentResult = $this->paymentGatewayService->handlePayment(
                     $order,
@@ -281,7 +297,10 @@ class OrderService
             }
 
             return $result;
-        } catch (\Exception $e) {
+        } catch (OrderException $e) {
+            // Lỗi nghiệp vụ (hết hàng, địa chỉ sai...) → trả message gốc cho user
+            return $this->error($e->getMessage(), 400);
+        } catch (\Throwable $e) {
             Log::error('Order creation failed: ' . $e->getMessage());
 
             return $this->error(
@@ -387,6 +406,7 @@ class OrderService
                     'promotion_id' => $couponId,
                     'recipient_name' => $addressObj->recipient_name,
                     'recipient_phone' => $addressObj->phone,
+                    'email' => $data['email'] ?? null,
                     'shipping_address' => $this->makeFullAddress($addressObj),
                     'note' => $data['note'] ?? null,
                     'payment_method' => $data['payment_method'],
@@ -472,11 +492,14 @@ class OrderService
             }
 
             return $result;
-        } catch (\Exception $e) {
+        } catch (OrderException $e) {
+            // Lỗi nghiệp vụ (hết hàng, coupon sai...) → trả message gốc cho user
+            return $this->error($e->getMessage(), 400);
+        } catch (\Throwable $e) {
             Log::error('Guest Order creation failed: ' . $e->getMessage());
 
             return $this->error(
-                'Đã xảy ra lỗi khi tạo đơn hàng: ' . $e->getMessage(),
+                'Đã xảy ra lỗi khi tạo đơn hàng. Vui lòng thử lại sau.',
                 500
             );
         }
@@ -549,7 +572,7 @@ class OrderService
             );
 
             if (!$address) {
-                throw new \Exception('Địa chỉ không hợp lệ!');
+                throw new OrderException('Địa chỉ không hợp lệ!');
             }
 
             return $address;
@@ -570,13 +593,41 @@ class OrderService
         ]);
     }
 
+    /**
+     * Dựng danh sách item cho đơn "Mua nhanh" (Buy Now) từ mảng items truyền vào.
+     * Trả về collection có cùng hình dạng với cart items (object có ->variant).
+     */
+    private function buildDirectItems(array $items)
+    {
+        $items = collect($items);
+        $variantIds = $items->pluck('variant_id')->toArray();
+
+        $variants = \App\Models\ProductVariant::whereIn('variant_id', $variantIds)
+            ->with('product')
+            ->get()
+            ->keyBy('variant_id');
+
+        return $items->map(function ($item) use ($variants) {
+            $variant = $variants->get($item['variant_id']);
+            if (!$variant) {
+                return null;
+            }
+
+            return (object) [
+                'variant_id' => $item['variant_id'],
+                'quantity'   => (int) $item['quantity'],
+                'variant'    => $variant,
+            ];
+        })->filter()->values();
+    }
+
     private function calculateSubtotalAndValidateStock($cartItems): float
     {
         $subtotal = 0;
 
         foreach ($cartItems as $item) {
             if ($item->variant->stock < $item->quantity) {
-                throw new \Exception(
+                throw new OrderException(
                     'Sản phẩm ' . $item->variant->product->name . ' không đủ tồn kho!'
                 );
             }
@@ -597,7 +648,7 @@ class OrderService
             $lockedVariant = $lockedVariants[$cartItem->variant_id] ?? null;
 
             if (!$lockedVariant || $lockedVariant->stock < $cartItem->quantity) {
-                throw new \Exception(
+                throw new OrderException(
                     'Sản phẩm ' . $cartItem->variant->product->name . ' đã hết hàng khi bạn đặt mua!'
                 );
             }
