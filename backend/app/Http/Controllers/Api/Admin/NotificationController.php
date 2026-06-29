@@ -13,7 +13,11 @@ class NotificationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $admin = auth()->user();
+        $admin = auth('api')->user() ?? auth('admin')->user();
+        
+        if (!$admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
         
         $query = $admin->notifications();
 
@@ -38,7 +42,11 @@ class NotificationController extends Controller
      */
     public function markAsRead($id): JsonResponse
     {
-        $admin = auth()->user();
+        $admin = auth('api')->user() ?? auth('admin')->user();
+        
+        if (!$admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
         
         $notification = $admin->notifications()->where('id', $id)->first();
         
@@ -57,7 +65,10 @@ class NotificationController extends Controller
      */
     public function markAllAsRead(): JsonResponse
     {
-        $admin = auth()->user();
+        $admin = auth('api')->user() ?? auth('admin')->user();
+        if (!$admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
         $admin->unreadNotifications->markAsRead();
 
         return response()->json([
@@ -71,7 +82,11 @@ class NotificationController extends Controller
      */
     public function destroy($id): JsonResponse
     {
-        $admin = auth()->user();
+        $admin = auth('api')->user() ?? auth('admin')->user();
+        
+        if (!$admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
         
         $notification = $admin->notifications()->where('id', $id)->first();
         

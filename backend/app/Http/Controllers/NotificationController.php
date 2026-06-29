@@ -45,13 +45,18 @@ class NotificationController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
+        $query = $user->notifications()->where(function ($q) {
+            $q->whereNull('data->url_redirect')
+              ->orWhere('data->url_redirect', 'not like', '/admin/%');
+        });
+
         // Lấy notifications phân trang, mới nhất lên đầu
-        $notifications = $user->notifications()
+        $notifications = $query->clone()
             ->latest()
             ->paginate(20);
 
         // Đếm số notification chưa đọc
-        $unreadCount = $user->unreadNotifications()->count();
+        $unreadCount = $query->clone()->whereNull('read_at')->count();
 
         return response()->json([
             'status'       => 'success',

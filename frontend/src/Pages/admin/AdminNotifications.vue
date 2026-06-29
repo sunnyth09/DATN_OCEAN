@@ -69,7 +69,7 @@
 
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue';
-import axios from 'axios';
+import axios from '@/axios.js';
 import Swal from 'sweetalert2';
 import { useRouter } from 'vue-router';
 
@@ -85,7 +85,7 @@ const hasUnread = computed(() => unreadCount.value > 0);
 const fetchNotifications = async () => {
     try {
         const unreadOnly = filter.value === 'unread' ? 'true' : 'false';
-        const res = await axios.get(`/api/admin/notifications?unread_only=${unreadOnly}&page=${currentPage.value}`);
+        const res = await axios.get(`/admin/notifications?unread_only=${unreadOnly}&page=${currentPage.value}`);
         if (res.data.success) {
             notifications.value = res.data.notifications;
             totalPages.value = res.data.last_page;
@@ -98,7 +98,7 @@ const fetchNotifications = async () => {
 
 const markAllAsRead = async () => {
     try {
-        await axios.post('/api/admin/notifications/read-all');
+        await axios.post('/admin/notifications/read-all');
         unreadCount.value = 0;
         fetchNotifications();
     } catch (error) {
@@ -109,7 +109,7 @@ const markAllAsRead = async () => {
 const handleNotificationClick = async (noti) => {
     if (!noti.read_at) {
         try {
-            await axios.post(`/api/admin/notifications/${noti.id}/read`);
+            await axios.post(`/admin/notifications/${noti.id}/read`);
             noti.read_at = new Date().toISOString();
             unreadCount.value--;
         } catch (error) {
@@ -137,7 +137,7 @@ const deleteNotification = async (id) => {
 
     if (result.isConfirmed) {
         try {
-            await axios.delete(`/api/admin/notifications/${id}`);
+            await axios.delete(`/admin/notifications/${id}`);
             fetchNotifications();
         } catch (error) {
             Swal.fire('Lỗi', 'Không thể xóa thông báo', 'error');

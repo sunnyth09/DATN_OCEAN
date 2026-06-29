@@ -127,7 +127,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
 import { useUiStore } from '@/stores/ui';
-import axios from 'axios';
+import axios from '@/axios.js';
 import Swal from 'sweetalert2';
 
 const props = defineProps({
@@ -194,7 +194,7 @@ const unreadCount = ref(0);
 
 const fetchUnreadCount = async () => {
   try {
-    const response = await axios.get('/api/admin/notifications?unread_only=true&per_page=1');
+    const response = await axios.get('/admin/notifications?unread_only=true&per_page=1');
     if (response.data.success) {
       unreadCount.value = response.data.unread_count || response.data.total || 0;
     }

@@ -318,6 +318,9 @@ watch(isLoggedIn, (val) => {
             notificationUserId = userData.user_id;
             window.Echo.private('user.' + userData.user_id)
                 .listen('.UserNotificationEvent', (e) => { // . means it ignores Broadcast namespace
+                    const redirectUrl = e.url_redirect || e.notification?.url_redirect || '';
+                    if (redirectUrl.startsWith('/admin/')) return;
+                    
                     unreadNotificationCount.value++;
                     if (showNotifDropdown.value) {
                         fetchNotificationsList(); // Refresh list if open
