@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, nextTick, computed } from 'vue';
 import api from '@/axios.js';
+import { getStorageUrl } from '@/utils/url';
 import Swal from 'sweetalert2';
 import { Toast } from 'bootstrap';
 
@@ -77,8 +78,7 @@ const formatCurrency = (val) => {
 const resolveThumbnail = (url) => {
     if (!url) return '/images/no-image.png';
     if (url.startsWith('http')) return url;
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8383/api';
-    return `${apiUrl.replace('/api', '')}/storage/${url}`;
+    return getStorageUrl(url);
 };
 
 const addProductToItems = (product) => {

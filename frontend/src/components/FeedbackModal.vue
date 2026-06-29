@@ -2,6 +2,7 @@
 import { ref, watch, nextTick, computed } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
+import { getStorageUrl } from '@/utils/url';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -123,14 +124,8 @@ const submitFeedback = async () => {
 };
 
 const getImageUrl = (path) => {
-    const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
     if (!path || path === '0') return 'https://placehold.co/100x100?text=No+Image';
-    if (path.startsWith('http')) return path;
-    if (path.startsWith('/storage/') || path.startsWith('storage/')) {
-        const cleanPath = path.startsWith('/') ? path : `/${path}`;
-        return `${BASE_URL}${cleanPath}`;
-    }
-    return `${BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
 };
 </script>
 

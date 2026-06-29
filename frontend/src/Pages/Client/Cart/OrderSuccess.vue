@@ -1,12 +1,14 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import ProductCard from "@/components/ProductCard.vue";
 import { catalogService } from "@/services/catalogService";
 import { orderService } from "@/services/orderService";
+import { useAuthStore } from "@/stores/auth";
 
 const route = useRoute();
 const orderCode = route.params.order_code || "";
+const authStore = useAuthStore();
 const relatedProducts = ref([]);
 const loading = ref(true);
 const orderId = ref(null);
@@ -41,7 +43,7 @@ const fetchOrderId = async () => {
     }
 };
 
-if (orderCode) {
+if (orderCode && authStore.isAuthenticated) {
     fetchOrderId();
 }
 onMounted(() => {
@@ -73,7 +75,7 @@ onMounted(() => {
             <h1 class="success-title">Đặt hàng thành công!</h1>
 
             <p class="success-message">
-                Cảm ơn bạn đã mua sắm tại <strong>Ocean</strong>. Đơn hàng của
+                Cảm ơn bạn đã mua sắm tại <strong>Quyền Sport</strong>. Đơn hàng của
                 bạn đã được tiếp nhận và đang trong quá trình xử lý.
             </p>
 
@@ -89,6 +91,7 @@ onMounted(() => {
 
             <div class="action-buttons">
                 <router-link
+                    v-if="authStore.isAuthenticated"
                     :to="'/profile/orders/' + orderId"
                     class="btn-outline-brown"
                     >Xem đơn hàng của tôi</router-link

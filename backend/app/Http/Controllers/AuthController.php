@@ -13,15 +13,13 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        // Verify Cloudflare Turnstile
-        $turnstileToken = $request->input('turnstile_token');
-        if (!$this->verifyTurnstile($turnstileToken)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
-            ], 422);
-        }
-
+        // $turnstileToken = $request->input('turnstile_token');
+        // if (!$this->authService->verifyTurnstile($turnstileToken)) {
+        //     return response()->json([
+        //         'status' => 'error',
+        //         'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+        //     ], 422);
+        // }
         $result = $this->authService->register($request->all());
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
@@ -36,14 +34,13 @@ class AuthController extends Controller
         // - KEY CAPTCHA CỦA CLAUDFLRE CHƯA ĐƯỢC CẤU HÌNH ĐÚNG
 
         // Verify Cloudflare Turnstile
-        $turnstileToken = $request->input('turnstile_token');
-        if (!$this->verifyTurnstile($turnstileToken)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
-            ], 422);
-        }
-
+        // $turnstileToken = $request->input('turnstile_token');
+        // if (!$this->verifyTurnstile($turnstileToken)) {
+        //     return response()->json([
+        //         'status' => 'error',
+        //         'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+        //     ], 422);
+        // }
         $credentials = $request->only('email', 'password');
         // \Illuminate\Support\Facades\Log::info("Login attempt", $credentials);
 
@@ -81,11 +78,11 @@ class AuthController extends Controller
             }
             return $this->respondWithToken($token, 'customer');
         }
+        $result = $this->authService->login($request->all());
+        $status = $result['_status'] ?? 200;
+        unset($result['_status']);
 
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Email hoặc mật khẩu không chính xác!'
-        ], 401);
+        return response()->json($result, $status);
     }
 
     protected function respondWithToken($token, $guardType)

@@ -35,8 +35,8 @@
               <circle cx="12" cy="10" r="3" />
             </svg></div>
           <h3>Showroom</h3>
-          <p class="contact-value">134 Nguyễn Thị Định</p>
-          <p class="contact-note">P. Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+          <p class="contact-value">101 Y Ngông</p>
+          <p class="contact-note">Phường Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
         </div>
         <div class="contact-card">
           <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -51,21 +51,28 @@
       </div>
 
       <div class="contact-layout">
-        <div class="map-block">
-          <div class="map-header">
-            <h2>Bản đồ cửa hàng</h2>
-            <p>Địa chỉ: 134 Nguyễn Thị Định, P. Buôn Ma Thuột, Đắk Lắk</p>
-          </div>
-          <div class="map-frame">
+        <div class="info-panel">
+          <div class="mini-map">
             <iframe
-              src="https://www.google.com/maps?q=134+Nguyễn+Thị+Định,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
+              src="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
               loading="lazy"
               referrerpolicy="no-referrer-when-downgrade"
-              title="Bản đồ Ocean Store"
+              title="Mini map Ocean Sport"
             ></iframe>
           </div>
+          <div class="location-meta">
+            <h3>Showroom OCEAN SPORT</h3>
+            <p>101 Y Ngông, Phường Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+            <a
+              href="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Xem bản đồ lớn
+            </a>
+          </div>
         </div>
-        <div class="content-block">
+        <div class="form-panel">
           <h2>Gửi yêu cầu hỗ trợ</h2>
           <form @submit.prevent="submitContact" class="contact-form" novalidate>
           <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
@@ -149,9 +156,7 @@
 
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
-import axios from 'axios';
-import ClientHeader from '@/components/ClientHeader.vue';
-import Footer_client from '@/Pages/Includes/Layouts/Footer_client.vue';
+import api from '@/axios';
 
 const form = reactive({ name: '', email: '', subject: '', message: '' });
 const isSubmitting = ref(false);
@@ -219,8 +224,7 @@ const submitContact = async () => {
 
   isSubmitting.value = true;
   try {
-    const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8383/api';
-    const res = await axios.post(`${baseUrl}/SubmitContact`, { ...form, turnstile_token: turnstileToken.value });
+    const res = await api.post('/SubmitContact', { ...form, turnstile_token: turnstileToken.value });
     successMsg.value = res.data.message;
     // Reset form
     form.name = '';
@@ -256,15 +260,17 @@ const submitContact = async () => {
 <style scoped>
 .static-page {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  padding-top: 24px;
 }
 
 .container {
-  max-width: 900px;
+  max-width: 1120px;
   margin: 0 auto;
   padding: 0 24px;
 }
 
 .page-hero {
+<<<<<<< HEAD
   background: linear-gradient(135deg, #e63b6f, #a0204e);
   color: #fff;
   border-radius: 16px;
@@ -285,12 +291,59 @@ const submitContact = async () => {
   height: 300px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 50%;
+=======
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 24px;
+  color: #fff;
+  text-align: center;
+}
+
+.page-hero .container {
+  max-width: 100%;
+  padding: 54px 24px;
+  border: 1px solid rgba(230, 59, 111, 0.18);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, #E63B6F 0%, #d92f66 48%, #f05a8a 100%);
+  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+}
+
+.page-hero h1 {
+  position: relative;
+  display: inline-block;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 900;
+  margin: 0 0 16px;
+  padding-bottom: 14px;
+}
+
+.page-hero h1::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 96px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateX(-50%);
+}
+
+.hero-sub {
+  max-width: 700px;
+  margin: 0 auto;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.05rem;
+  line-height: 1.7;
+>>>>>>> origin/Dev
 }
 .page-hero h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 8px; position: relative; z-index: 1; }
 .hero-sub { opacity: 0.85; font-size: 0.95rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.6; }
 
 .page-content {
-  padding: 48px 24px 64px;
+  padding: 24px 24px 64px;
 }
 
 .contact-grid {
@@ -301,10 +354,10 @@ const submitContact = async () => {
 }
 
 .contact-card {
-  background: #F8F9FA;
-  border: 1px solid #FFE0E8;
-  border-radius: 12px;
-  padding: 24px;
+  background: #f8f9fa;
+  border: 1px solid #e9eef5;
+  border-radius: 10px;
+  padding: 18px 14px;
   text-align: center;
   transition: box-shadow 0.2s;
 }
@@ -314,48 +367,94 @@ const submitContact = async () => {
 }
 
 .contact-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: #FFF0F3;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #fff0f3;
   color: #E63B6F;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 12px;
+  margin: 0 auto 10px;
 }
 
 .contact-card h3 {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #2D3436;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .contact-value {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: green;
+  color: #374151;
   margin-bottom: 4px;
 }
 
 .contact-note {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #9ca3af;
   margin: 0;
 }
 
-.content-block {
-  margin-bottom: 36px;
+.contact-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
 }
 
-.content-block h2 {
+.info-panel {
+  border-radius: 8px;
+}
+
+.mini-map {
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e9ecef;
+  aspect-ratio: 16 / 10;
+}
+
+.mini-map iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.location-meta {
+  margin-top: 12px;
+}
+
+.location-meta h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.location-meta p {
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
+.location-meta a {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #dc2626;
+  text-decoration: underline;
+}
+
+.form-panel {
+  border-radius: 8px;
+}
+
+.form-panel h2 {
   font-size: 1.3rem;
   font-weight: 700;
   color: #2D3436;
-  margin-bottom: 20px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #FFF0F3;
+  margin-bottom: 14px;
 }
 
 .contact-form {
@@ -405,9 +504,9 @@ const submitContact = async () => {
 }
 
 .btn-primary {
-  padding: 13px 32px;
+  padding: 12px 24px;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #E63B6F;
   color: #fff;
   font-size: 0.95rem;
@@ -455,8 +554,17 @@ const submitContact = async () => {
 }
 
 @media (max-width: 768px) {
+  .static-page { padding-top: 16px; }
+  .page-hero { padding: 0 16px; }
+  .page-hero .container { padding: 40px 18px; border-radius: 18px; }
+  .page-content { padding: 36px 24px 56px; }
+
   .contact-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .contact-layout {
+    grid-template-columns: 1fr;
   }
 
   .form-row-2 {

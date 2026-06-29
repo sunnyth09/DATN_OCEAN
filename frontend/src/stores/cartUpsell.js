@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
+import { pinia } from '@/stores/index';
 import api from '@/axios';
 
 export const useCartUpsellStore = defineStore('cart-upsell', () => {
@@ -24,6 +25,15 @@ export const useCartUpsellStore = defineStore('cart-upsell', () => {
     };
 
     const fetchUpsellData = async () => {
+        const { useAuthStore } = await import('@/stores/auth');
+        const authStore = useAuthStore(pinia);
+
+        if (!authStore.isAuthenticated) {
+            suggestions.value = [];
+            freeshipThreshold.value = 500000;
+            return;
+        }
+
         if (upsellRequest) return upsellRequest;
 
         loadingSuggestions.value = true;
@@ -45,9 +55,31 @@ export const useCartUpsellStore = defineStore('cart-upsell', () => {
     };
 
     const quickAddToCart = async (variantId) => {
+        const { useAuthStore } = await import('@/stores/auth');
+        const authStore = useAuthStore(pinia);
+
+        if (!authStore.isAuthenticated) {
+            let cartItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+            const index = cartItems.findIndex(item => item.variant_id === variantId);
+            if (index !== -1) {
+                cartItems[index].quantity += 1;
+            } else {
+                cartItems.push({
+                    variant_id: variantId,
+                    quantity: 1,
+                    selected: true
+                });
+            }
+            localStorage.setItem('cart_items', JSON.stringify(cartItems));
+            window.dispatchEvent(new Event('cart-updated'));
+            return { status: 'success', message: 'Đã thêm vào giỏ hàng (tạm thời)' };
+        }
+
         const res = await api.post('/cart/items', { variant_id: variantId, quantity: 1 });
+        window.dispatchEvent(new Event('cart-updated'));
         return res.data;
     };
+
 
     const resetUpsellState = () => {
         totalPrice.value = 0;

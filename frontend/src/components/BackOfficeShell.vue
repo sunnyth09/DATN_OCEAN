@@ -127,7 +127,11 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useRoute } from 'vue-router';
 import { useUiStore } from '@/stores/ui';
+<<<<<<< HEAD
 import axios from '@/axios.js';
+=======
+import api from '@/axios';
+>>>>>>> origin/Dev
 import Swal from 'sweetalert2';
 
 const props = defineProps({
@@ -194,7 +198,16 @@ const unreadCount = ref(0);
 
 const fetchUnreadCount = async () => {
   try {
+<<<<<<< HEAD
     const response = await axios.get('/admin/notifications?unread_only=true&per_page=1');
+=======
+    const response = await api.get('/admin/notifications', {
+      params: {
+        unread_only: true,
+        per_page: 1,
+      },
+    });
+>>>>>>> origin/Dev
     if (response.data.success) {
       unreadCount.value = response.data.unread_count || response.data.total || 0;
     }
@@ -231,6 +244,11 @@ onMounted(() => {
           showConfirmButton: false,
           timer: 5000,
           timerProgressBar: true,
+          customClass: {
+            popup: 'admin-toast-popup',
+            title: 'admin-toast-title',
+            htmlContainer: 'admin-toast-text'
+          },
           didOpen: (toast) => {
             toast.addEventListener('mouseenter', Swal.stopTimer);
             toast.addEventListener('mouseleave', Swal.resumeTimer);
@@ -473,5 +491,40 @@ onUnmounted(() => {
 .shell-scrim-enter-from,
 .shell-scrim-leave-to {
   opacity: 0;
+}
+</style>
+
+<style>
+/* Global styles for SweetAlert2 Toast inside Admin */
+div.swal2-popup.admin-toast-popup {
+  width: auto !important;
+  max-width: 450px !important;
+  min-width: 320px !important;
+  padding: 12px 20px 12px 12px !important;
+  align-items: center !important;
+  display: flex !important;
+  flex-direction: row !important;
+}
+
+.admin-toast-popup .admin-toast-title {
+  margin: 0 10px 0 0 !important;
+  font-size: 1rem !important;
+  white-space: nowrap !important;
+  align-self: center !important;
+  justify-content: flex-start !important;
+}
+
+.admin-toast-popup .admin-toast-text {
+  margin: 0 !important;
+  font-size: 0.9rem !important;
+  text-align: left !important;
+  align-self: center !important;
+  justify-content: flex-start !important;
+  word-break: break-word !important;
+}
+
+.admin-toast-popup .swal2-icon {
+  margin: 0 12px 0 0 !important;
+  align-self: center !important;
 }
 </style>

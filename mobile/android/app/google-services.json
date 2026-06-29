@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "333508728729",
+    "project_id": "notification-qsport",
+    "storage_bucket": "notification-qsport.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:333508728729:android:e0a7d7947b1fd1aa566508",
+        "android_client_info": {
+          "package_name": "com.example.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgNQEpQ-M-clZhEgeftur8OW-mhuxj4Zo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

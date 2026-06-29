@@ -9,8 +9,10 @@ import AppIcon from "@/icons/AppIcon.vue";
 import { useCartStore } from "@/stores/cart";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
+import { getAppBaseUrl } from "@/utils/url";
+import { loyaltyService } from "@/services/loyaltyService";
 
-const BASE_URL = import.meta.env.VITE_BASE_URL;
+const BASE_URL = getAppBaseUrl();
 const route = useRoute();
 const router = useRouter();
 const cartStore = useCartStore();
@@ -26,8 +28,13 @@ const isAdmin = ref(false);
 const showDropdown = ref(false);
 const showNotifDropdown = ref(false);
 const unreadNotificationCount = ref(0);
+<<<<<<< HEAD
 const notificationsList = ref([]);
+=======
+const showNotificationPopup = ref(false);
+>>>>>>> origin/Dev
 const isMobileMenuOpen = ref(false);
+const headerRewardPoints = ref(0);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
@@ -299,6 +306,17 @@ const fetchUnreadNotificationCount = async () => {
     }
 };
 
+const fetchHeaderRewardPoints = async () => {
+    const token = sessionStorage.getItem("auth_token");
+    if (!token) { headerRewardPoints.value = 0; return; }
+    try {
+        const res = await loyaltyService.getSummary();
+        headerRewardPoints.value = res.data?.data?.current_balance ?? 0;
+    } catch (e) {
+        headerRewardPoints.value = 0;
+    }
+};
+
 let notificationUserId = null;
 
 const leaveNotificationChannel = () => {
@@ -311,6 +329,7 @@ const leaveNotificationChannel = () => {
 watch(isLoggedIn, (val) => {
     if (val) {
         fetchUnreadNotificationCount();
+        fetchHeaderRewardPoints();
         const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
         if (window.Echo && userData && userData.user_id) {
             if (notificationUserId === userData.user_id) return;
@@ -322,6 +341,7 @@ watch(isLoggedIn, (val) => {
                     if (redirectUrl.startsWith('/admin/')) return;
                     
                     unreadNotificationCount.value++;
+<<<<<<< HEAD
                     if (showNotifDropdown.value) {
                         fetchNotificationsList(); // Refresh list if open
                     }
@@ -339,10 +359,17 @@ watch(isLoggedIn, (val) => {
                             toast.addEventListener('mouseleave', Swal.resumeTimer)
                         }
                     });
+=======
+                    showNotificationPopup.value = true;
+                    setTimeout(() => {
+                        showNotificationPopup.value = false;
+                    }, 4000);
+>>>>>>> origin/Dev
                 });
         }
     } else {
         unreadNotificationCount.value = 0;
+        headerRewardPoints.value = 0;
         leaveNotificationChannel();
     }
 }, { immediate: true });
@@ -516,6 +543,8 @@ watch(
                         :class="{ 'is-expanded': isSearchExpanded }"
                     >
                         <input
+                            id="site-search"
+                            name="search"
                             type="text"
                             class="search-input"
                             v-model="searchQuery"
@@ -524,6 +553,7 @@ watch(
                             @blur="handleSearchBlur"
                             @focus="handleSearchFocus"
                             placeholder="Tìm kiếm sản phẩm..."
+                            aria-label="Tìm kiếm sản phẩm"
                         />
                         <button
                             class="icon-btn search-icon-btn"
@@ -605,14 +635,20 @@ watch(
                 </div>
 
                 <!-- Thông báo -->
+<<<<<<< HEAD
                 <div class="notif-dropdown" v-if="isLoggedIn">
                     <button class="icon-btn notif-icon-btn" @click.stop="toggleNotifMenu">
+=======
+                <div class="header-notif-container" v-if="isLoggedIn">
+                    <router-link to="/profile/notifications" class="icon-btn notif-icon-btn">
+>>>>>>> origin/Dev
                         <div class="cart-icon-wrapper">
                             <AppIcon name="bell" />
                             <span v-if="unreadNotificationCount > 0" class="cart-badge">{{
                                 unreadNotificationCount > 99 ? "99+" : unreadNotificationCount
                             }}</span>
                         </div>
+<<<<<<< HEAD
                     </button>
 
                     <!-- Notif Dropdown Menu -->
@@ -642,12 +678,21 @@ watch(
                             </div>
                         </div>
                     </div>
+=======
+                    </router-link>
+
+                    <transition name="notif-popup-slide">
+                        <div v-if="showNotificationPopup" class="new-notif-popup" @click="router.push('/profile/notifications'); showNotificationPopup = false">
+                            Bạn có thông báo mới
+                        </div>
+                    </transition>
+>>>>>>> origin/Dev
                 </div>
 
                 <!-- Giỏ hàng -->
                 <router-link to="/cart" id="cart-icon" class="icon-btn cart-icon-btn">
                     <div class="cart-icon-wrapper">
-                        <AppIcon name="order" />
+                        <AppIcon name="cart" />
                         <span v-if="cartCount > 0" class="cart-badge">{{
                             cartCount > 99 ? "99+" : cartCount
                         }}</span>
@@ -686,6 +731,13 @@ watch(
                                         </div>
                                     </div>
                                 </div>
+                                <!-- Điểm thưởng mini trong header dropdown -->
+                                <router-link v-if="headerRewardPoints >= 0" to="/profile/loyalty" class="header-loyalty-row" @click="closeAccountMenu">
+                                    <span class="header-loyalty-icon">🏆</span>
+                                    <span class="header-loyalty-label">Số điểm:</span>
+                                    <span class="header-loyalty-pts">{{ new Intl.NumberFormat('vi-VN').format(headerRewardPoints) }} điểm</span>
+                                    <span class="header-loyalty-arrow">›</span>
+                                </router-link>
                                 <div class="dropdown-divider"></div>
                                 <router-link to="/profile" class="account-menu-item">Tài khoản của tôi</router-link>
                                 <router-link v-if="isAdmin" to="/admin" class="account-menu-item">Quản trị</router-link>
@@ -1246,6 +1298,45 @@ watch(
     margin: 4px 0;
 }
 
+/* Loyalty points row in header dropdown */
+.header-loyalty-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #fff7ed, #fef3f2);
+    border-radius: 10px;
+    text-decoration: none;
+    margin: 4px 0;
+    border: 1px solid #fed7aa;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+.header-loyalty-row:hover {
+    background: linear-gradient(135deg, #ffedd5, #ffe4e6);
+    border-color: #E63B6F;
+}
+.header-loyalty-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.header-loyalty-label {
+    font-size: 0.78rem;
+    color: #92400e;
+    font-weight: 500;
+}
+.header-loyalty-pts {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #E63B6F;
+    flex: 1;
+}
+.header-loyalty-arrow {
+    color: #E63B6F;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
 .account-menu-item {
     display: block;
     padding: 10px 12px;
@@ -1466,6 +1557,53 @@ watch(
         transform: scale(1);
         box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
     }
+}
+
+.header-notif-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.new-notif-popup {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: -10px; /* Căn phải hoặc tùy chỉnh */
+    background: #fff;
+    color: #1a2b4a;
+    padding: 10px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 1000;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+}
+
+.new-notif-popup::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 20px;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    transform: rotate(45deg);
+    border-top: 1px solid #e2e8f0;
+    border-left: 1px solid #e2e8f0;
+}
+
+.notif-popup-slide-enter-active,
+.notif-popup-slide-leave-active {
+    transition: all 0.3s ease;
+}
+
+.notif-popup-slide-enter-from,
+.notif-popup-slide-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
 }
 
 @media (max-width: 768px) {

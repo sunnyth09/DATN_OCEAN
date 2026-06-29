@@ -18,8 +18,9 @@ export const useCartStore = defineStore('cart', () => {
     const authStore = useAuthStore(pinia);
 
     if (!authStore.isAuthenticated) {
-      count.value = 0;
-      return 0;
+      const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+      count.value = localItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      return count.value;
     }
 
     if (countRequest) {
@@ -60,6 +61,28 @@ export const useCartStore = defineStore('cart', () => {
     return response.data;
   };
 
+  const syncCart = async () => {
+    const authStore = useAuthStore(pinia);
+    if (!authStore.isAuthenticated) return;
+
+    const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+    if (localItems.length === 0) return;
+
+    try {
+      const { default: api } = await import('@/axios');
+      await api.post('/cart/sync', {
+        items: localItems.map(item => ({
+          variant_id: item.variant_id,
+          quantity: item.quantity
+        }))
+      });
+      localStorage.removeItem('cart_items');
+      await fetchCount();
+    } catch (error) {
+      console.error("Failed to sync cart:", error);
+    }
+  };
+
   const bindWindowListeners = () => {
     if (hasBoundCartEvents) return;
 
@@ -74,6 +97,7 @@ export const useCartStore = defineStore('cart', () => {
     reset,
     fetchCount,
     addItem,
+    syncCart,
     bindWindowListeners,
   };
 });

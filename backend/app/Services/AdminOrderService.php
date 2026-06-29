@@ -7,6 +7,7 @@ use App\Enums\PaymentStatus;
 use App\Repositories\AdminOrderRepository;
 use App\Models\Order;
 use App\Services\LoyaltyService;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +44,7 @@ class AdminOrderService
         protected AdminOrderRepository $orderRepository,
         protected AffiliateService $affiliateService,
         protected LoyaltyService $loyaltyService,
+        protected WalletService $walletService,
     ) {}
 
     /**
@@ -138,6 +140,17 @@ class AdminOrderService
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 
+                    if ($order->payment_method === 'wallet' && $order->payment_status === PaymentStatus::PAID->value) {
+                        $updates['payment_status'] = PaymentStatus::REFUNDED->value;
+                        $this->walletService->refund(
+                            $order->user_id,
+                            (float) $order->wallet_spent,
+                            "Hoàn tiền hủy đơn hàng #{$order->order_code}",
+                            $order->order_id,
+                            Order::class
+                        );
+                    }
+
                     // Hoàn tồn kho
                     $this->orderRepository->restoreStock($order->items);
 
@@ -198,6 +211,13 @@ class AdminOrderService
 
                         if ($isFirstOrder) {
                             $this->loyaltyService->earnFirstOrder($order->user, $order->fresh());
+                        }
+
+                        // Thưởng điểm giỏ hàng bỏ quên nếu có
+                        $freshOrder = $order->fresh();
+                        if ($freshOrder->is_abandoned_checkout) {
+                            $this->loyaltyService->earnAbandonedCart($order->user, $freshOrder->order_id);
+                            $order->update(['is_abandoned_checkout' => false]);
                         }
                     } catch (\Exception $e) {
                         Log::error("LoyaltyEarn failed for order #{$order->order_id}: " . $e->getMessage());
@@ -275,6 +295,17 @@ class AdminOrderService
                             $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                         }
 
+                        if ($order->payment_method === 'wallet' && $order->payment_status === PaymentStatus::PAID->value) {
+                            $updates['payment_status'] = PaymentStatus::REFUNDED->value;
+                            $this->walletService->refund(
+                                $order->user_id,
+                                (float) $order->wallet_spent,
+                                "Hoàn tiền hủy hàng loạt đơn hàng #{$order->order_code}",
+                                $order->order_id,
+                                Order::class
+                            );
+                        }
+
                         // Hoàn tồn kho
                         $items = DB::table('order_items')->where('order_id', $order->order_id)->get();
                         $this->orderRepository->restoreStock($items->filter(fn($i) => $i->variant_id)->all());
@@ -333,6 +364,12 @@ class AdminOrderService
                     if ($isDeliveredOrCompleted && $order->user) {
                         try {
                             $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
+
+                            $freshOrder = $order->fresh();
+                            if ($freshOrder->is_abandoned_checkout) {
+                                $this->loyaltyService->earnAbandonedCart($order->user, $freshOrder->order_id);
+                                $order->update(['is_abandoned_checkout' => false]);
+                            }
                         } catch (\Exception $e) {
                             Log::error("LoyaltyEarn bulk failed for order #{$order->order_id}: " . $e->getMessage());
                         }
@@ -372,6 +409,12 @@ class AdminOrderService
 
         try {
             $result = \App\Services\GHNService::createOrder($order);
+            
+            if (isset($result['data']['order_code'])) {
+                $order->ghn_order_code = $result['data']['order_code'];
+                $order->save();
+            }
+
             return [
                 '_status' => 200,
                 'status'  => 'success',

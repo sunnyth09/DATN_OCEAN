@@ -10,12 +10,14 @@ class Order extends Model
 
     protected $fillable = [
         'order_code',
+        'ghn_order_code',
         'user_id',
         'seller_id',
         'address_id',
         'promotion_id',
         'recipient_name',
         'recipient_phone',
+        'email',
         'shipping_address',
         'note',
         'payment_method',
@@ -23,6 +25,8 @@ class Order extends Model
         'fulfillment_status',
         'subtotal',
         'discount_amount',
+        'wallet_deposit_discount',
+        'wallet_commission_discount',
         'shipping_fee',
         'grand_total',
         'email_sent',

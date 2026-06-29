@@ -13,12 +13,20 @@ class NotificationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+<<<<<<< HEAD
         $admin = auth('api')->user() ?? auth('admin')->user();
         
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
+=======
+        $admin = $request->user();
+>>>>>>> origin/Dev
         
+        if (!$admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
         $query = $admin->notifications();
 
         if ($request->query('unread_only') === 'true') {
@@ -40,13 +48,18 @@ class NotificationController extends Controller
     /**
      * Mark a specific notification as read.
      */
-    public function markAsRead($id): JsonResponse
+    public function markAsRead(Request $request, $id): JsonResponse
     {
+<<<<<<< HEAD
         $admin = auth('api')->user() ?? auth('admin')->user();
         
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
+=======
+        $admin = $request->user();
+        if (!$admin) return response()->json(['success' => false], 401);
+>>>>>>> origin/Dev
         
         $notification = $admin->notifications()->where('id', $id)->first();
         
@@ -63,13 +76,20 @@ class NotificationController extends Controller
     /**
      * Mark all notifications as read.
      */
-    public function markAllAsRead(): JsonResponse
+    public function markAllAsRead(Request $request): JsonResponse
     {
+<<<<<<< HEAD
         $admin = auth('api')->user() ?? auth('admin')->user();
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
         $admin->unreadNotifications->markAsRead();
+=======
+        $admin = $request->user();
+        if ($admin) {
+            $admin->unreadNotifications->markAsRead();
+        }
+>>>>>>> origin/Dev
 
         return response()->json([
             'success' => true,
@@ -80,13 +100,18 @@ class NotificationController extends Controller
     /**
      * Delete a notification.
      */
-    public function destroy($id): JsonResponse
+    public function destroy(Request $request, $id): JsonResponse
     {
+<<<<<<< HEAD
         $admin = auth('api')->user() ?? auth('admin')->user();
         
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
+=======
+        $admin = $request->user();
+        if (!$admin) return response()->json(['success' => false], 401);
+>>>>>>> origin/Dev
         
         $notification = $admin->notifications()->where('id', $id)->first();
         

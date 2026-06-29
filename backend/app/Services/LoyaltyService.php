@@ -92,6 +92,15 @@ class LoyaltyService
         $rule = LoyaltyRule::findByKey('REFERRAL');
         if (!$rule) return null;
 
+        // Tránh earn nhiều lần cho cùng 1 order
+        $alreadyEarned = LoyaltyTransaction::forUser($referrer->user_id)
+            ->where('reference_type', Order::class)
+            ->where('reference_id', $order->order_id)
+            ->where('type', 'earn')
+            ->exists();
+
+        if ($alreadyEarned) return null;
+
         $points = (int) $rule->points_per_unit;
         if ($points <= 0) return null;
 
@@ -186,6 +195,70 @@ class LoyaltyService
             referenceType: 'cart',
             referenceId: $cartId,
             description: 'Điểm thưởng nhắc giỏ hàng bỏ quên',
+        );
+    }
+
+    /**
+     * Earn điểm bonus khi đánh giá sản phẩm kèm hình ảnh.
+     *
+     * @param User $user
+     * @param int  $commentId  ID của ProductComment
+     */
+    public function earnFromReviewWithImage(User $user, int $commentId): ?LoyaltyTransaction
+    {
+        $rule = LoyaltyRule::findByKey('REVIEW_WITH_IMAGE');
+        if (!$rule) return null;
+
+        // Tránh earn nhiều lần cho cùng 1 comment
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
+            ->where('reference_type', 'product_comment_image')
+            ->where('reference_id', $commentId)
+            ->exists();
+
+        if ($alreadyEarned) return null;
+
+        $points = (int) $rule->points_per_unit;
+
+        return $this->recordEarn(
+            user: $user,
+            points: $points,
+            rule: $rule,
+            referenceType: 'product_comment_image',
+            referenceId: $commentId,
+            description: 'Bonus điểm đánh giá kèm hình ảnh',
+        );
+    }
+
+    /**
+     * Earn điểm khi chia sẻ sản phẩm lên mạng xã hội.
+     * Mỗi sản phẩm chỉ được earn 1 lần / ngày.
+     *
+     * @param User $user
+     * @param int  $productId
+     */
+    public function earnFromSocialShare(User $user, int $productId): ?LoyaltyTransaction
+    {
+        $rule = LoyaltyRule::findByKey('SOCIAL_SHARE');
+        if (!$rule) return null;
+
+        // Giới hạn 1 lần / sản phẩm / ngày
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
+            ->where('reference_type', 'social_share')
+            ->where('reference_id', $productId)
+            ->whereDate('created_at', today())
+            ->exists();
+
+        if ($alreadyEarned) return null;
+
+        $points = (int) $rule->points_per_unit;
+
+        return $this->recordEarn(
+            user: $user,
+            points: $points,
+            rule: $rule,
+            referenceType: 'social_share',
+            referenceId: $productId,
+            description: 'Chia sẻ sản phẩm lên mạng xã hội',
         );
     }
 

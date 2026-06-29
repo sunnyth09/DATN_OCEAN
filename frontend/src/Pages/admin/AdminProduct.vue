@@ -4,6 +4,7 @@ import api from '../../axios.js';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
+import { getApiBaseUrl, getAppBaseUrl } from '@/utils/url';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastMsg = (message, type = 'success') => {
@@ -22,7 +23,7 @@ const currentPage = ref(1);
 const totalProducts = ref(0);
 const limit = 10;
 
-const storageUrl = import.meta.env.VITE_API_STORAGE || 'http://localhost:8383/storage';
+const storageUrl = import.meta.env.VITE_API_STORAGE || `${getAppBaseUrl()}/storage`;
 
 const fetchProducts = async () => {
     isLoading.value = true;
@@ -172,7 +173,7 @@ const importFile = ref(null);
 const importFileName = ref('');
 const isImporting = ref(false);
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8383/api';
+const apiBaseUrl = getApiBaseUrl();
 
 const openImportModal = () => {
     showImportModal.value = true;

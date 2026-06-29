@@ -99,10 +99,10 @@ const handleSubmit = async () => {
     try {
         if (isEditing.value) {
             const res = await api.put(`/post-categories/${data.post_category_id}`, data);
-            showToast(res.data?.message || 'Cập nhật thành công!', 'success');
+            Swal.fire('Thành công', res.data?.message || 'Cập nhật thành công!', 'success');
         } else {
             const res = await api.post('/post-categories', data);
-            showToast(res.data?.message || 'Thêm danh mục thành công!', 'success');
+            Swal.fire('Thành công', res.data?.message || 'Thêm danh mục thành công!', 'success');
         }
         await fetchCategories();
         closeModal();
@@ -118,11 +118,12 @@ import Swal from 'sweetalert2';
 
 const deleteCategory = async (id) => {
     const result = await Swal.fire({
-        title: 'Xóa danh mục?',
-        text: 'Danh mục này sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.',
+        title: 'Xác nhận xóa',
+        text: 'Bạn có chắc chắn muốn xóa vĩnh viễn danh mục này? Thao tác này không thể hoàn tác!',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Đồng ý xóa',
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Xóa',
         cancelButtonText: 'Hủy'
     });
 

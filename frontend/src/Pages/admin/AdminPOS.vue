@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
+import { getStorageUrl } from '@/utils/url';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastNotify = (message, type = 'success') => {
@@ -27,8 +28,7 @@ const formatDate = (dateString) => {
 
 const getImageUrl = (path) => {
   if (!path) return '/placeholder.jpg';
-  if (path.startsWith('http')) return path;
-  return `${import.meta.env.VITE_BASE_URL || 'http://localhost:8383'}/storage/${path}`;
+  return getStorageUrl(path);
 };
 
 // ================== SEARCH PRODUCTS ==================

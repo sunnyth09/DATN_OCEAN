@@ -5,8 +5,9 @@ import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
+import { getAbsoluteUrl, getAppBaseUrl } from '@/utils/url';
 
-const BASE_URL = import.meta.env.VITE_APP_URL || 'http://localhost:8383';
+const BASE_URL = getAppBaseUrl();
 
 const props = defineProps({
   collapsed: {
@@ -59,7 +60,7 @@ onMounted(() => {
       userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
       
       if (path) {
-        userAvatar.value = path.startsWith('http') ? path : `${BASE_URL}${path}`;
+        userAvatar.value = getAbsoluteUrl(path);
       }
     } catch (e) {
       console.error("Failed to parse user data", e);
@@ -78,7 +79,7 @@ const handleLogout = async () => {
   });
   if (result.isConfirmed) {
     await authStore.logout();
-    router.push('/');
+    router.push('/client/login');
   }
 };
 </script>
@@ -237,6 +238,10 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span>
             <span>Khiếu nại</span>
           </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/wallet-deposits" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Ví & Nạp tiền</span>
+          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Thống kê</span>
@@ -305,6 +310,10 @@ const handleLogout = async () => {
     </div>
   </aside>
 </template>
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/Dev
 <style scoped>
 .sidebar {
   width: 250px;

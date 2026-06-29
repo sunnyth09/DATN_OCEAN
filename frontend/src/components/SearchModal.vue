@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { catalogService, extractCollection } from '@/services/catalogService';
+import { getStorageUrl } from '@/utils/url';
 
 const props = defineProps({
     modelValue: { type: Boolean, default: false },
@@ -14,14 +15,11 @@ const results = ref([]);
 const isLoading = ref(false);
 const hasSearched = ref(false);
 
-const BASE_URL = (import.meta.env.VITE_BASE_URL || 'http://localhost:8383').replace('/api', '');
-
 const defaultSvg = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="#f0f7ff"/><circle cx="100" cy="80" r="40" fill="#bfdbfe"/><path d="M60,160 Q100,120 140,160" stroke="#93c5fd" stroke-width="8" fill="none" stroke-linecap="round"/></svg>`);
 
 const getImageUrl = (path) => {
     if (!path || path === '0' || path === '') return defaultSvg;
-    if (path.startsWith('http')) return path;
-    return `${BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
 };
 
 const formatPrice = (price) =>

@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Coupon;
 use App\Models\UserCoupon;
 use App\Notifications\BirthdayNotification;
+use App\Services\LoyaltyService;
 use Carbon\Carbon;
 
 /**
@@ -47,7 +48,7 @@ class SendBirthdayWishes extends Command
      * Được Laravel gọi khi command được thực thi.
      * Return 0 = thành công, 1 = thất bại
      */
-    public function handle(): int
+    public function handle(LoyaltyService $loyaltyService): int
     {
         // ─── Bước 1: Lấy ngày hiện tại ───
         $today = Carbon::today();
@@ -119,6 +120,9 @@ class SendBirthdayWishes extends Command
                 // notify() → method từ trait Notifiable trong User model
                 // Laravel tự động gọi toMail() và toArray() trong BirthdayNotification
                 $user->notify(new BirthdayNotification($couponCode, '10% (tối đa 50.000đ)'));
+
+                // --- 3d. Tích điểm Loyalty mừng sinh nhật ---
+                $loyaltyService->earnBirthday($user);
 
                 $this->info("  ✅ Đã gửi chúc mừng sinh nhật cho: {$user->full_name} ({$user->email})");
                 $successCount++;

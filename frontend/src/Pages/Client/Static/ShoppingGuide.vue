@@ -85,9 +85,13 @@
 </template>
 <script setup></script>
 <style scoped>
-.static-page { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+.static-page {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  padding-top: 24px;
+}
 .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
 .page-hero {
+<<<<<<< HEAD
   background: linear-gradient(135deg, #e63b6f, #a0204e);
   color: #fff;
   border-radius: 16px;
@@ -111,6 +115,44 @@
 }
 .page-hero h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 8px; position: relative; z-index: 1; }
 .hero-sub { opacity: 0.85; font-size: 0.95rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.6; }
+=======
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 24px;
+  color: #fff;
+  text-align: center;
+}
+.page-hero .container {
+  max-width: 100%;
+  padding: 54px 24px;
+  border: 1px solid rgba(230, 59, 111, 0.18);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, #E63B6F 0%, #d92f66 48%, #f05a8a 100%);
+  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+}
+.page-hero h1 {
+  position: relative;
+  display: inline-block;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 900;
+  margin: 0 0 16px;
+  padding-bottom: 14px;
+}
+.page-hero h1::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 96px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateX(-50%);
+}
+.hero-sub { max-width: 700px; margin: 0 auto; color: rgba(255,255,255,0.9); font-size: 1.05rem; line-height: 1.7; }
+>>>>>>> origin/Dev
 .page-content { padding: 48px 24px 64px; }
 .steps-timeline { position: relative; padding-left: 56px; margin-bottom: 48px; }
 .timeline-step { position: relative; padding-bottom: 32px; }
@@ -126,4 +168,11 @@
 .content-block h2 { font-size: 1.3rem; font-weight: 700; color: #2D3436; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }
 .note-list { padding-left: 24px; margin: 0; }
 .note-list li { font-size: 0.95rem; color: #4b5563; line-height: 1.8; margin-bottom: 6px; }
+
+@media (max-width: 768px) {
+  .static-page { padding-top: 16px; }
+  .page-hero { padding: 0 16px; }
+  .page-hero .container { padding: 40px 18px; border-radius: 18px; }
+  .page-content { padding: 36px 24px 56px; }
+}
 </style>

@@ -1,6 +1,6 @@
  <script setup>
 import { ref } from 'vue';
-import axios  from "axios";
+import api from '@/axios';
 import Swal from 'sweetalert2';
 
 const email = ref('');
@@ -12,7 +12,7 @@ const SubmitContact = async () => {
   }
 
   try {
-    const reponse = await axios.post("http://localhost:8000/api/SubmitContact", {
+    const reponse = await api.post('/SubmitContact', {
       email: email.value
     }); 
     if (reponse.data.status == "success"){
