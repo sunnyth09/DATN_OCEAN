@@ -10,6 +10,8 @@ use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\OrderCancelledMail;
 
 class AdminOrderService
 {
@@ -138,6 +140,11 @@ class AdminOrderService
 
                     // Hoàn tồn kho
                     $this->orderRepository->restoreStock($order->items);
+
+                    // Gửi email thông báo hủy đơn
+                    if ($order->user && $order->user->email) {
+                        Mail::to($order->user->email)->queue(new OrderCancelledMail($order, 'admin', $updates['cancel_reason']));
+                    }
                 }
             }
 
@@ -151,6 +158,13 @@ class AdminOrderService
                         'new_status' => $updates['fulfillment_status'],
                         'note'       => $data['note'] ?? 'Chuyển trạng thái bởi Admin',
                     ]);
+
+                    if ($order->user) {
+                        $statusLabel = \App\Enums\OrderStatus::tryFrom($updates['fulfillment_status'])?->label() ?? $updates['fulfillment_status'];
+                        $title = "Cập nhật đơn hàng #{$order->order_code}";
+                        $message = "Đơn hàng của bạn đã được cập nhật sang trạng thái: {$statusLabel}.";
+                        \Illuminate\Support\Facades\Notification::sendNow($order->user, new \App\Notifications\SystemNotification($title, $message, "/profile/orders/{$order->order_id}", 'package'));
+                    }
                 }
 
                 if (isset($updates['payment_status']) && $updates['payment_status'] !== $oldPaymentStatus) {
@@ -264,6 +278,11 @@ class AdminOrderService
                         // Hoàn tồn kho
                         $items = DB::table('order_items')->where('order_id', $order->order_id)->get();
                         $this->orderRepository->restoreStock($items->filter(fn($i) => $i->variant_id)->all());
+
+                        // Gửi email thông báo hủy đơn
+                        if ($order->user && $order->user->email) {
+                            Mail::to($order->user->email)->queue(new OrderCancelledMail($order, 'admin', $updates['cancel_reason']));
+                        }
                     }
                 }
 
@@ -278,6 +297,13 @@ class AdminOrderService
                             'new_status' => $updates['fulfillment_status'],
                             'note'       => $data['note'] ?? 'Chuyển trạng thái hàng loạt bởi Admin',
                         ]);
+
+                        if ($order->user) {
+                            $statusLabel = \App\Enums\OrderStatus::tryFrom($updates['fulfillment_status'])?->label() ?? $updates['fulfillment_status'];
+                            $title = "Cập nhật đơn hàng #{$order->order_code}";
+                            $message = "Đơn hàng của bạn đã được cập nhật sang trạng thái: {$statusLabel}.";
+                            \Illuminate\Support\Facades\Notification::sendNow($order->user, new \App\Notifications\SystemNotification($title, $message, "/profile/orders/{$order->order_id}", 'package'));
+                        }
                     }
 
                     if (isset($updates['payment_status']) && $updates['payment_status'] !== $oldPaymentStatus) {

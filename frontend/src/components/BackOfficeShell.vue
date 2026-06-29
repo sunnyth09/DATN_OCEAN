@@ -245,6 +245,24 @@ onMounted(() => {
           if (e.status === 'cancelled') {
               handleNotification(e, 'CourtBookingCancelled');
           }
+      })
+      .listen('.UserNotificationEvent', (e) => {
+          unreadCount.value++;
+          
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: e.title || e.notification?.title || 'Thông báo mới',
+            text: e.message || e.notification?.message || 'Có thông báo mới cho quản trị viên',
+            showConfirmButton: false,
+            timer: 5000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+              toast.addEventListener('mouseenter', Swal.stopTimer);
+              toast.addEventListener('mouseleave', Swal.resumeTimer);
+            }
+          });
       });
   }
 });
