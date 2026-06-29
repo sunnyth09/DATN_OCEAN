@@ -201,6 +201,8 @@ class OrderService
                     $request
                 );
 
+                $this->dispatchOrderCreatedEvent($order);
+
                 if ($paymentResult['type'] === 'redirect') {
                     return [
                         'status_code' => 200,
@@ -208,8 +210,6 @@ class OrderService
                         '_order' => $order,
                     ];
                 }
-
-                $this->dispatchOrderCreatedEvent($order);
 
                 return [
                     'status_code' => 200,
@@ -373,6 +373,25 @@ class OrderService
     {
         try {
             event(new \App\Events\OrderCreatedAdmin($order));
+
+            // Notify Customer
+            if ($order->user) {
+                \Illuminate\Support\Facades\Notification::sendNow($order->user, new \App\Notifications\SystemNotification(
+                    'Đặt hàng thành công',
+                    'Đơn hàng ' . $order->order_code . ' của bạn đã được đặt thành công.',
+                    '/profile/orders/' . $order->order_id,
+                    'order'
+                ));
+            }
+
+            // Notify Admins
+            $admins = \App\Models\User::whereIn('role', ['admin', 'seller'])->get();
+            \Illuminate\Support\Facades\Notification::sendNow($admins, new \App\Notifications\SystemNotification(
+                'Đơn hàng mới',
+                'Khách hàng vừa đặt đơn hàng ' . $order->order_code,
+                '/admin/order/' . $order->order_id,
+                'order'
+            ));
         } catch (\Exception $e) {
             Log::error('Realtime event dispatch failed: ' . $e->getMessage());
         }

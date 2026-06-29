@@ -107,5 +107,6 @@ echo " Cron (Laravel Scheduler) RUNNING"
 echo "======================================="
 
 nohup php artisan reverb:start --host="0.0.0.0" --port=8383 > /var/www/storage/logs/reverb.log 2>&1 &
+nohup php artisan queue:work --sleep=3 --tries=3 > /var/www/storage/logs/queue.log 2>&1 &
 
 exec php-fpm

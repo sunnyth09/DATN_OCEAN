@@ -13,7 +13,7 @@ class NotificationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $admin = auth()->guard('admin')->user();
+        $admin = auth()->user();
         
         $query = $admin->notifications();
 
@@ -38,7 +38,7 @@ class NotificationController extends Controller
      */
     public function markAsRead($id): JsonResponse
     {
-        $admin = auth()->guard('admin')->user();
+        $admin = auth()->user();
         
         $notification = $admin->notifications()->where('id', $id)->first();
         
@@ -57,7 +57,7 @@ class NotificationController extends Controller
      */
     public function markAllAsRead(): JsonResponse
     {
-        $admin = auth()->guard('admin')->user();
+        $admin = auth()->user();
         $admin->unreadNotifications->markAsRead();
 
         return response()->json([
@@ -71,7 +71,7 @@ class NotificationController extends Controller
      */
     public function destroy($id): JsonResponse
     {
-        $admin = auth()->guard('admin')->user();
+        $admin = auth()->user();
         
         $notification = $admin->notifications()->where('id', $id)->first();
         

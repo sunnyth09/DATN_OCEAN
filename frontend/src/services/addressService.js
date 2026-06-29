@@ -1,18 +1,20 @@
 import axios from 'axios';
 import api from '@/axios';
 
-const GHN_BASE_URL = 'https://online-gateway.ghn.vn/shiip/public-api';
+const GHN_BASE_URL = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
 
 const getGhnHeaders = () => {
-  const token = import.meta.env.VITE_TOKEN_GHN;
-  const shopId = import.meta.env.VITE_SHOPID_GHN;
+  const token = import.meta.env.VITE_TOKEN_GHN_SANBOX;
+  const shopId = import.meta.env.VITE_SHOPID_GHN_SANBOX;
 
-  if (!token || !shopId || token.includes('here') || shopId.includes('here')) {
+  if (!token || !shopId) {
     return null;
   }
 
   return {
+    'Content-Type': 'application/json',
     token: token,
+    shop_id: shopId,
   };
 };
 
@@ -37,60 +39,30 @@ export const addressService = {
     return api.put(`/profile/addresses/${addressId}/default`);
   },
 
-  async listProvinces() {
-    const headers = getGhnHeaders();
-    if (!headers) {
-      const response = await axios.get('https://provinces.open-api.vn/api/p/');
-      return {
-        data: {
-          data: response.data.map(item => ({
-            ProvinceID: item.code,
-            ProvinceName: item.name,
-          })),
-        },
-      };
-    }
+  listProvinces() {
     return axios.get(`${GHN_BASE_URL}/master-data/province`, {
-      headers,
+      headers: {
+        ...getGhnHeaders(),
+      },
     });
   },
 
-  async listDistricts(provinceCode) {
-    const headers = getGhnHeaders();
-    if (!headers) {
-      const response = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
-      return {
-        data: {
-          data: (response.data.districts || []).map(item => ({
-            DistrictID: item.code,
-            DistrictName: item.name,
-          })),
-        },
-      };
-    }
+  listDistricts(provinceCode) {
     return axios.get(`${GHN_BASE_URL}/master-data/district`, {
-      headers,
+      headers: {
+        ...getGhnHeaders(),
+      },
       params: {
         province_id: provinceCode,
       },
     });
   },
 
-  async listWards(districtCode) {
-    const headers = getGhnHeaders();
-    if (!headers) {
-      const response = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
-      return {
-        data: {
-          data: (response.data.wards || []).map(item => ({
-            WardCode: String(item.code),
-            WardName: item.name,
-          })),
-        },
-      };
-    }
+  listWards(districtCode) {
     return axios.get(`${GHN_BASE_URL}/master-data/ward`, {
-      headers,
+      headers: {
+        ...getGhnHeaders(),
+      },
       params: {
         district_id: districtCode,
       },
