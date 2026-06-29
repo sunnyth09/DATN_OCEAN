@@ -310,10 +310,7 @@ const handleLogout = async () => {
     </div>
   </aside>
 </template>
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/Dev
 <style scoped>
 .sidebar {
   width: 250px;

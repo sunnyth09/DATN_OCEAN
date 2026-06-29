@@ -13,15 +13,11 @@ class NotificationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-<<<<<<< HEAD
         $admin = auth('api')->user() ?? auth('admin')->user();
         
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
-=======
-        $admin = $request->user();
->>>>>>> origin/Dev
         
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
@@ -50,16 +46,11 @@ class NotificationController extends Controller
      */
     public function markAsRead(Request $request, $id): JsonResponse
     {
-<<<<<<< HEAD
         $admin = auth('api')->user() ?? auth('admin')->user();
         
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
-=======
-        $admin = $request->user();
-        if (!$admin) return response()->json(['success' => false], 401);
->>>>>>> origin/Dev
         
         $notification = $admin->notifications()->where('id', $id)->first();
         
@@ -78,18 +69,11 @@ class NotificationController extends Controller
      */
     public function markAllAsRead(Request $request): JsonResponse
     {
-<<<<<<< HEAD
         $admin = auth('api')->user() ?? auth('admin')->user();
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
         $admin->unreadNotifications->markAsRead();
-=======
-        $admin = $request->user();
-        if ($admin) {
-            $admin->unreadNotifications->markAsRead();
-        }
->>>>>>> origin/Dev
 
         return response()->json([
             'success' => true,
@@ -102,16 +86,11 @@ class NotificationController extends Controller
      */
     public function destroy(Request $request, $id): JsonResponse
     {
-<<<<<<< HEAD
         $admin = auth('api')->user() ?? auth('admin')->user();
         
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
-=======
-        $admin = $request->user();
-        if (!$admin) return response()->json(['success' => false], 401);
->>>>>>> origin/Dev
         
         $notification = $admin->notifications()->where('id', $id)->first();
         

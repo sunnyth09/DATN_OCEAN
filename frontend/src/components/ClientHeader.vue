@@ -28,11 +28,7 @@ const isAdmin = ref(false);
 const showDropdown = ref(false);
 const showNotifDropdown = ref(false);
 const unreadNotificationCount = ref(0);
-<<<<<<< HEAD
-const notificationsList = ref([]);
-=======
 const showNotificationPopup = ref(false);
->>>>>>> origin/Dev
 const isMobileMenuOpen = ref(false);
 const headerRewardPoints = ref(0);
 
@@ -341,30 +337,10 @@ watch(isLoggedIn, (val) => {
                     if (redirectUrl.startsWith('/admin/')) return;
                     
                     unreadNotificationCount.value++;
-<<<<<<< HEAD
-                    if (showNotifDropdown.value) {
-                        fetchNotificationsList(); // Refresh list if open
-                    }
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'info',
-                        title: e.title || e.notification?.title || 'Thông báo mới',
-                        text: e.message || e.notification?.message || 'Bạn có thông báo mới',
-                        showConfirmButton: false,
-                        timer: 5000,
-                        timerProgressBar: true,
-                        didOpen: (toast) => {
-                            toast.addEventListener('mouseenter', Swal.stopTimer)
-                            toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        }
-                    });
-=======
                     showNotificationPopup.value = true;
                     setTimeout(() => {
                         showNotificationPopup.value = false;
                     }, 4000);
->>>>>>> origin/Dev
                 });
         }
     } else {
@@ -635,50 +611,14 @@ watch(
                 </div>
 
                 <!-- Thông báo -->
-<<<<<<< HEAD
-                <div class="notif-dropdown" v-if="isLoggedIn">
-                    <button class="icon-btn notif-icon-btn" @click.stop="toggleNotifMenu">
-=======
                 <div class="header-notif-container" v-if="isLoggedIn">
                     <router-link to="/profile/notifications" class="icon-btn notif-icon-btn">
->>>>>>> origin/Dev
                         <div class="cart-icon-wrapper">
                             <AppIcon name="bell" />
                             <span v-if="unreadNotificationCount > 0" class="cart-badge">{{
                                 unreadNotificationCount > 99 ? "99+" : unreadNotificationCount
                             }}</span>
                         </div>
-<<<<<<< HEAD
-                    </button>
-
-                    <!-- Notif Dropdown Menu -->
-                    <div class="notif-menu" v-show="showNotifDropdown">
-                        <div class="notif-menu-inner">
-                            <div class="notif-header">
-                                <h3>Thông báo mới</h3>
-                                <router-link to="/profile/notifications" @click="showNotifDropdown = false" class="notif-view-all">Xem tất cả</router-link>
-                            </div>
-                            <div class="notif-list" v-if="notificationsList.length > 0">
-                                <div v-for="notif in notificationsList" :key="notif.id" 
-                                     class="notif-item" 
-                                     :class="{ unread: !notif.read_at }"
-                                     @click="markAsRead(notif.id, notif.data?.url_redirect)">
-                                    <div class="notif-icon-circle">
-                                        <AppIcon name="bell" size="18" />
-                                    </div>
-                                    <div class="notif-content">
-                                        <div class="notif-title">{{ notif.data?.title || 'Thông báo mới' }}</div>
-                                        <div class="notif-desc">{{ notif.data?.message }}</div>
-                                        <div class="notif-time">{{ new Date(notif.created_at).toLocaleString('vi-VN') }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="notif-empty" v-else>
-                                Không có thông báo nào.
-                            </div>
-                        </div>
-                    </div>
-=======
                     </router-link>
 
                     <transition name="notif-popup-slide">
@@ -686,7 +626,6 @@ watch(
                             Bạn có thông báo mới
                         </div>
                     </transition>
->>>>>>> origin/Dev
                 </div>
 
                 <!-- Giỏ hàng -->

@@ -15,14 +15,11 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ProductCommentController extends Controller
 {
-<<<<<<< HEAD
     use AuthorizesRequests;
 
-=======
     public function __construct(
         protected LoyaltyService $loyaltyService
     ) {}  
->>>>>>> origin/Dev
     /**
      * Store a newly created comment.
      */
@@ -99,7 +96,6 @@ class ProductCommentController extends Controller
                 'images'         => !empty($imagePaths) ? json_encode($imagePaths) : null,
             ]);
 
-<<<<<<< HEAD
             // Nếu rating <= 3, tự động tạo Ticket (Khiếu nại) cho admin
             if ($request->rating <= 3) {
                 \App\Models\Ticket::create([
@@ -111,7 +107,7 @@ class ProductCommentController extends Controller
                     'status'      => 'pending',
                 ]);
             }
-=======
+
             // ── Tích điểm Loyalty ──────────────────────────────────────────
             $user = auth('api')->user();
             if ($user) {
@@ -125,7 +121,6 @@ class ProductCommentController extends Controller
                 }
             }
             // ───────────────────────────────────────────────────────────────
->>>>>>> origin/Dev
 
             // Recalculate average rating for the product using approved comments
             $this->recalculateProductRating($request->product_id);
