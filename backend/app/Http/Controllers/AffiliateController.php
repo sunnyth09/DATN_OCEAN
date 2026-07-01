@@ -21,11 +21,7 @@ class AffiliateController extends Controller
 {
     public function __construct(
         protected AffiliateService $affiliateService
-    ) {
-        // Áp dụng customer.only cho tất cả methods
-        // (ngoại trừ trackClick vốn là public)
-        $this->middleware('customer.only')->except('trackClick');
-    }
+    ) {}
 
     /**
      * Đăng ký affiliate

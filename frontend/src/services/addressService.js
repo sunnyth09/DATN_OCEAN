@@ -1,22 +1,4 @@
-import axios from 'axios';
 import api from '@/axios';
-
-const GHN_BASE_URL = 'https://dev-online-gateway.ghn.vn/shiip/public-api';
-
-const getGhnHeaders = () => {
-    const token = import.meta.env.VITE_TOKEN_GHN_SANBOX;
-    const shopId = import.meta.env.VITE_SHOPID_GHN_SANBOX;
-
-    if (!token || !shopId) {
-        return null;
-    }
-
-    return {
-        'Content-Type': 'application/json',
-        token: token,
-        shop_id: shopId,
-    };
-};
 
 export const addressService = {
     listProfileAddresses() {
@@ -39,8 +21,6 @@ export const addressService = {
         return api.put(`/profile/addresses/${addressId}/default`);
     },
 
-    // Danh sách Tỉnh/Quận/Phường lấy qua backend proxy (provinces.open-api.vn,
-    // không cần token GHN). Backend trả về key tương thích GHN: ProvinceID/ProvinceName...
     listProvinces() {
         return api.get('/location/provinces');
     },
@@ -54,20 +34,15 @@ export const addressService = {
     },
 
     async getShippingFee({ districtCode, wardCode, weight = 1000, serviceTypeId = 2 }) {
-        const ghnHeaders = getGhnHeaders();
-
-        if (!districtCode || !wardCode || !ghnHeaders) {
+        if (!districtCode || !wardCode) {
             return 0;
         }
 
-        const response = await axios.get(`${GHN_BASE_URL}/v2/shipping-order/fee`, {
-            params: {
-                service_type_id: serviceTypeId,
-                to_district_id: Number.parseInt(districtCode, 10),
-                to_ward_code: wardCode,
-                weight,
-            },
-            headers: ghnHeaders,
+        const response = await api.post('/ghn/calculate-fee', {
+            district_id: Number.parseInt(districtCode, 10),
+            ward_code: String(wardCode),
+            weight,
+            service_type_id: serviceTypeId,
         });
 
         return response.data?.data?.total || 0;
