@@ -15,6 +15,7 @@ import {
 } from '@/utils/orderStatus';
 import api from '@/axios';
 import { getStorageUrl } from '@/utils/url';
+import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline.vue';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -62,6 +63,15 @@ const formatDate = (dateString) => {
 
 const getStatusText = (status) => getOrderStatusDescription(status);
 const getStatusClass = (status) => getOrderStatusTone(status);
+const getStatusBadgeClass = (status) => {
+  const tone = getOrderStatusTone(status);
+  if (tone === 'success') return 'badge-success';
+  if (tone === 'danger') return 'badge-danger';
+  if (tone === 'warning') return 'badge-warning';
+  if (tone === 'info') return 'badge-info';
+  if (tone === 'primary') return 'badge-primary';
+  return 'badge-secondary';
+};
 
 const getStatusIcon = (status) => {
   if (status === 'pending') return 'clipboard';
@@ -440,15 +450,13 @@ onMounted(() => {
           <h3>Lịch sử đơn hàng</h3>
         </div>
         <div class="card-body">
-          <div class="timeline">
-            <div v-for="(history, index) in order.status_history" :key="history.id" class="timeline-item">
-              <div class="timeline-marker" :class="{ 'latest': index === 0 }"></div>
-              <div class="timeline-content">
-                <div class="timeline-time">{{ formatDate(history.created_at) }}</div>
-                <div class="timeline-note">{{ history.note }}</div>
-              </div>
-            </div>
-          </div>
+          <OrderStatusTimeline
+            :histories="order.status_history"
+            :show-ghn-meta="false"
+            :get-status-label="getStatusText"
+            :get-status-badge-class="getStatusBadgeClass"
+            :format-date="formatDate"
+          />
         </div>
       </div>
       
