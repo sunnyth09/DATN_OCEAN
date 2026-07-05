@@ -311,10 +311,6 @@ const handleLogout = async () => {
   </aside>
 </template>
 
-<<<<<<< HEAD
-
-=======
->>>>>>> tai/Notification
 <style scoped>
 .sidebar {
   width: 250px;

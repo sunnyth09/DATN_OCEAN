@@ -842,8 +842,6 @@ onBeforeUnmount(() => {
           Chia sẻ Facebook nhận +10 điểm
         </button>
 
-<<<<<<< HEAD
-=======
         <!-- Product QR Code -->
         <button class="pd-btn-share" @click="showProductQr" style="margin-top: 10px; background-color: #f8f9fa; color: #212529; border-color: #dee2e6;">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -854,8 +852,6 @@ onBeforeUnmount(() => {
           </svg>
           Mã QR giới thiệu / chia sẻ
         </button>
-
->>>>>>> tai/Notification
         <PremiumUpgrade :current-variant="selectedVariant" :all-variants="sortedVariants" @upgrade="handleUpgrade" />
       </div>
     </section>

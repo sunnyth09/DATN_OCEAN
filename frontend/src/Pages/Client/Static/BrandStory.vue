@@ -122,10 +122,6 @@
   line-height: 1.7;
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> tai/Notification
 .page-content { padding: 48px 24px 64px; }
 .content-block { margin-bottom: 40px; }
 .content-block h2 { font-size: 1.3rem; font-weight: 700; color: #2D3436; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }

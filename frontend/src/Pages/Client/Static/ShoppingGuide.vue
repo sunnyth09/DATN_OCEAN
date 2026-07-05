@@ -127,10 +127,6 @@
   transform: translateX(-50%);
 }
 .hero-sub { max-width: 700px; margin: 0 auto; color: rgba(255,255,255,0.9); font-size: 1.05rem; line-height: 1.7; }
-<<<<<<< HEAD
-
-=======
->>>>>>> tai/Notification
 .page-content { padding: 48px 24px 64px; }
 .steps-timeline { position: relative; padding-left: 56px; margin-bottom: 48px; }
 .timeline-step { position: relative; padding-bottom: 32px; }

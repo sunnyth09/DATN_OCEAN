@@ -93,10 +93,6 @@
   transform: translateX(-50%);
 }
 .hero-sub { max-width: 700px; margin: 0 auto; color: rgba(255,255,255,0.9); font-size: 1.05rem; line-height: 1.7; }
-<<<<<<< HEAD
-
-=======
->>>>>>> tai/Notification
 .page-content { padding: 48px 24px 64px; }
 .content-block { margin-bottom: 32px; }
 .content-block h2 { font-size: 1.15rem; font-weight: 700; color: #2D3436; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }

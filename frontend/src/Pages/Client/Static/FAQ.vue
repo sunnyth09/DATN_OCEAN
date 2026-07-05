@@ -80,10 +80,6 @@ const faqItems = [
   transform: translateX(-50%);
 }
 .hero-sub { max-width: 700px; margin: 0 auto; color: rgba(255,255,255,0.9); font-size: 1.05rem; line-height: 1.7; }
-<<<<<<< HEAD
-
-=======
->>>>>>> tai/Notification
 .page-content { padding: 48px 24px 64px; }
 .faq-item { border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 12px; overflow: hidden; transition: box-shadow 0.2s; }
 .faq-item.open { box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-color: #c7d2fe; }
