@@ -13,6 +13,9 @@ import VirtualTryOnModal from '@/components/VirtualTryOnModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
 import { loyaltyService } from '@/services/loyaltyService';
+import QRCode from 'qrcode';
+import Swal from 'sweetalert2';
+import { affiliateService } from '@/services/affiliateService';
 
 const route = useRoute();
 const router = useRouter();
@@ -583,6 +586,68 @@ const shareToFacebook = async () => {
     }
 };
 
+const showProductQr = async () => {
+    if (!product.value) return;
+
+    try {
+        let productUrl = window.location.href;
+        let shareMessage = 'Quét mã này để xem hoặc lưu thông tin sản phẩm';
+
+        // Tích hợp Affiliate: Nếu user đã đăng nhập và là affiliate, thêm mã giới thiệu vào link
+        if (authStore.isAuthenticated) {
+            try {
+                const res = await affiliateService.getProfile();
+                if (res.data?.status && res.data?.data?.is_affiliate && res.data?.data?.referral_code) {
+                    const urlObj = new URL(productUrl);
+                    urlObj.searchParams.set('ref', res.data.data.referral_code);
+                    productUrl = urlObj.toString();
+                    shareMessage = 'Quét mã này để mua hàng (Bạn sẽ nhận được hoa hồng giới thiệu!)';
+                }
+            } catch (err) {
+                // Bỏ qua nếu chưa đăng ký affiliate
+            }
+        }
+
+        // Chuyển mã QR thành định dạng URL chuẩn để camera điện thoại có thể quét và mở thẳng link
+        const qrImgUrl = await QRCode.toDataURL(productUrl, { width: 220, margin: 2, color: { dark: '#1a1a2e', light: '#ffffff' } });
+
+        await Swal.fire({
+            title: 'Mã QR Sản Phẩm',
+            html: `
+                <div style="text-align:center;padding:12px 0">
+                    <img
+                        id="product-qr-img"
+                        src="${qrImgUrl}"
+                        alt="QR Code"
+                        style="width:220px;height:220px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);border:2px solid #e9ecef;margin-bottom:10px;"
+                        onerror="this.onerror=null;this.src='';this.parentElement.innerHTML='<div style=\\'color:#dc3545;font-size:13px\\'>Không tải được QR, vui lòng thử lại</div>'"
+                    />
+                    <div style="margin-top:10px;font-size:16px;color:#333;font-weight:bold;line-height:1.4;">
+                        ${product.value.name}
+                    </div>
+                    <div style="color:#E63B6F;font-weight:bold;margin-top:5px;font-size:18px;">
+                        ${formatPrice(displayPriceInfo.value.current)}
+                    </div>
+                    <p style="margin-top:10px;font-size:13px;color:#10b981;font-weight:600;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        ${shareMessage}
+                    </p>
+                    <a href="${qrImgUrl}" download="QR_${product.value.slug}.png" style="display:inline-block;margin-top:15px;background:#E63B6F;color:#fff;text-decoration:none;padding:8px 20px;border-radius:8px;font-size:14px;font-weight:bold;transition:0.2s;">
+                        ⬇️ Tải mã QR xuống
+                    </a>
+                </div>
+            `,
+            showConfirmButton: true,
+            confirmButtonText: 'Đóng',
+            confirmButtonColor: '#6c757d',
+            width: 380,
+        });
+    } catch (e) {
+        console.error('QR error:', e);
+        showToast('Không tạo được mã QR', 'error');
+    }
+};
+
 // Watch route slug để reload dữ liệu khi điều hướng sang SP khác
 watch(slug, (newSlug, oldSlug) => {
   if (newSlug && newSlug !== oldSlug) {
@@ -775,6 +840,17 @@ onBeforeUnmount(() => {
         <button class="pd-btn-share" @click="shareToFacebook" :disabled="isSharing">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
           Chia sẻ Facebook nhận +10 điểm
+        </button>
+
+        <!-- Product QR Code -->
+        <button class="pd-btn-share" @click="showProductQr" style="margin-top: 10px; background-color: #f8f9fa; color: #212529; border-color: #dee2e6;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+            <rect x="15" y="3" width="6" height="6" rx="1"></rect>
+            <rect x="3" y="15" width="6" height="6" rx="1"></rect>
+            <rect x="15" y="15" width="6" height="6" rx="1"></rect>
+          </svg>
+          Mã QR giới thiệu / chia sẻ
         </button>
 
         <PremiumUpgrade :current-variant="selectedVariant" :all-variants="sortedVariants" @upgrade="handleUpgrade" />
