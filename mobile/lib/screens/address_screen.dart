@@ -194,10 +194,19 @@ class _AddressScreenState extends State<AddressScreen> {
                           elevation: 0,
                         ),
                         onPressed: isSaving ? null : () async {
-                          if (nameCtrl.text.trim().isEmpty || addressCtrl.text.trim().isEmpty) {
+                          final phone = phoneCtrl.text.trim();
+                          final phoneRegExp = RegExp(r'^(0|\+84|84)[35789][0-9]{8}$');
+
+                          if (nameCtrl.text.trim().isEmpty || addressCtrl.text.trim().isEmpty || phone.isEmpty) {
                             ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Vui lòng điền đủ thông tin bắt buộc (*)')));
                             return;
                           }
+
+                          if (!phoneRegExp.hasMatch(phone)) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Số điện thoại không hợp lệ (ví dụ: 0912345678)')));
+                            return;
+                          }
+
                           setModal(() => isSaving = true);
                           try {
                             final payload = {

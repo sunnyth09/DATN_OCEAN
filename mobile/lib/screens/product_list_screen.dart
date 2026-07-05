@@ -1,12 +1,12 @@
 import 'dart:async';
 import '../config/app_theme.dart';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/network_image_widget.dart';
 import '../services/api_client.dart';
-import '../productDetail.dart';
+import '../utils/format_utils.dart';
 import '../widgets/shimmer_loading.dart';
 import '../config/app_config.dart';
+import 'product_detail_screen.dart';
 
 class ProductListScreen extends StatefulWidget {
   final int? categoryId;
@@ -32,7 +32,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   String? errorMessage;
   int currentPage = 1;
   String currentSearch = '';
-  
+
   late TextEditingController _searchCtrl;
   Timer? _debounce;
   final ScrollController _scrollController = ScrollController();
@@ -42,7 +42,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
     super.initState();
     currentSearch = widget.searchQuery ?? '';
     _searchCtrl = TextEditingController(text: currentSearch);
-    
+
     _scrollController.addListener(_onScroll);
     fetchProducts();
   }
@@ -56,7 +56,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       if (!isLoading && !isFetchingMore && hasMore) {
         setState(() {
           currentPage++;
@@ -70,9 +71,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       if (mounted) {
-        setState(() { 
-          currentSearch = text.trim(); 
-          currentPage = 1; 
+        setState(() {
+          currentSearch = text.trim();
+          currentPage = 1;
           hasMore = true;
         });
         fetchProducts();
@@ -82,7 +83,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   Future<void> fetchProducts({bool loadMore = false}) async {
     if (!mounted) return;
-    
+
     setState(() {
       if (loadMore) {
         isFetchingMore = true;
@@ -117,7 +118,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
         } else if (data['data'] is List) {
           fetched = data['data'];
           if (data['page'] != null && data['total_pages'] != null) {
-            hasMore = (int.parse(data['page'].toString()) < int.parse(data['total_pages'].toString()));
+            hasMore =
+                (int.parse(data['page'].toString()) <
+                int.parse(data['total_pages'].toString()));
           } else {
             hasMore = fetched.isNotEmpty;
           }
@@ -158,7 +161,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
   String _formatPrice(dynamic price) {
     try {
       final num p = num.parse(price.toString());
-      final formatted = p.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+      final formatted = p
+          .toStringAsFixed(0)
+          .replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+            (m) => '${m[1]}.',
+          );
       return '$formatted đ';
     } catch (_) {
       return price.toString();
@@ -180,7 +188,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
-        title: Text(title, style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800, fontSize: 18)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(70),
@@ -195,18 +210,39 @@ class _ProductListScreenState extends State<ProductListScreen> {
               child: TextField(
                 controller: _searchCtrl,
                 onChanged: _onSearchChanged,
-                onSubmitted: (t) { 
-                  _debounce?.cancel(); 
-                  setState(() { currentSearch = t.trim(); currentPage = 1; hasMore = true; }); 
-                  fetchProducts(); 
+                onSubmitted: (t) {
+                  _debounce?.cancel();
+                  setState(() {
+                    currentSearch = t.trim();
+                    currentPage = 1;
+                    hasMore = true;
+                  });
+                  fetchProducts();
                 },
                 decoration: InputDecoration(
                   hintText: 'Tìm kiếm sản phẩm...',
-                  hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-                  prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8), size: 20),
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 14,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: Color(0xFF94A3B8),
+                    size: 20,
+                  ),
                   suffixIcon: _searchCtrl.text.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.close, color: Color(0xFF94A3B8), size: 18), onPressed: () { _searchCtrl.clear(); _onSearchChanged(''); })
-                    : null,
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.close,
+                            color: Color(0xFF94A3B8),
+                            size: 18,
+                          ),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            _onSearchChanged('');
+                          },
+                        )
+                      : null,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
@@ -223,7 +259,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
     return RefreshIndicator(
       color: const Color(0xFFE63B6F),
       onRefresh: () async {
-        setState(() { currentPage = 1; hasMore = true; });
+        setState(() {
+          currentPage = 1;
+          hasMore = true;
+        });
         await fetchProducts();
       },
       child: CustomScrollView(
@@ -239,11 +278,22 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.red,
+                      ),
                       const SizedBox(height: 16),
-                      Text(errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                      Text(
+                        errorMessage!,
+                        style: const TextStyle(color: Colors.red),
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 16),
-                      ElevatedButton(onPressed: () => fetchProducts(), child: const Text('Thử lại')),
+                      ElevatedButton(
+                        onPressed: () => fetchProducts(),
+                        child: const Text('Thử lại'),
+                      ),
                     ],
                   ),
                 ),
@@ -257,9 +307,20 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.inventory_2_outlined, size: 100, color: const Color(0xFFCBD5E1).withOpacity(0.5)),
+                      Icon(
+                        Icons.inventory_2_outlined,
+                        size: 100,
+                        color: const Color(0xFFCBD5E1).withOpacity(0.5),
+                      ),
                       const SizedBox(height: 20),
-                      const Text('Không có sản phẩm nào.', style: TextStyle(color: Color(0xFF64748B), fontSize: 16, fontWeight: FontWeight.w600)),
+                      const Text(
+                        'Không có sản phẩm nào.',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -275,12 +336,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   mainAxisSpacing: 20,
                   childAspectRatio: 0.62,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    return _buildProductCard(products[index]);
-                  },
-                  childCount: products.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  return _buildProductCard(products[index]);
+                }, childCount: products.length),
               ),
             ),
           if (isFetchingMore)
@@ -297,7 +355,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
               child: Padding(
                 padding: EdgeInsets.only(bottom: 30),
                 child: Center(
-                  child: Text('Bạn đã xem hết sản phẩm', style: TextStyle(color: Color(0xFF94A3B8))),
+                  child: Text(
+                    'Bạn đã xem hết sản phẩm',
+                    style: TextStyle(color: Color(0xFF94A3B8)),
+                  ),
                 ),
               ),
             ),
@@ -308,10 +369,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   Widget _buildProductCard(Map<String, dynamic> product) {
     final name = product['name'] ?? 'Không tên';
-    final dynamic rawPrice = product['min_price'] ?? (product['lowest_price_variant'] != null ? product['lowest_price_variant']['price'] : 0);
-    
-    final rawImage = product['thumbnail_url'] ?? '';
-    final imageUrl = AppConfig.imageUrl(rawImage.toString());
+    final dynamic rawPrice =
+        product['min_price'] ??
+        (product['lowest_price_variant'] != null
+            ? product['lowest_price_variant']['price']
+            : 0);
+
+    final imageUrl = AppConfig.productImageUrl(product);
 
     return GestureDetector(
       onTap: () {
@@ -341,32 +405,40 @@ class _ProductListScreenState extends State<ProductListScreen> {
             Expanded(
               child: Stack(
                 children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-                    child: imageUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl, 
-                            width: double.infinity, 
-                            height: double.infinity, 
-                            fit: BoxFit.cover,
-                            placeholder: (_,__) => Container(color: const Color(0xFFF1F5F9), child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
-                            errorWidget: (_,__,___) => _imagePlaceholder()
-                          )
-                        : _imagePlaceholder(),
-                  ),
+                  NetworkImageWidget(
+                        imageUrl: imageUrl,
+                        width: double.infinity,
+                        height: double.infinity,
+                        fit: BoxFit.cover,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          topRight: Radius.circular(16),
+                        ),
+                        errorWidget: _imagePlaceholder(),
+                      ),
                   Positioned(
                     top: 10,
                     right: 10,
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9), 
+                        color: Colors.white.withOpacity(0.9),
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: const Icon(Icons.favorite_border, size: 16, color: Color(0xFF64748B)),
+                      child: const Icon(
+                        Icons.favorite_border,
+                        size: 16,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -379,7 +451,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     name.toString(),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A), height: 1.3),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                      height: 1.3,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -387,16 +464,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        _formatPrice(rawPrice),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFFE63B6F)),
+                        FormatUtils.formatPrice(rawPrice),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFE63B6F),
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: const Color(0xFFE63B6F).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.add_shopping_cart, size: 16, color: Color(0xFFE63B6F)),
-                      )
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE63B6F).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.add_shopping_cart,
+                          size: 16,
+                          color: Color(0xFFE63B6F),
+                        ),
+                      ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
@@ -410,8 +498,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: const Color(0xFFF8FAFC), 
-      child: const Center(child: Icon(Icons.inventory_2, size: 40, color: Color(0xFFE2E8F0)))
+      color: const Color(0xFFF8FAFC),
+      child: const Center(
+        child: Icon(Icons.inventory_2, size: 40, color: Color(0xFFE2E8F0)),
+      ),
     );
   }
 }

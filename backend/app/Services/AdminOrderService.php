@@ -7,8 +7,10 @@ use App\Enums\PaymentStatus;
 use App\Repositories\AdminOrderRepository;
 use App\Models\Order;
 use App\Services\LoyaltyService;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\OrderCancelledMail;
@@ -43,6 +45,7 @@ class AdminOrderService
         protected AdminOrderRepository $orderRepository,
         protected AffiliateService $affiliateService,
         protected LoyaltyService $loyaltyService,
+        protected WalletService $walletService,
     ) {}
 
     /**
@@ -138,6 +141,17 @@ class AdminOrderService
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 
+                    if ($order->payment_method === 'wallet' && $order->payment_status === PaymentStatus::PAID->value) {
+                        $updates['payment_status'] = PaymentStatus::REFUNDED->value;
+                        $this->walletService->refund(
+                            $order->user_id,
+                            (float) $order->wallet_spent,
+                            "Hoàn tiền hủy đơn hàng #{$order->order_code}",
+                            $order->order_id,
+                            Order::class
+                        );
+                    }
+
                     // Hoàn tồn kho
                     $this->orderRepository->restoreStock($order->items);
 
@@ -198,6 +212,13 @@ class AdminOrderService
 
                         if ($isFirstOrder) {
                             $this->loyaltyService->earnFirstOrder($order->user, $order->fresh());
+                        }
+
+                        // Thưởng điểm giỏ hàng bỏ quên nếu có
+                        $freshOrder = $order->fresh();
+                        if ($freshOrder->is_abandoned_checkout) {
+                            $this->loyaltyService->earnAbandonedCart($order->user, $freshOrder->order_id);
+                            $order->update(['is_abandoned_checkout' => false]);
                         }
                     } catch (\Exception $e) {
                         Log::error("LoyaltyEarn failed for order #{$order->order_id}: " . $e->getMessage());
@@ -275,6 +296,17 @@ class AdminOrderService
                             $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                         }
 
+                        if ($order->payment_method === 'wallet' && $order->payment_status === PaymentStatus::PAID->value) {
+                            $updates['payment_status'] = PaymentStatus::REFUNDED->value;
+                            $this->walletService->refund(
+                                $order->user_id,
+                                (float) $order->wallet_spent,
+                                "Hoàn tiền hủy hàng loạt đơn hàng #{$order->order_code}",
+                                $order->order_id,
+                                Order::class
+                            );
+                        }
+
                         // Hoàn tồn kho
                         $items = DB::table('order_items')->where('order_id', $order->order_id)->get();
                         $this->orderRepository->restoreStock($items->filter(fn($i) => $i->variant_id)->all());
@@ -333,6 +365,12 @@ class AdminOrderService
                     if ($isDeliveredOrCompleted && $order->user) {
                         try {
                             $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
+
+                            $freshOrder = $order->fresh();
+                            if ($freshOrder->is_abandoned_checkout) {
+                                $this->loyaltyService->earnAbandonedCart($order->user, $freshOrder->order_id);
+                                $order->update(['is_abandoned_checkout' => false]);
+                            }
                         } catch (\Exception $e) {
                             Log::error("LoyaltyEarn bulk failed for order #{$order->order_id}: " . $e->getMessage());
                         }
@@ -365,13 +403,40 @@ class AdminOrderService
      */
     public function syncGHN(int $id): array
     {
-        $order = Order::with(['items', 'address'])->where('order_id', $id)->first();
-        if (!$order) {
-            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+        $lock = Cache::lock("ghn_sync_order_{$id}", 30);
+
+        if (!$lock->get()) {
+            return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đang được đồng bộ GHN. Vui lòng thử lại sau!'];
         }
 
         try {
+            $order = Order::with(['items.product', 'address'])->where('order_id', $id)->first();
+            if (!$order) {
+                return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+            }
+
+            if ($order->ghn_order_code) {
+                return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã được đồng bộ GHN!'];
+            }
+
             $result = \App\Services\GHNService::createOrder($order);
+
+            if (isset($result['data']['order_code'])) {
+                $oldStatus = $order->fulfillment_status;
+                $order->ghn_order_code = $result['data']['order_code'];
+                $order->save();
+
+                $this->orderRepository->createStatusHistory([
+                    'order_id' => $order->order_id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $order->fulfillment_status,
+                    'note' => 'Đã đồng bộ đơn hàng sang GHN',
+                    'source' => 'system',
+                    'description' => 'Đã đồng bộ đơn hàng sang GHN',
+                    'happened_at' => now(),
+                ]);
+            }
+
             return [
                 '_status' => 200,
                 'status'  => 'success',
@@ -380,6 +445,8 @@ class AdminOrderService
             ];
         } catch (\Exception $e) {
             return ['_status' => 500, 'status' => 'error', 'message' => $e->getMessage()];
+        } finally {
+            optional($lock)->release();
         }
     }
 }

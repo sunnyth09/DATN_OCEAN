@@ -182,4 +182,97 @@ class CartController extends Controller
 
         return response()->json($this->cartService->getUpsellSuggestions($userId));
     }
+
+    /**
+     * POST /cart/sync — Đồng bộ giỏ hàng từ localStorage sau khi login
+     */
+    public function sync(Request $request)
+    {
+        $userId = $this->cartService->getUserId();
+
+        if (!$userId) {
+            return response()->json(['status' => 'error', 'message' => 'Bạn cần đăng nhập!'], 401);
+        }
+
+        $request->validate([
+            'items' => 'required|array',
+            'items.*.variant_id' => 'required|integer|exists:product_variants,variant_id',
+            'items.*.quantity' => 'required|integer|min:1',
+        ]);
+
+        $result = $this->cartService->syncCart($userId, $request->items);
+
+        return response()->json($result);
+    }
+
+    /**
+     * POST /cart/guest-details — Lấy chi tiết thông tin sản phẩm/biến thể cho khách vãng lai (guest)
+     */
+    public function getGuestDetails(Request $request)
+    {
+        $request->validate([
+            'items' => 'required|array',
+            'items.*.variant_id' => 'required|integer|exists:product_variants,variant_id',
+            'items.*.quantity' => 'required|integer|min:1',
+        ]);
+
+        $items = collect($request->items);
+        $variantIds = $items->pluck('variant_id')->all();
+
+        $variants = \App\Models\ProductVariant::whereIn('variant_id', $variantIds)
+            ->with(['product.images' => function ($query) {
+                $query->where('is_main', 1);
+            }])
+            ->get()
+            ->keyBy('variant_id');
+
+        $resultItems = $items->map(function ($item) use ($variants) {
+            $variantId = $item['variant_id'];
+            $variant = $variants->get($variantId);
+            $product = $variant ? $variant->product : null;
+            $mainImage = $product ? $product->images->first() : null;
+
+            return [
+                'cart_item_id' => $variantId, // Dùng variant_id làm cart_item_id cho guest
+                'variant_id'   => $variantId,
+                'quantity'     => $item['quantity'],
+                'selected'     => isset($item['selected']) ? (bool)$item['selected'] : true,
+                'variant'      => $variant ? [
+                    'variant_id'       => $variant->variant_id,
+                    'variant_name'     => $variant->variant_name,
+                    'color'            => $variant->color,
+                    'size'             => $variant->size,
+                    'price'            => $variant->price,
+                    'compare_at_price' => $variant->compare_at_price,
+                    'stock'            => $variant->stock,
+                    'image_url'        => $variant->image_url,
+                    'status'           => $variant->status,
+                ] : null,
+                'product' => $product ? [
+                    'product_id'    => $product->product_id,
+                    'name'          => $product->name,
+                    'slug'          => $product->slug,
+                    'thumbnail_url' => $product->thumbnail_url,
+                    'main_image'    => $mainImage ? $mainImage->image_url : null,
+                ] : null,
+                'line_total' => $variant ? $variant->price * $item['quantity'] : 0,
+            ];
+        })->filter(function ($item) {
+            return $item['variant'] !== null;
+        })->values();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'cart_id'              => null,
+                'items'                => $resultItems,
+                'total_items'          => $resultItems->sum('quantity'),
+                'total_selected_items' => $resultItems->where('selected', true)->sum('quantity'),
+                'total_price'          => $resultItems->where('selected', true)->sum('line_total'),
+                'freeship_threshold'   => (int) config('shop.freeship_threshold', 500000),
+            ],
+        ]);
+
+    }
 }
+

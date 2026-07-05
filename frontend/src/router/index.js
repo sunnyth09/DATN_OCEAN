@@ -41,9 +41,9 @@ const routes = [
             { path: "flash-sale", name: "flash-sale", component: () => import("../Pages/Client/Home/FlashSale.vue"), meta: { title: 'Flash Sale' } },
             { path: "coupon", name: "coupon", component: () => import("../Pages/Client/Home/Coupon.vue"), meta: { title: 'Mã giảm giá' } },
             // Cart
-            { path: "cart", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { requiresAuth: true, title: 'Giỏ hàng' } },
-            { path: "checkout", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { requiresAuth: true, title: 'Thanh toán' } },
-            { path: "order-success/:order_code?", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { requiresAuth: true, title: 'Đặt hàng thành công' } },
+            { path: "cart", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { title: 'Giỏ hàng' } },
+            { path: "checkout", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { title: 'Thanh toán' } },
+            { path: "order-success/:order_code?", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { title: 'Đặt hàng thành công' } },
             // Payment
             { path: "payment/result", name: "payment-result", component: () => import("../Pages/Client/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } },
             // Profile
@@ -62,8 +62,10 @@ const routes = [
                     { path: "wishlist", name: "profile-wishlist", component: () => import("../Pages/Client/Profile/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
                     { path: "coupons", name: "profile-coupons", component: () => import("../Pages/Client/Profile/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
                     { path: "affiliate", name: "profile-affiliate", component: () => import("../Pages/Client/Profile/ProfileAffiliate.vue"), meta: { title: 'Affiliate' } },
+                    { path: "wallet", name: "profile-wallet", component: () => import("../Pages/Client/Profile/ProfileWallet.vue"), meta: { title: 'Ví của tôi' } },
                     { path: "court-bookings", name: "profile-court-bookings", component: () => import("../Pages/Client/Courts/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
                     { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
+                    { path: "loyalty", name: "profile-loyalty", component: () => import("../Pages/Client/Profile/ProfileLoyalty.vue"), meta: { title: 'Khách hàng thân thiết' } },
                 ],
             },
             // Static pages
@@ -216,6 +218,12 @@ const routes = [
                 meta: { roles: ['admin'], title: 'Quản lý Flash Sale' },
             },
             {
+                path: "wallet-deposits",
+                name: "admin-wallet-deposits",
+                component: () => import("../Pages/admin/AdminWalletDeposits.vue"),
+                meta: { roles: ['admin'], title: 'Ví & Nạp tiền' },
+            },
+            {
                 path: "post",
                 name: "admin-post",
                 component: () => import("../Pages/admin/AdminPost.vue"),
@@ -279,7 +287,7 @@ const routes = [
                 path: "stats",
                 name: "admin-stats",
                 component: () => import("../Pages/admin/AdminStats.vue"),
-                meta: { roles: ['admin', 'staff'], title: 'Thống kê' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thống kê' },
             },
             {
                 path: "attendance-list",
@@ -304,7 +312,7 @@ const routes = [
                 path: "courts",
                 name: "admin-courts",
                 component: () => import("../Pages/admin/AdminCourtManagement.vue"),
-                meta: { roles: ['admin', 'staff'], title: 'Quản lý Hệ thống Sân' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Quản lý Hệ thống Sân' },
             },
             {
                 path: "court-bookings",

@@ -54,6 +54,10 @@ class CourtBookingSeeder extends Seeder
             $userIds[] = $userId;
         }
 
+        // Dọn dữ liệu booking demo cũ để seeder có thể chạy lại nhiều lần
+        // mà không vi phạm unique booking_code hoặc nhân đôi lịch sử/thanh toán.
+        $this->clearDemoBookings($userIds);
+
         // =============================================
         // 2. LẤY DANH SÁCH SÂN & DỊCH VỤ
         // =============================================
@@ -430,6 +434,35 @@ class CourtBookingSeeder extends Seeder
     // =============================================
     // HELPER METHODS
     // =============================================
+
+    private function clearDemoBookings(array $userIds): void
+    {
+        $bookingIds = DB::table('court_bookings')
+            ->whereIn('user_id', $userIds)
+            ->where(function ($query) {
+                $query->where('booking_code', 'like', 'BK-%-PLAY')
+                    ->orWhere('booking_code', 'like', 'BK-%-CF%')
+                    ->orWhere('booking_code', 'like', 'BK-%-PD%')
+                    ->orWhere('booking_code', 'like', 'BK-%-CL%')
+                    ->orWhere('booking_code', 'like', 'BK-%-NS%')
+                    ->orWhere('booking_code', 'like', 'BK-%-RF%')
+                    ->orWhere('source', 'web')
+                    ->orWhere('source', 'phone');
+            })
+            ->pluck('booking_id');
+
+        if ($bookingIds->isEmpty()) {
+            return;
+        }
+
+        DB::table('court_booking_payments')->whereIn('booking_id', $bookingIds)->delete();
+        DB::table('court_booking_services')->whereIn('booking_id', $bookingIds)->delete();
+        DB::table('court_booking_status_histories')->whereIn('booking_id', $bookingIds)->delete();
+        DB::table('court_booking_extensions')->whereIn('booking_id', $bookingIds)->delete();
+        DB::table('court_bookings')->whereIn('booking_id', $bookingIds)->delete();
+
+        echo "🧹 Đã dọn {$bookingIds->count()} booking demo cũ.\n";
+    }
 
     private function createAdmin(array $data): int
     {

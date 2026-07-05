@@ -190,9 +190,9 @@ class _CouponScreenState extends State<CouponScreen> {
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  childAspectRatio: 0.62,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  mainAxisExtent: 236,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) => _buildCouponCard(filteredCoupons[index]),
@@ -285,13 +285,13 @@ class _CouponScreenState extends State<CouponScreen> {
             // Top section
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Type badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF0F3),
                         borderRadius: BorderRadius.circular(20),
@@ -312,35 +312,39 @@ class _CouponScreenState extends State<CouponScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     // Code box
                     GestureDetector(
                       onTap: () => _copyCode(code),
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF5F7),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.primary, width: 1.5, style: BorderStyle.none),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1, style: BorderStyle.solid),
                         ),
                         child: Row(
                           children: [
                             Expanded(
-                              child: Text(code, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: 0.5)),
+                              child: Text(code, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.primary, letterSpacing: 0.5), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                             const Icon(Icons.copy, size: 14, color: AppColors.primary),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 6),
                     // Value
-                    Text(_formatValue(coupon), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: -0.5)),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(_formatValue(coupon), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: -0.5)),
+                    ),
                     const Spacer(),
                     // Min order
                     if (coupon['min_order_value'] != null)
-                      Text('Đơn từ ${_formatCurrency(coupon['min_order_value'])}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      Text('Đơn từ ${_formatCurrency(coupon['min_order_value'])}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                   ],
                 ),
               ),
@@ -349,17 +353,19 @@ class _CouponScreenState extends State<CouponScreen> {
             _buildTicketDivider(),
             // Bottom section
             Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 children: [
                   Row(
                     children: [
                       const Icon(Icons.access_time, size: 12, color: Color(0xFF64748B)),
                       const SizedBox(width: 4),
-                      Text('HSD: ${_formatDate(coupon['end_date'])}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      Expanded(
+                        child: Text('HSD: ${_formatDate(coupon['end_date'])}', style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   // Save button
                   SizedBox(
                     width: double.infinity,
@@ -369,26 +375,13 @@ class _CouponScreenState extends State<CouponScreen> {
                         backgroundColor: isActive ? AppColors.primary : const Color(0xFFE2E8F0),
                         foregroundColor: isActive ? Colors.white : const Color(0xFF94A3B8),
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                       child: const Text('Lưu mã'),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => _copyCode(code),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary, width: 1.5),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                      ),
-                      child: const Text('Sao chép mã'),
                     ),
                   ),
                 ],

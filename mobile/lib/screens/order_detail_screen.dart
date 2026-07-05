@@ -3,6 +3,10 @@ import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
+import '../services/api_client.dart';
 import 'main_wrapper.dart';
 import 'review_screen.dart';
 import '../config/app_config.dart';
@@ -33,27 +37,37 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> fetchOrderDetail() async {
     setState(() { isLoading = true; errorMessage = null; });
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
-      final url = Uri.parse('$kBaseUrl/profile/orders/${widget.orderId}');
-      final response = await http.get(
-        url,
-        headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
-      );
+      debugPrint('Fetching order details for ID: ${widget.orderId}');
+      if (widget.orderId == 'null') {
+        throw Exception('Invalid orderId (null)');
+      }
+      final response = await ApiClient().dio.get('/profile/orders/${widget.orderId}');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.data;
         if (mounted) {
           setState(() {
             orderData = data['data'];
             isLoading = false;
           });
         }
-      } else {
-        if (mounted) setState(() { errorMessage = 'Không thể xem chi tiết đơn hàng'; isLoading = false; });
+      }
+    } on DioException catch (e) {
+      debugPrint('DioException in fetchOrderDetail: ${e.message}');
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Không thể xem chi tiết đơn hàng: ${e.response?.statusCode}';
+          isLoading = false;
+        });
       }
     } catch (e) {
-      if (mounted) setState(() { errorMessage = 'Lỗi kết nối máy chủ'; isLoading = false; });
+      debugPrint('Exception in fetchOrderDetail: $e');
+      if (mounted) {
+        setState(() { 
+          errorMessage = 'Lỗi xử lý dữ liệu: $e'; 
+          isLoading = false; 
+        });
+      }
     }
   }
 
@@ -492,7 +506,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     final name = item['product_name'] ?? item['variant_name'] ?? '';
                     final qty = item['quantity'] ?? 1;
                     final price = item['unit_price'] ?? 0;
-                    final imageUrl = _resolveImageUrl(item['thumbnail_url'] ?? item['image_url'] ?? '');
+                    final product = item['product'];
+                    final variant = item['variant'];
+                    String imageUrl = '';
+                    if (variant != null && variant['image_url'] != null && variant['image_url'].toString().isNotEmpty) {
+                      imageUrl = _resolveImageUrl(variant['image_url'].toString());
+                    }
+                    if (imageUrl.isEmpty && product != null) {
+                      imageUrl = AppConfig.productImageUrl(product);
+                    }
+                    if (imageUrl.isEmpty) {
+                      imageUrl = _resolveImageUrl(item['thumbnail_url']?.toString() ?? item['image_url']?.toString() ?? '');
+                    }
 
                     return Column(
                       children: [
@@ -500,10 +525,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10),
-                              child: imageUrl.isNotEmpty
-                                ? Image.network(imageUrl, width: 60, height: 60, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => _imgPlaceholder())
-                                : _imgPlaceholder(),
+                              child: _buildProductImage(imageUrl, 60),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -703,5 +725,59 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   String _resolveImageUrl(String raw) {
     return AppConfig.imageUrl(raw);
+  }
+
+  /// Widget hiển thị ảnh sản phẩm: hỗ trợ SVG lẫn raster (JPG/PNG/WebP)
+  Widget _buildProductImage(String imgUrl, double size) {
+    if (imgUrl.isEmpty) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: const Icon(Icons.image_outlined, color: Color(0xFFCBD5E1), size: 22),
+      );
+    }
+
+    final isSvg = imgUrl.toLowerCase().endsWith('.svg');
+
+    if (isSvg) {
+      return SvgPicture.network(
+        imgUrl,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        placeholderBuilder: (_) => SizedBox(
+          width: size,
+          height: size,
+          child: const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Color(0xFFE63B6F),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: imgUrl,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      placeholder: (_, __) => SizedBox(
+        width: size,
+        height: size,
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Color(0xFFE63B6F),
+          ),
+        ),
+      ),
+      errorWidget: (_, __, ___) => SizedBox(
+        width: size,
+        height: size,
+        child: const Icon(Icons.image_outlined, color: Color(0xFFCBD5E1), size: 22),
+      ),
+    );
   }
 }

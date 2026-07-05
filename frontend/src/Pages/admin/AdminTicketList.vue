@@ -173,35 +173,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'react'; // Note: vue setup actually doesn't use react import, using 'vue'
-import { ref as vueRef, onMounted as vueOnMounted } from 'vue';
-import axios from 'axios';
+import { ref, onMounted } from 'vue';
 import Swal from 'sweetalert2';
+import api from '@/axios';
 import AppIcon from '@/icons/AppIcon.vue';
+import { getStorageUrl } from '@/utils/url';
 
-// Override React imports that might have slipped in
-const refObj = vueRef;
-const onMountedObj = vueOnMounted;
+const tickets = ref([]);
+const loading = ref(false);
+const actionLoading = ref(false);
+const searchQuery = ref('');
+const statusFilter = ref('all');
 
-const tickets = refObj([]);
-const loading = refObj(false);
-const actionLoading = refObj(false);
-const searchQuery = refObj('');
-const statusFilter = refObj('all');
-
-const showModal = refObj(false);
-const selectedTicket = refObj(null);
-const replyContent = refObj('');
-const updateStatus = refObj('pending');
-
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8383/api';
-
-const api = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-  }
-});
+const showModal = ref(false);
+const selectedTicket = ref(null);
+const replyContent = ref('');
+const updateStatus = ref('pending');
 
 const fetchTickets = async () => {
   loading.value = true;
@@ -242,7 +229,7 @@ const formatDate = (dateStr) => {
 const getImageUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
-  return `${BASE_URL.replace('/api', '')}/storage/${path}`;
+  return getStorageUrl(path);
 };
 
 const openModal = (ticket) => {
@@ -292,7 +279,7 @@ const openImage = (path) => {
   window.open(getImageUrl(path), '_blank');
 };
 
-onMountedObj(() => {
+onMounted(() => {
   fetchTickets();
 });
 </script>

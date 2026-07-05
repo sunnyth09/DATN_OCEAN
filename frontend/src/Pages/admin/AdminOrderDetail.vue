@@ -3,6 +3,8 @@ import { ref, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { Toast, Modal } from 'bootstrap';
+import { getStorageUrl } from '@/utils/url';
+import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -22,6 +24,8 @@ const toast = {
 
 const order = ref(null);
 const loading = ref(true);
+const ghnLookup = ref(null);
+const isLookingUpGhn = ref(false);
 
 const statuses = [
   { value: 'pending', label: 'Chờ duyệt' },
@@ -250,9 +254,9 @@ const getPaymentBadgeClass = (status) => {
 };
 
 const getProductImage = (item) => {
-  if (item.variant?.image_url) return `http://localhost:8383/storage/${item.variant.image_url}`;
-  if (item.product?.main_image) return `http://localhost:8383/storage/${item.product.main_image}`;
-  if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return `http://localhost:8383/storage/${item.product.thumbnail_url}`;
+  if (item.variant?.image_url) return getStorageUrl(item.variant.image_url);
+  if (item.product?.main_image) return getStorageUrl(item.product.main_image);
+  if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return getStorageUrl(item.product.thumbnail_url);
   return 'https://placehold.co/80x80?text=No+Img';
 };
 
@@ -286,6 +290,8 @@ const getStepStatus = (stepKey) => {
 };
 
 const isSyncingGhn = ref(false);
+const isPrinting = ref(false);
+const isCanceling = ref(false);
 
 const syncGhn = async () => {
   isSyncingGhn.value = true;
@@ -296,14 +302,68 @@ const syncGhn = async () => {
       fetchOrder();
     }
   } catch (error) {
-    Swal.fire({
-      icon: 'error',
-      title: 'Lỗi đồng bộ GHN',
-      text: error.response?.data?.message || 'Không thể đồng bộ',
-      confirmButtonText: 'Đóng'
-    });
+    toast.error(error.response?.data?.message || 'Không thể đồng bộ GHN');
   } finally {
     isSyncingGhn.value = false;
+  }
+};
+
+const lookupGhnStatus = async (sync = true) => {
+  if (!order.value?.ghn_order_code) return;
+  isLookingUpGhn.value = true;
+  try {
+    const res = await api.post('/ghn/order-detail', {
+      order_code: order.value.ghn_order_code,
+      sync,
+    });
+    if (res.data.status === 'success') {
+      ghnLookup.value = res.data.data;
+      toast.success(res.data.message || 'Đã tra cứu trạng thái GHN');
+      if (sync) await fetchOrder();
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Không thể tra cứu trạng thái GHN');
+  } finally {
+    isLookingUpGhn.value = false;
+  }
+};
+
+const printLabel = async () => {
+  if (!order.value?.ghn_order_code) return;
+  isPrinting.value = true;
+  try {
+    const res = await api.post('/ghn/print-label', { order_code: order.value.ghn_order_code });
+    if (res.data.code === 200 && res.data.data?.token) {
+      const printUrl = res.data.data.print_url;
+      if (printUrl) window.open(printUrl, '_blank');
+      else toast.error('Không thể lấy link in vận đơn GHN');
+    } else {
+      toast.error('Không thể in vận đơn GHN');
+    }
+  } catch (error) {
+    toast.error('Lỗi khi in vận đơn');
+  } finally {
+    isPrinting.value = false;
+  }
+};
+
+const cancelGhnOrder = async () => {
+  if (!order.value?.ghn_order_code) return;
+  const reason = window.prompt('Nhập lý do hủy vận đơn GHN:');
+  if (!reason?.trim()) return;
+  if (!confirm('Bạn có chắc chắn muốn hủy vận đơn này trên hệ thống GHN?')) return;
+  isCanceling.value = true;
+  try {
+    const res = await api.post('/ghn/cancel-order', { order_code: order.value.ghn_order_code, reason: reason.trim() });
+    if (res.data.code === 200) {
+      toast.success('Đã hủy vận đơn trên GHN thành công!');
+    } else {
+      toast.error(res.data.message || 'Không thể hủy vận đơn GHN');
+    }
+  } catch (error) {
+    toast.error('Lỗi khi hủy vận đơn GHN');
+  } finally {
+    isCanceling.value = false;
   }
 };
 
@@ -445,20 +505,13 @@ onMounted(() => fetchOrder());
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Lịch sử trạng thái
             </h3>
-            <div class="history-list">
-              <div v-for="h in [...order.status_histories].reverse()" :key="h.history_id" class="history-item">
-                <div class="history-dot" :class="getStatusBadgeClass(h.new_status)"></div>
-                <div class="history-content">
-                  <div class="history-transition">
-                    <span class="status-badge sm" :class="getStatusBadgeClass(h.old_status)" v-if="h.old_status">{{ getStatusLabel(h.old_status) }}</span>
-                    <svg v-if="h.old_status" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                    <span class="status-badge sm" :class="getStatusBadgeClass(h.new_status)">{{ getStatusLabel(h.new_status) }}</span>
-                  </div>
-                  <p class="history-note" v-if="h.note">{{ h.note }}</p>
-                  <span class="history-time">{{ formatDate(h.created_at) }}</span>
-                </div>
-              </div>
-            </div>
+            <OrderStatusTimeline
+              :histories="order.status_histories"
+              :show-ghn-meta="true"
+              :get-status-label="getStatusLabel"
+              :get-status-badge-class="getStatusBadgeClass"
+              :format-date="formatDate"
+            />
           </div>
         </div>
 
@@ -519,10 +572,22 @@ onMounted(() => fetchOrder());
               <div style="display:flex; align-items:center; gap: 10px;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 Giao hàng
+                <span v-if="order.ghn_order_code" class="status-badge badge-success sm ms-2">Mã GHN: {{ order.ghn_order_code }}</span>
               </div>
-              <button class="btn-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
-                 {{ isSyncingGhn ? 'Đang đẩy...' : 'Đẩy qua GHN' }}
-              </button>
+              <div style="display: flex; gap: 8px;">
+                <button v-if="!order.ghn_order_code" class="btn-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
+                   {{ isSyncingGhn ? 'Đang đẩy...' : 'Đẩy qua GHN' }}
+                </button>
+                <button v-if="order.ghn_order_code" class="btn-lookup-ghn" @click="lookupGhnStatus(true)" :disabled="isLookingUpGhn">
+                   {{ isLookingUpGhn ? 'Đang tra...' : 'Tra cứu GHN' }}
+                </button>
+                <button v-if="order.ghn_order_code" class="btn-print" @click="printLabel" :disabled="isPrinting">
+                   {{ isPrinting ? 'Đang tạo...' : 'In vận đơn' }}
+                </button>
+                <button v-if="order.ghn_order_code" class="btn-cancel-ghn" @click="cancelGhnOrder" :disabled="isCanceling">
+                   Hủy vận đơn
+                </button>
+              </div>
             </h3>
             <div class="info-rows">
               <div class="info-row">
@@ -545,6 +610,15 @@ onMounted(() => fetchOrder());
                 <span class="info-label">Ghi chú</span>
                 <span class="info-value note-text">{{ order.note }}</span>
               </div>
+            </div>
+            <div v-if="ghnLookup" class="ghn-lookup-panel">
+              <div class="ghn-lookup-title">Trạng thái GHN mới nhất</div>
+              <div class="ghn-lookup-row"><span>GHN status</span><strong>{{ ghnLookup.ghn_status || '—' }}</strong></div>
+              <div class="ghn-lookup-row"><span>Trạng thái local</span><strong>{{ getStatusLabel(ghnLookup.local_status) }}</strong></div>
+              <div class="ghn-lookup-row"><span>Mapping</span><strong>{{ getStatusLabel(ghnLookup.mapped_status) }}</strong></div>
+              <div class="ghn-lookup-row" v-if="ghnLookup.happened_at"><span>Thời gian</span><strong>{{ formatDate(ghnLookup.happened_at) }}</strong></div>
+              <div class="ghn-lookup-row" v-if="ghnLookup.location"><span>Vị trí</span><strong>{{ ghnLookup.location }}</strong></div>
+              <p v-if="ghnLookup.description" class="ghn-lookup-desc">{{ ghnLookup.description }}</p>
             </div>
           </div>
         </div>
@@ -640,6 +714,37 @@ onMounted(() => fetchOrder());
 .order-code { color: var(--primary); }
 .page-sub { margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted); }
 .header-badges { display: flex; gap: 8px; align-items: center; }
+
+/* Custom Buttons */
+.btn-ghn, .btn-print, .btn-cancel-ghn, .btn-lookup-ghn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-ghn:disabled, .btn-print:disabled, .btn-cancel-ghn:disabled, .btn-lookup-ghn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.btn-ghn {
+  background: var(--primary);
+  color: #fff;
+}
+.btn-lookup-ghn {
+  background: #2563eb;
+  color: #fff;
+}
+.btn-print {
+  background: #4db6ac;
+  color: #fff;
+}
+.btn-cancel-ghn {
+  background: #e57373;
+  color: #fff;
+}
  
 /* Badges */
 .status-badge {
@@ -968,19 +1073,33 @@ onMounted(() => fetchOrder());
 .summary-row.total span:last-child { color: var(--primary); font-size: 1.2rem; }
  
 /* History */
-.history-list { display: flex; flex-direction: column; gap: 16px; }
-.history-item { display: flex; gap: 14px; align-items: flex-start; }
-.history-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-top: 6px;
-  flex-shrink: 0;
+.ghn-lookup-panel {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px dashed #93c5fd;
+  border-radius: 12px;
+  background: #eff6ff;
 }
-.history-content { flex: 1; }
-.history-transition { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.history-note { margin: 6px 0 2px; font-size: 0.85rem; color: var(--text-muted); font-style: italic; }
-.history-time { font-size: 0.75rem; color: var(--text-light); }
+.ghn-lookup-title {
+  font-weight: 800;
+  color: #1d4ed8;
+  margin-bottom: 10px;
+}
+.ghn-lookup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+.ghn-lookup-row span { color: var(--text-muted); }
+.ghn-lookup-row strong { color: var(--text-main); text-align: right; }
+.ghn-lookup-desc {
+  margin: 8px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
  
 /* Responsive */
 @media (max-width: 992px) {

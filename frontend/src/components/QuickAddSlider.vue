@@ -1,10 +1,9 @@
 ﻿<script setup>
 import { ref } from 'vue';
 import { useCartUpsell } from '@/composables/useCartUpsell';
+import { getStorageUrl } from '@/utils/url';
 
 const { state, quickAddToCart } = useCartUpsell();
-
-const BASE_URL = 'http://localhost:8383/storage/';
 
 const addingId   = ref(null);   // variant_id đang loading
 const addedIds   = ref([]);     // variant_id đã thêm thành công (hiện tick)
@@ -14,7 +13,7 @@ const formatPrice = (val) =>
 
 const getImage = (item) => {
     if (item.thumbnail_url && item.thumbnail_url !== '0') {
-        return BASE_URL + item.thumbnail_url;
+        return getStorageUrl(item.thumbnail_url);
     }
     return defaultSvg;
 };

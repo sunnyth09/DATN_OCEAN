@@ -57,10 +57,6 @@ return [
         'redirect' => env('FACEBOOK_REDIRECT', 'http://localhost:3302/api/auth/facebook/callback'),
     ],
 
-    'ghn' => [
-        'token' => env('VITE_TOKEN_GHN', ''),
-    ],
-
     'store' => [
         'wifi_ip' => env('STORE_WIFI_IP'),
         'lat' => env('STORE_LAT'),

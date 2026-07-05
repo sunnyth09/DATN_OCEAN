@@ -2,6 +2,7 @@ import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { broadcastLogout } from '@/sessionSync';
 import { authService } from '@/services/authService';
+import { getAppBaseUrl } from '@/utils/url';
 
 const ADMIN_ROLES = ['admin', 'seller', 'staff'];
 const STORAGE_KEYS = {
@@ -53,8 +54,7 @@ const resolveAvatarUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path;
 
-  const baseUrl = import.meta.env.VITE_BASE_URL || 'http://localhost:8383';
-  return `${baseUrl}${path}`;
+  return `${getAppBaseUrl()}${path}`;
 };
 
 export const getDefaultRouteForRole = (role) => {
@@ -90,7 +90,7 @@ export const useAuthStore = defineStore('auth', () => {
     persistSession(token.value, user.value);
   };
 
-  const setSession = (nextToken, nextUser, options = {}) => {
+  const setSession = async (nextToken, nextUser, options = {}) => {
     const { notify = true } = options;
 
     token.value = nextToken || '';
@@ -100,6 +100,16 @@ export const useAuthStore = defineStore('auth', () => {
 
     if (notify) {
       window.dispatchEvent(new Event('user-updated'));
+    }
+
+    if (token.value && user.value) {
+      try {
+        const { useCartStore } = await import('@/stores/cart');
+        const cartStore = useCartStore();
+        await cartStore.syncCart();
+      } catch (err) {
+        console.error("Failed to load cart store for sync", err);
+      }
     }
   };
 

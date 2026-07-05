@@ -53,6 +53,10 @@ const onBlur = (field) => {
 
 // Google OAuth
 const loginWithGoogle = () => {
+  const redirect = Array.isArray(route.query.redirect) ? route.query.redirect[0] : route.query.redirect;
+  if (redirect) {
+    sessionStorage.setItem('auth_redirect', redirect);
+  }
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const redirectUri = `${window.location.origin}/api/auth/google/callback`;
   const scope = 'openid email profile';
@@ -62,6 +66,10 @@ const loginWithGoogle = () => {
 
 // Facebook OAuth
 const loginWithFacebook = () => {
+  const redirect = Array.isArray(route.query.redirect) ? route.query.redirect[0] : route.query.redirect;
+  if (redirect) {
+    sessionStorage.setItem('auth_redirect', redirect);
+  }
   const clientId = import.meta.env.VITE_FACEBOOK_ID || '1969230567301526';
   const redirectUri = `${window.location.origin}/api/auth/facebook/callback`;
   const url = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=public_profile,email`;
@@ -85,7 +93,7 @@ const login = async () => {
     });
 
     if (response.data.status === 'success') {
-      authStore.setSession(response.data.access_token, {
+      await authStore.setSession(response.data.access_token, {
         isLoggedIn: true,
         ...response.data.user
       });

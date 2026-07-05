@@ -87,9 +87,11 @@ const refreshAccessToken = () => {
 api.interceptors.request.use(
     async (config) => {
         let token = getToken();
-        if (token && !config.skipAuthRefresh && !isAuthEndpoint(config.url) && isTokenExpiring(token)) {
-            token = await refreshAccessToken();
-        }
+        // Skip preemptive refresh check on request to prevent clock drift issues,
+        // relying instead on the 401 response interceptor for silent token refresh.
+        // if (token && !config.skipAuthRefresh && !isAuthEndpoint(config.url) && isTokenExpiring(token)) {
+        //     token = await refreshAccessToken();
+        // }
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;

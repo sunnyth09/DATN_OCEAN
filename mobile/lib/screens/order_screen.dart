@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
-import '../config/app_theme.dart';
+import '../utils/format_utils.dart';
 import 'order_detail_screen.dart';
 import 'login_screen.dart';
 
@@ -13,7 +13,8 @@ class OrderScreen extends StatefulWidget {
   State<OrderScreen> createState() => _OrderScreenState();
 }
 
-class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStateMixin {
+class _OrderScreenState extends State<OrderScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<dynamic> allOrders = [];
   bool isLoading = true;
@@ -29,11 +30,19 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
 
   Future<void> fetchOrders() async {
     if (!mounted) return;
-    setState(() { isLoading = true; errorMessage = null; isGuest = false; });
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+      isGuest = false;
+    });
 
     final loggedIn = await AuthService.isLoggedIn();
     if (!loggedIn) {
-      if (mounted) setState(() { isGuest = true; isLoading = false; });
+      if (mounted)
+        setState(() {
+          isGuest = true;
+          isLoading = false;
+        });
       return;
     }
 
@@ -52,23 +61,40 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
         fetchedOrders = decoded['orders'];
       }
 
-      if (mounted) setState(() { allOrders = fetchedOrders; isLoading = false; });
+      if (mounted)
+        setState(() {
+          allOrders = fetchedOrders;
+          isLoading = false;
+        });
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
-        if (mounted) setState(() { isGuest = true; isLoading = false; });
+        if (mounted)
+          setState(() {
+            isGuest = true;
+            isLoading = false;
+          });
       } else {
-        if (mounted) setState(() { errorMessage = 'Lỗi truy xuất đơn hàng (${e.response?.statusCode})'; isLoading = false; });
+        if (mounted)
+          setState(() {
+            errorMessage = 'Lỗi truy xuất đơn hàng (${e.response?.statusCode})';
+            isLoading = false;
+          });
       }
     } catch (e) {
-      if (mounted) setState(() { errorMessage = 'Lỗi kết nối máy chủ.'; isLoading = false; });
+      if (mounted)
+        setState(() {
+          errorMessage = 'Lỗi kết nối máy chủ.';
+          isLoading = false;
+        });
     }
   }
-
 
   String _formatPrice(dynamic price) {
     try {
       final num p = num.parse(price.toString());
-      final formatted = p.toStringAsFixed(0).replaceAllMapped(
+      final formatted = p
+          .toStringAsFixed(0)
+          .replaceAllMapped(
             RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
             (m) => '${m[1]}.',
           );
@@ -91,7 +117,14 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Đơn Hàng Của Tôi', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w800, fontSize: 18)),
+        title: const Text(
+          'Đơn Hàng Của Tôi',
+          style: TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+          ),
+        ),
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
@@ -113,7 +146,9 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)));
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFE63B6F)),
+      );
     }
 
     if (isGuest) {
@@ -123,19 +158,48 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.receipt_long_outlined, size: 64, color: Color(0xFF94A3B8)),
+              const Icon(
+                Icons.receipt_long_outlined,
+                size: 64,
+                color: Color(0xFF94A3B8),
+              ),
               const SizedBox(height: 16),
-              const Text('Chưa đăng nhập', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+              const Text(
+                'Chưa đăng nhập',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
               const SizedBox(height: 8),
-              const Text('Đăng nhập để xem lịch sử đơn hàng của bạn.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B))),
+              const Text(
+                'Đăng nhập để xem lịch sử đơn hàng của bạn.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xFF64748B)),
+              ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
                   fetchOrders();
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE63B6F), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30))),
-                child: const Text('Đăng nhập ngay', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE63B6F),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: const Text(
+                  'Đăng nhập ngay',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
@@ -148,11 +212,18 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.receipt_long_outlined, size: 60, color: Colors.grey),
+            const Icon(
+              Icons.receipt_long_outlined,
+              size: 60,
+              color: Colors.grey,
+            ),
             const SizedBox(height: 16),
             Text(errorMessage!, style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: fetchOrders, child: const Text('Thử lại')),
+            ElevatedButton(
+              onPressed: fetchOrders,
+              child: const Text('Thử lại'),
+            ),
           ],
         ),
       );
@@ -174,16 +245,31 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
     // Map theo status, Backend có thể dùng 'fulfillment_status' hoặc 'status'
     if (statusFilter != 'all') {
       filtered = allOrders.where((order) {
-        String st = (order['fulfillment_status'] ?? order['status'] ?? '').toString().toLowerCase();
-        if (statusFilter == 'pending' && (st.contains('pending') || st.contains('processing'))) return true;
-        if (statusFilter == 'shipping' && (st.contains('shipping') || st.contains('delivering'))) return true;
-        if (statusFilter == 'completed' && (st.contains('completed') || st.contains('delivered') || st.contains('success'))) return true;
+        String st = (order['fulfillment_status'] ?? order['status'] ?? '')
+            .toString()
+            .toLowerCase();
+        if (statusFilter == 'pending' &&
+            (st.contains('pending') || st.contains('processing')))
+          return true;
+        if (statusFilter == 'shipping' &&
+            (st.contains('shipping') || st.contains('delivering')))
+          return true;
+        if (statusFilter == 'completed' &&
+            (st.contains('completed') ||
+                st.contains('delivered') ||
+                st.contains('success')))
+          return true;
         return false;
       }).toList();
     }
 
     if (filtered.isEmpty) {
-      return const Center(child: Text('Không có đơn hàng nào', style: TextStyle(color: Color(0xFF64748B))));
+      return const Center(
+        child: Text(
+          'Không có đơn hàng nào',
+          style: TextStyle(color: Color(0xFF64748B)),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -193,18 +279,34 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
         final order = filtered[index];
         final orderCode = order['order_code'] ?? order['id'].toString();
         final date = order['created_at']?.split('T')?[0] ?? 'N/A';
-        final total = _formatPrice(order['grand_total'] ?? order['total']);
-        final status = (order['fulfillment_status'] ?? order['status'] ?? 'Unknown').toString().toUpperCase();
+        final total = FormatUtils.formatPrice(
+          order['grand_total'] ?? order['total'],
+        );
+        final status =
+            (order['fulfillment_status'] ?? order['status'] ?? 'Unknown')
+                .toString()
+                .toUpperCase();
 
         // Màu status cơ bản
         Color statusColor = const Color(0xFF64748B);
-        if (status.contains('PENDING')) statusColor = Colors.orange;
-        else if (status.contains('SHIP')) statusColor = Colors.blue;
-        else if (status.contains('COMPLETED') || status.contains('DELIVERED') || status.contains('SUCCESS')) statusColor = Colors.green;
+        if (status.contains('PENDING'))
+          statusColor = Colors.orange;
+        else if (status.contains('SHIP'))
+          statusColor = Colors.blue;
+        else if (status.contains('COMPLETED') ||
+            status.contains('DELIVERED') ||
+            status.contains('SUCCESS'))
+          statusColor = Colors.green;
 
         return GestureDetector(
           onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => OrderDetailScreen(orderId: order['order_id'].toString())));
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    OrderDetailScreen(orderId: (order['order_id'] ?? order['id']).toString()),
+              ),
+            );
           },
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -213,8 +315,12 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
-              ]
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,14 +328,30 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Đơn hàng: #$orderCode', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                    Text(
+                      'Đơn hàng: #$orderCode',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: statusColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(status, style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        status,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -239,8 +361,20 @@ class _OrderScreenState extends State<OrderScreen> with SingleTickerProviderStat
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Ngày đặt: $date', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-                    Text(total, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE63B6F))),
+                    Text(
+                      'Ngày đặt: $date',
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      total,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFE63B6F),
+                      ),
+                    ),
                   ],
                 ),
               ],

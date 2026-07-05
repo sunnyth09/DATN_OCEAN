@@ -1,11 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../../axios';
+import { getAbsoluteUrl } from '@/utils/url';
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
 const getFullUrl = (path) => {
     if (!path) return '';
-    return path.startsWith('http') ? path : BASE_URL + path;
+    return getAbsoluteUrl(path);
 };
 
 const attendances = ref([]);

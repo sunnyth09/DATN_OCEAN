@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/network_image_widget.dart';
 import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
-import '../productDetail.dart';
+import 'product_detail_screen.dart';
 
 class FlashSaleScreen extends StatefulWidget {
   const FlashSaleScreen({super.key});
@@ -36,7 +36,10 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
 
   Future<void> fetchFlashSales() async {
     try {
-      setState(() { isLoading = true; errorMessage = null; });
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
       final res = await ApiClient().dio.get('/flash-sale');
       if (res.statusCode == 200) {
         final data = res.data;
@@ -48,20 +51,30 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
         } else if (data['data'] is Map && data['data']['data'] is List) {
           list = data['data']['data'];
         }
-        if (mounted) setState(() { flashSales = list; isLoading = false; });
+        if (mounted)
+          setState(() {
+            flashSales = list;
+            isLoading = false;
+          });
       }
     } catch (e) {
-      if (mounted) setState(() { errorMessage = 'Không thể tải Flash Sale'; isLoading = false; });
+      if (mounted)
+        setState(() {
+          errorMessage = 'Không thể tải Flash Sale';
+          isLoading = false;
+        });
     }
   }
 
   String _formatPrice(dynamic price) {
     try {
       final num p = num.parse(price.toString());
-      final formatted = p.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
+      final formatted = p
+          .toStringAsFixed(0)
+          .replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+            (m) => '${m[1]}.',
+          );
       return '${formatted}đ';
     } catch (_) {
       return price.toString();
@@ -92,7 +105,9 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           // Content
           if (isLoading)
             const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
             )
           else if (errorMessage != null)
             SliverFillRemaining(
@@ -100,11 +115,21 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(height: 12),
-                    Text(errorMessage!, style: const TextStyle(color: Colors.grey)),
+                    Text(
+                      errorMessage!,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                     const SizedBox(height: 16),
-                    ElevatedButton(onPressed: fetchFlashSales, child: const Text('Thử lại')),
+                    ElevatedButton(
+                      onPressed: fetchFlashSales,
+                      child: const Text('Thử lại'),
+                    ),
                   ],
                 ),
               ),
@@ -117,9 +142,15 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                   children: [
                     Icon(Icons.flash_off, size: 64, color: Color(0xFFCBD5E1)),
                     SizedBox(height: 12),
-                    Text('Chưa có Flash Sale nào', style: TextStyle(fontSize: 16, color: Color(0xFF64748B))),
+                    Text(
+                      'Chưa có Flash Sale nào',
+                      style: TextStyle(fontSize: 16, color: Color(0xFF64748B)),
+                    ),
                     SizedBox(height: 4),
-                    Text('Quay lại sau để săn deal nhé!', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+                    Text(
+                      'Quay lại sau để săn deal nhé!',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                    ),
                   ],
                 ),
               ),
@@ -165,7 +196,14 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const Spacer(),
-                  const Text('Flash Sale', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
+                  const Text(
+                    'Flash Sale',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const Spacer(),
                   const SizedBox(width: 48),
                 ],
@@ -180,15 +218,31 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        width: 5, height: 5,
-                        decoration: BoxDecoration(color: Colors.white54, borderRadius: BorderRadius.circular(3)),
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.white54,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
                       ),
                       const SizedBox(width: 10),
-                      Text('CHƯƠNG TRÌNH ĐẶC BIỆT', style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 2)),
+                      Text(
+                        'CHƯƠNG TRÌNH ĐẶC BIỆT',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.75),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 2,
+                        ),
+                      ),
                       const SizedBox(width: 10),
                       Container(
-                        width: 5, height: 5,
-                        decoration: BoxDecoration(color: Colors.white54, borderRadius: BorderRadius.circular(3)),
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.white54,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
                       ),
                     ],
                   ),
@@ -198,23 +252,43 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                     children: [
                       const Icon(Icons.flash_on, color: Colors.white, size: 36),
                       const SizedBox(width: 8),
-                      const Text('Flash Sale', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900)),
+                      const Text(
+                        'Flash Sale',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('Giá Sốc', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                    child: const Text(
+                      'Giá Sốc',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Số lượng cực kỳ có hạn — Cơ hội săn deal không thể bỏ lỡ!',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 13),
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.75),
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -229,7 +303,8 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     final items = (sale['items'] as List<dynamic>?) ?? [];
     final endDate = sale['end_date']?.toString();
     final countdown = _getCountdown(endDate);
-    final isActive = (countdown['h']! > 0 || countdown['m']! > 0 || countdown['s']! > 0);
+    final isActive =
+        (countdown['h']! > 0 || countdown['m']! > 0 || countdown['s']! > 0);
     final saleName = sale['name'] ?? 'Flash Sale';
 
     return Container(
@@ -238,7 +313,13 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFF1F3F5)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,11 +336,22 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(saleName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+                      Text(
+                        saleName,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         isActive ? 'Đang diễn ra' : 'Đã kết thúc',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isActive ? AppColors.success : Colors.grey),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isActive ? AppColors.success : Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -268,11 +360,29 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                 if (isActive)
                   Row(
                     children: [
-                      _countdownBox('${countdown['h']!.toString().padLeft(2, '0')}'),
-                      const Text(' : ', style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.primary)),
-                      _countdownBox('${countdown['m']!.toString().padLeft(2, '0')}'),
-                      const Text(' : ', style: TextStyle(fontWeight: FontWeight.w900, color: AppColors.primary)),
-                      _countdownBox('${countdown['s']!.toString().padLeft(2, '0')}'),
+                      _countdownBox(
+                        '${countdown['h']!.toString().padLeft(2, '0')}',
+                      ),
+                      const Text(
+                        ' : ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      _countdownBox(
+                        '${countdown['m']!.toString().padLeft(2, '0')}',
+                      ),
+                      const Text(
+                        ' : ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      _countdownBox(
+                        '${countdown['s']!.toString().padLeft(2, '0')}',
+                      ),
                     ],
                   ),
               ],
@@ -282,7 +392,12 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           if (items.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
-              child: Center(child: Text('Không có sản phẩm', style: TextStyle(color: Colors.grey))),
+              child: Center(
+                child: Text(
+                  'Không có sản phẩm',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
             )
           else
             ...items.map((item) => _buildFlashSaleItem(item, isActive)),
@@ -298,7 +413,14 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
         color: AppColors.primary,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 14)),
+      child: Text(
+        value,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 14,
+        ),
+      ),
     );
   }
 
@@ -307,13 +429,13 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     final variant = item['variant'] as Map<String, dynamic>? ?? {};
     final name = product['name'] ?? 'Sản phẩm';
     final salePrice = item['sale_price'] ?? variant['price'] ?? 0;
-    final originalPrice = item['original_price'] ?? variant['price'] ?? salePrice;
+    final originalPrice =
+        item['original_price'] ?? variant['price'] ?? salePrice;
     final stock = item['stock'] ?? 0;
     final sold = item['sold'] ?? 0;
     final total = stock + sold;
     final progress = total > 0 ? sold / total : 0.0;
-    final thumbnail = product['thumbnail_url']?.toString() ?? '';
-    final imageUrl = AppConfig.imageUrl(thumbnail);
+    final imageUrl = AppConfig.productImageUrl(product);
 
     final discountPercent = originalPrice > 0
         ? (((originalPrice - salePrice) / originalPrice) * 100).round()
@@ -321,32 +443,30 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
 
     return InkWell(
       onTap: () {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (context) => ProductDetailScreen(product: product),
-        ));
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProductDetailScreen(product: product),
+          ),
+        );
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
             // Image
-            ClipRRect(
+            NetworkImageWidget(
+              imageUrl: imageUrl,
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
               borderRadius: BorderRadius.circular(12),
-              child: imageUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      width: 80, height: 80,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(width: 80, height: 80, color: const Color(0xFFF1F5F9)),
-                      errorWidget: (_, __, ___) => Container(
-                        width: 80, height: 80, color: const Color(0xFFF1F5F9),
-                        child: const Icon(Icons.image, color: Colors.grey),
-                      ),
-                    )
-                  : Container(
-                      width: 80, height: 80, color: const Color(0xFFF1F5F9),
-                      child: const Icon(Icons.image, color: Colors.grey),
-                    ),
+              errorWidget: Container(
+                width: 80,
+                height: 80,
+                color: const Color(0xFFF1F5F9),
+                child: const Icon(Icons.image, color: Colors.grey),
+              ),
             ),
             const SizedBox(width: 14),
             // Info
@@ -354,22 +474,46 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                  Text(
+                    name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      Text(_formatPrice(salePrice), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.primary)),
+                      Text(
+                        _formatPrice(salePrice),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primary,
+                        ),
+                      ),
                       if (discountPercent > 0) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text('-$discountPercent%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                          child: Text(
+                            '-$discountPercent%',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
                         ),
                       ],
                     ],
@@ -377,7 +521,14 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                   if (discountPercent > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Text(_formatPrice(originalPrice), style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), decoration: TextDecoration.lineThrough)),
+                      child: Text(
+                        _formatPrice(originalPrice),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF94A3B8),
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
                     ),
                   const SizedBox(height: 8),
                   // Progress bar
@@ -395,7 +546,9 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                         child: Container(
                           height: 6,
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(colors: [Color(0xFFE63B6F), Color(0xFFFF8FAB)]),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFE63B6F), Color(0xFFFF8FAB)],
+                            ),
                             borderRadius: BorderRadius.circular(3),
                           ),
                         ),
@@ -405,7 +558,11 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                   const SizedBox(height: 4),
                   Text(
                     stock <= 0 ? 'Đã bán hết' : 'Đã bán $sold/$total',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: stock <= 0 ? Colors.red : const Color(0xFF64748B)),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: stock <= 0 ? Colors.red : const Color(0xFF64748B),
+                    ),
                   ),
                 ],
               ),
@@ -430,16 +587,43 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.assignment_outlined, size: 16, color: AppColors.primary),
+              Icon(
+                Icons.assignment_outlined,
+                size: 16,
+                color: AppColors.primary,
+              ),
               const SizedBox(width: 8),
-              Text('ĐIỀU KIỆN THAM GIA', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: 0.8)),
+              Text(
+                'ĐIỀU KIỆN THAM GIA',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                  letterSpacing: 0.8,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
           _ruleItem(Icons.lock_outline, 'Phải ', 'đăng nhập', ' để mua hàng'),
-          _ruleItem(Icons.shopping_cart_outlined, 'Tối đa ', '1 sản phẩm / khách hàng', ''),
-          _ruleItem(Icons.local_shipping_outlined, 'Flash Sale được ', 'miễn phí vận chuyển', ''),
-          _ruleItem(Icons.flash_on, 'Đơn hàng xử lý theo thứ tự — đặt sớm ưu tiên trước', '', ''),
+          _ruleItem(
+            Icons.shopping_cart_outlined,
+            'Tối đa ',
+            '1 sản phẩm / khách hàng',
+            '',
+          ),
+          _ruleItem(
+            Icons.local_shipping_outlined,
+            'Flash Sale được ',
+            'miễn phí vận chuyển',
+            '',
+          ),
+          _ruleItem(
+            Icons.flash_on,
+            'Đơn hàng xử lý theo thứ tự — đặt sớm ưu tiên trước',
+            '',
+            '',
+          ),
           _ruleItem(Icons.close, 'Không áp dụng thêm mã giảm giá khác', '', ''),
         ],
       ),
@@ -457,10 +641,21 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           Expanded(
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(fontSize: 13, color: Color(0xFF636E72), height: 1.5),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF636E72),
+                  height: 1.5,
+                ),
                 children: [
                   TextSpan(text: text),
-                  if (bold.isNotEmpty) TextSpan(text: bold, style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
+                  if (bold.isNotEmpty)
+                    TextSpan(
+                      text: bold,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
                   if (suffix.isNotEmpty) TextSpan(text: suffix),
                 ],
               ),

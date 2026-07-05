@@ -1,15 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'services/auth_service.dart';
-import 'productDetail.dart';
-import 'screens/product_list_screen.dart';
-import 'screens/notification_screen.dart';
-import 'screens/flash_sale_screen.dart';
-import 'screens/coupon_screen.dart';
-import 'package:dio/dio.dart';
-import 'services/api_client.dart';
-import 'widgets/shimmer_loading.dart';
-import 'config/app_config.dart';
+
+import '../config/app_config.dart';
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
+import '../utils/format_utils.dart';
+import '../widgets/network_image_widget.dart';
+import '../widgets/shimmer_loading.dart';
+import 'coupon_screen.dart';
+import 'flash_sale_screen.dart';
+import 'notification_screen.dart';
+import 'product_detail_screen.dart';
+import 'product_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,7 +21,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -31,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   int totalProducts = 0;
   String search = '';
   final ScrollController _scrollController = ScrollController();
+  Timer? _searchDebounce;
 
   // ===== CATEGORIES =====
   List<dynamic> categories = [];
@@ -47,10 +52,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     try {
       final response = await ApiClient().dio.get(
         '/products',
-        queryParameters: {
-          'page': currentPage,
-          'search': search,
-        },
+        queryParameters: {'page': currentPage, 'search': search},
       );
 
       if (response.statusCode == 200) {
@@ -105,8 +107,21 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _openSearchResults(String rawText) {
+    final query = rawText.trim();
+    if (query.isEmpty) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductListScreen(searchQuery: query),
+      ),
+    );
   }
 
   @override
@@ -153,12 +168,26 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           ),
           Row(
             children: [
-              IconButton(icon: const Icon(Icons.notifications_none, color: Color(0xFF64748B)), onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationScreen()));
-              }),
-              IconButton(icon: const Icon(Icons.grid_view, color: Color(0xFF64748B)), onPressed: () {}),
+              IconButton(
+                icon: const Icon(
+                  Icons.notifications_none,
+                  color: Color(0xFF64748B),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const NotificationScreen(),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.grid_view, color: Color(0xFF64748B)),
+                onPressed: () {},
+              ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -172,7 +201,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           color: Colors.white,
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: TextField(
@@ -185,28 +218,16 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             contentPadding: const EdgeInsets.symmetric(vertical: 15),
           ),
           onChanged: (text) {
-            // debounce 400ms
-            Future.delayed(const Duration(milliseconds: 400), () {
+            _searchDebounce?.cancel();
+            final query = text.trim();
+            if (query.isEmpty) return;
+            _searchDebounce = Timer(const Duration(milliseconds: 500), () {
               if (mounted) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ProductListScreen(searchQuery: text.trim()),
-                  ),
-                );
+                _openSearchResults(query);
               }
             });
           },
-          onSubmitted: (text) {
-            if (text.trim().isNotEmpty) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProductListScreen(searchQuery: text.trim()),
-                ),
-              );
-            }
-          },
+          onSubmitted: _openSearchResults,
         ),
       ),
     );
@@ -233,12 +254,24 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               color: Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text('HOT DEAL', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+            child: const Text(
+              'HOT DEAL',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           const Text(
             'Mùa Hè Sôi Động\nCÙNG QUYỀN SPORT',
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, height: 1.2),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              height: 1.2,
+            ),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -250,32 +283,57 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             children: [
               ElevatedButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const FlashSaleScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FlashSaleScreen()),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFFE63B6F),
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                 ),
-                child: const Text('Khám phá ngay', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Khám phá ngay',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(width: 10),
               OutlinedButton.icon(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const FlashSaleScreen()));
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FlashSaleScreen()),
+                  );
                 },
                 icon: const Icon(Icons.flash_on, size: 16, color: Colors.white),
-                label: const Text('Flash Sale', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                label: const Text(
+                  'Flash Sale',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: Colors.white.withOpacity(0.5)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
               ),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -284,10 +342,30 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   // ===== QUICK ACTION BUTTONS =====
   Widget _buildQuickActions() {
     final actions = [
-      {'icon': Icons.flash_on, 'label': 'Flash Sale', 'color': const Color(0xFFE63B6F), 'screen': const FlashSaleScreen()},
-      {'icon': Icons.confirmation_number_outlined, 'label': 'Voucher', 'color': const Color(0xFF3B82F6), 'screen': const CouponScreen()},
-      {'icon': Icons.sports_tennis, 'label': 'Đặt sân', 'color': const Color(0xFF10B981), 'screen': null},
-      {'icon': Icons.grid_view_rounded, 'label': 'Sản phẩm', 'color': const Color(0xFFF59E0B), 'screen': const ProductListScreen()},
+      {
+        'icon': Icons.flash_on,
+        'label': 'Flash Sale',
+        'color': const Color(0xFFE63B6F),
+        'screen': const FlashSaleScreen(),
+      },
+      {
+        'icon': Icons.confirmation_number_outlined,
+        'label': 'Voucher',
+        'color': const Color(0xFF3B82F6),
+        'screen': const CouponScreen(),
+      },
+      {
+        'icon': Icons.sports_tennis,
+        'label': 'Đặt sân',
+        'color': const Color(0xFF10B981),
+        'screen': null,
+      },
+      {
+        'icon': Icons.grid_view_rounded,
+        'label': 'Sản phẩm',
+        'color': const Color(0xFFF59E0B),
+        'screen': const ProductListScreen(),
+      },
     ];
 
     return Padding(
@@ -303,13 +381,17 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           return GestureDetector(
             onTap: () {
               if (screen != null) {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => screen),
+                );
               }
             },
             child: Column(
               children: [
                 Container(
-                  width: 56, height: 56,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(16),
@@ -317,7 +399,14 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                   child: Icon(icon, color: color, size: 26),
                 ),
                 const SizedBox(height: 8),
-                Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF475569),
+                  ),
+                ),
               ],
             ),
           );
@@ -336,7 +425,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         final pid = c['parent_id'];
         return pid == null || pid == 0;
       }).toList();
-      if (mounted) setState(() { categories = rootCats; isCatLoading = false; });
+      if (mounted)
+        setState(() {
+          categories = rootCats;
+          isCatLoading = false;
+        });
     } catch (_) {
       if (mounted) setState(() => isCatLoading = false);
     }
@@ -345,21 +438,33 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   /// Lấy icon thích hợp dựa trên tên danh mục
   IconData _iconForCategory(String name) {
     final n = name.toLowerCase();
-    if (n.contains('lặn') || n.contains('bơi') || n.contains('dưới nước')) return Icons.scuba_diving;
+    if (n.contains('lặn') || n.contains('bơi') || n.contains('dưới nước'))
+      return Icons.scuba_diving;
     if (n.contains('lướt')) return Icons.surfing;
-    if (n.contains('dã ngoại') || n.contains('leo núi') || n.contains('cắm trại')) return Icons.hiking;
-    if (n.contains('phụ kiện') || n.contains('đồng hồ') || n.contains('kính')) return Icons.watch;
-    if (n.contains('quần áo') || n.contains('thời trang') || n.contains('áo')) return Icons.checkroom;
-    if (n.contains('giày') || n.contains('dép') || n.contains('sản phẩm')) return Icons.format_list_bulleted;
-    if (n.contains('kayak') || n.contains('chèo') || n.contains('thỹền')) return Icons.rowing;
+    if (n.contains('dã ngoại') ||
+        n.contains('leo núi') ||
+        n.contains('cắm trại'))
+      return Icons.hiking;
+    if (n.contains('phụ kiện') || n.contains('đồng hồ') || n.contains('kính'))
+      return Icons.watch;
+    if (n.contains('quần áo') || n.contains('thời trang') || n.contains('áo'))
+      return Icons.checkroom;
+    if (n.contains('giày') || n.contains('dép') || n.contains('sản phẩm'))
+      return Icons.format_list_bulleted;
+    if (n.contains('kayak') || n.contains('chèo') || n.contains('thỹền'))
+      return Icons.rowing;
     if (n.contains('câu cá') || n.contains('bắt cá')) return Icons.phishing;
     if (n.contains('thể thao') || n.contains('sport')) return Icons.sports;
     if (n.contains('bảo hộ') || n.contains('an toàn')) return Icons.security;
-    if (n.contains('đèn') || n.contains('chiếu sáng')) return Icons.flashlight_on;
+    if (n.contains('đèn') || n.contains('chiếu sáng'))
+      return Icons.flashlight_on;
     if (n.contains('tús') || n.contains('balo')) return Icons.backpack;
-    if (n.contains('máy ảnh') || n.contains('camera') || n.contains('quay')) return Icons.camera_alt;
-    if (n.contains('kife') || n.contains('dao') || n.contains('công cụ')) return Icons.handyman;
-    if (n.contains('giày lặn') || n.contains('chân nhái')) return Icons.do_not_step;
+    if (n.contains('máy ảnh') || n.contains('camera') || n.contains('quay'))
+      return Icons.camera_alt;
+    if (n.contains('kife') || n.contains('dao') || n.contains('công cụ'))
+      return Icons.handyman;
+    if (n.contains('giày lặn') || n.contains('chân nhái'))
+      return Icons.do_not_step;
     if (n.contains('xe') || n.contains('đạp')) return Icons.directions_bike;
     if (n.contains('sóng') || n.contains('biển')) return Icons.waves;
     return Icons.category_outlined;
@@ -381,9 +486,14 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   }
 
   static const List<Color> _iconColors = [
-    Color(0xFFE63B6F), Color(0xFF16A34A), Color(0xFFD97706),
-    Color(0xFF9333EA), Color(0xFFE11D48), Color(0xFFE63B6F),
-    Color(0xFF059669), Color(0xFFCA8A04),
+    Color(0xFFE63B6F),
+    Color(0xFF16A34A),
+    Color(0xFFD97706),
+    Color(0xFF9333EA),
+    Color(0xFFE11D48),
+    Color(0xFFE63B6F),
+    Color(0xFF059669),
+    Color(0xFFCA8A04),
   ];
 
   Widget _buildCategories() {
@@ -394,14 +504,26 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Danh mục phổ biến',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
+              const Text(
+                'Danh mục phổ biến',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
               TextButton(
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ProductListScreen()),
                 ),
-                child: const Text('Xem tất cả', style: TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.w600)),
+                child: const Text(
+                  'Xem tất cả',
+                  style: TextStyle(
+                    color: Color(0xFFE63B6F),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
@@ -410,23 +532,42 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         SizedBox(
           height: 110,
           child: isCatLoading
-            ? ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                itemCount: 5,
-                itemBuilder: (_, __) => Padding(
+              ? ListView.builder(
+                  scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Column(
-                    children: [
-                      Container(width: 60, height: 60, decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(30))),
-                      const SizedBox(height: 8),
-                      Container(width: 50, height: 10, decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4))),
-                    ],
+                  itemCount: 5,
+                  itemBuilder: (_, __) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: 50,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              )
-            : categories.isEmpty
-              ? const Center(child: Text('Chưa có danh mục', style: TextStyle(color: Colors.grey)))
+                )
+              : categories.isEmpty
+              ? const Center(
+                  child: Text(
+                    'Chưa có danh mục',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
               : ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -444,7 +585,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         context,
                         MaterialPageRoute(
                           builder: (_) => ProductListScreen(
-                            categoryId: catId is int ? catId : int.tryParse(catId.toString()),
+                            categoryId: catId is int
+                                ? catId
+                                : int.tryParse(catId.toString()),
                             categoryName: catName,
                           ),
                         ),
@@ -479,7 +622,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                               width: 70,
                               child: Text(
                                 catName,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF475569),
+                                ),
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -508,15 +655,35 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                     const Text('Dành cho bạn', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                     const Icon(Icons.more_horiz, color: Color(0xFF94A3B8))
+                    const Text(
+                      'Dành cho bạn',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    const Icon(Icons.more_horiz, color: Color(0xFF94A3B8)),
                   ],
                 ),
                 const SizedBox(height: 16),
                 if (errorMessage != null && !isLoading)
-                  Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(errorMessage!, style: const TextStyle(color: Colors.red))))
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        errorMessage!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  )
                 else if (products.isEmpty && !isLoading)
-                  const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('Không có sản phẩm nào phù hợp'))),
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('Không có sản phẩm nào phù hợp'),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -530,12 +697,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 mainAxisSpacing: 16,
                 childAspectRatio: 0.65,
               ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return _buildProductCard(products[index]);
-                },
-                childCount: products.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                return _buildProductCard(products[index]);
+              }, childCount: products.length),
             ),
         ],
       ),
@@ -544,10 +708,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
 
   Widget _buildProductCard(Map<String, dynamic> product) {
     final name = product['name'] ?? 'Không tên';
-    final dynamic rawPrice = product['min_price'] ?? (product['lowest_price_variant'] != null ? product['lowest_price_variant']['price'] : 0);
-    
-    final rawImage = product['thumbnail_url'] ?? '';
-    final imageUrl = AppConfig.imageUrl(rawImage.toString());
+    final dynamic rawPrice =
+        product['min_price'] ??
+        (product['lowest_price_variant'] != null
+            ? product['lowest_price_variant']['price']
+            : 0);
+
+    final imageUrl = AppConfig.productImageUrl(product);
 
     return GestureDetector(
       onTap: () {
@@ -563,7 +730,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Column(
@@ -571,19 +742,24 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           children: [
             Stack(
               children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-                  child: imageUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl, 
-                          height: 160, 
-                          width: double.infinity, 
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(height: 160, color: const Color(0xFFF1F5F9), child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
-                          errorWidget: (context, url, error) => _imagePlaceholder(),
-                        )
-                      : _imagePlaceholder(),
-                ),
+                NetworkImageWidget(
+                      imageUrl: imageUrl,
+                      height: 160,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                      placeholder: Container(
+                        height: 160,
+                        color: const Color(0xFFF1F5F9),
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE63B6F)),
+                        ),
+                      ),
+                      errorWidget: _imagePlaceholder(),
+                    ),
                 Positioned(
                   top: 8,
                   right: 8,
@@ -593,26 +769,45 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         final loggedIn = await AuthService.isLoggedIn();
                         if (!loggedIn) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng đăng nhập để lưu!')));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Vui lòng đăng nhập để lưu!'),
+                              ),
+                            );
                           }
                           return;
                         }
                         await ApiClient().dio.post(
                           '/profile/favorites/toggle',
-                          data: {'product_id': product['product_id'] ?? product['id']}
+                          data: {
+                            'product_id':
+                                product['product_id'] ?? product['id'],
+                          },
                         );
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã cập nhật danh sách yêu thích!'), duration: Duration(seconds: 1)));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Đã cập nhật danh sách yêu thích!'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
                         }
                       } catch (_) {}
                     },
                     child: Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                      child: const Icon(Icons.favorite_border, size: 16, color: Color(0xFF94A3B8)),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.favorite_border,
+                        size: 16,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
             Padding(
@@ -624,23 +819,39 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     name.toString(),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1E293B), height: 1.3),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1E293B),
+                      height: 1.3,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        _formatPrice(rawPrice),
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFFE63B6F)),
+                        FormatUtils.formatPrice(rawPrice),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFE63B6F),
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: const Color(0xFFE63B6F), borderRadius: BorderRadius.circular(8)),
-                        child: const Icon(Icons.shopping_cart_outlined, size: 14, color: Colors.white),
-                      )
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE63B6F),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.shopping_cart_outlined,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
@@ -651,17 +862,27 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   }
 
   Widget _imagePlaceholder() {
-    return Container(height: 160, color: const Color(0xFFF1F5F9), child: const Center(child: Icon(Icons.image_not_supported, size: 30, color: Colors.grey)));
+    return Container(
+      height: 160,
+      color: const Color(0xFFF1F5F9),
+      child: const Center(
+        child: Icon(Icons.image_not_supported, size: 30, color: Colors.grey),
+      ),
+    );
   }
 
   String _formatPrice(dynamic price) {
     try {
       final num p = num.parse(price.toString());
-      final formatted = p.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+      final formatted = p
+          .toStringAsFixed(0)
+          .replaceAllMapped(
+            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+            (m) => '${m[1]}.',
+          );
       return '$formatted đ';
     } catch (_) {
       return price.toString();
     }
   }
-
 }

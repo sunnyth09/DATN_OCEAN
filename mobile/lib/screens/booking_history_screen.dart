@@ -285,7 +285,10 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Mã: $bookingCode', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+                Expanded(
+                  child: Text('Mã: $bookingCode', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -327,17 +330,27 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                         children: [
                           Text(courtName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
                           const SizedBox(height: 4),
-                          Row(
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              const Icon(Icons.calendar_today, size: 13, color: Color(0xFF64748B)),
-                              const SizedBox(width: 4),
-                              Text(bookingDate, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                              const SizedBox(width: 8),
-                              const Text('•', style: TextStyle(color: Color(0xFFCBD5E1))),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.access_time, size: 13, color: Color(0xFF64748B)),
-                              const SizedBox(width: 4),
-                              Text('$startTime - $endTime', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 13, color: Color(0xFF64748B)),
+                                  const SizedBox(width: 4),
+                                  Text(bookingDate, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.access_time, size: 13, color: Color(0xFF64748B)),
+                                  const SizedBox(width: 4),
+                                  Text('$startTime - $endTime', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                                ],
+                              ),
                             ],
                           ),
                         ],
@@ -367,16 +380,15 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Color(0xFFF1F3F5))),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                if (paymentStatus != 'paid' && status != 'cancelled') ...[
+                if (paymentStatus != 'paid' && status != 'cancelled')
                   _actionButton('Thanh toán', Icons.credit_card, const Color(0xFF059669), () {}),
-                  const SizedBox(width: 8),
-                ],
                 if (status == 'pending' || status == 'confirmed') ...[
                   _actionButton('QR Check-in', Icons.qr_code, AppColors.info, () {}),
-                  const SizedBox(width: 8),
                   _actionButton('Hủy', Icons.close, AppColors.error, () => _cancelBooking(booking['booking_id'] ?? booking['id'])),
                 ],
               ],

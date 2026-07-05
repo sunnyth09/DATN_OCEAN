@@ -1,0 +1,294 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Wallet;
+use App\Models\WalletDeposit;
+use App\Models\User;
+use App\Services\WalletService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+/**
+ * AdminWalletController — Quản lý ví từ admin panel.
+ *
+ * Tất cả routes qua middleware 'auth:admin' (đặt ở routes/api.php).
+ *
+ * Endpoints:
+ *   GET  /admin/wallets              → Danh sách ví user
+ *   GET  /admin/wallets/{userId}     → Chi tiết ví user
+ *   POST /admin/wallets/{userId}/adjust → Điều chỉnh số dư
+ */
+class AdminWalletController extends Controller
+{
+    public function __construct(
+        protected WalletService $walletService
+    ) {}
+
+    /**
+     * GET /admin/wallets?search=xxx&sort=total_balance&per_page=20
+     * Danh sách ví user.
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $perPage = min((int) ($request->per_page ?? 20), 100);
+        $search  = $request->search;
+        $sort    = $request->sort ?? 'created_at';
+        $order   = $request->order ?? 'desc';
+
+        $allowedSorts = ['deposit_balance', 'commission_balance', 'total_used', 'created_at'];
+        if (!in_array($sort, $allowedSorts, true)) {
+            $sort = 'created_at';
+        }
+        $order = strtolower($order) === 'asc' ? 'asc' : 'desc';
+
+        $query = Wallet::with('user:user_id,full_name,email,phone,avatar_url');
+
+        if ($search) {
+            $query->whereHas('user', function ($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%");
+            });
+        }
+
+        $wallets = $query->orderBy($sort, $order)->paginate($perPage);
+
+        // Thêm computed fields
+        $wallets->getCollection()->transform(function (Wallet $wallet) {
+            return [
+                'wallet_id'            => $wallet->wallet_id,
+                'user_id'              => $wallet->user_id,
+                'user'                 => $wallet->user ? [
+                    'full_name'  => $wallet->user->full_name,
+                    'email'      => $wallet->user->email,
+                    'phone'      => $wallet->user->phone,
+                    'avatar_url' => $wallet->user->avatar_url,
+                ] : null,
+                'deposit_balance'      => (float) $wallet->deposit_balance,
+                'commission_balance'   => (float) $wallet->commission_balance,
+                'total_balance'        => $wallet->getTotalBalance(),
+                'frozen_balance'       => (float) $wallet->frozen_balance,
+                'total_deposited'      => (float) $wallet->total_deposited,
+                'total_commission'     => (float) $wallet->total_commission,
+                'total_used'           => (float) $wallet->total_used,
+                'status'               => $wallet->status,
+                'created_at'           => $wallet->created_at?->toISOString(),
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $wallets,
+        ]);
+    }
+
+    /**
+     * GET /admin/wallets/{userId}
+     * Chi tiết ví + lịch sử giao dịch.
+     */
+    public function show(Request $request, int $userId): JsonResponse
+    {
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'User không tồn tại'], 404);
+        }
+
+        $balance = $this->walletService->getBalance($userId);
+        $history = $this->walletService->getHistory(
+            $userId,
+            min((int) ($request->per_page ?? 20), 100),
+            $request->type,
+            $request->balance_type
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'user' => [
+                    'user_id'   => $user->user_id,
+                    'full_name' => $user->full_name,
+                    'email'     => $user->email,
+                    'phone'     => $user->phone,
+                ],
+                'balance'      => $balance,
+                'transactions' => $history,
+            ],
+        ]);
+    }
+
+    /**
+     * POST /admin/wallets/{userId}/adjust
+     * Admin điều chỉnh số dư ví (deposit_balance).
+     *
+     * Body: { delta: int, description: string }
+     */
+    public function adjust(Request $request, int $userId): JsonResponse
+    {
+        $admin = auth('admin')->user();
+
+        $request->validate([
+            'delta'       => 'required|numeric|not_in:0',
+            'description' => 'required|string|max:500',
+        ]);
+
+        try {
+            $tx = $this->walletService->adminAdjust(
+                userId: $userId,
+                delta: (float) $request->delta,
+                description: $request->description,
+                adminId: $admin->id,
+            );
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Đã điều chỉnh số dư ví',
+                'data'    => [
+                    'transaction_code' => $tx->transaction_code,
+                    'amount'           => (float) $tx->amount,
+                    'direction'        => $tx->direction,
+                    'balance_after'    => (float) $tx->balance_after,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //  ADMIN DEPOSIT MANAGEMENT (Duyệt nạp tiền thủ công)
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * GET /admin/wallets/deposits/pending?status=pending|completed|failed|all
+     */
+    public function pendingDeposits(Request $request): JsonResponse
+    {
+        $status  = $request->status ?? 'pending';
+        $perPage = min((int) ($request->per_page ?? 30), 100);
+
+        $query = WalletDeposit::with('user:user_id,full_name,email,phone')
+            ->orderByDesc('created_at');
+
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        $deposits = $query->paginate($perPage);
+
+        // Transform để flatten user info
+        $deposits->getCollection()->transform(function ($d) {
+            return [
+                'id'            => $d->id,
+                'deposit_code'  => $d->deposit_code,
+                'user_id'       => $d->user_id,
+                'full_name'     => $d->user?->full_name ?? 'N/A',
+                'email'         => $d->user?->email ?? '',
+                'phone'         => $d->user?->phone ?? '',
+                'amount'        => (float) $d->amount,
+                'method'        => $d->method,
+                'status'        => $d->status,
+                'completed_at'  => $d->completed_at?->toISOString(),
+                'created_at'    => $d->created_at?->toISOString(),
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $deposits,
+        ]);
+    }
+
+    /**
+     * POST /admin/wallets/deposits/{depositId}/confirm
+     * Admin xác nhận nạp tiền → credit ví user.
+     */
+    public function confirmDeposit(int $depositId): JsonResponse
+    {
+        $deposit = WalletDeposit::find($depositId);
+
+        if (!$deposit) {
+            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy yêu cầu nạp tiền'], 404);
+        }
+
+        if ($deposit->status !== 'pending') {
+            return response()->json(['status' => 'error', 'message' => 'Yêu cầu đã được xử lý trước đó'], 422);
+        }
+
+        try {
+            DB::transaction(function () use ($deposit) {
+                // Credit ví user
+                $this->walletService->credit(
+                    userId: $deposit->user_id,
+                    amount: (float) $deposit->amount,
+                    type: 'deposit',
+                    opts: [
+                        'description'    => 'Nạp ví - Admin duyệt - ' . $deposit->deposit_code,
+                        'reference_type' => 'wallet_deposit',
+                        'reference_id'   => $deposit->id,
+                    ],
+                );
+
+                // Update deposit status
+                $deposit->update([
+                    'status'                 => 'completed',
+                    'completed_at'           => now(),
+                    'gateway_transaction_id' => 'ADMIN_CONFIRM',
+                ]);
+            });
+
+            Log::info('Admin confirmed wallet deposit', [
+                'deposit_id'   => $deposit->id,
+                'user_id'      => $deposit->user_id,
+                'amount'       => $deposit->amount,
+                'admin_id'     => auth('admin')->id(),
+            ]);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Đã duyệt nạp ' . number_format($deposit->amount) . '₫ vào ví user.',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin confirm deposit failed', ['error' => $e->getMessage()]);
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * POST /admin/wallets/deposits/{depositId}/reject
+     * Admin từ chối nạp tiền.
+     */
+    public function rejectDeposit(int $depositId): JsonResponse
+    {
+        $deposit = WalletDeposit::find($depositId);
+
+        if (!$deposit) {
+            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy yêu cầu nạp tiền'], 404);
+        }
+
+        if ($deposit->status !== 'pending') {
+            return response()->json(['status' => 'error', 'message' => 'Yêu cầu đã được xử lý trước đó'], 422);
+        }
+
+        $deposit->update([
+            'status'       => 'failed',
+            'completed_at' => now(),
+        ]);
+
+        Log::info('Admin rejected wallet deposit', [
+            'deposit_id' => $deposit->id,
+            'user_id'    => $deposit->user_id,
+            'admin_id'   => auth('admin')->id(),
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Đã từ chối yêu cầu nạp tiền.',
+        ]);
+    }
+}

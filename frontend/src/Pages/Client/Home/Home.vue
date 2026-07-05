@@ -8,8 +8,9 @@ import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
 import BaseSlider from '@/components/BaseSlider.vue'
 import { useSwiperOptions } from '@/composables/useSwiperOptions'
+import { getAppBaseUrl, getStorageUrl } from '@/utils/url';
 
-const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
+const BASE_URL = getAppBaseUrl();
 
 
 const bannerOptions = useSwiperOptions({
@@ -21,7 +22,7 @@ const banners = [
   {
     id: 1,
     title: 'Banner 1',
-    image: `${BASE_URL}/storage/banners/banner_1.jpg`
+    image: getStorageUrl('banners/banner_1.jpg')
   },
 ]
 
@@ -36,8 +37,7 @@ const { categories: storeCategories } = storeToRefs(catalogStore);
 
 const getImageUrl = (path) => {
     if (!path || path === '0') return '';
-    if (path.startsWith('http')) return path;
-    return `${BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
 };
 
 const getCategoryImage = (cat) => {

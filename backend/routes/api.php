@@ -44,8 +44,29 @@ use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\WalletController;
+use App\Http\Controllers\AdminWalletController;
 use App\Http\Controllers\Api\Client\TrackingController;
-// Add this line to run the route: http://localhost:8000/api
+use App\Http\Controllers\Api\DeviceTokenController;
+
+
+use App\Services\FcmService;
+// use Illuminate\Http\Request;
+
+Route::post('/test-push', function (Request $request, FcmService $fcm) {
+    // Truyền token của cái máy Flutter mà bạn muốn test vào body request
+    $token = $request->input('token');
+
+    $success = $fcm->sendNotification(
+        $token,
+        '🚀 Test Thông Báo!',
+        'Nếu bạn thấy dòng này, Laravel và Firebase đã thông nhau!',
+        ['screen' => 'home'] // Data gửi kèm
+    );
+
+    return response()->json(['success' => $success]);
+});
+// API root health response.
 Route::get('/', function () {
     return response()->json([
         'status' => 'success',
@@ -102,7 +123,10 @@ Route::middleware('auth:api,admin')->group(function () {
     Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
     Route::get('/my/return-requests', [ReturnRequestController::class, 'myIndex']);
     Route::get('/my/return-requests/{id}', [ReturnRequestController::class, 'myShow']);
-});
+
+    // Device token
+    });
+    Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
 Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
@@ -142,12 +166,14 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::post('/favorites/toggle', [FavoriteController::class, 'toggle']);
 
     // ── Affiliate (Hoa hồng giới thiệu) ──
-    Route::post('/affiliate/register', [AffiliateController::class, 'register']);
-    Route::get('/affiliate/profile', [AffiliateController::class, 'profile']);
-    Route::get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
-    Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
-    Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
-    Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
+    Route::middleware('customer.only')->group(function () {
+        Route::post('/affiliate/register', [AffiliateController::class, 'register']);
+        Route::get('/affiliate/profile', [AffiliateController::class, 'profile']);
+        Route::get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
+        Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
+        Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
+        Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
+    });
     // Khiếu nại của tôi
     Route::get('/tickets', [TicketController::class, 'clientIndex']);
     Route::post('/tickets', [TicketController::class, 'clientStore']);
@@ -171,7 +197,12 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
     Route::delete('/items/{id}', [CartController::class, 'removeItem']);
     Route::delete('/', [CartController::class, 'clearCart']);
     Route::post('/buy-again/{orderId}', [CartController::class, 'buyAgain']);
+    Route::post('/sync', [CartController::class, 'sync']);
 });
+
+Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
+Route::post('/orders/guest', [OrderController::class, 'storeGuest']);
+
 
 // ==========================================
 // FLASH SALE routes
@@ -227,6 +258,14 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::put('/loyalty/rules/{key}', [LoyaltyController::class, 'adminUpdateRule']);
     Route::post('/loyalty/users/{userId}/adjust', [LoyaltyController::class, 'adminAdjust']);
     Route::get('/loyalty/users/{userId}/history', [LoyaltyController::class, 'adminUserHistory']);
+
+    // ── Wallet (Ví cá nhân — Admin) ──
+    Route::get('/wallets/deposits/pending', [AdminWalletController::class, 'pendingDeposits']);
+    Route::post('/wallets/deposits/{depositId}/confirm', [AdminWalletController::class, 'confirmDeposit']);
+    Route::post('/wallets/deposits/{depositId}/reject', [AdminWalletController::class, 'rejectDeposit']);
+    Route::get('/wallets', [AdminWalletController::class, 'index']);
+    Route::get('/wallets/{userId}', [AdminWalletController::class, 'show']);
+    Route::post('/wallets/{userId}/adjust', [AdminWalletController::class, 'adjust']);
 
     // Flash Sale Management (Admin only)
     Route::get('/flash-sale', [\App\Http\Controllers\Admin\FlashSaleController::class, 'adminIndex']);
@@ -422,6 +461,29 @@ Route::middleware('auth:api')->prefix('loyalty')->group(function () {
     Route::post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
 });
 
+// ==========================================
+// WALLET (Ví cá nhân)
+// ==========================================
+Route::middleware('auth:api')->prefix('wallet')->group(function () {
+    Route::get('/', [WalletController::class, 'index']);                  // Số dư + thống kê
+    Route::get('/history', [WalletController::class, 'history']);          // Lịch sử giao dịch
+    Route::get('/preview-discount', [WalletController::class, 'previewDiscount']); // Preview giảm giá checkout
+
+    // Nạp tiền ví (rate limited: 5 requests/phút)
+    Route::middleware('throttle:5,1')->post('/deposit/init', [\App\Http\Controllers\WalletDepositController::class, 'initDeposit']);
+
+    // Rút tiền ví (rate limited: 3 requests/phút)
+    Route::middleware('throttle:3,1')->post('/withdraw', [WalletController::class, 'withdraw']);
+    Route::get('/withdrawals', [WalletController::class, 'withdrawals']);
+
+    // Tài khoản ngân hàng liên kết
+    Route::get('/bank-accounts', [\App\Http\Controllers\UserBankAccountController::class, 'index']);
+    Route::post('/bank-accounts', [\App\Http\Controllers\UserBankAccountController::class, 'store']);
+    Route::put('/bank-accounts/{id}', [\App\Http\Controllers\UserBankAccountController::class, 'update']);
+    Route::delete('/bank-accounts/{id}', [\App\Http\Controllers\UserBankAccountController::class, 'destroy']);
+    Route::post('/bank-accounts/{id}/default', [\App\Http\Controllers\UserBankAccountController::class, 'setDefault']);
+});
+
 // API Địa chỉ Việt Nam (Public)
 Route::prefix('location')->group(function () {
     Route::get('/provinces', [LocationController::class, 'getProvinces']);
@@ -455,7 +517,7 @@ Route::middleware('throttle:30,1')->post('/payment/vnpay-ipn', [\App\Http\Contro
 // MoMo Payment Gateway
 Route::middleware('throttle:30,1')->get('/payment/momo-return', [\App\Http\Controllers\MoMoController::class, 'momoReturn']);
 
-Route::post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
+Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
 
 // SePay Webhook
 Route::post('/payment/sepay-webhook', [\App\Http\Controllers\SepayController::class, 'handleWebhook']);
@@ -582,8 +644,6 @@ Route::get('image-proxy', function (\Illuminate\Http\Request $request) {
         'X-Content-Type-Options' => 'nosniff',
     ]);
 });
-Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
-
 // ==========================================
 // COURT BOOKING ROUTES
 // ==========================================
@@ -627,3 +687,20 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
     Route::get('/courts-dashboard', [CourtBookingAdminController::class, 'dashboard']);
     Route::get('/courts-stats', [CourtBookingAdminController::class, 'stats']);
 });
+
+// ==========================================
+// GHN Integration routes
+// ==========================================
+Route::post('/ghn-webhook', [\App\Http\Controllers\GhnWebhookController::class, 'handle']);
+
+Route::prefix('ghn')->group(function () {
+    Route::middleware('throttle:60,1')->post('/calculate-fee', [\App\Http\Controllers\GhnController::class, 'calculateFee']);
+    Route::middleware('throttle:60,1')->post('/leadtime', [\App\Http\Controllers\GhnController::class, 'getLeadtime']);
+});
+
+Route::middleware('auth:api,admin')->prefix('ghn')->group(function () {
+    Route::post('/order-detail', [\App\Http\Controllers\GhnController::class, 'orderDetail']);
+    Route::post('/cancel-order', [\App\Http\Controllers\GhnController::class, 'cancelOrder']);
+    Route::post('/print-label', [\App\Http\Controllers\GhnController::class, 'printLabel']);
+});
+

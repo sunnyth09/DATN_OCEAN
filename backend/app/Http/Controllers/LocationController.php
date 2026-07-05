@@ -2,121 +2,101 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\GHNService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * LocationController — Cung cấp danh sách Tỉnh/Quận/Phường chuẩn GHN cho frontend.
+ */
 class LocationController extends Controller
 {
-    /**
-     * API base URL cho provinces.open-api.vn
-     * Sau khi sáp nhập đơn vị hành chính VN (2025)
-     */
-    private string $apiBaseUrl = 'https://online-gateway.ghn.vn/shiip/public-api/master-data/';
-    private string $token = '';
-
-    public function __construct()
-    {
-        $this->token = config('services.ghn.token');
-    }
+    private const TTL = 86400; // 24h
 
     /**
-     * Lấy danh sách tỉnh/thành phố
      * GET /api/location/provinces
      */
     public function getProvinces()
     {
-        $data = Cache::remember('vn_provinces', 86400, function () {
-            $response = Http::timeout(10)->withToken($this->token)->get($this->apiBaseUrl . 'province', [
-                'depth' => 1
-            ]);
+        $cached = Cache::get('ghn_provinces_v2');
+        if (is_array($cached) && count($cached) > 0) {
+            return $this->ok($cached);
+        }
 
-            if ($response->successful()) {
-                return collect($response->json())->map(function ($province) {
-                    return [
-                        'code' => $province['code'],
-                        'name' => $province['name'],
-                        'division_type' => $province['division_type'],
-                        'codename' => $province['codename'],
-                    ];
-                })->values()->toArray();
-            }
+        $data = collect(GHNService::getProvinces())
+            ->reject(fn ($p) => $this->isSandboxTestLocation($p['ProvinceName'] ?? $p['province_name'] ?? null, $p['ProvinceID'] ?? $p['province_id'] ?? null))
+            ->map(fn ($p) => [
+                'ProvinceID' => $p['ProvinceID'] ?? $p['province_id'] ?? null,
+                'ProvinceName' => $p['ProvinceName'] ?? $p['province_name'] ?? null,
+            ])
+            ->filter(fn ($p) => $p['ProvinceID'] && $p['ProvinceName'])
+            ->values()
+            ->toArray();
 
-            return [];
-        });
+        if (count($data) > 0) {
+            Cache::put('ghn_provinces_v2', $data, self::TTL);
+        }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $data,
-        ]);
+        return $this->ok($data);
     }
 
     /**
-     * Lấy danh sách quận/huyện theo mã tỉnh
      * GET /api/location/districts/{provinceCode}
      */
     public function getDistricts($provinceCode)
     {
-        $data = Cache::remember("vn_districts_{$provinceCode}", 86400, function () use ($provinceCode) {
-            $response = Http::timeout(10)->get($this->apiBaseUrl . "p/{$provinceCode}", [
-                'depth' => 2
-            ]);
+        $cacheKey = "ghn_districts_v2_{$provinceCode}";
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached) && count($cached) > 0) {
+            return $this->ok($cached);
+        }
 
-            if ($response->successful()) {
-                $result = $response->json();
-                return collect($result['districts'] ?? [])->map(function ($district) {
-                    return [
-                        'code' => $district['code'],
-                        'name' => $district['name'],
-                        'division_type' => $district['division_type'],
-                        'codename' => $district['codename'],
-                    ];
-                })->values()->toArray();
-            }
+        $data = collect(GHNService::getDistricts((int) $provinceCode))
+            ->reject(fn ($d) => $this->isSandboxTestLocation($d['DistrictName'] ?? $d['district_name'] ?? null, $d['DistrictID'] ?? $d['district_id'] ?? null))
+            ->map(fn ($d) => [
+                'DistrictID' => $d['DistrictID'] ?? $d['district_id'] ?? null,
+                'DistrictName' => $d['DistrictName'] ?? $d['district_name'] ?? null,
+            ])
+            ->filter(fn ($d) => $d['DistrictID'] && $d['DistrictName'])
+            ->values()
+            ->toArray();
 
-            return [];
-        });
+        if (count($data) > 0) {
+            Cache::put($cacheKey, $data, self::TTL);
+        }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $data,
-        ]);
+        return $this->ok($data);
     }
 
     /**
-     * Lấy danh sách phường/xã theo mã quận
      * GET /api/location/wards/{districtCode}
      */
     public function getWards($districtCode)
     {
-        $data = Cache::remember("vn_wards_{$districtCode}", 86400, function () use ($districtCode) {
-            $response = Http::timeout(10)->get($this->apiBaseUrl . "d/{$districtCode}", [
-                'depth' => 2
-            ]);
+        $cacheKey = "ghn_wards_v2_{$districtCode}";
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached) && count($cached) > 0) {
+            return $this->ok($cached);
+        }
 
-            if ($response->successful()) {
-                $result = $response->json();
-                return collect($result['wards'] ?? [])->map(function ($ward) {
-                    return [
-                        'code' => $ward['code'],
-                        'name' => $ward['name'],
-                        'division_type' => $ward['division_type'],
-                        'codename' => $ward['codename'],
-                    ];
-                })->values()->toArray();
-            }
+        $data = collect(GHNService::getWards((int) $districtCode))
+            ->reject(fn ($w) => $this->isSandboxTestLocation($w['WardName'] ?? $w['ward_name'] ?? null, $w['WardCode'] ?? $w['ward_code'] ?? null))
+            ->map(fn ($w) => [
+                'WardCode' => (string) ($w['WardCode'] ?? $w['ward_code'] ?? ''),
+                'WardName' => $w['WardName'] ?? $w['ward_name'] ?? null,
+            ])
+            ->filter(fn ($w) => $w['WardCode'] && $w['WardName'])
+            ->values()
+            ->toArray();
 
-            return [];
-        });
+        if (count($data) > 0) {
+            Cache::put($cacheKey, $data, self::TTL);
+        }
 
-        return response()->json([
-            'status' => 'success',
-            'data' => $data,
-        ]);
+        return $this->ok($data);
     }
 
     /**
-     * Tìm kiếm địa điểm theo tên
      * GET /api/location/search?q=keyword
      */
     public function search(Request $request)
@@ -130,20 +110,31 @@ class LocationController extends Controller
             ], 422);
         }
 
-        $response = Http::timeout(10)->get($this->apiBaseUrl . 'p/search/', [
-            'q' => $keyword
-        ]);
+        $provinces = collect($this->getProvinces()->getData(true)['data'] ?? []);
+        $matches = $provinces->filter(fn ($p) => str_contains(mb_strtolower($p['ProvinceName']), mb_strtolower($keyword)))->values();
 
-        if ($response->successful()) {
-            return response()->json([
-                'status' => 'success',
-                'data' => $response->json(),
-            ]);
+        return $this->ok($matches);
+    }
+
+    private function isSandboxTestLocation(?string $name, mixed $id = null): bool
+    {
+        if (!$name) {
+            return false;
         }
 
+        $normalized = mb_strtolower($name);
+
+        return in_array((string) $id, ['298', '2002'], true)
+            || str_contains($normalized, 'test')
+            || str_contains($normalized, 'alert')
+            || trim($normalized) === 'hà nội 02';
+    }
+
+    private function ok($data)
+    {
         return response()->json([
-            'status' => 'error',
-            'message' => 'Không thể tìm kiếm địa điểm.',
-        ], 500);
+            'status' => 'success',
+            'data' => $data,
+        ]);
     }
 }

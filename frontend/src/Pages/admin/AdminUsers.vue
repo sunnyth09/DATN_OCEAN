@@ -33,6 +33,7 @@
               <th>Họ tên</th>
               <th>Email</th>
               <th>SĐT</th>
+              <th>Điểm thưởng</th>
               <th>Vai trò</th>
               <th>Trạng thái</th>
               <th>Ngày tạo</th>
@@ -41,10 +42,10 @@
           </thead>
           <tbody>
             <tr v-if="loading">
-              <td colspan="8" class="loading-cell"><div class="spinner"></div><p>Đang tải...</p></td>
+              <td colspan="9" class="loading-cell"><div class="spinner"></div><p>Đang tải...</p></td>
             </tr>
             <tr v-else-if="users.length === 0">
-              <td colspan="8" class="empty-cell">
+              <td colspan="9" class="empty-cell">
                 <span class="empty-emoji">👥</span>
                 <h3>Không tìm thấy khách hàng</h3>
               </td>
@@ -59,6 +60,9 @@
               </td>
               <td class="email-cell">{{ user.email }}</td>
               <td>{{ user.phone || '—' }}</td>
+              <td>
+                <strong style="color: #E63B6F; font-size: 0.9rem">{{ user.reward_points ?? 0 }}</strong>
+              </td>
               <td>
                 <select :value="user.role" @change="updateRole(user.user_id, $event.target.value)" class="role-select" :class="'role-' + user.role">
                   <option value="customer">Khách hàng</option>
@@ -197,6 +201,10 @@
                 <span class="qv-meta-value">#{{ detailData.user_id }}</span>
               </div>
               <div class="qv-meta-item">
+                <span class="qv-meta-label">Điểm thưởng</span>
+                <span class="qv-meta-value" style="color: #E63B6F; font-weight: 800">{{ detailData.reward_points ?? 0 }} điểm</span>
+              </div>
+              <div class="qv-meta-item">
                 <span class="qv-meta-label">Số điện thoại</span>
                 <span class="qv-meta-value">{{ detailData.phone || '—' }}</span>
               </div>
@@ -209,6 +217,29 @@
               <div class="qv-meta-item">
                 <span class="qv-meta-label">Ngày tạo</span>
                 <span class="qv-meta-value">{{ formatDate(detailData.created_at) }}</span>
+              </div>
+            </div>
+
+            <!-- Điều Chỉnh Điểm Thưởng section -->
+            <div class="qv-section">
+              <h4 class="qv-section-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                Điều Chỉnh Điểm Thưởng
+              </h4>
+              <div class="points-adjustment-box">
+                <div class="adjust-inputs">
+                  <div class="adj-field">
+                    <label class="adj-label">Số điểm (Cộng: dương, Trừ: âm)</label>
+                    <input v-model.number="adjustForm.delta" type="number" placeholder="VD: 100 hoặc -50" class="qv-form-input adj-input" />
+                  </div>
+                  <div class="adj-field" style="flex: 2">
+                    <label class="adj-label">Lý do điều chỉnh</label>
+                    <input v-model="adjustForm.description" type="text" placeholder="Nhập lý do điều chỉnh điểm..." class="qv-form-input adj-input" />
+                  </div>
+                </div>
+                <button type="button" class="btn-primary btn-adjust animate-in" style="margin-top:10px" @click="submitPointsAdjustment" :disabled="isAdjusting">
+                  {{ isAdjusting ? 'Đang lưu...' : 'Xác Nhận Thay Đổi' }}
+                </button>
               </div>
             </div>
 
@@ -338,6 +369,40 @@ const detailData = ref(null);
 const detailAddresses = ref([]);
 const detailCoupons = ref([]);
 
+const adjustForm = ref({ delta: null, description: '' });
+const isAdjusting = ref(false);
+
+const submitPointsAdjustment = async () => {
+  if (!adjustForm.value.delta) {
+    showToast('Vui lòng nhập số điểm!', 'danger');
+    return;
+  }
+  if (!adjustForm.value.description.trim()) {
+    showToast('Vui lòng nhập lý do điều chỉnh!', 'danger');
+    return;
+  }
+
+  isAdjusting.value = true;
+  try {
+    const res = await api.post(`/admin/loyalty/users/${detailData.value.user_id}/adjust`, {
+      delta: adjustForm.value.delta,
+      description: adjustForm.value.description.trim(),
+    });
+    
+    if (res.data.status === 'success') {
+      showToast('Điều chỉnh điểm thưởng thành công!');
+      detailData.value.reward_points = res.data.data.balance_after;
+      adjustForm.value.delta = null;
+      adjustForm.value.description = '';
+      fetchUsers();
+    }
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Lỗi khi điều chỉnh điểm!', 'danger');
+  } finally {
+    isAdjusting.value = false;
+  }
+};
+
 const isDeleteModalOpen = ref(false);
 const deleteTarget = ref(null);
 
@@ -433,7 +498,10 @@ const viewUser = async (userId) => {
   } finally { detailLoading.value = false; }
 };
 
-const closeDetailModal = () => { isDetailModalOpen.value = false; };
+const closeDetailModal = () => {
+  isDetailModalOpen.value = false;
+  adjustForm.value = { delta: null, description: '' };
+};
 
 const confirmDelete = (user) => { deleteTarget.value = user; isDeleteModalOpen.value = true; };
 
@@ -674,6 +742,39 @@ onMounted(fetchUsers);
 @keyframes spin { to { transform: rotate(360deg); } }
 .animate-in { animation: fadeSlideUp 0.35s ease both; }
 @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+.points-adjustment-box {
+  background: var(--ocean-deepest);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.adjust-inputs {
+  display: flex;
+  gap: 12px;
+}
+.adj-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.adj-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.adj-input {
+  background: white;
+}
+.btn-adjust {
+  align-self: flex-end;
+  padding: 8px 18px;
+}
 
 @media (max-width: 768px) {
   .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
