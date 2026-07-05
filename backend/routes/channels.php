@@ -10,7 +10,7 @@ Broadcast::channel('user.{userId}', function ($user, $userId) {
     return (int) $user->user_id === (int) $userId;
 }, ['guards' => ['api']]);
 Broadcast::channel('admin-notifications', function ($user) {
-    return in_array($user->role, ['admin', 'staff']);
+    return in_array($user->role, ['admin', 'staff', 'seller']);
 }, ['guards' => ['api', 'admin']]);
 
 Broadcast::channel('pos-scanner.{sessionId}', function ($user, $sessionId) {

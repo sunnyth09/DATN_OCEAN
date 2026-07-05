@@ -121,7 +121,6 @@ class GhnController extends Controller
     public function printLabel(Request $request)
     {
         $request->validate(['order_code' => 'required|string']);
-
         return response()->json(GHNService::printLabel($request->order_code));
     }
 }

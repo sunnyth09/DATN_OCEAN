@@ -1,20 +1,5 @@
 import api from '@/axios';
 
-const GHN_BASE_URL = 'https://online-gateway.ghn.vn/shiip/public-api';
-
-const getGhnHeaders = () => {
-  const token = import.meta.env.VITE_TOKEN_GHN;
-  const shopId = import.meta.env.VITE_SHOPID_GHN;
-
-  if (!token || !shopId) {
-    return null;
-  }
-
-  return {
-    token: token,
-  };
-};
-
 export const addressService = {
     listProfileAddresses() {
         return api.get('/profile/addresses');
@@ -36,6 +21,8 @@ export const addressService = {
         return api.put(`/profile/addresses/${addressId}/default`);
     },
 
+    // Danh sách Tỉnh/Quận/Phường lấy qua backend proxy (provinces.open-api.vn,
+    // không cần token GHN). Backend trả về key tương thích GHN: ProvinceID/ProvinceName...
     listProvinces() {
         return api.get('/location/provinces');
     },

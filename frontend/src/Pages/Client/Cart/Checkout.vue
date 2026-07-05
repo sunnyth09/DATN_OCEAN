@@ -54,6 +54,7 @@ const email = ref(authStore.email || '');
 const isCalculatingFee = ref(false);
 const leadtimeDate = ref(null);
 
+
 // --- Thanh toán & Khác ---
 const paymentMethod = ref('cod'); // cod, vnpay, momo, banking
 const note = ref('');
@@ -307,7 +308,6 @@ const shippingWeight = computed(() => {
         }, 0)
     );
 });
-
 const getShippingFee = async (district_id, ward_code) => {
     if (!district_id || !ward_code) return;
     isCalculatingFee.value = true;
