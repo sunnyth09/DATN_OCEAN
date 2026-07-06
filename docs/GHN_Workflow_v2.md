@@ -54,11 +54,11 @@ Hệ thống **DATN_OCEAN** tích hợp API của đơn vị vận chuyển **Gi
 |---|---|
 | `services/addressService.js` | Gọi API địa điểm hành chính và **API tính phí ship qua Backend proxy** (KHÔNG gọi thẳng GHN) |
 | `Pages/Client/Cart/Checkout.vue` | Trang thanh toán — tích hợp tính phí ship và leadtime khi user chọn địa chỉ |
-| `Pages/Client/Orders/OrderDetail.vue` | Trang chi tiết đơn hàng của khách — hiển thị timeline, mã GHN, link tracking |
-| `Pages/Client/GuestTracking.vue` | Trang tra cứu public — không cần đăng nhập, nhập mã đơn + SĐT |
+| `Pages/Client/Profile/ProfileOrderDetail.vue` | Trang chi tiết đơn hàng của khách — hiển thị timeline, mã GHN, link tracking |
+| `Pages/Client/GuestTracking.vue` | Trang tra cứu public — không cần đăng nhập, nhập mã đơn + SĐT hoặc mở link token `/tracking/{token}` |
 | `Pages/admin/AdminOrderDetail.vue` | Trang chi tiết đơn Admin — nút: Đẩy GHN, In vận đơn, Hủy vận đơn, Tra cứu realtime |
 | `components/AddressSelector.vue` | Dropdown chọn Tỉnh → Quận → Phường |
-| `components/OrderTimeline.vue` | Component hiển thị timeline lịch trình đơn hàng (dùng chung Admin & Client) |
+| `components/orders/OrderStatusTimeline.vue` | Component hiển thị timeline lịch trình đơn hàng (dùng chung Admin & Client) |
 
 ### Backend — Laravel 11
 
@@ -73,8 +73,8 @@ Hệ thống **DATN_OCEAN** tích hợp API của đơn vị vận chuyển **Gi
 | `Services/AdminOrderService.php` | Logic đẩy đơn sang GHN — sinh tracking token, lưu `ghn_order_code`, gửi email |
 | `Services/OrderTrackingService.php` | Merge timeline từ DB và GHN API realtime — Graceful Degradation |
 | `Services/ShippingService.php` | Tính phí fallback, áp dụng Freeship/Coupon |
-| `Jobs/SyncGhnStatusJob.php` | Scheduled job polling trạng thái GHN định kỳ — fallback khi Webhook miss |
-| `Mail/OrderShippingMail.php` | Email thông báo đơn hàng đã giao GHN — kèm link tracking token |
+| `Console/Commands/SyncGhnOrderStatus.php` | Scheduled command `ghn:sync-status` polling trạng thái GHN định kỳ — fallback khi Webhook miss |
+| `Mail/OrderShippingMail.php` | Email thông báo đơn hàng đã tạo vận đơn GHN — kèm link tracking token |
 | `config/ghn.php` | **Nguồn cấu hình duy nhất** cho toàn bộ GHN Service |
 
 ---

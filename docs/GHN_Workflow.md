@@ -17,18 +17,24 @@ Hệ thống **DATN_OCEAN** tích hợp API của đơn vị vận chuyển **Gi
 ## 2. Bản đồ các file trong Module GHN (File Structure)
 
 ### Frontend (Vue 3 Client App)
-* **[addressService.js](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/frontend/src/services/addressService.js)**: Service quản lý gọi API địa điểm hành chính và gọi API tính phí giao hàng (`/v2/shipping-order/fee`) trực tiếp từ Client.
+* **[addressService.js](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/frontend/src/services/addressService.js)**: Service quản lý gọi API địa điểm hành chính và API tính phí giao hàng qua Backend proxy (`POST /api/ghn/calculate-fee`), không gọi trực tiếp GHN từ Client.
 * **[Checkout.vue](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/frontend/src/Pages/Client/Cart/Checkout.vue)**: Trang thanh toán của khách hàng, tích hợp tính phí vận chuyển và thời gian nhận hàng dự kiến khi người dùng chọn địa chỉ.
-* **[AdminOrderDetail.vue](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/frontend/src/Pages/admin/AdminOrderDetail.vue)**: Trang chi tiết đơn hàng phía Admin, chứa các nút hành động: "Đẩy qua GHN", "In vận đơn", và "Hủy vận đơn".
+* **[GuestTracking.vue](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/frontend/src/Pages/Client/GuestTracking.vue)**: Trang tra cứu vận đơn public bằng token hoặc mã đơn + số điện thoại.
+* **[ProfileOrderDetail.vue](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/frontend/src/Pages/Client/Profile/ProfileOrderDetail.vue)**: Trang chi tiết đơn hàng của khách đã đăng nhập, hiển thị mã GHN, link tracking và timeline vận chuyển.
+* **[AdminOrderDetail.vue](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/frontend/src/Pages/admin/AdminOrderDetail.vue)**: Trang chi tiết đơn hàng phía Admin, chứa các nút hành động: "Đẩy qua GHN", "Tra cứu GHN", "In vận đơn", và "Hủy vận đơn".
 * **[AddressSelector.vue](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/frontend/src/components/AddressSelector.vue)**: Component dropdown chọn Tỉnh -> Quận -> Phường.
+* **[OrderStatusTimeline.vue](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/frontend/src/components/orders/OrderStatusTimeline.vue)**: Component timeline dùng chung cho Admin, Profile và Guest Tracking.
 
 ### Backend (Laravel 11 API)
 * **[LocationController.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Http/Controllers/LocationController.php)**: Proxy lấy danh sách Tỉnh/Quận/Phường từ GHN API giúp tránh lỗi CORS ở Frontend và quản lý Cache Redis (24 giờ) để tối ưu hiệu năng.
 * **[GhnController.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Http/Controllers/GhnController.php)**: API Controller xử lý các request tính thời gian giao hàng dự kiến, in vận đơn và hủy đơn trên GHN từ phía Admin.
-* **[GHNService.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Services/GHNService.php)**: Service kết nối chính với API Sandbox của GHN.
+* **[GHNService.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Services/GHNService.php)**: Service kết nối chính với API GHN, đọc cấu hình từ `config/ghn.php`.
 * **[ShippingService.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Services/ShippingService.php)**: Tính phí ship dự phòng (fallback) và áp dụng chính sách Freeship/Coupon.
 * **[AdminOrderController.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Http/Controllers/AdminOrderController.php)**: Điều phối API đẩy đơn sang GHN (`syncGHN`).
-* **[AdminOrderService.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Services/AdminOrderService.php)**: Triển khai logic đẩy đơn hàng sang GHN và lưu mã `ghn_order_code` vào database.
+* **[AdminOrderService.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Services/AdminOrderService.php)**: Triển khai logic đẩy đơn hàng sang GHN, lưu mã `ghn_order_code`, sinh `tracking_token` nếu thiếu và gửi email tracking.
+* **[OrderTrackingController.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Http/Controllers/OrderTrackingController.php)**: API tracking cho user đã đăng nhập, guest bằng token, guest bằng mã đơn + SĐT.
+* **[OrderTrackingService.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Services/OrderTrackingService.php)**: Merge timeline từ DB và GHN realtime, mask thông tin cá nhân.
+* **[SyncGhnOrderStatus.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Console/Commands/SyncGhnOrderStatus.php)**: Command polling fallback `ghn:sync-status` khi webhook bị miss.
 * **[GhnWebhookController.php](file:///c:/Thanhbt-dev/Project/DATN_OCEAN/backend/app/Http/Controllers/GhnWebhookController.php)**: Endpoint nhận dữ liệu thay đổi trạng thái gói hàng tự động từ GHN.
 
 ### Cơ sở dữ liệu (Database Schema)
@@ -92,7 +98,7 @@ sequenceDiagram
     Backend-->>Page: Trả về ngày giao hàng dự kiến (Định dạng DD/MM/YYYY)
 ```
 
-1. **Tính phí ship (Client-direct)**: Frontend gọi trực tiếp tới API GHN (`/v2/shipping-order/fee`) bằng các token sandbox được cấu hình trong file môi trường `.env` (`VITE_TOKEN_GHN_SANBOX`, `VITE_SHOPID_GHN_SANBOX`).
+1. **Tính phí ship (Backend-proxy)**: Frontend gửi request lên `/api/ghn/calculate-fee`. Backend gọi `GHNService::calculateFee` với token server-side, sau đó trả phí vận chuyển cho client.
 2. **Dự kiến thời gian nhận (Backend-proxy)**: Frontend gửi request lên `/api/ghn/leadtime`. Backend gọi `GHNService::calculateLeadtime` để lấy thông tin ngày giao dự kiến từ GHN và trả về định dạng ngày cụ thể (Ví dụ: `02/07/2026`).
 
 ---
@@ -181,17 +187,20 @@ sequenceDiagram
 Các biến cấu hình sử dụng cho GHN bao gồm:
 
 ```env
-# Môi trường kiểm thử GHN Sandbox
-TOKEN_GHN_SANBOX=75161490-6b33-11f1-a973-aee5264794df
-SHOPID_GHN_SANBOX=200810
+# Môi trường kiểm thử GHN Sandbox / Production
+GHN_TOKEN=75161490-6b33-11f1-a973-aee5264794df
+GHN_SHOP_ID=200810
+GHN_BASE_URL=https://dev-online-gateway.ghn.vn
+GHN_TIMEOUT=10
 
-# Biến môi trường cho Frontend sử dụng (được build vào Vue)
-VITE_TOKEN_GHN_SANBOX=${TOKEN_GHN_SANBOX}
-VITE_SHOPID_GHN_SANBOX=${SHOPID_GHN_SANBOX}
+# Địa chỉ kho gửi hàng
+GHN_SENDER_NAME=OCEAN SHOP
+GHN_SENDER_PHONE=0909000000
+GHN_SENDER_ADDRESS=123 Đường ABC
+GHN_SENDER_WARD_CODE=20308
+GHN_SENDER_DISTRICT_ID=1444
 
-# Môi trường chạy thực tế Production (Kích hoạt khi chạy thật)
-# VITE_TOKEN_GHN=xxxx-xxxx-xxxx-xxxx
-# VITE_SHOPID_GHN=xxxxxx
+# Frontend tuyệt đối không chứa token GHN dạng VITE_*
 ```
 
 ---

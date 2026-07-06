@@ -48,6 +48,7 @@ use App\Http\Controllers\WalletController;
 use App\Http\Controllers\AdminWalletController;
 use App\Http\Controllers\Api\Client\TrackingController;
 use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\OrderTrackingController;
 
 
 use App\Services\FcmService;
@@ -148,6 +149,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
+    Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::put('/orders/{id}/cancel', [OrderController::class, 'cancel']);
     // Đánh giá sản phẩm
@@ -202,6 +204,8 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
 Route::post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:30,1')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
+Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
 
 // ==========================================
