@@ -299,6 +299,8 @@ class OrderService
                 unset($result['_order']); // Không trả _order ra response
             }
 
+            \Illuminate\Support\Facades\Cache::flush();
+
             return $result;
         } catch (OrderException $e) {
             // Lỗi nghiệp vụ (hết hàng, địa chỉ sai...) → trả message gốc cho user
@@ -497,6 +499,8 @@ class OrderService
                 unset($result['_order']);
             }
 
+            \Illuminate\Support\Facades\Cache::flush();
+
             return $result;
         } catch (OrderException $e) {
             // Lỗi nghiệp vụ (hết hàng, coupon sai...) → trả message gốc cho user
@@ -554,6 +558,8 @@ class OrderService
                     );
                 }
             });
+
+            \Illuminate\Support\Facades\Cache::flush();
 
             return [
                 'status_code' => 200,

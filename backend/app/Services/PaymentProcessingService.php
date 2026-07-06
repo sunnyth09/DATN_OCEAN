@@ -9,6 +9,7 @@ use App\Models\Payment;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class PaymentProcessingService
 {
@@ -449,16 +450,10 @@ class PaymentProcessingService
     {
         $order->loadMissing(['items', 'user']);
         $user = $order->user;
+        $recipientEmail = $order->email ?: ($user->email ?? null);
 
-        if (!$user || empty($user->email)) {
+        if (empty($recipientEmail)) {
             return false;
-        }
-
-        $methodLabel = 'VNPay';
-        if ($order->payment_method === 'bank_transfer') {
-            $methodLabel = 'Chuyển khoản ngân hàng (SePay)';
-        } elseif ($order->payment_method === 'momo') {
-            $methodLabel = 'Ví MoMo';
         }
 
         $methodLabel = 'VNPay';
@@ -481,8 +476,6 @@ class PaymentProcessingService
             return false;
         }
 
-        $transport = new \Symfony\Component\Mailer\Transport\Mip\EsmtpTransport('smtp.gmail.com', 587, false);
-        // Fallback ESmtpTransport
         $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport('smtp.gmail.com', 587, false);
         $transport->setUsername($emailUser);
         $transport->setPassword($emailPass);
@@ -498,7 +491,8 @@ class PaymentProcessingService
             </tr>';
         }
 
-        $frontendUrl = config('app.frontend_url');
+        $actionUrl = $this->buildOrderActionUrl($order);
+        $actionLabel = $order->user_id ? 'Xem lịch sử đơn hàng' : 'Theo dõi đơn hàng';
 
         $htmlBody = '
         <!DOCTYPE html>
@@ -513,7 +507,7 @@ class PaymentProcessingService
                 <div style="padding: 20px;">
                     <p>Xin chào <strong>' . htmlspecialchars($order->recipient_name) . '</strong>,</p>
                     <p>Chúng tôi xác nhận đơn hàng <strong>' . $order->order_code . '</strong> đã được thanh toán thành công vào lúc ' . now()->format('H:i d/m/Y') . '.</p>
-                    
+
                     <h3 style="border-bottom: 2px solid #16a34a; padding-bottom: 5px; color: #333;">Chi tiết đơn hàng</h3>
                     <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
                         ' . $itemsHtml . '
@@ -540,7 +534,7 @@ class PaymentProcessingService
                     </div>
 
                     <div style="text-align: center; margin-top: 30px;">
-                        <a href="' . $frontendUrl . '/profile/orders" style="background: #0288d1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Xem lịch sử đơn hàng</a>
+                        <a href="' . htmlspecialchars($actionUrl, ENT_QUOTES, 'UTF-8') . '" style="background: #0288d1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">' . htmlspecialchars($actionLabel, ENT_QUOTES, 'UTF-8') . '</a>
                     </div>
                 </div>
             </div>
@@ -550,7 +544,7 @@ class PaymentProcessingService
 
         $emailMessage = (new \Symfony\Component\Mime\Email())
             ->from($emailUser)
-            ->to($user->email)
+            ->to($recipientEmail)
             ->subject('Thanh toán thành công — Đơn hàng ' . $order->order_code)
             ->html($htmlBody);
 
@@ -558,10 +552,34 @@ class PaymentProcessingService
 
         Log::info('Payment confirmation email sent', [
             'order_code' => $order->order_code,
-            'to' => $user->email,
+            'to' => $recipientEmail,
         ]);
 
         return true;
+    }
+
+    private function buildOrderActionUrl(Order $order): string
+    {
+        $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
+
+        if ($order->user_id) {
+            return $frontendUrl . '/profile/orders';
+        }
+
+        $token = $this->ensureTrackingToken($order);
+        return $token ? $frontendUrl . '/tracking/' . $token : $frontendUrl . '/tracking';
+    }
+
+    private function ensureTrackingToken(Order $order): ?string
+    {
+        if ($order->tracking_token) {
+            return $order->tracking_token;
+        }
+
+        $order->tracking_token = hash('sha256', $order->order_code . Str::random(40) . microtime(true));
+        $order->save();
+
+        return $order->tracking_token;
     }
 
     private function getOrCreateVnpayPayment(Order $order): Payment

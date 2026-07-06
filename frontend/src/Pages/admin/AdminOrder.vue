@@ -2,6 +2,7 @@
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
+import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
 
 const toastData = ref({ message: '', type: 'success' });
@@ -28,6 +29,7 @@ const dateTo = ref('');
 const selectedOrders = ref([]);
 const bulkActionLoading = ref(false);
 const bulkFulfillmentStatus = ref('');
+const statusActionLoadingId = ref(null);
 
 const pagination = ref({
     current_page: 1,
@@ -197,49 +199,67 @@ const dismissCancelModal = () => {
   if (cancelReasonResolver) cancelReasonResolver(null);
 };
 
-const updateOrderFulfillment = async (order) => {
-  const oldStatus = order._prevFulfillmentStatus || 'pending';
+const statusActionDefinitions = {
+  confirmed: { icon: 'check', label: 'Duyệt đơn', success: 'Đã duyệt đơn hàng thành công!' },
+  processing: { icon: 'clock', label: 'Chuyển sang đang xử lý', success: 'Đã chuyển đơn sang đang xử lý!' },
+  packing: { icon: 'clipboard-list', label: 'Chuyển sang đóng gói', success: 'Đã chuyển đơn sang đóng gói!' },
+  shipping: { icon: 'truck', label: 'Chuyển sang đang giao', success: 'Đã chuyển đơn sang đang giao!' },
+  delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
+  completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
+  cancelled: { icon: 'x', label: 'Hủy đơn', success: 'Đã hủy đơn hàng thành công!' },
+};
 
-  // Nếu chọn lại đúng trạng thái hiện tại → báo lỗi
-  if (order.fulfillment_status === oldStatus) {
-    toast.error(`Đơn hàng đang ở trạng thái "${getStatusLabel(oldStatus)}" rồi. Vui lòng chọn trạng thái tiếp theo!`);
-    return;
-  }
-  
-  if (order.fulfillment_status === 'cancelled') {
+const getOrderStatusActions = (order) => {
+  const current = order.fulfillment_status;
+  const allowed = (statusTransitions[current] || []).filter(status => status !== current);
+  return allowed
+    .filter((status) => {
+      if (status === 'delivered' && order.ghn_order_code) return false;
+      return Boolean(statusActionDefinitions[status]);
+    })
+    .map((status) => ({ value: status, ...statusActionDefinitions[status] }));
+};
+
+const updateOrderStatus = async (order, action) => {
+  const nextStatus = action.value;
+  const oldStatus = order._prevFulfillmentStatus || order.fulfillment_status || 'pending';
+  if (nextStatus === oldStatus) return;
+
+  const payload = { fulfillment_status: nextStatus };
+  if (nextStatus === 'cancelled') {
     const cancelReason = await showCancelReasonModal();
-    if (!cancelReason) {
-      order.fulfillment_status = oldStatus;
+    if (!cancelReason) return;
+    payload.note = cancelReason;
+  } else {
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: `Bạn có chắc chắn muốn ${action.label.toLowerCase()} cho đơn hàng #${order.order_code}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#E63B6F',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    
+    if (!confirmResult.isConfirmed) {
       return;
     }
-    try {
-      const res = await api.put(`/admin/orders/${order.order_id}/status`, {
-        fulfillment_status: 'cancelled',
-        note: cancelReason
-      });
-      if (res.data.status === 'success') {
-        order._prevFulfillmentStatus = 'cancelled';
-        toast.success('Đã hủy đơn hàng thành công!');
-      }
-    } catch (error) {
-      order.fulfillment_status = oldStatus;
-      toast.error(error.response?.data?.message || 'Lỗi hủy đơn hàng');
-    }
-    return;
   }
 
+  statusActionLoadingId.value = order.order_id;
   try {
-    const res = await api.put(`/admin/orders/${order.order_id}/status`, {
-      fulfillment_status: order.fulfillment_status
-    });
-
+    const res = await api.put(`/admin/orders/${order.order_id}/status`, payload);
     if (res.data.status === 'success') {
-      order._prevFulfillmentStatus = order.fulfillment_status;
-      toast.success('Cập nhật trạng thái thành công!');
+      order.fulfillment_status = nextStatus;
+      order._prevFulfillmentStatus = nextStatus;
+      if (nextStatus === 'cancelled') order.cancel_reason = payload.note;
+      toast.success(action.success || 'Cập nhật trạng thái thành công!');
     }
   } catch (error) {
-    order.fulfillment_status = oldStatus;
     toast.error(error.response?.data?.message || 'Lỗi cập nhật trạng thái');
+  } finally {
+    statusActionLoadingId.value = null;
   }
 };
 
@@ -304,6 +324,19 @@ const applyBulkStatus = async () => {
         const reason = await showCancelReasonModal();
         if (!reason) return;
         note = reason;
+    } else {
+        const label = statuses.find(s => s.value === bulkFulfillmentStatus.value)?.label || bulkFulfillmentStatus.value;
+        const confirmResult = await Swal.fire({
+            title: 'Xác nhận',
+            text: `Bạn có chắc chắn muốn cập nhật hàng loạt ${selectedOrdersList.length} đơn hàng sang trạng thái "${label}"?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#E63B6F',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Đồng ý',
+            cancelButtonText: 'Hủy'
+        });
+        if (!confirmResult.isConfirmed) return;
     }
 
     bulkActionLoading.value = true;
@@ -487,11 +520,20 @@ onUnmounted(() => {
                             <span class="val-price">{{ formatPrice(order.grand_total) }}</span>
                         </td>
                         <td>
-                            <!-- Chỉnh CSS cho đẹp như badge, dùng thẻ select nhưng style sang chảnh -->
-                            <div class="status-select-wrap" :class="'f-'+order.fulfillment_status">
-                                <select class="status-select" v-model="order.fulfillment_status" @change="updateOrderFulfillment(order)" :disabled="isLockedFulfillmentStatus(order.fulfillment_status)">
-                                    <option v-for="s in getAllowedFulfillmentOptions(order._prevFulfillmentStatus || order.fulfillment_status)" :key="s.value" :value="s.value">{{ s.label }}</option>
-                                </select>
+                            <div class="status-action-cell">
+                                <span class="status-readonly-badge" :class="'f-'+order.fulfillment_status">
+                                    {{ getStatusLabel(order.fulfillment_status) }}
+                                </span>
+                                <button
+                                    v-for="action in getOrderStatusActions(order)"
+                                    :key="action.value"
+                                    class="btn-status-action"
+                                    :class="action.value"
+                                    @click="updateOrderStatus(order, action)"
+                                    :disabled="statusActionLoadingId === order.order_id"
+                                    :title="action.label"
+                                    :aria-label="action.label"
+                                ><AppIcon :name="action.icon" size="14" stroke-width="3" /></button>
                             </div>
                         </td>
                         <td>
@@ -677,21 +719,40 @@ onUnmounted(() => {
  
 .val-price { font-size: 0.95rem; font-weight: 800; color: var(--coral); }
  
-/* Select Badges */
-.status-select-wrap {
-    display: inline-flex; border-radius: 9999px; padding: 2px 4px; align-items: center; justify-content: center; transition: all 0.2s;
+/* Status action badges */
+.status-action-cell {
+    display: grid;
+    grid-template-columns: minmax(88px, max-content) repeat(3, 30px);
+    align-items: center;
+    justify-content: start;
+    gap: 6px;
+    min-width: 190px;
+    min-height: 34px;
 }
-.status-select {
-    border: none; background: transparent; font-family: var(--font-inter); font-size: 0.8rem; font-weight: 700; padding: 4px 24px 4px 10px; cursor: pointer; outline: none; appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat; background-position: right 6px center; background-size: 14px;
+.status-readonly-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 82px; height: 30px;
+    border-radius: 9999px; padding: 0 12px;
+    font-family: var(--font-inter); font-size: 0.78rem; font-weight: 800;
+    white-space: nowrap;
+    line-height: 1;
 }
-.status-select option {
-    background-color: var(--card-bg) !important;
-    color: var(--text-main) !important;
+.btn-status-action {
+    width: 30px; height: 30px; border: none; border-radius: 50%; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--font-inter); font-size: 0.86rem; line-height: 1; font-weight: 900;
+    cursor: pointer; transition: all 0.2s; flex-shrink: 0;
 }
-.status-select-wrap:focus-within { box-shadow: 0 0 0 2px rgba(230, 59, 111, 0.15); }
- 
+.btn-status-action.confirmed,
+.btn-status-action.completed { background: #dcfce7; color: #15803d; }
+.btn-status-action.processing { background: #e0f2fe; color: #0369a1; }
+.btn-status-action.packing { background: #ede9fe; color: #6d28d9; }
+.btn-status-action.shipping,
+.btn-status-action.delivered { background: #dbeafe; color: #1d4ed8; }
+.btn-status-action.cancelled { background: #fee2e2; color: #b91c1c; }
+.btn-status-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(0.96); }
+.btn-status-action:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
 /* Colors for Fulfillment */
 .f-pending { background: rgba(255, 167, 38, 0.15); color: #e65100; }
 .f-confirmed { background: rgba(230, 59, 111, 0.1); color: #E63B6F; }
@@ -701,8 +762,6 @@ onUnmounted(() => {
 .f-return_requested, .f-return_approved { background: rgba(245, 158, 11, 0.15); color: #b45309; }
 .f-return_rejected { background: rgba(244, 114, 182, 0.15); color: #be185d; }
 .f-returned, .f-refunded { background: rgba(148, 163, 184, 0.18); color: #475569; }
-.status-select-wrap select { color: inherit; }
-
 :global(html.dark) .f-pending { background: rgba(255, 167, 38, 0.15) !important; color: #ffb74d !important; }
 :global(html.dark) .f-confirmed { background: rgba(230, 59, 111, 0.15) !important; color: #ffb2bf !important; }
 :global(html.dark) .f-packing, :global(html.dark) .f-shipping { background: rgba(0, 188, 212, 0.15) !important; color: #4fc3f7 !important; }
