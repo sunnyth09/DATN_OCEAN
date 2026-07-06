@@ -16,16 +16,27 @@ class OrderTrackingService
 
     public function buildPayload(Order $order): array
     {
-        $order->loadMissing(['address']);
+        $order->loadMissing(['address', 'items.product', 'items.variant']);
 
         return [
             'order_code' => $order->order_code,
             'ghn_order_code' => $order->ghn_order_code,
             'ghn_tracking_url' => $this->buildGhnTrackingUrl($order),
             'fulfillment_status' => $order->fulfillment_status,
+            'payment_status' => $order->payment_status,
+            'payment_method' => $order->payment_method,
+            'grand_total' => $order->grand_total,
             'receiver_name' => $this->maskName($this->receiverName($order)),
             'receiver_phone' => $this->maskPhone($this->receiverPhone($order)),
             'timeline' => $this->getTimeline($order),
+            'items' => $order->items->map(fn($item) => [
+                'name' => $item->product_name,
+                'quantity' => $item->quantity,
+                'price' => $item->unit_price,
+                'color' => $item->color,
+                'size' => $item->size,
+                'image' => $item->variant?->image_url ?: $item->product?->thumbnail_url ?: $item->product?->main_image ?: null,
+            ])->toArray(),
         ];
     }
 
@@ -131,7 +142,11 @@ class OrderTrackingService
             }
 
             $dbTime = strtotime($dbEvent['happened_at'] ?? '') ?: null;
-            return $dbTime && abs($dbTime - $eventTime) <= 60;
+            if (!$dbTime) {
+                return ($dbEvent['new_status'] ?? null) === ($event['new_status'] ?? null);
+            }
+
+            return abs($dbTime - $eventTime) <= 300;
         });
     }
 

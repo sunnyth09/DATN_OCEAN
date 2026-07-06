@@ -120,6 +120,8 @@ class OrderProcessingJob implements ShouldQueue
 
             Log::info("[OrderProcessingJob] Tạo đơn #{$this->orderCode} thành công cho user #{$this->userId}, flash_sale #{$this->flashSaleId}.");
         });
+
+        \Illuminate\Support\Facades\Cache::flush();
     }
 
     /**

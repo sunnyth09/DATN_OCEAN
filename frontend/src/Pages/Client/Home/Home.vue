@@ -66,6 +66,9 @@ const mapProduct = (item) => {
         image: getImageUrl(item.thumbnail_url || item.mainImage?.image_url || null),
         badge: item.is_featured ? "Hot" : (maxDiscount > 0 ? "Sale" : null),
         slug: item.slug, category_name: item.category_name || '',
+        // Truyền variants_sum_stock để ProductCard hiển thị badge Hết hàng / Sắp hết hàng
+        variants_sum_stock: item.variants_sum_stock ?? null,
+        variants: item.variants ?? [],
     };
 };
 

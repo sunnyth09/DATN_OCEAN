@@ -142,6 +142,26 @@ const numericDiscount = computed(() => {
     return Number.isFinite(value) ? Math.round(value) : 0;
 });
 
+// ── Stock status ────────────────────────────────────────────────────────
+const totalStock = computed(() => {
+    // Ưu tiên dùng variants_sum_stock từ API (do withSum trả về)
+    if (props.product.variants_sum_stock !== undefined && props.product.variants_sum_stock !== null) {
+        return Number(props.product.variants_sum_stock);
+    }
+    // Fallback: tính từ mảng variants nếu có
+    if (Array.isArray(props.product.variants)) {
+        return props.product.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+    }
+    return null; // Không có thông tin → không hiển thị
+});
+
+// Sản phẩm đã hết hàng hoàn toàn
+const isOutOfStock = computed(() => totalStock.value !== null && totalStock.value <= 0);
+
+// Sản phẩm sắp hết hàng (còn nhưng <= ngưỡng cảnh báo)
+const LOW_STOCK_THRESHOLD = 5;
+const isLowStock = computed(() => totalStock.value !== null && totalStock.value > 0 && totalStock.value <= LOW_STOCK_THRESHOLD);
+
 const badgeLabel = computed(() => {
     if (numericDiscount.value > 0) {
         return `-${numericDiscount.value}%`;
@@ -365,7 +385,7 @@ const handleAddToCart = async (event) => {
 </script>
 
 <template>
-    <article class="product-card">
+    <article class="product-card" :class="{ 'is-out-of-stock': isOutOfStock }">
         <router-link :to="productLink" class="card-link">
             <div class="media">
                 <span v-if="badgeLabel" class="product-badge" :class="badgeClass">
@@ -397,6 +417,11 @@ const handleAddToCart = async (event) => {
                             <AppIcon name="bag" size="34" stroke-width="1.8" />
                         </div>
                     </div>
+
+                    <!-- Overlay Hết hàng -->
+                    <div v-if="isOutOfStock" class="stock-overlay" aria-label="Hết hàng">
+                        <span class="stock-overlay-text">Hết hàng</span>
+                    </div>
                 </div>
             </div>
 
@@ -417,16 +442,23 @@ const handleAddToCart = async (event) => {
                         <span class="current-price">
                             {{ currentPrice }}
                         </span>
+                        <!-- Hiển thị số lượng (giữ layout đồng nhất) -->
+                        <span class="stock-info" :class="{ 'is-low-stock': isLowStock }">
+                            <template v-if="totalStock !== null && totalStock > 0">
+                                {{ isLowStock ? 'Chỉ còn ' + totalStock + ' sản phẩm' : 'Còn ' + totalStock + ' sản phẩm' }}
+                            </template>
+                        </span>
                     </div>
 
                     <button
                         class="icon-btn cart-btn"
                         @click="handleAddToCart"
-                        :disabled="isAddingToCart"
-                        title="Thêm vào giỏ"
-                        aria-label="Thêm vào giỏ"
+                        :disabled="isAddingToCart || isOutOfStock"
+                        :class="{ 'is-disabled': isOutOfStock }"
+                        :title="isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ'"
+                        :aria-label="isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'"
                     >
-                        <AppIcon v-if="!isAddingToCart" name="cart" size="18" stroke-width="1.9" />
+                        <AppIcon v-if="!isAddingToCart" :name="isOutOfStock ? 'x' : 'cart'" size="18" stroke-width="1.9" />
                         <span v-else class="small-spinner"></span>
                     </button>
                 </div>
@@ -582,6 +614,7 @@ const handleAddToCart = async (event) => {
 
 .image-shell {
     /* height: 210px; */
+    position: relative;
     border-radius: 16px 16px 0 0;
     background:
         radial-gradient(circle at 50% 78%, rgba(15, 23, 42, 0.08), transparent 28%),
@@ -1050,5 +1083,70 @@ const handleAddToCart = async (event) => {
     .current-price {
         font-size: 1rem;
     }
+}
+
+/* ====== STOCK STATUS STYLES ====== */
+
+/* Làm mờ nhẹ toàn bộ card khi hết hàng */
+.product-card.is-out-of-stock .card-link {
+    opacity: 0.72;
+}
+
+/* Lớp phủ overlay "Hết hàng" trên ảnh */
+.stock-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.52);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    backdrop-filter: blur(1.5px);
+    z-index: 3;
+}
+
+.stock-overlay-text {
+    background: rgba(255, 255, 255, 0.95);
+    color: #1e293b;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Dòng thông tin số lượng bên dưới giá */
+.stock-info {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #829ab1;
+    margin-top: 3px;
+    letter-spacing: 0.2px;
+    min-height: 16px; /* Giữ cứng chiều cao để các card thẳng hàng */
+}
+.stock-info.is-low-stock {
+    color: #f97316;
+    font-weight: 700;
+    animation: pulse-text 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-text {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.65; }
+}
+
+/* Nút giỏ hàng khi sản phẩm hết hàng */
+.cart-btn.is-disabled {
+    background: #f1f1f1;
+    color: #b0b7c3;
+    cursor: not-allowed;
+}
+
+.cart-btn.is-disabled:hover {
+    transform: none;
+    background: #f1f1f1;
 }
 </style>

@@ -103,11 +103,14 @@ class GhnOrderStatusSyncService
         return DB::transaction(function () use ($order, $mappedStatus, $ghnStatus, $source, $happenedAt, $description, $location) {
             $oldStatus = $order->fulfillment_status;
             $shouldUpdateOrder = $this->shouldUpdateOrder($oldStatus, $mappedStatus);
-            $historyExists = OrderStatusHistory::where('order_id', $order->order_id)
-                ->where('ghn_status', $ghnStatus)
-                ->where('source', $source)
-                ->where('happened_at', $happenedAt)
-                ->exists();
+            
+            $lastHistory = OrderStatusHistory::where('order_id', $order->order_id)
+                ->whereNotNull('ghn_status')
+                ->orderByDesc('happened_at')
+                ->orderByDesc('history_id')
+                ->first();
+                
+            $historyExists = $lastHistory && $lastHistory->ghn_status === $ghnStatus;
 
             if ($shouldUpdateOrder) {
                 $updates = ['fulfillment_status' => $mappedStatus];
@@ -164,10 +167,27 @@ class GhnOrderStatusSyncService
         });
     }
 
+    private const STATUS_WEIGHTS = [
+        'pending' => 10,
+        'confirmed' => 20,
+        'processing' => 30,
+        'packing' => 40,
+        'shipping' => 50,
+        'delivered' => 60,
+        'completed' => 70,
+    ];
+
     private function shouldUpdateOrder(?string $currentStatus, string $mappedStatus): bool
     {
         if ($currentStatus === $mappedStatus) {
             return false;
+        }
+
+        // Không cho phép đi lùi nếu cả hai trạng thái đều nằm trong luồng xuôi
+        if (isset(self::STATUS_WEIGHTS[$currentStatus], self::STATUS_WEIGHTS[$mappedStatus])) {
+            if (self::STATUS_WEIGHTS[$mappedStatus] < self::STATUS_WEIGHTS[$currentStatus]) {
+                return false;
+            }
         }
 
         if (in_array($currentStatus, self::TERMINAL_STATUSES, true) && !in_array($mappedStatus, self::TERMINAL_STATUSES, true)) {

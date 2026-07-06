@@ -171,6 +171,13 @@ const uniqueColors = computed(() => {
   return colors;
 });
 
+const productTotalStock = computed(() => {
+  if (product.value?.variants_sum_stock !== undefined && product.value?.variants_sum_stock !== null) {
+    return Number(product.value.variants_sum_stock);
+  }
+  return product.value?.variants?.reduce((sum, variant) => sum + Number(variant.stock || 0), 0) || 0;
+});
+
 // Lấy danh sách size khả dụng — luôn hiện tất cả size, đánh dấu disabled theo màu đã chọn
 const availableSizes = computed(() => {
   if (!product.value?.variants) return [];
@@ -335,8 +342,9 @@ const canPurchaseSelectedVariant = computed(() => {
 });
 
 const ctaDisabledReason = computed(() => {
+  if (productTotalStock.value <= 0) return 'Hết hàng';
   if (!selectedVariant.value) return 'Vui lòng chọn phiên bản';
-  if (!isVariantPurchasable(selectedVariant.value)) return 'Hết hàng';
+  if (!isVariantPurchasable(selectedVariant.value)) return 'Phiên bản hết hàng';
   if (quantity.value > selectedVariant.value.stock) return `Chỉ còn ${selectedVariant.value.stock} sản phẩm`;
   if (quantity.value < 1) return 'Số lượng tối thiểu là 1';
   if (!authStore.isAuthenticated && selectedVariantRemainingQty.value <= 0) {
@@ -648,8 +656,11 @@ onBeforeUnmount(() => {
             <img :src="getImageUrl(img.image_url)" :alt="product.name + ' ảnh ' + (i + 1)" />
           </div>
         </div>
-        <div class="pd-main-img">
+        <div class="pd-main-img" :class="{ 'is-out-of-stock': productTotalStock <= 0 }">
           <img ref="productImageRef" :src="mainImageUrl" :alt="product.name" :key="activeImageIndex" />
+          <div v-if="productTotalStock <= 0" class="stock-overlay" aria-label="Hết hàng">
+            <span class="stock-overlay-text">Hết hàng</span>
+          </div>
         </div>
       </div>
 
@@ -680,8 +691,7 @@ onBeforeUnmount(() => {
         <div class="pd-stock">
           <span class="pd-stock-label me-2">Số lượng còn:</span>
           <span class="pd-stock-value" v-if="selectedVariant">{{ selectedVariant.stock }}</span>
-          <span class="pd-stock-value" v-else-if="product.variants"> {{product.variants?.reduce((sum, variant) => sum +
-            variant.stock, 0) ?? '---' }}</span>
+          <span class="pd-stock-value" v-else>{{ productTotalStock }}</span>
         </div>
 
         <!-- Tình trạng -->
@@ -1116,6 +1126,36 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.pd-main-img.is-out-of-stock img {
+  opacity: 0.6;
+  filter: grayscale(80%);
+}
+
+.stock-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  backdrop-filter: blur(2px);
+  z-index: 3;
+}
+
+.stock-overlay-text {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1e293b;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 8px 24px;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .pd-main-img img {
