@@ -31,6 +31,8 @@ const router = useRouter();
 const orderId = route.params.id;
 
 const order = ref(null);
+const tracking = ref(null);
+const trackingLoading = ref(false);
 const loading = ref(true);
 const actionLoading = ref(false);
 
@@ -81,12 +83,28 @@ const getStatusIcon = (status) => {
   return 'shopping-cart';
 };
 
+const fetchOrderTracking = async () => {
+  trackingLoading.value = true;
+  try {
+    const res = await orderService.getOrderTracking(orderId);
+    if (res.data.status === 'success') {
+      tracking.value = res.data.data;
+    }
+  } catch (err) {
+    console.warn('Không thể lấy tracking GHN, dùng lịch sử đơn hàng hiện có.', err);
+    tracking.value = null;
+  } finally {
+    trackingLoading.value = false;
+  }
+};
+
 const fetchOrderDetail = async () => {
   loading.value = true;
   try {
     const res = await orderService.getProfileOrderDetail(orderId);
     if (res.data.status === 'success') {
       order.value = res.data.data;
+      await fetchOrderTracking();
     }
   } catch (err) {
     console.error('Lỗi lấy chi tiết đơn hàng: ', err);
@@ -363,6 +381,28 @@ onMounted(() => {
         </router-link>
       </div>
 
+      <div v-if="tracking?.ghn_order_code || trackingLoading" class="ghn-tracking-card mt-4">
+        <div class="card-header">
+          <h3>Thông tin vận chuyển GHN</h3>
+        </div>
+        <div class="card-body">
+          <p v-if="trackingLoading" class="tracking-muted">Đang tải thông tin vận chuyển...</p>
+          <template v-else>
+            <div class="ghn-info-row">
+              <span>Mã vận đơn</span>
+              <strong>{{ tracking.ghn_order_code }}</strong>
+            </div>
+            <div class="ghn-info-row" v-if="tracking.receiver_phone">
+              <span>SĐT nhận hàng</span>
+              <strong>{{ tracking.receiver_phone }}</strong>
+            </div>
+            <a v-if="tracking.ghn_tracking_url" class="ghn-tracking-link" :href="tracking.ghn_tracking_url" target="_blank" rel="noopener">
+              Xem trực tiếp trên GHN
+            </a>
+          </template>
+        </div>
+      </div>
+
       <div class="detail-grid">
         <!-- Address Info -->
         <div class="address-card">
@@ -445,14 +485,14 @@ onMounted(() => {
       </div>
 
       <!-- Order History -->
-      <div class="history-card mt-4" v-if="order.status_history && order.status_history.length > 0">
+      <div class="history-card mt-4" v-if="(tracking?.timeline && tracking.timeline.length > 0) || (order.status_history && order.status_history.length > 0)">
         <div class="card-header">
           <h3>Lịch sử đơn hàng</h3>
         </div>
         <div class="card-body">
           <OrderStatusTimeline
-            :histories="order.status_history"
-            :show-ghn-meta="false"
+            :histories="tracking?.timeline?.length ? tracking.timeline : order.status_history"
+            :show-ghn-meta="Boolean(tracking?.timeline?.length)"
             :get-status-label="getStatusText"
             :get-status-badge-class="getStatusBadgeClass"
             :format-date="formatDate"
@@ -1029,4 +1069,40 @@ onMounted(() => {
   padding: 8px 0;
   color: #64748b;
 }
+
+.ghn-tracking-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+.ghn-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.ghn-info-row:last-of-type { border-bottom: none; }
+.ghn-info-row span,
+.tracking-muted {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+.ghn-info-row strong { color: #0f172a; }
+.ghn-tracking-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 800;
+  text-decoration: none;
+}
+.ghn-tracking-link:hover { background: #dbeafe; }
 </style>

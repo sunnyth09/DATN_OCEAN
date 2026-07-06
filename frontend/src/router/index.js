@@ -44,6 +44,8 @@ const routes = [
             { path: "cart", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { title: 'Giỏ hàng' } },
             { path: "checkout", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { title: 'Thanh toán' } },
             { path: "order-success/:order_code?", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { title: 'Đặt hàng thành công' } },
+            { path: "tracking", name: "guest-tracking", component: () => import("../Pages/Client/GuestTracking.vue"), meta: { title: 'Tra cứu đơn hàng' } },
+            { path: "tracking/:token", name: "guest-tracking-token", component: () => import("../Pages/Client/GuestTracking.vue"), meta: { title: 'Theo dõi đơn hàng' } },
             // Payment
             { path: "payment/result", name: "payment-result", component: () => import("../Pages/Client/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } },
             // Profile
