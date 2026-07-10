@@ -33,23 +33,10 @@ import ChatbotWidget from '../components/ChatbotWidget.vue';
   overflow-x: clip;
 }
 
+/* site-main không cần max-width riêng —
+   mỗi section tự dùng Bootstrap .container để căn lề */
 .site-main {
   flex: 1;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 32px; /* 32px for desktop */
   width: 100%;
-}
-
-@media (max-width: 1024px) {
-  .site-main {
-    padding: 0 24px; /* 24px on tablet */
-  }
-}
-
-@media (max-width: 768px) {
-  .site-main {
-    padding: 0 16px; /* 16px on mobile */
-  }
 }
 </style>

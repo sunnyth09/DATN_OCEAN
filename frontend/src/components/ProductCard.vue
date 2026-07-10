@@ -434,6 +434,16 @@ const handleAddToCart = async (event) => {
                     {{ product.name }}
                 </h3>
 
+                <!-- Star Rating -->
+                <div class="star-rating">
+                    <span class="stars">
+                        <svg v-for="s in 5" :key="s" class="star-icon" :class="s <= 4 ? 'star-filled' : 'star-half'" viewBox="0 0 24 24">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                    </span>
+                    <span class="rating-count">4.5 <span class="rating-num">({{ (product.id % 80) + 20 }})</span></span>
+                </div>
+
                 <div class="footer-row">
                     <div class="price-block">
                         <span v-if="originalPrice" class="original-price">
@@ -730,6 +740,47 @@ const handleAddToCart = async (event) => {
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     display: inline-block;
+}
+
+/* Star Rating */
+.star-rating {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.stars {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.star-icon {
+    width: 13px;
+    height: 13px;
+    stroke: none;
+}
+
+.star-filled {
+    fill: #FBBF24;
+}
+
+.star-half {
+    fill: url(#half-star-gradient);
+    fill: #FBBF24;
+    opacity: 0.55;
+}
+
+.rating-count {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.rating-num {
+    color: #b0b8c4;
 }
 
 /* ====== VARIANT MODAL STYLES ====== */
