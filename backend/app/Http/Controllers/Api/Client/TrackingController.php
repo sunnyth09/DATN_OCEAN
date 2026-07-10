@@ -12,7 +12,7 @@ class TrackingController extends Controller
     public function viewProduct(Request $request)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_id' => 'required|exists:products,product_id',
             'session_id' => 'nullable|string'
         ]);
 
