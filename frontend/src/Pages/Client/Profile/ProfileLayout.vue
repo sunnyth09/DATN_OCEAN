@@ -1,5 +1,5 @@
 <template>
-  <div class="profile-page">
+  <div class="profile-page container">
     <div class="profile-container">
       <ProfileAside />
       <main class="profile-content">
