@@ -118,14 +118,18 @@ const fetchProduct = async (currentSlug) => {
     }
     fetchRelatedProducts(currentSlug);
 
-    // Auto-select variant if it's a simple product (no colors, no sizes)
+    // Tự động chọn variant có giá thấp nhất (ưu tiên variant còn hàng)
     if (product.value.variants && product.value.variants.length > 0) {
-      const hasColors = product.value.variants.some(v => v.color);
-      const hasSizes = product.value.variants.some(v => v.size);
-
-      if (!hasColors && !hasSizes) {
-        selectedVariant.value = product.value.variants[0];
-      }
+      const purchasable = product.value.variants.filter(v => v.status === 'active' && v.stock > 0);
+      const candidates = purchasable.length > 0 ? purchasable : product.value.variants;
+      
+      const lowestVariant = candidates.reduce((min, v) => 
+        ((v.effective_price || v.price) < (min.effective_price || min.price) ? v : min), candidates[0]
+      );
+      
+      if (lowestVariant.color) selectedColor.value = lowestVariant.color;
+      if (lowestVariant.size) selectedSize.value = lowestVariant.size;
+      selectedVariant.value = lowestVariant;
     }
   } catch (error) {
     console.error("Error fetching product:", error);
@@ -172,6 +176,13 @@ const uniqueColors = computed(() => {
   if (!product.value?.variants) return [];
   const colors = [...new Set(product.value.variants.map(v => v.color).filter(Boolean))];
   return colors;
+});
+
+const productTotalStock = computed(() => {
+  if (product.value?.variants_sum_stock !== undefined && product.value?.variants_sum_stock !== null) {
+    return Number(product.value.variants_sum_stock);
+  }
+  return product.value?.variants?.reduce((sum, variant) => sum + Number(variant.stock || 0), 0) || 0;
 });
 
 // Lấy danh sách size khả dụng — luôn hiện tất cả size, đánh dấu disabled theo màu đã chọn
@@ -280,6 +291,32 @@ const mainImageUrl = computed(() => {
   return getImageUrl(imgs[idx]?.image_url);
 });
 
+const nextImage = () => {
+  if (allImages.value.length === 0) return;
+  activeImageIndex.value = (activeImageIndex.value + 1) % allImages.value.length;
+};
+const prevImage = () => {
+  if (allImages.value.length === 0) return;
+  activeImageIndex.value = (activeImageIndex.value - 1 + allImages.value.length) % allImages.value.length;
+};
+
+const zoomStyle = ref({});
+const handleZoom = (e) => {
+  const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+  const x = ((e.clientX - left) / width) * 100;
+  const y = ((e.clientY - top) / height) * 100;
+  zoomStyle.value = {
+    transformOrigin: `${x}% ${y}%`,
+    transform: 'scale(2)'
+  };
+};
+const resetZoom = () => {
+  zoomStyle.value = {
+    transformOrigin: 'center center',
+    transform: 'scale(1)'
+  };
+};
+
 const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 };
@@ -338,8 +375,9 @@ const canPurchaseSelectedVariant = computed(() => {
 });
 
 const ctaDisabledReason = computed(() => {
+  if (productTotalStock.value <= 0) return 'Hết hàng';
   if (!selectedVariant.value) return 'Vui lòng chọn phiên bản';
-  if (!isVariantPurchasable(selectedVariant.value)) return 'Hết hàng';
+  if (!isVariantPurchasable(selectedVariant.value)) return 'Phiên bản hết hàng';
   if (quantity.value > selectedVariant.value.stock) return `Chỉ còn ${selectedVariant.value.stock} sản phẩm`;
   if (quantity.value < 1) return 'Số lượng tối thiểu là 1';
   if (!authStore.isAuthenticated && selectedVariantRemainingQty.value <= 0) {
@@ -351,19 +389,17 @@ const ctaDisabledReason = computed(() => {
   return '';
 });
 
-const normalizeQuantity = (silent = false) => {
+const normalizeQuantity = () => {
   const max = selectedVariant.value?.stock || null;
   const raw = Number.parseInt(quantity.value, 10);
 
   if (!Number.isFinite(raw) || raw < 1) {
     quantity.value = 1;
-    if (!silent) showToast('Số lượng tối thiểu là 1!', 'warning');
     return;
   }
 
   if (max && raw > max) {
     quantity.value = max;
-    if (!silent) showToast(`Chỉ còn ${max} sản phẩm trong kho!`, 'warning');
     return;
   }
 
@@ -377,16 +413,15 @@ const onQuantityInput = (event) => {
 };
 
 const increaseQuantity = () => {
-  normalizeQuantity(true);
+  normalizeQuantity();
   const max = selectedVariant.value?.stock;
   if (max && quantity.value >= max) {
-    showToast(`Chỉ còn ${max} sản phẩm trong kho!`, 'warning');
     return;
   }
   quantity.value++;
 };
 const decreaseQuantity = () => {
-  normalizeQuantity(true);
+  normalizeQuantity();
   if (quantity.value > 1) quantity.value--;
 };
 
@@ -692,7 +727,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="pd-wrapper" v-if="product">
+  <main class="pd-wrapper container" v-if="product">
     <!-- Breadcrumb -->
     <nav class="pd-breadcrumb">
       <router-link to="/">Trang chủ</router-link>
@@ -713,8 +748,20 @@ onBeforeUnmount(() => {
             <img :src="getImageUrl(img.image_url)" :alt="product.name + ' ảnh ' + (i + 1)" />
           </div>
         </div>
-        <div class="pd-main-img">
-          <img ref="productImageRef" :src="mainImageUrl" :alt="product.name" :key="activeImageIndex" />
+        <div class="pd-main-img" :class="{ 'is-out-of-stock': productTotalStock <= 0 }"
+          @mousemove="handleZoom" @mouseleave="resetZoom">
+          <img ref="productImageRef" :src="mainImageUrl" :alt="product.name" :key="activeImageIndex" :style="zoomStyle" />
+          
+          <button v-if="allImages.length > 1" class="pd-gallery-nav prev" @click.stop="prevImage">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button v-if="allImages.length > 1" class="pd-gallery-nav next" @click.stop="nextImage">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+
+          <div v-if="productTotalStock <= 0" class="stock-overlay" aria-label="Hết hàng">
+            <span class="stock-overlay-text">Hết hàng</span>
+          </div>
         </div>
       </div>
 
@@ -745,23 +792,10 @@ onBeforeUnmount(() => {
         <div class="pd-stock">
           <span class="pd-stock-label me-2">Số lượng còn:</span>
           <span class="pd-stock-value" v-if="selectedVariant">{{ selectedVariant.stock }}</span>
-          <span class="pd-stock-value" v-else-if="product.variants"> {{product.variants?.reduce((sum, variant) => sum +
-            variant.stock, 0) ?? '---' }}</span>
+          <span class="pd-stock-value" v-else>{{ productTotalStock }}</span>
         </div>
 
-        <!-- Tình trạng -->
-        <div class="pd-status">
-          <span class="pd-status-label">Tình trạng:</span>
-          <span class="pd-status-value in-stock"
-            v-if="selectedVariant ? selectedVariant.stock > 0 : (product.variants?.reduce((sum, v) => sum + v.stock, 0) > 0)">
-            <AppIcon name="check" size="14" stroke-width="2.5" />
-            Còn hàng
-          </span>
-          <span class="pd-status-value out-of-stock" style="color: #ef4444;" v-else>
-            <AppIcon name="x" size="14" stroke-width="2.5" />
-            Hết hàng
-          </span>
-        </div>
+
 
         <!-- Variant chips -->
         <div class="pd-variants" v-if="uniqueColors.length > 0">
@@ -769,7 +803,7 @@ onBeforeUnmount(() => {
           <div class="pd-var-options">
             <button v-for="color in uniqueColors" :key="color" class="pd-var-btn"
               :class="{ active: selectedColor === color }"
-              @click="selectedColor = selectedColor === color ? null : color">{{ color }}</button>
+              @click="selectedColor = color">{{ color }}</button>
           </div>
         </div>
 
@@ -778,7 +812,7 @@ onBeforeUnmount(() => {
           <div class="pd-var-options">
             <button v-for="s in availableSizes" :key="s.size" class="pd-var-btn"
               :class="{ active: selectedSize === s.size, disabled: !s.available }" :disabled="!s.available"
-              @click="s.available && (selectedSize = selectedSize === s.size ? null : s.size)">{{ s.size || 'Mặc định'
+              @click="s.available && (selectedSize = s.size)">{{ s.size || 'Mặc định'
               }}</button>
           </div>
         </div>
@@ -802,18 +836,24 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <!-- Lỗi validation inline -->
+        <p v-if="ctaDisabledReason" style="color: #ef4444; font-size: 0.9rem; font-weight: 500; display: flex; align-items: center; margin-top: -10px; margin-bottom: 16px;">
+          <AppIcon name="alert-circle" size="16" style="margin-right: 4px;" />
+          {{ ctaDisabledReason }}
+        </p>
+
         <!-- CTA -->
         <div class="pd-cta">
           <button class="pd-btn-cart" @click="addToCart"
             :disabled="addingToCart || buyingNow || !canPurchaseSelectedVariant"
             :title="ctaDisabledReason || 'Thêm vào giỏ hàng'">
             <AppIcon name="cart" size="18" />
-            {{ addingToCart ? 'Đang thêm...' : (ctaDisabledReason || 'Thêm Vào Giỏ Hàng') }}
+            {{ addingToCart ? 'Đang thêm...' : 'Thêm Vào Giỏ Hàng' }}
           </button>
           <button class="pd-btn-buy" @click="buyNow"
             :disabled="addingToCart || buyingNow || !canPurchaseSelectedVariant"
             :title="ctaDisabledReason || 'Đặt hàng nhanh'">
-            {{ buyingNow ? 'Đang chuyển...' : (ctaDisabledReason || 'Đặt Hàng Nhanh') }}
+            {{ buyingNow ? 'Đang chuyển...' : 'Đặt Hàng Nhanh' }}
           </button>
         </div>
 
@@ -829,7 +869,7 @@ onBeforeUnmount(() => {
         <!-- Perks -->
         <div class="pd-perks">
           <div class="pd-perk">
-            <AppIcon name="arrow-right" size="16" /> Giao hàng miễn phí
+            <AppIcon name="truck" size="16" /> Giao hàng miễn phí
           </div>
           <div class="pd-perk">
             <AppIcon name="shield" size="16" /> Bảo hành chính hãng
@@ -865,7 +905,7 @@ onBeforeUnmount(() => {
         <button class="pd-tab" :class="{ active: activeTab === 'specs' }" @click="activeTab = 'specs'">Thông số kỹ
           thuật</button>
         <button class="pd-tab" :class="{ active: activeTab === 'reviews' }" @click="activeTab = 'reviews'">Đánh giá
-          khách hàng ({{ reviews.length }})</button>
+          khách hàng ({{ product.rating_count || 0 }})</button>
       </div>
 
       <div class="pd-tab-content">
@@ -878,7 +918,13 @@ onBeforeUnmount(() => {
               <div class="pd-desc-fade" v-if="!isDescriptionExpanded"></div>
             </div>
             <button class="pd-desc-toggle" @click="isDescriptionExpanded = !isDescriptionExpanded">
-              {{ isDescriptionExpanded ? 'Thu gọn ▲' : 'Xem thêm ▼' }}
+              {{ isDescriptionExpanded ? 'Thu gọn' : 'Xem thêm' }}
+              <svg v-if="!isDescriptionExpanded" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 15l-6-6-6 6"/>
+              </svg>
             </button>
           </div>
           <div class="pd-specs-side">
@@ -921,7 +967,7 @@ onBeforeUnmount(() => {
             </tr>
             <tr v-if="product.brand">
               <td>Thương hiệu</td>
-              <td>{{ product.brand }}</td>
+              <td>{{ product.brand?.name || product.brand }}</td>
             </tr>
             <tr v-if="product.sku">
               <td>Mã SKU</td>
@@ -982,9 +1028,9 @@ onBeforeUnmount(() => {
       <div class="pd-related-grid">
         <ProductCard v-for="item in relatedProducts.slice(0, 4)" :key="item.product_id" :product="{
           id: item.product_id, name: item.name, slug: item.slug,
-          price: formatPrice(item.min_price),
-          originalPrice: item.compare_at_price ? formatPrice(item.compare_at_price) : null,
-          image: getImageUrl(item.thumbnail_url),
+          min_price: item.min_price,
+          original_price: item.compare_at_price,
+          thumbnail_url: item.thumbnail_url,
           badge: item.is_featured ? 'Hot' : null,
           category_name: item.category?.name || '',
           discount_percent: 0, is_on_sale: false,
@@ -1192,6 +1238,74 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  cursor: zoom-in;
+}
+
+.pd-main-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.2s ease-in-out;
+}
+
+.pd-gallery-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  transition: all 0.2s;
+  z-index: 10;
+  color: #333;
+}
+.pd-gallery-nav:hover {
+  background: #FFF;
+  color: #E63B6F;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+.pd-gallery-nav.prev {
+  left: 10px;
+}
+.pd-gallery-nav.next {
+  right: 10px;
+}
+
+.pd-main-img.is-out-of-stock img {
+  opacity: 0.6;
+  filter: grayscale(80%);
+}
+
+.stock-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  backdrop-filter: blur(2px);
+  z-index: 3;
+}
+
+.stock-overlay-text {
+  background: rgba(255, 255, 255, 0.95);
+  color: #1e293b;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 8px 24px;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .pd-main-img img {
@@ -1578,6 +1692,10 @@ onBeforeUnmount(() => {
 }
 
 .pd-desc-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   background: none;
   border: 1px solid #E9ECEF;
   border-radius: 8px;
@@ -1592,10 +1710,9 @@ onBeforeUnmount(() => {
 }
 
 .pd-desc-toggle:hover {
-  background: rgba(230, 59, 111, 0.05);
+  background: #FFF0F3;
   border-color: #E63B6F;
 }
-
 /* Specs Table */
 .pd-specs-side {
   background: #F8F9FA;

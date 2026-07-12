@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class ShippingService
@@ -11,12 +10,7 @@ class ShippingService
     {
         $shippingFee = 30000;
 
-        if (
-            env('VITE_TOKEN_GHN') &&
-            env('VITE_SHOPID_GHN') &&
-            $address->district_code &&
-            $address->ward_code
-        ) {
+        if (config('ghn.token') && config('ghn.shop_id') && $address->district_code && $address->ward_code) {
             $shippingFee = $this->getGHNFee($address);
         }
 
@@ -36,25 +30,17 @@ class ShippingService
     private function getGHNFee($address): int
     {
         try {
-            $response = Http::withHeaders([
-                'Token' => env('VITE_TOKEN_GHN'),
-                'ShopId' => env('VITE_SHOPID_GHN'),
-            ])->get('https://online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/fee', [
-                'service_type_id' => 2,
-                'to_district_id' => (int) $address->district_code,
-                'to_ward_code' => $address->ward_code,
-                'weight' => 3000,
+            $json = GHNService::calculateFee([
+                'district_id' => (int) $address->district_code,
+                'ward_code' => (string) $address->ward_code,
+                'weight' => (int) config('ghn.default_weight', 500),
             ]);
 
-            if ($response->successful()) {
-                $json = $response->json();
-
-                if (isset($json['data']['total'])) {
-                    return (int) $json['data']['total'];
-                }
+            if (isset($json['data']['total'])) {
+                return (int) $json['data']['total'];
             }
         } catch (\Exception $e) {
-            Log::error('GHN Fee API Error: ' . $e->getMessage());
+            Log::error('GHN fee API error: ' . $e->getMessage());
         }
 
         return 30000;

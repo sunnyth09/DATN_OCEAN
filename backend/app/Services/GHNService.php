@@ -2,161 +2,272 @@
 
 namespace App\Services;
 
+use App\Models\Order;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class GHNService
 {
+    private static function client(bool $includeShopId = true): PendingRequest
+    {
+        $headers = [
+            'Token' => (string) config('ghn.token'),
+            'Content-Type' => 'application/json',
+        ];
+
+        if ($includeShopId) {
+            $headers['ShopId'] = (string) config('ghn.shop_id');
+        }
+
+        return Http::withHeaders($headers)->timeout((int) config('ghn.timeout', 10));
+    }
+
+    private static function url(string $path): string
+    {
+        return rtrim((string) config('ghn.base_url'), '/') . '/' . ltrim($path, '/');
+    }
+
+    private static function ensureConfigured(): void
+    {
+        if (!config('ghn.token') || !config('ghn.shop_id')) {
+            throw new \Exception('Chưa cấu hình GHN_TOKEN hoặc GHN_SHOP_ID trong .env');
+        }
+    }
+
+    public static function getProvinces(): array
+    {
+        self::ensureConfigured();
+
+        $response = self::client(false)->get(self::url('/shiip/public-api/master-data/province'));
+
+        if (!$response->successful()) {
+            Log::warning('GHN provinces request failed', ['status' => $response->status()]);
+            return [];
+        }
+
+        return $response->json('data') ?? [];
+    }
+
+    public static function getDistricts(int $provinceId): array
+    {
+        self::ensureConfigured();
+
+        $response = self::client(false)->get(self::url('/shiip/public-api/master-data/district'), [
+            'province_id' => $provinceId,
+        ]);
+
+        if (!$response->successful()) {
+            Log::warning('GHN districts request failed', ['province_id' => $provinceId, 'status' => $response->status()]);
+            return [];
+        }
+
+        return $response->json('data') ?? [];
+    }
+
+    public static function getWards(int $districtId): array
+    {
+        self::ensureConfigured();
+
+        $response = self::client(false)->get(self::url('/shiip/public-api/master-data/ward'), [
+            'district_id' => $districtId,
+        ]);
+
+        if (!$response->successful()) {
+            Log::warning('GHN wards request failed', ['district_id' => $districtId, 'status' => $response->status()]);
+            return [];
+        }
+
+        return $response->json('data') ?? [];
+    }
+
+    public static function calculateFee(array $data): array
+    {
+        self::ensureConfigured();
+
+        $payload = [
+            'service_type_id' => (int) ($data['service_type_id'] ?? config('ghn.service_type_id', 2)),
+            'to_district_id' => (int) ($data['district_id'] ?? $data['to_district_id']),
+            'to_ward_code' => (string) ($data['ward_code'] ?? $data['to_ward_code']),
+            'weight' => max((int) ($data['weight'] ?? config('ghn.default_weight', 500)), (int) config('ghn.min_weight', 10)),
+        ];
+
+        $response = self::client()->post(self::url('/shiip/public-api/v2/shipping-order/fee'), $payload);
+
+        if (!$response->successful()) {
+            Log::warning('GHN fee request failed', [
+                'status' => $response->status(),
+                'to_district_id' => $payload['to_district_id'],
+                'to_ward_code' => $payload['to_ward_code'],
+            ]);
+        }
+
+        return $response->json() ?? ['code' => $response->status(), 'message' => 'GHN fee request failed'];
+    }
+
     /**
      * Tạo đơn hàng giao hàng nhanh (GHN)
      */
     public static function createOrder($order)
     {
-        $token = env('VITE_TOKEN_GHN_SANBOX', '');
-        $shopId = env('VITE_SHOPID_GHN_SANBOX', '');
+        self::ensureConfigured();
 
-        if (empty($token) || empty($shopId)) {
-            throw new \Exception('Chưa cấu hình VITE_TOKEN_GHN_SANBOX hoặc VITE_SHOPID_GHN_SANBOX trong .env');
-        }
-
-        $url = 'https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/create';
-
-        // Lấy thông tin địa chỉ từ order
+        $order->loadMissing(['items.product', 'address']);
         $address = $order->address;
-        if (!$address) {
-            // Lấy trực tiếp từ order nếu không có relation address
-            $toWardCode = '20308'; // Default fallback
-            $toDistrictId = 1444; // Default fallback
-            $toAddress = $order->shipping_address ?? 'Không xác định';
-        } else {
-            $toWardCode = $address->ward_code ?: '20308';
-            $toDistrictId = (int)($address->district_code ?: 1444);
-            $toAddress = implode(', ', array_filter([
-                $address->address_line,
-                $address->ward,
-                $address->district,
-                $address->province
-            ]));
+        $toDistrictId = $address?->district_code ?? $order->district_code;
+        $toWardCode = $address?->ward_code ?? $order->ward_code;
+        $toAddress = $address?->address_line ?: $order->shipping_address;
+        $toName = $order->recipient_name ?: ($address?->recipient_name ?? 'Khách Hàng');
+        $toPhone = $order->recipient_phone ?: ($address?->phone ?? '');
+
+        if (!$toDistrictId || !$toWardCode) {
+            throw new \Exception('Địa chỉ đơn hàng chưa có mã Quận/Huyện hoặc Phường/Xã chuẩn GHN');
         }
 
-        // Tạo mảng items
+        $sender = config('ghn.sender');
+        if (empty($sender['phone']) || empty($sender['address']) || empty($sender['ward_code']) || empty($sender['district_id'])) {
+            throw new \Exception('Chưa cấu hình đầy đủ địa chỉ kho gửi GHN');
+        }
+
         $items = [];
         $totalWeight = 0;
+        $defaultWeight = (int) config('ghn.default_weight', 500);
+        $minWeight = (int) config('ghn.min_weight', 10);
+
         foreach ($order->items as $item) {
-            $weight = 1200; // Mặc định 1.2kg mỗi sản phẩm nếu không có data thật
-            $totalWeight += $weight * $item->quantity;
+            $weight = (int) ($item->product?->weight ?? $defaultWeight);
+            $weight = max($weight, $minWeight);
+            $quantity = (int) $item->quantity;
+            $totalWeight += $weight * $quantity;
 
             $items[] = [
-                'name' => $item->product_name . ' - ' . $item->variant_name,
-                'quantity' => (int)$item->quantity,
-                'price' => (int)$item->unit_price,
-                'weight' => $weight
+                'name' => trim($item->product_name . ($item->variant_name ? ' - ' . $item->variant_name : '')),
+                'quantity' => $quantity,
+                'price' => (int) $item->unit_price,
+                'weight' => $weight,
             ];
         }
 
-        if ($totalWeight == 0) {
-            $totalWeight = 200; // default
-        }
-
         $payload = [
-            'payment_type_id' => 2,
-            'service_type_id' => 2,
-            'required_note' => 'KHONGCHOXEMHANG',
-            'from_name' => 'Ocean',
-            'from_phone' => '0355386141',
-            'from_address' => '72 Thành Thái, Phường 14, Quận 10, Hồ Chí Minh, Vietnam',
-            'from_ward_name' => 'Phường 14',
-            'from_district_name' => 'Quận 10',
-            'from_province_name' => 'HCM',
-            'to_name' => collect([$order->recipient_name])->first() ?? 'Khách Hàng',
-            'to_phone' => collect([$order->recipient_phone])->first() ?? '0987654321',
+            'payment_type_id' => $order->payment_method === 'cod' ? 2 : 1,
+            'service_type_id' => (int) config('ghn.service_type_id', 2),
+            'required_note' => (string) config('ghn.required_note', 'KHONGCHOXEMHANG'),
+            'from_name' => (string) ($sender['name'] ?? 'OCEAN SHOP'),
+            'from_phone' => (string) $sender['phone'],
+            'from_address' => (string) $sender['address'],
+            'from_ward_code' => (string) $sender['ward_code'],
+            'from_district_id' => (int) $sender['district_id'],
+            'to_name' => $toName,
+            'to_phone' => $toPhone,
             'to_address' => $toAddress,
-            'to_ward_code' => (string)$toWardCode,
-            'to_district_id' => $toDistrictId,
-            'weight' => $totalWeight,
+            'to_ward_code' => (string) $toWardCode,
+            'to_district_id' => (int) $toDistrictId,
+            'weight' => max($totalWeight, $minWeight),
             'length' => 1,
             'width' => 19,
             'height' => 10,
-            'items' => $items
+            'items' => $items,
         ];
 
         try {
-            $response = Http::withHeaders([
-                'Token' => $token,
-                'ShopId' => $shopId,
-            ])->post($url, $payload);
+            $response = self::client()->post(self::url('/shiip/public-api/v2/shipping-order/create'), $payload);
 
             if ($response->successful()) {
                 return $response->json();
-            } else {
-                Log::error('GHN Create Order Failed: ' . $response->body());
-                throw new \Exception('Lỗi từ GHN: ' . $response->body());
             }
+
+            Log::error('GHN create order failed', [
+                'order_id' => $order->order_id ?? null,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            throw new \Exception('Lỗi từ GHN: ' . $response->body());
         } catch (\Exception $e) {
-            Log::error('GHN Exception: ' . $e->getMessage());
+            Log::error('GHN create order exception', [
+                'order_id' => $order->order_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
             throw $e;
         }
     }
 
     public static function calculateLeadtime($data)
     {
-        $token = env('VITE_TOKEN_GHN_SANBOX', '');
-        $shopId = env('VITE_SHOPID_GHN_SANBOX', '');
+        self::ensureConfigured();
 
         try {
-            $response = Http::withHeaders([
-                'Token' => $token,
-                'ShopId' => $shopId,
-            ])->post('https://dev-online-gateway.ghn.vn/shiip/public-api/v2/shipping-order/leadtime', [
-                'from_district_id' => 1444, // Default shop district if not provided
-                'from_ward_code' => '20308', // Default shop ward
-                'to_district_id' => (int)$data['to_district_id'],
-                'to_ward_code' => (string)$data['to_ward_code'],
-                'service_id' => 53320, // Default service ID or passed from data
+            $sender = config('ghn.sender');
+            $response = self::client()->post(self::url('/shiip/public-api/v2/shipping-order/leadtime'), [
+                'from_district_id' => (int) $sender['district_id'],
+                'from_ward_code' => (string) $sender['ward_code'],
+                'to_district_id' => (int) ($data['district_id'] ?? $data['to_district_id']),
+                'to_ward_code' => (string) ($data['ward_code'] ?? $data['to_ward_code']),
+                'service_id' => isset($data['service_id']) ? (int) $data['service_id'] : null,
+                'service_type_id' => (int) config('ghn.service_type_id', 2),
             ]);
 
             return $response->json();
         } catch (\Exception $e) {
-            Log::error('GHN Leadtime Error: ' . $e->getMessage());
+            Log::error('GHN leadtime error', ['error' => $e->getMessage()]);
             return ['code' => 500, 'message' => 'Internal Server Error'];
         }
     }
 
     public static function cancelOrder($orderCode)
     {
-        $token = env('VITE_TOKEN_GHN_SANBOX', '');
-        $shopId = env('VITE_SHOPID_GHN_SANBOX', '');
+        self::ensureConfigured();
 
         try {
-            $response = Http::withHeaders([
-                'Token' => $token,
-                'ShopId' => $shopId,
-            ])->post('https://dev-online-gateway.ghn.vn/shiip/public-api/v2/switch-status/cancel', [
-                'order_codes' => [$orderCode]
+            $response = self::client()->post(self::url('/shiip/public-api/v2/switch-status/cancel'), [
+                'order_codes' => [$orderCode],
             ]);
 
             return $response->json();
         } catch (\Exception $e) {
-            Log::error('GHN Cancel Order Error: ' . $e->getMessage());
+            Log::error('GHN cancel order error', ['order_code' => $orderCode, 'error' => $e->getMessage()]);
             return ['code' => 500, 'message' => 'Internal Server Error'];
         }
     }
 
     public static function printLabel($orderCode)
     {
-        $token = env('VITE_TOKEN_GHN_SANBOX', '');
+        self::ensureConfigured();
 
         try {
-            $response = Http::withHeaders([
-                'Token' => $token,
-            ])->post('https://dev-online-gateway.ghn.vn/a5/public-api/printA5/gen-token', [
-                'order_codes' => [$orderCode]
+            $response = self::client(false)->post(self::url('/a5/public-api/printA5/gen-token'), [
+                'order_codes' => [$orderCode],
             ]);
 
-            return $response->json();
+            $json = $response->json();
+            if (isset($json['data']['token'])) {
+                $json['data']['print_url'] = self::url('/a5/public-api/printA5?token=' . $json['data']['token']);
+            }
+
+            return $json;
         } catch (\Exception $e) {
-            Log::error('GHN Print Label Error: ' . $e->getMessage());
+            Log::error('GHN print label error', ['order_code' => $orderCode, 'error' => $e->getMessage()]);
             return ['code' => 500, 'message' => 'Internal Server Error'];
         }
+    }
+
+    public static function getOrderDetail(string $orderCode): array
+    {
+        self::ensureConfigured();
+
+        try {
+            $response = self::client()->post(self::url('/shiip/public-api/v2/shipping-order/detail'), [
+                'order_code' => $orderCode,
+            ]);
+
+            if ($response->successful()) {
+                return $response->json('data') ?? [];
+            }
+
+            Log::warning('GHN order detail request failed', ['order_code' => $orderCode, 'status' => $response->status()]);
+        } catch (\Exception $e) {
+            Log::warning('GHN order detail exception', ['order_code' => $orderCode, 'error' => $e->getMessage()]);
+        }
+
+        return [];
     }
 }

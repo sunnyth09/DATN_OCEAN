@@ -5,14 +5,17 @@ namespace App\Services;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Repositories\AdminOrderRepository;
+use App\Mail\OrderShippingMail;
 use App\Models\Order;
 use App\Services\LoyaltyService;
 use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\OrderCancelledMail;
+use Illuminate\Support\Str;
 
 class AdminOrderService
 {
@@ -402,17 +405,43 @@ class AdminOrderService
      */
     public function syncGHN(int $id): array
     {
-        $order = Order::with(['items', 'address'])->where('order_id', $id)->first();
-        if (!$order) {
-            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+        $lock = Cache::lock("ghn_sync_order_{$id}", 30);
+
+        if (!$lock->get()) {
+            return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đang được đồng bộ GHN. Vui lòng thử lại sau!'];
         }
 
         try {
+            $order = Order::with(['items.product', 'address'])->where('order_id', $id)->first();
+            if (!$order) {
+                return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+            }
+
+            if ($order->ghn_order_code) {
+                return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã được đồng bộ GHN!'];
+            }
+
             $result = \App\Services\GHNService::createOrder($order);
-            
+
             if (isset($result['data']['order_code'])) {
+                $oldStatus = $order->fulfillment_status;
                 $order->ghn_order_code = $result['data']['order_code'];
+                if (!$order->tracking_token) {
+                    $order->tracking_token = hash('sha256', $order->order_code . Str::random(40) . microtime(true));
+                }
                 $order->save();
+
+                $this->sendOrderShippingMail($order->fresh(['address']));
+
+                $this->orderRepository->createStatusHistory([
+                    'order_id' => $order->order_id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $order->fulfillment_status,
+                    'note' => 'Đã đồng bộ đơn hàng sang GHN',
+                    'source' => 'system',
+                    'description' => 'Đã đồng bộ đơn hàng sang GHN',
+                    'happened_at' => now(),
+                ]);
             }
 
             return [
@@ -423,6 +452,25 @@ class AdminOrderService
             ];
         } catch (\Exception $e) {
             return ['_status' => 500, 'status' => 'error', 'message' => $e->getMessage()];
+        } finally {
+            optional($lock)->release();
+        }
+    }
+
+    private function sendOrderShippingMail(Order $order): void
+    {
+        if (!$order->email) {
+            return;
+        }
+
+        try {
+            Mail::to($order->email)->queue(new OrderShippingMail($order));
+        } catch (\Throwable $e) {
+            Log::warning('Không thể gửi email tracking GHN', [
+                'order_id' => $order->order_id,
+                'email' => $order->email,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

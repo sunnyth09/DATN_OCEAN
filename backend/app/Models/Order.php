@@ -11,6 +11,7 @@ class Order extends Model
     protected $fillable = [
         'order_code',
         'ghn_order_code',
+        'tracking_token',
         'user_id',
         'seller_id',
         'address_id',
@@ -19,6 +20,9 @@ class Order extends Model
         'recipient_phone',
         'email',
         'shipping_address',
+        'province_code',
+        'district_code',
+        'ward_code',
         'note',
         'payment_method',
         'payment_status',

@@ -107,6 +107,9 @@ const fetchProducts = async () => {
                 slug: item.slug,
                 category_id: item.category_id,
                 category_name: item.category?.name || '',
+                // Truyền variants_sum_stock để ProductCard hiển thị badge Hết hàng / Sắp hết hàng
+                variants_sum_stock: item.variants_sum_stock ?? null,
+                variants: item.variants ?? [],
             };
         });
         totalPages.value = response.data.total_pages || Math.ceil((response.data.total || Products.value.length) / perPage) || 1;

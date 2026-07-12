@@ -53,7 +53,6 @@ const email = ref(authStore.email || '');
 // --- GHN Data ---
 const isCalculatingFee = ref(false);
 const leadtimeDate = ref(null);
-const serviceId = ref(53320); // Default GHN service ID for normal delivery
 
 // --- Thanh toán & Khác ---
 const paymentMethod = ref('cod'); // cod, vnpay, momo, banking
@@ -299,6 +298,16 @@ const effectiveShippingFee = computed(() => Math.max(0, shippingFee.value - ship
 
 const isShippingFree = computed(() => shippingFee.value > 0 && effectiveShippingFee.value === 0);
 
+const shippingWeight = computed(() => {
+    return Math.max(
+        10,
+        cartItems.value.reduce((sum, item) => {
+            const weight = Number(item.product?.weight || item.weight || 500);
+            return sum + weight * Number(item.quantity || 1);
+        }, 0)
+    );
+});
+
 const getShippingFee = async (district_id, ward_code) => {
     if (!district_id || !ward_code) return;
     isCalculatingFee.value = true;
@@ -306,7 +315,7 @@ const getShippingFee = async (district_id, ward_code) => {
         shippingFee.value = await addressService.getShippingFee({
             districtCode: district_id,
             wardCode: ward_code,
-            weight: 3000,
+            weight: shippingWeight.value,
         });
 
         // Lấy leadtime

@@ -8,6 +8,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * =====================================================================
@@ -161,6 +162,9 @@ class SendOrderEmails extends Command
         // Load items nếu chưa có
         $order->loadMissing('items');
 
+        $actionUrl = $this->buildOrderActionUrl($order);
+        $actionLabel = $order->user_id ? 'Xem lịch sử đơn hàng' : 'Theo dõi đơn hàng';
+
         // Build HTML table cho các sản phẩm
         $itemsHtml = '';
         foreach ($order->items as $item) {
@@ -212,10 +216,10 @@ class SendOrderEmails extends Command
                     <p><strong>Người nhận:</strong> ' . htmlspecialchars($order->recipient_name) . '</p>
                     <p><strong>Điện thoại:</strong> ' . htmlspecialchars($order->recipient_phone) . '</p>
                     <p><strong>Địa chỉ:</strong> ' . htmlspecialchars($order->shipping_address) . '</p>
-                    <p><strong>Phương thức TT:</strong> ' . strtoupper($order->payment_method) . '</p>
+                    <p><strong>Phương thức thanh toán:</strong> ' . strtoupper($order->payment_method) . '</p>
 
                     <div style="text-align: center; margin-top: 30px;">
-                        <a href="http://localhost:3302/profile/orders" style="background: #0288d1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Xem lịch sử đơn hàng</a>
+                        <a href="' . htmlspecialchars($actionUrl, ENT_QUOTES, 'UTF-8') . '" style="background: #0288d1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">' . htmlspecialchars($actionLabel, ENT_QUOTES, 'UTF-8') . '</a>
                     </div>
                 </div>
             </div>
@@ -230,5 +234,29 @@ class SendOrderEmails extends Command
             ->html($htmlBody);
 
         $mailer->send($emailMessage);
+    }
+
+    private function buildOrderActionUrl(Order $order): string
+    {
+        $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
+
+        if ($order->user_id) {
+            return $frontendUrl . '/profile/orders';
+        }
+
+        $token = $this->ensureTrackingToken($order);
+        return $token ? $frontendUrl . '/tracking/' . $token : $frontendUrl . '/tracking';
+    }
+
+    private function ensureTrackingToken(Order $order): ?string
+    {
+        if ($order->tracking_token) {
+            return $order->tracking_token;
+        }
+
+        $order->tracking_token = hash('sha256', $order->order_code . Str::random(40) . microtime(true));
+        $order->save();
+
+        return $order->tracking_token;
     }
 }
