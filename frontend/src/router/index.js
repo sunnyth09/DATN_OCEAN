@@ -44,6 +44,8 @@ const routes = [
             { path: "cart", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { title: 'Giỏ hàng' } },
             { path: "checkout", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { title: 'Thanh toán' } },
             { path: "order-success/:order_code?", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { title: 'Đặt hàng thành công' } },
+            { path: "tracking", name: "guest-tracking", component: () => import("../Pages/Client/GuestTracking.vue"), meta: { title: 'Tra cứu đơn hàng' } },
+            { path: "tracking/:token", name: "guest-tracking-token", component: () => import("../Pages/Client/GuestTracking.vue"), meta: { title: 'Theo dõi đơn hàng' } },
             // Payment
             { path: "payment/result", name: "payment-result", component: () => import("../Pages/Client/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } },
             // Profile
@@ -65,6 +67,7 @@ const routes = [
                     { path: "wallet", name: "profile-wallet", component: () => import("../Pages/Client/Profile/ProfileWallet.vue"), meta: { title: 'Ví của tôi' } },
                     { path: "court-bookings", name: "profile-court-bookings", component: () => import("../Pages/Client/Courts/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
                     { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
+                    { path: "loyalty", name: "profile-loyalty", component: () => import("../Pages/Client/Profile/ProfileLoyalty.vue"), meta: { title: 'Khách hàng thân thiết' } },
                 ],
             },
             // Static pages

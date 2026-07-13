@@ -83,22 +83,8 @@ class ProductService
         ];
 
         if ($search) {
-            try {
-                $ids = Product::search($search)->keys()->toArray();
-                if (empty($ids)) {
-                    return [
-                        'data'        => [],
-                        'total'       => 0,
-                        'total_pages' => 0,
-                        'page'        => $page,
-                        'limit'       => $limit,
-                    ];
-                }
-                $matchedIds = $ids;
-            } catch (\Throwable $e) {
-                Log::warning('[Scout] Meilisearch fallback: ' . $e->getMessage());
-                $filters['search_like'] = $search;
-            }
+            // Bypass Meilisearch and use SQL LIKE directly to ensure all products are searchable
+            $filters['search_like'] = $search;
         }
 
         // Category filter (bao gồm con)

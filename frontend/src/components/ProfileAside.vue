@@ -139,28 +139,13 @@
       >
         <div class="aside-nav-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
           </svg>
         </div>
         <span>Điểm thưởng</span>
         <span v-if="rewardPoints > 0" class="aside-points-pill">{{ formatPoints(rewardPoints) }}</span>
       </router-link>
-
-      <router-link
-        to="/profile/wallet"
-        class="aside-nav-item"
-        active-class="aside-nav-item--active"
-      >
-        <div class="aside-nav-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="4" width="20" height="16" rx="2"/>
-            <path d="M16 12h.01"/>
-            <path d="M2 10h20"/>
-          </svg>
-        </div>
-        <span>Ví của tôi</span>
-      </router-link>
-
+      
       <router-link
         to="/profile/wallet"
         class="aside-nav-item"
@@ -457,9 +442,9 @@ const handleLogout = async () => {
   text-align: center;
 }
 
-/* Loyalty nav item star highlight */
+/* Loyalty nav item star */
 .aside-nav-item--loyalty .aside-nav-icon svg {
-  stroke: #f59e0b;
+  stroke: #1e293b;
 }
 
 .aside-nav-divider {

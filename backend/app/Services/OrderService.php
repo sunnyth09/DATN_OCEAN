@@ -213,6 +213,9 @@ class OrderService
                     'recipient_phone' => $address->phone,
                     'email' => $data['email'] ?? null,
                     'shipping_address' => $this->makeFullAddress($address),
+                    'province_code' => $address->province_code ?? null,
+                    'district_code' => $address->district_code ?? null,
+                    'ward_code' => $address->ward_code ?? null,
                     'note' => $data['note'] ?? null,
                     'payment_method' => $paymentMethod,
                     'payment_status' => $grandTotalAfterWallet == 0 ? 'paid' : 'unpaid',
@@ -340,6 +343,8 @@ class OrderService
                 unset($result['_order']); // Không trả _order ra response
             }
 
+            \Illuminate\Support\Facades\Cache::flush();
+
             return $result;
         } catch (OrderException $e) {
             // Lỗi nghiệp vụ (hết hàng, địa chỉ sai...) → trả message gốc cho user
@@ -452,6 +457,9 @@ class OrderService
                     'recipient_phone' => $addressObj->phone,
                     'email' => $data['email'] ?? null,
                     'shipping_address' => $this->makeFullAddress($addressObj),
+                    'province_code' => $addressObj->province_code ?? null,
+                    'district_code' => $addressObj->district_code ?? null,
+                    'ward_code' => $addressObj->ward_code ?? null,
                     'note' => $data['note'] ?? null,
                     'payment_method' => $data['payment_method'],
                     'payment_status' => 'unpaid',
@@ -535,6 +543,8 @@ class OrderService
                 unset($result['_order']);
             }
 
+            \Illuminate\Support\Facades\Cache::flush();
+
             return $result;
         } catch (OrderException $e) {
             // Lỗi nghiệp vụ (hết hàng, coupon sai...) → trả message gốc cho user
@@ -592,6 +602,8 @@ class OrderService
                     );
                 }
             });
+
+            \Illuminate\Support\Facades\Cache::flush();
 
             return [
                 'status_code' => 200,

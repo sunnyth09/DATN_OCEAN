@@ -213,6 +213,8 @@ class PosController extends Controller
 
             DB::commit();
 
+            \Illuminate\Support\Facades\Cache::flush();
+
             // Load lại order kèm items để trả về cho in hoá đơn
             $order->load('items');
 

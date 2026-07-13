@@ -48,6 +48,7 @@ use App\Http\Controllers\WalletController;
 use App\Http\Controllers\AdminWalletController;
 use App\Http\Controllers\Api\Client\TrackingController;
 use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\OrderTrackingController;
 
 
 use App\Services\FcmService;
@@ -148,6 +149,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
+    Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::put('/orders/{id}/cancel', [OrderController::class, 'cancel']);
     // Đánh giá sản phẩm
@@ -166,12 +168,14 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::post('/favorites/toggle', [FavoriteController::class, 'toggle']);
 
     // ── Affiliate (Hoa hồng giới thiệu) ──
-    Route::post('/affiliate/register', [AffiliateController::class, 'register']);
-    Route::get('/affiliate/profile', [AffiliateController::class, 'profile']);
-    Route::get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
-    Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
-    Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
-    Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
+    Route::middleware('customer.only')->group(function () {
+        Route::post('/affiliate/register', [AffiliateController::class, 'register']);
+        Route::get('/affiliate/profile', [AffiliateController::class, 'profile']);
+        Route::get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
+        Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
+        Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
+        Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
+    });
     // Khiếu nại của tôi
     Route::get('/tickets', [TicketController::class, 'clientIndex']);
     Route::post('/tickets', [TicketController::class, 'clientStore']);
@@ -200,6 +204,8 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
 Route::post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:30,1')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
+Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
 
 // ==========================================
@@ -702,7 +708,12 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
 Route::post('/ghn-webhook', [\App\Http\Controllers\GhnWebhookController::class, 'handle']);
 
 Route::prefix('ghn')->group(function () {
-    Route::post('/leadtime', [\App\Http\Controllers\GhnController::class, 'getLeadtime']);
+    Route::middleware('throttle:60,1')->post('/calculate-fee', [\App\Http\Controllers\GhnController::class, 'calculateFee']);
+    Route::middleware('throttle:60,1')->post('/leadtime', [\App\Http\Controllers\GhnController::class, 'getLeadtime']);
+});
+
+Route::middleware('auth:api,admin')->prefix('ghn')->group(function () {
+    Route::post('/order-detail', [\App\Http\Controllers\GhnController::class, 'orderDetail']);
     Route::post('/cancel-order', [\App\Http\Controllers\GhnController::class, 'cancelOrder']);
     Route::post('/print-label', [\App\Http\Controllers\GhnController::class, 'printLabel']);
 });
