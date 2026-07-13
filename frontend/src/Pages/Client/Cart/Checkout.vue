@@ -55,7 +55,8 @@ const isCalculatingFee = ref(false);
 const leadtimeDate = ref(null);
 
 // --- Thanh toán & Khác ---
-const paymentMethod = ref('cod'); // cod, vnpay, momo, banking
+const paymentMethod = ref('cod'); // cod, vnpay, momo, banking, wallet
+const walletBalance = ref(0);
 const note = ref('');
 
 // --- Banking QR Modal ---
@@ -136,6 +137,23 @@ const fetchBuyNowItem = async () => {
     } catch (error) {
         console.error('Lỗi khi tải sản phẩm mua nhanh:', error);
         router.push('/cart');
+    }
+};
+
+// Lấy điểm thưởng (Loyalty Points)
+const loyaltyPoints = ref(0);
+const useLoyaltyPoints = ref(false);
+const inputPoints = ref(0);
+
+const fetchLoyaltyPoints = async () => {
+    if (!authStore.isAuthenticated) return;
+    try {
+        const res = await loyaltyService.getSummary();
+        if (res.data?.status === 'success') {
+            loyaltyPoints.value = res.data.data.current_balance || 0;
+        }
+    } catch (e) {
+        console.error('Lỗi khi lấy điểm thưởng:', e);
     }
 };
 
@@ -375,6 +393,34 @@ const discount = computed(() => {
         disc = value;
         return Math.min(disc, subtotal.value);
     }
+});
+
+const maxPointsCanUse = computed(() => {
+    let max = loyaltyPoints.value;
+    const totalBeforeLoyalty = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
+    const maxForTotal = Math.floor(totalBeforeLoyalty / 100);
+    return Math.min(max, maxForTotal);
+});
+
+watch(useLoyaltyPoints, (val) => {
+    if (val) {
+        inputPoints.value = maxPointsCanUse.value;
+    } else {
+        inputPoints.value = 0;
+    }
+});
+
+watch(inputPoints, (val) => {
+    if (val > maxPointsCanUse.value) {
+        inputPoints.value = maxPointsCanUse.value;
+    } else if (val < 0) {
+        inputPoints.value = 0;
+    }
+});
+
+const loyaltyDiscount = computed(() => {
+    if (!useLoyaltyPoints.value) return 0;
+    return (inputPoints.value || 0) * 100;
 });
 
 const total = computed(() => {
@@ -966,6 +1012,22 @@ onMounted(async () => {
                                         <span class="payment-name-simple">VNPay</span>
                                     </div>
                                 </label>
+
+                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'wallet', 'is-disabled': walletBalance < total }">
+                                    <input type="radio" v-model="paymentMethod" value="wallet" :disabled="walletBalance < total" class="hidden-radio" />
+                                    <div class="ac-left">
+                                        <div class="radio-indicator">
+                                            <div class="radio-dot"></div>
+                                        </div>
+                                    </div>
+                                    <div class="payment-info-simple">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8d6e63" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+                                        <span class="payment-name-simple">
+                                            Ví điện tử (Ocean Pay) - <strong>{{ formatPrice(walletBalance) }}</strong>
+                                            <span v-if="walletBalance < total" style="color: #ef4444; font-size: 11px; margin-left: 8px;">(Số dư không đủ)</span>
+                                        </span>
+                                    </div>
+                                </label>
                             </div>
                         </div>
                     </section>
@@ -1031,6 +1093,24 @@ onMounted(async () => {
                                     <div v-if="authStore.isAuthenticated" class="text-right mt-1">
                                         <button class="btn-select-coupon" @click="openCouponModal">Chọn mã có
                                             sẵn</button>
+                                    </div>
+                                </div>
+
+                                <!-- Tiêu điểm thưởng -->
+                                <div v-if="authStore.isAuthenticated && loyaltyPoints > 0" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
+                                            <input type="checkbox" v-model="useLoyaltyPoints" style="width: 16px; height: 16px; accent-color: #ef4444;" />
+                                            Sử dụng điểm thưởng
+                                        </label>
+                                        <span style="font-size: 0.9rem; color: #ef4444; font-weight: 600;">Bạn có: {{ loyaltyPoints }} điểm</span>
+                                    </div>
+                                    <div v-if="useLoyaltyPoints" style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                                        <input type="number" v-model="inputPoints" :max="maxPointsCanUse" min="0" style="width: 100px; padding: 6px; border: 1px solid #fca5a5; border-radius: 4px; text-align: center; outline: none;" />
+                                        <span style="font-size: 0.9rem; color: #666;">điểm = <strong style="color: #ef4444;">-{{ formatPrice(loyaltyDiscount) }}</strong></span>
+                                    </div>
+                                    <div v-if="useLoyaltyPoints && maxPointsCanUse < loyaltyPoints" style="font-size: 0.8rem; color: #f59e0b; margin-top: 4px;">
+                                        * Chỉ có thể tiêu tối đa {{ maxPointsCanUse }} điểm cho đơn hàng này.
                                     </div>
                                 </div>
 

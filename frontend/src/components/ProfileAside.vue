@@ -147,6 +147,21 @@
       </router-link>
       
       <router-link
+        to="/profile/wallet"
+        class="aside-nav-item"
+        active-class="aside-nav-item--active"
+      >
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="M16 12h.01"/>
+            <path d="M2 10h20"/>
+          </svg>
+        </div>
+        <span>Ví của tôi</span>
+      </router-link>
+
+      <router-link
         to="/profile/change-password"
         class="aside-nav-item"
         active-class="aside-nav-item--active"
