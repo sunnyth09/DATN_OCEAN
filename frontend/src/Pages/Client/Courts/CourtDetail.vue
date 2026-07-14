@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useCourtBookingStore } from '@/stores/useCourtBookingStore';
 import { useAuthStore } from '@/stores/auth';
@@ -38,6 +38,36 @@ const activeLock = ref(null);
 const lockCountdown = ref(0);
 let lockTimer = null;
 let bookingChannel = null;
+const timelineWrapper = ref(null);
+
+const scrollToCurrentTime = () => {
+    if (!timelineWrapper.value || availableSlots.value.length === 0) return;
+    
+    // Chỉ cuộn nếu đang xem ngày hôm nay
+    if (selectedDate.value !== toLocalDateString(new Date())) return;
+
+    const now = new Date();
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+
+    let targetIndex = availableSlots.value.findIndex(slot => slot.start_time >= currentTimeStr);
+    
+    if (targetIndex === -1) {
+        targetIndex = availableSlots.value.length - 1;
+    } else if (targetIndex > 0) {
+        targetIndex = targetIndex - 1;
+    }
+
+    const slotElements = timelineWrapper.value.querySelectorAll('.client-timeline-slot');
+    if (slotElements && slotElements[targetIndex]) {
+        const wrapperWidth = timelineWrapper.value.clientWidth;
+        const slotEl = slotElements[targetIndex];
+        const scrollPosition = slotEl.offsetLeft - (wrapperWidth / 2) + (slotEl.clientWidth / 2);
+        timelineWrapper.value.scrollTo({
+            left: Math.max(0, scrollPosition),
+            behavior: 'smooth'
+        });
+    }
+};
 
 // Quick date navigation
 const quickDates = computed(() => {
@@ -109,19 +139,39 @@ const fetchServices = async () => {
     }
 };
 
-const fetchAvailableSlots = async () => {
-    loadingSlots.value = true;
+const fetchAvailableSlots = async (silent = false) => {
+    if (!silent) loadingSlots.value = true;
     try {
         const res = await store.checkAvailability(courtId, { date: selectedDate.value });
         if (res && res.data) {
             availableSlots.value = res.data;
+            
+            // Khôi phục trạng thái giữ chỗ nếu tải lại trang
+            if (selectedSlots.value.length === 0 && !silent) {
+                const myLockedSlots = res.data.filter(s => s.is_my_lock);
+                if (myLockedSlots.length > 0) {
+                    selectedSlots.value = myLockedSlots;
+                    const firstLock = myLockedSlots[0];
+                    activeLock.value = {
+                        lock_token: firstLock.lock_token,
+                        expires_at: firstLock.lock_expires_at
+                    };
+                    startLockTimer(firstLock.lock_expires_at);
+                }
+            }
+
+            if (!silent) {
+                nextTick(() => {
+                    scrollToCurrentTime();
+                });
+            }
         } else {
             availableSlots.value = [];
         }
     } catch (e) {
         availableSlots.value = [];
     } finally {
-        loadingSlots.value = false;
+        if (!silent) loadingSlots.value = false;
     }
 };
 
@@ -135,8 +185,8 @@ const subscribeRealtime = () => {
     if (!window.Echo) return;
     leaveRealtime();
     bookingChannel = selectedDate.value;
-    const refresh = () => fetchAvailableSlots();
-    window.Echo.private(`court-booking.court.${courtId}.${selectedDate.value}`)
+    const refresh = () => fetchAvailableSlots(true);
+    window.Echo.channel(`court-booking.court.${courtId}.${selectedDate.value}`)
         .listen('.CourtSlotLocked', refresh)
         .listen('.CourtSlotReleased', refresh)
         .listen('.CourtBookingCreated', refresh)
@@ -158,7 +208,11 @@ const startLockTimer = (expiresAt) => {
         if (remain === 0) {
             clearLockTimer();
             activeLock.value = null;
-            fetchAvailableSlots();
+            if (selectedSlots.value.length > 0) {
+                selectedSlots.value = [];
+                toast.warning('Thời gian giữ chỗ đã hết, vui lòng chọn lại!');
+            }
+            fetchAvailableSlots(true);
         }
     };
     tick();
@@ -475,11 +529,14 @@ const proceedBooking = async () => {
                                     <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-closed);"></span> Đã đặt
                                 </span>
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
+                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-pending);"></span> Đang giữ
+                                </span>
+                                <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
                                     <span style="width: 12px; height: 12px; border-radius: 4px; background: #adb5bd;"></span> Không khả dụng
                                 </span>
                             </div>
 
-                            <div class="client-timeline-wrapper">
+                            <div class="client-timeline-wrapper" ref="timelineWrapper">
                                 <div class="client-timeline">
                                     <div v-for="slot in availableSlots" :key="slot.start_time"
                                         class="client-timeline-slot"
@@ -487,7 +544,8 @@ const proceedBooking = async () => {
                                             'slot--selected': isSlotSelected(slot),
                                             'slot--available': slot.status === 'available',
                                             'slot--booked': slot.status === 'booked',
-                                            'slot--unavailable': ['locked', 'maintenance', 'past', 'closed'].includes(slot.status)
+                                            'slot--locked': slot.status === 'locked',
+                                            'slot--unavailable': ['maintenance', 'past', 'closed'].includes(slot.status)
                                         }"
                                         @click="slot.status === 'available' && toggleSlot(slot)"
                                         :title="getSlotStatusLabel(slot.status) + (slot.price && slot.status === 'available' ? ' - ' + formatCurrency(slot.price) : '')"
@@ -495,6 +553,7 @@ const proceedBooking = async () => {
                                         <div class="slot-time-label">{{ formatTime(slot.start_time) }}</div>
                                         <div class="slot-bar">
                                             <i v-if="slot.status === 'booked'" class="bi bi-x"></i>
+                                            <i v-else-if="slot.status === 'locked'" class="bi bi-lock-fill"></i>
                                             <i v-else-if="isSlotSelected(slot)" class="bi bi-check2"></i>
                                         </div>
                                     </div>
@@ -602,7 +661,7 @@ const proceedBooking = async () => {
                             </div>
 
                             <div v-if="activeLock && lockCountdown > 0" class="text-center mb-3 px-3 py-2 rounded-3" style="background: rgba(25,135,84,0.08); color: var(--court-available); font-size: 0.82rem; font-weight: 700;">
-                                Dang giu cho: {{ Math.floor(lockCountdown / 60) }}:{{ String(lockCountdown % 60).padStart(2, '0') }}
+                                Đang giữ chỗ: {{ Math.floor(lockCountdown / 60) }}:{{ String(lockCountdown % 60).padStart(2, '0') }}
                             </div>
 
                             <button
@@ -721,6 +780,12 @@ const proceedBooking = async () => {
 .slot--booked .slot-bar {
     background: rgba(220, 53, 69, 0.15); /* light red */
     color: #dc3545;
+    cursor: not-allowed;
+}
+
+.slot--locked .slot-bar {
+    background: var(--court-pending-bg, rgba(255, 193, 7, 0.15));
+    color: var(--court-pending, #ffc107);
     cursor: not-allowed;
 }
 

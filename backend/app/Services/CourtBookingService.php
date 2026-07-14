@@ -78,7 +78,7 @@ class CourtBookingService
                 'end_time' => $endTime,
                 'user_id' => $userId,
                 'lock_token' => (string) \Illuminate\Support\Str::uuid(),
-                'expires_at' => now()->addMinutes(10),
+                'expires_at' => now()->addMinutes(5),
             ]);
 
             app(CourtBookingWorkflowService::class)->logActivity('booking.lock.created', $lock, null, $lock->toArray(), 'user', $userId, request());
