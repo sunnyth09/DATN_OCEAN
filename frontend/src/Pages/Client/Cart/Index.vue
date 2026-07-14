@@ -493,7 +493,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="cart-page">
+    <div class="cart-page container">
         <!-- Toast -->
         <Transition name="toast">
             <div v-if="toast.show" class="toast-notification" :class="toast.type">
@@ -810,7 +810,7 @@ onUnmounted(() => {
         </Transition>
     </Teleport>
 
-    <section class="upsell-section">
+    <section class="upsell-section container">
         <h2 class="upsell-title">Có thể bạn cũng thích</h2>
         <div class="container mb-5" v-if="productRelated.length">
             <div class="row mt-3">

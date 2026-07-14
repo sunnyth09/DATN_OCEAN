@@ -220,12 +220,14 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     <div class="d-flex gap-3 flex-wrap hero-btns">
                         <router-link to="/product" class="btn-primary-hero">
                             Khám phá ngay
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5">
                                 <path d="M5 12h14M12 5l7 7-7 7" />
                             </svg>
                         </router-link>
                         <router-link to="/flash-sale" class="btn-outline-hero">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
                                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10" />
                             </svg>
                             Flash Sale
@@ -247,8 +249,12 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 <div class="benefits-inner">
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="1" y="3" width="15" height="13" rx="2" /><path d="M16 8h4l3 4v4h-7V8z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" />
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="1" y="3" width="15" height="13" rx="2" />
+                                <path d="M16 8h4l3 4v4h-7V8z" />
+                                <circle cx="5.5" cy="18.5" r="2.5" />
+                                <circle cx="18.5" cy="18.5" r="2.5" />
                             </svg>
                         </div>
                         <div class="benefit-text">
@@ -259,8 +265,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     <div class="benefit-divider d-none d-md-block"></div>
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="1 4 1 10 7 10" />
+                                <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
                             </svg>
                         </div>
                         <div class="benefit-text">
@@ -271,8 +279,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     <div class="benefit-divider d-none d-md-block"></div>
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0110 0v4" />
                             </svg>
                         </div>
                         <div class="benefit-text">
@@ -283,7 +293,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     <div class="benefit-divider d-none d-md-block"></div>
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                             </svg>
                         </div>
@@ -295,8 +306,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     <div class="benefit-divider d-none d-md-block"></div>
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path
+                                    d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
                             </svg>
                         </div>
                         <div class="benefit-text">
@@ -348,7 +361,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </div>
                     <router-link to="/flash-sale" class="flash-sale-link">
                         Xem tất cả
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
                     </router-link>
                 </div>
                 <!-- Products grid Bootstrap row -->
@@ -365,7 +381,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </template>
                     <template v-else>
                         <div class="col-12 text-center py-5">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="1.5">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#E63B6F"
+                                stroke-width="1.5">
                                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10" />
                             </svg>
                             <p class="mt-3 text-muted">Flash Sale sẽ sớm trở lại!</p>
@@ -388,7 +405,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </div>
                     <router-link to="/product" class="link-more d-flex align-items-center gap-1">
                         Tất cả danh mục
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
                     </router-link>
                 </div>
                 <!-- Categories Bootstrap row -->
@@ -408,7 +428,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                 <div class="cat-card-icon" v-else>{{ getCatIcon(idx) }}</div>
                                 <div class="cat-card-info">
                                     <span class="cat-card-name">{{ cat.name }}</span>
-                                    <span class="cat-card-count" v-if="cat.product_count">{{ cat.product_count }} SP</span>
+                                    <span class="cat-card-count" v-if="cat.product_count">{{ cat.product_count }}
+                                        SP</span>
                                 </div>
                                 <div class="cat-card-overlay"><span>Xem ngay →</span></div>
                             </router-link>
@@ -441,17 +462,26 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </div>
                     <router-link to="/product" class="link-more d-flex align-items-center gap-1">
                         Xem tất cả
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
                     </router-link>
                 </div>
 
                 <!-- Loading -->
                 <div v-if="isLoadingCategories || isLoadingFeatured" class="row g-4">
-                    <div class="col-lg-7"><div class="skeleton-pulse" style="min-height:420px;border-radius:16px;"></div></div>
+                    <div class="col-lg-7">
+                        <div class="skeleton-pulse" style="min-height:420px;border-radius:16px;"></div>
+                    </div>
                     <div class="col-lg-5">
                         <div class="row g-4 h-100">
-                            <div class="col-12"><div class="skeleton-pulse" style="min-height:190px;border-radius:16px;"></div></div>
-                            <div class="col-12"><div class="skeleton-pulse" style="min-height:190px;border-radius:16px;"></div></div>
+                            <div class="col-12">
+                                <div class="skeleton-pulse" style="min-height:190px;border-radius:16px;"></div>
+                            </div>
+                            <div class="col-12">
+                                <div class="skeleton-pulse" style="min-height:190px;border-radius:16px;"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -468,15 +498,22 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                 <span v-if="featuredProduct.discount_percent > 0" class="equip-badge">
                                     Giảm {{ featuredProduct.discount_percent }}%
                                 </span>
-                                <span v-else-if="featuredProduct.badge" class="equip-badge">{{ featuredProduct.badge }}</span>
+                                <span v-else-if="featuredProduct.badge" class="equip-badge">{{ featuredProduct.badge
+                                    }}</span>
                                 <h3 class="equip-big-name mb-0">{{ featuredProduct.name }}</h3>
                                 <p class="equip-big-desc mb-0">
-                                    <span v-if="featuredProduct.category_name">{{ featuredProduct.category_name }} &middot; </span>
+                                    <span v-if="featuredProduct.category_name">{{ featuredProduct.category_name }}
+                                        &middot;
+                                    </span>
                                     <strong class="text-danger">{{ featuredProduct.price }}</strong>
                                 </p>
-                                <router-link :to="'/product/' + (featuredProduct.slug || featuredProduct.id)" class="btn-buy-now btn">
+                                <router-link :to="'/product/' + (featuredProduct.slug || featuredProduct.id)"
+                                    class="btn-buy-now btn">
                                     Mua ngay
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.5">
+                                        <path d="M5 12h14M12 5l7 7-7 7" />
+                                    </svg>
                                 </router-link>
                             </div>
                         </div>
@@ -495,16 +532,21 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                         <h4 class="equip-small-name mb-1">{{ cat.name }}</h4>
                                         <span class="equip-small-link">
                                             Xem thêm
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M9 18l6-6-6-6" /></svg>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="3">
+                                                <path d="M9 18l6-6-6-6" />
+                                            </svg>
                                         </span>
                                     </div>
                                 </router-link>
                             </template>
-                            <div v-if="sideCategories.length < 2" class="equip-small-card equip-small-card--empty flex-fill">
+                            <div v-if="sideCategories.length < 2"
+                                class="equip-small-card equip-small-card--empty flex-fill">
                                 <div class="text-center">
                                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
                                         <circle cx="10" cy="10" r="5.5" stroke="#E63B6F" stroke-width="2.5" />
-                                        <path d="M14 14L18.5 18.5" stroke="#E63B6F" stroke-width="3" stroke-linecap="round" />
+                                        <path d="M14 14L18.5 18.5" stroke="#E63B6F" stroke-width="3"
+                                            stroke-linecap="round" />
                                         <circle cx="17.5" cy="12.5" r="2.5" fill="#E63B6F" />
                                     </svg>
                                     <p class="mb-0 mt-2 fw-bold small">Khám phá thêm</p>
@@ -543,7 +585,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                         </div>
                     </template>
                     <template v-else-if="filteredProducts.length > 0">
-                        <div v-for="product in filteredProducts.slice(0, 8)" :key="product.id" class="col-6 col-md-4 col-lg-3">
+                        <div v-for="product in filteredProducts.slice(0, 8)" :key="product.id"
+                            class="col-6 col-md-4 col-lg-3">
                             <ProductCard :product="product" />
                         </div>
                     </template>
@@ -557,7 +600,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 <div class="text-center mt-5" v-if="Products.length > 0">
                     <router-link to="/product" class="btn-view-more">
                         Xem thêm sản phẩm
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
                     </router-link>
                 </div>
             </div>
@@ -575,10 +621,15 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                             <div class="promo-banner-content">
                                 <span class="promo-banner-tag">ƯU ĐÃI ĐỘC QUYỀN</span>
                                 <h3 class="promo-banner-title">Giảm <em>20%</em><br />đơn hàng đầu tiên</h3>
-                                <p class="promo-banner-desc">Đăng ký tài khoản ngay hôm nay để nhận mã giảm giá 20% cho đơn hàng đầu tiên.</p>
+                                <p class="promo-banner-desc">Đăng ký tài khoản ngay hôm nay để nhận mã giảm giá 20% cho
+                                    đơn hàng
+                                    đầu tiên.</p>
                                 <router-link to="/register" class="promo-banner-btn">
                                     Đăng ký ngay
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.5">
+                                        <path d="M5 12h14M12 5l7 7-7 7" />
+                                    </svg>
                                 </router-link>
                             </div>
                             <div class="promo-banner-deco">
@@ -594,9 +645,13 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                             <div class="promo-banner-content">
                                 <span class="promo-banner-tag">MỖI NGÀY</span>
                                 <h3 class="promo-banner-title">Flash Sale<br /><em>12:00 – 14:00</em></h3>
-                                <p class="promo-banner-desc">Giảm đến 50% cho hàng trăm sản phẩm thể thao mỗi ngày trong khung giờ vàng.</p>
+                                <p class="promo-banner-desc">Giảm đến 50% cho hàng trăm sản phẩm thể thao mỗi ngày trong
+                                    khung
+                                    giờ vàng.</p>
                                 <router-link to="/flash-sale" class="promo-banner-btn promo-banner-btn--outline">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10" /></svg>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10" />
+                                    </svg>
                                     Xem Flash Sale
                                 </router-link>
                             </div>
@@ -644,7 +699,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                         <div class="testimonial-card h-100">
                             <div class="d-flex gap-1 mb-3">
                                 <svg v-for="s in 5" :key="s" width="16" height="16" viewBox="0 0 24 24" fill="#FBBF24">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                    <polygon
+                                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                                 </svg>
                             </div>
                             <p class="testimonial-text">"{{ t.text }}"</p>
@@ -671,13 +727,17 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     <div class="container-fluid px-0">
                         <div class="community-inner-pad">
                             <span class="community-tag mb-3 d-flex align-items-center gap-2">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                    <circle cx="9" cy="7" r="4" />
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                                 </svg>
                                 CỘNG ĐỒNG QUYỀN SPORT
                             </span>
-                            <h2 class="community-title mb-0">Hơn cả một cửa hàng.<br />Chúng tôi là <em>đam mê</em>.</h2>
+                            <h2 class="community-title mb-0">Hơn cả một cửa hàng.<br />Chúng tôi là <em>đam mê</em>.
+                            </h2>
                             <!-- Stats row -->
                             <div class="d-flex gap-4 py-4 my-3 community-stats-row">
                                 <div>
@@ -693,32 +753,49 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                     <div class="community-stat-label">Đối tác</div>
                                 </div>
                             </div>
-                            <p class="community-desc mb-4">Tham gia câu lạc bộ của chúng tôi để nhận ưu đãi độc quyền, kết nối với cộng đồng yêu thể thao và nâng cao kỹ năng qua các buổi giao lưu.</p>
+                            <p class="community-desc mb-4">Tham gia câu lạc bộ của chúng tôi để nhận ưu đãi độc quyền,
+                                kết nối
+                                với cộng đồng yêu thể thao và nâng cao kỹ năng qua các buổi giao lưu.</p>
                             <ul class="community-list mb-4">
                                 <li class="d-flex align-items-center gap-2">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F"
+                                        stroke-width="2.5">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                        <polyline points="22 4 12 14.01 9 11.01" />
+                                    </svg>
                                     Giảm giá 10% cho mọi đơn hàng.
                                 </li>
                                 <li class="d-flex align-items-center gap-2">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F"
+                                        stroke-width="2.5">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                        <polyline points="22 4 12 14.01 9 11.01" />
+                                    </svg>
                                     Tham gia các buổi workshop nâng cao kỹ năng miễn phí.
                                 </li>
                                 <li class="d-flex align-items-center gap-2">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F"
+                                        stroke-width="2.5">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                        <polyline points="22 4 12 14.01 9 11.01" />
+                                    </svg>
                                     Cập nhật sản phẩm mới nhất trước mọi người.
                                 </li>
                             </ul>
                             <router-link to="/register" class="btn-community">
                                 Đăng ký tham gia ngay
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
+                                    <path d="M5 12h14M12 5l7 7-7 7" />
+                                </svg>
                             </router-link>
                         </div>
                     </div>
                 </div>
                 <!-- Right image -->
                 <div class="col-lg-6 community-images">
-                    <img src="https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=800&q=80"
-                        alt="community" class="community-img" />
+                    <img src="https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=800&q=80" alt="community"
+                        class="community-img" />
                 </div>
             </div>
         </section>
@@ -770,7 +847,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     white-space: nowrap;
     transition: gap 0.2s;
 }
-.link-more:hover { color: #d82f65; }
+
+.link-more:hover {
+    color: #d82f65;
+}
 
 /* ============================================
    1. HERO
@@ -796,14 +876,19 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 @keyframes heroZoom {
-    from { transform: scale(1); }
-    to   { transform: scale(1.06); }
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.06);
+    }
 }
 
 .hero-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(105deg, rgba(15,15,25,.92) 0%, rgba(15,15,25,.65) 45%, rgba(15,15,25,.2) 75%);
+    background: linear-gradient(105deg, rgba(15, 15, 25, .92) 0%, rgba(15, 15, 25, .65) 45%, rgba(15, 15, 25, .2) 75%);
 }
 
 /* Floating stats */
@@ -814,24 +899,53 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     z-index: 3;
     align-items: center;
     gap: 24px;
-    background: rgba(255,255,255,.1);
+    background: rgba(255, 255, 255, .1);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,.2);
+    border: 1px solid rgba(255, 255, 255, .2);
     border-radius: 16px;
     padding: 16px 24px;
     animation: fadeInDown .8s ease both .4s;
 }
 
 @keyframes fadeInDown {
-    from { opacity: 0; transform: translateY(-20px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.hero-stat-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.hero-stat-num { font-size: 1.3rem; font-weight: 800; color: #fff; line-height: 1; }
-.hero-stat-label { font-size: .7rem; font-weight: 500; color: rgba(255,255,255,.7); letter-spacing: .5px; }
-.hero-stat-divider { width: 1px; height: 36px; background: rgba(255,255,255,.2); }
+.hero-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.hero-stat-num {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+}
+
+.hero-stat-label {
+    font-size: .7rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, .7);
+    letter-spacing: .5px;
+}
+
+.hero-stat-divider {
+    width: 1px;
+    height: 36px;
+    background: rgba(255, 255, 255, .2);
+}
 
 /* Hero content */
 .hero-content-wrap {
@@ -843,12 +957,14 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     justify-content: center;
 }
 
-.hero-content { max-width: 540px; }
+.hero-content {
+    max-width: 540px;
+}
 
 .hero-tag {
     display: inline-block;
-    background: rgba(230,59,111,.2);
-    border: 1px solid rgba(230,59,111,.4);
+    background: rgba(230, 59, 111, .2);
+    border: 1px solid rgba(230, 59, 111, .4);
     color: #ffb2bf;
     font-size: .7rem;
     font-weight: 700;
@@ -873,7 +989,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .hero-title em {
     font-style: italic;
     color: #E63B6F;
-    text-shadow: 0 0 40px rgba(230,59,111,.5);
+    text-shadow: 0 0 40px rgba(230, 59, 111, .5);
 }
 
 .hero-desc {
@@ -884,11 +1000,20 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     animation: fadeInLeft .7s ease both .2s;
 }
 
-.hero-btns { animation: fadeInLeft .7s ease both .3s; }
+.hero-btns {
+    animation: fadeInLeft .7s ease both .3s;
+}
 
 @keyframes fadeInLeft {
-    from { opacity: 0; transform: translateX(-30px); }
-    to   { opacity: 1; transform: translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .btn-primary-hero {
@@ -904,10 +1029,15 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     font-weight: 700;
     cursor: pointer;
     transition: all .3s;
-    box-shadow: 0 6px 24px rgba(230,59,111,.45);
+    box-shadow: 0 6px 24px rgba(230, 59, 111, .45);
     text-decoration: none;
 }
-.btn-primary-hero:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(230,59,111,.55); color: #fff; }
+
+.btn-primary-hero:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(230, 59, 111, .55);
+    color: #fff;
+}
 
 .btn-outline-hero {
     display: inline-flex;
@@ -915,7 +1045,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     gap: 8px;
     background: transparent;
     color: #fff;
-    border: 2px solid rgba(255,255,255,.4);
+    border: 2px solid rgba(255, 255, 255, .4);
     padding: 12px 24px;
     border-radius: 99px;
     font-size: .9rem;
@@ -924,7 +1054,12 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     transition: all .3s;
     text-decoration: none;
 }
-.btn-outline-hero:hover { border-color: #E63B6F; background: rgba(230,59,111,.15); color: #ffb2bf; }
+
+.btn-outline-hero:hover {
+    border-color: #E63B6F;
+    background: rgba(230, 59, 111, .15);
+    color: #ffb2bf;
+}
 
 /* Scroll indicator */
 .hero-scroll-indicator {
@@ -934,11 +1069,12 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     transform: translateX(-50%);
     width: 24px;
     height: 40px;
-    border: 2px solid rgba(255,255,255,.4);
+    border: 2px solid rgba(255, 255, 255, .4);
     border-radius: 12px;
     justify-content: center;
     padding-top: 6px;
 }
+
 .scroll-dot {
     width: 4px;
     height: 8px;
@@ -946,9 +1082,19 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     border-radius: 2px;
     animation: scrollBounce 1.8s ease-in-out infinite;
 }
+
 @keyframes scrollBounce {
-    0%, 100% { transform: translateY(0); opacity: 1; }
-    50% { transform: translateY(10px); opacity: .3; }
+
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    50% {
+        transform: translateY(10px);
+        opacity: .3;
+    }
 }
 
 /* ============================================
@@ -958,7 +1104,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     background: #fff;
     border-top: 1px solid #f0f0f0;
     border-bottom: 1px solid #f0f0f0;
-    box-shadow: 0 2px 16px rgba(0,0,0,.04);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, .04);
 }
 
 .benefits-inner {
@@ -975,14 +1121,46 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     flex: 1;
     transition: background .2s;
 }
-.benefit-item:hover { background: #fef5f8; }
-.benefit-item:hover .benefit-icon { transform: translateY(-3px); color: #E63B6F; }
 
-.benefit-icon { color: #E63B6F; flex-shrink: 0; transition: transform .3s, color .2s; }
-.benefit-text { display: flex; flex-direction: column; gap: 2px; }
-.benefit-title { font-size: .85rem; font-weight: 700; color: #2D3436; white-space: nowrap; }
-.benefit-sub { font-size: .75rem; color: #636E72; }
-.benefit-divider { width: 1px; height: 40px; background: #e5e7eb; flex-shrink: 0; }
+.benefit-item:hover {
+    background: #fef5f8;
+}
+
+.benefit-item:hover .benefit-icon {
+    transform: translateY(-3px);
+    color: #E63B6F;
+}
+
+.benefit-icon {
+    color: #E63B6F;
+    flex-shrink: 0;
+    transition: transform .3s, color .2s;
+}
+
+.benefit-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.benefit-title {
+    font-size: .85rem;
+    font-weight: 700;
+    color: #2D3436;
+    white-space: nowrap;
+}
+
+.benefit-sub {
+    font-size: .75rem;
+    color: #636E72;
+}
+
+.benefit-divider {
+    width: 1px;
+    height: 40px;
+    background: #e5e7eb;
+    flex-shrink: 0;
+}
 
 /* ============================================
    3. FLASH SALE
@@ -1003,18 +1181,40 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     flex-shrink: 0;
     animation: flashPulse 1.5s ease-in-out infinite;
 }
+
 @keyframes flashPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(230,59,111,.5); }
-    50% { box-shadow: 0 0 0 12px rgba(230,59,111,0); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(230, 59, 111, .5);
+    }
+
+    50% {
+        box-shadow: 0 0 0 12px rgba(230, 59, 111, 0);
+    }
 }
 
-.flash-sale-title { font-size: 1.8rem; font-weight: 900; color: #fff; letter-spacing: -.5px; }
-.flash-sale-sub { color: #94a3b8; font-size: .85rem; }
-.countdown-label { color: #94a3b8; font-size: .85rem; font-weight: 600; }
+.flash-sale-title {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: -.5px;
+}
+
+.flash-sale-sub {
+    color: #94a3b8;
+    font-size: .85rem;
+}
+
+.countdown-label {
+    color: #94a3b8;
+    font-size: .85rem;
+    font-weight: 600;
+}
 
 .countdown-block {
-    background: rgba(255,255,255,.08);
-    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .12);
     border-radius: 10px;
     padding: 8px 12px;
     display: flex;
@@ -1022,17 +1222,42 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     align-items: center;
     min-width: 52px;
 }
-.countdown-num { font-size: 1.5rem; font-weight: 800; color: #E63B6F; line-height: 1; font-variant-numeric: tabular-nums; }
-.countdown-unit { font-size: .6rem; font-weight: 700; color: #64748b; letter-spacing: 1px; margin-top: 2px; }
-.countdown-sep { font-size: 1.5rem; font-weight: 800; color: #E63B6F; animation: blink 1s step-end infinite; }
-@keyframes blink { 50% { opacity: 0; } }
+
+.countdown-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #E63B6F;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.countdown-unit {
+    font-size: .6rem;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+.countdown-sep {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #E63B6F;
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
 
 .flash-sale-link {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     color: #E63B6F;
-    border: 1px solid rgba(230,59,111,.4);
+    border: 1px solid rgba(230, 59, 111, .4);
     border-radius: 8px;
     padding: 10px 20px;
     font-size: .88rem;
@@ -1041,12 +1266,20 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     transition: all .2s;
     white-space: nowrap;
 }
-.flash-sale-link:hover { background: rgba(230,59,111,.1); border-color: #E63B6F; color: #E63B6F; }
+
+.flash-sale-link:hover {
+    background: rgba(230, 59, 111, .1);
+    border-color: #E63B6F;
+    color: #E63B6F;
+}
 
 /* ============================================
    4. CATEGORIES
 ============================================ */
-.cat-card-shell { min-height: 180px; border-radius: 16px; }
+.cat-card-shell {
+    min-height: 180px;
+    border-radius: 16px;
+}
 
 .cat-card {
     position: relative;
@@ -1061,7 +1294,11 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     cursor: pointer;
     transition: transform .3s, box-shadow .3s;
 }
-.cat-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(0,0,0,.18); }
+
+.cat-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .18);
+}
 
 .cat-card-bg {
     position: absolute;
@@ -1069,7 +1306,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     opacity: .9;
     transition: opacity .3s;
 }
-.cat-card:hover .cat-card-bg { opacity: 1; }
+
+.cat-card:hover .cat-card-bg {
+    opacity: 1;
+}
 
 .cat-card-img {
     position: absolute;
@@ -1082,11 +1322,12 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     align-items: center;
     justify-content: center;
 }
+
 .cat-card-img img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,.2));
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .2));
 }
 
 .cat-card-icon {
@@ -1095,29 +1336,44 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     left: 50%;
     transform: translate(-50%, -65%);
     font-size: 2.8rem;
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,.15));
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .15));
     transition: transform .3s;
 }
-.cat-card:hover .cat-card-icon { transform: translate(-50%, -75%) scale(1.1); }
+
+.cat-card:hover .cat-card-icon {
+    transform: translate(-50%, -75%) scale(1.1);
+}
 
 .cat-card-info {
     position: relative;
     z-index: 2;
     width: 100%;
     padding: 12px 10px;
-    background: linear-gradient(to top, rgba(0,0,0,.6), transparent);
+    background: linear-gradient(to top, rgba(0, 0, 0, .6), transparent);
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 2px;
 }
-.cat-card-name { color: #fff; font-size: .85rem; font-weight: 700; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,.4); }
-.cat-card-count { color: rgba(255,255,255,.75); font-size: .7rem; font-weight: 500; }
+
+.cat-card-name {
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 700;
+    text-align: center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+}
+
+.cat-card-count {
+    color: rgba(255, 255, 255, .75);
+    font-size: .7rem;
+    font-weight: 500;
+}
 
 .cat-card-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,.45);
+    background: rgba(0, 0, 0, .45);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1128,7 +1384,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     font-weight: 700;
     font-size: .9rem;
 }
-.cat-card:hover .cat-card-overlay { opacity: 1; }
+
+.cat-card:hover .cat-card-overlay {
+    opacity: 1;
+}
 
 /* ============================================
    5. EQUIPMENT SECTION
@@ -1138,10 +1397,14 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     border: 1px solid #eaeaea;
     border-radius: 16px;
     padding: 28px;
-    box-shadow: 0 4px 20px rgba(0,0,0,.04);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, .04);
     transition: box-shadow .3s, transform .3s;
 }
-.equip-big-card:hover { box-shadow: 0 12px 40px rgba(0,0,0,.08); transform: translateY(-2px); }
+
+.equip-big-card:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .08);
+    transform: translateY(-2px);
+}
 
 .equip-big-img {
     width: 100%;
@@ -1154,6 +1417,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     padding: 16px;
     overflow: hidden;
 }
+
 .equip-big-img img {
     max-width: 100%;
     max-height: 100%;
@@ -1161,7 +1425,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     mix-blend-mode: multiply;
     transition: transform .4s;
 }
-.equip-big-card:hover .equip-big-img img { transform: scale(1.05); }
+
+.equip-big-card:hover .equip-big-img img {
+    transform: scale(1.05);
+}
 
 .equip-badge {
     display: inline-block;
@@ -1173,8 +1440,17 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     border-radius: 20px;
 }
 
-.equip-big-name { font-size: 1.5rem; font-weight: 800; color: #2D3436; }
-.equip-big-desc { font-size: .95rem; color: #636E72; line-height: 1.5; }
+.equip-big-name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #2D3436;
+}
+
+.equip-big-desc {
+    font-size: .95rem;
+    color: #636E72;
+    line-height: 1.5;
+}
 
 .btn-buy-now {
     display: inline-flex;
@@ -1188,9 +1464,15 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     font-size: .9rem;
     text-decoration: none;
     transition: all .2s;
-    box-shadow: 0 4px 14px rgba(230,59,111,.35);
+    box-shadow: 0 4px 14px rgba(230, 59, 111, .35);
 }
-.btn-buy-now:hover { background: #d82f65; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(230,59,111,.45); color: #fff; }
+
+.btn-buy-now:hover {
+    background: #d82f65;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(230, 59, 111, .45);
+    color: #fff;
+}
 
 .equip-small-card {
     background: #fff;
@@ -1205,7 +1487,11 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     text-decoration: none;
     transition: box-shadow .3s, transform .3s;
 }
-.equip-small-card:hover { box-shadow: 0 10px 30px rgba(0,0,0,.08); transform: translateY(-2px); }
+
+.equip-small-card:hover {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+    transform: translateY(-2px);
+}
 
 .equip-small-card--empty {
     align-items: center;
@@ -1223,10 +1509,24 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     align-items: flex-start;
     justify-content: flex-end;
 }
-.equip-small-img img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-.equip-small-info { position: relative; z-index: 2; }
-.equip-small-name { font-size: 1.05rem; font-weight: 800; color: #2D3436; }
+.equip-small-img img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.equip-small-info {
+    position: relative;
+    z-index: 2;
+}
+
+.equip-small-name {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #2D3436;
+}
+
 .equip-small-link {
     display: inline-flex;
     align-items: center;
@@ -1251,8 +1551,18 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     transition: all .2s;
     font-family: inherit;
 }
-.tab-btn:hover { border-color: #E63B6F; color: #E63B6F; }
-.tab-btn.active { background: #E63B6F; border-color: #E63B6F; color: #fff; box-shadow: 0 4px 14px rgba(230,59,111,.3); }
+
+.tab-btn:hover {
+    border-color: #E63B6F;
+    color: #E63B6F;
+}
+
+.tab-btn.active {
+    background: #E63B6F;
+    border-color: #E63B6F;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(230, 59, 111, .3);
+}
 
 .btn-view-more {
     display: inline-flex;
@@ -1268,7 +1578,13 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     text-decoration: none;
     transition: all .2s;
 }
-.btn-view-more:hover { background: #E63B6F; color: #fff; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(230,59,111,.3); }
+
+.btn-view-more:hover {
+    background: #E63B6F;
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(230, 59, 111, .3);
+}
 
 /* ============================================
    7. PROMO BANNERS
@@ -1283,15 +1599,25 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     min-height: 260px;
     height: 100%;
 }
-.promo-banner--dark { background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); }
-.promo-banner--red  { background: linear-gradient(135deg, #2d0011, #4a0020, #6b1a3a); }
 
-.promo-banner-content { position: relative; z-index: 2; flex: 1; }
+.promo-banner--dark {
+    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+}
+
+.promo-banner--red {
+    background: linear-gradient(135deg, #2d0011, #4a0020, #6b1a3a);
+}
+
+.promo-banner-content {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+}
 
 .promo-banner-tag {
     display: inline-block;
-    background: rgba(230,59,111,.2);
-    border: 1px solid rgba(230,59,111,.4);
+    background: rgba(230, 59, 111, .2);
+    border: 1px solid rgba(230, 59, 111, .4);
     color: #ff8fab;
     font-size: .7rem;
     font-weight: 700;
@@ -1310,10 +1636,14 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     line-height: 1.2;
     letter-spacing: -.5px;
 }
-.promo-banner-title em { color: #E63B6F; font-style: italic; }
+
+.promo-banner-title em {
+    color: #E63B6F;
+    font-style: italic;
+}
 
 .promo-banner-desc {
-    color: rgba(255,255,255,.65);
+    color: rgba(255, 255, 255, .65);
     font-size: .85rem;
     line-height: 1.6;
     margin: 0 0 22px;
@@ -1332,26 +1662,83 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     font-weight: 700;
     text-decoration: none;
     transition: all .2s;
-    box-shadow: 0 4px 16px rgba(230,59,111,.4);
+    box-shadow: 0 4px 16px rgba(230, 59, 111, .4);
 }
-.promo-banner-btn:hover { background: #d82f65; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(230,59,111,.5); color: #fff; }
-.promo-banner-btn--outline { background: transparent; border: 2px solid rgba(255,255,255,.4); box-shadow: none; }
-.promo-banner-btn--outline:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.8); }
+
+.promo-banner-btn:hover {
+    background: #d82f65;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(230, 59, 111, .5);
+    color: #fff;
+}
+
+.promo-banner-btn--outline {
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, .4);
+    box-shadow: none;
+}
+
+.promo-banner-btn--outline:hover {
+    background: rgba(255, 255, 255, .1);
+    border-color: rgba(255, 255, 255, .8);
+}
 
 /* Deco elements */
-.promo-banner-deco { position: absolute; right: 0; top: 0; bottom: 0; width: 220px; pointer-events: none; }
-.deco-circle { position: absolute; border-radius: 50%; opacity: .15; }
-.deco-c1 { width: 180px; height: 180px; background: #fff; top: -40px; right: -40px; }
-.deco-c2 { width: 120px; height: 120px; background: #E63B6F; bottom: -20px; right: 60px; opacity: .25; }
-.deco-c3 { width: 200px; height: 200px; background: #E63B6F; top: -50px; right: -50px; }
-.deco-c4 { width: 100px; height: 100px; background: #fff; bottom: -20px; right: 80px; opacity: .12; }
+.promo-banner-deco {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 220px;
+    pointer-events: none;
+}
+
+.deco-circle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: .15;
+}
+
+.deco-c1 {
+    width: 180px;
+    height: 180px;
+    background: #fff;
+    top: -40px;
+    right: -40px;
+}
+
+.deco-c2 {
+    width: 120px;
+    height: 120px;
+    background: #E63B6F;
+    bottom: -20px;
+    right: 60px;
+    opacity: .25;
+}
+
+.deco-c3 {
+    width: 200px;
+    height: 200px;
+    background: #E63B6F;
+    top: -50px;
+    right: -50px;
+}
+
+.deco-c4 {
+    width: 100px;
+    height: 100px;
+    background: #fff;
+    bottom: -20px;
+    right: 80px;
+    opacity: .12;
+}
 
 .deco-badge {
     position: absolute;
     bottom: 28px;
     right: 24px;
-    background: rgba(255,255,255,.12);
-    border: 2px solid rgba(255,255,255,.2);
+    background: rgba(255, 255, 255, .12);
+    border: 2px solid rgba(255, 255, 255, .2);
     color: #fff;
     font-size: 1.6rem;
     font-weight: 900;
@@ -1360,9 +1747,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     backdrop-filter: blur(8px);
     letter-spacing: -1px;
 }
+
 .deco-badge--light {
-    background: rgba(230,59,111,.2);
-    border-color: rgba(230,59,111,.4);
+    background: rgba(230, 59, 111, .2);
+    border-color: rgba(230, 59, 111, .4);
     color: #ff8fab;
     font-size: 1.1rem;
 }
@@ -1383,11 +1771,19 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     animation: marqueeScroll 22s linear infinite;
     width: max-content;
 }
-.brands-track:hover { animation-play-state: paused; }
+
+.brands-track:hover {
+    animation-play-state: paused;
+}
 
 @keyframes marqueeScroll {
-    from { transform: translateX(0); }
-    to   { transform: translateX(-50%); }
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-50%);
+    }
 }
 
 .brand-logo-item {
@@ -1399,8 +1795,17 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     transition: filter .3s;
     flex-shrink: 0;
 }
-.brand-logo-item:hover { filter: grayscale(0%) opacity(1); }
-.brand-logo-item img { height: 36px; width: auto; max-width: 120px; object-fit: contain; }
+
+.brand-logo-item:hover {
+    filter: grayscale(0%) opacity(1);
+}
+
+.brand-logo-item img {
+    height: 36px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+}
 
 /* ============================================
    9. TESTIMONIALS
@@ -1410,10 +1815,11 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     border: 1px solid #e5e7eb;
     border-radius: 20px;
     padding: 28px 24px;
-    box-shadow: 0 4px 20px rgba(0,0,0,.04);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, .04);
     transition: transform .3s, box-shadow .3s;
     position: relative;
 }
+
 .testimonial-card::before {
     content: '"';
     position: absolute;
@@ -1425,15 +1831,34 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     line-height: 1;
     font-family: Georgia, serif;
 }
-.testimonial-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(0,0,0,.08); }
 
-.testimonial-text { color: #4B5563; font-size: .92rem; line-height: 1.7; margin: 0 0 0; font-style: italic; }
-.testimonial-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 3px solid #fde8ef; }
+.testimonial-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .08);
+}
+
+.testimonial-text {
+    color: #4B5563;
+    font-size: .92rem;
+    line-height: 1.7;
+    margin: 0 0 0;
+    font-style: italic;
+}
+
+.testimonial-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #fde8ef;
+}
 
 /* ============================================
    10. COMMUNITY
 ============================================ */
-.community-section { width: 100%; }
+.community-section {
+    width: 100%;
+}
 
 .community-content {
     background: linear-gradient(135deg, #1a1a2e, #2d3436);
@@ -1454,22 +1879,26 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         padding-left: max(12px, calc((100vw - 1140px) / 2 + 12px));
     }
 }
+
 @media (max-width: 1199.98px) {
     .community-inner-pad {
         padding-left: max(12px, calc((100vw - 960px) / 2 + 12px));
     }
 }
+
 @media (max-width: 991.98px) {
     .community-inner-pad {
         padding-left: max(12px, calc((100vw - 720px) / 2 + 12px));
         padding-right: 24px;
     }
 }
+
 @media (max-width: 767.98px) {
     .community-inner-pad {
         padding-left: max(12px, calc((100vw - 540px) / 2 + 12px));
     }
 }
+
 @media (max-width: 575.98px) {
     .community-inner-pad {
         padding-left: 12px;
@@ -1492,16 +1921,37 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     margin: 0 0 0;
     letter-spacing: -.5px;
 }
-.community-title em { font-style: italic; color: #E63B6F; }
+
+.community-title em {
+    font-style: italic;
+    color: #E63B6F;
+}
 
 .community-stats-row {
-    border-top: 1px solid rgba(255,255,255,.08);
-    border-bottom: 1px solid rgba(255,255,255,.08);
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
 }
-.community-stat-num { font-size: 1.5rem; font-weight: 800; color: #E63B6F; line-height: 1; }
-.community-stat-label { font-size: .78rem; color: #64748b; font-weight: 500; margin-top: 4px; }
 
-.community-desc { color: #94a3b8; font-size: .95rem; line-height: 1.7; max-width: 480px; }
+.community-stat-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #E63B6F;
+    line-height: 1;
+}
+
+.community-stat-label {
+    font-size: .78rem;
+    color: #64748b;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.community-desc {
+    color: #94a3b8;
+    font-size: .95rem;
+    line-height: 1.7;
+    max-width: 480px;
+}
 
 .community-list {
     list-style: none;
@@ -1511,7 +1961,12 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     flex-direction: column;
     gap: 12px;
 }
-.community-list li { color: #cbd5e1; font-size: .9rem; font-weight: 500; }
+
+.community-list li {
+    color: #cbd5e1;
+    font-size: .9rem;
+    font-weight: 500;
+}
 
 .btn-community {
     display: inline-flex;
@@ -1527,13 +1982,30 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     cursor: pointer;
     transition: all .3s;
     text-decoration: none;
-    box-shadow: 0 6px 20px rgba(230,59,111,.4);
+    box-shadow: 0 6px 20px rgba(230, 59, 111, .4);
 }
-.btn-community:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(230,59,111,.5); color: #fff; }
 
-.community-images { position: relative; overflow: hidden; }
-.community-img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s; }
-.community-images:hover .community-img { transform: scale(1.04); }
+.btn-community:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(230, 59, 111, .5);
+    color: #fff;
+}
+
+.community-images {
+    position: relative;
+    overflow: hidden;
+}
+
+.community-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .6s;
+}
+
+.community-images:hover .community-img {
+    transform: scale(1.04);
+}
 
 /* ============================================
    SKELETON
@@ -1544,47 +2016,125 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     animation: skeleton-shimmer 1.5s ease-in-out infinite;
     border-radius: 12px;
 }
+
 @keyframes skeleton-shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
 }
 
 /* Fix router-link text-decoration */
-a.btn-primary-hero, a.btn-outline-hero,
-a.btn-view-more, a.btn-community, a.btn-buy-now,
-a.link-more, a.promo-banner-btn { text-decoration: none; }
+a.btn-primary-hero,
+a.btn-outline-hero,
+a.btn-view-more,
+a.btn-community,
+a.btn-buy-now,
+a.link-more,
+a.promo-banner-btn {
+    text-decoration: none;
+}
 
 /* ============================================
    RESPONSIVE (supplement Bootstrap breakpoints)
 ============================================ */
 @media (max-width: 992px) {
-    .hero-section { height: 520px; }
-    .hero-title { font-size: 3rem; }
-    .community-inner-pad { padding: 48px 32px; }
-    .community-title { font-size: 1.8rem; }
-    .promo-banner-deco { display: none; }
+    .hero-section {
+        height: 520px;
+    }
+
+    .hero-title {
+        font-size: 3rem;
+    }
+
+    .community-inner-pad {
+        padding: 48px 32px;
+    }
+
+    .community-title {
+        font-size: 1.8rem;
+    }
+
+    .promo-banner-deco {
+        display: none;
+    }
 }
 
 @media (max-width: 768px) {
-    .hero-section { height: 460px; }
-    .hero-title { font-size: 2.3rem; }
-    .benefits-inner { flex-wrap: wrap; }
-    .benefit-item { flex: 0 0 48%; }
-    .flash-sale-section .container { padding-top: 2rem !important; padding-bottom: 2rem !important; }
-    .cat-card { min-height: 150px; }
-    .section-title { font-size: 1.4rem; }
+    .hero-section {
+        height: 460px;
+    }
+
+    .hero-title {
+        font-size: 2.3rem;
+    }
+
+    .benefits-inner {
+        flex-wrap: wrap;
+    }
+
+    .benefit-item {
+        flex: 0 0 48%;
+    }
+
+    .flash-sale-section .container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+    }
+
+    .cat-card {
+        min-height: 150px;
+    }
+
+    .section-title {
+        font-size: 1.4rem;
+    }
 }
 
 @media (max-width: 576px) {
-    .hero-section { height: 400px; }
-    .hero-title { font-size: 2rem; }
-    .hero-btns { flex-direction: column !important; }
-    .btn-primary-hero, .btn-outline-hero { width: 100%; justify-content: center; }
-    .benefit-item { flex: 0 0 100%; }
-    .countdown-block { min-width: 44px; }
-    .countdown-num { font-size: 1.2rem; }
-    .community-inner-pad { padding: 36px 20px; }
-    .promo-banner { padding: 28px 22px; }
-    .promo-banner-title { font-size: 1.3rem; }
+    .hero-section {
+        height: 400px;
+    }
+
+    .hero-title {
+        font-size: 2rem;
+    }
+
+    .hero-btns {
+        flex-direction: column !important;
+    }
+
+    .btn-primary-hero,
+    .btn-outline-hero {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .benefit-item {
+        flex: 0 0 100%;
+    }
+
+    .countdown-block {
+        min-width: 44px;
+    }
+
+    .countdown-num {
+        font-size: 1.2rem;
+    }
+
+    .community-inner-pad {
+        padding: 36px 20px;
+    }
+
+    .promo-banner {
+        padding: 28px 22px;
+    }
+
+    .promo-banner-title {
+        font-size: 1.3rem;
+    }
 }
 </style>

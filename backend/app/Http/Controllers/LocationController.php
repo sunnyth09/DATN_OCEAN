@@ -18,7 +18,7 @@ class LocationController extends Controller
      */
     public function getProvinces()
     {
-        $cached = Cache::get('ghn_provinces_v2');
+        $cached = Cache::get('ghn_provinces_v3');
         if (is_array($cached) && count($cached) > 0) {
             return $this->ok($cached);
         }
@@ -34,7 +34,7 @@ class LocationController extends Controller
             ->toArray();
 
         if (count($data) > 0) {
-            Cache::put('ghn_provinces_v2', $data, self::TTL);
+            Cache::put('ghn_provinces_v3', $data, self::TTL);
         }
 
         return $this->ok($data);
@@ -45,7 +45,7 @@ class LocationController extends Controller
      */
     public function getDistricts($provinceCode)
     {
-        $cacheKey = "ghn_districts_v2_{$provinceCode}";
+        $cacheKey = "ghn_districts_v3_{$provinceCode}";
         $cached = Cache::get($cacheKey);
         if (is_array($cached) && count($cached) > 0) {
             return $this->ok($cached);
@@ -73,7 +73,7 @@ class LocationController extends Controller
      */
     public function getWards($districtCode)
     {
-        $cacheKey = "ghn_wards_v2_{$districtCode}";
+        $cacheKey = "ghn_wards_v3_{$districtCode}";
         $cached = Cache::get($cacheKey);
         if (is_array($cached) && count($cached) > 0) {
             return $this->ok($cached);
