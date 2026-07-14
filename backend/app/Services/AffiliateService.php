@@ -9,6 +9,8 @@ use App\Repositories\AffiliateRepository;
 use App\Repositories\AffiliateClickRepository;
 use App\Repositories\AffiliateConversionRepository;
 use App\Repositories\AffiliateWithdrawalRepository;
+use App\Services\WalletService;
+use App\Services\LoyaltyService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -168,31 +170,28 @@ class AffiliateService
             return $this->error("Số tiền rút tối thiểu là " . number_format($minAmount) . " VND!", 422);
         }
 
-        // Tính số dư khả dụng = approved commission - đã rút (pending/approved/paid)
-        $summary = $this->conversionRepo->getSummaryByReferrer($userId);
-        $totalWithdrawn = $this->withdrawalRepo->getTotalWithdrawnOrPending($userId);
-        $availableBalance = $summary['approved_commission'] + $summary['paid_commission'] - $totalWithdrawn;
+        // Với hệ thống Ví điện tử mới, số dư khả dụng chính là số dư ví hiện tại
+        $wallet = $this->walletService->getWallet($userId);
+        $availableBalance = $wallet->balance;
 
         if ($amount > $availableBalance) {
-            return $this->error('Số tiền vượt quá số dư khả dụng (' . number_format($availableBalance) . ' VND)!', 422);
+            return $this->error('Số dư ví không đủ để rút tiền (' . number_format($availableBalance) . ' VND)!', 422);
         }
 
         try {
-            $withdrawal = DB::transaction(function () use ($userId, $data, $amount) {
-                return $this->withdrawalRepo->create([
-                    'user_id' => $userId,
-                    'amount' => $amount,
-                    'bank_name' => $data['bank_name'],
-                    'bank_account_name' => $data['bank_account_name'],
-                    'bank_account_number' => $data['bank_account_number'],
-                    'status' => 'pending',
-                ]);
-            });
+            $withdrawal = $this->walletService->requestWithdrawal(
+                $userId,
+                $amount,
+                $data['bank_name'] ?? 'VNPay Payout',
+                $data['bank_account_name'] ?? '',
+                $data['bank_account_number'] ?? '',
+                $data['withdrawal_method'] ?? 'bank'
+            );
 
             return $this->success('Gửi yêu cầu rút tiền thành công! Vui lòng chờ duyệt.', $withdrawal);
         } catch (\Exception $e) {
             Log::error('Affiliate withdrawal error: ' . $e->getMessage());
-            return $this->error('Lỗi khi gửi yêu cầu rút tiền!', 500);
+            return $this->error($e->getMessage() ?: 'Lỗi khi gửi yêu cầu rút tiền!', 500);
         }
     }
 
@@ -273,6 +272,8 @@ class AffiliateService
                 return;
             }
 
+            $oldStatus = $conversion->status;
+
             if (in_array($newStatus, [OrderStatus::COMPLETED->value, OrderStatus::DELIVERED->value], true)) {
                 $this->conversionRepo->updateStatusByOrderId($order->order_id, 'approved');
 
@@ -286,7 +287,21 @@ class AffiliateService
                 OrderStatus::RETURNED->value,
                 OrderStatus::REFUNDED->value,
             ], true)) {
-                $this->conversionRepo->updateStatusByOrderId($order->order_id, 'cancelled');
+                $updated = $this->conversionRepo->updateStatusByOrderId($order->order_id, 'cancelled');
+                if ($updated && $oldStatus === 'approved') {
+                    // Thu hồi lại tiền nếu đã được cộng trước đó
+                    try {
+                        $this->walletService->spend(
+                            $conversion->referrer_id,
+                            (float) $conversion->commission_amount,
+                            "Thu hồi hoa hồng từ đơn hàng #{$order->order_code} (Hủy đơn/Trả hàng)",
+                            $conversion->id,
+                            AffiliateConversion::class
+                        );
+                    } catch (\Exception $e) {
+                        Log::error("Failed to revoke commission for order #{$order->order_id}: " . $e->getMessage());
+                    }
+                }
             }
         } catch (\Exception $e) {
             Log::error('Affiliate conversion status update failed: ' . $e->getMessage());
@@ -304,7 +319,32 @@ class AffiliateService
 
     public function adminApproveConversion(int $id): array
     {
+        $conversion = AffiliateConversion::find($id);
+        if (!$conversion || $conversion->status !== 'pending') {
+            return $this->error('Conversion không hợp lệ hoặc đã duyệt!', 422);
+        }
+
         $updated = $this->conversionRepo->updateStatus($id, 'approved');
+        if ($updated) {
+            try {
+                $this->walletService->deposit(
+                    $conversion->referrer_id,
+                    (float) $conversion->commission_amount,
+                    'commission',
+                    "Hoa hồng từ đơn hàng #" . ($conversion->order->order_code ?? $conversion->order_id),
+                    $conversion->id,
+                    AffiliateConversion::class
+                );
+
+                // Tích điểm giới thiệu cho referrer
+                $referrer = \App\Models\User::find($conversion->referrer_id);
+                if ($referrer && $conversion->order) {
+                    $this->loyaltyService->earnFromReferral($referrer, $conversion->order);
+                }
+            } catch (\Exception $e) {
+                Log::error("Failed to deposit commission on admin approve: " . $e->getMessage());
+            }
+        }
         return $updated
             ? $this->success('Đã duyệt hoa hồng!')
             : $this->error('Không tìm thấy conversion!', 404);
@@ -312,7 +352,25 @@ class AffiliateService
 
     public function adminCancelConversion(int $id): array
     {
+        $conversion = AffiliateConversion::find($id);
+        if (!$conversion) {
+            return $this->error('Không tìm thấy conversion!', 404);
+        }
+        $oldStatus = $conversion->status;
         $updated = $this->conversionRepo->updateStatus($id, 'cancelled');
+        if ($updated && $oldStatus === 'approved') {
+            try {
+                $this->walletService->spend(
+                    $conversion->referrer_id,
+                    (float) $conversion->commission_amount,
+                    "Thu hồi hoa hồng #" . $conversion->id . " bởi Admin",
+                    $conversion->id,
+                    AffiliateConversion::class
+                );
+            } catch (\Exception $e) {
+                Log::error("Failed to revoke commission on admin cancel: " . $e->getMessage());
+            }
+        }
         return $updated
             ? $this->success('Đã hủy hoa hồng!')
             : $this->error('Không tìm thấy conversion!', 404);
@@ -325,32 +383,32 @@ class AffiliateService
 
     public function adminApproveWithdrawal(int $id): array
     {
-        $withdrawal = $this->withdrawalRepo->findById($id);
-        if (!$withdrawal || $withdrawal->status !== 'pending') {
-            return $this->error('Yêu cầu không hợp lệ hoặc đã xử lý!', 422);
+        try {
+            $this->walletService->approveWithdrawal($id);
+            return $this->success('Đã duyệt yêu cầu rút tiền!');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 422);
         }
-        $this->withdrawalRepo->updateStatus($id, 'approved');
-        return $this->success('Đã duyệt yêu cầu rút tiền!');
     }
 
     public function adminRejectWithdrawal(int $id, ?string $note = null): array
     {
-        $withdrawal = $this->withdrawalRepo->findById($id);
-        if (!$withdrawal || $withdrawal->status !== 'pending') {
-            return $this->error('Yêu cầu không hợp lệ hoặc đã xử lý!', 422);
+        try {
+            $this->walletService->rejectWithdrawal($id, $note);
+            return $this->success('Đã từ chối yêu cầu rút tiền!');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 422);
         }
-        $this->withdrawalRepo->updateStatus($id, 'rejected', $note);
-        return $this->success('Đã từ chối yêu cầu rút tiền!');
     }
 
     public function adminMarkPaidWithdrawal(int $id): array
     {
-        $withdrawal = $this->withdrawalRepo->findById($id);
-        if (!$withdrawal || $withdrawal->status !== 'approved') {
-            return $this->error('Chỉ có thể thanh toán yêu cầu đã duyệt!', 422);
+        try {
+            $this->walletService->payWithdrawal($id);
+            return $this->success('Đã đánh dấu thanh toán thành công!');
+        } catch (\Exception $e) {
+            return $this->error($e->getMessage(), 422);
         }
-        $this->withdrawalRepo->updateStatus($id, 'paid');
-        return $this->success('Đã đánh dấu thanh toán thành công!');
     }
 
     // =====================================================================
