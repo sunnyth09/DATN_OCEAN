@@ -15,6 +15,17 @@ class GhnWebhookController extends Controller
 
     public function handle(Request $request)
     {
+        // 1. Verify shared secret token (bắt buộc nếu đã cấu hình)
+        $expectedToken = config('ghn.webhook_token');
+        if (!empty($expectedToken)) {
+            $providedToken = $request->query('token') ?: $request->header('X-Webhook-Token', '');
+            if (!hash_equals($expectedToken, (string) $providedToken)) {
+                Log::warning('GHN webhook rejected by token mismatch', ['ip' => $request->ip()]);
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+        }
+
+        // 2. IP whitelist (lớp phòng thủ bổ sung)
         $allowedIps = config('ghn.webhook_allowed_ips', []);
         if (!empty($allowedIps) && !in_array($request->ip(), $allowedIps, true)) {
             Log::warning('GHN webhook rejected by IP whitelist', ['ip' => $request->ip()]);

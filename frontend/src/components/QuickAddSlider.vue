@@ -203,7 +203,7 @@ const handleQuickAdd = async (item) => {
     margin: 0;
     font-size: 1rem;
     font-weight: 800;
-    color: #1e293b;
+    color: var(--text-main);
     line-height: 1.3;
 }
 .qs-subtitle {
@@ -247,7 +247,7 @@ const handleQuickAdd = async (item) => {
 .qs-card {
     flex: 0 0 190px;
     scroll-snap-align: start;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 14px;
     border: 1px solid #e2e8f0;
     padding: 12px;
@@ -308,7 +308,7 @@ const handleQuickAdd = async (item) => {
     overflow: hidden;
     font-size: 0.82rem;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text-main);
     text-decoration: none;
     line-height: 1.4;
     transition: color 0.2s;

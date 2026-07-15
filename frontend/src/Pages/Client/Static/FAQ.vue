@@ -57,7 +57,7 @@ const faqItems = [
   border-radius: 24px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, #E63B6F 0%, #d92f66 48%, #f05a8a 100%);
+    linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
   box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
 }
 .page-hero h1 {
@@ -83,10 +83,10 @@ const faqItems = [
 .page-content { padding: 48px 24px 64px; }
 .faq-item { border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 12px; overflow: hidden; transition: box-shadow 0.2s; }
 .faq-item.open { box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-color: #c7d2fe; }
-.faq-question { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; background: #fff; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; color: #2D3436; text-align: left; font-family: inherit; transition: background 0.2s; }
+.faq-question { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; background: var(--card-bg); border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; color: var(--text-main); text-align: left; font-family: inherit; transition: background 0.2s; }
 .faq-question:hover { background: #F8F9FA; }
 .faq-question svg { flex-shrink: 0; color: #9ca3af; transition: transform 0.3s; }
-.faq-question svg.rotated { transform: rotate(180deg); color: #E63B6F; }
+.faq-question svg.rotated { transform: rotate(180deg); color: var(--primary); }
 .faq-answer { padding: 0 20px 18px; }
 .faq-answer p { font-size: 0.9rem; color: #6b7280; line-height: 1.7; margin: 0; }
 

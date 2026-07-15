@@ -419,7 +419,7 @@ onMounted(fetchAddresses);
 .section-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -435,7 +435,7 @@ onMounted(fetchAddresses);
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -449,7 +449,7 @@ onMounted(fetchAddresses);
 }
 
 .btn-add:hover {
-  background: #b50c4d;
+  background: var(--primary-dark);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(230, 59, 111, 0.3);
 }
@@ -474,7 +474,7 @@ onMounted(fetchAddresses);
   width: 32px;
   height: 32px;
   border: 3px solid #e5e7eb;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -491,7 +491,7 @@ onMounted(fetchAddresses);
 }
 
 .address-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1.5px solid #e5e7eb;
   border-radius: 14px;
   padding: 20px;
@@ -525,14 +525,14 @@ onMounted(fetchAddresses);
 .address-name {
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   margin: 0;
 }
 
 .default-badge {
   display: inline-flex;
   padding: 2px 10px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 600;
@@ -581,7 +581,7 @@ onMounted(fetchAddresses);
   height: 34px;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
-  background: #fff;
+  background: var(--card-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -636,7 +636,7 @@ onMounted(fetchAddresses);
   flex-direction: column;
   align-items: center;
   padding: 60px 20px;
-  background: #fff;
+  background: var(--card-bg);
   border: 1.5px dashed #d1d5db;
   border-radius: 16px;
 }
@@ -673,7 +673,7 @@ onMounted(fetchAddresses);
 }
 
 .modal-content {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 20px;
   width: 100%;
   max-width: 680px;
@@ -693,7 +693,7 @@ onMounted(fetchAddresses);
 .modal-title {
   font-size: 1.2rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -713,7 +713,7 @@ onMounted(fetchAddresses);
 
 .modal-close:hover {
   background: #e5e7eb;
-  color: #111827;
+  color: var(--text-main);
 }
 
 .modal-body {
@@ -770,16 +770,16 @@ onMounted(fetchAddresses);
   border: 1.5px solid #e2e8f0;
   border-radius: 10px;
   font-size: 0.9rem;
-  color: #1e293b;
+  color: var(--text-main);
   outline: none;
   transition: all 0.2s;
   font-family: inherit;
-  background-color: #fff;
+  background-color: var(--card-bg);
 }
 
 .form-input:focus,
 .form-select:focus {
-  border-color: #E63B6F;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
@@ -819,9 +819,9 @@ onMounted(fetchAddresses);
 }
 
 .type-option--active {
-  border-color: #E63B6F;
+  border-color: var(--primary);
   background: #eff6ff;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .type-radio {
@@ -858,8 +858,8 @@ onMounted(fetchAddresses);
 }
 
 .checkbox-input:checked + .checkbox-custom {
-  background: #E63B6F;
-  border-color: #E63B6F;
+  background: var(--primary);
+  border-color: var(--primary);
 }
 
 .checkbox-input:checked + .checkbox-custom::after {
@@ -892,7 +892,7 @@ onMounted(fetchAddresses);
 }
 
 .shipping-preview strong {
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 
@@ -933,7 +933,7 @@ onMounted(fetchAddresses);
   align-items: center;
   gap: 8px;
   padding: 10px 24px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -945,7 +945,7 @@ onMounted(fetchAddresses);
 }
 
 .btn-save:hover:not(:disabled) {
-  background: #b50c4d;
+  background: var(--primary-dark);
 }
 
 .btn-save:disabled {

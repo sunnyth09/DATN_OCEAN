@@ -149,7 +149,7 @@ onMounted(fetchUserCoupons);
 .section-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -173,7 +173,7 @@ onMounted(fetchUserCoupons);
   width: 32px;
   height: 32px;
   border: 3px solid #e5e7eb;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -191,7 +191,7 @@ onMounted(fetchUserCoupons);
 
 .coupon-card {
   position: relative;
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   overflow: hidden;
@@ -255,7 +255,7 @@ onMounted(fetchUserCoupons);
 .coupon-value {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -291,7 +291,7 @@ onMounted(fetchUserCoupons);
 .code-text {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .coupon-expiry {
@@ -302,7 +302,7 @@ onMounted(fetchUserCoupons);
 
 .btn-copy {
   padding: 6px 12px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -313,7 +313,7 @@ onMounted(fetchUserCoupons);
 }
 
 .btn-copy:hover {
-  background: #b50c4d;
+  background: var(--primary-dark);
 }
 
 .expired-overlay {
@@ -342,7 +342,7 @@ onMounted(fetchUserCoupons);
   flex-direction: column;
   align-items: center;
   padding: 80px 20px;
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 16px;
   border: 1.5px dashed #e5e7eb;
 }
@@ -367,7 +367,7 @@ onMounted(fetchUserCoupons);
 
 .btn-explore {
   padding: 10px 24px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   text-decoration: none;
   border-radius: 10px;
@@ -377,7 +377,7 @@ onMounted(fetchUserCoupons);
 }
 
 .btn-explore:hover {
-  background: #b50c4d;
+  background: var(--primary-dark);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(230, 59, 111, 0.2);
 }

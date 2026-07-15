@@ -110,7 +110,7 @@ const formatCurrency = (val) => {
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  background: white;
+  background: var(--card-bg);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   grid-column: span 1;
 }
@@ -177,7 +177,7 @@ const formatCurrency = (val) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
+  background: var(--card-bg);
 }
 
 .sc-left p {
@@ -206,7 +206,7 @@ const formatCurrency = (val) => {
   font-weight: 800;
 }
 
-.blue-text { color: #E63B6F; }
+.blue-text { color: var(--primary); }
 .orange-text { color: #f57c00; }
 .red-text { color: #d32f2f; }
 

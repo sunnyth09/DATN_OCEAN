@@ -126,7 +126,7 @@ onMounted(() => {
 
 <style scoped>
 .return-requests-page {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   padding: 24px;
@@ -138,7 +138,7 @@ onMounted(() => {
   border-bottom: 1px solid #f1f5f9;
   padding-bottom: 16px;
 }
-.page-title { margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a; }
+.page-title { margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-main); }
 .page-subtitle { margin: 8px 0 0; color: #64748b; font-size: 0.92rem; }
 
 .filter-tabs {
@@ -150,7 +150,7 @@ onMounted(() => {
 
 .filter-tab {
   border: 1px solid #cbd5e1;
-  background: #fff;
+  background: var(--card-bg);
   color: #475569;
   border-radius: 20px;
   padding: 8px 16px;
@@ -161,14 +161,14 @@ onMounted(() => {
 }
 
 .filter-tab:hover {
-  border-color: #E63B6F;
-  color: #E63B6F;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .filter-tab.active {
   background: rgba(230, 59, 111, 0.1);
-  border-color: #E63B6F;
-  color: #E63B6F;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .request-list {
@@ -188,7 +188,7 @@ onMounted(() => {
 }
 
 .request-card:hover {
-  border-color: #E63B6F;
+  border-color: var(--primary);
   box-shadow: 0 10px 24px rgba(230, 59, 111, 0.08);
   transform: translateY(-1px);
 }
@@ -204,13 +204,13 @@ onMounted(() => {
   margin: 0 0 6px;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .request-reason {
   margin: 0;
   font-size: 1rem;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 .request-desc {
@@ -235,7 +235,7 @@ onMounted(() => {
   border-radius: 30px;
   font-size: 0.85rem;
   font-weight: 700;
-  background: white;
+  background: var(--card-bg);
   border: 1px solid #e2e8f0;
 }
 
@@ -255,7 +255,7 @@ onMounted(() => {
   width: 38px;
   height: 38px;
   border: 3px solid #f1f5f9;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
   margin: 0 auto 16px;
@@ -274,7 +274,7 @@ onMounted(() => {
   height: 36px;
   border-radius: 8px;
   border: 1px solid #cbd5e1;
-  background: #fff;
+  background: var(--card-bg);
   cursor: pointer;
 }
 

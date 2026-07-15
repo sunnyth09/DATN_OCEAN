@@ -314,7 +314,7 @@ onMounted(fetchStaff);
 .section-desc { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
 .btn-create {
   display: flex; align-items: center; gap: 8px;
-  background: #E63B6F; color: white; border: none;
+  background: var(--primary); color: white; border: none;
   padding: 10px 20px; border-radius: 10px;
   font-weight: 600; font-size: 0.85rem; cursor: pointer;
   transition: all 0.2s; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25);
@@ -344,7 +344,7 @@ onMounted(fetchStaff);
 .user-row { transition: background 0.15s; }
 .user-row:hover { background: var(--hover-bg); }
 .id-cell { color: var(--text-light); font-weight: 700; font-size: 0.8rem; }
-.email-cell { color: #E63B6F; font-weight: 500; }
+.email-cell { color: var(--primary); font-weight: 500; }
 .date-cell { color: var(--text-muted); font-size: 0.8rem; }
 .empty-cell { text-align: center; padding: 40px !important; color: var(--text-light); }
 
@@ -356,12 +356,12 @@ onMounted(fetchStaff);
   font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
 }
 .avatar-admin { background: #d32f2f; }
-.avatar-staff { background: #E63B6F; }
+.avatar-staff { background: var(--primary); }
 .avatar-seller { background: #ef6c00; }
 
 .role-select {
   padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--border-color);
-  font-size: 0.8rem; font-weight: 600; cursor: pointer; background: white; outline: none;
+  font-size: 0.8rem; font-weight: 600; cursor: pointer; background: var(--card-bg); outline: none;
   transition: all 0.2s; font-family: var(--font-inter);
 }
 .role-select:hover { border-color: var(--ocean-mid); }
@@ -383,7 +383,7 @@ onMounted(fetchStaff);
 }
 .staff-slider:before {
   position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
-  background-color: white; transition: .3s; border-radius: 50%;
+  background-color: var(--card-bg); transition: .3s; border-radius: 50%;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 .staff-toggle input:checked + .staff-slider { background-color: var(--seafoam, #26a69a); }
@@ -400,7 +400,7 @@ onMounted(fetchStaff);
 .btn-delete:hover { background: #ffcdd2; color: #c62828; border-color: #ef9a9a; }
 
 .super-badge { background: #ffebee; color: #d32f2f; font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
-.super-lock { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: #fafafa; border: 1.5px dashed #ccc; border-radius: 8px; cursor: not-allowed; opacity: 0.7; }
+.super-lock { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--surface-container); border: 1.5px dashed #ccc; border-radius: 8px; cursor: not-allowed; opacity: 0.7; }
 </style>
 
 <!-- Non-scoped styles for Teleported modals/toasts -->
@@ -444,7 +444,7 @@ onMounted(fetchStaff);
   color: var(--text-main, #102a43); font-family: var(--font-inter, 'Inter', sans-serif);
   font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.staff-form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.staff-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .staff-form-control::placeholder { color: var(--text-light, #9fb3c8); }
 .staff-form-select {
   appearance: none;
@@ -464,13 +464,13 @@ onMounted(fetchStaff);
 /* Buttons */
 .staff-btn-outline {
   padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color, #d9e8f0);
-  background: #fff; color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
+  background: var(--card-bg); color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; font-family: var(--font-inter, 'Inter', sans-serif);
 }
 .staff-btn-outline:hover { border-color: var(--ocean-mid, #b3e0f2); background: var(--ocean-deepest, #f0f7fa); }
 .staff-btn-primary {
   padding: 10px 20px; border-radius: 8px; border: none;
-  background: #E63B6F; color: #fff; font-size: 0.85rem; font-weight: 600;
+  background: var(--primary); color: #fff; font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
   font-family: var(--font-inter, 'Inter', sans-serif);
 }

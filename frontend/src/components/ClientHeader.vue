@@ -784,11 +784,11 @@ watch(
 }
 
 .nav-link:hover {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .nav-link.active {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .nav-link.active::after {
@@ -798,7 +798,7 @@ watch(
     left: 0;
     right: 0;
     height: 2px;
-    background-color: #E63B6F;
+    background-color: var(--primary);
     border-radius: 2px;
 }
 
@@ -855,8 +855,8 @@ watch(
     padding-left: 16px;
 }
 .search-container.is-expanded:focus-within {
-    background: #fff;
-    box-shadow: 0 0 0 1.5px #E63B6F; /* focus ring */
+    background: var(--card-bg);
+    box-shadow: 0 0 0 1.5px var(--primary); /* focus ring */
 }
 .search-input {
     border: none;
@@ -868,7 +868,7 @@ watch(
         opacity 0.3s,
         width 0.3s;
     font-size: 0.95rem;
-    color: #0f172a;
+    color: var(--text-main);
 }
 .search-container.is-expanded .search-input {
     width: 100%;
@@ -893,7 +893,7 @@ watch(
     transition: color 0.2s;
 }
 .search-icon-btn:hover {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 /* SEARCH DROPDOWN */
@@ -902,7 +902,7 @@ watch(
     top: calc(100% + 12px);
     right: 0;
     width: 380px;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 12px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
     border: 1px solid #e2e8f0;
@@ -952,7 +952,7 @@ watch(
 .search-item-name {
     font-size: 0.95rem;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--text-main);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -963,13 +963,13 @@ watch(
 .search-item-price {
     font-size: 0.9rem;
     font-weight: 700;
-    color: #E63B6F; /* Ocean blue theme */
+    color: var(--primary); /* Ocean blue theme */
 }
 .search-view-all {
     padding: 14px;
     text-align: center;
     background: #f8fafc;
-    color: #E63B6F;
+    color: var(--primary);
     font-weight: 700;
     font-size: 0.9rem;
     cursor: pointer;
@@ -990,7 +990,7 @@ watch(
     position: absolute;
     top: -4px;
     right: -6px;
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     font-size: 0.65rem;
     font-weight: 700;
@@ -1021,7 +1021,7 @@ watch(
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     display: flex;
     align-items: center;
@@ -1040,7 +1040,7 @@ watch(
 }
 
 .account-menu-inner {
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 8px;
@@ -1065,7 +1065,7 @@ watch(
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     display: flex;
     align-items: center;
@@ -1105,7 +1105,7 @@ watch(
 }
 .header-loyalty-row:hover {
     background: linear-gradient(135deg, #ffedd5, #ffe4e6);
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 .header-loyalty-icon {
     font-size: 1rem;
@@ -1119,11 +1119,11 @@ watch(
 .header-loyalty-pts {
     font-size: 0.85rem;
     font-weight: 700;
-    color: #E63B6F;
+    color: var(--primary);
     flex: 1;
 }
 .header-loyalty-arrow {
-    color: #E63B6F;
+    color: var(--primary);
     font-size: 1.1rem;
     font-weight: 700;
 }
@@ -1170,7 +1170,7 @@ watch(
 .mobile-nav-panel {
     width: min(88vw, 360px);
     height: calc(100vh - 24px);
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 24px;
     padding: 18px;
     display: flex;
@@ -1199,7 +1199,7 @@ watch(
     margin: 0;
     font-size: 1.2rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .mobile-nav-close {
@@ -1210,8 +1210,8 @@ watch(
 .mobile-account-link {
     width: 100%;
     border: 1px solid #e2e8f0;
-    background: #ffffff;
-    color: #0f172a;
+    background: var(--card-bg);
+    color: var(--text-main);
     border-radius: 14px;
     padding: 14px 16px;
     font-size: 0.95rem;
@@ -1255,7 +1255,7 @@ watch(
 
 .mobile-nav-link:hover,
 .mobile-nav-link.active {
-    color: #E63B6F;
+    color: var(--primary);
     background: #fff1f4;
     border-color: rgba(230, 59, 111, 0.18);
 }
@@ -1274,7 +1274,7 @@ watch(
 }
 
 .mobile-account-text strong {
-    color: #0f172a;
+    color: var(--text-main);
     font-size: 0.96rem;
 }
 
@@ -1317,7 +1317,7 @@ watch(
     display: flex;
     align-items: center;
     gap: 6px;
-    background: linear-gradient(135deg, #E63B6F, #d82f65);
+    background: linear-gradient(135deg, var(--primary), #d82f65);
     color: #fff;
     padding: 10px 16px;
     border-radius: 30px;
@@ -1360,7 +1360,7 @@ watch(
     position: absolute;
     top: calc(100% + 12px);
     right: -10px; /* Căn phải hoặc tùy chỉnh */
-    background: #fff;
+    background: var(--card-bg);
     color: #1a2b4a;
     padding: 10px 16px;
     border-radius: 8px;
@@ -1380,7 +1380,7 @@ watch(
     right: 20px;
     width: 12px;
     height: 12px;
-    background: #fff;
+    background: var(--card-bg);
     transform: rotate(45deg);
     border-top: 1px solid #e2e8f0;
     border-left: 1px solid #e2e8f0;

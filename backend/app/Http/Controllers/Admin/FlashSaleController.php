@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\FlashSaleRequest;
 use App\Services\FlashSaleService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
 class FlashSaleController extends Controller
@@ -83,7 +84,8 @@ class FlashSaleController extends Controller
             return response()->json(['status' => 'success', 'message' => 'Tạo Flash Sale thành công!']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+            Log::error('Flash Sale store failed: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Không thể tạo Flash Sale, vui lòng thử lại.'], 500);
         }
     }
 
@@ -124,7 +126,8 @@ class FlashSaleController extends Controller
             return response()->json(['status' => 'success', 'message' => 'Cập nhật thành công!']);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+            Log::error('Flash Sale update failed: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Không thể cập nhật Flash Sale, vui lòng thử lại.'], 500);
         }
     }
 

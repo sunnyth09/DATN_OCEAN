@@ -24,5 +24,8 @@ return [
         explode(',', env('GHN_WEBHOOK_ALLOWED_IPS', ''))
     ))),
 
+    // Shared secret gắn vào URL webhook GHN (?token=... hoặc header X-Webhook-Token)
+    'webhook_token' => env('GHN_WEBHOOK_TOKEN'),
+
     'tracking_url' => env('GHN_TRACKING_URL', 'https://donhang.ghn.vn'),
 ];

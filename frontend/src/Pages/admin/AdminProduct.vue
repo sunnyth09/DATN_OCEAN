@@ -5,6 +5,7 @@ import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
 import { getApiBaseUrl, getAppBaseUrl } from '@/utils/url';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastMsg = (message, type = 'success') => {
@@ -301,6 +302,8 @@ const showQuickViewModal = ref(false);
 const quickViewProduct = ref(null);
 const isLoadingQuickView = ref(false);
 const qvSelectedImage = ref('');
+const qvSafeShortDescription = computed(() => sanitizeHtml(quickViewProduct.value?.short_description));
+const qvSafeDescription = computed(() => sanitizeHtml(quickViewProduct.value?.description));
 
 const openQuickView = async (slug) => {
     isLoadingQuickView.value = true;
@@ -625,7 +628,7 @@ const formatDate = (dateString) => {
                                 <!-- Mô tả ngắn -->
                                 <div class="qv-desc-section" v-if="quickViewProduct.short_description">
                                     <h4>Mô tả ngắn</h4>
-                                    <div class="qv-desc-content" v-html="quickViewProduct.short_description"></div>
+                                    <div class="qv-desc-content" v-html="qvSafeShortDescription"></div>
                                 </div>
                             </div>
                         </div>
@@ -673,7 +676,7 @@ const formatDate = (dateString) => {
                         <!-- Mô tả chi tiết -->
                         <div class="qv-section" v-if="quickViewProduct.description">
                             <h4 class="qv-section-title">Mô tả chi tiết</h4>
-                            <div class="qv-desc-full" v-html="quickViewProduct.description"></div>
+                            <div class="qv-desc-full" v-html="qvSafeDescription"></div>
                         </div>
 
                         <!-- Footer Actions -->
@@ -841,7 +844,7 @@ const formatDate = (dateString) => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: #E63B6F; color: white;
+    background: var(--primary); color: white;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s; text-decoration: none;
     box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
@@ -853,11 +856,11 @@ const formatDate = (dateString) => {
 }
 .btn-outline {
     padding: 10px 22px; border-radius: 8px; border: 1px solid var(--border-color);
-    background: white; color: var(--text-muted);
+    background: var(--card-bg); color: var(--text-muted);
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s; text-decoration: none;
 }
-.btn-outline:hover { border-color: #E63B6F; color: #E63B6F; }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
 
 /* Filters */
 .filters-bar {
@@ -871,7 +874,7 @@ const formatDate = (dateString) => {
     transition: all 0.2s;
 }
 .search-box:focus-within {
-    border-color: #E63B6F; background: white;
+    border-color: var(--primary); background: var(--card-bg);
     box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 .search-box svg { color: var(--text-light); }
@@ -889,17 +892,17 @@ const formatDate = (dateString) => {
     cursor: pointer; transition: all 0.2s;
     display: flex; align-items: center; gap: 6px;
 }
-.filter-btn:hover { border-color: #E63B6F; color: #E63B6F; }
+.filter-btn:hover { border-color: var(--primary); color: var(--primary); }
 .filter-btn.active {
     background: rgba(230, 59, 111, 0.1); border-color: rgba(230, 59, 111, 0.3);
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 /* Loading */
 .loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600;}
 .spinner {
     width: 30px; height: 30px; border: 3px solid var(--border-color);
-    border-top-color: #E63B6F; border-radius: 50%;
+    border-top-color: var(--primary); border-radius: 50%;
     animation: spin 1s linear infinite; margin: 0 auto 16px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -925,7 +928,7 @@ const formatDate = (dateString) => {
 /* Badges */
 .badge-id {
     padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;
-    font-weight: 700; background: rgba(230, 59, 111, 0.1); color: #E63B6F;
+    font-weight: 700; background: rgba(230, 59, 111, 0.1); color: var(--primary);
 }
 .prod-cell { display: flex; flex-direction: column; gap: 2px; }
 .prod-thumb {
@@ -943,7 +946,7 @@ const formatDate = (dateString) => {
     padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700;
 }
 .badge-type.simple { background: rgba(156, 39, 176, 0.1); color: #7b1fa2; }
-.badge-type.variant { background: rgba(3, 169, 244, 0.1); color: #E63B6F; }
+.badge-type.variant { background: rgba(3, 169, 244, 0.1); color: var(--primary); }
 
 .badge-stock {
     padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 700;
@@ -970,7 +973,7 @@ const formatDate = (dateString) => {
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: all 0.2s; text-decoration: none;
 }
-.btn-icon:hover { border-color: currentColor; background: white;}
+.btn-icon:hover { border-color: currentColor; background: var(--card-bg);}
 .edit:hover { color: var(--seafoam); border-color: var(--seafoam); background: rgba(38, 166, 154, 0.05); }
 .del:hover { color: var(--coral); border-color: var(--coral); background: rgba(239, 83, 80, 0.05); }
 .view:hover { color: #8e24aa; border-color: #8e24aa; background: rgba(142, 36, 170, 0.05); }
@@ -982,14 +985,14 @@ const formatDate = (dateString) => {
     z-index: 1000; backdrop-filter: blur(2px);
 }
 .qv-modal {
-    background: white; border-radius: 16px; width: 94%; max-width: 900px;
+    background: var(--card-bg); border-radius: 16px; width: 94%; max-width: 900px;
     max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column;
     box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
 .qv-header {
     padding: 18px 24px; border-bottom: 1px solid var(--border-color);
     display: flex; justify-content: space-between; align-items: center;
-    position: sticky; top: 0; background: white; z-index: 10; border-radius: 16px 16px 0 0;
+    position: sticky; top: 0; background: var(--card-bg); z-index: 10; border-radius: 16px 16px 0 0;
 }
 .qv-header h2 {
     font-size: 1.15rem; font-weight: 800; margin: 0; color: var(--text-main);
@@ -1009,7 +1012,7 @@ const formatDate = (dateString) => {
 .qv-gallery { flex: 0 0 300px; display: flex; flex-direction: column; gap: 10px; }
 .qv-main-img {
     width: 100%; aspect-ratio: 1; border-radius: 12px; overflow: hidden;
-    border: 1px solid var(--border-color); background: #f8fafc;
+    border: 1px solid var(--border-color); background: var(--surface-container);
     display: flex; align-items: center; justify-content: center;
 }
 .qv-main-img img { width: 100%; height: 100%; object-fit: contain; }
@@ -1019,8 +1022,8 @@ const formatDate = (dateString) => {
     width: 52px; height: 52px; border-radius: 8px; overflow: hidden; cursor: pointer;
     border: 2px solid transparent; transition: border-color 0.2s;
 }
-.qv-thumb-item:hover { border-color: #E63B6F; }
-.qv-thumb-item.active { border-color: #E63B6F; box-shadow: 0 0 0 2px rgba(230, 59, 111,0.2); }
+.qv-thumb-item:hover { border-color: var(--primary); }
+.qv-thumb-item.active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(230, 59, 111,0.2); }
 .qv-thumb-item img { width: 100%; height: 100%; object-fit: cover; }
 
 /* Product Info */
@@ -1055,17 +1058,17 @@ const formatDate = (dateString) => {
 }
 .qv-variants-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
 .qv-variants-table tbody tr:hover td { background: rgba(230, 59, 111,0.03); }
-.qv-variants-table code { font-size: 0.78rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+.qv-variants-table code { font-size: 0.78rem; background: var(--surface-container); padding: 2px 6px; border-radius: 4px; }
 .qv-v-price { font-weight: 700; color: var(--seafoam); }
 .qv-variant-thumb {
     width: 36px; height: 36px; border-radius: 6px; overflow: hidden;
     border: 1px solid var(--border-color); cursor: pointer; transition: border-color 0.2s;
 }
-.qv-variant-thumb:hover { border-color: #E63B6F; }
+.qv-variant-thumb:hover { border-color: var(--primary); }
 .qv-variant-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .qv-variant-thumb.empty {
     display: flex; align-items: center; justify-content: center;
-    color: var(--text-light); font-size: 0.75rem; background: #f8fafc; cursor: default;
+    color: var(--text-light); font-size: 0.75rem; background: var(--surface-container); cursor: default;
 }
 
 .qv-desc-full {
@@ -1087,13 +1090,13 @@ const formatDate = (dateString) => {
 }
 .page-btn {
     width: 36px; height: 36px; border-radius: 8px;
-    border: 1px solid var(--border-color); background: white;
+    border: 1px solid var(--border-color); background: var(--card-bg);
     color: var(--text-muted); font-weight: 700; font-size: 0.85rem;
     cursor: pointer; transition: all 0.2s;
     display: flex; align-items: center; justify-content: center;
 }
-.page-btn:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; }
-.page-btn.active { background: #E63B6F; color: white; border-color: #E63B6F; }
+.page-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .page-dots { display: flex; align-items: center; justify-content: center; padding: 0 4px; color: var(--text-muted); font-weight: 700; }
 
@@ -1123,7 +1126,7 @@ const formatDate = (dateString) => {
     z-index: 1000; backdrop-filter: blur(2px);
 }
 .import-modal {
-    background: white; border-radius: 16px; width: 94%; max-width: 560px;
+    background: var(--card-bg); border-radius: 16px; width: 94%; max-width: 560px;
     display: flex; flex-direction: column;
     box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
@@ -1153,7 +1156,7 @@ const formatDate = (dateString) => {
     margin: 0; padding-left: 20px; font-size: 0.85rem; color: var(--text-muted);
     line-height: 1.8;
 }
-.import-guide ol strong { color: #E63B6F; }
+.import-guide ol strong { color: var(--primary); }
 .import-cols-info {
     display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;
 }
@@ -1161,7 +1164,7 @@ const formatDate = (dateString) => {
     padding: 3px 10px; border-radius: 5px; font-size: 0.72rem; font-weight: 700;
     background: rgba(158, 158, 158, 0.12); color: var(--text-muted);
 }
-.col-tag.required { background: rgba(230, 59, 111, 0.1); color: #E63B6F; }
+.col-tag.required { background: rgba(230, 59, 111, 0.1); color: var(--primary); }
 
 .btn-download-template {
     display: flex; align-items: center; gap: 8px; justify-content: center;
@@ -1179,7 +1182,7 @@ const formatDate = (dateString) => {
     padding: 30px 20px; text-align: center; cursor: pointer; transition: all 0.25s;
     background: var(--ocean-deepest, #fafcfe);
 }
-.import-dropzone:hover { border-color: #E63B6F; background: rgba(230, 59, 111, 0.03); }
+.import-dropzone:hover { border-color: var(--primary); background: rgba(230, 59, 111, 0.03); }
 .import-dropzone.has-file { border-color: #26a69a; border-style: solid; background: rgba(38, 166, 154, 0.04); }
 .import-file-input {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;

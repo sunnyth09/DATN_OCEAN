@@ -54,6 +54,7 @@ onMounted(() => {
 
 <template>
     <div class="order-success-page theme-brown">
+      <div class="container d-flex flex-column align-items-center">
         <!-- Khu vực thông báo thành công -->
         <div class="success-banner animate-in">
             <div class="success-icon-wrapper">
@@ -125,6 +126,7 @@ onMounted(() => {
                 />
             </div>
         </div>
+      </div>
     </div>
 </template>
 
@@ -141,7 +143,7 @@ onMounted(() => {
 
 /* Success Banner */
 .success-banner {
-    background: white;
+    background: var(--card-bg);
     border-radius: 20px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05);
     padding: 50px 40px;
@@ -171,7 +173,7 @@ onMounted(() => {
 .success-title {
     font-size: 2rem;
     font-weight: 800;
-    color: #2D3436;
+    color: var(--text-main);
     margin-bottom: 16px;
 }
 
@@ -184,7 +186,7 @@ onMounted(() => {
 
 .order-code-box {
     background: #f8fafc;
-    border: 1px dashed #E63B6F;
+    border: 1px dashed var(--primary);
     padding: 12px 24px;
     border-radius: 12px;
     display: inline-flex;
@@ -201,7 +203,7 @@ onMounted(() => {
 .order-code-box .code {
     font-size: 1.25rem;
     font-weight: 800;
-    color: #E63B6F;
+    color: var(--primary);
     letter-spacing: 1px;
 }
 
@@ -230,9 +232,9 @@ onMounted(() => {
 }
 
 .btn-solid-brown {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
-    border: 1px solid #E63B6F;
+    border: 1px solid var(--primary);
 }
 
 .btn-solid-brown:hover {
@@ -242,14 +244,14 @@ onMounted(() => {
 
 .btn-outline-brown {
     background: transparent;
-    color: #2D3436;
+    color: var(--text-main);
     border: 1px solid #cbd5e1;
 }
 
 .btn-outline-brown:hover {
     background: #f8fafc;
-    border-color: #E63B6F;
-    color: #E63B6F;
+    border-color: var(--primary);
+    color: var(--primary);
     transform: translateY(-3px);
 }
 
@@ -267,14 +269,14 @@ onMounted(() => {
 .section-title h2 {
     font-size: 1.8rem;
     font-weight: 800;
-    color: #2D3436;
+    color: var(--text-main);
     margin-bottom: 12px;
 }
 
 .title-divider {
     width: 60px;
     height: 4px;
-    background: #E63B6F;
+    background: var(--primary);
     border-radius: 2px;
     margin: 0 auto;
 }
@@ -299,7 +301,7 @@ onMounted(() => {
     width: 30px;
     height: 30px;
     border: 3px solid #E9ECEF;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 16px;

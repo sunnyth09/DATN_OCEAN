@@ -1468,7 +1468,7 @@ onMounted(() => {
 }
 
 .back-link a:hover {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .page-title {
@@ -1498,7 +1498,7 @@ onMounted(() => {
     padding: 10px 20px;
     border-radius: 8px;
     border: none;
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     font-size: 0.85rem;
     font-weight: 700;
@@ -1517,7 +1517,7 @@ onMounted(() => {
     padding: 10px 20px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    background: white;
+    background: var(--card-bg);
     color: var(--text-main);
     font-size: 0.85rem;
     font-weight: 600;
@@ -1538,7 +1538,7 @@ onMounted(() => {
     border-radius: 6px;
     border: 1px solid var(--border-color);
     background: transparent;
-    color: #E63B6F;
+    color: var(--primary);
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
@@ -1547,13 +1547,13 @@ onMounted(() => {
 
 .btn-outline-small:hover {
     background: rgba(230, 59, 111, 0.05);
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .btn-text-link {
     background: none;
     border: none;
-    color: #E63B6F;
+    color: var(--primary);
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
@@ -1663,7 +1663,7 @@ onMounted(() => {
     padding: 10px 14px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
-    background: white;
+    background: var(--card-bg);
     color: var(--text-main);
     font-family: var(--font-inter);
     font-size: 0.85rem;
@@ -1671,7 +1671,7 @@ onMounted(() => {
 }
 
 .form-control:focus {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     outline: none;
     box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
@@ -1704,12 +1704,12 @@ onMounted(() => {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     overflow: hidden;
-    background: white;
+    background: var(--card-bg);
     transition: all 0.2s;
 }
 
 .input-with-prefix:focus-within {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
@@ -1767,9 +1767,9 @@ onMounted(() => {
 }
 
 .radio-label input[type="radio"]:checked + .radio-box {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: rgba(230, 59, 111, 0.05);
-    box-shadow: 0 0 0 1px #E63B6F;
+    box-shadow: 0 0 0 1px var(--primary);
 }
 
 /* Image Upload */
@@ -1783,7 +1783,7 @@ onMounted(() => {
 }
 
 .image-upload-box:hover {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: var(--hover-bg);
 }
 
@@ -1844,7 +1844,7 @@ onMounted(() => {
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: white;
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     color: var(--coral);
     font-weight: bold;
@@ -1867,7 +1867,7 @@ onMounted(() => {
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: white;
+    background: var(--card-bg);
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -1961,13 +1961,13 @@ onMounted(() => {
     width: 18px;
     left: 3px;
     bottom: 3px;
-    background-color: white;
+    background-color: var(--card-bg);
     transition: 0.3s;
     border-radius: 50%;
 }
 
 .toggle-input:checked + .toggle-slider {
-    background-color: #E63B6F;
+    background-color: var(--primary);
 }
 
 .toggle-input:checked + .toggle-slider:before {
@@ -2085,7 +2085,7 @@ onMounted(() => {
 }
 
 .gallery-add-btn:hover {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: rgba(230, 59, 111, 0.04);
 }
 
@@ -2171,7 +2171,7 @@ onMounted(() => {
 }
 
 .variant-img-add:hover {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: rgba(230, 59, 111, 0.04);
 }
 
@@ -2197,16 +2197,16 @@ onMounted(() => {
     border-top: none;
     font-family: var(--font-inter);
     font-size: 0.9rem;
-    background: white;
+    background: var(--card-bg);
     transition: border-color 0.2s;
 }
 
 .quill-wrapper:focus-within :deep(.ql-toolbar.ql-snow) {
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .quill-wrapper:focus-within :deep(.ql-container.ql-snow) {
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .quill-wrapper :deep(.ql-editor) {
@@ -2240,7 +2240,7 @@ onMounted(() => {
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     padding: 20px;
-    background: #f8fafc;
+    background: var(--surface-container);
     border-radius: 8px;
     border: 1px solid var(--border-color);
     position: relative;
@@ -2281,7 +2281,7 @@ onMounted(() => {
 }
 .sale-inline-field label {
     font-size: 0.75rem;
-    color: #E63B6F;
+    color: var(--primary);
     margin-bottom: 4px;
     display: block;
     font-weight: 600;
@@ -2296,7 +2296,7 @@ onMounted(() => {
     height: 32px;
     border-radius: 6px;
     border: 1px solid var(--border-color);
-    background: #f8fafc;
+    background: var(--surface-container);
     color: var(--text-muted);
     display: flex;
     align-items: center;
@@ -2306,12 +2306,12 @@ onMounted(() => {
 }
 .btn-sale-toggle:hover {
     background: var(--ocean-deepest);
-    color: #E63B6F;
+    color: var(--primary);
 }
 .btn-sale-toggle.active {
     background: rgba(230, 59, 111, 0.1);
-    color: #E63B6F;
-    border-color: #E63B6F;
+    color: var(--primary);
+    border-color: var(--primary);
 }
 .slide-fade-enter-active {
   transition: all 0.3s ease-out;

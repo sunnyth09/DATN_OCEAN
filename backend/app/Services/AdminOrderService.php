@@ -296,9 +296,8 @@ class AdminOrderService
                             );
                         }
 
-                        // Hoàn tồn kho
-                        $items = DB::table('order_items')->where('order_id', $order->order_id)->get();
-                        $this->orderRepository->restoreStock($items->filter(fn($i) => $i->variant_id)->all());
+                        // Hoàn tồn kho (dùng items đã eager-load, tránh N+1)
+                        $this->orderRepository->restoreStock($order->items->filter(fn($i) => $i->variant_id)->all());
                     }
                 }
 
@@ -336,14 +335,14 @@ class AdminOrderService
                 ], true);
 
                 foreach ($orders as $order) {
-                    $this->affiliateService->updateConversionOnStatusChange($order->fresh(), $newFulfillmentStatus);
+                    $freshOrder = $order->fresh();
+                    $this->affiliateService->updateConversionOnStatusChange($freshOrder, $newFulfillmentStatus);
 
                     // Tích điểm loyalty
                     if ($isDeliveredOrCompleted && $order->user) {
                         try {
-                            $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
+                            $this->loyaltyService->earnFromOrder($order->user, $freshOrder);
 
-                            $freshOrder = $order->fresh();
                             if ($freshOrder->is_abandoned_checkout) {
                                 $this->loyaltyService->earnAbandonedCart($order->user, $freshOrder->order_id);
                                 $order->update(['is_abandoned_checkout' => false]);

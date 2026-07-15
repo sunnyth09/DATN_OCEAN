@@ -255,7 +255,7 @@ class AdminWalletController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Admin confirm deposit failed', ['error' => $e->getMessage()]);
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+            return response()->json(['status' => 'error', 'message' => 'Duyệt nạp tiền thất bại, vui lòng thử lại.'], 500);
         }
     }
 

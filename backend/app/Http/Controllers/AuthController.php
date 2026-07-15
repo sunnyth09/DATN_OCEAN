@@ -42,11 +42,9 @@ class AuthController extends Controller
         //     ], 422);
         // }
         $credentials = $request->only('email', 'password');
-        // \Illuminate\Support\Facades\Log::info("Login attempt", $credentials);
 
         // BƯỚC 1: Thử đăng nhập Admin (nhân sự) trước
         $adminToken = auth('admin')->attempt($credentials);
-        \Illuminate\Support\Facades\Log::info("Admin attempt result", ['token' => (bool)$adminToken]);
         if ($adminToken) {
             $user = auth('admin')->user();
             if (isset($user->status) && $user->status !== 'active') {

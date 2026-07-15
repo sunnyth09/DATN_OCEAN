@@ -197,7 +197,7 @@ const submitChangePassword = async () => {
 }
 
 .section-header { margin-bottom: 4px; }
-.section-title  { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
+.section-title  { font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin: 0; }
 .section-desc   { font-size: 0.875rem; color: #6b7280; margin: 4px 0 0; }
 
 .alert {
@@ -212,7 +212,7 @@ const submitChangePassword = async () => {
 .alert-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 
 .form-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 28px;
@@ -237,13 +237,13 @@ const submitChangePassword = async () => {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 0.9rem;
-  color: #111827;
+  color: var(--text-main);
   outline: none;
   transition: border 0.15s, box-shadow 0.15s;
-  background: #fff;
+  background: var(--card-bg);
   box-sizing: border-box;
 }
-.form-input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230,59,111,0.12); }
+.form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230,59,111,0.12); }
 .form-input--error { border-color: #ef4444; }
 
 .eye-btn {
@@ -257,7 +257,7 @@ const submitChangePassword = async () => {
   display: flex;
   align-items: center;
 }
-.eye-btn:hover { color: #E63B6F; }
+.eye-btn:hover { color: var(--primary); }
 
 .form-divider { height: 1px; background: #f3f4f6; }
 
@@ -279,7 +279,7 @@ const submitChangePassword = async () => {
 .form-actions { margin-top: 8px; }
 .btn-primary {
   padding: 11px 28px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -293,7 +293,7 @@ const submitChangePassword = async () => {
   min-width: 180px;
   transition: background 0.2s;
 }
-.btn-primary:hover:not(:disabled) { background: #b50c4d; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
 .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
 
 .spinner {

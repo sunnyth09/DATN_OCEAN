@@ -43,6 +43,22 @@ class Order extends Model
         'combo_discount',
     ];
 
+    protected $casts = [
+        'subtotal'                   => 'decimal:2',
+        'discount_amount'            => 'decimal:2',
+        'wallet_deposit_discount'    => 'decimal:2',
+        'wallet_commission_discount' => 'decimal:2',
+        'shipping_fee'               => 'decimal:2',
+        'grand_total'                => 'decimal:2',
+        'combo_discount'             => 'decimal:2',
+        'email_sent'                 => 'boolean',
+        'confirmed_at'               => 'datetime',
+        'shipped_at'                 => 'datetime',
+        'delivered_at'               => 'datetime',
+        'completed_at'               => 'datetime',
+        'cancelled_at'               => 'datetime',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');

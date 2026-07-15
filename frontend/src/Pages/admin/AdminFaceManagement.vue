@@ -255,7 +255,7 @@ onMounted(() => fetchData());
   display: flex; align-items: center; gap: 14px; cursor: pointer;
   transition: background 0.2s; padding: 4px; border-radius: 10px;
 }
-.staff-row:hover { background: #f8fafc; }
+.staff-row:hover { background: var(--surface-container); }
 .staff-avatar { flex-shrink: 0; }
 .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; }
 .avatar-placeholder {
@@ -265,8 +265,8 @@ onMounted(() => fetchData());
   font-weight: 700; font-size: 1.1rem;
 }
 .staff-info { flex: 1; min-width: 0; }
-.staff-name { font-weight: 600; font-size: 0.95rem; color: #1e293b; }
-.staff-email { font-size: 0.8rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.staff-name { font-weight: 600; font-size: 0.95rem; color: var(--text-main); }
+.staff-email { font-size: 0.8rem; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Role */
 .role-badge {
@@ -286,7 +286,7 @@ onMounted(() => fetchData());
 .face-badge--no { background: #fef3c7; color: #92400e; }
 
 .staff-actions { flex-shrink: 0; }
-.expand-arrow { color: #94a3b8; font-size: 0.9rem; flex-shrink: 0; }
+.expand-arrow { color: var(--text-light); font-size: 0.9rem; flex-shrink: 0; }
 
 /* Expanded */
 .expanded-content { border-top: 1px solid #f1f5f9; }
@@ -300,11 +300,11 @@ onMounted(() => fetchData());
 .face-photo-img:hover { transform: scale(1.05); }
 .face-photo-placeholder {
   width: 100%; aspect-ratio: 1; border-radius: 12px;
-  background: #f1f5f9; display: flex; align-items: center;
+  background: var(--surface-container); display: flex; align-items: center;
   justify-content: center; font-size: 2rem; color: #cbd5e1;
 }
 .face-photo-label { font-weight: 600; font-size: 0.75rem; color: #334155; margin-top: 6px; }
-.face-photo-date { font-size: 0.65rem; color: #94a3b8; }
+.face-photo-date { font-size: 0.65rem; color: var(--text-light); }
 
 /* Transitions */
 .slide-fade-enter-active { transition: all 0.3s ease-out; }
