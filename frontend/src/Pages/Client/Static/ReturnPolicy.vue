@@ -63,7 +63,7 @@
   border-radius: 24px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, #E63B6F 0%, #d92f66 48%, #f05a8a 100%);
+    linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
   box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
 }
 .page-hero h1 {
@@ -87,9 +87,9 @@
 }
 .hero-sub { max-width: 700px; margin: 0 auto; color: rgba(255,255,255,0.9); font-size: 1.05rem; line-height: 1.7; }
 .page-content { padding: 48px 24px 64px; }
-.highlight-box { background: #FFF0F3; border-left: 4px solid #E63B6F; padding: 16px 20px; border-radius: 8px; font-size: 0.95rem; color: #2D3436; line-height: 1.6; margin-bottom: 36px; }
+.highlight-box { background: #FFF0F3; border-left: 4px solid var(--primary); padding: 16px 20px; border-radius: 8px; font-size: 0.95rem; color: var(--text-main); line-height: 1.6; margin-bottom: 36px; }
 .content-block { margin-bottom: 36px; }
-.content-block h2 { font-size: 1.3rem; font-weight: 700; color: #2D3436; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }
+.content-block h2 { font-size: 1.3rem; font-weight: 700; color: var(--text-main); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }
 .content-block p { font-size: 0.95rem; color: #4b5563; line-height: 1.8; margin-bottom: 10px; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .col { background: #F8F9FA; border-radius: 12px; padding: 24px; border: 1px solid #FFE0E8; }
@@ -100,8 +100,8 @@
 .col li { font-size: 0.9rem; color: #4b5563; line-height: 1.7; margin-bottom: 6px; }
 .steps { display: flex; flex-direction: column; gap: 16px; }
 .step { display: flex; gap: 16px; align-items: flex-start; }
-.step-num { width: 36px; height: 36px; border-radius: 50%; background: #E63B6F; color: #fff; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.step h4 { font-size: 1rem; font-weight: 700; color: #2D3436; margin: 0 0 4px; }
+.step-num { width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.step h4 { font-size: 1rem; font-weight: 700; color: var(--text-main); margin: 0 0 4px; }
 .step p { font-size: 0.9rem; color: #6b7280; line-height: 1.6; margin: 0; }
 @media (max-width: 768px) { .static-page { padding-top: 16px; } .page-hero { padding: 0 16px; } .page-hero .container { padding: 40px 18px; border-radius: 18px; } .page-content { padding: 36px 24px 56px; } .two-col { grid-template-columns: 1fr;  } }
 </style>

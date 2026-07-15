@@ -819,7 +819,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .section-title {
     font-size: 1.75rem;
     font-weight: 800;
-    color: #2D3436;
+    color: var(--text-main);
     letter-spacing: -0.5px;
     margin: 0;
 }
@@ -834,13 +834,13 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     display: block;
     width: 60px;
     height: 4px;
-    background: linear-gradient(90deg, #E63B6F, #ff8fab);
+    background: linear-gradient(90deg, var(--primary), #ff8fab);
     border-radius: 4px;
     margin: 8px auto 0;
 }
 
 .link-more {
-    color: #E63B6F;
+    color: var(--primary);
     font-weight: 600;
     font-size: 0.9rem;
     text-decoration: none;
@@ -988,7 +988,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .hero-title em {
     font-style: italic;
-    color: #E63B6F;
+    color: var(--primary);
     text-shadow: 0 0 40px rgba(230, 59, 111, .5);
 }
 
@@ -1020,7 +1020,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: linear-gradient(135deg, #E63B6F, #ff6b9d);
+    background: linear-gradient(135deg, var(--primary), #ff6b9d);
     color: #fff;
     border: none;
     padding: 14px 36px;
@@ -1056,7 +1056,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .btn-outline-hero:hover {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: rgba(230, 59, 111, .15);
     color: #ffb2bf;
 }
@@ -1078,7 +1078,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .scroll-dot {
     width: 4px;
     height: 8px;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 2px;
     animation: scrollBounce 1.8s ease-in-out infinite;
 }
@@ -1101,7 +1101,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    2. BENEFITS BAR
 ============================================ */
 .benefits-bar {
-    background: #fff;
+    background: var(--card-bg);
     border-top: 1px solid #f0f0f0;
     border-bottom: 1px solid #f0f0f0;
     box-shadow: 0 2px 16px rgba(0, 0, 0, .04);
@@ -1128,11 +1128,11 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .benefit-item:hover .benefit-icon {
     transform: translateY(-3px);
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .benefit-icon {
-    color: #E63B6F;
+    color: var(--primary);
     flex-shrink: 0;
     transition: transform .3s, color .2s;
 }
@@ -1146,7 +1146,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .benefit-title {
     font-size: .85rem;
     font-weight: 700;
-    color: #2D3436;
+    color: var(--text-main);
     white-space: nowrap;
 }
 
@@ -1172,7 +1172,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .flash-sale-icon {
     width: 52px;
     height: 52px;
-    background: linear-gradient(135deg, #E63B6F, #ff6b9d);
+    background: linear-gradient(135deg, var(--primary), #ff6b9d);
     border-radius: 14px;
     display: flex;
     align-items: center;
@@ -1226,7 +1226,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .countdown-num {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #E63B6F;
+    color: var(--primary);
     line-height: 1;
     font-variant-numeric: tabular-nums;
 }
@@ -1242,7 +1242,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .countdown-sep {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #E63B6F;
+    color: var(--primary);
     animation: blink 1s step-end infinite;
 }
 
@@ -1256,7 +1256,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #E63B6F;
+    color: var(--primary);
     border: 1px solid rgba(230, 59, 111, .4);
     border-radius: 8px;
     padding: 10px 20px;
@@ -1269,8 +1269,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .flash-sale-link:hover {
     background: rgba(230, 59, 111, .1);
-    border-color: #E63B6F;
-    color: #E63B6F;
+    border-color: var(--primary);
+    color: var(--primary);
 }
 
 /* ============================================
@@ -1393,7 +1393,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    5. EQUIPMENT SECTION
 ============================================ */
 .equip-big-card {
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid #eaeaea;
     border-radius: 16px;
     padding: 28px;
@@ -1432,7 +1432,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-badge {
     display: inline-block;
-    background: linear-gradient(135deg, #E63B6F, #ff6b9d);
+    background: linear-gradient(135deg, var(--primary), #ff6b9d);
     color: #fff;
     font-size: .8rem;
     font-weight: 700;
@@ -1443,7 +1443,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .equip-big-name {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #2D3436;
+    color: var(--text-main);
 }
 
 .equip-big-desc {
@@ -1456,7 +1456,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     padding: 11px 28px;
     border-radius: 99px;
@@ -1475,7 +1475,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .equip-small-card {
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid #eaeaea;
     border-radius: 16px;
     padding: 20px;
@@ -1524,14 +1524,14 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .equip-small-name {
     font-size: 1.05rem;
     font-weight: 800;
-    color: #2D3436;
+    color: var(--text-main);
 }
 
 .equip-small-link {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    color: #E63B6F;
+    color: var(--primary);
     font-size: .85rem;
     font-weight: 700;
 }
@@ -1553,13 +1553,13 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .tab-btn:hover {
-    border-color: #E63B6F;
-    color: #E63B6F;
+    border-color: var(--primary);
+    color: var(--primary);
 }
 
 .tab-btn.active {
-    background: #E63B6F;
-    border-color: #E63B6F;
+    background: var(--primary);
+    border-color: var(--primary);
     color: #fff;
     box-shadow: 0 4px 14px rgba(230, 59, 111, .3);
 }
@@ -1569,8 +1569,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     align-items: center;
     gap: 8px;
     padding: 13px 40px;
-    border: 2px solid #E63B6F;
-    color: #E63B6F;
+    border: 2px solid var(--primary);
+    color: var(--primary);
     background: transparent;
     border-radius: 99px;
     font-size: .95rem;
@@ -1580,7 +1580,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .btn-view-more:hover {
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(230, 59, 111, .3);
@@ -1638,7 +1638,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .promo-banner-title em {
-    color: #E63B6F;
+    color: var(--primary);
     font-style: italic;
 }
 
@@ -1654,7 +1654,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     padding: 11px 26px;
     border-radius: 99px;
@@ -1702,7 +1702,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .deco-c1 {
     width: 180px;
     height: 180px;
-    background: #fff;
+    background: var(--card-bg);
     top: -40px;
     right: -40px;
 }
@@ -1710,7 +1710,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .deco-c2 {
     width: 120px;
     height: 120px;
-    background: #E63B6F;
+    background: var(--primary);
     bottom: -20px;
     right: 60px;
     opacity: .25;
@@ -1719,7 +1719,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .deco-c3 {
     width: 200px;
     height: 200px;
-    background: #E63B6F;
+    background: var(--primary);
     top: -50px;
     right: -50px;
 }
@@ -1727,7 +1727,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .deco-c4 {
     width: 100px;
     height: 100px;
-    background: #fff;
+    background: var(--card-bg);
     bottom: -20px;
     right: 80px;
     opacity: .12;
@@ -1811,7 +1811,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    9. TESTIMONIALS
 ============================================ */
 .testimonial-card {
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid #e5e7eb;
     border-radius: 20px;
     padding: 28px 24px;
@@ -1924,7 +1924,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .community-title em {
     font-style: italic;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .community-stats-row {
@@ -1935,7 +1935,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .community-stat-num {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #E63B6F;
+    color: var(--primary);
     line-height: 1;
 }
 
@@ -1972,7 +1972,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: linear-gradient(135deg, #E63B6F, #ff6b9d);
+    background: linear-gradient(135deg, var(--primary), #ff6b9d);
     color: #fff;
     border: none;
     padding: 13px 30px;

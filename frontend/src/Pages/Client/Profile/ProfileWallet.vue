@@ -684,7 +684,7 @@ onMounted(async () => {
 .wallet-spinner {
   width: 36px; height: 36px;
   border: 3px solid #e5e7eb;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: wspin 0.7s linear infinite;
   margin: 0 auto 12px;
@@ -698,7 +698,7 @@ onMounted(async () => {
   margin-bottom: 28px;
 }
 .balance-main-card {
-  background: linear-gradient(135deg, #E63B6F 0%, #c02758 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #c02758 100%);
   border-radius: 20px;
   padding: 28px 24px;
   color: #fff;
@@ -740,7 +740,7 @@ onMounted(async () => {
 
 .balance-detail-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
 .balance-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 20px;
@@ -762,7 +762,7 @@ onMounted(async () => {
 /* Stats */
 .wallet-stats {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 16px 20px;
@@ -775,7 +775,7 @@ onMounted(async () => {
 
 /* ═══ BANK ACCOUNTS SECTION ═══ */
 .bank-accounts-section {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   overflow: hidden;
@@ -789,8 +789,8 @@ onMounted(async () => {
 .btn-add-bank {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 16px;
-  background: #fff; border: 1.5px solid #E63B6F;
-  border-radius: 10px; color: #E63B6F;
+  background: var(--card-bg); border: 1.5px solid var(--primary);
+  border-radius: 10px; color: var(--primary);
   font-size: 0.82rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s;
 }
@@ -801,7 +801,7 @@ onMounted(async () => {
 }
 .btn-add-bank-lg {
   margin-top: 12px; padding: 10px 24px;
-  background: #E63B6F; color: #fff;
+  background: var(--primary); color: #fff;
   border: none; border-radius: 10px;
   font-weight: 600; cursor: pointer;
   transition: background 0.2s;
@@ -817,13 +817,13 @@ onMounted(async () => {
   transition: all 0.2s;
 }
 .ba-item:last-child { margin-bottom: 0; }
-.ba-default { border-color: #E63B6F; background: #fff8fa; }
+.ba-default { border-color: var(--primary); background: #fff8fa; }
 .ba-icon { font-size: 1.5rem; flex-shrink: 0; }
 .ba-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ba-bank-name { font-size: 0.9rem; font-weight: 600; color: #1f2937; display: flex; align-items: center; gap: 8px; }
 .ba-badge {
   display: inline-block; padding: 2px 8px;
-  background: #E63B6F; color: #fff;
+  background: var(--primary); color: #fff;
   border-radius: 6px; font-size: 0.65rem; font-weight: 700;
 }
 .ba-acc-name { font-size: 0.82rem; color: #6b7280; }
@@ -847,7 +847,7 @@ onMounted(async () => {
 }
 .btn-link-bank {
   margin-top: 8px; padding: 8px 20px;
-  background: #E63B6F; color: #fff;
+  background: var(--primary); color: #fff;
   border: none; border-radius: 8px;
   font-weight: 600; font-size: 0.85rem;
   cursor: pointer;
@@ -871,7 +871,7 @@ onMounted(async () => {
 
 /* ═══ HISTORY SECTION ═══ */
 .wallet-history-section {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   overflow: hidden;
@@ -886,15 +886,15 @@ onMounted(async () => {
   padding: 6px 14px;
   border: 1px solid #e5e7eb;
   border-radius: 20px;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 0.8rem;
   font-weight: 500;
   color: #6b7280;
   cursor: pointer;
   transition: all 0.2s;
 }
-.filter-btn:hover { border-color: #E63B6F; color: #E63B6F; }
-.filter-btn.active { background: #E63B6F; color: #fff; border-color: #E63B6F; }
+.filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+.filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 .history-loading { padding: 40px; text-align: center; }
 .history-empty { padding: 60px 24px; text-align: center; color: #9ca3af; }
@@ -932,12 +932,12 @@ onMounted(async () => {
   width: 36px; height: 36px;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 1.1rem;
   cursor: pointer;
   transition: all 0.2s;
 }
-.history-pagination button:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; }
+.history-pagination button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .history-pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 .page-info { font-size: 0.85rem; color: #6b7280; font-weight: 500; }
 
@@ -951,7 +951,7 @@ onMounted(async () => {
   padding: 16px;
 }
 .deposit-modal {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 20px;
   width: 100%;
   max-width: 440px;
@@ -989,22 +989,22 @@ onMounted(async () => {
   transition: border-color 0.2s;
   box-sizing: border-box;
 }
-.dm-input:focus { border-color: #E63B6F; }
+.dm-input:focus { border-color: var(--primary); }
 
 .preset-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
 .preset-btn {
   padding: 10px;
   border: 1.5px solid #e5e7eb;
   border-radius: 10px;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   color: #374151;
 }
-.preset-btn:hover { border-color: #E63B6F; color: #E63B6F; }
-.preset-btn.active { background: #fff0f3; border-color: #E63B6F; color: #E63B6F; }
+.preset-btn:hover { border-color: var(--primary); color: var(--primary); }
+.preset-btn.active { background: #fff0f3; border-color: var(--primary); color: var(--primary); }
 
 .deposit-methods { display: flex; gap: 8px; flex-wrap: wrap; }
 .dep-method {
@@ -1021,13 +1021,13 @@ onMounted(async () => {
   min-width: 100px;
 }
 .dep-method input { display: none; }
-.dep-method:hover { border-color: #E63B6F; }
-.dep-method.active { border-color: #E63B6F; background: #fff0f3; color: #E63B6F; }
+.dep-method:hover { border-color: var(--primary); }
+.dep-method.active { border-color: var(--primary); background: #fff0f3; color: var(--primary); }
 
 .btn-confirm-deposit {
   width: 100%;
   padding: 14px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -1054,7 +1054,7 @@ onMounted(async () => {
 .dir-row span { color: #6b7280; }
 .dir-row strong { color: #1f2937; }
 .text-green { color: #10b981 !important; }
-.text-primary { color: #E63B6F !important; }
+.text-primary { color: var(--primary) !important; }
 .deposit-note {
   display: flex; align-items: flex-start; gap: 8px;
   background: #fffbeb;

@@ -118,15 +118,15 @@ const resetFilters = () => {
 
 .btn-preset:hover {
   background: var(--hover-bg);
-  border-color: #E63B6F;
-  color: #E63B6F;
+  border-color: var(--primary);
+  color: var(--primary);
   transform: translateY(-1px);
 }
 
 .btn-preset.active {
-  background: #E63B6F;
+  background: var(--primary);
   color: white !important;
-  border-color: #E63B6F;
+  border-color: var(--primary);
   box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25);
 }
 
@@ -139,13 +139,13 @@ const resetFilters = () => {
 
 :global(html.dark) .btn-preset:hover {
   background: rgba(255, 255, 255, 0.08) !important;
-  border-color: #E63B6F !important;
-  color: #E63B6F !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
 }
 
 :global(html.dark) .btn-preset.active {
-  background: #E63B6F !important;
-  border-color: #E63B6F !important;
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
   color: white !important;
 }
 
@@ -166,7 +166,7 @@ const resetFilters = () => {
   transition: all 0.2s;
 }
 .form-input:focus {
-  border-color: #E63B6F;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
@@ -199,7 +199,7 @@ const resetFilters = () => {
 }
 
 .btn-primary {
-  background: #E63B6F;
+  background: var(--primary);
   color: white;
   border: none;
 }

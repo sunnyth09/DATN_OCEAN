@@ -284,7 +284,7 @@ const submitContact = async () => {
   border-radius: 24px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, #E63B6F 0%, #d92f66 48%, #f05a8a 100%);
+    linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
   box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
 }
 
@@ -346,7 +346,7 @@ const submitContact = async () => {
   height: 40px;
   border-radius: 999px;
   background: #fff0f3;
-  color: #E63B6F;
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -356,7 +356,7 @@ const submitContact = async () => {
 .contact-card h3 {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #2D3436;
+  color: var(--text-main);
   margin-bottom: 6px;
 }
 
@@ -405,7 +405,7 @@ const submitContact = async () => {
   margin: 0 0 6px;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
 }
 
 .location-meta p {
@@ -428,7 +428,7 @@ const submitContact = async () => {
 .form-panel h2 {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #2D3436;
+  color: var(--text-main);
   margin-bottom: 14px;
 }
 
@@ -461,7 +461,7 @@ const submitContact = async () => {
   border-radius: 10px;
   font-size: 0.9rem;
   font-family: inherit;
-  color: #2D3436;
+  color: var(--text-main);
   background: #F8F9FA;
   outline: none;
   transition: border-color 0.2s;
@@ -470,8 +470,8 @@ const submitContact = async () => {
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  border-color: #E63B6F;
-  background: #fff;
+  border-color: var(--primary);
+  background: var(--card-bg);
 }
 
 .form-group textarea {
@@ -482,7 +482,7 @@ const submitContact = async () => {
   padding: 12px 24px;
   border: none;
   border-radius: 8px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   font-size: 0.95rem;
   font-weight: 600;

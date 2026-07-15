@@ -475,7 +475,7 @@ onMounted(async () => {
 <style scoped>
 .aff-page {
   font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 /* Loading */
@@ -491,14 +491,14 @@ onMounted(async () => {
 .aff-spinner {
   width: 32px; height: 32px;
   border: 3px solid #e2e8f0;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 .aff-spinner-sm {
   width: 20px; height: 20px;
   border: 2px solid #e2e8f0;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -511,7 +511,7 @@ onMounted(async () => {
   padding: 20px 0;
 }
 .aff-register-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 40px;
@@ -526,7 +526,7 @@ onMounted(async () => {
   font-size: 1.4rem;
   font-weight: 700;
   margin: 0 0 8px;
-  color: #1e293b;
+  color: var(--text-main);
 }
 .aff-register-card p {
   color: #64748b;
@@ -546,7 +546,7 @@ onMounted(async () => {
   color: #475569;
 }
 .aff-btn-register {
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 12px;
@@ -572,7 +572,7 @@ onMounted(async () => {
 
 /* Info Card */
 .aff-info-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 24px;
@@ -620,7 +620,7 @@ onMounted(async () => {
 .aff-code {
   font-weight: 700;
   font-size: 1rem;
-  color: #E63B6F;
+  color: var(--primary);
   letter-spacing: 1px;
 }
 .aff-link-text {
@@ -632,7 +632,7 @@ onMounted(async () => {
   white-space: nowrap;
 }
 .aff-btn-copy {
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -654,7 +654,7 @@ onMounted(async () => {
   margin-bottom: 24px;
 }
 .aff-stat-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   padding: 18px 16px;
@@ -679,7 +679,7 @@ onMounted(async () => {
 .bg-purple { background: #ede9fe; color: #7c3aed; }
 .bg-yellow { background: #fef9c3; color: #ca8a04; }
 .bg-teal { background: #ccfbf1; color: #0d9488; }
-.bg-pink { background: #fce7f3; color: #E63B6F; }
+.bg-pink { background: #fce7f3; color: var(--primary); }
 .aff-stat-info {
   display: flex;
   flex-direction: column;
@@ -688,7 +688,7 @@ onMounted(async () => {
 .aff-stat-value {
   font-size: 1rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -701,7 +701,7 @@ onMounted(async () => {
 
 /* Sections */
 .aff-section {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 20px 24px;
@@ -738,9 +738,9 @@ onMounted(async () => {
   transition: all 0.2s;
 }
 .aff-filter-btn.active {
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
-  border-color: #E63B6F;
+  border-color: var(--primary);
 }
 .aff-filter-btn:hover:not(.active) {
   background: #e2e8f0;
@@ -779,11 +779,11 @@ onMounted(async () => {
   font-family: 'SFMono-Regular', Consolas, monospace;
   font-weight: 600;
   font-size: 0.82rem;
-  color: #1e293b;
+  color: var(--text-main);
 }
 .aff-commission-cell {
   font-weight: 600;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 /* Status badges */
@@ -816,7 +816,7 @@ onMounted(async () => {
 
 /* Withdraw */
 .aff-btn-withdraw {
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -853,18 +853,18 @@ onMounted(async () => {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   font-size: 0.9rem;
-  color: #1e293b;
-  background: #fff;
+  color: var(--text-main);
+  background: var(--card-bg);
   transition: border-color 0.2s;
   box-sizing: border-box;
 }
 .aff-form-group input:focus {
   outline: none;
-  border-color: #E63B6F;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(230,59,111,0.1);
 }
 .aff-btn-submit {
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 10px;

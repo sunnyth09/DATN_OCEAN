@@ -124,7 +124,7 @@ onMounted(() => {
 .section-title {
   font-size: 1.5rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -142,7 +142,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  background: #fff;
+  background: var(--card-bg);
   border: 1px dashed #d1d5db;
   border-radius: 16px;
   text-align: center;
@@ -163,7 +163,7 @@ onMounted(() => {
 .empty-state h3 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   margin: 0 0 8px;
 }
 
@@ -175,7 +175,7 @@ onMounted(() => {
 
 .btn-primary {
   padding: 10px 28px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -190,7 +190,7 @@ onMounted(() => {
 }
 
 .btn-primary:hover {
-  background: #b50c4d;
+  background: var(--primary-dark);
 }
 
 @media (max-width: 640px) {

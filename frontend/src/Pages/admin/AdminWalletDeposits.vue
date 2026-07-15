@@ -303,7 +303,7 @@ onMounted(() => fetchDeposits());
 
 .summary-icon--warning { background: #fef3c7; color: #d97706; }
 .summary-icon--success { background: #dcfce7; color: #16a34a; }
-.summary-icon--primary { background: #fce7f3; color: #E63B6F; }
+.summary-icon--primary { background: #fce7f3; color: var(--primary); }
 
 .summary-body {
   display: flex;
@@ -465,7 +465,7 @@ onMounted(() => fetchDeposits());
 .status-badge.status-warning { color: #d97706; background: #fef3c7; border: 1px solid #fde68a; }
 .status-badge.status-success { color: #16a34a; background: #dcfce7; border: 1px solid #bbf7d0; }
 .status-badge.status-danger  { color: #dc2626; background: #fee2e2; border: 1px solid #fecaca; }
-.status-badge.status-info    { color: #475569; background: #f8fafc; border: 1px solid #cbd5e1; }
+.status-badge.status-info    { color: #475569; background: var(--surface-container); border: 1px solid #cbd5e1; }
 
 .empty-cell {
   text-align: center;
@@ -534,7 +534,7 @@ onMounted(() => fetchDeposits());
   width: 38px;
   height: 38px;
   border: 3px solid #f1f5f9;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
   margin: 0 auto 16px;

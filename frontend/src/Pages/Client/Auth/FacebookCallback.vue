@@ -84,16 +84,16 @@ onMounted(async () => {
   background: #F8F9FA; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 .callback-card {
-  text-align: center; background: #fff; border-radius: 16px;
+  text-align: center; background: var(--card-bg); border-radius: 16px;
   padding: 48px 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.06);
   max-width: 400px; width: 100%;
 }
-.callback-card h2 { font-size: 1.3rem; font-weight: 700; color: #2D3436; margin: 20px 0 8px; }
+.callback-card h2 { font-size: 1.3rem; font-weight: 700; color: var(--text-main); margin: 20px 0 8px; }
 .callback-card p { font-size: 0.9rem; color: #636E72; margin: 0; }
 
 .callback-spinner {
   width: 48px; height: 48px; border: 4px solid #E9ECEF;
-  border-top-color: #E63B6F; border-radius: 50%;
+  border-top-color: var(--primary); border-radius: 50%;
   animation: spin 0.8s linear infinite; margin: 0 auto;
 }
 @keyframes spin { to { transform: rotate(360deg); } }

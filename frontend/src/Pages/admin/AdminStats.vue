@@ -191,7 +191,7 @@ onMounted(() => {
 }
 
 .btn-ocean {
-  background: #E63B6F;
+  background: var(--primary);
   color: white;
   border: none;
   border-radius: 10px;
@@ -209,8 +209,8 @@ onMounted(() => {
 }
 
 .btn-outline-ocean {
-  border: 1.5px solid #E63B6F;
-  color: #E63B6F;
+  border: 1.5px solid var(--primary);
+  color: var(--primary);
   background: transparent;
   border-radius: 10px;
   font-weight: 700;
@@ -221,8 +221,8 @@ onMounted(() => {
 
 .btn-outline-ocean:hover {
   background: rgba(230, 59, 111, 0.08);
-  border-color: #E63B6F;
-  color: #E63B6F;
+  border-color: var(--primary);
+  color: var(--primary);
   transform: translateY(-1.5px);
 }
 
@@ -262,7 +262,7 @@ onMounted(() => {
 <style scoped>
 /* Scoped variables for dashboard to prevent bleeding into other admin pages */
 .dashboard {
-  --ocean-blue: #E63B6F;
+  --ocean-blue: var(--primary);
   --ocean-bright: #4fc3f7;
   --ocean-deepest: #01579b;
   --seafoam: #26a69a;

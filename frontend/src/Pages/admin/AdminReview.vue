@@ -332,7 +332,7 @@ onMounted(() => fetchReviews());
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e9ecef;
   border-radius: 12px;
   padding: 14px 18px;
@@ -368,7 +368,7 @@ onMounted(() => fetchReviews());
   padding: 7px 14px;
   border-radius: 8px;
   border: 1px solid #dee2e6;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -387,7 +387,7 @@ onMounted(() => fetchReviews());
   padding: 5px 11px;
   border-radius: 7px;
   border: 1px solid #dee2e6;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 0.82rem;
   cursor: pointer;
   transition: all 0.2s;
@@ -415,7 +415,7 @@ onMounted(() => fetchReviews());
 
  
 .table-wrap {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 12px;
   border: 1px solid #e9ecef;
   overflow: hidden;
@@ -426,7 +426,7 @@ onMounted(() => fetchReviews());
   font-size: 0.9rem;
 }
 .review-table thead tr {
-  background: #f1f5f9;
+  background: var(--surface-container);
 }
 .review-table th {
   padding: 13px 16px;
@@ -469,7 +469,7 @@ onMounted(() => fetchReviews());
 .product-name {
   font-size: 0.85rem;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--text-main);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -491,13 +491,13 @@ onMounted(() => fetchReviews());
   flex-shrink: 0;
 }
 .user-name { font-weight: 500; font-size: 0.88rem; }
-.user-email { font-size: 0.78rem; color: #94a3b8; }
+.user-email { font-size: 0.78rem; color: var(--text-light); }
 
 /* Stars */
 .stars-row { display: flex; gap: 1px; }
 .star { font-size: 1rem; color: #d1d5db; }
 .star--filled { color: #f59e0b; }
-.rating-num { font-size: 0.78rem; color: #64748b; margin-top: 2px; display: block; }
+.rating-num { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; display: block; }
 
 /* Content */
 .review-content {
@@ -515,7 +515,7 @@ onMounted(() => fetchReviews());
 
 .date-cell {
   font-size: 0.82rem;
-  color: #64748b;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -560,7 +560,7 @@ onMounted(() => fetchReviews());
   justify-content: center;
   gap: 10px;
   padding: 60px;
-  color: #94a3b8;
+  color: var(--text-light);
   font-size: 0.95rem;
 }
 
@@ -575,7 +575,7 @@ onMounted(() => fetchReviews());
   padding: 8px 20px;
   border-radius: 8px;
   border: 1px solid #dee2e6;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;

@@ -361,7 +361,7 @@ const handleSubmit = async () => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: #E63B6F; color: white;
+    background: var(--primary); color: white;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s;
     box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
@@ -403,7 +403,7 @@ const handleSubmit = async () => {
     color: var(--text-main); font-family: var(--font-inter);
     font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); background: white;}
+.form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); background: var(--card-bg);}
 .form-control::placeholder { color: var(--text-light); }
 .field-hint { display: block; margin-top: 4px; font-size: 0.75rem; color: var(--text-muted); text-align: right; }
 .form-select {
@@ -419,10 +419,10 @@ const handleSubmit = async () => {
     background: var(--ocean-deepest); transition: all 0.2s;
     min-height: 140px; display: flex; align-items: center; justify-content: center;
 }
-.image-upload-box:hover { border-color: #E63B6F; background: #FFF0F3; }
+.image-upload-box:hover { border-color: var(--primary); background: var(--hover-bg); }
 .file-input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
 .upload-label { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-light); pointer-events: none;}
-.upload-label svg { color: #E63B6F; }
+.upload-label svg { color: var(--primary); }
 .preview-box { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
 .img-preview { width: 100%; height: 100%; object-fit: cover; }
 .btn-remove-img {
@@ -438,8 +438,8 @@ const handleSubmit = async () => {
 .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
 .toggle-input { opacity: 0; width: 0; height: 0; }
 .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--text-light); transition: .3s; border-radius: 24px; }
-.toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
-.toggle-input:checked + .toggle-slider { background-color: #E63B6F; }
+.toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--card-bg); transition: .3s; border-radius: 50%; }
+.toggle-input:checked + .toggle-slider { background-color: var(--primary); }
 .toggle-input:checked + .toggle-slider:before { transform: translateX(20px); }
 
 /* Quill Custom Styles */
@@ -450,10 +450,10 @@ const handleSubmit = async () => {
 }
 .quill-wrapper :deep(.ql-container.ql-snow) {
     border: 1px solid var(--border-color); border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;
-    border-top: none; font-family: var(--font-inter); font-size: 0.95rem; background: white; transition: border-color 0.2s;
+    border-top: none; font-family: var(--font-inter); font-size: 0.95rem; background: var(--card-bg); transition: border-color 0.2s;
 }
-.quill-wrapper:focus-within :deep(.ql-toolbar.ql-snow) { border-color: #E63B6F; }
-.quill-wrapper:focus-within :deep(.ql-container.ql-snow) { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.quill-wrapper:focus-within :deep(.ql-toolbar.ql-snow) { border-color: var(--primary); }
+.quill-wrapper:focus-within :deep(.ql-container.ql-snow) { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .quill-wrapper :deep(.ql-editor) { color: var(--text-main); }
 .editor-long :deep(.ql-editor) { min-height: 350px; }
 </style>

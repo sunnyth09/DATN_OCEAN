@@ -277,7 +277,7 @@ onMounted(() => {
 .section-desc { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
 .btn-create {
   display: flex; align-items: center; gap: 8px;
-  background: #E63B6F; color: white; border: none;
+  background: var(--primary); color: white; border: none;
   padding: 10px 20px; border-radius: 10px;
   font-weight: 600; font-size: 0.85rem; cursor: pointer;
   transition: all 0.2s; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25);
@@ -302,7 +302,7 @@ onMounted(() => {
 .loc-info-cell { display: flex; align-items: center; gap: 12px; }
 .loc-name { font-weight: 600; color: var(--text-main); }
 .loc-icon {
-  width: 36px; height: 36px; border-radius: 50%; background: #fce4ec; color: #E63B6F;
+  width: 36px; height: 36px; border-radius: 50%; background: #fce4ec; color: var(--primary);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 
@@ -371,7 +371,7 @@ onMounted(() => {
   color: var(--text-muted, #627d98); display: flex; align-items: center; justify-content: center;
   padding: 4px; border-radius: 6px; transition: all 0.2s;
 }
-.wl-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, #E63B6F); }
+.wl-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, var(--primary)); }
 
 .wl-modal-body { padding: 24px; }
 .wl-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
@@ -379,14 +379,14 @@ onMounted(() => {
 /* Form */
 .wl-form-group { margin-bottom: 16px; }
 .wl-form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main, #102a43); margin-bottom: 8px; }
-.wl-required { color: var(--primary, #E63B6F); }
+.wl-required { color: var(--primary, var(--primary)); }
 .wl-form-control {
   width: 100%; padding: 10px 14px; border-radius: 8px;
   border: 1px solid var(--border-color, #d9e8f0); background: var(--ocean-deepest, #f0f7fa);
   color: var(--text-main, #102a43); font-family: var(--font-inter, 'Inter', sans-serif);
   font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.wl-form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.wl-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .wl-form-control::placeholder { color: var(--text-light, #9fb3c8); }
 .wl-form-select {
   appearance: none;
@@ -399,13 +399,13 @@ onMounted(() => {
 /* Buttons */
 .wl-btn-outline {
   padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color, #d9e8f0);
-  background: #fff; color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
+  background: var(--card-bg); color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; font-family: var(--font-inter, 'Inter', sans-serif);
 }
 .wl-btn-outline:hover { border-color: var(--ocean-mid, #b3e0f2); background: var(--ocean-deepest, #f0f7fa); }
 .wl-btn-primary {
   padding: 10px 20px; border-radius: 8px; border: none;
-  background: #E63B6F; color: #fff; font-size: 0.85rem; font-weight: 600;
+  background: var(--primary); color: #fff; font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
   font-family: var(--font-inter, 'Inter', sans-serif);
 }

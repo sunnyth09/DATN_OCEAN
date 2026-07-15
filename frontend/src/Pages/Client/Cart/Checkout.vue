@@ -773,7 +773,7 @@ onMounted(async () => {
             <p>Đang chuẩn bị trang thanh toán...</p>
         </div>
 
-        <div v-else class="checkout-wrapper">
+        <div v-else class="checkout-wrapper container">
             <div class="page-header animate-in">
                 <router-link to="/cart" class="back-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="back-icon" stroke="currentColor"
@@ -1327,7 +1327,7 @@ onMounted(async () => {
 .wt-knob {
     width: 18px;
     height: 18px;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 50%;
     position: absolute;
     top: 2px;
@@ -1389,21 +1389,15 @@ onMounted(async () => {
 .checkout-page {
     padding: 40px 0 80px;
     font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
-    color: #0f172a;
+    color: var(--text-main);
     min-height: 80vh;
 }
 
 /* Base states & Header */
-.checkout-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 16px;
-}
-
 .loading-state {
     text-align: center;
     padding: 100px 0;
-    color: #E63B6F;
+    color: var(--primary);
     font-weight: 500;
 }
 
@@ -1411,7 +1405,7 @@ onMounted(async () => {
     width: 44px;
     height: 44px;
     border: 4px solid #e2e8f0;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin: 0 auto 16px;
@@ -1429,7 +1423,7 @@ onMounted(async () => {
 
 .spinner-small.brown {
     border-color: #e2e8f0;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
 }
 
 @keyframes spin {
@@ -1450,23 +1444,23 @@ onMounted(async () => {
     gap: 8px;
     font-size: 1rem;
     font-weight: 600;
-    color: #E63B6F;
+    color: var(--primary);
     text-decoration: none;
     padding: 8px 12px;
     border-radius: 8px;
     transition: all 0.2s;
-    background: white;
+    background: var(--card-bg);
     border: 1.5px solid #e2e8f0;
 }
 
 .back-link:hover {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .icon-brown {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .icon-green {
@@ -1500,7 +1494,7 @@ h2 {
 .section-header h2 {
     font-size: 1.35rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1508,7 +1502,7 @@ h2 {
 }
 
 .block-border {
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 16px;
     padding: 24px;
     box-shadow: 0 10px 40px rgba(230, 59, 111, 0.04);
@@ -1541,7 +1535,7 @@ h2 {
     font-weight: 600;
     font-size: 0.95rem;
     background: #DCE4E6;
-    color: #000000;
+    color: var(--text-main);
     border: 1.5px solid transparent;
     border-radius: 20px;
     cursor: pointer;
@@ -1551,11 +1545,11 @@ h2 {
 }
 
 .add-tab:hover:not(.active) {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .add-tab.active {
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.05);
 }
@@ -1576,7 +1570,7 @@ h2 {
 
 /* Form Elements */
 .form-box {
-    background: #ffffff;
+    background: var(--card-bg);
     padding: 24px;
     border-radius: 16px;
     border: 1.5px solid #e2e8f0;
@@ -1616,12 +1610,12 @@ h2 {
     outline: none;
     transition: all 0.2s ease;
     background: #f1f5f9;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .form-input:focus {
-    background: #ffffff;
-    border-color: #E63B6F;
+    background: var(--card-bg);
+    border-color: var(--primary);
     box-shadow: 0 4px 15px rgba(230, 59, 111, 0.08);
 }
 
@@ -1684,12 +1678,12 @@ textarea.note-input {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    background: white;
+    background: var(--card-bg);
 }
 
 .checkbox-input:checked+.checkbox-custom {
-    background: #E63B6F;
-    border-color: #E63B6F;
+    background: var(--primary);
+    border-color: var(--primary);
 }
 
 .checkbox-input:checked+.checkbox-custom::after {
@@ -1732,7 +1726,7 @@ textarea.note-input {
     border-radius: 14px;
     cursor: pointer;
     transition: all 0.25s ease;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .hidden-radio {
@@ -1747,7 +1741,7 @@ textarea.note-input {
 }
 
 .address-card.is-selected {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: #f4faff;
     box-shadow: 0 4px 15px rgba(230, 59, 111, 0.08);
 }
@@ -1760,7 +1754,7 @@ textarea.note-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
+    background: var(--card-bg);
     transition: all 0.2s ease;
 }
 
@@ -1774,12 +1768,12 @@ textarea.note-input {
 }
 
 .is-selected .radio-indicator {
-    border-color: #E63B6F;
-    background: #ffffff;
+    border-color: var(--primary);
+    background: var(--card-bg);
 }
 
 .is-selected .radio-dot {
-    background: #E63B6F;
+    background: var(--primary);
     transform: scale(1);
 }
 
@@ -1798,13 +1792,13 @@ textarea.note-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .addr-name {
     font-weight: 700;
     font-size: 1.05rem;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .addr-phone {
@@ -1814,7 +1808,7 @@ textarea.note-input {
 }
 
 .badge-default {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     padding: 2px 8px;
     border-radius: 12px;
@@ -1850,7 +1844,7 @@ textarea.note-input {
 .empty-address-box {
     text-align: center;
     padding: 40px 20px;
-    background: #ffffff;
+    background: var(--card-bg);
     border: 2px dashed #e2e8f0;
     border-radius: 12px;
 }
@@ -1865,7 +1859,7 @@ textarea.note-input {
 .btn-save {
     padding: 12px 24px;
     font-weight: 600;
-    background: #E63B6F;
+    background: var(--primary);
     border: none;
     color: white;
     border-radius: 10px;
@@ -1887,7 +1881,7 @@ textarea.note-input {
 .btn-cancel {
     padding: 12px 24px;
     font-weight: 600;
-    background: white;
+    background: var(--card-bg);
     border: 1.5px solid #e2e8f0;
     color: #475569;
     border-radius: 10px;
@@ -1901,8 +1895,8 @@ textarea.note-input {
 
 .btn-outline-brown {
     background: transparent;
-    border: 2px solid #E63B6F;
-    color: #E63B6F;
+    border: 2px solid var(--primary);
+    color: var(--primary);
     padding: 10px 24px;
     border-radius: 10px;
     font-weight: 600;
@@ -1911,7 +1905,7 @@ textarea.note-input {
 }
 
 .btn-outline-brown:hover {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
 }
 
@@ -1933,16 +1927,16 @@ textarea.note-input {
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.25s;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .payment-card-simple:hover {
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .payment-card-simple.is-selected {
-    border-color: #E63B6F;
-    background: #ffffff;
+    border-color: var(--primary);
+    background: var(--card-bg);
 }
 
 .payment-info-simple {
@@ -1965,7 +1959,7 @@ textarea.note-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
+    background: var(--card-bg);
     transition: all 0.2s ease;
 }
 
@@ -2009,7 +2003,7 @@ textarea.note-input {
     padding: 20px 24px;
     font-size: 1.25rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -2056,7 +2050,7 @@ textarea.note-input {
     object-fit: cover;
     border-radius: 6px;
     border: 1px solid #f1f5f9;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .bill-item-info {
@@ -2070,7 +2064,7 @@ textarea.note-input {
     margin: 0;
     font-size: 0.95rem;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--text-main);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -2102,7 +2096,7 @@ textarea.note-input {
 
 .bill-item-price {
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     font-size: 0.95rem;
 }
 
@@ -2114,7 +2108,7 @@ textarea.note-input {
 
 /* Coupons */
 .coupon-section {
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px dashed #e2e8f0;
     border-radius: 8px;
     padding: 16px;
@@ -2137,17 +2131,17 @@ textarea.note-input {
     outline: none;
     transition: all 0.2s;
     text-transform: uppercase;
-    background: white;
+    background: var(--card-bg);
 }
 
 .coupon-input:focus {
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .btn-apply-coupon {
     padding: 0 20px;
     font-weight: 600;
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 6px;
@@ -2203,7 +2197,7 @@ textarea.note-input {
 .btn-select-coupon {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #E63B6F;
+    color: var(--primary);
     background: none;
     border: none;
     cursor: pointer;
@@ -2235,7 +2229,7 @@ textarea.note-input {
 
 .fw-600 {
     font-weight: 600;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .shipping-free-text {
@@ -2295,12 +2289,12 @@ textarea.note-input {
 .total-price {
     font-size: 1.8rem;
     font-weight: 800;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .btn-place-order {
     width: 100%;
-    background: #E63B6F;
+    background: var(--primary);
     /* Deep elegant ocean blue */
     color: white;
     border: none;
@@ -2360,7 +2354,7 @@ textarea.note-input {
 }
 
 .modal-content {
-    background: white;
+    background: var(--card-bg);
     border-radius: 20px;
     width: 100%;
     max-width: 480px;
@@ -2386,7 +2380,7 @@ textarea.note-input {
 .modal-title {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     margin: 0;
     display: flex;
     align-items: center;
@@ -2394,7 +2388,7 @@ textarea.note-input {
 }
 
 .modal-close {
-    background: white;
+    background: var(--card-bg);
     border: 1.5px solid #e2e8f0;
     width: 36px;
     height: 36px;
@@ -2416,7 +2410,7 @@ textarea.note-input {
 .modal-body {
     padding: 24px;
     flex: 1;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .coupon-list {
@@ -2443,7 +2437,7 @@ textarea.note-input {
     border-radius: 12px;
     align-items: stretch;
     position: relative;
-    background: white;
+    background: var(--card-bg);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     transition: all 0.2s ease;
 }
@@ -2454,7 +2448,7 @@ textarea.note-input {
 }
 
 .coupon-card.is-applied {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: #f0f9ff;
     box-shadow: 0 4px 12px rgba(230, 59, 111, 0.12);
 }
@@ -2478,7 +2472,7 @@ textarea.note-input {
     position: absolute;
     width: 16px;
     height: 16px;
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 50%;
     right: -9px;
     border: 1px solid #e2e8f0;
@@ -2501,12 +2495,12 @@ textarea.note-input {
 
 .coupon-card.is-applied .cp-left::before,
 .coupon-card.is-applied .cp-left::after {
-    background: #ffffff;
-    border-color: #E63B6F;
+    background: var(--card-bg);
+    border-color: var(--primary);
 }
 
 .coupon-card.is-applied .cp-left {
-    border-right-color: #E63B6F;
+    border-right-color: var(--primary);
     background: #e0f2fe;
 }
 
@@ -2524,7 +2518,7 @@ textarea.note-input {
     margin: 0 0 6px;
     font-size: 1.15rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text-main);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -2533,7 +2527,7 @@ textarea.note-input {
     margin: 0 0 4px;
     font-size: 0.95rem;
     font-weight: 600;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .cp-min {
@@ -2547,7 +2541,7 @@ textarea.note-input {
     right: 16px;
     top: 50%;
     transform: translateY(-50%);
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     border: none;
     padding: 8px 18px;
@@ -2753,7 +2747,7 @@ textarea.note-input {
 }
 
 .banking-modal {
-    background: white;
+    background: var(--card-bg);
     border-radius: 24px;
     width: 100%;
     max-width: 520px;
@@ -2853,7 +2847,7 @@ textarea.note-input {
 .bank-value {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-main);
 }
 
 .bank-value.highlight {

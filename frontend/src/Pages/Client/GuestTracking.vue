@@ -109,7 +109,7 @@ onMounted(loadByToken);
 </script>
 
 <template>
-  <main class="guest-tracking-page">
+  <main class="guest-tracking-page container">
     <section class="tracking-hero">
       <h1>Tra cứu vận đơn</h1>
       <p>Theo dõi trạng thái giao hàng bằng link tracking hoặc mã đơn hàng và số điện thoại đặt hàng.</p>
@@ -224,9 +224,9 @@ onMounted(loadByToken);
 
 <style scoped>
 .guest-tracking-page {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 48px 16px 72px;
+  /* Căn giữa & max-width do Bootstrap .container đảm nhiệm */
+  padding-top: 48px;
+  padding-bottom: 72px;
 }
 
 .tracking-hero {
@@ -238,7 +238,7 @@ onMounted(loadByToken);
   margin: 14px 0 8px;
   font-size: clamp(2rem, 4vw, 3.25rem);
   font-weight: 900;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 .tracking-hero p {
@@ -248,7 +248,7 @@ onMounted(loadByToken);
 }
 
 .tracking-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e2e8f0;
   border-radius: 24px;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
@@ -292,7 +292,7 @@ onMounted(loadByToken);
   border: none;
   border-radius: 14px;
   padding: 0 20px;
-  background: linear-gradient(135deg, #e63b6f, #c22b56);
+  background: linear-gradient(135deg, var(--primary), #c22b56);
   color: #fff;
   font-weight: 900;
   text-decoration: none;
@@ -360,7 +360,7 @@ onMounted(loadByToken);
 
 .result-header h2 {
   margin: 4px 0 0;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 .status-pill {
@@ -387,7 +387,7 @@ onMounted(loadByToken);
 .info-box strong {
   display: block;
   margin-top: 6px;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 .timeline-section {
@@ -396,7 +396,7 @@ onMounted(loadByToken);
 
 .timeline-section h3 {
   margin-bottom: 18px;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 .empty-timeline {
@@ -442,7 +442,7 @@ onMounted(loadByToken);
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e2e8f0;
   border-radius: 16px;
   padding: 16px;
@@ -476,7 +476,7 @@ onMounted(loadByToken);
 
 .tracking-item-name {
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-main);
   font-size: 0.95rem;
   margin-bottom: 4px;
   white-space: nowrap;
@@ -495,7 +495,7 @@ onMounted(loadByToken);
 
 .tracking-item-price {
   font-weight: 800;
-  color: #E63B6F;
+  color: var(--primary);
   font-size: 0.95rem;
 }
 

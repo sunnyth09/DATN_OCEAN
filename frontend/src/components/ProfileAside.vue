@@ -301,7 +301,7 @@ const handleLogout = async () => {
 <style scoped>
 .profile-aside {
   width: 280px;
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   overflow: hidden;
@@ -314,7 +314,7 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 14px;
-  background-color:  #E63B6F;
+  background-color:  var(--primary);
   color: #fff;
 }
 
@@ -410,7 +410,7 @@ const handleLogout = async () => {
 
 .aside-nav-item:hover {
   background: #fff0f3;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .aside-nav-item:hover .aside-nav-icon {
@@ -419,19 +419,19 @@ const handleLogout = async () => {
 
 .aside-nav-item--active {
   background: #fff0f3 !important;
-  color: #E63B6F !important;
+  color: var(--primary) !important;
   font-weight: 600;
 }
 
 .aside-nav-item--active .aside-nav-icon {
   opacity: 1;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 /* Điểm thưởng pill badge */
 .aside-points-pill {
   margin-left: auto;
-  background: linear-gradient(135deg, #E63B6F, #f97316);
+  background: linear-gradient(135deg, var(--primary), #f97316);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 700;

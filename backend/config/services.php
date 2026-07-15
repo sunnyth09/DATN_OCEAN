@@ -64,7 +64,7 @@ return [
     ],
 
     'sepay' => [
-        'api_key' => env('SEPAY_API_KEY', 'sepay_secret_token_12345'),
+        'api_key' => env('SEPAY_API_KEY'),
     ],
 
     'bank' => [

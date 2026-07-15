@@ -876,7 +876,7 @@ onUnmounted(() => {
     width: 40px;
     height: 40px;
     border: 3px solid #e8ecf1;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin: 0 auto 16px;
@@ -892,7 +892,7 @@ onUnmounted(() => {
 .empty-cart {
     text-align: center;
     padding: 80px 20px;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 16px;
     border: 1px dashed #b0c4de;
 }
@@ -941,7 +941,7 @@ onUnmounted(() => {
     justify-content: space-between;
     align-items: center;
     padding: 14px 20px;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 12px;
     border: 1px solid #e8ecf1;
     margin-bottom: 12px;
@@ -972,8 +972,8 @@ onUnmounted(() => {
 }
 
 .custom-checkbox.checked {
-    background: #E63B6F;
-    border-color: #E63B6F;
+    background: var(--primary);
+    border-color: var(--primary);
 }
 
 .btn-clear {
@@ -983,7 +983,7 @@ onUnmounted(() => {
     padding: 7px 0;
     border: none;
     background: transparent;
-    color: #E63B6F;
+    color: var(--primary);
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
@@ -1008,7 +1008,7 @@ onUnmounted(() => {
     align-items: center;
     gap: 16px;
     padding: 16px 20px;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 12px;
     border: 1px solid #e8ecf1;
     transition: all 0.25s ease;
@@ -1070,7 +1070,7 @@ onUnmounted(() => {
 }
 
 .item-name:hover {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .item-variant-text {
@@ -1119,7 +1119,7 @@ onUnmounted(() => {
 .item-price {
     font-size: 1.3rem;
     font-weight: 800;
-    color: #E63B6F;
+    color: var(--primary);
     margin-top: 12px;
 }
 
@@ -1129,7 +1129,7 @@ onUnmounted(() => {
     border: 1px solid #d9e2ec;
     border-radius: 8px;
     overflow: hidden;
-    background: #fff;
+    background: var(--card-bg);
 }
 
 .qty-btn {
@@ -1147,7 +1147,7 @@ onUnmounted(() => {
 
 .qty-btn:hover:not(:disabled) {
     background: #f0f7fa;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .qty-btn:disabled {
@@ -1190,7 +1190,7 @@ onUnmounted(() => {
 }
 
 .btn-remove:hover {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 /* Order Summary */
@@ -1202,7 +1202,7 @@ onUnmounted(() => {
 }
 
 .summary-card {
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 14px;
     border: 1px solid #e8ecf1;
     padding: 24px;
@@ -1245,7 +1245,7 @@ onUnmounted(() => {
 .total-price {
     font-size: 1.5rem;
     font-weight: 800;
-    color: #E63B6F !important;
+    color: var(--primary) !important;
 }
 
 .vat-note {
@@ -1273,8 +1273,8 @@ onUnmounted(() => {
 }
 
 .coupon-input:focus {
-    border-color: #E63B6F;
-    background: #fff;
+    border-color: var(--primary);
+    background: var(--card-bg);
 }
 
 .btn-apply-coupon {
@@ -1296,7 +1296,7 @@ onUnmounted(() => {
 .btn-checkout {
     width: 100%;
     padding: 14px;
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     font-size: 1.05rem;
     font-weight: 700;
@@ -1327,13 +1327,13 @@ onUnmounted(() => {
     width: 100%;
     padding: 13px;
     margin-top: 10px;
-    color: #E63B6F;
-    border: 1px solid #E63B6F;
+    color: var(--primary);
+    border: 1px solid var(--primary);
     border-radius: 10px;
     text-decoration: none;
     font-weight: 700;
     font-size: 1rem;
-    background: #fff;
+    background: var(--card-bg);
     transition: all 0.2s;
 }
 
@@ -1343,7 +1343,7 @@ onUnmounted(() => {
 
 /* BTN Primary */
 .btn-primary {
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     border: none;
     font-weight: 700;
@@ -1538,10 +1538,10 @@ onUnmounted(() => {
     align-items: center;
     gap: 5px;
     padding: 3px 10px;
-    border: 1px solid #E63B6F;
+    border: 1px solid var(--primary);
     border-radius: 20px;
     background: transparent;
-    color: #E63B6F;
+    color: var(--primary);
     font-size: 0.78rem;
     font-weight: 700;
     cursor: pointer;
@@ -1551,7 +1551,7 @@ onUnmounted(() => {
 }
 
 .btn-change-variant:hover {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
 }
 
@@ -1569,7 +1569,7 @@ onUnmounted(() => {
 }
 
 .vmodal-box {
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 18px;
     width: 100%;
     max-width: 480px;
@@ -1643,7 +1643,7 @@ onUnmounted(() => {
 
 .vmodal-close:hover {
     background: #f1f5f9;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .vmodal-loading {
@@ -1660,7 +1660,7 @@ onUnmounted(() => {
     width: 24px;
     height: 24px;
     border: 2px solid #e2e8f0;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
 }
@@ -1694,7 +1694,7 @@ onUnmounted(() => {
     padding: 7px 16px;
     border: 1.5px solid #d9e2ec;
     border-radius: 8px;
-    background: #fff;
+    background: var(--card-bg);
     font-size: 0.88rem;
     font-weight: 600;
     color: #334e68;
@@ -1707,13 +1707,13 @@ onUnmounted(() => {
 }
 
 .vmodal-opt-btn:hover:not(:disabled) {
-    border-color: #E63B6F;
-    color: #E63B6F;
+    border-color: var(--primary);
+    color: var(--primary);
 }
 
 .vmodal-opt-btn.active {
-    border-color: #E63B6F;
-    background: #E63B6F;
+    border-color: var(--primary);
+    background: var(--primary);
     color: #fff;
 }
 
@@ -1770,7 +1770,7 @@ onUnmounted(() => {
     padding: 11px;
     border: 1.5px solid #d9e2ec;
     border-radius: 10px;
-    background: #fff;
+    background: var(--card-bg);
     color: #627d98;
     font-size: 0.92rem;
     font-weight: 600;
@@ -1789,7 +1789,7 @@ onUnmounted(() => {
     padding: 11px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #E63B6F, #039be5);
+    background: linear-gradient(135deg, var(--primary), #039be5);
     color: #fff;
     font-size: 0.95rem;
     font-weight: 700;
@@ -1800,7 +1800,7 @@ onUnmounted(() => {
 }
 
 .vmodal-btn-confirm:hover:not(:disabled) {
-    background: linear-gradient(135deg, #C4305D, #E63B6F);
+    background: linear-gradient(135deg, #C4305D, var(--primary));
     transform: translateY(-1px);
 }
 

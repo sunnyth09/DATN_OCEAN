@@ -274,7 +274,7 @@ const handleLogout = async () => {
 
 .aside-toggle-btn:hover {
   background: var(--hover-bg, #f3f4f6);
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 /* Nav */
@@ -317,7 +317,7 @@ const handleLogout = async () => {
 }
 
 .nav-item--active {
-  background: #E63B6F !important;
+  background: var(--primary) !important;
   color: white !important;
   font-weight: 600;
 }
@@ -344,7 +344,7 @@ const handleLogout = async () => {
   height: 36px;
   border-radius: 50%;
   background: var(--hover-bg, #FFF0F3);
-  color: #E63B6F;
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;

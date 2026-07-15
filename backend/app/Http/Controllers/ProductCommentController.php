@@ -9,6 +9,7 @@ use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class ProductCommentController extends Controller
@@ -118,7 +119,8 @@ class ProductCommentController extends Controller
             ], 201);
         } catch (Exception $e) {
             DB::rollBack();
-            return response()->json(['status' => 'error', 'message' => 'Đã xảy ra lỗi: ' . $e->getMessage()], 500);
+            Log::error('Product comment store failed', ['error' => $e->getMessage()]);
+            return response()->json(['status' => 'error', 'message' => 'Đã xảy ra lỗi, vui lòng thử lại sau.'], 500);
         }
     }
 

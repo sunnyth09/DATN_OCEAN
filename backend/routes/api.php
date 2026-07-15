@@ -534,7 +534,7 @@ Route::middleware('throttle:30,1')->get('/payment/momo-return', [\App\Http\Contr
 Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
 
 // SePay Webhook
-Route::post('/payment/sepay-webhook', [\App\Http\Controllers\SepayController::class, 'handleWebhook']);
+Route::middleware('throttle:60,1')->post('/payment/sepay-webhook', [\App\Http\Controllers\SepayController::class, 'handleWebhook']);
 // =====================================================================
 // ██ DEBUG ROUTES — Chạy thủ công scheduler commands (XÓA KHI PRODUCTION)
 // =====================================================================
@@ -705,7 +705,7 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
 // ==========================================
 // GHN Integration routes
 // ==========================================
-Route::post('/ghn-webhook', [\App\Http\Controllers\GhnWebhookController::class, 'handle']);
+Route::middleware('throttle:120,1')->post('/ghn-webhook', [\App\Http\Controllers\GhnWebhookController::class, 'handle']);
 
 Route::prefix('ghn')->group(function () {
     Route::middleware('throttle:60,1')->post('/calculate-fee', [\App\Http\Controllers\GhnController::class, 'calculateFee']);

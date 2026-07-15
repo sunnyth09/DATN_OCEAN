@@ -13,6 +13,7 @@ import VirtualTryOnModal from '@/components/VirtualTryOnModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
 import { loyaltyService } from '@/services/loyaltyService';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,6 +22,8 @@ const cartStore = useCartStore();
 // slug là computed để watch được khi route thay đổi (route param là :id, có thể là slug hoặc id)
 const slug = computed(() => route.params.id);
 const product = ref(null);
+const safeDescription = computed(() => sanitizeHtml(product.value?.description));
+const safeShortDescription = computed(() => sanitizeHtml(product.value?.short_description));
 const productImageRef = ref(null);
 const showTryOn = ref(false);
 const { flyToCart } = useFlyToCart();
@@ -618,41 +621,6 @@ const shareToFacebook = async () => {
     }
 };
 
-const isSharing = ref(false);
-const shareToFacebook = async () => {
-    if (!product.value) return;
-    
-    // Tạo URL chia sẻ (giả lập sử dụng URL hiện tại)
-    const shareUrl = window.location.href;
-    const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-    
-    // Mở popup chia sẻ
-    window.open(fbShareUrl, 'facebook-share-dialog', 'width=800,height=600');
-    
-    // Gọi API cộng điểm ngay sau khi nhấn chia sẻ
-    // Trong thực tế cần verify từ webhook của FB, nhưng đây là MVP
-    if (authStore.isAuthenticated) {
-        isSharing.value = true;
-        try {
-            const res = await loyaltyService.socialShare(product.value.product_id);
-            if (res.data?.status === 'success') {
-                showToast('Bạn đã nhận được 30 điểm thưởng từ việc chia sẻ!', 'success');
-                // Cập nhật lại điểm trong store nếu cần
-            }
-        } catch (error) {
-            // Có thể bỏ qua lỗi hoặc hiển thị nếu cần (ví dụ: đã nhận điểm hôm nay rồi)
-            const msg = error.response?.data?.message;
-            if (msg) {
-                showToast(msg, 'success'); // Vẫn báo success nhưng nội dung là info (ví dụ đã nhận rồi)
-            }
-        } finally {
-            isSharing.value = false;
-        }
-    } else {
-        showToast('Bạn có thể đăng nhập để nhận 10 điểm khi chia sẻ sản phẩm!', 'success');
-    }
-};
-
 // Watch route slug để reload dữ liệu khi điều hướng sang SP khác
 watch(slug, (newSlug, oldSlug) => {
   if (newSlug && newSlug !== oldSlug) {
@@ -873,7 +841,7 @@ onBeforeUnmount(() => {
           <div class="pd-desc-body">
             <h3 class="pd-desc-title">Giới thiệu về {{ product.name }}</h3>
             <div class="pd-desc-text" :class="{ expanded: isDescriptionExpanded }">
-              <div v-html="product.description"></div>
+              <div v-html="safeDescription"></div>
               <div class="pd-desc-fade" v-if="!isDescriptionExpanded"></div>
             </div>
             <button class="pd-desc-toggle" @click="isDescriptionExpanded = !isDescriptionExpanded">
@@ -945,7 +913,7 @@ onBeforeUnmount(() => {
               <td>{{ product.origin }}</td>
             </tr>
           </table>
-          <div class="pd-desc-text expanded" v-if="product.short_description" v-html="product.short_description"
+          <div class="pd-desc-text expanded" v-if="product.short_description" v-html="safeShortDescription"
             style="margin-top:24px"></div>
         </div>
 
@@ -1112,7 +1080,7 @@ onBeforeUnmount(() => {
 .pd-wrapper {
   padding: 0 0 40px;
   font-family: 'Plus Jakarta Sans', sans-serif;
-  color: #2D3436;
+  color: var(--text-main);
 }
 
 /* Breadcrumb */
@@ -1128,7 +1096,7 @@ onBeforeUnmount(() => {
 }
 
 .pd-breadcrumb a:hover {
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .pd-breadcrumb .sep {
@@ -1137,7 +1105,7 @@ onBeforeUnmount(() => {
 }
 
 .pd-breadcrumb .current {
-  color: #2D3436;
+  color: var(--text-main);
   font-weight: 600;
 }
 
@@ -1177,7 +1145,7 @@ onBeforeUnmount(() => {
 .pd-thumb.active,
 .pd-thumb:hover {
   opacity: 1;
-  border-color: #E63B6F;
+  border-color: var(--primary);
 }
 
 .pd-thumb img {
@@ -1193,7 +1161,7 @@ onBeforeUnmount(() => {
   border: 1px solid #E9ECEF;
   border-radius: 12px;
   overflow: hidden;
-  background: #fff;
+  background: var(--card-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1227,8 +1195,8 @@ onBeforeUnmount(() => {
   color: #333;
 }
 .pd-gallery-nav:hover {
-  background: #FFF;
-  color: #E63B6F;
+  background: var(--card-bg);
+  color: var(--primary);
   box-shadow: 0 4px 8px rgba(0,0,0,0.2);
 }
 .pd-gallery-nav.prev {
@@ -1257,7 +1225,7 @@ onBeforeUnmount(() => {
 
 .stock-overlay-text {
   background: rgba(255, 255, 255, 0.95);
-  color: #1e293b;
+  color: var(--text-main);
   font-size: 1.1rem;
   font-weight: 800;
   letter-spacing: 1.2px;
@@ -1282,7 +1250,7 @@ onBeforeUnmount(() => {
 
 .pd-badge {
   display: inline-block;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 700;
@@ -1297,7 +1265,7 @@ onBeforeUnmount(() => {
 .pd-title {
   font-size: 1.6rem;
   font-weight: 800;
-  color: #2D3436;
+  color: var(--text-main);
   line-height: 1.3;
   margin: 0 0 12px;
 }
@@ -1336,7 +1304,7 @@ onBeforeUnmount(() => {
 .pd-price {
   font-size: 1.8rem;
   font-weight: 800;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .pd-price-old {
@@ -1376,7 +1344,7 @@ onBeforeUnmount(() => {
 .pd-var-label {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #2D3436;
+  color: var(--text-main);
   margin: 0 0 10px;
 }
 
@@ -1390,24 +1358,24 @@ onBeforeUnmount(() => {
   padding: 8px 18px;
   border: 1.5px solid #E9ECEF;
   border-radius: 20px;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 0.88rem;
   font-weight: 600;
-  color: #2D3436;
+  color: var(--text-main);
   cursor: pointer;
   transition: all 0.2s;
   font-family: inherit;
 }
 
 .pd-var-btn:hover:not(:disabled) {
-  border-color: #E63B6F;
-  color: #E63B6F;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .pd-var-btn.active {
-  border-color: #E63B6F;
+  border-color: var(--primary);
   background: rgba(230, 59, 111, 0.06);
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .pd-var-btn.disabled {
@@ -1440,11 +1408,11 @@ onBeforeUnmount(() => {
 .pd-qty button {
   width: 40px;
   height: 40px;
-  background: #fff;
+  background: var(--card-bg);
   border: none;
   font-size: 1.1rem;
   cursor: pointer;
-  color: #2D3436;
+  color: var(--text-main);
   transition: background 0.2s;
 }
 
@@ -1461,7 +1429,7 @@ onBeforeUnmount(() => {
   font-weight: 700;
   font-size: 0.95rem;
   outline: none;
-  background: #fff;
+  background: var(--card-bg);
   font-family: inherit;
 }
 
@@ -1479,9 +1447,9 @@ onBeforeUnmount(() => {
   justify-content: center;
   gap: 8px;
   padding: 12px 12px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
-  border: 2px solid #E63B6F;
+  border: 2px solid var(--primary);
   border-radius: 28px;
   font-size: 0.95rem;
   font-weight: 700;
@@ -1503,9 +1471,9 @@ onBeforeUnmount(() => {
 .pd-btn-buy {
   flex: 1;
   padding: 12px 12px;
-  background: #fff;
-  color: #E63B6F;
-  border: 2px solid #E63B6F;
+  background: var(--card-bg);
+  color: var(--primary);
+  border: 2px solid var(--primary);
   border-radius: 28px;
   font-size: 0.95rem;
   font-weight: 700;
@@ -1515,7 +1483,7 @@ onBeforeUnmount(() => {
 }
 
 .pd-btn-buy:hover {
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
 }
 
@@ -1528,7 +1496,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding: 12px 20px;
   background: #FFF0F3;
-  color: #E63B6F;
+  color: var(--primary);
   border: 2px dashed #FFB8CC;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -1541,7 +1509,7 @@ onBeforeUnmount(() => {
 
 .pd-btn-tryon:hover {
   background: #FFE4E9;
-  border-color: #E63B6F;
+  border-color: var(--primary);
 }
 
 /* Perks */
@@ -1596,12 +1564,12 @@ onBeforeUnmount(() => {
 }
 
 .pd-tab:hover {
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .pd-tab.active {
-  color: #E63B6F;
-  border-bottom-color: #E63B6F;
+  color: var(--primary);
+  border-bottom-color: var(--primary);
 }
 
 .pd-tab-content {
@@ -1618,7 +1586,7 @@ onBeforeUnmount(() => {
 .pd-desc-title {
   font-size: 1.25rem;
   font-weight: 800;
-  color: #2D3436;
+  color: var(--text-main);
   margin: 0 0 16px;
 }
 
@@ -1659,7 +1627,7 @@ onBeforeUnmount(() => {
   border: 1px solid #E9ECEF;
   border-radius: 8px;
   padding: 10px 20px;
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -1670,7 +1638,7 @@ onBeforeUnmount(() => {
 
 .pd-desc-toggle:hover {
   background: #FFF0F3;
-  border-color: #E63B6F;
+  border-color: var(--primary);
 }
 /* Specs Table */
 .pd-specs-side {
@@ -1682,7 +1650,7 @@ onBeforeUnmount(() => {
 .pd-specs-title {
   font-size: 1.1rem;
   font-weight: 800;
-  color: #2D3436;
+  color: var(--text-main);
   margin: 0 0 16px;
 }
 
@@ -1704,7 +1672,7 @@ onBeforeUnmount(() => {
 }
 
 .pd-specs-table td:last-child {
-  color: #2D3436;
+  color: var(--text-main);
   font-weight: 600;
 }
 
@@ -1756,7 +1724,7 @@ onBeforeUnmount(() => {
 
 .pd-review-meta strong {
   font-size: 0.95rem;
-  color: #2D3436;
+  color: var(--text-main);
   display: block;
   margin-bottom: 2px;
 }
@@ -1788,7 +1756,7 @@ onBeforeUnmount(() => {
 .pd-related-title {
   font-size: 1.4rem;
   font-weight: 800;
-  color: #2D3436;
+  color: var(--text-main);
   margin: 0 0 4px;
 }
 
@@ -1799,7 +1767,7 @@ onBeforeUnmount(() => {
 }
 
 .pd-related-link {
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 700;
   font-size: 0.9rem;
   text-decoration: none;
@@ -1865,7 +1833,7 @@ onBeforeUnmount(() => {
 }
 
 .size-modal {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 16px;
   width: 100%;
   max-width: 650px;
@@ -1885,7 +1853,7 @@ onBeforeUnmount(() => {
 .modal-title {
   font-size: 1.15rem;
   font-weight: 800;
-  color: #2D3436;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -1905,7 +1873,7 @@ onBeforeUnmount(() => {
 
 .modal-close:hover {
   background: #E9ECEF;
-  color: #2D3436;
+  color: var(--text-main);
 }
 
 .modal-body {
@@ -1933,7 +1901,7 @@ onBeforeUnmount(() => {
 
 .size-table th {
   background: #F8F9FA;
-  color: #2D3436;
+  color: var(--text-main);
   font-weight: 700;
   padding: 14px 16px;
   font-size: 0.9rem;
@@ -1948,7 +1916,7 @@ onBeforeUnmount(() => {
 }
 
 .size-table td strong {
-  color: #2D3436;
+  color: var(--text-main);
 }
 
 .size-tips {
@@ -1974,7 +1942,7 @@ onBeforeUnmount(() => {
 
 .tip-item span {
   font-size: 0.9rem;
-  color: #E63B6F;
+  color: var(--primary);
   line-height: 1.5;
   font-weight: 500;
 }

@@ -560,7 +560,7 @@ onMounted(fetchUsers);
 /* Buttons */
 .btn-primary {
   display: flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 8px; border: none;
-  background: #E63B6F; color: white; font-family: var(--font-inter); font-size: 0.85rem;
+  background: var(--primary); color: white; font-family: var(--font-inter); font-size: 0.85rem;
   font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none;
   box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
@@ -568,10 +568,10 @@ onMounted(fetchUsers);
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-outline {
   padding: 10px 22px; border-radius: 8px; border: 1px solid var(--border-color);
-  background: white; color: var(--text-muted); font-family: var(--font-inter); font-size: 0.85rem;
+  background: var(--card-bg); color: var(--text-muted); font-family: var(--font-inter); font-size: 0.85rem;
   font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none;
 }
-.btn-outline:hover { border-color: #E63B6F; color: #E63B6F; }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
 .btn-del {
   padding: 10px 28px; border-radius: 8px; border: none; background: #dc3545; color: #fff;
   font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
@@ -584,7 +584,7 @@ onMounted(fetchUsers);
   display: flex; align-items: center; gap: 10px; background: var(--ocean-deepest);
   border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 16px; flex: 1; max-width: 400px;
 }
-.search-box:focus-within { border-color: #E63B6F; background: white; box-shadow: 0 0 0 3px rgba(230, 59, 111,0.1); }
+.search-box:focus-within { border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(230, 59, 111,0.1); }
 .search-box svg { color: var(--text-light); }
 .search-input { background: none; border: none; outline: none; color: var(--text-main); font-family: var(--font-inter); font-size: 0.9rem; width: 100%; }
 .table-count { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
@@ -601,17 +601,17 @@ onMounted(fetchUsers);
 .data-table td { padding: 12px 12px; border-bottom: 1px solid var(--border-color); transition: background 0.15s; vertical-align: middle; }
 .data-table tbody tr:hover td { background: var(--hover-bg); }
 
-.badge-id { padding: 3px 6px; border-radius: 5px; font-size: 0.75rem; font-weight: 700; background: rgba(230, 59, 111,0.1); color: #E63B6F; }
+.badge-id { padding: 3px 6px; border-radius: 5px; font-size: 0.75rem; font-weight: 700; background: rgba(230, 59, 111,0.1); color: var(--primary); }
 .user-info-cell { display: flex; align-items: center; gap: 8px; }
 .avatar-circle {
-  width: 28px; height: 28px; border-radius: 50%; background: #E63B6F; color: white;
+  width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: white;
   display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.72rem; flex-shrink: 0;
 }
 .prod-name { font-size: 0.82rem; font-weight: 700; color: var(--text-main); white-space: nowrap; }
 .email-cell { color: #1d4ed8; font-size: 0.8rem; }
 
 .role-select, .status-select {
-  padding: 3px 6px; border-radius: 5px; border: 1px solid #eee; font-size: 0.75rem; font-weight: 500; cursor: pointer; background: white; outline: none;
+  padding: 3px 6px; border-radius: 5px; border: 1px solid #eee; font-size: 0.75rem; font-weight: 500; cursor: pointer; background: var(--card-bg); outline: none;
 }
 .role-customer { color: #2e7d32; border-color: #c8e6c9; background: #e8f5e9; }
 .role-seller { color: #ef6c00; border-color: #ffe0b2; background: #fff3e0; }
@@ -626,7 +626,7 @@ onMounted(fetchUsers);
   background: var(--ocean-deepest); color: var(--text-muted); cursor: pointer;
   display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
-.btn-icon:hover { border-color: currentColor; background: white; }
+.btn-icon:hover { border-color: currentColor; background: var(--card-bg); }
 .edit:hover { color: var(--seafoam); border-color: var(--seafoam); background: rgba(38,166,154,0.05); }
 .del:hover { color: var(--coral); border-color: var(--coral); background: rgba(239,83,80,0.05); }
 .view:hover { color: #8e24aa; border-color: #8e24aa; background: rgba(142,36,170,0.05); }
@@ -638,14 +638,14 @@ onMounted(fetchUsers);
   z-index: 1000; backdrop-filter: blur(2px);
 }
 .qv-modal {
-  background: white; border-radius: 16px; width: 94%; max-width: 900px;
+  background: var(--card-bg); border-radius: 16px; width: 94%; max-width: 900px;
   max-height: 90vh; overflow-y: auto; display: flex; flex-direction: column;
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
 .qv-header {
   padding: 18px 24px; border-bottom: 1px solid var(--border-color);
   display: flex; justify-content: space-between; align-items: center;
-  position: sticky; top: 0; background: white; z-index: 10; border-radius: 16px 16px 0 0;
+  position: sticky; top: 0; background: var(--card-bg); z-index: 10; border-radius: 16px 16px 0 0;
 }
 .qv-header h2 {
   font-size: 1.15rem; font-weight: 800; margin: 0; color: var(--text-main);
@@ -694,7 +694,7 @@ onMounted(fetchUsers);
 .qv-variants-table th { padding: 10px 12px; text-align: left; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-color); background: var(--ocean-deepest, #f8fafc); }
 .qv-variants-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
 .qv-variants-table tbody tr:hover td { background: rgba(230, 59, 111,0.03); }
-.qv-variants-table code { font-size: 0.78rem; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
+.qv-variants-table code { font-size: 0.78rem; background: var(--surface-container); padding: 2px 6px; border-radius: 4px; }
 .qv-v-price { font-weight: 700; color: var(--seafoam); }
 
 .badge-type { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
@@ -712,7 +712,7 @@ onMounted(fetchUsers);
 
 /* Detail avatar */
 .detail-avatar-lg {
-  width: 52px; height: 52px; border-radius: 50%; background: #E63B6F; color: #fff;
+  width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: #fff;
   display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; flex-shrink: 0;
 }
 
@@ -730,7 +730,7 @@ onMounted(fetchUsers);
   font-size: 0.85rem; font-family: var(--font-inter); color: var(--text-main); box-sizing: border-box;
   outline: none; transition: all 0.2s; background: var(--ocean-deepest);
 }
-.qv-form-input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230, 59, 111,0.08); background: #fff; }
+.qv-form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111,0.08); background: var(--card-bg); }
 .qv-form-input.is-invalid { border-color: var(--coral); background: #fef2f2; }
 .qv-form-input.is-invalid:focus { box-shadow: 0 0 0 3px rgba(239,83,80,0.1); }
 .field-error { display: block; color: var(--coral); font-size: 0.72rem; font-weight: 600; margin-top: 6px; animation: fadeSlideUp 0.2s ease; }
@@ -738,7 +738,7 @@ onMounted(fetchUsers);
 .empty-cell { text-align: center; padding: 60px 20px !important; }
 .empty-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
 .empty-cell h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px; }
-.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: #E63B6F; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .animate-in { animation: fadeSlideUp 0.35s ease both; }
 @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -769,7 +769,7 @@ onMounted(fetchUsers);
   text-transform: uppercase;
 }
 .adj-input {
-  background: white;
+  background: var(--card-bg);
 }
 .btn-adjust {
   align-self: flex-end;

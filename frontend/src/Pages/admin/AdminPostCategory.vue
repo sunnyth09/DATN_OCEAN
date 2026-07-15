@@ -308,7 +308,7 @@ const deleteCategory = async (id) => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: #E63B6F; color: white;
+    background: var(--primary); color: white;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s;
     box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
@@ -339,7 +339,7 @@ const deleteCategory = async (id) => {
     transition: all 0.2s;
 }
 .search-box:focus-within {
-    border-color: #E63B6F; background: white;
+    border-color: var(--primary); background: var(--card-bg);
     box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 .search-box svg { color: var(--text-light); flex-shrink: 0; }
@@ -357,13 +357,13 @@ const deleteCategory = async (id) => {
     background: var(--ocean-deepest); color: var(--text-muted);
     font-size: 0.8rem; font-weight: 600;
 }
-.stat-pill svg { color: #E63B6F; }
+.stat-pill svg { color: var(--primary); }
 
 /* Loading */
 .loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
 .spinner {
     width: 30px; height: 30px; border: 3px solid var(--border-color);
-    border-top-color: #E63B6F; border-radius: 50%;
+    border-top-color: var(--primary); border-radius: 50%;
     animation: spin 1s linear infinite; margin: 0 auto 16px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -391,21 +391,21 @@ const deleteCategory = async (id) => {
 /* Custom Row Styles */
 .category-name-cell { display: flex; align-items: center; gap: 10px; }
 .tree-line { width: 12px; height: 1px; background: var(--border-color); display: none; }
-.folder-icon { color: #E63B6F; opacity: 0.8; }
+.folder-icon { color: var(--primary); opacity: 0.8; }
 .category-name { font-weight: 600; color: var(--text-main); font-size: 0.9rem; }
 .status-badge {
     display: inline-flex; align-items: center; padding: 4px 10px;
     border-radius: 20px; font-size: 0.75rem; font-weight: 600;
 }
 .status-badge.active { background: rgba(230, 59, 111, 0.08); color: #0284c7; }
-.status-badge.inactive { background: #f1f5f9; color: #64748b; }
+.status-badge.inactive { background: var(--surface-container); color: var(--text-muted); }
 .action-buttons { display: flex; gap: 8px; }
 .btn-action {
     background: none; border: none; padding: 6px; border-radius: 6px;
     cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;
 }
-.btn-action.view { color: #E63B6F; background: rgba(230, 59, 111, 0.1); }
-.btn-action.edit { color: #E63B6F; background: rgba(230, 59, 111, 0.08); }
+.btn-action.view { color: var(--primary); background: rgba(230, 59, 111, 0.1); }
+.btn-action.edit { color: var(--primary); background: rgba(230, 59, 111, 0.08); }
 .btn-action.delete { color: var(--coral); background: #fee2e2; }
 .btn-action:hover { transform: scale(1.1); }
 
@@ -450,7 +450,7 @@ const deleteCategory = async (id) => {
     color: var(--text-main); font-family: var(--font-inter);
     font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .form-control::placeholder { color: var(--text-light); }
 .form-select {
     appearance: none;
@@ -470,9 +470,9 @@ const deleteCategory = async (id) => {
 }
 .toggle-slider:before {
     position: absolute; content: ""; height: 18px; width: 18px;
-    left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%;
+    left: 3px; bottom: 3px; background-color: var(--card-bg); transition: .3s; border-radius: 50%;
 }
-.toggle-input:checked + .toggle-slider { background-color: #E63B6F; }
+.toggle-input:checked + .toggle-slider { background-color: var(--primary); }
 .toggle-input:checked + .toggle-slider:before { transform: translateX(20px); }
 .toggle-text { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
 

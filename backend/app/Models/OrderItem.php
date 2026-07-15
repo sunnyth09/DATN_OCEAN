@@ -26,6 +26,13 @@ class OrderItem extends Model
         'created_at'
     ];
 
+    protected $casts = [
+        'quantity'        => 'integer',
+        'unit_price'      => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'line_total'      => 'decimal:2',
+    ];
+
     public function order()
     {
         return $this->belongsTo(Order::class, 'order_id', 'order_id');

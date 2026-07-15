@@ -908,7 +908,7 @@ const handleCreatePosBooking = async () => {
 .scheduler-live-clock__bar-fill {
     height: 100%;
     border-radius: 6px;
-    background: linear-gradient(90deg, #FF6B9D 0%, #E63B6F 100%);
+    background: linear-gradient(90deg, #FF6B9D 0%, var(--primary) 100%);
     transition: width 1s linear;
     position: relative;
     overflow: hidden;

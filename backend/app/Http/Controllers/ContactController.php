@@ -244,7 +244,7 @@ class ContactController extends Controller
             Log::error('Contact reply email error: ' . $e->getMessage());
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Gửi email thất bại: ' . $e->getMessage(),
+                'message' => 'Gửi email thất bại, vui lòng thử lại sau.',
             ], 500);
         }
 

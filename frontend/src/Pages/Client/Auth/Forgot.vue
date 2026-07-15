@@ -382,10 +382,10 @@ const steps = [
 
 <style scoped>
 .auth-page { flex: 1; padding: 48px 24px; display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
-.auth-card { width: 100%; max-width: 460px; background: #fff; border-radius: 16px; padding: 40px 36px 36px; box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04); }
+.auth-card { width: 100%; max-width: 460px; background: var(--card-bg); border-radius: 16px; padding: 40px 36px 36px; box-shadow: 0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04); }
 
-.auth-icon { width: 56px; height: 56px; border-radius: 14px; background: #FFF0F3; color: #E63B6F; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
-.auth-title { text-align: center; font-size: 1.5rem; font-weight: 700; color: #2D3436; margin-bottom: 20px; }
+.auth-icon { width: 56px; height: 56px; border-radius: 14px; background: #FFF0F3; color: var(--primary); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+.auth-title { text-align: center; font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 20px; }
 
 /* Step Indicator */
 .step-indicator { display: flex; justify-content: center; gap: 32px; margin-bottom: 28px; position: relative; }
@@ -397,10 +397,10 @@ const steps = [
   background: #FFE0E8; color: #636E72;
   transition: all 0.3s ease;
 }
-.step-item.active .step-circle { background: #E63B6F; color: #fff; }
+.step-item.active .step-circle { background: var(--primary); color: #fff; }
 .step-item.current .step-circle { box-shadow: 0 0 0 4px rgba(230, 59, 111, 0.2); }
 .step-label { font-size: 0.72rem; font-weight: 500; color: #636E72; }
-.step-item.active .step-label { color: #E63B6F; font-weight: 600; }
+.step-item.active .step-label { color: var(--primary); font-weight: 600; }
 
 .step-desc { font-size: 0.85rem; color: #666; line-height: 1.5; margin-bottom: 4px; }
 
@@ -414,17 +414,17 @@ const steps = [
 .form-group input {
   width: 100%; padding: 12px 14px;
   border: 1.5px solid #E9ECEF; border-radius: 10px;
-  font-size: 0.9rem; font-family: inherit; color: #2D3436;
+  font-size: 0.9rem; font-family: inherit; color: var(--text-main);
   background: #F8F9FA; outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.form-group input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); background: #fff; }
+.form-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); background: var(--card-bg); }
 .form-group input::placeholder { color: #636E72; }
 
 .input-password { position: relative; }
 .input-password input { padding-right: 44px; }
 .toggle-pw { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #636E72; display: flex; padding: 4px; transition: color 0.2s; }
-.toggle-pw:hover { color: #E63B6F; }
+.toggle-pw:hover { color: var(--primary); }
 
 .field-error { font-size: 0.78rem; color: #dc2626; margin-top: 4px; }
 
@@ -434,17 +434,17 @@ const steps = [
   width: 48px; height: 56px;
   text-align: center; font-size: 1.3rem; font-weight: 700; font-family: 'JetBrains Mono', 'Fira Code', monospace;
   border: 2px solid #E9ECEF; border-radius: 12px;
-  background: #F8F9FA; color: #2D3436; outline: none;
+  background: #F8F9FA; color: var(--text-main); outline: none;
   transition: all 0.2s;
 }
-.otp-input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.15); background: #fff; }
+.otp-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.15); background: var(--card-bg); }
 
 /* Countdown */
 .countdown-wrapper { display: flex; align-items: center; justify-content: space-between; }
-.countdown-timer { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #E63B6F; font-weight: 500; }
+.countdown-timer { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--primary); font-weight: 500; }
 .countdown-timer.expired { color: #dc2626; }
 .resend-btn {
-  background: none; border: none; color: #E63B6F; font-size: 0.82rem; font-weight: 600;
+  background: none; border: none; color: var(--primary); font-size: 0.82rem; font-weight: 600;
   cursor: pointer; text-decoration: underline; font-family: inherit;
   transition: color 0.2s;
 }
@@ -459,7 +459,7 @@ const steps = [
 /* Buttons */
 .btn-primary {
   width: 100%; padding: 13px; border: none; border-radius: 10px;
-  background: #E63B6F; color: #fff; font-size: 0.95rem; font-weight: 600;
+  background: var(--primary); color: #fff; font-size: 0.95rem; font-weight: 600;
   font-family: inherit; cursor: pointer;
   transition: background 0.2s, transform 0.1s;
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -474,5 +474,5 @@ const steps = [
 /* Auth switch */
 .auth-switch { text-align: center; }
 .back-link { display: inline-flex; align-items: center; gap: 6px; color: #666; font-size: 0.85rem; font-weight: 500; text-decoration: none; transition: color 0.2s; }
-.back-link:hover { color: #E63B6F; }
+.back-link:hover { color: var(--primary); }
 </style>

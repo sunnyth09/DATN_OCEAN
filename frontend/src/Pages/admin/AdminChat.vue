@@ -266,7 +266,7 @@ const formatTime = (isoString) => {
 .admin-chat-layout {
   display: flex;
   height: calc(100vh - 100px);
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -280,14 +280,14 @@ const formatTime = (isoString) => {
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
+  background: var(--surface-container);
   transition: width 0.3s;
 }
 
 .sidebar-header {
   padding: 16px 20px;
   border-bottom: 1px solid #e5e7eb;
-  background: #fff;
+  background: var(--card-bg);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -297,7 +297,7 @@ const formatTime = (isoString) => {
   font-size: 1.1rem;
   font-weight: 700;
   margin: 0;
-  color: #111827;
+  color: var(--text-main);
 }
 
 .chat-badge {
@@ -317,7 +317,7 @@ const formatTime = (isoString) => {
 .empty-sessions {
   padding: 24px;
   text-align: center;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 
@@ -330,7 +330,7 @@ const formatTime = (isoString) => {
 }
 
 .session-item:hover {
-  background: #f1f5f9;
+  background: var(--surface-container);
 }
 
 .session-item.is-active {
@@ -347,7 +347,7 @@ const formatTime = (isoString) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: var(--text-muted);
   margin-right: 12px;
 }
 
@@ -378,7 +378,7 @@ const formatTime = (isoString) => {
 .session-name {
   font-weight: 600;
   font-size: 0.9rem;
-  color: #111827;
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -386,7 +386,7 @@ const formatTime = (isoString) => {
 
 .session-time {
   font-size: 0.7rem;
-  color: #9ca3af;
+  color: var(--text-light);
 }
 
 .session-status {
@@ -394,7 +394,7 @@ const formatTime = (isoString) => {
   align-items: center;
   gap: 4px;
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .status-dot {
@@ -403,20 +403,20 @@ const formatTime = (isoString) => {
   border-radius: 50%;
 }
 .bg-green-500 { background-color: #10b981; }
-.bg-gray-400 { background-color: #9ca3af; }
+.bg-gray-400 { background-color: var(--text-light); }
 
 /* Main Chat */
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--card-bg);
 }
 
 .empty-state {
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--text-muted);
 }
 .empty-icon { margin-bottom: 16px; opacity: 0.5; }
 
@@ -434,12 +434,12 @@ const formatTime = (isoString) => {
   font-size: 1.1rem;
   font-weight: 700;
   margin: 0 0 2px 0;
-  color: #111827;
+  color: var(--text-main);
 }
 
 .chat-user-email {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -448,7 +448,7 @@ const formatTime = (isoString) => {
   font-size: 0.85rem;
   border: 1px solid #ef4444;
   color: #ef4444;
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
@@ -459,7 +459,7 @@ const formatTime = (isoString) => {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
-  background: #f8fafc;
+  background: var(--surface-container);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -474,8 +474,8 @@ const formatTime = (isoString) => {
 .msg-system { justify-content: center; margin: 12px 0; }
 
 .system-notice {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--surface-container);
+  color: var(--text-muted);
   padding: 8px 16px;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -499,7 +499,7 @@ const formatTime = (isoString) => {
 .msg-bubble p { margin: 0; }
 
 .msg-theirs .msg-bubble {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-bottom-left-radius: 2px;
   color: #1f2937;
@@ -525,7 +525,7 @@ const formatTime = (isoString) => {
 
 .chat-input-area {
   padding: 16px 24px;
-  background: #fff;
+  background: var(--card-bg);
   border-top: 1px solid #e5e7eb;
   display: flex;
   gap: 12px;
@@ -571,7 +571,7 @@ const formatTime = (isoString) => {
   padding: 16px;
   text-align: center;
   background: #f3f4f6;
-  color: #6b7280;
+  color: var(--text-muted);
   font-size: 0.9rem;
   border-top: 1px solid #e5e7eb;
 }
