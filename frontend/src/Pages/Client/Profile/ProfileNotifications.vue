@@ -81,12 +81,16 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
+// Dùng chung state với ClientHeader qua auth store → badge đồng bộ tức thì
+const { unreadNotificationCount: unreadCount } = storeToRefs(authStore);
 const notifications = ref([]);
-const unreadCount = ref(0);
 const loading = ref(true);
 const isMarking = ref(false);
 
@@ -117,9 +121,7 @@ const handleNotificationClick = async (notification) => {
     try {
       await api.post(`/profile/notifications/${notification.id}/read`);
       notification.read_at = new Date().toISOString();
-      if (unreadCount.value > 0) {
-        unreadCount.value--;
-      }
+      authStore.decrementUnreadNotificationCount();
     } catch (e) {
       console.error(e);
     }
@@ -137,7 +139,7 @@ const markAllAsRead = async () => {
   isMarking.value = true;
   try {
     await api.post('/profile/notifications/read-all');
-    unreadCount.value = 0;
+    authStore.resetUnreadNotificationCount();
     notifications.value.forEach(n => {
       n.read_at = new Date().toISOString();
     });
