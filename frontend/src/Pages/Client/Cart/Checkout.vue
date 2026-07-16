@@ -619,9 +619,12 @@ const placeOrder = async () => {
             if (isBuyNow.value) {
                 // Mua nhanh: chỉ dọn item tạm, KHÔNG đụng giỏ hàng
                 sessionStorage.removeItem('buy_now_item');
-            } else if (!authStore.isAuthenticated && !isFlashSale.value) {
-                // Xóa giỏ hàng local của guest
-                localStorage.removeItem('cart_items');
+            } else if (!isFlashSale.value) {
+                // Đặt từ giỏ hàng: backend đã xóa item khỏi giỏ (user đăng nhập),
+                // guest thì xóa giỏ local. Bắn cart-updated để badge refresh cho CẢ HAI.
+                if (!authStore.isAuthenticated) {
+                    localStorage.removeItem('cart_items');
+                }
                 window.dispatchEvent(new Event('cart-updated'));
             }
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {

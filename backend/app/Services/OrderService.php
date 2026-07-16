@@ -81,6 +81,8 @@ class OrderService
             // Mua nhanh (Buy Now): đặt trực tiếp sản phẩm được truyền vào,
             // KHÔNG lấy từ giỏ hàng và KHÔNG ảnh hưởng tới giỏ hàng hiện có.
             $isDirectOrder = !empty($data['items']) && is_array($data['items']);
+            $cart = null;
+            $isAbandonedCheckout = false;
 
             if ($isDirectOrder) {
                 $cartItems = $this->buildDirectItems($data['items']);
@@ -100,6 +102,9 @@ class OrderService
                 if ($cartItems->isEmpty()) {
                     return $this->error('Vui lòng chọn sản phẩm để thanh toán!', 400);
                 }
+
+                // Đơn đặt từ giỏ đã được gửi nhắc nhở bỏ quên → đánh dấu để cộng điểm khi hoàn tất
+                $isAbandonedCheckout = (bool) $cart->is_abandoned_reminded;
             }
 
             $subtotal = $this->calculateSubtotalAndValidateStock($cartItems);
@@ -137,7 +142,7 @@ class OrderService
                     return $this->error('Số điểm thưởng không đủ!', 400);
                 }
                 // 1 điểm = 100đ
-                $rewardDiscount = $rewardPointsUsed * 100; 
+                $rewardDiscount = $rewardPointsUsed * 100;
                 $discountAmount += $rewardDiscount;
             }
 
@@ -188,7 +193,10 @@ class OrderService
                 $walletTotalDiscount,
                 &$walletDepositUsed,
                 &$walletCommissionUsed,
-                $paymentMethod
+                $paymentMethod,
+                $cart,
+                $isAbandonedCheckout,
+                $rewardPointsUsed
             ) {
                 $this->lockAndValidateStock($cartItems);
 

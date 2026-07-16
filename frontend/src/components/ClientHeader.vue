@@ -8,6 +8,7 @@ import Swal from "sweetalert2";
 import AppIcon from "@/icons/AppIcon.vue";
 import { useCartStore } from "@/stores/cart";
 import { useCatalogStore } from "@/stores/catalog";
+import { useAuthStore } from "@/stores/auth";
 import { catalogService, extractCollection } from "@/services/catalogService";
 import { getAppBaseUrl } from "@/utils/url";
 import { loyaltyService } from "@/services/loyaltyService";
@@ -17,8 +18,10 @@ const route = useRoute();
 const router = useRouter();
 const cartStore = useCartStore();
 const catalogStore = useCatalogStore();
+const authStore = useAuthStore();
 const { count: cartCount } = storeToRefs(cartStore);
 const { categories } = storeToRefs(catalogStore);
+const { unreadNotificationCount } = storeToRefs(authStore);
 
 const isLoggedIn = ref(false);
 const userName = ref("");
@@ -26,7 +29,6 @@ const userEmail = ref("");
 const userAvatar = ref(null);
 const isAdmin = ref(false);
 const showDropdown = ref(false);
-const unreadNotificationCount = ref(0);
 const showNotificationPopup = ref(false);
 const isMobileMenuOpen = ref(false);
 const headerRewardPoints = ref(0);
@@ -240,19 +242,7 @@ const checkAuth = () => {
     }
 };
 
-const fetchUnreadNotificationCount = async () => {
-    const token = sessionStorage.getItem("auth_token");
-    if (!token) {
-        unreadNotificationCount.value = 0;
-        return;
-    }
-    try {
-        const response = await api.get("/profile/notifications");
-        unreadNotificationCount.value = response.data.unread_count || 0;
-    } catch (e) {
-        unreadNotificationCount.value = 0;
-    }
-};
+const fetchUnreadNotificationCount = () => authStore.fetchUnreadNotificationCount();
 
 const fetchHeaderRewardPoints = async () => {
     const token = sessionStorage.getItem("auth_token");
@@ -285,7 +275,7 @@ watch(isLoggedIn, (val) => {
             notificationUserId = userData.user_id;
             window.Echo.private('user.' + userData.user_id)
                 .listen('.UserNotificationEvent', (e) => { // . means it ignores Broadcast namespace
-                    unreadNotificationCount.value++;
+                    authStore.incrementUnreadNotificationCount();
                     showNotificationPopup.value = true;
                     setTimeout(() => {
                         showNotificationPopup.value = false;
@@ -293,7 +283,7 @@ watch(isLoggedIn, (val) => {
                 });
         }
     } else {
-        unreadNotificationCount.value = 0;
+        authStore.resetUnreadNotificationCount();
         headerRewardPoints.value = 0;
         leaveNotificationChannel();
     }
