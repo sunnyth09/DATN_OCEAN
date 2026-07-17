@@ -385,7 +385,7 @@ onMounted(() => {
                <span>{{ formatPrice(order.shipping_fee) }}</span>
              </div>
              <div class="summary-row discount" v-if="order.discount_amount > 0">
-               <span>Mã giảm giá</span>
+               <span>Giảm giá</span>
                <span>-{{ formatPrice(order.discount_amount) }}</span>
              </div>
              <div class="summary-row total">

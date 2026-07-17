@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
+use App\Exceptions\OrderException;
 use App\Models\OrderStatusHistory;
 use App\Models\Order;
 use App\Repositories\OrderRepository;
@@ -77,16 +78,33 @@ class OrderService
         try {
             $address = $this->resolveAddress($userId, $data);
 
-            $cart = $this->cartRepository->getActiveCart($userId);
+            // Mua nhanh (Buy Now): đặt trực tiếp sản phẩm được truyền vào,
+            // KHÔNG lấy từ giỏ hàng và KHÔNG ảnh hưởng tới giỏ hàng hiện có.
+            $isDirectOrder = !empty($data['items']) && is_array($data['items']);
+            $cart = null;
+            $isAbandonedCheckout = false;
 
-            if (!$cart) {
-                return $this->error('Giỏ hàng trống!', 400);
-            }
+            if ($isDirectOrder) {
+                $cartItems = $this->buildDirectItems($data['items']);
 
-            $cartItems = $this->cartRepository->getSelectedCartItems($cart->cart_id);
+                if ($cartItems->isEmpty()) {
+                    return $this->error('Sản phẩm không hợp lệ!', 400);
+                }
+            } else {
+                $cart = $this->cartRepository->getActiveCart($userId);
 
-            if ($cartItems->isEmpty()) {
-                return $this->error('Vui lòng chọn sản phẩm để thanh toán!', 400);
+                if (!$cart) {
+                    return $this->error('Giỏ hàng trống!', 400);
+                }
+
+                $cartItems = $this->cartRepository->getSelectedCartItems($cart->cart_id);
+
+                if ($cartItems->isEmpty()) {
+                    return $this->error('Vui lòng chọn sản phẩm để thanh toán!', 400);
+                }
+
+                // Đơn đặt từ giỏ đã được gửi nhắc nhở bỏ quên → đánh dấu để cộng điểm khi hoàn tất
+                $isAbandonedCheckout = (bool) $cart->is_abandoned_reminded;
             }
 
             $subtotal = $this->calculateSubtotalAndValidateStock($cartItems);
@@ -120,20 +138,48 @@ class OrderService
             $user = null;
             if ($rewardPointsUsed > 0) {
                 $user = \App\Models\User::find($userId);
-                if (!$user || $user->reward_points < $rewardPointsUsed) {
-                    return $this->error('Số điểm thưởng không đủ!', 400);
+                if (!$user) {
+                    return $this->error('Không tìm thấy người dùng!', 400);
                 }
-                // 1 điểm = 100đ
-                $rewardDiscount = $rewardPointsUsed * 100; 
+
+                $preview = app(\App\Services\LoyaltyService::class)->previewBurn($userId, $rewardPointsUsed, $subtotal);
+
+                if (!$preview['eligible']) {
+                    return $this->error($preview['message'], 400);
+                }
+
+                // Nếu user cố ý truyền sai số lượng vượt quá cho phép, previewBurn sẽ trả về actual_points nhỏ hơn.
+                // Ở đây ta có thể update lại $rewardPointsUsed thành actual_points
+                $rewardPointsUsed = $preview['points_to_use'];
+                $rewardDiscount = $preview['discount_amount'];
                 $discountAmount += $rewardDiscount;
             }
 
             $grandTotal = max(0, $subtotal + $shippingFee - $discountAmount - $comboDiscount);
 
-            // Kiểm tra giỏ hàng bỏ quên
-            $isAbandonedCheckout = false;
-            if ($cart && $cart->is_abandoned_reminded) {
-                $isAbandonedCheckout = true;
+            // ── Wallet Discount ──────────────────────────────────────────
+            $useWallet            = !empty($data['use_wallet']);
+            $walletDepositUsed    = 0;
+            $walletCommissionUsed = 0;
+            $walletTotalDiscount  = 0;
+
+            if ($useWallet && $grandTotal > 0) {
+                $requestedWalletAmount = (float) ($data['wallet_amount'] ?? 0);
+
+                if ($requestedWalletAmount > 0) {
+                    // Preview để validate giới hạn
+                    $preview = $this->walletService->previewDiscount($userId, $grandTotal);
+                    $walletTotalDiscount = min($requestedWalletAmount, $preview['max_total_discount']);
+                }
+            }
+
+            // Tính grand_total sau wallet discount
+            $paymentMethod   = $data['payment_method'];
+            $grandTotalAfterWallet = max(0, $grandTotal - $walletTotalDiscount);
+
+            // Nếu ví trả hết → payment_method = 'wallet'
+            if ($grandTotalAfterWallet == 0 && $walletTotalDiscount > 0) {
+                $paymentMethod = 'wallet';
             }
 
             $result = DB::transaction(function () use (
@@ -149,20 +195,30 @@ class OrderService
                 $comboResult,
                 $shippingFee,
                 $grandTotal,
+                $grandTotalAfterWallet,
                 $couponId,
                 $couponResult,
+                $useWallet,
+                $walletTotalDiscount,
+                &$walletDepositUsed,
+                &$walletCommissionUsed,
+                $paymentMethod,
                 $cart,
                 $isAbandonedCheckout,
                 $rewardPointsUsed
             ) {
                 $this->lockAndValidateStock($cartItems);
 
-                // Nếu thanh toán bằng ví, kiểm tra số dư trước
-                if ($data['payment_method'] === 'wallet') {
-                    $wallet = $this->walletService->getWallet($userId);
-                    if ($wallet->balance < $grandTotal) {
-                        throw new \Exception("Số dư ví không đủ để thanh toán đơn hàng (Cần: " . number_format($grandTotal, 0, ',', '.') . "đ, Hiện có: " . number_format($wallet->balance, 0, ',', '.') . "đ)");
-                    }
+                // Áp dụng wallet discount (trong transaction để đảm bảo atomic)
+                if ($useWallet && $walletTotalDiscount > 0) {
+                    $walletResult = $this->walletService->applyOrderDiscount(
+                        $userId,
+                        $walletTotalDiscount,
+                        0 // orderId chưa có, sẽ update reference sau
+                    );
+                    $walletDepositUsed    = $walletResult['deposit_used'];
+                    $walletCommissionUsed = $walletResult['commission_used'];
+                    $walletTotalDiscount  = $walletResult['total_discount'];
                 }
 
                 $order = $this->orderRepository->create([
@@ -172,15 +228,21 @@ class OrderService
                     'promotion_id' => $couponId,
                     'recipient_name' => $address->recipient_name,
                     'recipient_phone' => $address->phone,
+                    'email' => $data['email'] ?? null,
                     'shipping_address' => $this->makeFullAddress($address),
+                    'province_code' => $address->province_code ?? null,
+                    'district_code' => $address->district_code ?? null,
+                    'ward_code' => $address->ward_code ?? null,
                     'note' => $data['note'] ?? null,
-                    'payment_method' => $data['payment_method'],
-                    'payment_status' => $data['payment_method'] === 'wallet' ? 'paid' : 'unpaid',
+                    'payment_method' => $paymentMethod,
+                    'payment_status' => $grandTotalAfterWallet == 0 ? 'paid' : 'unpaid',
                     'fulfillment_status' => 'pending',
                     'subtotal' => $subtotal,
                     'discount_amount' => $discountAmount,
+                    'wallet_deposit_discount' => $walletDepositUsed,
+                    'wallet_commission_discount' => $walletCommissionUsed,
                     'shipping_fee' => $shippingFee,
-                    'grand_total' => $grandTotal,
+                    'grand_total' => $grandTotalAfterWallet,
                     'combo_discount' => $comboDiscount,
                     'wallet_spent' => $data['payment_method'] === 'wallet' ? $grandTotal : 0.00,
                     'is_abandoned_checkout' => $isAbandonedCheckout,
@@ -237,9 +299,11 @@ class OrderService
                     );
                 }
 
-                $this->cartRepository->deleteItems(
-                    $cartItems->pluck('cart_item_id')->toArray()
-                );
+                // Chỉ xóa item khỏi giỏ khi đặt từ giỏ (buy-now không có cart_item_id)
+                $cartItemIds = $cartItems->pluck('cart_item_id')->filter()->values()->toArray();
+                if (!empty($cartItemIds)) {
+                    $this->cartRepository->deleteItems($cartItemIds);
+                }
 
                 // Reset trạng thái giỏ hàng bỏ quên
                 if ($isAbandonedCheckout && $cart) {
@@ -296,8 +360,13 @@ class OrderService
                 unset($result['_order']); // Không trả _order ra response
             }
 
+            \Illuminate\Support\Facades\Cache::flush();
+
             return $result;
-        } catch (\Exception $e) {
+        } catch (OrderException $e) {
+            // Lỗi nghiệp vụ (hết hàng, địa chỉ sai...) → trả message gốc cho user
+            return $this->error($e->getMessage(), 400);
+        } catch (\Throwable $e) {
             Log::error('Order creation failed: ' . $e->getMessage());
 
             return $this->error(
@@ -403,7 +472,11 @@ class OrderService
                     'promotion_id' => $couponId,
                     'recipient_name' => $addressObj->recipient_name,
                     'recipient_phone' => $addressObj->phone,
+                    'email' => $data['email'] ?? null,
                     'shipping_address' => $this->makeFullAddress($addressObj),
+                    'province_code' => $addressObj->province_code ?? null,
+                    'district_code' => $addressObj->district_code ?? null,
+                    'ward_code' => $addressObj->ward_code ?? null,
                     'note' => $data['note'] ?? null,
                     'payment_method' => $data['payment_method'],
                     'payment_status' => 'unpaid',
@@ -487,12 +560,17 @@ class OrderService
                 unset($result['_order']);
             }
 
+            \Illuminate\Support\Facades\Cache::flush();
+
             return $result;
-        } catch (\Exception $e) {
+        } catch (OrderException $e) {
+            // Lỗi nghiệp vụ (hết hàng, coupon sai...) → trả message gốc cho user
+            return $this->error($e->getMessage(), 400);
+        } catch (\Throwable $e) {
             Log::error('Guest Order creation failed: ' . $e->getMessage());
 
             return $this->error(
-                'Đã xảy ra lỗi khi tạo đơn hàng: ' . $e->getMessage(),
+                'Đã xảy ra lỗi khi tạo đơn hàng. Vui lòng thử lại sau.',
                 500
             );
         }
@@ -527,7 +605,30 @@ class OrderService
                 $items = $this->orderRepository->getOrderItems($order->order_id);
 
                 $this->variantRepository->restoreStockFromOrderItems($items);
+
+                // ── Hoàn ví nếu đơn có dùng wallet discount ──
+                $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
+
+                if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
+                    $this->walletService->reverseOrderDiscount(
+                        $order->user_id,
+                        $walletDeposit,
+                        $walletCommission,
+                        $order->order_id
+                    );
+                }
+
+                // ── Hoàn điểm thưởng nếu có dùng ──
+                if ($order->user_id) {
+                    $user = \App\Models\User::find($order->user_id);
+                    if ($user) {
+                        app(\App\Services\LoyaltyService::class)->refundPoints($user, $order);
+                    }
+                }
             });
+
+            \Illuminate\Support\Facades\Cache::flush();
 
             return [
                 'status_code' => 200,
@@ -552,7 +653,7 @@ class OrderService
             );
 
             if (!$address) {
-                throw new \Exception('Địa chỉ không hợp lệ!');
+                throw new OrderException('Địa chỉ không hợp lệ!');
             }
 
             return $address;
@@ -573,13 +674,41 @@ class OrderService
         ]);
     }
 
+    /**
+     * Dựng danh sách item cho đơn "Mua nhanh" (Buy Now) từ mảng items truyền vào.
+     * Trả về collection có cùng hình dạng với cart items (object có ->variant).
+     */
+    private function buildDirectItems(array $items)
+    {
+        $items = collect($items);
+        $variantIds = $items->pluck('variant_id')->toArray();
+
+        $variants = \App\Models\ProductVariant::whereIn('variant_id', $variantIds)
+            ->with('product')
+            ->get()
+            ->keyBy('variant_id');
+
+        return $items->map(function ($item) use ($variants) {
+            $variant = $variants->get($item['variant_id']);
+            if (!$variant) {
+                return null;
+            }
+
+            return (object) [
+                'variant_id' => $item['variant_id'],
+                'quantity'   => (int) $item['quantity'],
+                'variant'    => $variant,
+            ];
+        })->filter()->values();
+    }
+
     private function calculateSubtotalAndValidateStock($cartItems): float
     {
         $subtotal = 0;
 
         foreach ($cartItems as $item) {
             if ($item->variant->stock < $item->quantity) {
-                throw new \Exception(
+                throw new OrderException(
                     'Sản phẩm ' . $item->variant->product->name . ' không đủ tồn kho!'
                 );
             }
@@ -600,7 +729,7 @@ class OrderService
             $lockedVariant = $lockedVariants[$cartItem->variant_id] ?? null;
 
             if (!$lockedVariant || $lockedVariant->stock < $cartItem->quantity) {
-                throw new \Exception(
+                throw new OrderException(
                     'Sản phẩm ' . $cartItem->variant->product->name . ' đã hết hàng khi bạn đặt mua!'
                 );
             }

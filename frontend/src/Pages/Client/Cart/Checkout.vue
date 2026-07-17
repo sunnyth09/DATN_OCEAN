@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast';
 import AddressSelector from '@/components/AddressSelector.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
+import { walletService } from '@/services/walletService';
 import { loyaltyService } from '@/services/loyaltyService';
 import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/icons/AppIcon.vue';
@@ -20,6 +21,10 @@ const loading = ref(true);
 const isFlashSale = computed(() => !!route.query.flash_sale_id && !!route.query.product_id);
 const flashSaleId = computed(() => route.query.flash_sale_id);
 const flashSaleProductId = computed(() => route.query.product_id);
+
+// --- Mua nhanh (Buy Now): chỉ đặt riêng 1 sản phẩm, không lấy từ giỏ ---
+const isBuyNow = computed(() => route.query.buy_now === '1');
+const buyNowItem = ref(null); // { variant_id, quantity }
 const { showToast } = useToast();
 
 const { state: upsellState, fetchUpsellData } = useCartUpsell();
@@ -41,10 +46,14 @@ const formAddress = ref({
     is_default: false,
 });
 
+// --- Email nhận xác nhận đơn hàng ---
+// Khách đăng nhập: prefill từ email tài khoản (vẫn cho phép sửa).
+// Khách vãng lai: bắt buộc nhập để nhận mail xác nhận.
+const email = ref(authStore.email || '');
+
 // --- GHN Data ---
 const isCalculatingFee = ref(false);
 const leadtimeDate = ref(null);
-const serviceId = ref(53320); // Default GHN service ID for normal delivery
 
 // --- Thanh toán & Khác ---
 const paymentMethod = ref('cod'); // cod, vnpay, momo, banking, wallet
@@ -63,6 +72,11 @@ const checkingCoupon = ref(false);
 const showCouponModal = ref(false);
 const availableCoupons = ref([]);
 const loadingCoupons = ref(false);
+
+// --- Wallet ---
+const useWallet = ref(false);
+const walletPreview = ref(null); // { deposit_available, commission_available, max_commission, total_available }
+const walletLoading = ref(false);
 
 // Format tiền VND
 const formatPrice = (price) => {
@@ -103,15 +117,27 @@ const fetchCart = async () => {
     }
 };
 
-// Lấy số dư ví điện tử
-const fetchWalletBalance = async () => {
+// Lấy đúng 1 sản phẩm cho chế độ Mua nhanh (Buy Now)
+const fetchBuyNowItem = async () => {
     try {
-        const response = await api.get('/wallet/summary');
+        const raw = sessionStorage.getItem('buy_now_item');
+        const item = raw ? JSON.parse(raw) : null;
+        if (!item || !item.variant_id) {
+            router.push('/cart');
+            return;
+        }
+        buyNowItem.value = { variant_id: item.variant_id, quantity: item.quantity || 1 };
+
+        const response = await api.post('/cart/guest-details', { items: [buyNowItem.value] });
         if (response.data.status === 'success') {
-            walletBalance.value = response.data.data.balance || 0;
+            cartItems.value = response.data.data.items || [];
+            if (response.data.data.freeship_threshold) {
+                upsellState.freeshipThreshold = response.data.data.freeship_threshold;
+            }
         }
     } catch (error) {
-        console.error('Lỗi khi lấy số dư ví:', error);
+        console.error('Lỗi khi tải sản phẩm mua nhanh:', error);
+        router.push('/cart');
     }
 };
 
@@ -131,6 +157,12 @@ const fetchLoyaltyPoints = async () => {
         console.error('Lỗi khi lấy điểm thưởng:', e);
     }
 };
+
+watch(() => authStore.isAuthenticated, (val) => {
+    if (val) {
+        fetchLoyaltyPoints();
+    }
+}, { immediate: true });
 
 // Lấy sản phẩm Flash Sale thay vì giỏ hàng
 const fetchFlashSaleData = async () => {
@@ -287,6 +319,20 @@ const shippingDiscount = computed(() => {
     return disc;
 });
 
+const effectiveShippingFee = computed(() => Math.max(0, shippingFee.value - shippingDiscount.value));
+
+const isShippingFree = computed(() => shippingFee.value > 0 && effectiveShippingFee.value === 0);
+
+const shippingWeight = computed(() => {
+    return Math.max(
+        10,
+        cartItems.value.reduce((sum, item) => {
+            const weight = Number(item.product?.weight || item.weight || 500);
+            return sum + weight * Number(item.quantity || 1);
+        }, 0)
+    );
+});
+
 const getShippingFee = async (district_id, ward_code) => {
     if (!district_id || !ward_code) return;
     isCalculatingFee.value = true;
@@ -294,7 +340,7 @@ const getShippingFee = async (district_id, ward_code) => {
         shippingFee.value = await addressService.getShippingFee({
             districtCode: district_id,
             wardCode: ward_code,
-            weight: 3000,
+            weight: shippingWeight.value,
         });
 
         // Lấy leadtime
@@ -359,7 +405,7 @@ const discount = computed(() => {
 const maxPointsCanUse = computed(() => {
     let max = loyaltyPoints.value;
     const totalBeforeLoyalty = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
-    const maxForTotal = Math.floor(totalBeforeLoyalty / 100);
+    const maxForTotal = Math.floor((totalBeforeLoyalty * 0.3) / 100);
     return Math.min(max, maxForTotal);
 });
 
@@ -385,7 +431,38 @@ const loyaltyDiscount = computed(() => {
 });
 
 const total = computed(() => {
-    return Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value);
+    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value);
+    return Math.max(0, base - walletDiscount.value);
+});
+
+// --- Wallet ---
+const walletDiscount = computed(() => {
+    if (!useWallet.value || !walletPreview.value) return 0;
+    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value;
+    return Math.min(walletPreview.value.total_available || 0, Math.max(0, maxDiscount));
+});
+
+const fetchWalletPreview = async () => {
+    if (!authStore.isAuthenticated) return;
+    walletLoading.value = true;
+    try {
+        const res = await walletService.previewDiscount(subtotal.value);
+        if (res.data?.status === 'success') {
+            walletPreview.value = res.data.data;
+        }
+    } catch (e) {
+        console.error('Wallet preview error', e);
+    } finally {
+        walletLoading.value = false;
+    }
+};
+
+watch(subtotal, () => {
+    if (authStore.isAuthenticated) fetchWalletPreview();
+});
+
+watch(useWallet, (val) => {
+    if (val && !walletPreview.value) fetchWalletPreview();
 });
 
 // Appy coupon (Mã cứng mockup cho UI: OCEAN10)
@@ -453,8 +530,20 @@ const placeOrder = async () => {
         note: note.value,
         coupon_applied: appliedCoupon.value?.code || null,
         referral_code: localStorage.getItem('affiliate_ref') || null,
+        use_wallet: useWallet.value && walletDiscount.value > 0,
+        wallet_amount: useWallet.value ? walletDiscount.value : 0,
         reward_points_used: useLoyaltyPoints.value ? inputPoints.value : 0,
     };
+
+    // --- Email nhận xác nhận đơn hàng (bắt buộc) ---
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.value.trim()) {
+        return showToast('Vui lòng nhập email để nhận xác nhận đơn hàng', 'error');
+    }
+    if (!emailRegex.test(email.value.trim())) {
+        return showToast('Email không hợp lệ', 'error');
+    }
+    payload.email = email.value.trim();
 
     if (showAddAddressForm.value) {
         const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
@@ -466,7 +555,7 @@ const placeOrder = async () => {
         if (!formAddress.value.phone.match(phoneRegex)) {
             showToast('Vui lòng nhập số điện thoại hợp lệ', 'error');
             return;
-        }    
+        }
         if (!formAddress.value.province) return showToast('Vui lòng chọn Tỉnh/Thành phố', 'error');
         if (!formAddress.value.district) return showToast('Vui lòng chọn Quận/Huyện', 'error');
         if (!formAddress.value.ward) return showToast('Vui lòng chọn Phường/Xã', 'error');
@@ -492,10 +581,10 @@ const placeOrder = async () => {
     try {
         let res;
         if (isFlashSale.value) {
-            const fsAddress = showAddAddressForm.value 
+            const fsAddress = showAddAddressForm.value
                 ? `${payload.address_line}, ${payload.ward}, ${payload.district}, ${payload.province}`
                 : formatFullAddress(addresses.value.find(a => a.address_id === payload.address_id));
-            
+
             const fsPhone = showAddAddressForm.value ? payload.phone : (addresses.value.find(a => a.address_id === payload.address_id)?.phone);
             const fsName = showAddAddressForm.value ? payload.recipient_name : (addresses.value.find(a => a.address_id === payload.address_id)?.recipient_name);
 
@@ -509,6 +598,15 @@ const placeOrder = async () => {
                 payment_method: payload.payment_method,
             };
             res = await api.post('flash-sale/buy', fsPayload);
+        } else if (isBuyNow.value && buyNowItem.value) {
+            // Mua nhanh: chỉ gửi đúng 1 sản phẩm (không lấy từ giỏ)
+            payload.items = [{
+                variant_id: buyNowItem.value.variant_id,
+                quantity: buyNowItem.value.quantity,
+            }];
+            res = authStore.isAuthenticated
+                ? await orderService.createProfileOrder(payload)
+                : await api.post('/orders/guest', payload);
         } else {
             if (authStore.isAuthenticated) {
                 res = await orderService.createProfileOrder(payload);
@@ -525,10 +623,16 @@ const placeOrder = async () => {
         if (res.data.status === 'success') {
             // Xóa referral_code sau khi đặt hàng thành công
             localStorage.removeItem('affiliate_ref');
-            
-            // Xóa giỏ hàng local của guest
-            if (!authStore.isAuthenticated && !isFlashSale.value) {
-                localStorage.removeItem('cart_items');
+
+            if (isBuyNow.value) {
+                // Mua nhanh: chỉ dọn item tạm, KHÔNG đụng giỏ hàng
+                sessionStorage.removeItem('buy_now_item');
+            } else if (!isFlashSale.value) {
+                // Đặt từ giỏ hàng: backend đã xóa item khỏi giỏ (user đăng nhập),
+                // guest thì xóa giỏ local. Bắn cart-updated để badge refresh cho CẢ HAI.
+                if (!authStore.isAuthenticated) {
+                    localStorage.removeItem('cart_items');
+                }
                 window.dispatchEvent(new Event('cart-updated'));
             }
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {
@@ -595,9 +699,14 @@ const getProductImage = (item) => {
 };
 
 onMounted(async () => {
-    const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData(), fetchWalletBalance(), fetchLoyaltyPoints()];
+    const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData()];
+    if (authStore.isAuthenticated) {
+        promises.push(fetchWalletPreview());
+    }
     if (isFlashSale.value) {
         promises.push(fetchFlashSaleData());
+    } else if (isBuyNow.value) {
+        promises.push(fetchBuyNowItem());
     } else {
         promises.push(fetchCart());
     }
@@ -614,19 +723,17 @@ onMounted(async () => {
             <div v-if="showBankingModal" class="banking-modal-overlay" @click.self="null">
                 <div class="banking-modal">
                     <div class="banking-modal-header">
-                        <span class="banking-modal-icon"><AppIcon name="bank" size="24" /></span>
+                        <span class="banking-modal-icon">
+                            <AppIcon name="bank" size="24" />
+                        </span>
                         <h2>Thanh toán chuyển khoản</h2>
                         <p>Quét mã QR hoặc chuyển khoản thủ công theo thông tin dưới đây</p>
                     </div>
 
                     <div class="banking-modal-body">
                         <div class="qr-section">
-                            <img
-                                v-if="bankingInfo?.qr_url"
-                                :src="bankingInfo.qr_url"
-                                alt="QR Chuyển khoản"
-                                class="qr-image"
-                            />
+                            <img v-if="bankingInfo?.qr_url" :src="bankingInfo.qr_url" alt="QR Chuyển khoản"
+                                class="qr-image" />
                             <p class="qr-hint">Quét bằng app ngân hàng bất kỳ</p>
                         </div>
 
@@ -651,18 +758,22 @@ onMounted(async () => {
                     </div>
 
                     <div class="banking-note">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                        <span>Nhập đúng <strong>nội dung chuyển khoản</strong> là mã đơn hàng để hệ thống xác nhận tự động!</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        <span>Nhập đúng <strong>nội dung chuyển khoản</strong> là mã đơn hàng để hệ thống xác nhận tự
+                            động!</span>
                     </div>
 
                     <div class="banking-modal-actions">
-                        <button
-                            class="btn-banking-done"
-                            @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })"
-                        >
+                        <button class="btn-banking-done"
+                            @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })">
                             Tôi đã chuyển khoản xong
                         </button>
-                        <button class="btn-banking-later" @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })">
+                        <button class="btn-banking-later"
+                            @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })">
                             Chuyển khoản sau
                         </button>
                     </div>
@@ -675,7 +786,7 @@ onMounted(async () => {
             <p>Đang chuẩn bị trang thanh toán...</p>
         </div>
 
-        <div v-else class="checkout-wrapper">
+        <div v-else class="checkout-wrapper container">
             <div class="page-header animate-in">
                 <router-link to="/cart" class="back-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="back-icon" stroke="currentColor"
@@ -704,8 +815,8 @@ onMounted(async () => {
                         </div>
                         <div class="section-body block-border">
                             <div class="address-tabs">
-                                <button v-if="authStore.isAuthenticated" class="add-tab" :class="{ 'active': !showAddAddressForm }"
-                                    @click="useSavedAddresses">
+                                <button v-if="authStore.isAuthenticated" class="add-tab"
+                                    :class="{ 'active': !showAddAddressForm }" @click="useSavedAddresses">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2">
                                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -740,11 +851,20 @@ onMounted(async () => {
                                             placeholder="Ví dụ: 09012xxx9" />
                                     </div>
                                 </div>
+                                <!-- EMAIL NHẬN XÁC NHẬN ĐƠN HÀNG -->
+                                <div class="form-group" style="margin-bottom: 16px;">
+                                    <label class="form-label">
+                                        Email nhận xác nhận đơn hàng <span class="required">*</span>
+                                    </label>
+                                    <input v-model="email" type="email" class="form-input"
+                                        placeholder="Ví dụ: email@gmail.com" autocomplete="email" />
+                                    <small style="display:block; margin-top:6px; color:#6b7280; font-size:13px;">
+                                        Chúng tôi sẽ gửi xác nhận đơn hàng tới email này.
+                                    </small>
+                                </div>
+
                                 <div class="form-group pb-2 mt-2">
-                                    <AddressSelector
-                                        :key="addressSelectorKey"
-                                        @change="onAddressChange"
-                                    />
+                                    <AddressSelector :key="addressSelectorKey" @change="onAddressChange" />
                                 </div>
                             </div>
 
@@ -790,7 +910,13 @@ onMounted(async () => {
                             <div class="checkout-divider"></div>
 
                             <div v-if="leadtimeDate" class="leadtime-notice">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-2 text-green-600"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" class="me-2 text-green-600">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
                                 <span>Dự kiến giao hàng vào: <strong>{{ leadtimeDate }}</strong></span>
                             </div>
 
@@ -825,25 +951,43 @@ onMounted(async () => {
                                         </div>
                                     </div>
                                     <div class="payment-info-simple">
-                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="method-icon">
+                                            <rect x="1" y="3" width="15" height="13"></rect>
+                                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                                            <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                                            <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                                        </svg>
                                         <span class="payment-name-simple">Thanh toán khi nhận hàng (COD)</span>
                                     </div>
                                 </label>
 
-                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'bank_transfer' }">
-                                    <input type="radio" v-model="paymentMethod" value="bank_transfer" class="hidden-radio" />
+                                <label class="payment-card-simple"
+                                    :class="{ 'is-selected': paymentMethod === 'bank_transfer' }">
+                                    <input type="radio" v-model="paymentMethod" value="bank_transfer"
+                                        class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
                                             <div class="radio-dot"></div>
                                         </div>
                                     </div>
                                     <div class="payment-info-simple">
-                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="2" y="21" width="20" height="2"></rect><polygon points="12 2 2 7 22 7 12 2"></polygon><path d="M5 21V9"></path><path d="M19 21V9"></path><path d="M12 21V9"></path></svg>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#555"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="method-icon">
+                                            <rect x="2" y="21" width="20" height="2"></rect>
+                                            <polygon points="12 2 2 7 22 7 12 2"></polygon>
+                                            <path d="M5 21V9"></path>
+                                            <path d="M19 21V9"></path>
+                                            <path d="M12 21V9"></path>
+                                        </svg>
                                         <span class="payment-name-simple">Chuyển khoản ngân hàng</span>
                                     </div>
                                 </label>
 
-                                <label v-if="!isFlashSale" class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'momo' }">
+                                <label v-if="!isFlashSale" class="payment-card-simple"
+                                    :class="{ 'is-selected': paymentMethod === 'momo' }">
                                     <input type="radio" v-model="paymentMethod" value="momo" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
@@ -851,12 +995,18 @@ onMounted(async () => {
                                         </div>
                                     </div>
                                     <div class="payment-info-simple">
-                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d82d8b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d82d8b"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="method-icon">
+                                            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                                            <line x1="2" y1="10" x2="22" y2="10"></line>
+                                        </svg>
                                         <span class="payment-name-simple">Ví MoMo</span>
                                     </div>
                                 </label>
 
-                                <label v-if="!isFlashSale" class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'vnpay' }">
+                                <label v-if="!isFlashSale" class="payment-card-simple"
+                                    :class="{ 'is-selected': paymentMethod === 'vnpay' }">
                                     <input type="radio" v-model="paymentMethod" value="vnpay" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
@@ -864,7 +1014,14 @@ onMounted(async () => {
                                         </div>
                                     </div>
                                     <div class="payment-info-simple">
-                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#005a9e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#005a9e"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="method-icon">
+                                            <rect x="3" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="3" width="7" height="7"></rect>
+                                            <rect x="14" y="14" width="7" height="7"></rect>
+                                            <rect x="3" y="14" width="7" height="7"></rect>
+                                        </svg>
                                         <span class="payment-name-simple">VNPay</span>
                                     </div>
                                 </label>
@@ -916,12 +1073,14 @@ onMounted(async () => {
                                             <h4 class="bill-item-name">{{ item.product?.name }}</h4>
                                             <p class="bill-item-variant">
                                                 {{ item.variant?.color || '' }}
-                                                <span v-if="item.variant?.color && item.variant?.size" class="variant-divider">•</span>
+                                                <span v-if="item.variant?.color && item.variant?.size"
+                                                    class="variant-divider">•</span>
                                                 {{ item.variant?.size || '' }}
                                             </p>
                                         </div>
                                         <div class="bill-item-price-col">
-                                            <div class="bill-item-price">{{ formatPrice((item.variant?.price || 0) * item.quantity) }}</div>
+                                            <div class="bill-item-price">{{ formatPrice((item.variant?.price || 0) *
+                                                item.quantity) }}</div>
                                             <div class="bill-item-qty">✕ {{ item.quantity }}</div>
                                         </div>
                                     </div>
@@ -938,7 +1097,10 @@ onMounted(async () => {
                                         </button>
                                     </div>
                                     <div v-else class="coupon-applied-box">
-                                        <div class="coupon-tag"><AppIcon name="voucher" size="20" color="#111" class="me-1" />{{ appliedCoupon.code }}</div>
+                                        <div class="coupon-tag">
+                                            <AppIcon name="voucher" size="20" color="#111" class="me-1" />{{
+                                            appliedCoupon.code }}
+                                        </div>
                                         <button class="btn-remove-coupon" @click="removingCoupon">Gỡ bỏ</button>
                                     </div>
                                     <div v-if="authStore.isAuthenticated" class="text-right mt-1">
@@ -948,10 +1110,10 @@ onMounted(async () => {
                                 </div>
 
                                 <!-- Tiêu điểm thưởng -->
-                                <div v-if="authStore.isAuthenticated && loyaltyPoints > 0" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
+                                <div v-if="authStore.isAuthenticated" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                                         <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
-                                            <input type="checkbox" v-model="useLoyaltyPoints" style="width: 16px; height: 16px; accent-color: #ef4444;" />
+                                            <input type="checkbox" v-model="useLoyaltyPoints" :disabled="loyaltyPoints < 100" style="width: 16px; height: 16px; accent-color: #ef4444;" />
                                             Sử dụng điểm thưởng
                                         </label>
                                         <span style="font-size: 0.9rem; color: #ef4444; font-weight: 600;">Bạn có: {{ loyaltyPoints }} điểm</span>
@@ -960,8 +1122,8 @@ onMounted(async () => {
                                         <input type="number" v-model="inputPoints" :max="maxPointsCanUse" min="0" style="width: 100px; padding: 6px; border: 1px solid #fca5a5; border-radius: 4px; text-align: center; outline: none;" />
                                         <span style="font-size: 0.9rem; color: #666;">điểm = <strong style="color: #ef4444;">-{{ formatPrice(loyaltyDiscount) }}</strong></span>
                                     </div>
-                                    <div v-if="useLoyaltyPoints && maxPointsCanUse < loyaltyPoints" style="font-size: 0.8rem; color: #f59e0b; margin-top: 4px;">
-                                        * Chỉ có thể tiêu tối đa {{ maxPointsCanUse }} điểm cho đơn hàng này.
+                                    <div style="font-size: 0.75rem; color: #f59e0b; margin-top: 8px; padding-top: 8px; border-top: 1px solid #fca5a5; line-height: 1.4;">
+                                        * Tối thiểu 100 điểm để đổi giảm giá. Tối đa 30% giá trị đơn hàng. Điểm có hiệu lực 365 ngày kể từ ngày tích.
                                     </div>
                                 </div>
 
@@ -974,23 +1136,82 @@ onMounted(async () => {
                                         <span>Phí vận chuyển</span>
                                         <span class="fw-600">
                                             <span v-if="isCalculatingFee" class="calculating-text">Đang tính...</span>
-                                            <span v-else>{{ formatPrice(shippingFee) }}</span>
+                                            <span v-else-if="isShippingFree" class="shipping-free-text">Miễn phí</span>
+                                            <span v-else>{{ formatPrice(effectiveShippingFee) }}</span>
                                         </span>
                                     </div>
-                                    <div v-if="subtotal < upsellState.freeshipThreshold && shippingFee > 0" class="freeship-hint-row" style="text-align: right; margin-top: -6px; margin-bottom: 8px;">
+                                    <div v-if="isShippingFree" class="freeship-alert-row">
+                                        🎉 Đơn hàng của bạn đã được miễn phí vận chuyển!
+                                        <span v-if="shippingFee > 0">Tiết kiệm {{ formatPrice(shippingFee) }}</span>
+                                    </div>
+                                    <div v-else-if="subtotal < upsellState.freeshipThreshold && shippingFee > 0"
+                                        class="freeship-hint-row"
+                                        style="text-align: right; margin-top: -6px; margin-bottom: 8px;">
                                         <small style="color: #0ea5e9; font-size: 0.8rem; font-weight: 500;">
-                                           Chỉ cần mua thêm {{ formatPrice(upsellState.freeshipThreshold - subtotal) }} để được Freeship
+                                            Chỉ cần mua thêm {{ formatPrice(upsellState.freeshipThreshold - subtotal) }}
+                                            để được Freeship
                                         </small>
                                     </div>
-                                    <div class="total-row" v-if="discount > 0 || shippingDiscount > 0 || loyaltyDiscount > 0">
-                                        <span>Giảm giá</span>
-                                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
-                                            <span class="discount-val mb-2" v-if="discount > 0" style="color: #ef4444;">Voucher: - {{ formatPrice(discount) }}</span>
-                                            <span class="free-badge mb-2" v-if="shippingDiscount > 0" style="color: #10b981;">Freeship: - {{ formatPrice(shippingDiscount) }}</span>
-                                            <span class="discount-val mb-2" v-if="loyaltyDiscount > 0" style="color: #ef4444;">Điểm thưởng: - {{ formatPrice(loyaltyDiscount) }}</span>
+                                    <div class="total-row" v-if="discount > 0 || shippingDiscount > 0">
+                                        <span>Voucher Giảm giá</span>
+                                        <div
+                                            style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                                            <span class="discount-val mb-2" v-if="discount > 0"
+                                                style="color: #ef4444;">- {{ formatPrice(discount) }}</span>
+                                            <span class="free-badge" v-if="shippingDiscount > 0"
+                                                style="color: #10b981;">Freeship: - {{ formatPrice(shippingDiscount)
+                                                }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="total-row" v-if="loyaltyDiscount > 0">
+                                        <span>Điểm thưởng ({{ inputPoints }} điểm)</span>
+                                        <span class="discount-val" style="color: #ef4444;">- {{ formatPrice(loyaltyDiscount) }}</span>
+                                    </div>
+
+
+                                    <div class="summary-divider variant-dashed"></div>
+
+                                    <!-- WALLET DISCOUNT WIDGET -->
+                                    <div v-if="authStore.isAuthenticated && walletPreview && walletPreview.total_available > 0"
+                                        class="wallet-checkout-widget">
+                                        <label class="wallet-toggle">
+                                            <input type="checkbox" v-model="useWallet" />
+                                            <div class="wt-switch">
+                                                <div class="wt-knob"></div>
+                                            </div>
+                                            <div class="wt-info">
+                                                <span class="wt-label">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                                        stroke="currentColor" stroke-width="2">
+                                                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                                                        <path d="M16 12h.01" />
+                                                        <path d="M2 10h20" />
+                                                    </svg>
+                                                    Dùng ví thanh toán
+                                                </span>
+                                                <span class="wt-balance">Khả dụng: <strong>{{
+                                                        formatPrice(walletPreview.total_available) }}</strong></span>
+                                            </div>
+                                        </label>
+                                        <div v-if="useWallet && walletDiscount > 0" class="wallet-discount-detail">
+                                            <div v-if="walletPreview.deposit_used > 0" class="wd-row">
+                                                <span>Từ số dư nạp</span>
+                                                <span class="wd-val">-{{ formatPrice(walletPreview.deposit_used)
+                                                    }}</span>
+                                            </div>
+                                            <div v-if="walletPreview.commission_used > 0" class="wd-row">
+                                                <span>Từ hoa hồng</span>
+                                                <span class="wd-val">-{{ formatPrice(walletPreview.commission_used)
+                                                    }}</span>
+                                            </div>
                                         </div>
                                     </div>
 
+                                    <div v-if="useWallet && walletDiscount > 0" class="total-row wallet-discount-row">
+                                        <span>Giảm từ ví</span>
+                                        <span class="discount-val" style="color: #8b5cf6; font-weight: 700;">-{{
+                                            formatPrice(walletDiscount) }}</span>
+                                    </div>
 
                                     <div class="summary-divider variant-dashed"></div>
 
@@ -1008,9 +1229,9 @@ onMounted(async () => {
                                             class="lock-icon" stroke="currentColor" stroke-width="2.5">
                                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                                             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                        </svg> --> 
+                                        </svg> -->
                                         <span class="text-uppercase tracking-widest"> Đặt hàng </span>
-                                        
+
                                     </span>
                                 </button>
                                 <p class="security-text">
@@ -1047,12 +1268,13 @@ onMounted(async () => {
                                 <div class="spinner-small brown"></div>
                             </div>
                             <div v-else-if="availableCoupons.length > 0" class="coupon-list">
-                                <div v-for="coupon in availableCoupons" :key="coupon.id" class="coupon-card"
-                                    :class="{
-                                        'is-applied': appliedCoupon?.code === coupon.code,
-                                        'is-disabled': coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)
-                                    }">
-                                    <div class="cp-left"><span class="cp-icon"><AppIcon name="voucher" size="24" color="#111" /></span></div>
+                                <div v-for="coupon in availableCoupons" :key="coupon.id" class="coupon-card" :class="{
+                                    'is-applied': appliedCoupon?.code === coupon.code,
+                                    'is-disabled': coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)
+                                }">
+                                    <div class="cp-left"><span class="cp-icon">
+                                            <AppIcon name="voucher" size="24" color="#111" />
+                                        </span></div>
                                     <div class="cp-right">
                                         <h4 class="cp-code">{{ coupon.code }}</h4>
                                         <p class="cp-desc">Giảm {{ coupon.type === 'percent' ? coupon.value + '%' :
@@ -1060,10 +1282,11 @@ onMounted(async () => {
                                         <p v-if="coupon.min_order_value" class="cp-min">Đơn tối thiểu: {{
                                             formatPrice(coupon.min_order_value) }}</p>
                                     </div>
-                                    <button class="btn-select-cp" 
-                                            :disabled="coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)"
-                                            @click="selectCoupon(coupon)">
-                                        <span v-if="coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)">
+                                    <button class="btn-select-cp"
+                                        :disabled="coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)"
+                                        @click="selectCoupon(coupon)">
+                                        <span
+                                            v-if="coupon.type === 'free_ship' && subtotal >= (upsellState.freeshipThreshold || 500000)">
                                             Đã freeship
                                         </span>
                                         <span v-else>
@@ -1084,24 +1307,114 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Wallet Checkout Widget */
+.wallet-checkout-widget {
+    margin: 12px 0;
+    background: #faf5ff;
+    border: 1px solid #e9d5ff;
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.wallet-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.wallet-toggle input {
+    display: none;
+}
+
+.wt-switch {
+    width: 40px;
+    height: 22px;
+    background: #d1d5db;
+    border-radius: 11px;
+    position: relative;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.wallet-toggle input:checked~.wt-switch {
+    background: #8b5cf6;
+}
+
+.wt-knob {
+    width: 18px;
+    height: 18px;
+    background: var(--card-bg);
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.wallet-toggle input:checked~.wt-switch .wt-knob {
+    transform: translateX(18px);
+}
+
+.wt-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.wt-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.wt-balance {
+    font-size: 0.78rem;
+    color: #8b5cf6;
+}
+
+.wallet-discount-detail {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #e9d5ff;
+}
+
+.wd-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #6b7280;
+    padding: 3px 0;
+}
+
+.wd-val {
+    color: #8b5cf6;
+    font-weight: 600;
+}
+
+.wallet-discount-row {
+    background: #faf5ff;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 4px 0;
+}
+
 .checkout-page {
     padding: 40px 0 80px;
     font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
-    color: #0f172a;
+    color: var(--text-main);
     min-height: 80vh;
 }
 
 /* Base states & Header */
-.checkout-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 16px;
-}
-
 .loading-state {
     text-align: center;
     padding: 100px 0;
-    color: #E63B6F;
+    color: var(--primary);
     font-weight: 500;
 }
 
@@ -1109,7 +1422,7 @@ onMounted(async () => {
     width: 44px;
     height: 44px;
     border: 4px solid #e2e8f0;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin: 0 auto 16px;
@@ -1127,7 +1440,7 @@ onMounted(async () => {
 
 .spinner-small.brown {
     border-color: #e2e8f0;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
 }
 
 @keyframes spin {
@@ -1148,23 +1461,23 @@ onMounted(async () => {
     gap: 8px;
     font-size: 1rem;
     font-weight: 600;
-    color: #E63B6F;
+    color: var(--primary);
     text-decoration: none;
     padding: 8px 12px;
     border-radius: 8px;
     transition: all 0.2s;
-    background: white;
+    background: var(--card-bg);
     border: 1.5px solid #e2e8f0;
 }
 
 .back-link:hover {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .icon-brown {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .icon-green {
@@ -1198,7 +1511,7 @@ h2 {
 .section-header h2 {
     font-size: 1.35rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1206,13 +1519,14 @@ h2 {
 }
 
 .block-border {
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 16px;
     padding: 24px;
     box-shadow: 0 10px 40px rgba(230, 59, 111, 0.04);
     border: 1px solid rgba(230, 59, 111, 0.1);
     transition: box-shadow 0.3s ease;
 }
+
 .block-border:hover {
     box-shadow: 0 15px 50px rgba(230, 59, 111, 0.08);
 }
@@ -1238,7 +1552,7 @@ h2 {
     font-weight: 600;
     font-size: 0.95rem;
     background: #DCE4E6;
-    color: #000000;
+    color: var(--text-main);
     border: 1.5px solid transparent;
     border-radius: 20px;
     cursor: pointer;
@@ -1248,13 +1562,13 @@ h2 {
 }
 
 .add-tab:hover:not(.active) {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .add-tab.active {
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .badge {
@@ -1273,7 +1587,7 @@ h2 {
 
 /* Form Elements */
 .form-box {
-    background: #ffffff;
+    background: var(--card-bg);
     padding: 24px;
     border-radius: 16px;
     border: 1.5px solid #e2e8f0;
@@ -1313,12 +1627,12 @@ h2 {
     outline: none;
     transition: all 0.2s ease;
     background: #f1f5f9;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .form-input:focus {
-    background: #ffffff;
-    border-color: #E63B6F;
+    background: var(--card-bg);
+    border-color: var(--primary);
     box-shadow: 0 4px 15px rgba(230, 59, 111, 0.08);
 }
 
@@ -1381,12 +1695,12 @@ textarea.note-input {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    background: white;
+    background: var(--card-bg);
 }
 
 .checkbox-input:checked+.checkbox-custom {
-    background: #E63B6F;
-    border-color: #E63B6F;
+    background: var(--primary);
+    border-color: var(--primary);
 }
 
 .checkbox-input:checked+.checkbox-custom::after {
@@ -1429,7 +1743,7 @@ textarea.note-input {
     border-radius: 14px;
     cursor: pointer;
     transition: all 0.25s ease;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .hidden-radio {
@@ -1444,7 +1758,7 @@ textarea.note-input {
 }
 
 .address-card.is-selected {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: #f4faff;
     box-shadow: 0 4px 15px rgba(230, 59, 111, 0.08);
 }
@@ -1457,7 +1771,7 @@ textarea.note-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
+    background: var(--card-bg);
     transition: all 0.2s ease;
 }
 
@@ -1471,12 +1785,12 @@ textarea.note-input {
 }
 
 .is-selected .radio-indicator {
-    border-color: #E63B6F;
-    background: #ffffff;
+    border-color: var(--primary);
+    background: var(--card-bg);
 }
 
 .is-selected .radio-dot {
-    background: #E63B6F;
+    background: var(--primary);
     transform: scale(1);
 }
 
@@ -1495,13 +1809,13 @@ textarea.note-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .addr-name {
     font-weight: 700;
     font-size: 1.05rem;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .addr-phone {
@@ -1511,10 +1825,10 @@ textarea.note-input {
 }
 
 .badge-default {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     padding: 2px 8px;
-    border-radius:12px;
+    border-radius: 12px;
     font-size: 0.7rem;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -1547,7 +1861,7 @@ textarea.note-input {
 .empty-address-box {
     text-align: center;
     padding: 40px 20px;
-    background: #ffffff;
+    background: var(--card-bg);
     border: 2px dashed #e2e8f0;
     border-radius: 12px;
 }
@@ -1562,7 +1876,7 @@ textarea.note-input {
 .btn-save {
     padding: 12px 24px;
     font-weight: 600;
-    background: #E63B6F;
+    background: var(--primary);
     border: none;
     color: white;
     border-radius: 10px;
@@ -1584,7 +1898,7 @@ textarea.note-input {
 .btn-cancel {
     padding: 12px 24px;
     font-weight: 600;
-    background: white;
+    background: var(--card-bg);
     border: 1.5px solid #e2e8f0;
     color: #475569;
     border-radius: 10px;
@@ -1598,8 +1912,8 @@ textarea.note-input {
 
 .btn-outline-brown {
     background: transparent;
-    border: 2px solid #E63B6F;
-    color: #E63B6F;
+    border: 2px solid var(--primary);
+    color: var(--primary);
     padding: 10px 24px;
     border-radius: 10px;
     font-weight: 600;
@@ -1608,7 +1922,7 @@ textarea.note-input {
 }
 
 .btn-outline-brown:hover {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
 }
 
@@ -1630,16 +1944,16 @@ textarea.note-input {
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.25s;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .payment-card-simple:hover {
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .payment-card-simple.is-selected {
-    border-color: #E63B6F;
-    background: #ffffff;
+    border-color: var(--primary);
+    background: var(--card-bg);
 }
 
 .payment-info-simple {
@@ -1662,7 +1976,7 @@ textarea.note-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
+    background: var(--card-bg);
     transition: all 0.2s ease;
 }
 
@@ -1706,7 +2020,7 @@ textarea.note-input {
     padding: 20px 24px;
     font-size: 1.25rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1753,7 +2067,7 @@ textarea.note-input {
     object-fit: cover;
     border-radius: 6px;
     border: 1px solid #f1f5f9;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .bill-item-info {
@@ -1767,7 +2081,7 @@ textarea.note-input {
     margin: 0;
     font-size: 0.95rem;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--text-main);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -1799,7 +2113,7 @@ textarea.note-input {
 
 .bill-item-price {
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     font-size: 0.95rem;
 }
 
@@ -1811,7 +2125,7 @@ textarea.note-input {
 
 /* Coupons */
 .coupon-section {
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px dashed #e2e8f0;
     border-radius: 8px;
     padding: 16px;
@@ -1834,17 +2148,17 @@ textarea.note-input {
     outline: none;
     transition: all 0.2s;
     text-transform: uppercase;
-    background: white;
+    background: var(--card-bg);
 }
 
 .coupon-input:focus {
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .btn-apply-coupon {
     padding: 0 20px;
     font-weight: 600;
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 6px;
@@ -1900,7 +2214,7 @@ textarea.note-input {
 .btn-select-coupon {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #E63B6F;
+    color: var(--primary);
     background: none;
     border: none;
     cursor: pointer;
@@ -1932,7 +2246,31 @@ textarea.note-input {
 
 .fw-600 {
     font-weight: 600;
-    color: #0f172a;
+    color: var(--text-main);
+}
+
+.shipping-free-text {
+    color: #10b981;
+    font-weight: 800;
+}
+
+.freeship-alert-row {
+    margin-top: -6px;
+    padding: 10px 12px;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    background: #f0fdf4;
+    color: #15803d;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.freeship-alert-row span {
+    display: block;
+    margin-top: 2px;
+    color: #16a34a;
+    font-weight: 600;
 }
 
 .discount-val {
@@ -1968,12 +2306,13 @@ textarea.note-input {
 .total-price {
     font-size: 1.8rem;
     font-weight: 800;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .btn-place-order {
     width: 100%;
-    background: #E63B6F; /* Deep elegant ocean blue */
+    background: var(--primary);
+    /* Deep elegant ocean blue */
     color: white;
     border: none;
     border-radius: 5px;
@@ -1991,7 +2330,8 @@ textarea.note-input {
 }
 
 .btn-place-order:hover:not(:disabled) {
-    background: #d21551; /* Darker deep blue on hover */
+    background: #d21551;
+    /* Darker deep blue on hover */
     transform: translateY(-3px);
     box-shadow: 0 10px 25px rgba(230, 59, 111, 0.3);
 }
@@ -2031,7 +2371,7 @@ textarea.note-input {
 }
 
 .modal-content {
-    background: white;
+    background: var(--card-bg);
     border-radius: 20px;
     width: 100%;
     max-width: 480px;
@@ -2057,7 +2397,7 @@ textarea.note-input {
 .modal-title {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     margin: 0;
     display: flex;
     align-items: center;
@@ -2065,7 +2405,7 @@ textarea.note-input {
 }
 
 .modal-close {
-    background: white;
+    background: var(--card-bg);
     border: 1.5px solid #e2e8f0;
     width: 36px;
     height: 36px;
@@ -2087,7 +2427,7 @@ textarea.note-input {
 .modal-body {
     padding: 24px;
     flex: 1;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .coupon-list {
@@ -2114,18 +2454,18 @@ textarea.note-input {
     border-radius: 12px;
     align-items: stretch;
     position: relative;
-    background: white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    background: var(--card-bg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     transition: all 0.2s ease;
 }
 
 .coupon-card:hover {
     border-color: #cbd5e1;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .coupon-card.is-applied {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: #f0f9ff;
     box-shadow: 0 4px 12px rgba(230, 59, 111, 0.12);
 }
@@ -2149,7 +2489,7 @@ textarea.note-input {
     position: absolute;
     width: 16px;
     height: 16px;
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 50%;
     right: -9px;
     border: 1px solid #e2e8f0;
@@ -2172,12 +2512,12 @@ textarea.note-input {
 
 .coupon-card.is-applied .cp-left::before,
 .coupon-card.is-applied .cp-left::after {
-    background: #ffffff;
-    border-color: #E63B6F;
+    background: var(--card-bg);
+    border-color: var(--primary);
 }
 
 .coupon-card.is-applied .cp-left {
-    border-right-color: #E63B6F;
+    border-right-color: var(--primary);
     background: #e0f2fe;
 }
 
@@ -2187,14 +2527,15 @@ textarea.note-input {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding-right: 120px; /* Ensures text never overlaps the button */
+    padding-right: 120px;
+    /* Ensures text never overlaps the button */
 }
 
 .cp-code {
     margin: 0 0 6px;
     font-size: 1.15rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text-main);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -2203,7 +2544,7 @@ textarea.note-input {
     margin: 0 0 4px;
     font-size: 0.95rem;
     font-weight: 600;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .cp-min {
@@ -2217,7 +2558,7 @@ textarea.note-input {
     right: 16px;
     top: 50%;
     transform: translateY(-50%);
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     border: none;
     padding: 8px 18px;
@@ -2236,7 +2577,8 @@ textarea.note-input {
 }
 
 .coupon-card.is-applied .btn-select-cp {
-    background: #10b981; /* Green success color */
+    background: #10b981;
+    /* Green success color */
     box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
 }
 
@@ -2395,9 +2737,17 @@ textarea.note-input {
 }
 
 @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 /* ===== Banking QR Modal ===== */
@@ -2414,18 +2764,25 @@ textarea.note-input {
 }
 
 .banking-modal {
-    background: white;
+    background: var(--card-bg);
     border-radius: 24px;
     width: 100%;
     max-width: 520px;
-    box-shadow: 0 25px 60px rgba(0,0,0,0.25);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.25);
     overflow: hidden;
     animation: slideUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes slideUp {
-    from { opacity: 0; transform: translateY(40px) scale(0.96); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(40px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .banking-modal-header {
@@ -2435,7 +2792,11 @@ textarea.note-input {
     color: white;
 }
 
-.banking-modal-icon { font-size: 2.2rem; display: block; margin-bottom: 10px; }
+.banking-modal-icon {
+    font-size: 2.2rem;
+    display: block;
+    margin-bottom: 10px;
+}
 
 .banking-modal-header h2 {
     font-size: 1.4rem;
@@ -2503,10 +2864,13 @@ textarea.note-input {
 .bank-value {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-main);
 }
 
-.bank-value.highlight { color: #1d4ed8; font-size: 1rem; }
+.bank-value.highlight {
+    color: #1d4ed8;
+    font-size: 1rem;
+}
 
 .banking-note {
     display: flex;
@@ -2542,7 +2906,10 @@ textarea.note-input {
     transition: all 0.25s;
 }
 
-.btn-banking-done:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(29,78,216,0.3); }
+.btn-banking-done:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(29, 78, 216, 0.3);
+}
 
 .btn-banking-later {
     width: 100%;
@@ -2557,12 +2924,20 @@ textarea.note-input {
     transition: all 0.25s;
 }
 
-.btn-banking-later:hover { background: #f8fafc; color: #374151; }
-
-@media (max-width: 480px) {
-    .banking-modal-body { flex-direction: column; align-items: center; }
-    .qr-image { width: 180px; height: 180px; }
+.btn-banking-later:hover {
+    background: #f8fafc;
+    color: #374151;
 }
 
+@media (max-width: 480px) {
+    .banking-modal-body {
+        flex-direction: column;
+        align-items: center;
+    }
 
+    .qr-image {
+        width: 180px;
+        height: 180px;
+    }
+}
 </style>
