@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../config/app_theme.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 
@@ -35,7 +34,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final res = await ApiClient().dio.put('/profile/password', data: {
+      await ApiClient().dio.put('/profile/password', data: {
         'current_password': currentCtrl.text,
         'new_password': newCtrl.text,
         'new_password_confirmation': confirmCtrl.text,
@@ -70,7 +69,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         padding: const EdgeInsets.all(20),
         child: Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)]),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10)]),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -1,5 +1,4 @@
 import 'dart:async';
-import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../widgets/network_image_widget.dart';
 import '../services/api_client.dart';
@@ -158,21 +157,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
     }
   }
 
-  String _formatPrice(dynamic price) {
-    try {
-      final num p = num.parse(price.toString());
-      final formatted = p
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]}.',
-          );
-      return '$formatted đ';
-    } catch (_) {
-      return price.toString();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     String title = "Danh sách sản phẩm";
@@ -310,7 +294,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       Icon(
                         Icons.inventory_2_outlined,
                         size: 100,
-                        color: const Color(0xFFCBD5E1).withOpacity(0.5),
+                        color: const Color(0xFFCBD5E1).withValues(alpha: 0.5),
                       ),
                       const SizedBox(height: 20),
                       const Text(
@@ -393,7 +377,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
           // Thiết kế đổ bóng nhẹ nâng lên từ figma
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -422,11 +406,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -474,7 +458,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE63B6F).withOpacity(0.1),
+                          color: const Color(0xFFE63B6F).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(

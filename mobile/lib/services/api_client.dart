@@ -4,9 +4,13 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../config/app_config.dart';
+import 'app_navigator.dart';
+import 'auth_service.dart';
 import 'storage_service.dart';
+import '../screens/login_screen.dart';
 
 String get kBaseUrl => AppConfig.kBaseUrl;
 
@@ -88,13 +92,41 @@ class ApiClient {
             debugPrint('Status: ${e.response?.statusCode}');
             debugPrint('Data: ${e.response?.data}');
             debugPrint('=========================');
-            if (e.response?.statusCode == 401) {
-              debugPrint('API Error 401: Unauthorized');
-            }
           }
+
+          if (e.response?.statusCode == 401 && !_isAuthEndpoint(e.requestOptions.path)) {
+            await _handleUnauthorized();
+          }
+
           return handler.next(e);
         },
       ),
     );
+  }
+
+  static const Set<String> _authPaths = {'/login', '/register'};
+
+  bool _isAuthEndpoint(String path) {
+    return _authPaths.any((auth) => path.endsWith(auth));
+  }
+
+  bool _handlingUnauthorized = false;
+
+  Future<void> _handleUnauthorized() async {
+    // Chống điều hướng lặp khi nhiều request cùng trả 401 một lúc.
+    if (_handlingUnauthorized) return;
+    _handlingUnauthorized = true;
+
+    await AuthService.logout();
+
+    final navigator = appNavigatorKey.currentState;
+    if (navigator != null) {
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+
+    _handlingUnauthorized = false;
   }
 }

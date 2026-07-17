@@ -2,6 +2,7 @@
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
+import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
 
 const toastData = ref({ message: '', type: 'success' });
@@ -28,6 +29,7 @@ const dateTo = ref('');
 const selectedOrders = ref([]);
 const bulkActionLoading = ref(false);
 const bulkFulfillmentStatus = ref('');
+const statusActionLoadingId = ref(null);
 
 const pagination = ref({
     current_page: 1,
@@ -197,49 +199,67 @@ const dismissCancelModal = () => {
   if (cancelReasonResolver) cancelReasonResolver(null);
 };
 
-const updateOrderFulfillment = async (order) => {
-  const oldStatus = order._prevFulfillmentStatus || 'pending';
+const statusActionDefinitions = {
+  confirmed: { icon: 'check', label: 'Duyệt đơn', success: 'Đã duyệt đơn hàng thành công!' },
+  processing: { icon: 'clock', label: 'Chuyển sang đang xử lý', success: 'Đã chuyển đơn sang đang xử lý!' },
+  packing: { icon: 'clipboard-list', label: 'Chuyển sang đóng gói', success: 'Đã chuyển đơn sang đóng gói!' },
+  shipping: { icon: 'truck', label: 'Chuyển sang đang giao', success: 'Đã chuyển đơn sang đang giao!' },
+  delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
+  completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
+  cancelled: { icon: 'x', label: 'Hủy đơn', success: 'Đã hủy đơn hàng thành công!' },
+};
 
-  // Nếu chọn lại đúng trạng thái hiện tại → báo lỗi
-  if (order.fulfillment_status === oldStatus) {
-    toast.error(`Đơn hàng đang ở trạng thái "${getStatusLabel(oldStatus)}" rồi. Vui lòng chọn trạng thái tiếp theo!`);
-    return;
-  }
-  
-  if (order.fulfillment_status === 'cancelled') {
+const getOrderStatusActions = (order) => {
+  const current = order.fulfillment_status;
+  const allowed = (statusTransitions[current] || []).filter(status => status !== current);
+  return allowed
+    .filter((status) => {
+      if (status === 'delivered' && order.ghn_order_code) return false;
+      return Boolean(statusActionDefinitions[status]);
+    })
+    .map((status) => ({ value: status, ...statusActionDefinitions[status] }));
+};
+
+const updateOrderStatus = async (order, action) => {
+  const nextStatus = action.value;
+  const oldStatus = order._prevFulfillmentStatus || order.fulfillment_status || 'pending';
+  if (nextStatus === oldStatus) return;
+
+  const payload = { fulfillment_status: nextStatus };
+  if (nextStatus === 'cancelled') {
     const cancelReason = await showCancelReasonModal();
-    if (!cancelReason) {
-      order.fulfillment_status = oldStatus;
+    if (!cancelReason) return;
+    payload.note = cancelReason;
+  } else {
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: `Bạn có chắc chắn muốn ${action.label.toLowerCase()} cho đơn hàng #${order.order_code}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#E63B6F',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    
+    if (!confirmResult.isConfirmed) {
       return;
     }
-    try {
-      const res = await api.put(`/admin/orders/${order.order_id}/status`, {
-        fulfillment_status: 'cancelled',
-        note: cancelReason
-      });
-      if (res.data.status === 'success') {
-        order._prevFulfillmentStatus = 'cancelled';
-        toast.success('Đã hủy đơn hàng thành công!');
-      }
-    } catch (error) {
-      order.fulfillment_status = oldStatus;
-      toast.error(error.response?.data?.message || 'Lỗi hủy đơn hàng');
-    }
-    return;
   }
 
+  statusActionLoadingId.value = order.order_id;
   try {
-    const res = await api.put(`/admin/orders/${order.order_id}/status`, {
-      fulfillment_status: order.fulfillment_status
-    });
-
+    const res = await api.put(`/admin/orders/${order.order_id}/status`, payload);
     if (res.data.status === 'success') {
-      order._prevFulfillmentStatus = order.fulfillment_status;
-      toast.success('Cập nhật trạng thái thành công!');
+      order.fulfillment_status = nextStatus;
+      order._prevFulfillmentStatus = nextStatus;
+      if (nextStatus === 'cancelled') order.cancel_reason = payload.note;
+      toast.success(action.success || 'Cập nhật trạng thái thành công!');
     }
   } catch (error) {
-    order.fulfillment_status = oldStatus;
     toast.error(error.response?.data?.message || 'Lỗi cập nhật trạng thái');
+  } finally {
+    statusActionLoadingId.value = null;
   }
 };
 
@@ -304,6 +324,19 @@ const applyBulkStatus = async () => {
         const reason = await showCancelReasonModal();
         if (!reason) return;
         note = reason;
+    } else {
+        const label = statuses.find(s => s.value === bulkFulfillmentStatus.value)?.label || bulkFulfillmentStatus.value;
+        const confirmResult = await Swal.fire({
+            title: 'Xác nhận',
+            text: `Bạn có chắc chắn muốn cập nhật hàng loạt ${selectedOrdersList.length} đơn hàng sang trạng thái "${label}"?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#E63B6F',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Đồng ý',
+            cancelButtonText: 'Hủy'
+        });
+        if (!confirmResult.isConfirmed) return;
     }
 
     bulkActionLoading.value = true;
@@ -487,11 +520,20 @@ onUnmounted(() => {
                             <span class="val-price">{{ formatPrice(order.grand_total) }}</span>
                         </td>
                         <td>
-                            <!-- Chỉnh CSS cho đẹp như badge, dùng thẻ select nhưng style sang chảnh -->
-                            <div class="status-select-wrap" :class="'f-'+order.fulfillment_status">
-                                <select class="status-select" v-model="order.fulfillment_status" @change="updateOrderFulfillment(order)" :disabled="isLockedFulfillmentStatus(order.fulfillment_status)">
-                                    <option v-for="s in getAllowedFulfillmentOptions(order._prevFulfillmentStatus || order.fulfillment_status)" :key="s.value" :value="s.value">{{ s.label }}</option>
-                                </select>
+                            <div class="status-action-cell">
+                                <span class="status-readonly-badge" :class="'f-'+order.fulfillment_status">
+                                    {{ getStatusLabel(order.fulfillment_status) }}
+                                </span>
+                                <button
+                                    v-for="action in getOrderStatusActions(order)"
+                                    :key="action.value"
+                                    class="btn-status-action"
+                                    :class="action.value"
+                                    @click="updateOrderStatus(order, action)"
+                                    :disabled="statusActionLoadingId === order.order_id"
+                                    :title="action.label"
+                                    :aria-label="action.label"
+                                ><AppIcon :name="action.icon" size="14" stroke-width="3" /></button>
                             </div>
                         </td>
                         <td>
@@ -585,10 +627,10 @@ onUnmounted(() => {
 .bulk-controls { display: flex; gap: 12px; }
 .bulk-select {
     border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px;
-    font-family: inherit; font-size: 0.85rem; outline: none; background: white;
+    font-family: inherit; font-size: 0.85rem; outline: none; background: var(--card-bg);
 }
 .btn-bulk-apply {
-    background: #E63B6F; color: white; border: none; border-radius: 6px;
+    background: var(--primary); color: white; border: none; border-radius: 6px;
     padding: 8px 20px; font-weight: 600; cursor: pointer; transition: 0.2s;
 }
 .btn-bulk-apply:hover:not(:disabled) { background: #d82f65; }
@@ -618,7 +660,7 @@ onUnmounted(() => {
     border-radius: 8px; padding: 10px 16px; min-width: 320px;
     transition: border-color 0.2s;
 }
-.search-box:focus-within { border-color: #E63B6F; background: var(--card-bg); box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.search-box:focus-within { border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .search-box svg { color: var(--text-light); }
 .search-input { background: none; border: none; outline: none; color: var(--text-main); font-family: var(--font-inter); font-size: 0.9rem; width: 100%; }
 .search-input::placeholder { color: var(--text-light); }
@@ -642,12 +684,12 @@ onUnmounted(() => {
     font-family: var(--font-inter); font-size: 0.8rem; font-weight: 700;
     cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1); display: flex; align-items: center; gap: 6px;
 }
-.filter-btn:hover { border-color: #E63B6F; color: #E63B6F; transform: translateY(-1px); }
-.filter-btn.active { background: rgba(230, 59, 111, 0.1); border-color: #E63B6F; color: #E63B6F; box-shadow: 0 4px 10px rgba(230, 59, 111, 0.15); }
+.filter-btn:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-1px); }
+.filter-btn.active { background: rgba(230, 59, 111, 0.1); border-color: var(--primary); color: var(--primary); box-shadow: 0 4px 10px rgba(230, 59, 111, 0.15); }
  
 /* Loading */
 .loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
-.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: #E63B6F; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
 @keyframes spin { to { transform: rotate(360deg); } }
  
 /* Table */
@@ -664,11 +706,11 @@ onUnmounted(() => {
  
 /* Checkbox */
 .checkbox-cell { width: 40px; text-align: center; padding-left: 16px !important; padding-right: 8px !important; }
-.order-checkbox { width: 16px; height: 16px; accent-color: #E63B6F; cursor: pointer; }
+.order-checkbox { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
 .is-selected td { background: rgba(230, 59, 111, 0.05) !important; }
  
 .order-code-cell { display: flex; flex-direction: column; gap: 4px; align-items: flex-start;}
-.badge-id { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background: rgba(230, 59, 111, 0.1); color: #E63B6F; display: inline-flex; align-items: center; justify-content: center; }
+.badge-id { padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700; background: rgba(230, 59, 111, 0.1); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; }
 .order-date { font-size: 0.75rem; color: var(--text-muted); }
  
 .customer-cell { display: flex; flex-direction: column; gap: 2px; }
@@ -677,32 +719,49 @@ onUnmounted(() => {
  
 .val-price { font-size: 0.95rem; font-weight: 800; color: var(--coral); }
  
-/* Select Badges */
-.status-select-wrap {
-    display: inline-flex; border-radius: 9999px; padding: 2px 4px; align-items: center; justify-content: center; transition: all 0.2s;
+/* Status action badges */
+.status-action-cell {
+    display: grid;
+    grid-template-columns: minmax(88px, max-content) repeat(3, 30px);
+    align-items: center;
+    justify-content: start;
+    gap: 6px;
+    min-width: 190px;
+    min-height: 34px;
 }
-.status-select {
-    border: none; background: transparent; font-family: var(--font-inter); font-size: 0.8rem; font-weight: 700; padding: 4px 24px 4px 10px; cursor: pointer; outline: none; appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat; background-position: right 6px center; background-size: 14px;
+.status-readonly-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 82px; height: 30px;
+    border-radius: 9999px; padding: 0 12px;
+    font-family: var(--font-inter); font-size: 0.78rem; font-weight: 800;
+    white-space: nowrap;
+    line-height: 1;
 }
-.status-select option {
-    background-color: var(--card-bg) !important;
-    color: var(--text-main) !important;
+.btn-status-action {
+    width: 30px; height: 30px; border: none; border-radius: 50%; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--font-inter); font-size: 0.86rem; line-height: 1; font-weight: 900;
+    cursor: pointer; transition: all 0.2s; flex-shrink: 0;
 }
-.status-select-wrap:focus-within { box-shadow: 0 0 0 2px rgba(230, 59, 111, 0.15); }
- 
+.btn-status-action.confirmed,
+.btn-status-action.completed { background: #dcfce7; color: #15803d; }
+.btn-status-action.processing { background: #e0f2fe; color: #0369a1; }
+.btn-status-action.packing { background: #ede9fe; color: #6d28d9; }
+.btn-status-action.shipping,
+.btn-status-action.delivered { background: #dbeafe; color: #1d4ed8; }
+.btn-status-action.cancelled { background: #fee2e2; color: #b91c1c; }
+.btn-status-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(0.96); }
+.btn-status-action:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
 /* Colors for Fulfillment */
 .f-pending { background: rgba(255, 167, 38, 0.15); color: #e65100; }
-.f-confirmed { background: rgba(230, 59, 111, 0.1); color: #E63B6F; }
+.f-confirmed { background: rgba(230, 59, 111, 0.1); color: var(--primary); }
 .f-packing, .f-shipping { background: rgba(0, 188, 212, 0.15); color: #0097a7; }
 .f-delivered, .f-completed { background: rgba(38, 166, 154, 0.15); color: #167a70; }
 .f-cancelled { background: rgba(239, 83, 80, 0.15); color: #c62828; }
 .f-return_requested, .f-return_approved { background: rgba(245, 158, 11, 0.15); color: #b45309; }
 .f-return_rejected { background: rgba(244, 114, 182, 0.15); color: #be185d; }
 .f-returned, .f-refunded { background: rgba(148, 163, 184, 0.18); color: #475569; }
-.status-select-wrap select { color: inherit; }
-
 :global(html.dark) .f-pending { background: rgba(255, 167, 38, 0.15) !important; color: #ffb74d !important; }
 :global(html.dark) .f-confirmed { background: rgba(230, 59, 111, 0.15) !important; color: #ffb2bf !important; }
 :global(html.dark) .f-packing, :global(html.dark) .f-shipping { background: rgba(0, 188, 212, 0.15) !important; color: #4fc3f7 !important; }
@@ -735,7 +794,7 @@ onUnmounted(() => {
     cursor: pointer; display: flex; align-items: center; justify-content: center;
     transition: all 0.2s; text-decoration: none;
 }
-.btn-icon:hover { border-color: currentColor; background: white;}
+.btn-icon:hover { border-color: currentColor; background: var(--card-bg);}
 .view:hover { color: #8e24aa; border-color: #8e24aa; background: rgba(142, 36, 170, 0.05); }
 
 /* Empty state */
@@ -750,25 +809,25 @@ onUnmounted(() => {
 }
 .page-btn {
     width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-    border-radius: 8px; border: 1px solid var(--border-color); background: white;
+    border-radius: 8px; border: 1px solid var(--border-color); background: var(--card-bg);
     font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s; font-family: var(--font-inter);
 }
-.page-btn:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; }
-.page-btn.active { background: #E63B6F; color: white; border-color: #E63B6F; }
+.page-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 .page-btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--ocean-deepest); }
 
 /* Cancel Modal */
 .cancel-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1050; }
-.cancel-modal-box { background: white; border-radius: 16px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
+.cancel-modal-box { background: var(--card-bg); border-radius: 16px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
 .cancel-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #e2e8f0; }
 .cancel-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 700; color: #dc2626; display: flex; align-items: center; gap: 10px; }
 .cancel-modal-header h5 svg { color: #dc2626; }
-.cancel-modal-close { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.5rem; line-height: 1; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; }
-.cancel-modal-close:hover { background: #f1f5f9; color: #dc2626; }
+.cancel-modal-close { background: none; border: none; cursor: pointer; color: var(--text-light); font-size: 1.5rem; line-height: 1; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; }
+.cancel-modal-close:hover { background: var(--surface-container); color: #dc2626; }
 .cancel-modal-body { padding: 20px 24px; }
-.cancel-modal-desc { color: #64748b; font-size: 0.88rem; margin: 0 0 14px; }
+.cancel-modal-desc { color: var(--text-muted); font-size: 0.88rem; margin: 0 0 14px; }
 .cancel-reason-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
-.cancel-reason-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; background: white; transition: all 0.15s; font-size: 0.88rem; color: #334155; }
+.cancel-reason-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; background: var(--card-bg); transition: all 0.15s; font-size: 0.88rem; color: #334155; }
 .cancel-reason-item:hover { border-color: #dc2626; background: #fef2f2; }
 .cancel-reason-item.selected { border-color: #dc2626; background: #fef2f2; }
 .cancel-reason-item input[type="radio"] { accent-color: #dc2626; width: 16px; height: 16px; flex-shrink: 0; }
@@ -776,8 +835,8 @@ onUnmounted(() => {
 .cancel-custom-input:focus { border-color: #dc2626; }
 .cancel-validation-error { color: #dc2626; font-size: 0.82rem; font-weight: 600; margin: 10px 0 0; }
 .cancel-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #e2e8f0; }
-.btn-cancel-dismiss { padding: 8px 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
-.btn-cancel-dismiss:hover { background: #f1f5f9; }
+.btn-cancel-dismiss { padding: 8px 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: var(--card-bg); color: var(--text-muted); font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.btn-cancel-dismiss:hover { background: var(--surface-container); }
 .btn-cancel-confirm { padding: 8px 20px; border-radius: 8px; border: none; background: #dc2626; color: white; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .btn-cancel-confirm:hover { background: #b91c1c; }
 .modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }

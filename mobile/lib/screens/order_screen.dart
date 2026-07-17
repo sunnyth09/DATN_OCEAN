@@ -38,11 +38,12 @@ class _OrderScreenState extends State<OrderScreen>
 
     final loggedIn = await AuthService.isLoggedIn();
     if (!loggedIn) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           isGuest = true;
           isLoading = false;
         });
+      }
       return;
     }
 
@@ -61,46 +62,35 @@ class _OrderScreenState extends State<OrderScreen>
         fetchedOrders = decoded['orders'];
       }
 
-      if (mounted)
+      if (mounted) {
         setState(() {
           allOrders = fetchedOrders;
           isLoading = false;
         });
+      }
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             isGuest = true;
             isLoading = false;
           });
+        }
       } else {
-        if (mounted)
+        if (mounted) {
           setState(() {
             errorMessage = 'Lỗi truy xuất đơn hàng (${e.response?.statusCode})';
             isLoading = false;
           });
+        }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           errorMessage = 'Lỗi kết nối máy chủ.';
           isLoading = false;
         });
-    }
-  }
-
-  String _formatPrice(dynamic price) {
-    try {
-      final num p = num.parse(price.toString());
-      final formatted = p
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]}.',
-          );
-      return '$formatted đ';
-    } catch (_) {
-      return price.toString();
+      }
     }
   }
 
@@ -249,16 +239,19 @@ class _OrderScreenState extends State<OrderScreen>
             .toString()
             .toLowerCase();
         if (statusFilter == 'pending' &&
-            (st.contains('pending') || st.contains('processing')))
+            (st.contains('pending') || st.contains('processing'))) {
           return true;
+        }
         if (statusFilter == 'shipping' &&
-            (st.contains('shipping') || st.contains('delivering')))
+            (st.contains('shipping') || st.contains('delivering'))) {
           return true;
+        }
         if (statusFilter == 'completed' &&
             (st.contains('completed') ||
                 st.contains('delivered') ||
-                st.contains('success')))
+                st.contains('success'))) {
           return true;
+        }
         return false;
       }).toList();
     }
@@ -289,14 +282,15 @@ class _OrderScreenState extends State<OrderScreen>
 
         // Màu status cơ bản
         Color statusColor = const Color(0xFF64748B);
-        if (status.contains('PENDING'))
+        if (status.contains('PENDING')) {
           statusColor = Colors.orange;
-        else if (status.contains('SHIP'))
+        } else if (status.contains('SHIP')) {
           statusColor = Colors.blue;
-        else if (status.contains('COMPLETED') ||
+        } else if (status.contains('COMPLETED') ||
             status.contains('DELIVERED') ||
-            status.contains('SUCCESS'))
+            status.contains('SUCCESS')) {
           statusColor = Colors.green;
+        }
 
         return GestureDetector(
           onTap: () {
@@ -316,7 +310,7 @@ class _OrderScreenState extends State<OrderScreen>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -341,7 +335,7 @@ class _OrderScreenState extends State<OrderScreen>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(

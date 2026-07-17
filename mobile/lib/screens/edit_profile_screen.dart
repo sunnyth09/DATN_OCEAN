@@ -1,5 +1,4 @@
 import 'dart:io';
-import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
@@ -47,8 +46,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
     setState(() => _isSaving = true);
     try {
-      final token = await ApiClient().dio.options.headers['Authorization'];
-      
       // Build FormData for multipart (avatar support)
       final formData = FormData.fromMap({
         'full_name': _nameCtrl.text.trim(),
@@ -116,13 +113,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(color: const Color(0xFFE63B6F), width: 3),
-                        boxShadow: [BoxShadow(color: const Color(0xFFE63B6F).withOpacity(0.2), blurRadius: 12)],
+                        boxShadow: [BoxShadow(color: const Color(0xFFE63B6F).withValues(alpha: 0.2), blurRadius: 12)],
                       ),
                       child: ClipOval(
                         child: _pickedImage != null
                             ? Image.file(File(_pickedImage!.path), fit: BoxFit.cover)
                             : (avatarUrl.isNotEmpty
-                                ? Image.network(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _defaultAvatar())
+                                ? Image.network(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, _, _) => _defaultAvatar())
                                 : _defaultAvatar()),
                       ),
                     ),
@@ -206,7 +203,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   );
 
   Widget _buildCard({required List<Widget> children}) => Container(
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)]),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10)]),
     child: Column(children: children),
   );
 

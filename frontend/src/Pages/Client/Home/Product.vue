@@ -107,6 +107,9 @@ const fetchProducts = async () => {
                 slug: item.slug,
                 category_id: item.category_id,
                 category_name: item.category?.name || '',
+                // Truyền variants_sum_stock để ProductCard hiển thị badge Hết hàng / Sắp hết hàng
+                variants_sum_stock: item.variants_sum_stock ?? null,
+                variants: item.variants ?? [],
             };
         });
         totalPages.value = response.data.total_pages || Math.ceil((response.data.total || Products.value.length) / perPage) || 1;
@@ -428,7 +431,7 @@ onUnmounted(() => {
     width: 100%;
     min-height: 100vh;
     font-family: 'Plus Jakarta Sans', sans-serif;
-    color: #2D3436;
+    color: var(--text-main);
 }
 
 /* ── HERO ── */
@@ -507,7 +510,7 @@ onUnmounted(() => {
     color: #636E72;
 }
 .toolbar-count strong {
-    color: #2D3436;
+    color: var(--text-main);
     font-weight: 700;
 }
 
@@ -520,7 +523,7 @@ onUnmounted(() => {
     border: 1px solid rgba(230,59,111,0.2);
     border-radius: 999px;
     font-size: 0.85rem;
-    color: #E63B6F;
+    color: var(--primary);
     font-weight: 600;
 }
 .search-tag svg { flex-shrink: 0; }
@@ -529,7 +532,7 @@ onUnmounted(() => {
     border: none;
     cursor: pointer;
     font-size: 1.1rem;
-    color: #E63B6F;
+    color: var(--primary);
     line-height: 1;
     padding: 0 2px;
 }
@@ -549,17 +552,17 @@ onUnmounted(() => {
     padding: 8px 14px;
     border: 1px solid #E9ECEF;
     border-radius: 8px;
-    background: #fff;
+    background: var(--card-bg);
     font-family: inherit;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #2D3436;
+    color: var(--text-main);
     cursor: pointer;
     outline: none;
     transition: border-color 0.2s;
 }
 .sort-select:focus {
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 /* ── LAYOUT ── */
@@ -587,7 +590,7 @@ onUnmounted(() => {
     gap: 8px;
     font-size: 0.8rem;
     font-weight: 800;
-    color: #2D3436;
+    color: var(--text-main);
     letter-spacing: 0.05em;
     margin: 0 0 14px;
     padding-bottom: 10px;
@@ -605,8 +608,8 @@ onUnmounted(() => {
     color: #636E72;
     transition: color 0.2s;
 }
-.filter-checkbox:hover { color: #2D3436; }
-.filter-checkbox.checked { color: #2D3436; font-weight: 600; }
+.filter-checkbox:hover { color: var(--text-main); }
+.filter-checkbox.checked { color: var(--text-main); font-weight: 600; }
 .filter-checkbox input[type="checkbox"] {
     display: none;
 }
@@ -638,8 +641,8 @@ onUnmounted(() => {
 }
 
 .filter-checkbox.checked .cb-custom {
-    background: #E63B6F;
-    border-color: #E63B6F;
+    background: var(--primary);
+    border-color: var(--primary);
 }
 .filter-checkbox.checked .cb-custom::after {
     content: '';
@@ -657,7 +660,7 @@ onUnmounted(() => {
 }
 .current-price-label {
     font-size: 0.9rem;
-    color: #E63B6F;
+    color: var(--primary);
     margin-bottom: 12px;
     text-align: center;
 }
@@ -678,7 +681,7 @@ onUnmounted(() => {
     -webkit-appearance: none;
     width: 18px;
     height: 18px;
-    background: #E63B6F;
+    background: var(--primary);
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 2px 6px rgba(230,59,111,0.3);
@@ -686,7 +689,7 @@ onUnmounted(() => {
 .price-slider::-moz-range-thumb {
     width: 18px;
     height: 18px;
-    background: #E63B6F;
+    background: var(--primary);
     border-radius: 50%;
     cursor: pointer;
     border: none;
@@ -724,7 +727,7 @@ onUnmounted(() => {
 .empty-state h3 {
     font-size: 1.3rem;
     font-weight: 700;
-    color: #2D3436;
+    color: var(--text-main);
     margin-bottom: 8px;
 }
 .empty-state p {
@@ -734,8 +737,8 @@ onUnmounted(() => {
 }
 .btn-reset-filter {
     background: transparent;
-    color: #E63B6F;
-    border: 2px solid #E63B6F;
+    color: var(--primary);
+    border: 2px solid var(--primary);
     padding: 10px 24px;
     border-radius: 8px;
     font-weight: 700;
@@ -745,7 +748,7 @@ onUnmounted(() => {
     font-family: inherit;
 }
 .btn-reset-filter:hover {
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
 }
 
@@ -766,7 +769,7 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     border: 1px solid #E9ECEF;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 8px;
     font-size: 0.88rem;
     font-weight: 600;
@@ -775,13 +778,13 @@ onUnmounted(() => {
     transition: all 0.2s;
 }
 .pg-btn:hover:not(:disabled):not(.active) {
-    border-color: #E63B6F;
-    color: #E63B6F;
+    border-color: var(--primary);
+    color: var(--primary);
 }
 .pg-btn.active {
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 .pg-btn:disabled {
     opacity: 0.35;

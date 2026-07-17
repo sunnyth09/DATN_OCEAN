@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../utils/format_utils.dart';
@@ -87,7 +86,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE63B6F).withOpacity(0.1),
+                  color: const Color(0xFFE63B6F).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -278,7 +277,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

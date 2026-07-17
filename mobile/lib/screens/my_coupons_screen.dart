@@ -43,7 +43,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
   String _formatValue(Map<String, dynamic> coupon) {
     final type = coupon['type']?.toString() ?? '';
     final value = coupon['value'];
-    if (type == 'percent') return 'Giảm ${value}%';
+    if (type == 'percent') return 'Giảm $value%';
     if (type == 'free_ship') return 'Freeship ${_formatCurrency(value)}';
     return 'Giảm ${_formatCurrency(value)}';
   }
@@ -56,9 +56,9 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (m) => '${m[1]}.',
       );
-      return '${formatted}₫';
+      return '$formatted₫';
     } catch (_) {
-      return '${val}₫';
+      return '$val₫';
     }
   }
 
@@ -101,7 +101,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: coupons.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) => _buildCouponCard(coupons[index]),
                   ),
       ),
@@ -177,7 +177,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFE5E7EB)),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2))],
             ),
             child: IntrinsicHeight(
               child: Row(
@@ -260,7 +260,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.4),
+                  color: Colors.white.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(

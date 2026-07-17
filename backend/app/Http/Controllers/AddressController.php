@@ -70,10 +70,12 @@ class AddressController extends Controller
                 'message' => 'Số điện thoại không hợp lệ!',
             ], 422);
         }
-        // Thêm location codes nếu có
+        // Thêm location codes nếu có. GHN WardCode là string, không ép int để tránh mất số 0 đầu.
         foreach (['ward_code', 'district_code', 'province_code'] as $codeField) {
             if ($request->has($codeField) && is_numeric($request->input($codeField))) {
-                $validated[$codeField] = (int) $request->input($codeField);
+                $validated[$codeField] = $codeField === 'ward_code'
+                    ? (string) $request->input($codeField)
+                    : (int) $request->input($codeField);
             }
         }
 
@@ -136,10 +138,12 @@ class AddressController extends Controller
             ], 422);
         }
 
-        // Thêm location codes nếu có
+        // Thêm location codes nếu có. GHN WardCode là string, không ép int để tránh mất số 0 đầu.
         foreach (['ward_code', 'district_code', 'province_code'] as $codeField) {
             if ($request->has($codeField) && is_numeric($request->input($codeField))) {
-                $validated[$codeField] = (int) $request->input($codeField);
+                $validated[$codeField] = $codeField === 'ward_code'
+                    ? (string) $request->input($codeField)
+                    : (int) $request->input($codeField);
             }
         }
 

@@ -57,10 +57,6 @@ return [
         'redirect' => env('FACEBOOK_REDIRECT', 'http://localhost:3302/api/auth/facebook/callback'),
     ],
 
-    'ghn' => [
-        'token' => env('VITE_TOKEN_GHN', ''),
-    ],
-
     'store' => [
         'wifi_ip' => env('STORE_WIFI_IP'),
         'lat' => env('STORE_LAT'),
@@ -68,7 +64,7 @@ return [
     ],
 
     'sepay' => [
-        'api_key' => env('SEPAY_API_KEY', 'sepay_secret_token_12345'),
+        'api_key' => env('SEPAY_API_KEY'),
     ],
 
     'bank' => [

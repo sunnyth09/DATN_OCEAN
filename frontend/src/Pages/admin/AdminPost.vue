@@ -223,7 +223,7 @@ const getStatusLabel = (status) => {
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
     padding: 10px 22px; border-radius: 8px; border: none;
-    background: #E63B6F; color: white; text-decoration: none;
+    background: var(--primary); color: white; text-decoration: none;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s;
     box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
@@ -245,7 +245,7 @@ const getStatusLabel = (status) => {
     transition: all 0.2s;
 }
 .search-box:focus-within {
-    border-color: #E63B6F; background: white;
+    border-color: var(--primary); background: var(--card-bg);
     box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 .search-box svg { color: var(--text-light); flex-shrink: 0; }
@@ -263,7 +263,7 @@ const getStatusLabel = (status) => {
     background: var(--ocean-deepest); color: var(--text-muted);
     font-size: 0.8rem; font-weight: 600;
 }
-.stat-pill svg { color: #E63B6F; }
+.stat-pill svg { color: var(--primary); }
 
 /* Table */
 .table-header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); }
@@ -297,7 +297,7 @@ const getStatusLabel = (status) => {
     border-radius: 20px; font-size: 0.75rem; font-weight: 600;
 }
 .status-badge.active { background: rgba(230, 59, 111, 0.08); color: #0284c7; }
-.status-badge.inactive { background: #f1f5f9; color: #64748b; }
+.status-badge.inactive { background: var(--surface-container); color: var(--text-muted); }
 .status-badge.draft { background: #fef3c7; color: #d97706; }
 
 .action-buttons { display: flex; gap: 8px; }
@@ -305,7 +305,7 @@ const getStatusLabel = (status) => {
     background: none; border: none; padding: 6px; border-radius: 6px;
     cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;
 }
-.btn-action.edit { color: #E63B6F; background: rgba(230, 59, 111, 0.08); }
+.btn-action.edit { color: var(--primary); background: rgba(230, 59, 111, 0.08); }
 .btn-action.delete { color: var(--coral); background: #fee2e2; }
 .btn-action:hover { transform: scale(1.1); }
 

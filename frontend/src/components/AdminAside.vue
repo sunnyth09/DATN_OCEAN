@@ -238,6 +238,10 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span>
             <span>Khiếu nại</span>
           </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/wallet-deposits" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Ví & Nạp tiền</span>
+          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Thống kê</span>
@@ -412,7 +416,7 @@ const handleLogout = async () => {
 
 .aside-toggle-btn:hover {
   background: var(--hover-bg, #f3f4f6);
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 /* Nav */
@@ -520,12 +524,12 @@ const handleLogout = async () => {
 }
 
 .submenu-item--active {
-  color: #E63B6F !important;
+  color: var(--primary) !important;
   font-weight: 600;
 }
 
 .submenu-item--active .submenu-dot {
-  background: #E63B6F !important;
+  background: var(--primary) !important;
 }
 
 /* Transitions */
@@ -548,7 +552,7 @@ const handleLogout = async () => {
 
   position: sticky;
   bottom: 0;
-  background: white;
+  background: var(--card-bg);
   z-index: 10;
   margin-top: 10px;
 }

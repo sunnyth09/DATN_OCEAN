@@ -30,4 +30,33 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return $request->expectsJson();
         });
+
+        // Chuẩn hóa lỗi 500 chưa xử lý cho API: log chi tiết, trả generic (tránh leak stack trace / internal message)
+        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+            if (!$request->is('api/*') && !$request->expectsJson()) {
+                return null; // để Laravel xử lý mặc định (web)
+            }
+
+            // Bỏ qua các exception đã có mapping chuẩn của Laravel (validation 422, auth 401, 403, 404, throttle 429, HttpException...)
+            if (
+                $e instanceof \Illuminate\Validation\ValidationException
+                || $e instanceof \Illuminate\Auth\AuthenticationException
+                || $e instanceof \Illuminate\Auth\Access\AuthorizationException
+                || $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                || $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException
+            ) {
+                return null;
+            }
+
+            \Illuminate\Support\Facades\Log::error('Unhandled API exception', [
+                'exception' => get_class($e),
+                'message'   => $e->getMessage(),
+                'url'       => $request->fullUrl(),
+            ]);
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => config('app.debug') ? $e->getMessage() : 'Đã có lỗi xảy ra, vui lòng thử lại sau.',
+            ], 500);
+        });
     })->create();

@@ -1,11 +1,7 @@
-import 'dart:convert';
-import '../config/app_theme.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
-
-String get kBaseUrl => AppConfig.kBaseUrl;
+import '../services/api_client.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> orderItem;
@@ -42,30 +38,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
     setState(() => _isSubmitting = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
       final orderItemId = widget.orderItem['order_item_id'] ?? widget.orderItem['id'];
 
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/profile/orders/feedback'),
-        headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-        body: jsonEncode({
+      await ApiClient().dio.post(
+        '/profile/orders/feedback',
+        data: {
           'product_id': widget.productId,
           'order_item_id': orderItemId,
           'rating': _rating,
           'content': _commentCtrl.text.trim(),
-        }),
+        },
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đánh giá thành công! Cảm ơn bạn.'), backgroundColor: Colors.green));
-          Navigator.pop(context, true);
-        }
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Không thể gửi đánh giá!'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đánh giá thành công! Cảm ơn bạn.'), backgroundColor: Colors.green));
+        Navigator.pop(context, true);
       }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message ?? 'Không thể gửi đánh giá!'), backgroundColor: Colors.red));
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
     } finally {
@@ -101,7 +92,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     borderRadius: BorderRadius.circular(10),
                     child: imageUrl.isNotEmpty
                         ? Image.network(imageUrl, width: 70, height: 70, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _placeholder())
+                            errorBuilder: (_, _, _) => _placeholder())
                         : _placeholder(),
                   ),
                   const SizedBox(width: 14),

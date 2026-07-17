@@ -2,77 +2,54 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Order;
-use App\Models\OrderStatusHistory;
+use App\Services\GhnOrderStatusSyncService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class GhnWebhookController extends Controller
 {
+    public function __construct(
+        private GhnOrderStatusSyncService $statusSyncService
+    ) {}
+
     public function handle(Request $request)
     {
-        Log::info('GHN Webhook received', $request->all());
-
-        $payload = $request->all();
-
-        if (isset($payload['OrderCode']) && isset($payload['Status'])) {
-            $order = Order::where('ghn_order_code', $payload['OrderCode'])->first();
-
-            if ($order) {
-                // Map GHN statuses to our system statuses
-                $statusMapping = [
-                    'ready_to_pick' => 'pending',
-                    'picking' => 'shipping',
-                    'cancel' => 'cancelled',
-                    'money_collect_picking' => 'shipping',
-                    'picked' => 'shipping',
-                    'storing' => 'shipping',
-                    'transporting' => 'shipping',
-                    'sorting' => 'shipping',
-                    'delivering' => 'shipping',
-                    'money_collect_delivering' => 'shipping',
-                    'delivered' => 'completed',
-                    'delivery_fail' => 'shipping',
-                    'waiting_to_return' => 'returned',
-                    'return' => 'returned',
-                    'return_transporting' => 'returned',
-                    'return_sorting' => 'returned',
-                    'returning' => 'returned',
-                    'return_fail' => 'returned',
-                    'returned' => 'returned',
-                    'exception' => 'pending',
-                    'damage' => 'cancelled',
-                    'lost' => 'cancelled',
-                ];
-
-                if (array_key_exists($payload['Status'], $statusMapping)) {
-                    $newStatus = $statusMapping[$payload['Status']];
-                    
-                    if ($order->fulfillment_status !== $newStatus) {
-                        $oldStatus = $order->fulfillment_status;
-                        $order->fulfillment_status = $newStatus;
-                        
-                        if ($newStatus === 'completed') {
-                            $order->delivered_at = now();
-                            $order->completed_at = now();
-                        } elseif ($newStatus === 'cancelled') {
-                            $order->cancelled_at = now();
-                            $order->cancel_reason = 'Canceled by GHN';
-                        }
-                        
-                        $order->save();
-
-                        OrderStatusHistory::create([
-                            'order_id' => $order->order_id,
-                            'old_status' => $oldStatus,
-                            'new_status' => $newStatus,
-                            'note' => 'Cập nhật tự động từ GHN (Webhook)',
-                        ]);
-                    }
-                }
+        // 1. Verify shared secret token (bắt buộc nếu đã cấu hình)
+        $expectedToken = config('ghn.webhook_token');
+        if (!empty($expectedToken)) {
+            $providedToken = $request->query('token') ?: $request->header('X-Webhook-Token', '');
+            if (!hash_equals($expectedToken, (string) $providedToken)) {
+                Log::warning('GHN webhook rejected by token mismatch', ['ip' => $request->ip()]);
+                return response()->json(['message' => 'Forbidden'], 403);
             }
         }
 
-        return response()->json(['message' => 'Success'], 200);
+        // 2. IP whitelist (lớp phòng thủ bổ sung)
+        $allowedIps = config('ghn.webhook_allowed_ips', []);
+        if (!empty($allowedIps) && !in_array($request->ip(), $allowedIps, true)) {
+            Log::warning('GHN webhook rejected by IP whitelist', ['ip' => $request->ip()]);
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $payload = $request->all();
+        $orderCode = $payload['OrderCode'] ?? $payload['order_code'] ?? null;
+        $ghnStatus = $payload['Status'] ?? $payload['status'] ?? null;
+
+        if (!$orderCode || !$ghnStatus) {
+            return response()->json(['message' => 'Invalid payload'], 400);
+        }
+
+        $order = Order::where('ghn_order_code', $orderCode)->first();
+        if (!$order) {
+            return response()->json(['message' => 'OK'], 200);
+        }
+
+        $result = $this->statusSyncService->syncFromWebhookPayload($order, $payload);
+        if (!$result['mapped_status']) {
+            Log::info('GHN webhook ignored unknown status', ['order_code' => $orderCode, 'status' => $ghnStatus]);
+        }
+
+        return response()->json(['message' => 'OK'], 200);
     }
 }

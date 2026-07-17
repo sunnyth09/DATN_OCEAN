@@ -236,11 +236,11 @@ const clearFilters = () => {
 .filter-sidebar__input:focus {
     border-color: var(--court-primary);
     box-shadow: 0 0 0 3px var(--court-primary-soft, rgba(230,59,111,0.08));
-    background: #fff;
+    background: var(--card-bg);
 }
 
 .filter-sidebar__apply {
-    background: linear-gradient(135deg, var(--court-primary, #e63b6f), #c02858);
+    background: linear-gradient(135deg, var(--court-primary, var(--primary)), #c02858);
     color: #fff;
     border: none;
     transition: all 0.3s;

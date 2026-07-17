@@ -260,6 +260,7 @@ const submitContact = async () => {
 <style scoped>
 .static-page {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  padding-top: 24px;
 }
 
 .container {
@@ -269,22 +270,51 @@ const submitContact = async () => {
 }
 
 .page-hero {
-  background: #E63B6F;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 24px;
   color: #fff;
-  padding: 56px 24px;
   text-align: center;
 }
 
+.page-hero .container {
+  max-width: 100%;
+  padding: 54px 24px;
+  border: 1px solid rgba(230, 59, 111, 0.18);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
+  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+}
+
 .page-hero h1 {
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0 0 12px;
+  position: relative;
+  display: inline-block;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 900;
+  margin: 0 0 16px;
+  padding-bottom: 14px;
+}
+
+.page-hero h1::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 96px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateX(-50%);
 }
 
 .hero-sub {
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.85);
-  margin: 0;
+  max-width: 700px;
+  margin: 0 auto;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.05rem;
+  line-height: 1.7;
 }
 
 .page-content {
@@ -316,7 +346,7 @@ const submitContact = async () => {
   height: 40px;
   border-radius: 999px;
   background: #fff0f3;
-  color: #E63B6F;
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -326,7 +356,7 @@ const submitContact = async () => {
 .contact-card h3 {
   font-size: 0.9rem;
   font-weight: 700;
-  color: #2D3436;
+  color: var(--text-main);
   margin-bottom: 6px;
 }
 
@@ -375,7 +405,7 @@ const submitContact = async () => {
   margin: 0 0 6px;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
 }
 
 .location-meta p {
@@ -398,7 +428,7 @@ const submitContact = async () => {
 .form-panel h2 {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #2D3436;
+  color: var(--text-main);
   margin-bottom: 14px;
 }
 
@@ -431,7 +461,7 @@ const submitContact = async () => {
   border-radius: 10px;
   font-size: 0.9rem;
   font-family: inherit;
-  color: #2D3436;
+  color: var(--text-main);
   background: #F8F9FA;
   outline: none;
   transition: border-color 0.2s;
@@ -440,8 +470,8 @@ const submitContact = async () => {
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  border-color: #E63B6F;
-  background: #fff;
+  border-color: var(--primary);
+  background: var(--card-bg);
 }
 
 .form-group textarea {
@@ -452,7 +482,7 @@ const submitContact = async () => {
   padding: 12px 24px;
   border: none;
   border-radius: 8px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   font-size: 0.95rem;
   font-weight: 600;
@@ -499,6 +529,11 @@ const submitContact = async () => {
 }
 
 @media (max-width: 768px) {
+  .static-page { padding-top: 16px; }
+  .page-hero { padding: 0 16px; }
+  .page-hero .container { padding: 40px 18px; border-radius: 18px; }
+  .page-content { padding: 36px 24px 56px; }
+
   .contact-grid {
     grid-template-columns: 1fr 1fr;
   }

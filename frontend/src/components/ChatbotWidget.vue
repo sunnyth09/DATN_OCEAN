@@ -723,7 +723,7 @@ async function sendMessage() {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #E63B6F 0%, #ff6b8b 50%, #b50c4d 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #ff6b8b 50%, var(--primary-dark) 100%);
   border: none;
   cursor: pointer;
   display: flex;
@@ -785,7 +785,7 @@ async function sendMessage() {
   right: 0;
   width: 400px;
   height: 580px;
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 20px;
   box-shadow:
     0 24px 80px rgba(0, 0, 0, 0.15),
@@ -815,7 +815,7 @@ async function sendMessage() {
 
 /* ==================== HEADER ==================== */
 .chat-header {
-  background: linear-gradient(135deg, #E63B6F 0%, #ff6b8b 60%, #b50c4d 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #ff6b8b 60%, var(--primary-dark) 100%);
   padding: 16px 20px;
   display: flex;
   align-items: center;
@@ -904,7 +904,7 @@ async function sendMessage() {
   align-items: center;
   justify-content: center;
 }
-.welcome-title { font-size: 1.05rem; font-weight: 700; color: #111827; margin: 0; }
+.welcome-title { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin: 0; }
 .welcome-desc { font-size: 0.85rem; color: #6b7280; margin: 0; line-height: 1.5; }
 
 /* Message items */
@@ -943,13 +943,13 @@ async function sendMessage() {
 }
 
 .msg-bubble.user {
-  background: linear-gradient(135deg, #E63B6F, #b50c4d);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: #fff;
   border-bottom-right-radius: 4px;
 }
 
 .msg-bubble.assistant {
-  background: #fff;
+  background: var(--card-bg);
   color: #1f2937;
   border: 1px solid #e5e7eb;
   border-bottom-left-radius: 4px;
@@ -1000,7 +1000,7 @@ async function sendMessage() {
 .product-card-name {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-main);
   margin: 0 0 4px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1035,8 +1035,8 @@ async function sendMessage() {
 .chatbot-action-btn,
 .mini-add-btn {
   border: 1px solid #fecdd3;
-  background: #fff;
-  color: #E63B6F;
+  background: var(--card-bg);
+  color: var(--primary);
   border-radius: 999px;
   padding: 5px 10px;
   font-size: 0.72rem;
@@ -1052,8 +1052,8 @@ async function sendMessage() {
 }
 
 .chatbot-action-btn.primary {
-  background: #E63B6F;
-  border-color: #E63B6F;
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
 }
 
@@ -1112,7 +1112,7 @@ async function sendMessage() {
 .order-code {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .order-status {
@@ -1253,7 +1253,7 @@ async function sendMessage() {
   padding: 7px 12px;
   border-radius: 20px;
   border: 1px solid #e5e7eb;
-  background: #fff;
+  background: var(--card-bg);
   font-size: 0.78rem;
   font-weight: 500;
   color: #374151;
@@ -1280,19 +1280,19 @@ async function sendMessage() {
 }
 .quick-toggle-btn:hover {
   border-color: #93c5fd;
-  color: #E63B6F;
+  color: var(--primary);
   background: #eff6ff;
 }
 .quick-toggle-btn.active {
-  border-color: #E63B6F;
-  color: #E63B6F;
+  border-color: var(--primary);
+  color: var(--primary);
   background: #eff6ff;
 }
 
 .quick-action-btn:hover {
   background: #eff6ff;
   border-color: #93c5fd;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .quick-icon {
@@ -1310,7 +1310,7 @@ async function sendMessage() {
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid #e5e7eb;
-  background: #fff;
+  background: var(--card-bg);
   flex-shrink: 0;
 }
 
@@ -1328,8 +1328,8 @@ async function sendMessage() {
 }
 
 .chat-input:focus {
-  border-color: #E63B6F;
-  background: #fff;
+  border-color: var(--primary);
+  background: var(--card-bg);
 }
 
 .chat-input::placeholder { color: #9ca3af; }
@@ -1340,7 +1340,7 @@ async function sendMessage() {
   height: 40px;
   border-radius: 12px;
   border: none;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   cursor: pointer;
   display: flex;
@@ -1392,7 +1392,7 @@ async function sendMessage() {
 .pd-name {
   font-size: 0.88rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-main);
   margin: 0 0 4px;
   line-height: 1.3;
 }
@@ -1460,7 +1460,7 @@ async function sendMessage() {
   width: 100%;
   padding: 10px;
   border: none;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   font-size: 0.82rem;
   font-weight: 600;
@@ -1502,7 +1502,7 @@ async function sendMessage() {
 .cat-name {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-main);
 }
 
 .cat-count {
@@ -1522,7 +1522,7 @@ async function sendMessage() {
 
 .cat-child-tag {
   font-size: 0.7rem;
-  color: #E63B6F;
+  color: var(--primary);
   background: #dbeafe;
   padding: 2px 8px;
   border-radius: 10px;

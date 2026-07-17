@@ -1,9 +1,6 @@
-import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../config/app_config.dart';
-
-String get kBaseUrl => AppConfig.kBaseUrl;
+import '../services/api_client.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -45,42 +42,39 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/forgot-password/send-otp'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'email': email}),
+      await ApiClient().dio.post(
+        '/forgot-password/send-otp',
+        data: {'email': email},
       );
 
-      if (response.statusCode == 200) {
-        setState(() => _currentStep = 1);
-        if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Mã OTP đã được gửi đến email của bạn!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data['message'] ?? 'Lỗi gửi OTP!'),
-              backgroundColor: Colors.red,
-            ),
-          );
+      setState(() => _currentStep = 1);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mã OTP đã được gửi đến email của bạn!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message ?? 'Lỗi gửi OTP!'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Không thể kết nối máy chủ!'),
             backgroundColor: Colors.red,
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -100,42 +94,39 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/forgot-password/verify-otp'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'email': _emailCtrl.text.trim(), 'otp': otp}),
+      await ApiClient().dio.post(
+        '/forgot-password/verify-otp',
+        data: {'email': _emailCtrl.text.trim(), 'otp': otp},
       );
 
-      if (response.statusCode == 200) {
-        setState(() => _currentStep = 2);
-        if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Xác thực OTP thành công!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data['message'] ?? 'Mã OTP không chính xác!'),
-              backgroundColor: Colors.red,
-            ),
-          );
+      setState(() => _currentStep = 2);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Xác thực OTP thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message ?? 'Mã OTP không chính xác!'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Không thể kết nối máy chủ!'),
             backgroundColor: Colors.red,
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -166,48 +157,44 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/forgot-password/reset'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
+      await ApiClient().dio.post(
+        '/forgot-password/reset',
+        data: {
           'email': _emailCtrl.text.trim(),
           'otp': _otpCtrl.text.trim(),
           'password': password,
           'password_confirmation': confirm,
-        }),
+        },
       );
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Đổi mật khẩu thành công! Hãy đăng nhập lại.'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pop(context); // Quay về màn login
-        }
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(data['message'] ?? 'Lỗi đặt lại mật khẩu!'),
-              backgroundColor: Colors.red,
-            ),
-          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đổi mật khẩu thành công! Hãy đăng nhập lại.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context); // Quay về màn login
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message ?? 'Lỗi đặt lại mật khẩu!'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Không thể kết nối máy chủ!'),
             backgroundColor: Colors.red,
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

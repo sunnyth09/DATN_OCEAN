@@ -202,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen>
           borderRadius: BorderRadius.circular(30),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -251,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Text(
@@ -322,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: Colors.white.withOpacity(0.5)),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.5)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -393,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen>
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(icon, color: color, size: 26),
@@ -425,11 +425,12 @@ class _HomeScreenState extends State<HomeScreen>
         final pid = c['parent_id'];
         return pid == null || pid == 0;
       }).toList();
-      if (mounted)
+      if (mounted) {
         setState(() {
           categories = rootCats;
           isCatLoading = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => isCatLoading = false);
     }
@@ -438,33 +439,43 @@ class _HomeScreenState extends State<HomeScreen>
   /// Lấy icon thích hợp dựa trên tên danh mục
   IconData _iconForCategory(String name) {
     final n = name.toLowerCase();
-    if (n.contains('lặn') || n.contains('bơi') || n.contains('dưới nước'))
+    if (n.contains('lặn') || n.contains('bơi') || n.contains('dưới nước')) {
       return Icons.scuba_diving;
+    }
     if (n.contains('lướt')) return Icons.surfing;
     if (n.contains('dã ngoại') ||
         n.contains('leo núi') ||
-        n.contains('cắm trại'))
+        n.contains('cắm trại')) {
       return Icons.hiking;
-    if (n.contains('phụ kiện') || n.contains('đồng hồ') || n.contains('kính'))
+    }
+    if (n.contains('phụ kiện') || n.contains('đồng hồ') || n.contains('kính')) {
       return Icons.watch;
-    if (n.contains('quần áo') || n.contains('thời trang') || n.contains('áo'))
+    }
+    if (n.contains('quần áo') || n.contains('thời trang') || n.contains('áo')) {
       return Icons.checkroom;
-    if (n.contains('giày') || n.contains('dép') || n.contains('sản phẩm'))
+    }
+    if (n.contains('giày') || n.contains('dép') || n.contains('sản phẩm')) {
       return Icons.format_list_bulleted;
-    if (n.contains('kayak') || n.contains('chèo') || n.contains('thỹền'))
+    }
+    if (n.contains('kayak') || n.contains('chèo') || n.contains('thỹền')) {
       return Icons.rowing;
+    }
     if (n.contains('câu cá') || n.contains('bắt cá')) return Icons.phishing;
     if (n.contains('thể thao') || n.contains('sport')) return Icons.sports;
     if (n.contains('bảo hộ') || n.contains('an toàn')) return Icons.security;
-    if (n.contains('đèn') || n.contains('chiếu sáng'))
+    if (n.contains('đèn') || n.contains('chiếu sáng')) {
       return Icons.flashlight_on;
+    }
     if (n.contains('tús') || n.contains('balo')) return Icons.backpack;
-    if (n.contains('máy ảnh') || n.contains('camera') || n.contains('quay'))
+    if (n.contains('máy ảnh') || n.contains('camera') || n.contains('quay')) {
       return Icons.camera_alt;
-    if (n.contains('kife') || n.contains('dao') || n.contains('công cụ'))
+    }
+    if (n.contains('kife') || n.contains('dao') || n.contains('công cụ')) {
       return Icons.handyman;
-    if (n.contains('giày lặn') || n.contains('chân nhái'))
+    }
+    if (n.contains('giày lặn') || n.contains('chân nhái')) {
       return Icons.do_not_step;
+    }
     if (n.contains('xe') || n.contains('đạp')) return Icons.directions_bike;
     if (n.contains('sóng') || n.contains('biển')) return Icons.waves;
     return Icons.category_outlined;
@@ -536,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen>
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   itemCount: 5,
-                  itemBuilder: (_, __) => Padding(
+                  itemBuilder: (_, _) => Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Column(
                       children: [
@@ -609,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: colors[1].withOpacity(0.5),
+                                    color: colors[1].withValues(alpha: 0.5),
                                     blurRadius: 8,
                                     offset: const Offset(0, 3),
                                   ),
@@ -731,7 +742,7 @@ class _HomeScreenState extends State<HomeScreen>
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -765,16 +776,15 @@ class _HomeScreenState extends State<HomeScreen>
                   right: 8,
                   child: GestureDetector(
                     onTap: () async {
+                      final messenger = ScaffoldMessenger.of(context);
                       try {
                         final loggedIn = await AuthService.isLoggedIn();
                         if (!loggedIn) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Vui lòng đăng nhập để lưu!'),
-                              ),
-                            );
-                          }
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Vui lòng đăng nhập để lưu!'),
+                            ),
+                          );
                           return;
                         }
                         await ApiClient().dio.post(
@@ -784,15 +794,22 @@ class _HomeScreenState extends State<HomeScreen>
                                 product['product_id'] ?? product['id'],
                           },
                         );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Đã cập nhật danh sách yêu thích!'),
-                              duration: Duration(seconds: 1),
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Đã cập nhật danh sách yêu thích!'),
+                            duration: Duration(seconds: 1),
+                          ),
+                        );
+                      } catch (_) {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Không thể cập nhật yêu thích. Vui lòng thử lại.',
                             ),
-                          );
-                        }
-                      } catch (_) {}
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
                     },
                     child: Container(
                       padding: const EdgeInsets.all(6),
@@ -869,20 +886,5 @@ class _HomeScreenState extends State<HomeScreen>
         child: Icon(Icons.image_not_supported, size: 30, color: Colors.grey),
       ),
     );
-  }
-
-  String _formatPrice(dynamic price) {
-    try {
-      final num p = num.parse(price.toString());
-      final formatted = p
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]}.',
-          );
-      return '$formatted đ';
-    } catch (_) {
-      return price.toString();
-    }
   }
 }

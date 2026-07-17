@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -25,8 +26,8 @@ class CourtBookingRealtimeEvent implements ShouldBroadcastNow
         $userId  = $this->payload['user_id'] ?? null;
 
         $channels = [
-            new PrivateChannel("court-booking.{$date}"),
-            new PrivateChannel("court-booking.court.{$courtId}.{$date}"),
+            new Channel("court-booking.{$date}"),
+            new Channel("court-booking.court.{$courtId}.{$date}"),
             new PrivateChannel('admin-notifications'),
         ];
 

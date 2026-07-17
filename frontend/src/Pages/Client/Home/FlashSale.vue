@@ -112,7 +112,7 @@ onMounted(async () => {
 
 /* ── HERO ── */
 .hero {
-  background: linear-gradient(135deg, #E63B6F 0%, #E63B6F 60%, #FF6B9D 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 60%, #FF6B9D 100%);
   padding: 64px 20px 56px;
   text-align: center;
 }
@@ -203,7 +203,7 @@ onMounted(async () => {
 
 /* ── RULES CARD ── */
 .rules-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #F1F3F5;
   border-radius: 14px;
   padding: 24px 22px;
@@ -213,7 +213,7 @@ onMounted(async () => {
 }
 
 .rules-title {
-  color: #E63B6F;
+  color: var(--primary);
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
@@ -247,14 +247,14 @@ onMounted(async () => {
   width: 20px;
   height: 20px;
   line-height: 1.5;
-  color: #E63B6F;
+  color: var(--primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .rules-list li strong {
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 700;
 }
 

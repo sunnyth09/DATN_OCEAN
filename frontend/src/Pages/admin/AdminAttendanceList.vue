@@ -341,7 +341,7 @@ onMounted(() => { fetchAttendances(); });
   color: var(--text-main); font-family: var(--font-inter); font-size: 0.85rem;
   transition: all 0.2s; box-sizing: border-box;
 }
-.al-input:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.al-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .al-select {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23627d98' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -355,7 +355,7 @@ onMounted(() => { fetchAttendances(); });
   font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: var(--font-inter);
   white-space: nowrap;
 }
-.btn-reset:hover { border-color: #E63B6F; color: #E63B6F; background: var(--hover-bg); }
+.btn-reset:hover { border-color: var(--primary); color: var(--primary); background: var(--hover-bg); }
 
 /* ===== Table ===== */
 .table-wrapper { overflow-x: auto; }
@@ -389,7 +389,7 @@ onMounted(() => { fetchAttendances(); });
   font-size: 0.75rem; font-weight: 600; background: var(--ocean-deepest); color: var(--text-muted);
   border: 1px solid var(--border-color);
 }
-.location-cell { color: #E63B6F; font-weight: 500; font-size: 0.82rem; }
+.location-cell { color: var(--primary); font-weight: 500; font-size: 0.82rem; }
 .date-cell { color: var(--text-muted); font-size: 0.82rem; white-space: nowrap; }
 
 .time-in { color: #2e7d32; font-weight: 600; font-size: 0.82rem; }
@@ -409,7 +409,7 @@ onMounted(() => { fetchAttendances(); });
   width: 36px; height: 36px; border-radius: 8px; object-fit: cover;
   cursor: pointer; border: 2px solid var(--border-color); transition: all 0.2s;
 }
-.selfie-thumb:hover { border-color: #E63B6F; transform: scale(1.08); }
+.selfie-thumb:hover { border-color: var(--primary); transform: scale(1.08); }
 .selfie-checkout { border-color: #ffcdd2; }
 
 .al-status {
@@ -446,8 +446,8 @@ onMounted(() => { fetchAttendances(); });
   background: var(--card-bg); color: var(--text-main); font-size: 0.8rem;
   font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: var(--font-inter);
 }
-.page-btn:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; background: var(--hover-bg); }
-.page-btn.active { background: #E63B6F; color: white; border-color: #E63B6F; }
+.page-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--hover-bg); }
+.page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Spinner */
@@ -490,7 +490,7 @@ onMounted(() => { fetchAttendances(); });
   color: var(--text-muted, #627d98); display: flex; align-items: center; justify-content: center;
   padding: 4px; border-radius: 6px; transition: all 0.2s;
 }
-.al-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, #E63B6F); }
+.al-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, var(--primary)); }
 
 .al-modal-body { padding: 24px; }
 .al-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
@@ -515,13 +515,13 @@ onMounted(() => { fetchAttendances(); });
   color: var(--text-main); font-family: var(--font-inter); font-size: 0.85rem;
   resize: vertical; box-sizing: border-box; transition: all 0.2s;
 }
-.al-textarea:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.al-textarea:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .flag-remove-text { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 8px; }
 
 /* Buttons */
 .al-btn-outline {
   padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color, #d9e8f0);
-  background: #fff; color: var(--text-main); font-size: 0.85rem; font-weight: 600;
+  background: var(--card-bg); color: var(--text-main); font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; font-family: var(--font-inter);
 }
 .al-btn-outline:hover { border-color: var(--ocean-mid, #b3e0f2); background: var(--ocean-deepest); }

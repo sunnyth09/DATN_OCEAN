@@ -51,7 +51,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     color: const Color(0xFF0F172A),
                     borderRadius: BorderRadius.circular(40),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10)),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10)),
                     ],
                   ),
                   child: Stack(
@@ -67,7 +67,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                            height: 50,
                            decoration: BoxDecoration(
                              gradient: RadialGradient(
-                               colors: [const Color(0xFFE63B6F).withOpacity(0.5), Colors.transparent],
+                               colors: [const Color(0xFFE63B6F).withValues(alpha: 0.5), Colors.transparent],
                                radius: 1.5,
                              ),
                            ),

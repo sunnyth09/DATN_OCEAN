@@ -1,1087 +1,1115 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { walletService } from '@/services/walletService';
 import { useToast } from '@/composables/useToast';
 
 const { showToast } = useToast();
 
-// ─── STATE ──────────────────────────────────────────────────────────
-const loadingSummary = ref(true);
-const loadingHistory = ref(true);
-const summary = ref({
-  balance: 0,
-  affiliate_earnings: 0,
-  withdrawn_amount: 0,
-  pending_withdrawals: 0,
-  is_affiliate: false,
-});
+// State
+const loading = ref(true);
+const summary = ref(null);
+const history = ref([]);
+const historyPagination = ref(null);
+const historyPage = ref(1);
+const historyFilter = ref('all'); // all, deposit, commission, order_discount, refund
+const loadingHistory = ref(false);
 
-const transactions = ref([]);
-const pagination = ref({
-  current_page: 1,
-  last_page: 1,
-  total: 0,
-  per_page: 10,
-});
+// Deposit modal
+const showDepositModal = ref(false);
+const depositAmount = ref('');
+const depositMethod = ref('bank_transfer');
+const depositLoading = ref(false);
+const depositResult = ref(null); // { qr_url, redirect_url, ... }
 
-// Withdrawal request form
-const activeTab = ref('withdraw'); // withdraw | history | guide
-const submittingWithdraw = ref(false);
-const withdrawForm = ref({
-  amount: '',
-  withdrawal_method: 'bank', // bank | vnpay
-  bank_name: '',
-  bank_account_name: '',
-  bank_account_number: '',
-});
+// Withdraw modal
+const showWithdrawModal = ref(false);
+const withdrawAmount = ref('');
+const selectedBankId = ref(null);
+const withdrawLoading = ref(false);
+const withdrawResult = ref(null);
 
-// ─── COMPUTED ───────────────────────────────────────────────────────
-const availableBalance = computed(() => {
-  return summary.value.balance;
-});
+// Bank accounts
+const bankAccounts = ref([]);
+const showBankModal = ref(false);
+const bankForm = ref({ bank_name: '', bank_short_name: '', bank_bin: '', account_name: '', account_number: '' });
+const bankFormLoading = ref(false);
+const editingBankId = ref(null);
 
-// ─── METHODS ────────────────────────────────────────────────────────
-const formatMoney = (val) => {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
-};
+const formatPrice = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0);
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('vi-VN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+const totalBalance = computed(() => (summary.value?.deposit_balance || 0) + (summary.value?.commission_balance || 0));
 
+// Fetch summary
 const fetchSummary = async () => {
-  loadingSummary.value = true;
   try {
     const res = await walletService.getSummary();
     if (res.data?.status === 'success') {
       summary.value = res.data.data;
     }
   } catch (e) {
-    showToast('Lỗi khi tải thông tin ví điện tử', 'error');
-  } finally {
-    loadingSummary.value = false;
+    console.error('Wallet summary error', e);
   }
 };
 
+// Fetch history
 const fetchHistory = async (page = 1) => {
   loadingHistory.value = true;
   try {
-    const res = await walletService.getHistory(page, pagination.value.per_page);
+    const params = { page, per_page: 15 };
+    if (historyFilter.value !== 'all') params.type = historyFilter.value;
+
+    const res = await walletService.getHistory(params);
     if (res.data?.status === 'success') {
-      transactions.value = res.data.data.data;
-      pagination.value.current_page = res.data.data.current_page;
-      pagination.value.last_page = res.data.data.last_page;
-      pagination.value.total = res.data.data.total;
+      history.value = res.data.data.data || [];
+      historyPagination.value = res.data.data;
     }
   } catch (e) {
-    showToast('Lỗi khi tải lịch sử giao dịch ví', 'error');
+    console.error('Wallet history error', e);
   } finally {
     loadingHistory.value = false;
   }
 };
 
-const changePage = (page) => {
-  if (page >= 1 && page <= pagination.value.last_page) {
-    fetchHistory(page);
-  }
+watch(historyFilter, () => { historyPage.value = 1; fetchHistory(1); });
+
+const goToPage = (p) => {
+  historyPage.value = p;
+  fetchHistory(p);
 };
 
-const handleWithdraw = async () => {
-  if (!withdrawForm.value.amount || parseFloat(withdrawForm.value.amount) <= 0) {
-    return showToast('Số tiền rút phải lớn hơn 0đ.', 'error');
+// Deposit
+const presetAmounts = [50000, 100000, 200000, 500000, 1000000, 2000000];
+
+const selectPreset = (amount) => {
+  depositAmount.value = amount;
+};
+
+const initDeposit = async () => {
+  const amount = parseInt(depositAmount.value);
+  if (!amount || amount < 10000) {
+    showToast('Số tiền nạp tối thiểu 10,000₫', 'error');
+    return;
   }
-  if (parseFloat(withdrawForm.value.amount) > availableBalance.value) {
-    return showToast('Số tiền rút không được vượt quá số dư khả dụng.', 'error');
-  }
-  if (parseFloat(withdrawForm.value.amount) < 100000) {
-    return showToast('Số tiền rút tối thiểu là 100.000đ.', 'error');
+  if (amount > 50000000) {
+    showToast('Số tiền nạp tối đa 50,000,000₫', 'error');
+    return;
   }
 
-  if (withdrawForm.value.withdrawal_method === 'bank') {
-    if (!withdrawForm.value.bank_name.trim()) return showToast('Vui lòng điền tên ngân hàng.', 'error');
-    if (!withdrawForm.value.bank_account_name.trim()) return showToast('Vui lòng điền tên chủ tài khoản.', 'error');
-    if (!withdrawForm.value.bank_account_number.trim()) return showToast('Vui lòng điền số tài khoản.', 'error');
-  }
-
-  submittingWithdraw.value = true;
+  depositLoading.value = true;
   try {
-    const res = await walletService.requestWithdrawal(withdrawForm.value);
+    const res = await walletService.initDeposit(amount, depositMethod.value);
     if (res.data?.status === 'success') {
-      showToast(res.data.message || 'Gửi yêu cầu rút tiền thành công!', 'success');
-      // Reset form
-      withdrawForm.value.amount = '';
-      withdrawForm.value.bank_name = '';
-      withdrawForm.value.bank_account_name = '';
-      withdrawForm.value.bank_account_number = '';
-      // Refetch
-      await Promise.all([fetchSummary(), fetchHistory(1)]);
+      const data = res.data.data;
+      
+      if (data.redirect_url) {
+        showToast('Đang chuyển đến cổng thanh toán...', 'success');
+        setTimeout(() => { window.location.href = data.redirect_url; }, 500);
+        return;
+      }
+
+      // Bank transfer → show QR
+      depositResult.value = data;
     }
   } catch (e) {
-    showToast(e.response?.data?.message || 'Có lỗi xảy ra khi gửi yêu cầu rút tiền', 'error');
+    showToast(e.response?.data?.message || 'Lỗi khởi tạo nạp tiền', 'error');
   } finally {
-    submittingWithdraw.value = false;
+    depositLoading.value = false;
   }
 };
 
-onMounted(() => {
+const closeDepositModal = () => {
+  showDepositModal.value = false;
+  depositResult.value = null;
+  depositAmount.value = '';
+  depositMethod.value = 'bank_transfer';
   fetchSummary();
-  fetchHistory(1);
+};
+
+// ── Bank Accounts ──
+const fetchBankAccounts = async () => {
+  try {
+    const res = await walletService.getBankAccounts();
+    if (res.data?.status === 'success') {
+      bankAccounts.value = res.data.data || [];
+      // Auto-select default
+      const def = bankAccounts.value.find(b => b.is_default);
+      if (def && !selectedBankId.value) selectedBankId.value = def.id;
+    }
+  } catch (e) { console.error('Bank accounts error', e); }
+};
+
+const openAddBank = () => {
+  editingBankId.value = null;
+  bankForm.value = { bank_name: '', bank_short_name: '', bank_bin: '', account_name: '', account_number: '' };
+  showBankModal.value = true;
+};
+
+const openEditBank = (acc) => {
+  editingBankId.value = acc.id;
+  bankForm.value = {
+    bank_name: acc.bank_name,
+    bank_short_name: acc.bank_short_name || '',
+    bank_bin: acc.bank_bin || '',
+    account_name: acc.account_name,
+    account_number: acc.account_number,
+  };
+  showBankModal.value = true;
+};
+
+const saveBankAccount = async () => {
+  if (!bankForm.value.bank_name.trim()) return showToast('Nhập tên ngân hàng', 'error');
+  if (!bankForm.value.account_name.trim()) return showToast('Nhập tên chủ TK', 'error');
+  if (!bankForm.value.account_number.trim()) return showToast('Nhập số tài khoản', 'error');
+
+  bankFormLoading.value = true;
+  try {
+    if (editingBankId.value) {
+      await walletService.updateBankAccount(editingBankId.value, bankForm.value);
+      showToast('Đã cập nhật tài khoản ngân hàng', 'success');
+    } else {
+      await walletService.addBankAccount(bankForm.value);
+      showToast('Đã liên kết tài khoản ngân hàng', 'success');
+    }
+    showBankModal.value = false;
+    fetchBankAccounts();
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Lỗi lưu tài khoản', 'error');
+  } finally {
+    bankFormLoading.value = false;
+  }
+};
+
+const deleteBank = async (id) => {
+  if (!confirm('Xóa tài khoản ngân hàng này?')) return;
+  try {
+    await walletService.deleteBankAccount(id);
+    showToast('Đã xóa tài khoản', 'success');
+    if (selectedBankId.value === id) selectedBankId.value = null;
+    fetchBankAccounts();
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Lỗi xóa', 'error');
+  }
+};
+
+const setDefaultBank = async (id) => {
+  try {
+    await walletService.setDefaultBankAccount(id);
+    fetchBankAccounts();
+  } catch (e) { showToast('Lỗi đặt mặc định', 'error'); }
+};
+
+// ── Withdraw ──
+const selectedBank = computed(() => bankAccounts.value.find(b => b.id === selectedBankId.value));
+
+const submitWithdraw = async () => {
+  const amount = parseInt(withdrawAmount.value);
+  if (!amount || amount < 10000) {
+    showToast('Số tiền rút tối thiểu 10,000₫', 'error');
+    return;
+  }
+  if (!selectedBank.value) {
+    showToast('Vui lòng chọn tài khoản ngân hàng', 'error');
+    return;
+  }
+
+  withdrawLoading.value = true;
+  try {
+    const res = await walletService.withdraw({
+      amount,
+      bank_name: selectedBank.value.bank_name,
+      bank_account_name: selectedBank.value.account_name,
+      bank_account_number: selectedBank.value.account_number,
+    });
+    if (res.data?.status === 'success') {
+      withdrawResult.value = res.data.data;
+      showToast('Rút tiền thành công! Số dư đã được trừ.', 'success');
+      fetchSummary();
+      fetchHistory();
+    }
+  } catch (e) {
+    showToast(e.response?.data?.message || 'Lỗi rút tiền', 'error');
+  } finally {
+    withdrawLoading.value = false;
+  }
+};
+
+const closeWithdrawModal = () => {
+  showWithdrawModal.value = false;
+  withdrawResult.value = null;
+  withdrawAmount.value = '';
+};
+
+const getTypeLabel = (type) => {
+  const map = {
+    deposit: 'Nạp tiền',
+    commission: 'Hoa hồng',
+    refund: 'Hoàn tiền',
+    order_discount: 'Giảm giá đơn',
+    withdrawal: 'Rút tiền',
+    loyalty_convert: 'Đổi điểm',
+    promo_credit: 'Khuyến mãi',
+    adjustment: 'Điều chỉnh',
+    booking_payment: 'Thanh toán sân',
+  };
+  return map[type] || type;
+};
+
+const getTypeColor = (type) => {
+  const map = {
+    deposit: '#10b981',
+    commission: '#8b5cf6',
+    refund: '#0ea5e9',
+    order_discount: '#ef4444',
+    withdrawal: '#f97316',
+    adjustment: '#f59e0b',
+  };
+  return map[type] || '#6b7280';
+};
+
+onMounted(async () => {
+  await Promise.all([fetchSummary(), fetchHistory(), fetchBankAccounts()]);
+  loading.value = false;
 });
 </script>
 
 <template>
-  <div class="wallet-container">
-    <div class="wallet-header-row animate-in">
-      <div>
-        <h1 class="wallet-page-title">Ví Tiền Của Tôi</h1>
-        <p class="wallet-page-subtitle">Quản lý số dư, tiền hoa hồng Affiliate, rút tiền mặt và thanh toán đơn hàng.</p>
-      </div>
-      <div v-if="!summary.is_affiliate" class="affiliate-banner-mini">
-        <span>Kiếm tiền thụ động cùng Ocean Sport?</span>
-        <router-link to="/profile/affiliate" class="btn-join-aff">Kích hoạt Affiliate</router-link>
-      </div>
+  <div class="wallet-page">
+    <!-- Loading -->
+    <div v-if="loading" class="wallet-loading">
+      <div class="wallet-spinner"></div>
+      <p>Đang tải thông tin ví...</p>
     </div>
 
-    <!-- ─── CARDS SUMMARY ──────────────────────────────────────────────── -->
-    <div class="wallet-cards-grid animate-in" style="animation-delay: 0.1s">
-      <!-- MAIN WALLET CREDIT CARD -->
-      <div class="wallet-card-main glassmorphism">
-        <div class="card-chip-row">
-          <div class="card-chip"></div>
-          <span class="card-logo">OCEAN PAY</span>
-        </div>
-        <div class="card-balance-block">
-          <span class="card-balance-label">Số dư khả dụng</span>
-          <h2 class="card-balance-val">{{ formatMoney(availableBalance) }}</h2>
-        </div>
-        <div class="card-footer-info">
-          <div class="cf-item">
-            <span class="cf-label">Chủ ví</span>
-            <span class="cf-value">{{ $parent?.userName || 'Khách hàng' }}</span>
+    <template v-else>
+      <!-- ═══ BALANCE CARDS ═══ -->
+      <div class="wallet-balance-section">
+        <div class="balance-main-card">
+          <div class="balance-main-header">
+            <div class="balance-icon-circle">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M16 12h.01"/><path d="M2 10h20"/>
+              </svg>
+            </div>
+            <div>
+              <p class="balance-label">Tổng số dư ví</p>
+              <h2 class="balance-amount">{{ formatPrice(totalBalance) }}</h2>
+            </div>
           </div>
-          <div class="cf-item">
-            <span class="cf-label">Loại ví</span>
-            <span class="cf-value">Electronic Wallet</span>
-          </div>
-        </div>
-        <div class="card-glow"></div>
-      </div>
-
-      <!-- EARNINGS STAT CARD -->
-      <div class="stat-card stat-earnings block-border">
-        <div class="stat-card-icon bg-green-light">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
-            <line x1="12" y1="1" x2="12" y2="23"></line>
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-          </svg>
-        </div>
-        <div class="stat-card-content">
-          <span class="stat-label">Tổng hoa hồng Affiliate đã nhận</span>
-          <h3 class="stat-value text-green">{{ formatMoney(summary.affiliate_earnings) }}</h3>
-          <p class="stat-desc">Tự động cộng khi bạn bè mua hàng thành công</p>
-        </div>
-      </div>
-
-      <!-- WITHDRAWN STAT CARD -->
-      <div class="stat-card stat-withdrawn block-border">
-        <div class="stat-card-icon bg-blue-light">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-          </svg>
-        </div>
-        <div class="stat-card-content">
-          <span class="stat-label">Đã rút / Đang rút</span>
-          <h3 class="stat-value text-blue">
-            {{ formatMoney(summary.withdrawn_amount) }}
-            <span v-if="summary.pending_withdrawals > 0" class="pending-amount-text">
-              (+{{ formatMoney(summary.pending_withdrawals) }} đang xử lý)
-            </span>
-          </h3>
-          <p class="stat-desc">Tiền mặt đã rút về tài khoản ngân hàng</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- ─── TABS NAVIGATION ────────────────────────────────────────────── -->
-    <div class="wallet-tabs-wrapper animate-in" style="animation-delay: 0.2s">
-      <div class="wallet-tabs">
-        <button
-          class="wallet-tab-btn"
-          :class="{ 'active': activeTab === 'withdraw' }"
-          @click="activeTab = 'withdraw'"
-        >
-          💸 Rút tiền mặt
-        </button>
-        <button
-          class="wallet-tab-btn"
-          :class="{ 'active': activeTab === 'history' }"
-          @click="activeTab = 'history'"
-        >
-          📜 Lịch sử giao dịch
-        </button>
-        <button
-          class="wallet-tab-btn"
-          :class="{ 'active': activeTab === 'guide' }"
-          @click="activeTab = 'guide'"
-        >
-          💡 Hướng dẫn sử dụng
-        </button>
-      </div>
-
-      <!-- ─── TAB CONTENT: WITHDRAWAL FORM ────────────────────────────── -->
-      <div v-if="activeTab === 'withdraw'" class="tab-content withdraw-tab block-border">
-        <div class="withdraw-section-split">
-          <form @submit.prevent="handleWithdraw" class="withdraw-form">
-            <h3 class="section-form-title">Yêu Cầu Rút Tiền Về Ngân Hàng / VNPay</h3>
-            
-            <div class="form-group">
-              <label class="form-label">Chọn phương thức rút tiền</label>
-              <div class="method-radio-group">
-                <label class="method-radio-card" :class="{ 'selected': withdrawForm.withdrawal_method === 'bank' }">
-                  <input type="radio" v-model="withdrawForm.withdrawal_method" value="bank" class="hidden-radio" />
-                  <span class="method-icon">🏦</span>
-                  <span class="method-label">Chuyển khoản Ngân hàng</span>
-                </label>
-                <label class="method-radio-card" :class="{ 'selected': withdrawForm.withdrawal_method === 'vnpay' }">
-                  <input type="radio" v-model="withdrawForm.withdrawal_method" value="vnpay" class="hidden-radio" />
-                  <span class="method-icon">📱</span>
-                  <span class="method-label">Rút nhanh về VNPay</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Số tiền cần rút (VND)</label>
-              <div class="amount-input-wrapper">
-                <input
-                  v-model.number="withdrawForm.amount"
-                  type="number"
-                  class="form-input amount-input"
-                  placeholder="Nhập số tiền muốn rút..."
-                  required
-                />
-                <span class="currency-tag">VND</span>
-              </div>
-              <p class="amount-helper-text">Số dư khả dụng: <strong>{{ formatMoney(availableBalance) }}</strong>. Tối thiểu rút: 100.000đ.</p>
-            </div>
-
-            <!-- Conditional fields for Bank -->
-            <div v-if="withdrawForm.withdrawal_method === 'bank'" class="bank-details-block animate-in">
-              <div class="form-group">
-                <label class="form-label">Tên ngân hàng</label>
-                <input
-                  v-model="withdrawForm.bank_name"
-                  type="text"
-                  class="form-input"
-                  placeholder="Ví dụ: Vietcombank, Techcombank, BIDV..."
-                />
-              </div>
-
-              <div class="form-group-row">
-                <div class="form-group">
-                  <label class="form-label">Tên chủ tài khoản</label>
-                  <input
-                    v-model="withdrawForm.bank_account_name"
-                    type="text"
-                    class="form-input text-uppercase"
-                    placeholder="Ví dụ: NGUYEN VAN A"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Số tài khoản ngân hàng</label>
-                  <input
-                    v-model="withdrawForm.bank_account_number"
-                    type="text"
-                    class="form-input"
-                    placeholder="Nhập số tài khoản ngân hàng..."
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Informative fields for VNPay -->
-            <div v-else class="vnpay-details-block animate-in">
-              <div class="vnpay-alert-info">
-                💡 Hệ thống sẽ tự động chuyển khoản về số điện thoại đăng ký tài khoản của bạn: <strong>{{ $parent?.userPhone || 'Đang xác thực' }}</strong> liên kết với Ví VNPay. Hãy chắc chắn số điện thoại này đã kích hoạt tài khoản ví VNPay.
-              </div>
-            </div>
-
-            <button type="submit" class="btn-submit-withdraw btn-brown-gradient" :disabled="submittingWithdraw">
-              <span v-if="submittingWithdraw" class="spinner-inline"></span>
-              <span v-else>Xác Nhận Rút Tiền</span>
+          <div class="balance-actions">
+            <button class="btn-deposit" @click="showDepositModal = true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Nạp tiền
             </button>
-          </form>
+            <button class="btn-withdraw" @click="showWithdrawModal = true" :disabled="!summary?.deposit_balance || summary.deposit_balance < 11000">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 19V5"/><polyline points="5 12 12 5 19 12"/>
+              </svg>
+              Rút tiền
+            </button>
+          </div>
+        </div>
 
-          <div class="withdraw-notes-panel">
-            <h4 class="notes-title">⚠️ Quy định rút tiền:</h4>
-            <ul class="notes-list">
-              <li>Mỗi yêu cầu rút tiền tối thiểu là <strong>100.000đ</strong>.</li>
-              <li>Hệ thống chỉ cho phép duy nhất <strong>01 yêu cầu đang chờ duyệt</strong> tại một thời điểm. Bạn không thể tạo yêu cầu tiếp theo nếu yêu cầu trước chưa được xử lý.</li>
-              <li>Sau khi gửi yêu cầu, số tiền tương ứng sẽ tạm thời bị trừ khỏi Số dư khả dụng của bạn để chờ duyệt.</li>
-              <li>Nếu Admin từ chối yêu cầu, số tiền sẽ được hoàn trả lại ngay lập tức vào Ví của bạn.</li>
-              <li>Thời gian xử lý chuyển khoản: từ 1-3 ngày làm việc.</li>
-            </ul>
+        <div class="balance-detail-cards">
+          <div class="balance-card balance-card--deposit">
+            <div class="bc-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+              </svg>
+            </div>
+            <div class="bc-info">
+              <span class="bc-label">Số dư nạp</span>
+              <span class="bc-amount">{{ formatPrice(summary?.deposit_balance) }}</span>
+              <span class="bc-note">Dùng không giới hạn</span>
+            </div>
+          </div>
+
+          <div class="balance-card balance-card--commission">
+            <div class="bc-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </div>
+            <div class="bc-info">
+              <span class="bc-label">Hoa hồng Affiliate</span>
+              <span class="bc-amount">{{ formatPrice(summary?.commission_balance) }}</span>
+              <span class="bc-note">Max {{ formatPrice(summary?.max_commission_per_order) }}/đơn (10%)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="wallet-stats">
+          <div class="stat-item">
+            <span class="stat-label">Tháng này nhận</span>
+            <span class="stat-value stat-value--green">+{{ formatPrice(summary?.this_month_earned) }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Tháng này dùng</span>
+            <span class="stat-value stat-value--red">-{{ formatPrice(summary?.this_month_used) }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Tổng đã nạp</span>
+            <span class="stat-value">{{ formatPrice(summary?.total_deposited) }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Tổng đã dùng</span>
+            <span class="stat-value">{{ formatPrice(summary?.total_used) }}</span>
           </div>
         </div>
       </div>
 
-      <!-- ─── TAB CONTENT: TRANSACTION HISTORY ─────────────────────────── -->
-      <div v-if="activeTab === 'history'" class="tab-content history-tab block-border">
-        <h3 class="section-form-title">Lịch Sử Biến Động Số Dư Ví</h3>
-        
+      <!-- ═══ BANK ACCOUNTS SECTION ═══ -->
+      <div class="bank-accounts-section">
+        <div class="ba-header">
+          <h3>Tài khoản ngân hàng liên kết</h3>
+          <button class="btn-add-bank" @click="openAddBank" :disabled="bankAccounts.length >= 3">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm TK
+          </button>
+        </div>
+        <div v-if="bankAccounts.length === 0" class="ba-empty">
+          <p>Chưa liên kết tài khoản ngân hàng nào.</p>
+          <button class="btn-add-bank-lg" @click="openAddBank">+ Liên kết ngân hàng</button>
+        </div>
+        <div v-else class="ba-list">
+          <div v-for="acc in bankAccounts" :key="acc.id" class="ba-item" :class="{ 'ba-default': acc.is_default }">
+            <div class="ba-icon">🏦</div>
+            <div class="ba-info">
+              <span class="ba-bank-name">{{ acc.bank_name }}
+                <span v-if="acc.is_default" class="ba-badge">Mặc định</span>
+              </span>
+              <span class="ba-acc-name">{{ acc.account_name }}</span>
+              <span class="ba-acc-num">{{ acc.account_number }}</span>
+            </div>
+            <div class="ba-actions">
+              <button v-if="!acc.is_default" class="ba-btn" title="Đặt mặc định" @click="setDefaultBank(acc.id)">⭐</button>
+              <button class="ba-btn" title="Sửa" @click="openEditBank(acc)">✏️</button>
+              <button class="ba-btn ba-btn-del" title="Xóa" @click="deleteBank(acc.id)">🗑️</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ TRANSACTION HISTORY ═══ -->
+      <div class="wallet-history-section">
+        <div class="history-header">
+          <h3>Lịch sử giao dịch</h3>
+          <div class="history-filters">
+            <button v-for="f in [
+              { key: 'all', label: 'Tất cả' },
+              { key: 'deposit', label: 'Nạp tiền' },
+              { key: 'commission', label: 'Hoa hồng' },
+              { key: 'order_discount', label: 'Giảm giá' },
+              { key: 'withdrawal', label: 'Rút tiền' },
+              { key: 'refund', label: 'Hoàn tiền' },
+            ]" :key="f.key"
+              class="filter-btn" :class="{ active: historyFilter === f.key }"
+              @click="historyFilter = f.key">
+              {{ f.label }}
+            </button>
+          </div>
+        </div>
+
         <div v-if="loadingHistory" class="history-loading">
-          <div class="spinner"></div>
-          <p>Đang tải lịch sử giao dịch...</p>
+          <div class="wallet-spinner small"></div>
         </div>
 
-        <div v-else-if="transactions.length === 0" class="history-empty">
-          <span class="empty-icon">📭</span>
-          <p>Chưa có giao dịch phát sinh nào từ ví này.</p>
+        <div v-else-if="history.length === 0" class="history-empty">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5">
+            <rect x="2" y="4" width="20" height="16" rx="2"/><path d="M16 12h.01"/><path d="M2 10h20"/>
+          </svg>
+          <p>Chưa có giao dịch nào</p>
         </div>
 
-        <div v-else class="history-table-wrapper">
-          <table class="history-table">
-            <thead>
-              <tr>
-                <th>Thời gian</th>
-                <th>Mã GD</th>
-                <th>Loại giao dịch</th>
-                <th>Số tiền</th>
-                <th>Trạng thái</th>
-                <th>Nội dung chi tiết</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="tx in transactions" :key="tx.id">
-                <td class="td-date">{{ formatDate(tx.created_at) }}</td>
-                <td class="td-id">#{{ tx.id }}</td>
-                <td>
-                  <span class="type-badge" :class="tx.type">
-                    {{ tx.type === 'deposit' ? 'Nạp tiền' : 
-                       tx.type === 'spend' ? 'Thanh toán' : 
-                       tx.type === 'refund' ? 'Hoàn tiền' : 
-                       tx.type === 'withdraw' ? 'Rút tiền' : 
-                       tx.type === 'commission' ? 'Hoa hồng' : tx.type }}
-                  </span>
-                </td>
-                <td class="td-amount fw-bold" :class="tx.amount > 0 ? 'text-green' : 'text-red'">
-                  {{ tx.amount > 0 ? '+' : '' }}{{ formatMoney(tx.amount) }}
-                </td>
-                <td>
-                  <span class="status-badge" :class="tx.status">
-                    {{ tx.status === 'completed' ? 'Thành công' : 
-                       tx.status === 'pending' ? 'Đang xử lý' : 
-                       tx.status === 'cancelled' ? 'Đã hủy' : tx.status }}
-                  </span>
-                </td>
-                <td class="td-desc">{{ tx.description }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-else class="history-list">
+          <div v-for="tx in history" :key="tx.id" class="history-item">
+            <div class="hi-icon" :style="{ background: getTypeColor(tx.type) + '15', color: getTypeColor(tx.type) }">
+              <span>{{ tx.type_icon || '💰' }}</span>
+            </div>
+            <div class="hi-info">
+              <span class="hi-label">{{ tx.type_label || getTypeLabel(tx.type) }}</span>
+              <span class="hi-desc" v-if="tx.description">{{ tx.description }}</span>
+              <span class="hi-date">{{ new Date(tx.created_at).toLocaleString('vi-VN') }}</span>
+            </div>
+            <div class="hi-amount" :class="tx.direction === 'credit' ? 'credit' : 'debit'">
+              {{ tx.direction === 'credit' ? '+' : '-' }}{{ formatPrice(tx.amount) }}
+            </div>
+          </div>
+        </div>
 
-          <!-- Pagination -->
-          <div v-if="pagination.last_page > 1" class="history-pagination">
-            <button 
-              class="page-nav-btn" 
-              :disabled="pagination.current_page === 1" 
-              @click="changePage(pagination.current_page - 1)"
-            >
-              &laquo; Trước
+        <!-- Pagination -->
+        <div v-if="historyPagination && historyPagination.last_page > 1" class="history-pagination">
+          <button :disabled="historyPagination.current_page <= 1" @click="goToPage(historyPagination.current_page - 1)">‹</button>
+          <span class="page-info">{{ historyPagination.current_page }} / {{ historyPagination.last_page }}</span>
+          <button :disabled="historyPagination.current_page >= historyPagination.last_page" @click="goToPage(historyPagination.current_page + 1)">›</button>
+        </div>
+      </div>
+    </template>
+
+    <!-- ═══ DEPOSIT MODAL ═══ -->
+    <Teleport to="body">
+      <div v-if="showDepositModal" class="deposit-overlay" @click.self="closeDepositModal">
+        <div class="deposit-modal">
+          <!-- Step 1: Nhập số tiền -->
+          <template v-if="!depositResult">
+            <div class="dm-header">
+              <h3>Nạp tiền vào ví</h3>
+              <button class="dm-close" @click="closeDepositModal">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="dm-body">
+              <label class="dm-label">Số tiền nạp</label>
+              <input type="number" v-model="depositAmount" class="dm-input" placeholder="Nhập số tiền (tối thiểu 10,000₫)" min="10000" />
+
+              <div class="preset-amounts">
+                <button v-for="amt in presetAmounts" :key="amt"
+                  class="preset-btn" :class="{ active: depositAmount == amt }"
+                  @click="selectPreset(amt)">
+                  {{ (amt / 1000) + 'K' }}
+                </button>
+              </div>
+
+              <label class="dm-label mt-16">Phương thức thanh toán</label>
+              <div class="deposit-methods">
+                <label class="dep-method" :class="{ active: depositMethod === 'bank_transfer' }">
+                  <input type="radio" v-model="depositMethod" value="bank_transfer" />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="21" width="20" height="2"/><polygon points="12 2 2 7 22 7 12 2"/><path d="M5 21V9"/><path d="M19 21V9"/><path d="M12 21V9"/>
+                  </svg>
+                  <span>Chuyển khoản</span>
+                </label>
+                <label class="dep-method" :class="{ active: depositMethod === 'vnpay' }">
+                  <input type="radio" v-model="depositMethod" value="vnpay" />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                  </svg>
+                  <span>VNPay</span>
+                </label>
+                <label class="dep-method" :class="{ active: depositMethod === 'momo' }">
+                  <input type="radio" v-model="depositMethod" value="momo" />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d82d8b" stroke-width="2">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                  </svg>
+                  <span>MoMo</span>
+                </label>
+              </div>
+
+              <button class="btn-confirm-deposit" @click="initDeposit" :disabled="depositLoading || !depositAmount">
+                <div v-if="depositLoading" class="wallet-spinner small white"></div>
+                <span v-else>Nạp {{ depositAmount ? formatPrice(depositAmount) : '' }}</span>
+              </button>
+            </div>
+          </template>
+
+          <!-- Step 2: QR chuyển khoản -->
+          <template v-else>
+            <div class="dm-header">
+              <h3>Chuyển khoản nạp ví</h3>
+              <button class="dm-close" @click="closeDepositModal">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div class="dm-body qr-body">
+              <img v-if="depositResult.banking_info?.qr_url" :src="depositResult.banking_info.qr_url" alt="QR" class="deposit-qr" />
+              <div class="deposit-info-rows">
+                <div class="dir-row">
+                  <span>Số tài khoản</span>
+                  <strong>{{ depositResult.banking_info?.account_number }}</strong>
+                </div>
+                <div class="dir-row">
+                  <span>Chủ TK</span>
+                  <strong>{{ depositResult.banking_info?.account_name }}</strong>
+                </div>
+                <div class="dir-row">
+                  <span>Số tiền</span>
+                  <strong class="text-green">{{ formatPrice(depositResult.banking_info?.amount) }}</strong>
+                </div>
+                <div class="dir-row">
+                  <span>Nội dung CK</span>
+                  <strong class="text-primary">{{ depositResult.deposit_code }}</strong>
+                </div>
+              </div>
+              <div class="deposit-note">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <span>Nhập đúng <strong>nội dung chuyển khoản</strong> để hệ thống tự động nạp ví!</span>
+              </div>
+              <button class="btn-confirm-deposit" @click="closeDepositModal">Tôi đã chuyển khoản xong</button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ═══ WITHDRAW MODAL ═══ -->
+    <Teleport to="body">
+      <div v-if="showWithdrawModal" class="deposit-overlay" @click.self="closeWithdrawModal">
+        <div class="deposit-modal">
+          <template v-if="!withdrawResult">
+            <div class="dm-header">
+              <h3>Rút tiền về ngân hàng</h3>
+              <button class="dm-close" @click="closeWithdrawModal">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div class="dm-body">
+              <div class="withdraw-balance-info">
+                <span>Số dư nạp khả dụng:</span>
+                <strong>{{ formatPrice(summary?.deposit_balance) }}</strong>
+              </div>
+
+              <label class="dm-label">Số tiền rút</label>
+              <input type="number" v-model="withdrawAmount" class="dm-input" placeholder="Tối thiểu 10,000₫" min="10000" />
+              <p class="withdraw-fee-note">Phí rút: <strong>1,000₫</strong>/lần · Thực nhận: <strong>{{ withdrawAmount ? formatPrice(Math.max(0, withdrawAmount)) : '—' }}</strong></p>
+
+              <!-- Chọn TK ngân hàng -->
+              <label class="dm-label mt-16">Tài khoản nhận tiền</label>
+              <div v-if="bankAccounts.length === 0" class="withdraw-no-bank">
+                <p>Chưa liên kết tài khoản ngân hàng.</p>
+                <button class="btn-link-bank" @click="closeWithdrawModal(); openAddBank();">+ Liên kết ngay</button>
+              </div>
+              <div v-else class="withdraw-bank-list">
+                <label v-for="acc in bankAccounts" :key="acc.id"
+                  class="withdraw-bank-option" :class="{ active: selectedBankId === acc.id }">
+                  <input type="radio" :value="acc.id" v-model="selectedBankId" />
+                  <div class="wbo-info">
+                    <span class="wbo-name">{{ acc.bank_name }}
+                      <span v-if="acc.is_default" class="ba-badge">Mặc định</span>
+                    </span>
+                    <span class="wbo-detail">{{ acc.account_name }} · {{ acc.account_number }}</span>
+                  </div>
+                  <svg v-if="selectedBankId === acc.id" class="wbo-check" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
+                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                </label>
+              </div>
+
+              <button class="btn-confirm-deposit btn-withdraw-confirm" @click="submitWithdraw"
+                :disabled="withdrawLoading || !withdrawAmount || !selectedBankId">
+                <div v-if="withdrawLoading" class="wallet-spinner small white"></div>
+                <span v-else>Rút {{ withdrawAmount ? formatPrice(withdrawAmount) : '' }}</span>
+              </button>
+            </div>
+          </template>
+
+          <!-- Kết quả -->
+          <template v-else>
+            <div class="dm-header">
+              <h3>Rút tiền thành công</h3>
+              <button class="dm-close" @click="closeWithdrawModal">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div class="dm-body qr-body">
+              <div class="withdraw-success-icon">✅</div>
+              <h4 class="withdraw-success-title">Đã trừ số dư ví</h4>
+              <div class="deposit-info-rows">
+                <div class="dir-row"><span>Mã rút tiền</span><strong class="text-primary">{{ withdrawResult.withdrawal_code }}</strong></div>
+                <div class="dir-row"><span>Số tiền rút</span><strong>{{ formatPrice(withdrawResult.amount) }}</strong></div>
+                <div class="dir-row"><span>Phí rút</span><strong>{{ formatPrice(withdrawResult.fee) }}</strong></div>
+                <div class="dir-row"><span>Tổng trừ ví</span><strong class="text-red">{{ formatPrice(withdrawResult.total_deducted) }}</strong></div>
+                <div class="dir-row"><span>Số dư mới</span><strong class="text-green">{{ formatPrice(withdrawResult.new_balance) }}</strong></div>
+              </div>
+              <div class="deposit-note">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <span>Tiền sẽ được chuyển về tài khoản ngân hàng của bạn trong thời gian sớm nhất.</span>
+              </div>
+              <button class="btn-confirm-deposit" @click="closeWithdrawModal">Đóng</button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ═══ BANK ACCOUNT MODAL (Add/Edit) ═══ -->
+    <Teleport to="body">
+      <div v-if="showBankModal" class="deposit-overlay" @click.self="showBankModal = false">
+        <div class="deposit-modal">
+          <div class="dm-header">
+            <h3>{{ editingBankId ? 'Sửa tài khoản' : 'Liên kết ngân hàng' }}</h3>
+            <button class="dm-close" @click="showBankModal = false">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
             </button>
-            <span class="page-indicator">Trang {{ pagination.current_page }} / {{ pagination.last_page }}</span>
-            <button 
-              class="page-nav-btn" 
-              :disabled="pagination.current_page === pagination.last_page" 
-              @click="changePage(pagination.current_page + 1)"
-            >
-              Sau &raquo;
+          </div>
+          <div class="dm-body">
+            <label class="dm-label">Tên ngân hàng *</label>
+            <input type="text" v-model="bankForm.bank_name" class="dm-input" placeholder="VD: MB Bank, Vietcombank..." />
+
+            <label class="dm-label mt-16">Tên chủ tài khoản *</label>
+            <input type="text" v-model="bankForm.account_name" class="dm-input" placeholder="VD: NGUYEN VAN A" />
+
+            <label class="dm-label mt-16">Số tài khoản *</label>
+            <input type="text" v-model="bankForm.account_number" class="dm-input" placeholder="VD: 1234567890" />
+
+            <button class="btn-confirm-deposit" @click="saveBankAccount" :disabled="bankFormLoading">
+              <div v-if="bankFormLoading" class="wallet-spinner small white"></div>
+              <span v-else>{{ editingBankId ? 'Cập nhật' : 'Liên kết' }}</span>
             </button>
           </div>
         </div>
       </div>
-
-      <!-- ─── TAB CONTENT: USER GUIDE ─────────────────────────────────── -->
-      <div v-if="activeTab === 'guide'" class="tab-content guide-tab block-border">
-        <h3 class="section-form-title">Giải Đáp & Hướng Dẫn Sử Dụng Ví Tiền</h3>
-        <div class="guide-grid">
-          <div class="guide-card">
-            <h5>1. Làm sao để kiếm tiền vào ví?</h5>
-            <p>Hệ thống có chính sách Affiliate (Tiếp thị liên kết). Bạn chỉ cần kích hoạt tài khoản Affiliate, chia sẻ link giới thiệu sản phẩm. Khi bạn bè click vào link và mua hàng thành công, bạn sẽ nhận được <strong>5% hoa hồng</strong> trên tổng giá trị đơn hàng cộng trực tiếp vào ví.</p>
-          </div>
-          <div class="guide-card">
-            <h5>2. Làm sao dùng ví để thanh toán đơn hàng?</h5>
-            <p>Tại trang thanh toán khi mua sắm, bên cạnh các phương thức như COD, VNPay, Chuyển khoản, bạn có thể chọn <strong>Ví Tiền (Ocean Pay)</strong>. Hệ thống sẽ tự động trừ toàn bộ số tiền đơn hàng từ số dư ví nếu số dư của bạn đủ dùng.</p>
-          </div>
-          <div class="guide-card">
-            <h5>3. Tiền thanh toán đơn hàng bằng ví có được hoàn khi huỷ đơn?</h5>
-            <p><strong>Có!</strong> Khi bạn hủy đơn hàng hoặc yêu cầu trả hàng/hoàn tiền được duyệt, số tiền bạn đã thanh toán bằng ví sẽ được hoàn trả lại ví của bạn ngay lập tức dưới giao dịch "Hoàn tiền".</p>
-          </div>
-          <div class="guide-card">
-            <h5>4. Rút tiền từ ví về tài khoản ngân hàng mất bao lâu?</h5>
-            <p>Khi bạn gửi yêu cầu rút tiền mặt, Admin sẽ kiểm tra và thực hiện chuyển khoản trong vòng <strong>24h đến 72h làm việc</strong> (trừ Thứ 7 & Chủ Nhật). Trạng thái giao dịch sẽ cập nhật từ Đang xử lý thành Thành công sau khi chuyển khoản hoàn tất.</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
-/* ─── CONTAINER & GENERAL ────────────────────────────────────────── */
-.wallet-container {
-  padding: 8px 0;
-  color: #333;
+.wallet-page {
+  font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
 }
 
-.wallet-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 24px;
+/* Loading */
+.wallet-loading {
+  text-align: center;
+  padding: 80px 0;
+  color: #9ca3af;
 }
-
-.wallet-page-title {
-  font-size: 26px;
-  font-weight: 700;
-  color: #3e2723;
-  margin: 0 0 6px 0;
+.wallet-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid #e5e7eb;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: wspin 0.7s linear infinite;
+  margin: 0 auto 12px;
 }
+.wallet-spinner.small { width: 20px; height: 20px; border-width: 2px; margin: 0; display: inline-block; }
+.wallet-spinner.white { border-color: rgba(255,255,255,.3); border-top-color: #fff; }
+@keyframes wspin { 100% { transform: rotate(360deg); } }
 
-.wallet-page-subtitle {
-  font-size: 14px;
-  color: #777;
-  margin: 0;
+/* ═══ BALANCE SECTION ═══ */
+.wallet-balance-section {
+  margin-bottom: 28px;
 }
-
-.affiliate-banner-mini {
-  background: #efebe9;
-  border: 1px dashed #8d6e63;
-  border-radius: 8px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-  color: #5d4037;
-}
-
-.btn-join-aff {
-  background: #8d6e63;
+.balance-main-card {
+  background: linear-gradient(135deg, var(--primary) 0%, #c02758 100%);
+  border-radius: 20px;
+  padding: 28px 24px;
   color: #fff;
-  border-radius: 4px;
-  padding: 6px 12px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 32px rgba(230, 59, 111, 0.25);
 }
-
-.btn-join-aff:hover {
-  background: #5d4037;
-}
-
-/* ─── SUMMARY CARDS ──────────────────────────────────────────────── */
-.wallet-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
-  margin-bottom: 30px;
-}
-
-.wallet-card-main {
-  background: linear-gradient(135deg, #4e342e 0%, #1a0c0a 100%);
+.balance-main-header { display: flex; align-items: center; gap: 16px; }
+.balance-icon-circle {
+  width: 56px; height: 56px;
+  background: rgba(255,255,255,0.15);
   border-radius: 16px;
-  padding: 24px;
-  min-height: 190px;
-  position: relative;
-  overflow: hidden;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(10px);
 }
-
-.card-chip-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-chip {
-  width: 42px;
-  height: 30px;
-  background: linear-gradient(135deg, #d4af37 0%, #b8972e 100%);
-  border-radius: 4px;
-}
-
-.card-logo {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.card-balance-block {
-  margin: 16px 0;
-}
-
-.card-balance-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.card-balance-val {
-  font-size: 28px;
-  font-weight: 700;
-  margin: 4px 0 0 0;
-  letter-spacing: 0.5px;
-}
-
-.card-footer-info {
-  display: flex;
-  justify-content: space-between;
-}
-
-.cf-item {
-  display: flex;
-  flex-direction: column;
-}
-
-.cf-label {
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.5);
-  text-transform: uppercase;
-}
-
-.cf-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.card-glow {
-  position: absolute;
-  top: -50%;
-  right: -30%;
-  width: 180px;
-  height: 180px;
-  background: radial-gradient(circle, rgba(141, 110, 99, 0.4) 0%, rgba(255,255,255,0) 70%);
-  pointer-events: none;
-}
-
-.stat-card {
-  background: #fff;
+.balance-label { font-size: 0.85rem; opacity: 0.85; margin: 0; }
+.balance-amount { font-size: 1.8rem; font-weight: 800; margin: 4px 0 0; letter-spacing: -0.5px; }
+.btn-deposit {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 24px;
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.3);
   border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+.btn-deposit:hover {
+  background: rgba(255,255,255,0.3);
+  transform: translateY(-1px);
 }
 
-.stat-card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.balance-detail-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.balance-card {
+  background: var(--card-bg);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.bc-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
+.balance-card--deposit .bc-icon { background: #ecfdf5; color: #10b981; }
+.balance-card--commission .bc-icon { background: #f5f3ff; color: #8b5cf6; }
+.bc-info { display: flex; flex-direction: column; min-width: 0; }
+.bc-label { font-size: 0.8rem; color: #6b7280; font-weight: 500; }
+.bc-amount { font-size: 1.2rem; font-weight: 700; color: #1f2937; margin: 4px 0 2px; }
+.bc-note { font-size: 0.75rem; color: #9ca3af; }
 
-.bg-green-light { background: #f0fdf4; }
-.bg-blue-light { background: #eff6ff; }
-
-.stat-card-content {
-  display: flex;
-  flex-direction: column;
+/* Stats */
+.wallet-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  background: var(--card-bg);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 16px 20px;
 }
+.stat-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.stat-label { font-size: 0.75rem; color: #9ca3af; margin-bottom: 4px; }
+.stat-value { font-size: 0.9rem; font-weight: 700; color: #374151; }
+.stat-value--green { color: #10b981; }
+.stat-value--red { color: #ef4444; }
 
-.stat-label {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 4px;
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  margin: 0 0 4px 0;
-}
-
-.text-green { color: #16a34a; }
-.text-blue { color: #2563eb; }
-
-.pending-amount-text {
-  font-size: 12px;
-  font-weight: 500;
-  color: #7c2d12;
-  display: block;
-}
-
-.stat-desc {
-  font-size: 11px;
-  color: #999;
-  margin: 0;
-}
-
-/* ─── TABS NAVIGATION ────────────────────────────────────────────── */
-.wallet-tabs {
-  display: flex;
-  border-bottom: 2px solid #efebe9;
-  gap: 16px;
+/* ═══ BANK ACCOUNTS SECTION ═══ */
+.bank-accounts-section {
+  background: var(--card-bg);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  overflow: hidden;
   margin-bottom: 20px;
 }
-
-.wallet-tab-btn {
-  background: none;
-  border: none;
-  outline: none;
-  padding: 10px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #777;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.ba-header {
+  padding: 20px 24px 16px;
+  display: flex; justify-content: space-between; align-items: center;
 }
-
-.wallet-tab-btn:hover {
-  color: #8d6e63;
+.ba-header h3 { font-size: 1.1rem; font-weight: 700; color: #1f2937; margin: 0; }
+.btn-add-bank {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  background: var(--card-bg); border: 1.5px solid var(--primary);
+  border-radius: 10px; color: var(--primary);
+  font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
 }
-
-.wallet-tab-btn.active {
-  color: #5d4037;
-  border-bottom-color: #5d4037;
+.btn-add-bank:hover:not(:disabled) { background: #fff0f3; }
+.btn-add-bank:disabled { opacity: 0.4; cursor: not-allowed; }
+.ba-empty {
+  padding: 32px 24px; text-align: center; color: #9ca3af;
 }
-
-.tab-content {
-  background: #fff;
+.btn-add-bank-lg {
+  margin-top: 12px; padding: 10px 24px;
+  background: var(--primary); color: #fff;
+  border: none; border-radius: 10px;
+  font-weight: 600; cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-add-bank-lg:hover { background: #d1345f; }
+.ba-list { padding: 0 24px 16px; }
+.ba-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  border: 1.5px solid #e5e7eb;
   border-radius: 12px;
-  padding: 24px;
-  min-height: 300px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
+  margin-bottom: 8px;
+  transition: all 0.2s;
 }
-
-/* ─── WITHDRAW FORM & LAYOUT ────────────────────────────────────── */
-.withdraw-section-split {
-  display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: 30px;
+.ba-item:last-child { margin-bottom: 0; }
+.ba-default { border-color: var(--primary); background: #fff8fa; }
+.ba-icon { font-size: 1.5rem; flex-shrink: 0; }
+.ba-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ba-bank-name { font-size: 0.9rem; font-weight: 600; color: #1f2937; display: flex; align-items: center; gap: 8px; }
+.ba-badge {
+  display: inline-block; padding: 2px 8px;
+  background: var(--primary); color: #fff;
+  border-radius: 6px; font-size: 0.65rem; font-weight: 700;
 }
-
-@media (max-width: 768px) {
-  .withdraw-section-split {
-    grid-template-columns: 1fr;
-  }
+.ba-acc-name { font-size: 0.82rem; color: #6b7280; }
+.ba-acc-num { font-size: 0.78rem; color: #9ca3af; font-family: monospace; }
+.ba-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.ba-btn {
+  width: 32px; height: 32px;
+  border: none; background: #f3f4f6;
+  border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; transition: background 0.2s;
 }
+.ba-btn:hover { background: #e5e7eb; }
+.ba-btn-del:hover { background: #fee2e2; }
 
-.section-form-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #3e2723;
-  margin: 0 0 20px 0;
-  border-left: 4px solid #8d6e63;
-  padding-left: 10px;
+/* Withdraw bank selector */
+.withdraw-no-bank {
+  text-align: center; padding: 16px;
+  background: #f9fafb; border: 1px dashed #d1d5db;
+  border-radius: 10px; color: #6b7280; font-size: 0.88rem;
 }
-
-.form-group {
-  margin-bottom: 18px;
+.btn-link-bank {
+  margin-top: 8px; padding: 8px 20px;
+  background: var(--primary); color: #fff;
+  border: none; border-radius: 8px;
+  font-weight: 600; font-size: 0.85rem;
+  cursor: pointer;
 }
-
-.form-group-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.btn-link-bank:hover { background: #d1345f; }
+.withdraw-bank-list { display: flex; flex-direction: column; gap: 8px; }
+.withdraw-bank-option {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer; transition: all 0.2s;
 }
+.withdraw-bank-option input { display: none; }
+.withdraw-bank-option:hover { border-color: #f97316; }
+.withdraw-bank-option.active { border-color: #f97316; background: #fff7ed; }
+.wbo-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.wbo-name { font-size: 0.9rem; font-weight: 600; color: #1f2937; display: flex; align-items: center; gap: 6px; }
+.wbo-detail { font-size: 0.8rem; color: #6b7280; }
+.wbo-check { flex-shrink: 0; }
 
-@media (max-width: 576px) {
-  .form-group-row {
-    grid-template-columns: 1fr;
-  }
+/* ═══ HISTORY SECTION ═══ */
+.wallet-history-section {
+  background: var(--card-bg);
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  overflow: hidden;
 }
-
-.form-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 6px;
-  color: #444;
+.history-header {
+  padding: 20px 24px 0;
+  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
 }
-
-.method-radio-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.method-radio-card {
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.history-header h3 { font-size: 1.1rem; font-weight: 700; color: #1f2937; margin: 0; }
+.history-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-btn {
+  padding: 6px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: var(--card-bg);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
   cursor: pointer;
   transition: all 0.2s;
 }
+.filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+.filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-.method-radio-card:hover {
-  border-color: #8d6e63;
-  background: #fdfbfb;
+.history-loading { padding: 40px; text-align: center; }
+.history-empty { padding: 60px 24px; text-align: center; color: #9ca3af; }
+.history-empty p { margin-top: 12px; }
+
+.history-list { padding: 16px 24px; }
+.history-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid #f3f4f6;
 }
-
-.method-radio-card.selected {
-  border-color: #5d4037;
-  background: #efebe9;
-  color: #5d4037;
-  font-weight: 600;
+.history-item:last-child { border-bottom: none; }
+.hi-icon {
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
 }
+.hi-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hi-label { font-size: 0.9rem; font-weight: 600; color: #1f2937; }
+.hi-desc { font-size: 0.78rem; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hi-date { font-size: 0.75rem; color: #d1d5db; }
+.hi-amount { font-size: 0.95rem; font-weight: 700; white-space: nowrap; }
+.hi-amount.credit { color: #10b981; }
+.hi-amount.debit { color: #ef4444; }
 
-.hidden-radio {
-  display: none;
+/* Pagination */
+.history-pagination {
+  padding: 16px 24px;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  border-top: 1px solid #f3f4f6;
 }
-
-.method-icon {
-  font-size: 20px;
-}
-
-.method-label {
-  font-size: 13px;
-}
-
-.amount-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.amount-input {
-  padding-right: 50px !important;
-  font-size: 16px !important;
-  font-weight: 600;
-}
-
-.currency-tag {
-  position: absolute;
-  right: 16px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #777;
-}
-
-.amount-helper-text {
-  font-size: 12px;
-  color: #888;
-  margin: 6px 0 0 0;
-}
-
-.form-input {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1.5px solid #dcd1cd;
-  border-radius: 6px;
-  outline: none;
-  font-size: 14px;
-  transition: border-color 0.2s;
-}
-
-.form-input:focus {
-  border-color: #8d6e63;
-}
-
-.text-uppercase {
-  text-transform: uppercase;
-}
-
-.vnpay-alert-info {
-  background: #eff6ff;
-  border: 1.5px solid #bfdbfe;
-  color: #1e3a8a;
-  padding: 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.btn-submit-withdraw {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  outline: none;
-  color: #fff;
-  font-weight: 600;
-  font-size: 15px;
-  border-radius: 6px;
+.history-pagination button {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: var(--card-bg);
+  font-size: 1.1rem;
   cursor: pointer;
-  transition: opacity 0.2s;
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: all 0.2s;
 }
+.history-pagination button:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.history-pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-info { font-size: 0.85rem; color: #6b7280; font-weight: 500; }
 
-.btn-submit-withdraw:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+/* ═══ DEPOSIT MODAL ═══ */
+.deposit-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
 }
-
-.btn-brown-gradient {
-  background: linear-gradient(135deg, #8d6e63 0%, #5d4037 100%);
-}
-
-.btn-brown-gradient:hover {
-  background: linear-gradient(135deg, #7b5e54 0%, #4e342e 100%);
-}
-
-.withdraw-notes-panel {
-  background: #fcfbfb;
-  border: 1px solid #e0dbda;
-  border-radius: 8px;
-  padding: 18px;
-  font-size: 12.5px;
-  color: #555;
-  height: fit-content;
-}
-
-.notes-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #5d4037;
-  margin: 0 0 10px 0;
-}
-
-.notes-list {
-  padding-left: 18px;
-  margin: 0;
-  line-height: 1.6;
-}
-
-.notes-list li {
-  margin-bottom: 8px;
-}
-
-/* ─── TRANSACTION HISTORY TAB ──────────────────────────────────── */
-.history-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 0;
-}
-
-.history-empty {
-  text-align: center;
-  padding: 40px 20px;
-  color: #999;
-}
-
-.empty-icon {
-  font-size: 40px;
-  display: block;
-  margin-bottom: 10px;
-}
-
-.history-table-wrapper {
-  overflow-x: auto;
-}
-
-.history-table {
+.deposit-modal {
+  background: var(--card-bg);
+  border-radius: 20px;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13.5px;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+.dm-header {
+  padding: 20px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid #f3f4f6;
+}
+.dm-header h3 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.dm-close {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: #f3f4f6;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.dm-close:hover { background: #e5e7eb; }
+.dm-body { padding: 24px; }
+.dm-label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 8px; }
+.mt-16 { margin-top: 16px; }
+.dm-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.dm-input:focus { border-color: var(--primary); }
+
+.preset-amounts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.preset-btn {
+  padding: 10px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  background: var(--card-bg);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #374151;
+}
+.preset-btn:hover { border-color: var(--primary); color: var(--primary); }
+.preset-btn.active { background: #fff0f3; border-color: var(--primary); color: var(--primary); }
+
+.deposit-methods { display: flex; gap: 8px; flex-wrap: wrap; }
+.dep-method {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
+  min-width: 100px;
+}
+.dep-method input { display: none; }
+.dep-method:hover { border-color: var(--primary); }
+.dep-method.active { border-color: var(--primary); background: #fff0f3; color: var(--primary); }
+
+.btn-confirm-deposit {
+  width: 100%;
+  padding: 14px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-confirm-deposit:hover:not(:disabled) { background: #d1345f; transform: translateY(-1px); }
+.btn-confirm-deposit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* QR body */
+.qr-body { text-align: center; }
+.deposit-qr { width: 220px; height: 220px; border-radius: 12px; margin-bottom: 16px; }
+.deposit-info-rows { text-align: left; margin-bottom: 16px; }
+.dir-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.88rem;
+}
+.dir-row span { color: #6b7280; }
+.dir-row strong { color: #1f2937; }
+.text-green { color: #10b981 !important; }
+.text-primary { color: var(--primary) !important; }
+.deposit-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 0.8rem;
+  color: #92400e;
   text-align: left;
 }
 
-.history-table th,
-.history-table td {
-  padding: 12px;
-  border-bottom: 1px solid #efebe9;
-}
-
-.history-table th {
-  font-weight: 700;
-  color: #5d4037;
-  background: #fbf9f9;
-}
-
-.td-date {
-  color: #666;
-  white-space: nowrap;
-}
-
-.td-id {
-  font-family: monospace;
-  font-size: 12.5px;
-  color: #888;
-}
-
-.type-badge {
-  display: inline-block;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.type-badge.deposit { background: #e0f2fe; color: #0369a1; }
-.type-badge.spend { background: #fef3c7; color: #b45309; }
-.type-badge.refund { background: #ecfdf5; color: #047857; }
-.type-badge.withdraw { background: #fee2e2; color: #b91c1c; }
-.type-badge.commission { background: #f0fdf4; color: #16a34a; }
-
-.status-badge {
-  display: inline-block;
-  padding: 3px 8px;
+/* Balance actions */
+.balance-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.btn-withdraw {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.25);
   border-radius: 12px;
-  font-size: 11px;
+  color: #fff;
   font-weight: 600;
-}
-
-.status-badge.completed { background: #d1fae5; color: #065f46; }
-.status-badge.pending { background: #fef3c7; color: #92400e; }
-.status-badge.cancelled { background: #fee2e2; color: #991b1b; }
-
-.td-desc {
-  max-width: 250px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #555;
-}
-
-.history-pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  margin-top: 24px;
-}
-
-.page-nav-btn {
-  background: #fff;
-  border: 1px solid #dcd1cd;
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 4px;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
+.btn-withdraw:hover:not(:disabled) { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
+.btn-withdraw:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.page-nav-btn:hover:not(:disabled) {
-  border-color: #8d6e63;
-  color: #8d6e63;
+/* Withdraw modal extras */
+.withdraw-balance-info {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #ecfdf5; border: 1px solid #a7f3d0;
+  border-radius: 10px; padding: 12px 16px;
+  margin-bottom: 16px; font-size: 0.88rem;
 }
-
-.page-nav-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.withdraw-balance-info strong { color: #10b981; font-size: 1rem; }
+.withdraw-fee-note {
+  font-size: 0.78rem; color: #9ca3af; margin: 6px 0 0;
 }
+.withdraw-fee-note strong { color: #374151; }
+.btn-withdraw-confirm { background: #f97316 !important; }
+.btn-withdraw-confirm:hover:not(:disabled) { background: #ea580c !important; }
+.withdraw-success-icon { font-size: 3rem; margin-bottom: 8px; }
+.withdraw-success-title { font-size: 1.1rem; font-weight: 700; color: #1f2937; margin: 0 0 16px; }
+.text-red { color: #ef4444 !important; }
 
-.page-indicator {
-  font-size: 13px;
-  color: #666;
-}
-
-/* ─── USER GUIDE TAB ────────────────────────────────────────────── */
-.guide-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-top: 10px;
-}
-
+/* Responsive */
 @media (max-width: 768px) {
-  .guide-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.guide-card {
-  background: #fdfbfb;
-  border: 1px solid #efebe9;
-  border-radius: 8px;
-  padding: 16px;
-  transition: box-shadow 0.2s;
-}
-
-.guide-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-}
-
-.guide-card h5 {
-  font-size: 14px;
-  font-weight: 700;
-  color: #5d4037;
-  margin: 0 0 8px 0;
-}
-
-.guide-card p {
-  font-size: 12.5px;
-  line-height: 1.6;
-  color: #666;
-  margin: 0;
-}
-
-/* ─── ANIMATIONS & SHADOWS ──────────────────────────────────────── */
-.block-border {
-  border: 1.5px solid #efebe9;
-}
-
-.animate-in {
-  animation: fadeInUp 0.4s ease forwards;
-  opacity: 0;
-}
-
-@keyframes fadeInUp {
-  from {
-    transform: translateY(12px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid rgba(141, 110, 99, 0.1);
-  border-radius: 50%;
-  border-top-color: #8d6e63;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 12px;
-}
-
-.spinner-inline {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  border-top-color: #fff;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+  .balance-main-card { flex-direction: column; text-align: center; }
+  .balance-main-header { flex-direction: column; }
+  .balance-actions { width: 100%; }
+  .btn-deposit, .btn-withdraw { flex: 1; justify-content: center; }
+  .balance-detail-cards { grid-template-columns: 1fr; }
+  .wallet-stats { grid-template-columns: repeat(2, 1fr); }
+  .history-header { flex-direction: column; align-items: flex-start; }
 }
 </style>

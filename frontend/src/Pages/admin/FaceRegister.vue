@@ -380,8 +380,8 @@ onUnmounted(() => { stopCamera(); });
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #f1f5f9;
-  color: #94a3b8;
+  background: var(--surface-container);
+  color: var(--text-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -502,7 +502,7 @@ onUnmounted(() => { stopCamera(); });
 }
 .registered-photo-date {
   font-size: 0.7rem;
-  color: #94a3b8;
+  color: var(--text-light);
 }
 
 /* Guide */

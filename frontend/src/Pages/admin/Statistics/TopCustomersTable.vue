@@ -161,7 +161,7 @@ const getRandomColor = (string) => {
 
 .text-right { text-align: right; }
 .text-center { text-align: center; }
-.text-ocean { color: #E63B6F; }
+.text-ocean { color: var(--primary); }
 .color-muted { color: var(--text-muted); font-size: 0.85rem; }
 
 .empty-cell {

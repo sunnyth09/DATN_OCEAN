@@ -29,6 +29,7 @@ class Product extends Model
         'rating_count',
         'view_count',
         'sold_count',
+        'weight',
         'published_at',
         'deleted_at',
     ];

@@ -57,21 +57,23 @@ Artisan::command('inspire', function () {
 Schedule::command('app:send-birthday-wishes')
     ->dailyAt('00:00')
     ->withoutOverlapping()
+    ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
 
 /**
  * ── 2. Nhắc nhở giỏ hàng bỏ quên ──
  *
- * [TEST MODE] Chạy mỗi PHÚT để test nhanh (giỏ hàng > 5 phút = bỏ quên)
- * Production: đổi lại ->hourly() và ABANDONED_MINUTES = 240
+ * Chạy mỗi giờ, quét giỏ hàng bỏ quên (xem ABANDONED_MINUTES trong command).
  *
- * ->everyMinute()           → chạy mỗi phút (TEST)
+ * ->hourly()                → chạy mỗi giờ (production)
  * ->withoutOverlapping()    → tránh chạy chồng chéo
+ * ->onOneServer()           → chỉ 1 server chạy khi scale nhiều instance
  * ->appendOutputTo(...)     → ghi log
  */
 Schedule::command('app:remind-abandoned-cart')
-    ->everyMinute()
+    ->hourly()
     ->withoutOverlapping()
+    ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
 
 /**
@@ -86,6 +88,7 @@ Schedule::command('app:remind-abandoned-cart')
 Schedule::command('app:send-order-emails')
     ->everyMinute()
     ->withoutOverlapping()
+    ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
 
 Schedule::command('court-bookings:clean-expired-locks')
@@ -112,4 +115,17 @@ Schedule::command('court-bookings:mark-no-shows --grace=15')
 Schedule::command('loyalty:expire-points')
     ->dailyAt('02:00')
     ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+/**
+ * ── 6. Đồng bộ trạng thái GHN fallback ──
+ *
+ * Webhook là realtime path, command này là fallback polling khi webhook bị miss
+ * hoặc môi trường dev chưa public backend bằng ngrok/Cloudflare Tunnel.
+ */
+Schedule::command('ghn:sync-status --limit=50')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping()
+    ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
