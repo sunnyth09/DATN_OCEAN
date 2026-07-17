@@ -46,9 +46,9 @@ class LoyaltyService
         if (!$rule) return null;
 
         $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
-            ->where('rule_id', $rule->id)
             ->where('reference_type', Order::class)
             ->where('reference_id', $order->order_id)
+            ->where('description', 'like', 'Tích điểm đơn hàng%')
             ->exists();
 
         if ($alreadyEarned) return null;
@@ -77,7 +77,7 @@ class LoyaltyService
         if (!$rule) return null;
 
         $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
-            ->where('rule_id', $rule->id)
+            ->where('description', 'like', 'Bonus đơn hàng đầu tiên%')
             ->exists();
 
         if ($alreadyEarned) return null;
