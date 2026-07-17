@@ -1,155 +1,166 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
+
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
+
+import 'api_client.dart';
+import 'app_navigator.dart';
+import 'auth_service.dart';
+import '../screens/notification_screen.dart';
 
 // ⚠️ QUAN TRỌNG: Hàm này PHẢI nằm ngoài class (Top-level function)
-// Nhiệm vụ: Lắng nghe thông báo khi app đang chạy ngầm hoặc đã bị tắt.
+// Lắng nghe thông báo khi app đang chạy ngầm hoặc đã bị tắt.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print("Đã nhận thông báo Background/Terminated: ${message.messageId}");
   // OS sẽ tự hiển thị UI thông báo, ta không cần code UI ở đây.
 }
 
 class NotificationService {
-  // Pattern Singleton để gọi Service ở bất cứ đâu
-  static final NotificationService _instance = NotificationService._internal();
+  static final NotificationService _instance =
+      NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+
+  static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
+    'high_importance_channel',
+    'Thông báo quan trọng',
+    importance: Importance.max,
+  );
+
+  bool _initialized = false;
 
   Future<void> initialize() async {
-    // 1. Xin quyền người dùng (rất cần thiết trên iOS và Android 13+)
-    NotificationSettings settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
+    if (_initialized) return;
+    _initialized = true;
+
+    // Xin quyền (iOS + Android 13+). Dù bị từ chối vẫn đăng ký handler
+    // để không cần khởi động lại app khi người dùng bật quyền sau này.
+    await _messaging.requestPermission(alert: true, badge: true, sound: true);
+
+    await _initLocalNotifications();
+
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // App đang mở (foreground) → tự vẽ local notification.
+    FirebaseMessaging.onMessage.listen(_showLocalNotification);
+
+    // Bấm thông báo khi app chạy ngầm.
+    FirebaseMessaging.onMessageOpenedApp.listen(
+      (message) => _handleNotificationClick(message.data),
     );
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('✅ Đã được cấp quyền hiển thị thông báo!');
-      
-      // 2. Lấy FCM Token và Gửi lên Laravel
-      String? token = await _messaging.getToken();
-      print("🔑 FCM Token: $token");
-      if (token != null) {
-        _sendTokenToLaravel(token);
-      }
+    // Bấm thông báo lúc app bị tắt hẳn (mở app lên từ thông báo).
+    final initialMessage = await _messaging.getInitialMessage();
+    if (initialMessage != null) {
+      _handleNotificationClick(initialMessage.data);
+    }
 
-      // Lắng nghe sự thay đổi Token (ví dụ cài lại app)
-      _messaging.onTokenRefresh.listen((newToken) {
-        _sendTokenToLaravel(newToken);
-      });
+    _messaging.onTokenRefresh.listen(syncTokenToServer);
 
-      // 3. Đăng ký Handler xử lý khi app chạy ngầm
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await syncTokenToServer();
+  }
 
-      // 4. Khởi tạo Local Notification cho trạng thái Đang mở app (Foreground)
-      await _initLocalNotifications();
+  /// Lấy FCM token và gửi lên backend. Gọi lại sau khi đăng nhập thành công.
+  Future<void> syncTokenToServer([String? refreshedToken]) async {
+    // Chỉ gửi khi đã đăng nhập, nếu không request sẽ bị 401.
+    if (!await AuthService.isLoggedIn()) return;
 
-      // 5. Lắng nghe thông báo khi app ĐANG MỞ (Foreground)
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        print("📥 Nhận thông báo Foreground: ${message.notification?.title}");
-        _showLocalNotification(message);
-      });
+    try {
+      final token = refreshedToken ?? await _messaging.getToken();
+      if (token == null || token.isEmpty) return;
 
-      // 6. Xử lý khi người dùng BẤM vào thông báo lúc app chạy ngầm (Background)
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        print("👆 User bấm thông báo (từ Background)!");
-        _handleNotificationClick(message.data);
-      });
-
-      // 7. Xử lý khi người dùng BẤM vào thông báo lúc app bị tắt (Terminated)
-      RemoteMessage? initialMessage = await _messaging.getInitialMessage();
-      if (initialMessage != null) {
-         print("👆 User bấm thông báo (từ Terminated, mở app lên)!");
-        _handleNotificationClick(initialMessage.data);
-      }
+      await ApiClient().dio.post(
+        '/device-tokens',
+        data: {
+          'fcm_token': token,
+          'device_type': _deviceType,
+        },
+      );
+    } on DioException catch (e) {
+      debugPrint('Lỗi gửi FCM token: ${e.response?.statusCode}');
+    } catch (e) {
+      debugPrint('Lỗi gửi FCM token: $e');
     }
   }
 
-  // --- CÁC HÀM TIỆN ÍCH BÊN TRONG --- //
+  String get _deviceType {
+    if (kIsWeb) return 'web';
+    if (Platform.isIOS) return 'ios';
+    return 'android';
+  }
 
-  // Khởi tạo thư viện Local Notifications
- // Khởi tạo thư viện Local Notifications
- // Khởi tạo thư viện Local Notifications
   Future<void> _initLocalNotifications() async {
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings();
-    
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings, 
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings();
+    const initSettings = InitializationSettings(
+      android: androidSettings,
       iOS: iosSettings,
     );
 
-    // Truyền thẳng initSettings vào, đây là chuẩn mới của thư viện
     await _localNotifications.initialize(
-  settings: initSettings,
-  onDidReceiveNotificationResponse: (NotificationResponse response) {
-    print("👆 User bấm thông báo (từ Foreground)!");
-    if (response.payload != null) {
-      Map<String, dynamic> data = jsonDecode(response.payload!);
-      _handleNotificationClick(data);
-    }
-  },
-);
+      settings: initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        final payload = response.payload;
+        if (payload == null || payload.isEmpty) return;
+        try {
+          final data = jsonDecode(payload);
+          if (data is Map) {
+            _handleNotificationClick(Map<String, dynamic>.from(data));
+          }
+        } catch (error, stackTrace) {
+          debugPrint(
+            '[NotificationService] click handler error: $error\n$stackTrace',
+          );
+        }
+      },
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(_channel);
   }
 
-  // Tự vẽ thông báo khi app đang mở
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
+    final notification = message.notification;
+    if (notification == null) return;
 
-    if (notification != null && android != null) {
-      await _localNotifications.show(
-        id: notification.hashCode,
-        title: notification.title,
-        body: notification.body,
-        notificationDetails: const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'high_importance_channel', // id kênh
-            'Thông báo quan trọng', // tên kênh
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
-          iOS: DarwinNotificationDetails(),
+    await _localNotifications.show(
+      id: notification.hashCode,
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channel.id,
+          _channel.name,
+          importance: Importance.max,
+          priority: Priority.high,
         ),
-        payload: jsonEncode(message.data), // Đính kèm data để xử lý khi click
-      );
-    }
+        iOS: const DarwinNotificationDetails(),
+      ),
+      payload: jsonEncode(message.data),
+    );
   }
 
-  // Xử lý logic điều hướng khi bấm vào thông báo
   void _handleNotificationClick(Map<String, dynamic> data) {
-    print("Dữ liệu đính kèm (Payload): $data");
-    // TODO: Viết logic chuyển trang ở đây (VD: Navigator.pushNamed(...))
-    // if (data['screen'] == 'order') { ... }
-  }
+    final navigator = appNavigatorKey.currentState;
+    if (navigator == null) return;
 
-  // Hàm gọi API gửi token lên Laravel
-  Future<void> _sendTokenToLaravel(String token) async {
-    // TODO: Thay thế bằng API thực tế của bạn và nhớ truyền Bearer Token
-    /*
-    try {
-      final response = await http.post(
-        Uri.parse('https://ten-mien-laravel-cua-ban.com/api/device-tokens'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer {USER_TOKEN_CUA_BAN}',
-        },
-        body: jsonEncode({
-          'fcm_token': token,
-          'device_type': 'android', // hoặc 'ios'
-        }),
-      );
-      print("Lưu token lên Laravel: ${response.statusCode}");
-    } catch (e) {
-      print("Lỗi lưu token: $e");
-    }
-    */
+    // Hiện tại mọi thông báo đều mở màn hình danh sách thông báo.
+    // Mở rộng theo data['type'] / data['screen'] khi có thêm màn hình đích.
+    navigator.push(
+      MaterialPageRoute(builder: (_) => const NotificationScreen()),
+    );
   }
 }

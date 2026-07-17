@@ -126,8 +126,8 @@ Route::middleware('auth:api,admin')->group(function () {
     Route::get('/my/return-requests/{id}', [ReturnRequestController::class, 'myShow']);
 
     // Device token
-    });
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
+    });
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
 Route::middleware('auth:api,admin')->prefix('profile')->group(function () {

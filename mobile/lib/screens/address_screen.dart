@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../config/app_theme.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 
@@ -73,7 +72,18 @@ class _AddressScreenState extends State<AddressScreen> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã đặt làm địa chỉ mặc định'), backgroundColor: Colors.green));
         fetchAddresses();
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Không thể đặt địa chỉ mặc định. Vui lòng thử lại.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _showAddAddressModal({Map<String, dynamic>? existing}) {
@@ -208,6 +218,8 @@ class _AddressScreenState extends State<AddressScreen> {
                           }
 
                           setModal(() => isSaving = true);
+                          final navigator = Navigator.of(ctx);
+                          final messenger = ScaffoldMessenger.of(ctx);
                           try {
                             final payload = {
                               'recipient_name': nameCtrl.text.trim(),
@@ -222,21 +234,19 @@ class _AddressScreenState extends State<AddressScreen> {
                               'is_default': false,
                             };
                             if (isEditing) {
-                              await ApiClient().dio.put('/profile/addresses/${existing!['address_id'] ?? existing['id']}', data: payload);
+                              await ApiClient().dio.put('/profile/addresses/${existing['address_id'] ?? existing['id']}', data: payload);
                             } else {
                               await ApiClient().dio.post('/profile/addresses', data: payload);
                             }
-                            if (mounted) {
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(isEditing ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ thành công!'),
-                                backgroundColor: Colors.green,
-                              ));
-                              fetchAddresses();
-                            }
+                            navigator.pop();
+                            messenger.showSnackBar(SnackBar(
+                              content: Text(isEditing ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ thành công!'),
+                              backgroundColor: Colors.green,
+                            ));
+                            fetchAddresses();
                           } on DioException catch (e) {
                             setModal(() => isSaving = false);
-                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(e.response?.data?['message'] ?? 'Lưu thất bại'), backgroundColor: Colors.red));
+                            messenger.showSnackBar(SnackBar(content: Text(e.response?.data?['message'] ?? 'Lưu thất bại'), backgroundColor: Colors.red));
                           }
                         },
                         child: isSaving
@@ -280,7 +290,7 @@ class _AddressScreenState extends State<AddressScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: DropdownButtonFormField<String>(
         decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)), border: InputBorder.none, isDense: true),
-        value: value,
+        initialValue: value,
         isExpanded: true,
         items: items,
         onChanged: onChanged,
@@ -330,7 +340,7 @@ class _AddressScreenState extends State<AddressScreen> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: isDefault ? Border.all(color: const Color(0xFFE63B6F), width: 1.5) : null,
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10)],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,7 +358,7 @@ class _AddressScreenState extends State<AddressScreen> {
                                       const SizedBox(width: 8),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(color: const Color(0xFFE63B6F).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                                        decoration: BoxDecoration(color: const Color(0xFFE63B6F).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
                                         child: const Text('Mặc định', style: TextStyle(color: Color(0xFFE63B6F), fontSize: 10, fontWeight: FontWeight.bold)),
                                       ),
                                     ],

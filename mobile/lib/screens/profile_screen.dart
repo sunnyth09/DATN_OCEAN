@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
-import '../services/auth_service.dart';
-import '../services/api_client.dart';
-import '../config/app_theme.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/cart_provider.dart';
 import 'login_screen.dart';
 import 'address_screen.dart';
 import 'change_password_screen.dart';
@@ -44,33 +43,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isGuest = false;
     });
 
-    final loggedIn = await AuthService.isLoggedIn();
-    if (!loggedIn) {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated) {
       if (mounted) setState(() { isGuest = true; isLoading = false; });
       return;
     }
 
     try {
-      final response = await ApiClient().dio.get('/me');
-      if (mounted) {
-        setState(() {
-          userData = response.data['user'];
-          isLoading = false;
-        });
+      final ok = await auth.loadProfile();
+      if (!mounted) return;
+      if (!ok) {
+        setState(() { isGuest = true; isLoading = false; });
+        return;
       }
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        await AuthService.logout();
-        if (mounted) setState(() { isGuest = true; isLoading = false; });
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage = 'Không thể lấy thông tin (${e.response?.statusCode})';
-            isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
+      setState(() {
+        userData = auth.user?.raw;
+        isLoading = false;
+      });
+    } catch (_) {
       if (mounted) setState(() { errorMessage = 'Lỗi kết nối máy chủ.'; isLoading = false; });
     }
   }
@@ -81,15 +71,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
-    await AuthService.logout();
-    if (mounted) {
-      Navigator.pop(context);
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    context.read<CartProvider>().clear();
+    Navigator.pop(context);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -310,7 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: ListTile(
@@ -318,7 +308,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isLogout ? Colors.red.withOpacity(0.1) : const Color(0xFFF1F5F9),
+            color: isLogout ? Colors.red.withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: isLogout ? Colors.red : const Color(0xFF64748B), size: 20),

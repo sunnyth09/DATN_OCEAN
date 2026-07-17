@@ -103,17 +103,20 @@ class _CategoryScreenState extends State<CategoryScreen>
 
     try {
       final params = <String, dynamic>{'page': currentPage};
-      if (selectedCategoryId != null)
+      if (selectedCategoryId != null) {
         params['category_id'] = selectedCategoryId;
+      }
       if (_searchQuery.isNotEmpty) params['search'] = _searchQuery;
       if (_sortBy == 'price_asc') params['sort'] = 'price_asc';
       if (_sortBy == 'price_desc') params['sort'] = 'price_desc';
       if (_sortBy == 'popular') params['sort'] = 'popular';
       if (_filterInStock) params['in_stock'] = 1;
-      if (_priceRange.start > 0)
+      if (_priceRange.start > 0) {
         params['min_price'] = _priceRange.start.toInt();
-      if (_priceRange.end < 50000000)
+      }
+      if (_priceRange.end < 50000000) {
         params['max_price'] = _priceRange.end.toInt();
+      }
 
       final res = await ApiClient().dio.get(
         '/products',
@@ -132,7 +135,7 @@ class _CategoryScreenState extends State<CategoryScreen>
         hasMore = page < totalPages;
       }
 
-      if (mounted)
+      if (mounted) {
         setState(() {
           if (loadMore) {
             products.addAll(fetched);
@@ -142,22 +145,25 @@ class _CategoryScreenState extends State<CategoryScreen>
           isLoading = false;
           isFetchingMore = false;
         });
+      }
     } on DioException catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           errorMessage = e.response?.data?['message'] ?? 'Lỗi kết nối';
           isLoading = false;
           isFetchingMore = false;
           if (loadMore) currentPage--;
         });
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           errorMessage = 'Lỗi kết nối máy chủ';
           isLoading = false;
           isFetchingMore = false;
           if (loadMore) currentPage--;
         });
+      }
     }
   }
 
@@ -310,7 +316,7 @@ class _CategoryScreenState extends State<CategoryScreen>
                     activeTrackColor: const Color(0xFFE63B6F),
                     thumbColor: const Color(0xFFE63B6F),
                     inactiveTrackColor: const Color(0xFFE2E8F0),
-                    overlayColor: const Color(0xFFE63B6F).withOpacity(0.1),
+                    overlayColor: const Color(0xFFE63B6F).withValues(alpha: 0.1),
                   ),
                   child: RangeSlider(
                     values: tmpPrice,
@@ -440,15 +446,6 @@ class _CategoryScreenState extends State<CategoryScreen>
     return v.toStringAsFixed(0);
   }
 
-  String _formatPrice(dynamic price) {
-    try {
-      final num p = num.parse(price.toString());
-      return '${p.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')} đ';
-    } catch (_) {
-      return price.toString();
-    }
-  }
-
   bool get _hasActiveFilter =>
       selectedCategoryId != null ||
       _sortBy != 'newest' ||
@@ -463,7 +460,7 @@ class _CategoryScreenState extends State<CategoryScreen>
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: NestedScrollView(
-          headerSliverBuilder: (_, __) => [
+          headerSliverBuilder: (_, _) => [
             SliverToBoxAdapter(child: _buildTopBar()),
             SliverToBoxAdapter(child: _buildCategoryChips()),
           ],
@@ -907,7 +904,7 @@ class _CategoryScreenState extends State<CategoryScreen>
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -947,12 +944,13 @@ class _CategoryScreenState extends State<CategoryScreen>
                       onTap: () async {
                         final loggedIn = await AuthService.isLoggedIn();
                         if (!loggedIn) {
-                          if (mounted)
+                          if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Vui lòng đăng nhập!'),
                               ),
                             );
+                          }
                           return;
                         }
                         try {
@@ -963,23 +961,35 @@ class _CategoryScreenState extends State<CategoryScreen>
                                   product['product_id'] ?? product['id'],
                             },
                           );
-                          if (mounted)
+                          if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Đã cập nhật yêu thích'),
                                 duration: Duration(seconds: 1),
                               ),
                             );
-                        } catch (_) {}
+                          }
+                        } catch (_) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Không thể cập nhật yêu thích. Vui lòng thử lại.',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       },
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.92),
+                          color: Colors.white.withValues(alpha: 0.92),
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 4,
                             ),
                           ],

@@ -1,5 +1,3 @@
-import 'dart:convert';
-import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/api_client.dart';
@@ -191,7 +189,7 @@ class _PosScannerScreenState extends State<PosScannerScreen> {
                     width: 250,
                     height: sessionId == null ? 250 : 150,
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white.withOpacity(0.5), width: 3),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 3),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
