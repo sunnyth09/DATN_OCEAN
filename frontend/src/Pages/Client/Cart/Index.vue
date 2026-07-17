@@ -626,9 +626,7 @@ onUnmounted(() => {
                                 Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
                             </div>
                         </div>
-
                             <div class="item-price">{{ formatPrice(item.variant?.price) }}</div>
-                        </div>
 
                         <!-- Spacer to push quantity to the right -->
                         <div style="flex: 1"></div>
