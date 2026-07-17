@@ -19,7 +19,7 @@ class ShimmerLoading extends StatelessWidget {
           childAspectRatio: 0.65,
         ),
         itemCount: 6, // Hiển thị 6 khung cho lấp đầy màn hình
-        itemBuilder: (_, __) => _buildShimmerProductItem(),
+        itemBuilder: (_, _) => _buildShimmerProductItem(),
       ),
     );
   }

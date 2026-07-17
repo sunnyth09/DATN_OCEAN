@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import 'package:provider/provider.dart';
 import '../config/app_theme.dart';
-import '../services/auth_service.dart';
+import '../providers/auth_provider.dart';
+import '../providers/cart_provider.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 import 'category_screen.dart';
@@ -21,69 +22,47 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   late int _selectedIndex;
-  int _cartBadgeCount = 0;
-  final GlobalKey<CartScreenState> _cartScreenKey = GlobalKey<CartScreenState>();
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex.clamp(0, 5);
     if (_selectedIndex == 3) {
-      _fetchCartCount();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _refreshCart());
     }
   }
 
-  Future<void> _fetchCartCount() async {
-    final loggedIn = await AuthService.isLoggedIn();
-    if (!loggedIn) return;
-    try {
-      final res = await ApiClient().dio.get('/cart');
-      if (res.statusCode == 200) {
-        final data = res.data['data'];
-        if (data != null && data['items'] != null) {
-          var count = 0;
-          for (final item in data['items']) {
-            count += int.tryParse(item['quantity'].toString()) ?? 1;
-          }
-          if (mounted) setState(() => _cartBadgeCount = count);
-        }
-      }
-    } catch (_) {}
+  void _refreshCart() {
+    if (context.read<AuthProvider>().isAuthenticated) {
+      context.read<CartProvider>().fetchCart(silent: true);
+    }
   }
 
   Future<void> _onItemTapped(int index) async {
     if (index == _selectedIndex) return;
 
     if (index >= 2) {
-      final loggedIn = await AuthService.isLoggedIn();
+      final loggedIn = context.read<AuthProvider>().isAuthenticated;
       if (!loggedIn) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Vui long dang nhap de tiep tuc')),
-          );
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vui long dang nhap de tiep tuc')),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
         return;
       }
     }
 
     setState(() => _selectedIndex = index);
-    if (index == 3) {
-      await _fetchCartCount();
-      _cartScreenKey.currentState?.fetchCartSilently();
-    }
+    if (index == 3) _refreshCart();
   }
 
   void _switchToTab(int index) {
     if (!mounted || index == _selectedIndex) return;
     setState(() => _selectedIndex = index);
-    if (index == 3) {
-      _fetchCartCount();
-      _cartScreenKey.currentState?.fetchCartSilently();
-    }
+    if (index == 3) _refreshCart();
   }
 
   @override
@@ -95,7 +74,7 @@ class _MainWrapperState extends State<MainWrapper> {
           const HomeScreen(),
           const CategoryScreen(),
           const CourtBookingScreen(),
-          CartScreen(key: _cartScreenKey, onContinueShopping: () => _switchToTab(1)),
+          CartScreen(onContinueShopping: () => _switchToTab(1)),
           const OrderScreen(),
           const ProfileScreen(),
         ],
@@ -105,12 +84,14 @@ class _MainWrapperState extends State<MainWrapper> {
   }
 
   Widget _buildBottomNavigationBar() {
+    // Badge giỏ hàng tự cập nhật theo CartProvider.
+    final cartBadgeCount = context.watch<CartProvider>().itemCount;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -4),
           ),
@@ -139,7 +120,7 @@ class _MainWrapperState extends State<MainWrapper> {
                 Icons.shopping_cart,
                 'Cart',
                 3,
-                badgeCount: _cartBadgeCount,
+                badgeCount: cartBadgeCount,
               ),
               _buildNavItem(
                 Icons.receipt_long_outlined,

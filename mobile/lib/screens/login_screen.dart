@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'main_wrapper.dart';
-import '../services/auth_service.dart';
+import '../providers/auth_provider.dart';
+import '../providers/cart_provider.dart';
+import '../services/notification_service.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -31,12 +34,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.login(email, password);
+    final result = await context.read<AuthProvider>().login(email, password);
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
+      // Đăng nhập xong mới gửi FCM token (request cần Bearer token).
+      NotificationService().syncTokenToServer();
+      // Nạp lại giỏ hàng cho phiên mới.
+      context.read<CartProvider>().fetchCart(silent: true);
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const MainWrapper()),
@@ -297,7 +304,7 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -343,7 +350,7 @@ class _LoginScreenState extends State<LoginScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),

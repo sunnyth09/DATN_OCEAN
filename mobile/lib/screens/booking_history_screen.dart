@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../config/app_theme.dart';
-import '../config/app_config.dart';
 
 class BookingHistoryScreen extends StatefulWidget {
   const BookingHistoryScreen({super.key});
@@ -64,7 +63,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     try {
       showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
@@ -93,7 +92,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (m) => '${m[1]}.',
       );
-      return '${formatted}₫';
+      return '$formatted₫';
     } catch (_) {
       return '0₫';
     }
@@ -196,7 +195,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: bookings.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 14),
+                        separatorBuilder: (_, _) => const SizedBox(height: 14),
                         itemBuilder: (context, index) => _buildBookingCard(bookings[index]),
                       ),
       ),
@@ -270,7 +269,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -294,7 +293,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                   decoration: BoxDecoration(
                     color: _getStatusBg(status),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _getStatusColor(status).withOpacity(0.2)),
+                    border: Border.all(color: _getStatusColor(status).withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -318,7 +317,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                     Container(
                       width: 48, height: 48,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.08),
+                        color: AppColors.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.sports_tennis, color: AppColors.primary, size: 24),

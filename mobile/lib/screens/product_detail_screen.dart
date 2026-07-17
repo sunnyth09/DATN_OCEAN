@@ -60,10 +60,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             List<String> colors = [];
             List<String> sizes = [];
             for (var v in variants) {
-              if (v['color'] != null && !colors.contains(v['color'].toString()))
+              if (v['color'] != null && !colors.contains(v['color'].toString())) {
                 colors.add(v['color'].toString());
-              if (v['size'] != null && !sizes.contains(v['size'].toString()))
+              }
+              if (v['size'] != null && !sizes.contains(v['size'].toString())) {
                 sizes.add(v['size'].toString());
+              }
             }
             if (colors.isNotEmpty) selectedColor = colors.first;
             if (sizes.isNotEmpty) selectedSize = sizes.first;
@@ -202,21 +204,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  String _formatPrice(dynamic price) {
-    try {
-      final num p = num.parse(price.toString());
-      final formatted = p
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]}.',
-          );
-      return '$formatted đ';
-    } catch (_) {
-      return price.toString();
-    }
-  }
-
   List<String> _getUniqueAttributes(String key) {
     final variants = _product['variants'] as List<dynamic>? ?? [];
     List<String> list = [];
@@ -254,8 +241,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (vSize.isNotEmpty && vSize != selectedSize) match = false;
       if (match) {
         if (v['price'] != null) priceRaw = v['price'];
-        if (v['image_url'] != null && v['image_url'].toString().isNotEmpty)
+        if (v['image_url'] != null && v['image_url'].toString().isNotEmpty) {
           rawImage = v['image_url'];
+        }
         break;
       }
     }
@@ -293,8 +281,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         : 'SẢN PHẨM';
     final listColors = _getUniqueAttributes('color');
     final listSizes = _getUniqueAttributes('size');
-    if (selectedSize.isEmpty && listSizes.isNotEmpty)
+    if (selectedSize.isEmpty && listSizes.isNotEmpty) {
       selectedSize = listSizes.first;
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -685,7 +674,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             itemCount: relatedProducts.length > 6
                                 ? 6
                                 : relatedProducts.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(width: 12),
                             itemBuilder: (context, index) {
                               final rp =
@@ -714,7 +703,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -4),
                   ),
@@ -769,46 +758,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureItem(IconData icon, String title, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFF64748B), size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF334155),
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF64748B),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
             ),
           ),
         ],
@@ -911,7 +860,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFFE63B6F).withOpacity(0.1)
+                ? const Color(0xFFE63B6F).withValues(alpha: 0.1)
                 : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
@@ -1005,7 +954,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       width: width,
       height: height,
       fit: BoxFit.cover,
-      placeholder: (_, __) => Container(
+      placeholder: (_, _) => Container(
         width: width,
         height: height,
         color: const Color(0xFFF1F5F9),
@@ -1016,7 +965,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
       ),
-      errorWidget: (_, __, ___) => _imagePlaceholder(height: height, width: width),
+      errorWidget: (_, _, _) => _imagePlaceholder(height: height, width: width),
     );
   }
 
@@ -1043,7 +992,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           border: Border.all(color: const Color(0xFFE9ECEF)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

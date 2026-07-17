@@ -64,7 +64,7 @@ class _CouponScreenState extends State<CouponScreen> {
   String _formatValue(Map<String, dynamic> coupon) {
     final type = coupon['type']?.toString() ?? '';
     final value = coupon['value'];
-    if (type == 'percent') return '${value}%';
+    if (type == 'percent') return '$value%';
     if (type == 'free_ship') return 'Freeship ${_formatCurrency(value)}';
     return _formatCurrency(value);
   }
@@ -77,9 +77,9 @@ class _CouponScreenState extends State<CouponScreen> {
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (m) => '${m[1]}.',
       );
-      return '${formatted}₫';
+      return '$formatted₫';
     } catch (_) {
-      return '${val}₫';
+      return '$val₫';
     }
   }
 
@@ -248,7 +248,7 @@ class _CouponScreenState extends State<CouponScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color: const Color(0xFFFFE3E8)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
         ),
         child: TextField(
           onChanged: (v) => setState(() => searchQuery = v),
@@ -277,7 +277,7 @@ class _CouponScreenState extends State<CouponScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFFFE3E8)),
-          boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.03), blurRadius: 12, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.03), blurRadius: 12, offset: const Offset(0, 4))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,7 +295,7 @@ class _CouponScreenState extends State<CouponScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF0F3),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -322,7 +322,7 @@ class _CouponScreenState extends State<CouponScreen> {
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF5F7),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1, style: BorderStyle.solid),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1, style: BorderStyle.solid),
                         ),
                         child: Row(
                           children: [

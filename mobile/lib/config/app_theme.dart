@@ -49,8 +49,8 @@ class AppColors {
   static const Color shadowColor = Color(0x14293346); // rgba(45, 52, 70, 0.08)
 
   // ── Primary nhạt (cho chip, badge, selected bg) ──
-  static Color get primarySoft => primary.withOpacity(0.10);
-  static Color get primarySoftBg => primary.withOpacity(0.06);
+  static Color get primarySoft => primary.withValues(alpha: 0.10);
+  static Color get primarySoftBg => primary.withValues(alpha: 0.06);
 }
 
 class AppTextStyles {
