@@ -131,7 +131,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                           Navigator.pushAndRemoveUntil(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const MainWrapper(initialIndex: 3)),
+                                builder: (_) => const MainWrapper(initialIndex: 4)),
                             (route) => false,
                           );
                         },

@@ -24,7 +24,7 @@ class _OrderScreenState extends State<OrderScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     fetchOrders();
   }
 
@@ -127,6 +127,7 @@ class _OrderScreenState extends State<OrderScreen>
             Tab(text: 'Chờ xử lý'),
             Tab(text: 'Đang giao'),
             Tab(text: 'Hoàn thành'),
+            Tab(text: 'Đã hủy'),
           ],
         ),
       ),
@@ -226,6 +227,7 @@ class _OrderScreenState extends State<OrderScreen>
         _buildOrderList('pending'),
         _buildOrderList('shipping'),
         _buildOrderList('completed'),
+        _buildOrderList('cancelled'),
       ],
     );
   }
@@ -250,6 +252,10 @@ class _OrderScreenState extends State<OrderScreen>
             (st.contains('completed') ||
                 st.contains('delivered') ||
                 st.contains('success'))) {
+          return true;
+        }
+        if (statusFilter == 'cancelled' &&
+            (st.contains('cancel') || st.contains('fail'))) {
           return true;
         }
         return false;
@@ -290,17 +296,20 @@ class _OrderScreenState extends State<OrderScreen>
             status.contains('DELIVERED') ||
             status.contains('SUCCESS')) {
           statusColor = Colors.green;
+        } else if (status.contains('CANCEL') || status.contains('FAIL')) {
+          statusColor = Colors.red;
         }
 
         return GestureDetector(
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) =>
                     OrderDetailScreen(orderId: (order['order_id'] ?? order['id']).toString()),
               ),
             );
+            fetchOrders();
           },
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -339,7 +348,7 @@ class _OrderScreenState extends State<OrderScreen>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        status,
+                        FormatUtils.translateStatus(status),
                         style: TextStyle(
                           color: statusColor,
                           fontSize: 10,

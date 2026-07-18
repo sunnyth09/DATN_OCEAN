@@ -73,7 +73,21 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 40),
+              if (Navigator.canPop(context))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                      icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A), size: 28),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ),
+                )
+              else
+                const SizedBox(height: 40),
               // Logo
               Container(
                 width: 72,

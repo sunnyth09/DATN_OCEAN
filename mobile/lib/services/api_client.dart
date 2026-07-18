@@ -31,18 +31,21 @@ class ApiClient {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-          'User-Agent': kMobileUserAgent,
+          if (!kIsWeb) 'User-Agent': kMobileUserAgent,
+          'ngrok-skip-browser-warning': '69420',
         },
       ),
     );
 
-    dio.httpClientAdapter = IOHttpClientAdapter(
-      createHttpClient: () {
-        final client = HttpClient();
-        client.userAgent = kMobileUserAgent;
-        return client;
-      },
-    );
+    if (!kIsWeb) {
+      dio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.userAgent = kMobileUserAgent;
+          return client;
+        },
+      );
+    }
 
     dio.options.responseDecoder =
         (
@@ -56,10 +59,12 @@ class ApiClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          options.headers['User-Agent'] = kMobileUserAgent;
+          if (!kIsWeb) {
+            options.headers['User-Agent'] = kMobileUserAgent;
+          }
 
           final token = await StorageService.read('access_token');
-          if (token != null) {
+          if (token != null && token.trim().isNotEmpty && token != 'null') {
             options.headers['Authorization'] = 'Bearer $token';
           }
 
@@ -117,14 +122,19 @@ class ApiClient {
     if (_handlingUnauthorized) return;
     _handlingUnauthorized = true;
 
+    final token = await StorageService.read('access_token');
+    final hasToken = token != null && token.trim().isNotEmpty && token != 'null';
+
     await AuthService.logout();
 
-    final navigator = appNavigatorKey.currentState;
-    if (navigator != null) {
-      navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
+    // Chỉ thông báo nếu trước đó người dùng thực sự có token
+    if (hasToken) {
+      final context = appNavigatorKey.currentContext;
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại')),
+        );
+      }
     }
 
     _handlingUnauthorized = false;

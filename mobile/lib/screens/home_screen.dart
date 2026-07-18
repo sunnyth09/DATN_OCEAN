@@ -217,16 +217,7 @@ class _HomeScreenState extends State<HomeScreen>
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 15),
           ),
-          onChanged: (text) {
-            _searchDebounce?.cancel();
-            final query = text.trim();
-            if (query.isEmpty) return;
-            _searchDebounce = Timer(const Duration(milliseconds: 500), () {
-              if (mounted) {
-                _openSearchResults(query);
-              }
-            });
-          },
+          // onChanged removed to prevent abruptly pushing to a new screen while typing
           onSubmitted: _openSearchResults,
         ),
       ),

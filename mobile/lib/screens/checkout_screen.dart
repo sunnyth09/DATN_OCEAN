@@ -4,6 +4,8 @@ import '../services/api_client.dart';
 import 'address_screen.dart';
 import '../config/app_config.dart';
 import '../utils/format_utils.dart';
+import 'package:provider/provider.dart';
+import '../providers/cart_provider.dart';
 import 'order_success_screen.dart';
 import 'checkout/widgets/checkout_address_box.dart';
 import 'checkout/widgets/checkout_payment_box.dart';
@@ -320,6 +322,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
 
       if (mounted) Navigator.pop(context); // hide loading
+
+      if (mounted) {
+        context.read<CartProvider>().fetchCart(silent: true);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
