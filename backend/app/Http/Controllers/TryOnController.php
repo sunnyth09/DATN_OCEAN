@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Services\TryOnService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class TryOnController extends Controller
@@ -74,6 +75,13 @@ class TryOnController extends Controller
 
         // 4. Gọi Service AI
         try {
+            Log::info('TryOnController: Processing try-on request', [
+                'user_id' => $userId,
+                'file_path' => $absolutePath,
+                'file_exists' => file_exists($absolutePath),
+                'product_image_type' => str_starts_with($productImageUrl, 'data:') ? 'base64' : 'url',
+            ]);
+
             $result = $this->tryOnService->process($absolutePath, $productImageUrl);
 
             // 5. Xóa ảnh tạm
@@ -98,6 +106,10 @@ class TryOnController extends Controller
             ], 500);
 
         } catch (\Exception $e) {
+            Log::error('TryOnController: Exception during try-on processing', [
+                'error' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+            ]);
             // Đảm bảo xóa ảnh tạm nếu có exception
             if (file_exists($absolutePath)) {
                 unlink($absolutePath);

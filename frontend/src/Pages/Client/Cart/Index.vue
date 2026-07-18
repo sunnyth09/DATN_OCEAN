@@ -493,7 +493,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="cart-page container">
+    <div class="cart-page">
         <!-- Toast -->
         <Transition name="toast">
             <div v-if="toast.show" class="toast-notification" :class="toast.type">
@@ -625,9 +625,8 @@ onUnmounted(() => {
                             <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
                                 Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
                             </div>
-
-                            <div class="item-price">{{ formatPrice(item.variant?.price) }}</div>
                         </div>
+                            <div class="item-price">{{ formatPrice(item.variant?.price) }}</div>
 
                         <!-- Spacer to push quantity to the right -->
                         <div style="flex: 1"></div>
@@ -689,7 +688,12 @@ onUnmounted(() => {
                             <div class="vat-note">(Đã bao gồm VAT nếu có)</div>
                         </div>
                     </div>
-                      
+
+                    <div class="coupon-section">
+                        <input type="text" class="coupon-input" placeholder="Mã giảm giá" />
+                        <button class="btn-apply-coupon">Áp dụng</button>
+                    </div>
+
                     <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0">
                         Thanh toán
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -810,12 +814,12 @@ onUnmounted(() => {
         </Transition>
     </Teleport>
 
-    <section class="upsell-section container">
+    <section class="upsell-section">
         <h2 class="upsell-title">Có thể bạn cũng thích</h2>
         <div class="container mb-5" v-if="productRelated.length">
             <div class="row mt-3">
                 <div class="col-lg-3 mt-4" v-for="product in productRelated" :key="product.id">
-                    <ProductCard :product="product" />
+                    <ProductCard :product="product" :rows="3" />
                 </div>
             </div>
         </div>
@@ -832,6 +836,13 @@ onUnmounted(() => {
     font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
     color: #102a43;
     min-height: 60vh;
+}
+
+.upsell-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #102a43;
+    margin-bottom: 24px;
 }
 
 /* Page Header */
@@ -876,7 +887,7 @@ onUnmounted(() => {
     width: 40px;
     height: 40px;
     border: 3px solid #e8ecf1;
-    border-top-color: var(--primary);
+    border-top-color: #E63B6F;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin: 0 auto 16px;
@@ -892,7 +903,7 @@ onUnmounted(() => {
 .empty-cart {
     text-align: center;
     padding: 80px 20px;
-    background: var(--card-bg);
+    background: #fff;
     border-radius: 16px;
     border: 1px dashed #b0c4de;
 }
@@ -941,7 +952,7 @@ onUnmounted(() => {
     justify-content: space-between;
     align-items: center;
     padding: 14px 20px;
-    background: var(--card-bg);
+    background: #fff;
     border-radius: 12px;
     border: 1px solid #e8ecf1;
     margin-bottom: 12px;
@@ -972,8 +983,8 @@ onUnmounted(() => {
 }
 
 .custom-checkbox.checked {
-    background: var(--primary);
-    border-color: var(--primary);
+    background: #E63B6F;
+    border-color: #E63B6F;
 }
 
 .btn-clear {
@@ -983,7 +994,7 @@ onUnmounted(() => {
     padding: 7px 0;
     border: none;
     background: transparent;
-    color: var(--primary);
+    color: #E63B6F;
     font-size: 0.85rem;
     font-weight: 600;
     cursor: pointer;
@@ -1008,7 +1019,7 @@ onUnmounted(() => {
     align-items: center;
     gap: 16px;
     padding: 16px 20px;
-    background: var(--card-bg);
+    background: #fff;
     border-radius: 12px;
     border: 1px solid #e8ecf1;
     transition: all 0.25s ease;
@@ -1070,7 +1081,7 @@ onUnmounted(() => {
 }
 
 .item-name:hover {
-    color: var(--primary);
+    color: #E63B6F;
 }
 
 .item-variant-text {
@@ -1119,7 +1130,7 @@ onUnmounted(() => {
 .item-price {
     font-size: 1.3rem;
     font-weight: 800;
-    color: var(--primary);
+    color: #E63B6F;
     margin-top: 12px;
 }
 
@@ -1129,7 +1140,7 @@ onUnmounted(() => {
     border: 1px solid #d9e2ec;
     border-radius: 8px;
     overflow: hidden;
-    background: var(--card-bg);
+    background: #fff;
 }
 
 .qty-btn {
@@ -1147,7 +1158,7 @@ onUnmounted(() => {
 
 .qty-btn:hover:not(:disabled) {
     background: #f0f7fa;
-    color: var(--primary);
+    color: #E63B6F;
 }
 
 .qty-btn:disabled {
@@ -1190,7 +1201,7 @@ onUnmounted(() => {
 }
 
 .btn-remove:hover {
-    color: var(--primary);
+    color: #E63B6F;
 }
 
 /* Order Summary */
@@ -1202,7 +1213,7 @@ onUnmounted(() => {
 }
 
 .summary-card {
-    background: var(--card-bg);
+    background: #fff;
     border-radius: 14px;
     border: 1px solid #e8ecf1;
     padding: 24px;
@@ -1245,7 +1256,7 @@ onUnmounted(() => {
 .total-price {
     font-size: 1.5rem;
     font-weight: 800;
-    color: var(--primary) !important;
+    color: #E63B6F !important;
 }
 
 .vat-note {
@@ -1273,8 +1284,8 @@ onUnmounted(() => {
 }
 
 .coupon-input:focus {
-    border-color: var(--primary);
-    background: var(--card-bg);
+    border-color: #E63B6F;
+    background: #fff;
 }
 
 .btn-apply-coupon {
@@ -1296,7 +1307,7 @@ onUnmounted(() => {
 .btn-checkout {
     width: 100%;
     padding: 14px;
-    background: var(--primary);
+    background: #E63B6F;
     color: #fff;
     font-size: 1.05rem;
     font-weight: 700;
@@ -1327,13 +1338,13 @@ onUnmounted(() => {
     width: 100%;
     padding: 13px;
     margin-top: 10px;
-    color: var(--primary);
-    border: 1px solid var(--primary);
+    color: #E63B6F;
+    border: 1px solid #E63B6F;
     border-radius: 10px;
     text-decoration: none;
     font-weight: 700;
     font-size: 1rem;
-    background: var(--card-bg);
+    background: #fff;
     transition: all 0.2s;
 }
 
@@ -1343,7 +1354,7 @@ onUnmounted(() => {
 
 /* BTN Primary */
 .btn-primary {
-    background: var(--primary);
+    background: #E63B6F;
     color: #fff;
     border: none;
     font-weight: 700;
@@ -1538,10 +1549,10 @@ onUnmounted(() => {
     align-items: center;
     gap: 5px;
     padding: 3px 10px;
-    border: 1px solid var(--primary);
+    border: 1px solid #E63B6F;
     border-radius: 20px;
     background: transparent;
-    color: var(--primary);
+    color: #E63B6F;
     font-size: 0.78rem;
     font-weight: 700;
     cursor: pointer;
@@ -1551,7 +1562,7 @@ onUnmounted(() => {
 }
 
 .btn-change-variant:hover {
-    background: var(--primary);
+    background: #E63B6F;
     color: white;
 }
 
@@ -1569,7 +1580,7 @@ onUnmounted(() => {
 }
 
 .vmodal-box {
-    background: var(--card-bg);
+    background: #fff;
     border-radius: 18px;
     width: 100%;
     max-width: 480px;
@@ -1643,7 +1654,7 @@ onUnmounted(() => {
 
 .vmodal-close:hover {
     background: #f1f5f9;
-    color: var(--text-main);
+    color: #0f172a;
 }
 
 .vmodal-loading {
@@ -1660,7 +1671,7 @@ onUnmounted(() => {
     width: 24px;
     height: 24px;
     border: 2px solid #e2e8f0;
-    border-top-color: var(--primary);
+    border-top-color: #E63B6F;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
 }
@@ -1694,7 +1705,7 @@ onUnmounted(() => {
     padding: 7px 16px;
     border: 1.5px solid #d9e2ec;
     border-radius: 8px;
-    background: var(--card-bg);
+    background: #fff;
     font-size: 0.88rem;
     font-weight: 600;
     color: #334e68;
@@ -1707,13 +1718,13 @@ onUnmounted(() => {
 }
 
 .vmodal-opt-btn:hover:not(:disabled) {
-    border-color: var(--primary);
-    color: var(--primary);
+    border-color: #E63B6F;
+    color: #E63B6F;
 }
 
 .vmodal-opt-btn.active {
-    border-color: var(--primary);
-    background: var(--primary);
+    border-color: #E63B6F;
+    background: #E63B6F;
     color: #fff;
 }
 
@@ -1770,7 +1781,7 @@ onUnmounted(() => {
     padding: 11px;
     border: 1.5px solid #d9e2ec;
     border-radius: 10px;
-    background: var(--card-bg);
+    background: #fff;
     color: #627d98;
     font-size: 0.92rem;
     font-weight: 600;
@@ -1789,7 +1800,7 @@ onUnmounted(() => {
     padding: 11px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary), #039be5);
+    background: linear-gradient(135deg, #E63B6F, #039be5);
     color: #fff;
     font-size: 0.95rem;
     font-weight: 700;
@@ -1800,7 +1811,7 @@ onUnmounted(() => {
 }
 
 .vmodal-btn-confirm:hover:not(:disabled) {
-    background: linear-gradient(135deg, #C4305D, var(--primary));
+    background: linear-gradient(135deg, #C4305D, #E63B6F);
     transform: translateY(-1px);
 }
 

@@ -80,6 +80,17 @@ const deleteShift = async (s) => {
   }
 };
 
+const restoreShift = async (s) => {
+  const r = await Swal.fire({
+    title: 'Xác nhận', text: `Khôi phục ca "${s.name}"?`, icon: 'question',
+    showCancelButton: true, confirmButtonText: 'Khôi phục', cancelButtonText: 'Hủy', confirmButtonColor: '#1565c0',
+  });
+  if (r.isConfirmed) {
+    try { await api.put(`/admin/work-shifts/${s.id}`, { is_active: true }); showToast('Đã khôi phục ca.'); fetchShifts(); }
+    catch { showToast('Lỗi khi khôi phục.', 'error'); }
+  }
+};
+
 // ===== TAB 2: PHÂN CA =====
 const dayLabels = [
   { value: 1, label: 'Thứ 2' }, { value: 2, label: 'Thứ 3' }, { value: 3, label: 'Thứ 4' },
@@ -188,7 +199,7 @@ onMounted(() => { fetchShifts(); });
               <th>Tên ca</th>
               <th>Bắt đầu</th>
               <th>Kết thúc</th>
-              <th>Buffer sớm</th>
+              <th>Chấm sớm</th>
               <th class="status-th">Trạng thái</th>
               <th class="actions-th">Thao tác</th>
             </tr>
@@ -222,8 +233,11 @@ onMounted(() => { fetchShifts(); });
                 <button class="btn-action edit" @click="openShiftForm(s)" title="Sửa">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
-                <button class="btn-action delete" @click="deleteShift(s)" title="Vô hiệu hóa">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                <button v-if="s.is_active" class="btn-action delete" @click="deleteShift(s)" title="Vô hiệu hóa">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                </button>
+                <button v-else class="btn-action restore" @click="restoreShift(s)" title="Khôi phục">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
                 </button>
               </td>
             </tr>
@@ -318,7 +332,7 @@ onMounted(() => { fetchShifts(); });
             </div>
             <div class="ws-form-row">
               <div class="ws-form-group">
-                <label>Buffer sớm (phút)</label>
+                <label>Chấm sớm (phút)</label>
                 <input type="number" class="ws-form-control" v-model.number="shiftForm.early_buffer_minutes" min="0" max="120" />
               </div>
               <div class="ws-form-group">
@@ -432,6 +446,8 @@ onMounted(() => { fetchShifts(); });
 .btn-action.edit:hover { background: #bbdefb; color: #0d47a1; }
 .btn-action.delete { background: #ffebee; color: var(--primary); border-color: #ffcdd2; }
 .btn-action.delete:hover { background: #ffcdd2; color: #c62828; }
+.btn-action.restore { background: #f0f4c3; color: #827717; border-color: #dce775; }
+.btn-action.restore:hover { background: #dce775; color: #558b2f; }
 
 /* Schedule Table */
 .schedule-table th { text-align: center; }

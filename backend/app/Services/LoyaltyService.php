@@ -45,6 +45,14 @@ class LoyaltyService
         $rule = LoyaltyRule::findByKey('ORDER_COMPLETE');
         if (!$rule) return null;
 
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
+            ->where('reference_type', Order::class)
+            ->where('reference_id', $order->order_id)
+            ->where('description', 'like', 'Tích điểm đơn hàng%')
+            ->exists();
+
+        if ($alreadyEarned) return null;
+
         // 1 point / 10.000đ
         $points = (int) floor(($order->grand_total / 10000) * $rule->points_per_unit);
 
@@ -67,6 +75,12 @@ class LoyaltyService
     {
         $rule = LoyaltyRule::findByKey('FIRST_ORDER');
         if (!$rule) return null;
+
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
+            ->where('description', 'like', 'Bonus đơn hàng đầu tiên%')
+            ->exists();
+
+        if ($alreadyEarned) return null;
 
         $points = (int) $rule->points_per_unit;
         if ($points <= 0) return null;

@@ -291,4 +291,125 @@ class AdminWalletController extends Controller
             'message' => 'Đã từ chối yêu cầu nạp tiền.',
         ]);
     }
+    // ════════════════════════════════════════════════════════════
+    //  ADMIN WITHDRAWAL MANAGEMENT (Duyệt rút tiền)
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * GET /admin/wallets/withdrawals?status=processing|completed|failed|all
+     */
+    public function withdrawals(Request $request): JsonResponse
+    {
+        $status  = $request->status ?? 'all';
+        $perPage = min((int) ($request->per_page ?? 30), 100);
+
+        $query = DB::table('wallet_withdrawals as w')
+            ->join('users as u', 'w.user_id', '=', 'u.user_id')
+            ->select('w.*', 'u.full_name', 'u.email', 'u.phone')
+            ->orderByDesc('w.created_at');
+
+        if ($status !== 'all') {
+            $query->where('w.status', $status);
+        }
+
+        $withdrawals = $query->paginate($perPage);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $withdrawals,
+        ]);
+    }
+
+    /**
+     * PUT /admin/wallets/withdrawals/{id}/complete
+     */
+    public function completeWithdrawal(int $id): JsonResponse
+    {
+        $withdrawal = DB::table('wallet_withdrawals')->where('id', $id)->first();
+
+        if (!$withdrawal) {
+            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy yêu cầu rút tiền'], 404);
+        }
+
+        if ($withdrawal->status !== 'processing') {
+            return response()->json(['status' => 'error', 'message' => 'Yêu cầu đã được xử lý trước đó'], 422);
+        }
+
+        DB::table('wallet_withdrawals')->where('id', $id)->update([
+            'status'       => 'completed',
+            'completed_at' => now(),
+            'updated_at'   => now(),
+        ]);
+
+        Log::info('Admin completed wallet withdrawal', [
+            'withdrawal_id' => $id,
+            'user_id'       => $withdrawal->user_id,
+            'amount'        => $withdrawal->amount,
+            'admin_id'      => auth('admin')->id(),
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Đã đánh dấu chuyển khoản thành công.',
+        ]);
+    }
+
+    /**
+     * PUT /admin/wallets/withdrawals/{id}/reject
+     */
+    public function rejectWithdrawal(Request $request, int $id): JsonResponse
+    {
+        $withdrawal = DB::table('wallet_withdrawals')->where('id', $id)->first();
+
+        if (!$withdrawal) {
+            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy yêu cầu rút tiền'], 404);
+        }
+
+        if ($withdrawal->status !== 'processing') {
+            return response()->json(['status' => 'error', 'message' => 'Yêu cầu đã được xử lý trước đó'], 422);
+        }
+
+        $note = $request->input('note', 'Bị từ chối bởi Admin');
+
+        try {
+            DB::transaction(function () use ($withdrawal, $note) {
+                // Đổi trạng thái thành failed
+                DB::table('wallet_withdrawals')->where('id', $withdrawal->id)->update([
+                    'status'     => 'failed',
+                    'note'       => $note,
+                    'updated_at' => now(),
+                ]);
+
+                // Hoàn tiền lại (amount + fee)
+                $this->walletService->credit(
+                    userId: $withdrawal->user_id,
+                    amount: (float) $withdrawal->total_deducted,
+                    type: 'refund',
+                    opts: [
+                        'description' => "Hoàn tiền do yêu cầu rút tiền {$withdrawal->withdrawal_code} bị từ chối. Lý do: {$note}",
+                        'metadata'    => [
+                            'withdrawal_id'   => $withdrawal->id,
+                            'withdrawal_code' => $withdrawal->withdrawal_code
+                        ]
+                    ]
+                );
+            });
+
+            Log::info('Admin rejected wallet withdrawal', [
+                'withdrawal_id' => $id,
+                'user_id'       => $withdrawal->user_id,
+                'amount'        => $withdrawal->amount,
+                'admin_id'      => auth('admin')->id(),
+                'note'          => $note
+            ]);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Đã từ chối và hoàn tiền lại vào ví cho khách hàng.',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Admin reject withdrawal failed', ['error' => $e->getMessage()]);
+            return response()->json(['status' => 'error', 'message' => 'Từ chối rút tiền thất bại.'], 500);
+        }
+    }
 }

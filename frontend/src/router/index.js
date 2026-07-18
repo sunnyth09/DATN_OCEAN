@@ -65,6 +65,7 @@ const routes = [
                     { path: "coupons", name: "profile-coupons", component: () => import("../Pages/Client/Profile/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
                     { path: "affiliate", name: "profile-affiliate", component: () => import("../Pages/Client/Profile/ProfileAffiliate.vue"), meta: { title: 'Affiliate' } },
                     { path: "wallet", name: "profile-wallet", component: () => import("../Pages/Client/Profile/ProfileWallet.vue"), meta: { title: 'Ví của tôi' } },
+                    { path: "loyalty", name: "profile-loyalty", component: () => import("../Pages/Client/Profile/ProfileLoyalty.vue"), meta: { title: 'Điểm thưởng' } },
                     { path: "court-bookings", name: "profile-court-bookings", component: () => import("../Pages/Client/Courts/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
                     { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
                     { path: "loyalty", name: "profile-loyalty", component: () => import("../Pages/Client/Profile/ProfileLoyalty.vue"), meta: { title: 'Khách hàng thân thiết' } },
@@ -226,6 +227,12 @@ const routes = [
                 meta: { roles: ['admin'], title: 'Ví & Nạp tiền' },
             },
             {
+                path: "wallet-withdrawals",
+                name: "admin-wallet-withdrawals",
+                component: () => import("../Pages/admin/AdminWalletWithdrawals.vue"),
+                meta: { roles: ['admin'], title: 'Duyệt rút tiền' },
+            },
+            {
                 path: "post",
                 name: "admin-post",
                 component: () => import("../Pages/admin/AdminPost.vue"),
@@ -301,7 +308,7 @@ const routes = [
                 path: "work-locations",
                 name: "admin-work-locations",
                 component: () => import("../Pages/admin/AdminWorkLocations.vue"),
-                meta: { roles: ['admin'], title: 'Quản lý vị trí làm việc' },
+                meta: { roles: ['admin'], title: 'Quản lý chi nhánh' },
             },
             {
                 path: "work-shifts",

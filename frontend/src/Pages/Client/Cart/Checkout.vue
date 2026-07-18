@@ -8,6 +8,7 @@ import AddressSelector from '@/components/AddressSelector.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
 import { walletService } from '@/services/walletService';
+import { loyaltyService } from '@/services/loyaltyService';
 import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/icons/AppIcon.vue';
 
@@ -156,6 +157,12 @@ const fetchLoyaltyPoints = async () => {
         console.error('Lỗi khi lấy điểm thưởng:', e);
     }
 };
+
+watch(() => authStore.isAuthenticated, (val) => {
+    if (val) {
+        fetchLoyaltyPoints();
+    }
+}, { immediate: true });
 
 // Lấy sản phẩm Flash Sale thay vì giỏ hàng
 const fetchFlashSaleData = async () => {
@@ -398,7 +405,7 @@ const discount = computed(() => {
 const maxPointsCanUse = computed(() => {
     let max = loyaltyPoints.value;
     const totalBeforeLoyalty = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
-    const maxForTotal = Math.floor(totalBeforeLoyalty / 100);
+    const maxForTotal = Math.floor((totalBeforeLoyalty * 0.3) / 100);
     return Math.min(max, maxForTotal);
 });
 
@@ -424,14 +431,14 @@ const loyaltyDiscount = computed(() => {
 });
 
 const total = computed(() => {
-    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
+    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value);
     return Math.max(0, base - walletDiscount.value);
 });
 
 // --- Wallet ---
 const walletDiscount = computed(() => {
     if (!useWallet.value || !walletPreview.value) return 0;
-    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value;
+    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value;
     return Math.min(walletPreview.value.total_available || 0, Math.max(0, maxDiscount));
 });
 
@@ -525,6 +532,7 @@ const placeOrder = async () => {
         referral_code: localStorage.getItem('affiliate_ref') || null,
         use_wallet: useWallet.value && walletDiscount.value > 0,
         wallet_amount: useWallet.value ? walletDiscount.value : 0,
+        reward_points_used: useLoyaltyPoints.value ? inputPoints.value : 0,
     };
 
     // --- Email nhận xác nhận đơn hàng (bắt buộc) ---
@@ -692,7 +700,9 @@ const getProductImage = (item) => {
 
 onMounted(async () => {
     const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData()];
-    if (authStore.isAuthenticated) promises.push(fetchWalletPreview());
+    if (authStore.isAuthenticated) {
+        promises.push(fetchWalletPreview());
+    }
     if (isFlashSale.value) {
         promises.push(fetchFlashSaleData());
     } else if (isBuyNow.value) {
@@ -1100,10 +1110,10 @@ onMounted(async () => {
                                 </div>
 
                                 <!-- Tiêu điểm thưởng -->
-                                <div v-if="authStore.isAuthenticated && loyaltyPoints > 0" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
+                                <div v-if="authStore.isAuthenticated" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
                                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                                         <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
-                                            <input type="checkbox" v-model="useLoyaltyPoints" style="width: 16px; height: 16px; accent-color: #ef4444;" />
+                                            <input type="checkbox" v-model="useLoyaltyPoints" :disabled="loyaltyPoints < 100" style="width: 16px; height: 16px; accent-color: #ef4444;" />
                                             Sử dụng điểm thưởng
                                         </label>
                                         <span style="font-size: 0.9rem; color: #ef4444; font-weight: 600;">Bạn có: {{ loyaltyPoints }} điểm</span>
@@ -1112,8 +1122,8 @@ onMounted(async () => {
                                         <input type="number" v-model="inputPoints" :max="maxPointsCanUse" min="0" style="width: 100px; padding: 6px; border: 1px solid #fca5a5; border-radius: 4px; text-align: center; outline: none;" />
                                         <span style="font-size: 0.9rem; color: #666;">điểm = <strong style="color: #ef4444;">-{{ formatPrice(loyaltyDiscount) }}</strong></span>
                                     </div>
-                                    <div v-if="useLoyaltyPoints && maxPointsCanUse < loyaltyPoints" style="font-size: 0.8rem; color: #f59e0b; margin-top: 4px;">
-                                        * Chỉ có thể tiêu tối đa {{ maxPointsCanUse }} điểm cho đơn hàng này.
+                                    <div style="font-size: 0.75rem; color: #f59e0b; margin-top: 8px; padding-top: 8px; border-top: 1px solid #fca5a5; line-height: 1.4;">
+                                        * Tối thiểu 100 điểm để đổi giảm giá. Tối đa 30% giá trị đơn hàng. Điểm có hiệu lực 365 ngày kể từ ngày tích.
                                     </div>
                                 </div>
 
@@ -1152,6 +1162,10 @@ onMounted(async () => {
                                                 style="color: #10b981;">Freeship: - {{ formatPrice(shippingDiscount)
                                                 }}</span>
                                         </div>
+                                    </div>
+                                    <div class="total-row" v-if="loyaltyDiscount > 0">
+                                        <span>Điểm thưởng ({{ inputPoints }} điểm)</span>
+                                        <span class="discount-val" style="color: #ef4444;">- {{ formatPrice(loyaltyDiscount) }}</span>
                                     </div>
 
 

@@ -138,11 +138,20 @@ class OrderService
             $user = null;
             if ($rewardPointsUsed > 0) {
                 $user = \App\Models\User::find($userId);
-                if (!$user || $user->reward_points < $rewardPointsUsed) {
-                    return $this->error('Số điểm thưởng không đủ!', 400);
+                if (!$user) {
+                    return $this->error('Không tìm thấy người dùng!', 400);
                 }
-                // 1 điểm = 100đ
-                $rewardDiscount = $rewardPointsUsed * 100;
+
+                $preview = app(\App\Services\LoyaltyService::class)->previewBurn($userId, $rewardPointsUsed, $subtotal);
+
+                if (!$preview['eligible']) {
+                    return $this->error($preview['message'], 400);
+                }
+
+                // Nếu user cố ý truyền sai số lượng vượt quá cho phép, previewBurn sẽ trả về actual_points nhỏ hơn.
+                // Ở đây ta có thể update lại $rewardPointsUsed thành actual_points
+                $rewardPointsUsed = $preview['points_to_use'];
+                $rewardDiscount = $preview['discount_amount'];
                 $discountAmount += $rewardDiscount;
             }
 
@@ -163,6 +172,9 @@ class OrderService
                     $walletTotalDiscount = min($requestedWalletAmount, $preview['max_total_discount']);
                 }
             }
+
+            // Xác định đơn hàng có từ giỏ hàng bỏ quên hay không
+            $isAbandonedCheckout = !$isDirectOrder && isset($cart) && $cart->is_abandoned_reminded;
 
             // Tính grand_total sau wallet discount
             $paymentMethod   = $data['payment_method'];
@@ -196,6 +208,7 @@ class OrderService
                 $paymentMethod,
                 $cart,
                 $isAbandonedCheckout,
+                $isDirectOrder,
                 $rewardPointsUsed
             ) {
                 $this->lockAndValidateStock($cartItems);
@@ -297,8 +310,11 @@ class OrderService
                 }
 
                 // Reset trạng thái giỏ hàng bỏ quên
-                if ($isAbandonedCheckout && $cart) {
-                    $cart->update(['is_abandoned_reminded' => false]);
+                if ($isAbandonedCheckout && !$isDirectOrder) {
+                    $activeCart = $this->cartRepository->getActiveCart($userId);
+                    if ($activeCart) {
+                        $activeCart->update(['is_abandoned_reminded' => false]);
+                    }
                 }
 
                 // Thực hiện trừ tiền từ ví nếu thanh toán bằng ví
@@ -334,6 +350,7 @@ class OrderService
                         'status' => 'success',
                         'message' => 'Đặt hàng thành công!',
                         'data' => [
+                            'order_id'   => $order->order_id,
                             'order_code' => $order->order_code,
                             'grand_total' => $order->grand_total,
                         ],
@@ -535,7 +552,8 @@ class OrderService
                         'status' => 'success',
                         'message' => 'Đặt hàng thành công!',
                         'data' => [
-                            'order_code' => $order->order_code,
+                            'order_id'    => $order->order_id,
+                            'order_code'  => $order->order_code,
                             'grand_total' => $order->grand_total,
                         ],
                     ],
@@ -608,6 +626,14 @@ class OrderService
                         $walletCommission,
                         $order->order_id
                     );
+                }
+
+                // ── Hoàn điểm thưởng nếu có dùng ──
+                if ($order->user_id) {
+                    $user = \App\Models\User::find($order->user_id);
+                    if ($user) {
+                        app(\App\Services\LoyaltyService::class)->refundPoints($user, $order);
+                    }
                 }
             });
 

@@ -611,7 +611,16 @@ watch(
                                 </div>
                                 <!-- Điểm thưởng mini trong header dropdown -->
                                 <router-link v-if="headerRewardPoints >= 0" to="/profile/loyalty" class="header-loyalty-row" @click="closeAccountMenu">
-                                    <span class="header-loyalty-icon">🏆</span>
+                                    <span class="header-loyalty-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f59e0b;">
+                                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                                            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                                            <path d="M4 22h16"/>
+                                            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                                            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                                        </svg>
+                                    </span>
                                     <span class="header-loyalty-label">Số điểm:</span>
                                     <span class="header-loyalty-pts">{{ new Intl.NumberFormat('vi-VN').format(headerRewardPoints) }} điểm</span>
                                     <span class="header-loyalty-arrow">›</span>
@@ -1080,22 +1089,17 @@ watch(
 }
 
 /* Loyalty points row in header dropdown */
+.header-loyalty-container {
+    background: linear-gradient(135deg, #fff7ed, #fef3f2);
+    border-radius: 10px;
+    margin: 4px 0;
+    border: 1px solid #fed7aa;
+    padding: 10px 12px;
+}
 .header-loyalty-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 12px;
-    background: linear-gradient(135deg, #fff7ed, #fef3f2);
-    border-radius: 10px;
-    text-decoration: none;
-    margin: 4px 0;
-    border: 1px solid #fed7aa;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-.header-loyalty-row:hover {
-    background: linear-gradient(135deg, #ffedd5, #ffe4e6);
-    border-color: var(--primary);
 }
 .header-loyalty-icon {
     font-size: 1rem;
