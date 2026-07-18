@@ -150,7 +150,7 @@ class AttendanceService
         if ($locations->isEmpty()) {
             return [
                 'success'     => false,
-                'message'     => 'Chưa có vị trí làm việc nào được cấu hình.',
+                'message'     => 'Chưa có chi nhánh nào được cấu hình.',
                 'data'        => null,
                 'status_code' => 400,
             ];

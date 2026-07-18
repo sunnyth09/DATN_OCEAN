@@ -50,7 +50,7 @@ class WorkLocationController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Tạo vị trí làm việc thành công!',
+            'message' => 'Tạo chi nhánh thành công!',
             'data'    => $location,
         ], 201);
     }
@@ -66,7 +66,7 @@ class WorkLocationController extends Controller
         if (!$location) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Không tìm thấy vị trí làm việc.',
+                'message' => 'Không tìm thấy chi nhánh.',
             ], 404);
         }
 
@@ -83,7 +83,7 @@ class WorkLocationController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Cập nhật vị trí làm việc thành công!',
+            'message' => 'Cập nhật chi nhánh thành công!',
             'data'    => $location->fresh(),
         ]);
     }
@@ -99,7 +99,7 @@ class WorkLocationController extends Controller
         if (!$location) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Không tìm thấy vị trí làm việc.',
+                'message' => 'Không tìm thấy chi nhánh.',
             ], 404);
         }
 
@@ -108,7 +108,7 @@ class WorkLocationController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Đã vô hiệu hóa vị trí làm việc.',
+            'message' => 'Đã vô hiệu hóa chi nhánh.',
         ]);
     }
 }

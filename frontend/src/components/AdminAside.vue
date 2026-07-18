@@ -240,7 +240,11 @@ const handleLogout = async () => {
           </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/wallet-deposits" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
-            <span>Ví & Nạp tiền</span>
+            <span>Duyệt nạp tiền</span>
+          </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/wallet-withdrawals" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Duyệt rút tiền</span>
           </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
@@ -270,7 +274,7 @@ const handleLogout = async () => {
           </router-link>
           <router-link to="/admin/work-locations" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
-            <span>Vị trí làm việc</span>
+            <span>Chi nhánh</span>
           </router-link>
           <router-link to="/admin/work-shifts" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>

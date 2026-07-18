@@ -10,7 +10,13 @@ class CourtAdminController extends Controller
 {
     public function index(Request $request)
     {
-        $courts = Court::with(['schedules', 'prices'])->get();
+        $query = Court::with(['schedules', 'prices']);
+        
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        $courts = $query->get();
         return response()->json([
             'status' => 'success',
             'data' => $courts

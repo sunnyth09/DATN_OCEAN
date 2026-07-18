@@ -47,6 +47,9 @@ class StoreOrderRequest  extends FormRequest
             // Wallet discount
             'use_wallet'    => 'nullable|boolean',
             'wallet_amount' => 'nullable|numeric|min:0',
+
+            // Loyalty points
+            'reward_points_used' => 'nullable|integer|min:0',
         ];
     }
     

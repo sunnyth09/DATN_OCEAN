@@ -235,10 +235,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </div>
                 </div>
             </div>
-            <!-- Scroll indicator -->
-            <div class="hero-scroll-indicator d-none d-md-flex">
-                <div class="scroll-dot"></div>
-            </div>
+
         </section>
 
         <!-- ══════════════════════════════════════════
@@ -571,10 +568,15 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 <!-- Tab filter -->
                 <div class="d-flex justify-content-center gap-2 mb-4">
                     <button class="tab-btn" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">
-                        🔥 Tất cả
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f97316; margin-right: 4px; margin-bottom: 2px;">
+                            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                        </svg> Tất cả
                     </button>
                     <button class="tab-btn" :class="{ active: activeTab === 'sale' }" @click="activeTab = 'sale'">
-                        🏷️ Đang Sale
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #eab308; margin-right: 4px; margin-bottom: 2px;">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                        </svg> Đang Sale
                     </button>
                 </div>
                 <!-- Products Bootstrap row -->

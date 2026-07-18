@@ -74,20 +74,13 @@
               </button>
 
               <!-- Product Cards -->
-              <div v-if="msg.data && msg.type === 'search_products'" class="product-cards">
-                <div v-for="product in msg.data" :key="product.product_id" class="product-card">
-                  <img :src="getProductImage(product.thumbnail)" :alt="product.name" class="product-card-img" loading="lazy" @click="goToProduct(product.slug)" />
-                  <div class="product-card-info">
-                    <p class="product-card-name" @click="goToProduct(product.slug)">{{ product.name }}</p>
-                    <p class="product-card-price">{{ product.price }}</p>
-                    <span v-if="product.category" class="product-card-cat">{{ product.category }}</span>
-                    <div v-if="product.variants?.length" class="chatbot-actions">
-                      <button class="chatbot-action-btn" @click="showVariantPicker(product)">Chọn màu/size</button>
-                      <button v-if="product.variants.length === 1" class="chatbot-action-btn primary" @click="addVariantToCart(product, product.variants[0])">Thêm giỏ</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <ProductCards
+                v-if="msg.data && msg.type === 'search_products'"
+                :products="msg.data"
+                @go-to-product="goToProduct"
+                @add-variant="addVariantToCart"
+                @show-variant-picker="showVariantPicker"
+              />
 
               <!-- Product Detail Card -->
               <div v-if="msg.data && msg.type === 'get_product_detail'" class="product-detail-card">
@@ -116,17 +109,11 @@
               </div>
 
               <!-- Variant Picker -->
-              <div v-if="msg.data && msg.type === 'variant_picker'" class="product-detail-card">
-                <h4 class="pd-name">Chọn màu/size cho {{ msg.data.name }}</h4>
-                <div class="pd-variants">
-                  <div v-for="variant in msg.data.variants" :key="variant.variant_id" class="pd-variant-row">
-                    <span class="pd-variant-name">{{ variant.variant_name || [variant.color, variant.size].filter(Boolean).join(' / ') }}</span>
-                    <span class="pd-variant-price">{{ variant.price }}</span>
-                    <span class="pd-variant-status" :class="variant.stock > 0 ? 'in-stock' : 'out-stock'">{{ variant.status }}</span>
-                    <button v-if="variant.stock > 0" class="mini-add-btn" @click="addVariantToCart(msg.data, variant)">Thêm</button>
-                  </div>
-                </div>
-              </div>
+              <VariantPickerCard
+                v-if="msg.data && msg.type === 'variant_picker'"
+                :product="msg.data"
+                @add-variant="addVariantToCart"
+              />
 
               <!-- Order Card -->
               <div v-if="msg.data && msg.type === 'get_order_status'" class="order-cards">
@@ -298,6 +285,8 @@ import { ref, nextTick, onMounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../axios.js';
 import { getAppBaseUrl } from '@/utils/url';
+import ProductCards from './chatbot/ProductCards.vue';
+import VariantPickerCard from './chatbot/VariantPickerCard.vue';
 
 const router = useRouter();
 const BASE_URL = getAppBaseUrl();

@@ -595,29 +595,30 @@ const shareToFacebook = async () => {
     const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
     
     // Mở popup chia sẻ
-    window.open(fbShareUrl, 'facebook-share-dialog', 'width=800,height=600');
+    const popup = window.open(fbShareUrl, 'facebook-share-dialog', 'width=800,height=600');
     
-    // Gọi API cộng điểm ngay sau khi nhấn chia sẻ
-    // Trong thực tế cần verify từ webhook của FB, nhưng đây là MVP
     if (authStore.isAuthenticated) {
         isSharing.value = true;
-        try {
-            const res = await loyaltyService.socialShare(product.value.product_id);
-            if (res.data?.status === 'success') {
-                showToast('Bạn đã nhận được 10 điểm thưởng từ việc chia sẻ!', 'success');
-                // Cập nhật lại điểm trong store nếu cần
+        const checkPopup = setInterval(async () => {
+            if (!popup || popup.closed || popup.closed === undefined) {
+                clearInterval(checkPopup);
+                try {
+                    const res = await loyaltyService.socialShare(product.value.product_id);
+                    if (res.data?.status === 'success') {
+                        showToast(res.data.message || 'Bạn đã nhận được 10 điểm thưởng từ việc chia sẻ!', 'success');
+                    } else if (res.data?.status === 'info') {
+                        showToast(res.data.message || 'Bạn đã nhận điểm chia sẻ cho sản phẩm này hôm nay.', 'warning');
+                    }
+                } catch (error) {
+                    const msg = error.response?.data?.message;
+                    if (msg) showToast(msg, 'warning');
+                } finally {
+                    isSharing.value = false;
+                }
             }
-        } catch (error) {
-            // Có thể bỏ qua lỗi hoặc hiển thị nếu cần (ví dụ: đã nhận điểm hôm nay rồi)
-            const msg = error.response?.data?.message;
-            if (msg) {
-                showToast(msg, 'success'); // Vẫn báo success nhưng nội dung là info (ví dụ đã nhận rồi)
-            }
-        } finally {
-            isSharing.value = false;
-        }
+        }, 1000);
     } else {
-        showToast('Bạn có thể đăng nhập để nhận 10 điểm khi chia sẻ sản phẩm!', 'success');
+        showToast('Vui lòng đăng nhập để nhận 10 điểm thưởng khi chia sẻ!', 'warning');
     }
 };
 
