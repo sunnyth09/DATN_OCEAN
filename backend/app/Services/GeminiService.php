@@ -27,8 +27,19 @@ NGUYÊN TẮC GIAO TIẾP VÀ TƯ VẤN (QUAN TRỌNG):
 - Bạn chỉ là lớp tư vấn và hiểu ý định mua hàng. Không được tự bịa giá, tồn kho, tổng tiền, địa chỉ, mã đơn hoặc khẳng định đã đặt hàng nếu backend chưa trả kết quả thành công.
 
 QUY TẮC SỬ DỤNG FUNCTION (BẮT BUỘC TUÂN THỦ CHÍNH XÁC):
+
+PHÂN BIỆT QUAN TRỌNG — `get_product_detail` vs `search_products`:
+- Dùng `get_product_detail` khi: user HỎI VỀ MỘT SẢN PHẨM CỤ THỂ mà họ đã BIẾT TÊN — muốn biết màu gì, size gì, giá bao nhiêu, còn hàng không, thông tin chi tiết của sản phẩm đó.
+  Ví dụ: "Áo thun Dry-Fit Pro có màu gì?" → get_product_detail(product_name="Áo thun thể thao nam Dry-Fit Pro")
+  Ví dụ: "Giày Nike Air có size 42 không?" → get_product_detail(product_name="Giày Nike Air")
+  Ví dụ: "Áo polo xanh size L còn không?" → get_product_detail(product_name="Áo polo xanh")
+  Ví dụ: "Sản phẩm X giá bao nhiêu?" → get_product_detail(product_name="Sản phẩm X")
+- Dùng `search_products` khi: user MUỐN TÌM / KHÁM PHÁ / ĐƯỢC GỢI Ý sản phẩm (chưa biết chính xác muốn mua cái gì).
+  Ví dụ: "Tìm áo thun thể thao", "Gợi ý giày chạy bộ", "Có áo polo màu đen không?"
+- TUYỆT ĐỐI KHÔNG dùng `search_products` khi user đã nêu TÊN SẢN PHẨM CỤ THỂ và hỏi về màu/size/tồn kho/chi tiết của nó.
+
 - Khi user yêu cầu CHUNG CHUNG (ví dụ: "Tìm quần áo", "Tư vấn đồ đi tiệc", "Mua quà sinh nhật"): KHÔNG ĐƯỢC gọi function ngay. Hãy ĐẶT 1-2 CÂU HỎI LÀM RÕ (VD: về giới tính, độ tuổi, sở thích màu sắc, form dáng, khoảng giá).
-- CHỈ gọi function `search_products` khi user đã cung cấp ĐỦ THÔNG TIN (ít nhất 1 keyword cụ thể như tên loại, màu sắc, size, hoặc dịp sử dụng).
+- CHỈ gọi function `search_products` khi user muốn TÌM/KHÁM PHÁ sản phẩm và đã cung cấp ít nhất 1 keyword cụ thể (tên loại, màu sắc, size, dịp sử dụng). Không dùng search_products khi user hỏi về 1 sản phẩm cụ thể đã biết tên.
 - Các trường hợp gọi function NGAY LẬP TỨC không cần hỏi lại:
   + "Sản phẩm bán chạy", "Hot trend", "Sản phẩm mới" → Gọi `search_products` ngay.
   + "Chính sách đổi trả/vận chuyển/bảo hành", "Liên hệ" → Gọi `get_store_info`.
@@ -48,6 +59,24 @@ QUY TẮC ĐẶT HÀNG AN TOÀN:
 - Giá, tồn kho, tổng tiền, phí ship, địa chỉ phải lấy từ function result. Không tự suy đoán.
 - Với đặt hàng, trước tiên dùng `prepare_order` để tạo bản xem trước. Sau đó khách phải xác nhận rõ ràng thì mới được gọi `confirm_order`.
 - Chỉ hỗ trợ COD hoặc chuyển khoản ngân hàng trong chatbot. Không hỏi thông tin thẻ thanh toán trong chat.
+
+QUY TẮC ĐẶT HÀNG TỰ ĐỘNG (auto_order) — ƯU TIÊN DÙNG:
+- Gọi `auto_order` khi khách NÓI RÕ MUỐN MUA/ĐẶT và đã đăng nhập.
+  Ví dụ: "đặt cho tôi 1 vợt đen", "mua 2 áo polo size M", "order giày size 42".
+- `auto_order` tự động TOÀN BỘ: tìm SP → chọn variant → thêm giỏ → đặt đơn → xác nhận. Không cần user click gì.
+- Nếu kết quả là `need_variant_info`: sản phẩm có nhiều màu/size, hãy hỏi lại 1 câu ngắn để lấy thêm thông tin.
+- Nếu kết quả là `color_not_found` / `size_not_found`: thông báo màu/size không có, liệt kê các lựa chọn hiện có.
+- Nếu kết quả là `no_address`: hướng dẫn khách thêm địa chỉ trong tài khoản.
+- Nếu kết quả là `over_limit`: thông báo vượt giới hạn 5.000.000đ, hướng dẫn checkout qua giỏ hàng.
+- Nếu kết quả là `auto_order_success`: chúc mừng khách, hiển thị mã đơn hàng và thông tin tóm tắt.
+- KHÔNG gọi `auto_order` nếu khách chỉ hỏi/tìm kiếm → dùng `search_products`.
+- Giới hạn đơn auto order: tối đa 5.000.000đ.
+
+QUY TẮC ĐẶT HÀNG NHANH CÓ PREVIEW (quick_order):
+- Chỉ dùng `quick_order` khi khách muốn XEM TRƯỚC trước khi xác nhận (VD: "cho tôi xem đơn trước").
+- `quick_order` tạo preview, khách cần xác nhận thêm 1 bước.
+- Nếu kết quả trả về `choose_variant`, yêu cầu khách chọn màu/size từ danh sách.
+- Giới hạn: tối đa 5.000.000đ.
 
 KHI TRÌNH BÀY SẢN PHẨM HOẶC CHÍNH SÁCH:
 - Hiển thị giá luôn có định dạng VNĐ (VD: 500.000đ).
@@ -268,6 +297,66 @@ PROMPT;
                     ],
                 ],
             ],
+            [
+                'name' => 'auto_order',
+                'description' => 'ĐẶT HÀNG TỰ ĐỘNG HOÀN TOÀN — Tự tìm sản phẩm, chọn variant tốt nhất, thêm giỏ và xác nhận đơn luôn không cần user click gì. Dùng khi khách nói rõ muốn MUA/ĐẶT/ORDER một sản phẩm cụ thể và đã đăng nhập. Ưu tiên dùng function này thay cho quick_order.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'keyword' => [
+                            'type' => 'string',
+                            'description' => 'Tên hoặc loại sản phẩm muốn mua (VD: vợt pickleball, áo polo, giày chạy bộ)',
+                        ],
+                        'color' => [
+                            'type' => 'string',
+                            'description' => 'Màu sắc nếu khách nói rõ (đen, trắng, đỏ, xanh...)',
+                        ],
+                        'size' => [
+                            'type' => 'string',
+                            'description' => 'Size nếu khách nói rõ (S, M, L, XL, 38, 39, 40...)',
+                        ],
+                        'quantity' => [
+                            'type' => 'number',
+                            'description' => 'Số lượng muốn mua, mặc định 1 nếu khách không nói rõ',
+                        ],
+                        'coupon_code' => [
+                            'type' => 'string',
+                            'description' => 'Mã giảm giá nếu khách yêu cầu áp dụng',
+                        ],
+                    ],
+                    'required' => ['keyword'],
+                ],
+            ],
+            [
+                'name' => 'quick_order',
+                'description' => 'Đặt hàng nhanh có preview: tìm sản phẩm, tạo bản xem trước để khách xác nhận. Chỉ dùng khi khách muốn xem trước đơn hàng trước khi đặt.',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'keyword' => [
+                            'type' => 'string',
+                            'description' => 'Tên hoặc loại sản phẩm muốn mua',
+                        ],
+                        'color' => [
+                            'type' => 'string',
+                            'description' => 'Màu sắc nếu khách nói rõ',
+                        ],
+                        'size' => [
+                            'type' => 'string',
+                            'description' => 'Size nếu khách nói rõ',
+                        ],
+                        'quantity' => [
+                            'type' => 'number',
+                            'description' => 'Số lượng, mặc định 1',
+                        ],
+                        'coupon_code' => [
+                            'type' => 'string',
+                            'description' => 'Mã giảm giá nếu có',
+                        ],
+                    ],
+                    'required' => ['keyword'],
+                ],
+            ],
         ];
     }
 
@@ -279,7 +368,7 @@ PROMPT;
         $payload = [
             'system_instruction' => [
                 'parts' => [[
-                    'text' => 'Bạn chỉ trích xuất filter tìm kiếm sản phẩm cho Quyền Sport. Chỉ trả JSON hợp lệ, không markdown, không giải thích. Schema: {"is_product_search": boolean, "keyword": string|null, "category": string|null, "categories": string[], "color": string|null, "size": string|null, "min_price": number|null, "max_price": number|null}. Giá VNĐ: 500k=500000, 1tr=1000000, 2tr=2000000, 10tr=10000000. Không tự tạo product_id/variant_id. Không trả limit. Nếu câu không phải tìm sản phẩm thì is_product_search=false.'
+                    'text' => 'Bạn chỉ trích xuất filter tìm kiếm sản phẩm cho Quyền Sport. Chỉ trả JSON hợp lệ, không markdown, không giải thích. Schema: {"is_product_search": boolean, "keyword": string|null, "category": string|null, "categories": string[], "color": string|null, "size": string|null, "min_price": number|null, "max_price": number|null, "quantity": number|null}. Giá VNĐ: 500k=500000, 1tr=1000000, 2tr=2000000, 10tr=10000000. keyword phải là TÊN SẢN PHẨM SẠCH (chỉ tên loại hàng, không gồm các từ như "đặt cho tôi", "mua", "order", "1 cái"). Ví dụ: "đặt cho tôi 1 vợt cầu lông đen" → keyword="vợt cầu lông", color="đen", quantity=1. Không tự tạo product_id/variant_id. Không trả limit. Nếu câu không phải tìm/mua sản phẩm thì is_product_search=false.'
                 ]],
             ],
             'contents' => [[

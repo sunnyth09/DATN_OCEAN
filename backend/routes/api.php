@@ -91,6 +91,11 @@ Route::post('/auth/google/callback', [AuthController::class, 'googleCallback']);
 Route::post('/auth/facebook/callback', [AuthController::class, 'facebookCallback']);
 Route::middleware('throttle:20,1')->post('/refresh', [AuthController::class, 'refresh']);
 
+// Try-on (Public - guest can use)
+Route::get("/test-cors", [\App\Http\Controllers\TestCorsController::class, "test"]);
+Route::middleware('throttle:10,1')->post('/try-on', [TryOnController::class, 'process']);
+Route::middleware('throttle:5,1')->post('/try-on/generate-360', [TryOnController::class, 'generate360Views']);
+
 // Auth routes (Protected - cần JWT token)
 Route::middleware('auth:api,admin')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -115,10 +120,6 @@ Route::middleware('auth:api,admin')->group(function () {
     Route::put('/posts/{id}', [PostController::class, 'update']);
     Route::delete('/posts/{id}', [PostController::class, 'destroy']);
     Route::get('posts/edit/{id}', [PostController::class, 'edit']);
-
-    // Try-on
-    Route::middleware('throttle:10,1')->post('/try-on', [TryOnController::class, 'process']);
-    Route::middleware('throttle:5,1')->post('/try-on/generate-360', [TryOnController::class, 'generate360Views']);
 
     // Return requests
     Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
@@ -270,6 +271,11 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::get('/wallets', [AdminWalletController::class, 'index']);
     Route::get('/wallets/{userId}', [AdminWalletController::class, 'show']);
     Route::post('/wallets/{userId}/adjust', [AdminWalletController::class, 'adjust']);
+    
+    // Duyệt rút tiền ví
+    Route::get('/wallets/withdrawals/pending', [AdminWalletController::class, 'withdrawals']);
+    Route::put('/wallets/withdrawals/{id}/complete', [AdminWalletController::class, 'completeWithdrawal']);
+    Route::put('/wallets/withdrawals/{id}/reject', [AdminWalletController::class, 'rejectWithdrawal']);
 
     // Flash Sale Management (Admin only)
     Route::get('/flash-sale', [\App\Http\Controllers\Admin\FlashSaleController::class, 'adminIndex']);
@@ -516,6 +522,8 @@ Route::middleware(['auth:api', 'throttle:10,1'])->prefix('chatbot')->group(funct
     Route::get('/addresses', [\App\Http\Controllers\ChatbotController::class, 'getAddresses']);
     Route::post('/order/prepare', [\App\Http\Controllers\ChatbotController::class, 'prepareOrder']);
     Route::post('/order/confirm', [\App\Http\Controllers\ChatbotController::class, 'confirmOrder']);
+    Route::post('/quick-order', [\App\Http\Controllers\ChatbotController::class, 'quickOrder']);
+    Route::post('/preferences', [\App\Http\Controllers\ChatbotController::class, 'updatePreferences']);
 });
 
 // Live Chat (Realtime - Public/User)

@@ -20,7 +20,13 @@ class CourtController extends Controller
      */
     public function index(Request $request)
     {
-        $courts = Court::active()->orderBy('sort_order')->get();
+        $query = Court::active();
+        
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        $courts = $query->orderBy('sort_order')->get();
         return response()->json([
             'status' => 'success',
             'data' => $courts

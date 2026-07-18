@@ -98,11 +98,11 @@ class ProductCommentController extends Controller
             if ($user) {
                 // +20 điểm khi viết nhận xét có nội dung
                 if (!empty(trim($request->content ?? ''))) {
-                    $this->loyaltyService->earnFromReview($user, $comment->id);
+                    $this->loyaltyService->earnFromReview($user, $comment->comment_id);
                 }
                 // +50 điểm bonus khi đính kèm hình ảnh
                 if (!empty($imagePaths)) {
-                    $this->loyaltyService->earnFromReviewWithImage($user, $comment->id);
+                    $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
                 }
             }
             // ───────────────────────────────────────────────────────────────

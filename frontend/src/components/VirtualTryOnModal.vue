@@ -65,10 +65,7 @@ const submitTryOn = async () => {
 
   try {
     const response = await api.post('/try-on', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      timeout: 90000 // Timeout 90s cho AI processing
+      timeout: 120000 // Timeout 120s cho AI processing + polling
     });
 
     if (response.data.status === 'success') {
@@ -77,7 +74,19 @@ const submitTryOn = async () => {
     }
   } catch (error) {
     console.error("Try-On Error:", error);
-    errorMessage.value = error.response?.data?.message || "Đã có lỗi xảy ra. Vui lòng thử lại sau.";
+    
+    if (error.code === 'ECONNABORTED') {
+      errorMessage.value = "AI đang xử lý quá lâu. Vui lòng thử lại với ảnh nhỏ hơn.";
+    } else if (!error.response) {
+      // Network error (Failed to fetch, CORS, server unreachable)
+      errorMessage.value = "Không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.";
+    } else if (error.response.status === 401) {
+      errorMessage.value = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+    } else if (error.response.status === 429) {
+      errorMessage.value = "Bạn đã thử quá nhiều lần. Vui lòng đợi 1 phút rồi thử lại.";
+    } else {
+      errorMessage.value = error.response?.data?.message || "Đã có lỗi xảy ra. Vui lòng thử lại sau.";
+    }
   } finally {
     isLoading.value = false;
   }

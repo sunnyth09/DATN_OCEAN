@@ -45,9 +45,9 @@
               v-model="form.new_password"
               class="form-input"
               :class="{ 'form-input--error': errors.new_password }"
-              placeholder="Ít nhất 6 ký tự"
+              placeholder="Ít nhất 8 ký tự"
               autocomplete="new-password"
-              minlength="6"
+              minlength="8"
               required
             />
             <button type="button" class="eye-btn" @click="show.newPw = !show.newPw" tabindex="-1">
@@ -68,7 +68,7 @@
               :class="{ 'form-input--error': confirmMismatch }"
               placeholder="Nhập lại mật khẩu mới"
               autocomplete="new-password"
-              minlength="6"
+              minlength="8"
               required
             />
             <button type="button" class="eye-btn" @click="show.confirm = !show.confirm" tabindex="-1">
@@ -81,10 +81,13 @@
 
         <!-- Strength indicator -->
         <div v-if="form.new_password" class="strength-wrap">
+          <div class="strength-header">
+            <span class="strength-title">Độ bảo mật:</span>
+            <span class="strength-label" :class="strength.cls">{{ strength.label }}</span>
+          </div>
           <div class="strength-bar">
             <div class="strength-fill" :class="strength.cls" :style="{ width: strength.pct + '%' }"></div>
           </div>
-          <span class="strength-label" :class="strength.cls">{{ strength.label }}</span>
         </div>
 
         <div class="form-actions">
@@ -143,7 +146,7 @@ const strength = computed(() => {
   const pw = form.value.new_password;
   if (!pw) return { pct: 0, label: '', cls: '' };
   let score = 0;
-  if (pw.length >= 6)  score++;
+  if (pw.length >= 8)  score++;
   if (pw.length >= 10) score++;
   if (/[A-Z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
@@ -163,7 +166,7 @@ const submitChangePassword = async () => {
   serverError.value = '';
 
   if (confirmMismatch.value) return;
-  if (form.value.new_password.length < 6) return;
+  if (form.value.new_password.length < 8) return;
 
   loading.value = true;
   try {
@@ -264,16 +267,27 @@ const submitChangePassword = async () => {
 .error-text { font-size: 0.78rem; color: #ef4444; }
 
 /* Password Strength */
-.strength-wrap { display: flex; align-items: center; gap: 10px; }
-.strength-bar  { flex: 1; height: 5px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
-.strength-fill { height: 100%; border-radius: 99px; transition: width 0.3s, background 0.3s; }
-.strength-label { font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+.strength-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.strength-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+.strength-title { color: #6b7280; font-weight: 500; }
+.strength-label { font-weight: 700; transition: color 0.3s ease; }
+.strength-bar  { width: 100%; height: 6px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+.strength-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease-out, background-color 0.4s ease; }
 
-.str-veryweak  .strength-fill, .str-veryweak  { background: #ef4444; color: #ef4444; }
-.str-weak      .strength-fill, .str-weak      { background: #f97316; color: #f97316; }
-.str-medium    .strength-fill, .str-medium    { background: #eab308; color: #ca8a04; }
-.str-strong    .strength-fill, .str-strong    { background: #22c55e; color: #16a34a; }
-.str-verystrong .strength-fill, .str-verystrong { background: #10b981; color: #059669; }
+.strength-fill.str-veryweak { background-color: #ef4444; }
+.strength-label.str-veryweak { color: #ef4444; }
+
+.strength-fill.str-weak { background-color: #f97316; }
+.strength-label.str-weak { color: #f97316; }
+
+.strength-fill.str-medium { background-color: #f59e0b; }
+.strength-label.str-medium { color: #f59e0b; }
+
+.strength-fill.str-strong { background-color: #22c55e; }
+.strength-label.str-strong { color: #22c55e; }
+
+.strength-fill.str-verystrong { background-color: #10b981; }
+.strength-label.str-verystrong { color: #10b981; }
 
 /* Actions */
 .form-actions { margin-top: 8px; }

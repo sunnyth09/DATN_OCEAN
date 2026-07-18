@@ -14,13 +14,17 @@ use App\Models\User;
 
 class ChatbotController extends Controller
 {
-    private GeminiService $gemini;
+        private GeminiService $gemini;
     private ChatbotActionService $chatbotActions;
+    private \App\Services\Chatbot\IntentParserService $intentParser;
+    private \App\Services\Chatbot\ChatbotSessionService $sessionService;
 
-    public function __construct(GeminiService $gemini, ChatbotActionService $chatbotActions)
+    public function __construct(GeminiService $gemini, ChatbotActionService $chatbotActions, \App\Services\Chatbot\IntentParserService $intentParser, \App\Services\Chatbot\ChatbotSessionService $sessionService)
     {
         $this->gemini = $gemini;
         $this->chatbotActions = $chatbotActions;
+        $this->intentParser = $intentParser;
+        $this->sessionService = $sessionService;
     }
 
     /**
@@ -70,10 +74,13 @@ class ChatbotController extends Controller
         }
 
         // Ưu tiên xử lý deterministic cho các intent phổ biến để tránh phụ thuộc Gemini lúc API lỗi/nhập ngắn
-        $directResponse = $this->handleDirectIntent($userMessage, $authUser, $customerUser, $request);
-        if ($directResponse) {
-            return response()->json($directResponse);
-        }
+        $sessionId = $request->input('session_id');
+        $sessionId = $this->sessionService->getSessionId($sessionId, $authUser);
+        // Bỏ qua xử lý Rule-based để ném thẳng vào Gemini AI
+        // $directResponse = $this->handleDirectIntent($userMessage, $authUser, $customerUser, $request, $sessionId);
+        // if ($directResponse) {
+        //     return response()->json($directResponse);
+        // }
 
         // Build conversation history cho Gemini
         $conversationHistory = $this->buildConversationHistory($history, $userMessage);
@@ -88,6 +95,7 @@ class ChatbotController extends Controller
                 'message' => $response['message'],
                 'data'    => null,
                 'type'    => 'text',
+            'session_id' => $sessionId ?? '',
             ]);
         }
 
@@ -98,6 +106,14 @@ class ChatbotController extends Controller
 
             // Thực thi function qua allowlist an toàn
             $functionResult = $this->executeFunction($functionName, $arguments, $authUser, $customerUser, $request);
+
+            // Lưu context (những sản phẩm AI gợi ý hoặc người dùng đang xem)
+            if ($functionName === 'search_products' && ($functionResult['status'] ?? 'error') === 'success' && !empty($functionResult['data'])) {
+                $productIds = array_column($functionResult['data'], 'product_id');
+                $this->sessionService->saveRecommendedProducts($sessionId, $productIds);
+            } elseif ($functionName === 'get_product_detail' && ($functionResult['status'] ?? 'error') === 'success' && !empty($functionResult['data']['product']['product_id'])) {
+                $this->sessionService->saveRecommendedProducts($sessionId, [$functionResult['data']['product']['product_id']]);
+            }
 
             // Gửi kết quả function về Gemini để tạo response text
             $finalResponse = $this->gemini->sendFunctionResult(
@@ -114,11 +130,52 @@ class ChatbotController extends Controller
                 $message = $this->buildFallbackMessage($functionName, $functionResult);
             }
 
+            // Ghi đè message từ backend cho các hàm xử lý nghiệp vụ (vì message của backend cực kỳ chính xác và đầy đủ, tránh Gemini tự chế lỗi)
+            if (in_array($functionName, ['auto_order', 'quick_order', 'add_to_cart', 'prepare_order', 'confirm_order'])) {
+                $message = $functionResult['message'] ?? $message;
+            }
+
+            // Map quick_order status → frontend type
+            $responseType = $functionName;
+            if ($functionName === 'quick_order') {
+                $responseType = match ($functionResult['status'] ?? 'error') {
+                    'choose_variant' => 'quick_order_choose_variant',
+                    'no_address'     => 'quick_order_no_address',
+                    'over_limit'     => 'quick_order_over_limit',
+                    'success'        => 'order_preview',
+                    default          => 'quick_order',
+                };
+            }
+
+            // Map auto_order status → frontend type
+            if ($functionName === 'auto_order') {
+                $responseType = match ($functionResult['status'] ?? 'error') {
+                    'auto_order_success' => 'auto_order',
+                    'need_variant_info'  => 'need_variant_info',
+                    'color_not_found'    => 'color_not_found',
+                    'size_not_found'     => 'size_not_found',
+                    'no_address',
+                    'over_limit',
+                    'not_found'          => 'text',
+                    default              => 'text',
+                };
+                // Trả thêm status để frontend có thể handle
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'data'    => $functionResult['data'] ?? null,
+                    'type'    => $responseType,
+                    'status'  => $functionResult['status'] ?? 'error',
+                    'session_id' => $sessionId ?? '',
+                ]);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'data'    => $functionResult['data'] ?? null,
-                'type'    => $functionName,
+                'type'    => $responseType,
+            'session_id' => $sessionId ?? '',
             ]);
         }
 
@@ -128,217 +185,126 @@ class ChatbotController extends Controller
             'message' => $response['message'],
             'data'    => null,
             'type'    => 'text',
+        'session_id' => $sessionId ?? '',
         ]);
     }
 
-    private function handleDirectIntent(string $message, $authUser = null, $customerUser = null, ?Request $request = null): ?array
+    
+    private function handleDirectIntent(string $message, $authUser = null, $customerUser = null, ?Request $request = null, string $sessionId = ''): ?array
     {
-        $normalized = $this->normalizeVietnameseText($message);
+        $parsed = $this->intentParser->parse($message);
+        $intent = $parsed['intent'];
+        $entities = $parsed['entities'];
 
-        if ($normalized === '' || mb_strlen($normalized) <= 2) {
+        if ($intent === 'unknown') {
+            return null; // Fallback to Gemini
+        }
+
+        if ($intent === 'greeting') {
             return [
                 'success' => true,
-                'message' => 'Bạn muốn Quyền Sport AI hỗ trợ tìm sản phẩm, xem đơn hàng, mã giảm giá hay chính sách đổi trả?',
+                'message' => 'Xin chào! Quyền Sport AI có thể giúp bạn tìm sản phẩm, xem đơn hàng, mã giảm giá, chính sách đổi trả hoặc hỗ trợ đặt hàng nhanh.',
                 'data' => null,
                 'type' => 'text',
             ];
         }
 
-        if (preg_match('/\b(chao|hello|hi|hey|xin chao)\b/u', $normalized)) {
-            return [
-                'success' => true,
-                'message' => 'Xin chào, Quyền Sport AI có thể giúp bạn tìm sản phẩm, xem đơn hàng, mã giảm giá, chính sách đổi trả hoặc hướng dẫn đặt hàng nhanh.',
-                'data' => null,
-                'type' => 'text',
-            ];
-        }
-
-        if (str_contains($normalized, 'doi tra') || str_contains($normalized, 'bao hanh') || str_contains($normalized, 'van chuyen') || str_contains($normalized, 'lien he') || str_contains($normalized, 'thanh toan')) {
-            $topic = 'general';
-            if (str_contains($normalized, 'doi tra') || str_contains($normalized, 'bao hanh')) $topic = 'return_policy';
-            if (str_contains($normalized, 'van chuyen') || str_contains($normalized, 'ship')) $topic = 'shipping';
-            if (str_contains($normalized, 'thanh toan')) $topic = 'payment';
-            if (str_contains($normalized, 'lien he') || str_contains($normalized, 'hotline')) $topic = 'contact';
-
-            $result = $this->getStoreInfo(['topic' => $topic]);
+        if ($intent === 'get_store_info') {
+            $result = $this->getStoreInfo(['topic' => $entities['topic'] ?? 'general']);
             return $this->formatDirectResponse($result['message'] ?? 'Thông tin Quyền Sport', $result, 'get_store_info');
         }
 
-        if (str_contains($normalized, 'ma giam gia') || str_contains($normalized, 'voucher') || str_contains($normalized, 'khuyen mai') || str_contains($normalized, 'coupon')) {
+        if ($intent === 'get_available_coupons') {
             $result = $this->getAvailableCoupons();
             return $this->formatDirectResponse($this->buildFallbackMessage('get_available_coupons', $result), $result, 'get_available_coupons');
         }
 
-        if (str_contains($normalized, 'don hang') || str_contains($normalized, 'order cua toi') || str_contains($normalized, 'xem don')) {
+        if ($intent === 'get_order_status') {
             $result = $this->getOrderStatus([], $authUser);
             return $this->formatDirectResponse($this->buildFallbackMessage('get_order_status', $result), $result, 'get_order_status');
         }
 
-        if (str_contains($normalized, 'dia chi') || str_contains($normalized, 'giao toi')) {
+        if ($intent === 'get_my_addresses') {
             $result = $this->chatbotActions->getMyAddresses($customerUser);
             return $this->formatDirectResponse($result['message'] ?? 'Danh sách địa chỉ giao hàng của bạn.', $result, 'get_my_addresses');
         }
 
-        if (str_contains($normalized, 'san pham ban chay') || str_contains($normalized, 'ban chay') || str_contains($normalized, 'hot trend')) {
-            $result = $this->chatbotActions->execute('search_products', [], $customerUser, $request);
-            return $this->formatDirectResponse($this->buildFallbackMessage('search_products', $result), $result, 'search_products');
+        if ($intent === 'search_products') {
+            $result = $this->chatbotActions->execute('search_products', $entities, $customerUser, $request);
+            
+            // Save context
+            if (($result['status'] ?? 'error') === 'success' && !empty($result['data'])) {
+                $productIds = array_column($result['data'], 'product_id');
+                $this->sessionService->saveRecommendedProducts($sessionId, $productIds);
+            }
+            
+            $msg = $this->buildFallbackMessage('search_products', $result);
+            if (!empty($entities['on_sale']) && !empty($result['data'])) {
+                $msg = 'Đây là những sản phẩm đang được giảm giá hấp dẫn tại Quyền Sport.';
+            }
+            return $this->formatDirectResponse($msg, $result, 'search_products');
+        }
+        
+        if ($intent === 'context_selection') {
+            $productId = $this->sessionService->getProductFromContext($sessionId, $entities['reference'] ?? '');
+            if (!$productId) {
+                return [
+                    'success' => true,
+                    'message' => 'Xin lỗi, tôi không rõ bạn đang nhắc đến sản phẩm nào. Bạn có thể nói rõ tên sản phẩm được không?',
+                    'data' => null,
+                    'type' => 'text',
+                ];
+            }
+            
+            $product = Product::find($productId);
+            if (!$product) {
+                 return ['success' => true, 'message' => 'Sản phẩm không còn tồn tại.', 'type' => 'text', 'data' => null];
+            }
+            $result = $this->chatbotActions->execute('get_product_detail', ['product_name' => $product->name], $customerUser, $request);
+            return $this->formatDirectResponse($this->buildFallbackMessage('get_product_detail', $result), $result, 'get_product_detail');
         }
 
-        if ($this->looksLikeProductSearch($normalized)) {
-            $searchArgs = $this->extractProductSearchArgsWithAiFallback($message, $normalized);
-            $result = $this->chatbotActions->execute('search_products', $searchArgs, $customerUser, $request);
-            return $this->formatDirectResponse($this->buildFallbackMessage('search_products', $result), $result, 'search_products');
+        if ($intent === 'auto_order') {
+            if (empty($entities['keyword'])) {
+                $productId = $this->sessionService->getProductFromContext($sessionId, 'cái đầu tiên'); 
+                if ($productId) {
+                    $product = Product::find($productId);
+                    if ($product) {
+                        $entities['keyword'] = $product->name;
+                    }
+                }
+            }
+            
+            $result = $this->chatbotActions->execute('auto_order', $entities, $customerUser, $request);
+            $responseType = match ($result['status'] ?? 'error') {
+                'auto_order_success' => 'auto_order',
+                'need_variant_info'  => 'need_variant_info',
+                'color_not_found'    => 'color_not_found',
+                'size_not_found'     => 'size_not_found',
+                default              => 'text',
+            };
+            return [
+                'success' => true,
+                'message' => $result['message'] ?? 'Vui lòng thử lại.',
+                'data'    => $result['data'] ?? null,
+                'type'    => $responseType,
+                'status'  => $result['status'] ?? 'error',
+            ];
+        }
+
+        if ($intent === 'get_product_detail') {
+            $result = $this->chatbotActions->execute('get_product_detail', ['product_name' => $entities['product_name']], $customerUser, $request);
+            
+            // LƯU NGỮ CẢNH
+            if (($result['status'] ?? 'error') === 'success' && !empty($result['data']['product']['product_id'])) {
+                $this->sessionService->saveRecommendedProducts($sessionId, [$result['data']['product']['product_id']]);
+            }
+            
+            $message_text = $this->buildFallbackMessage('get_product_detail', $result);
+            return $this->formatDirectResponse($message_text, $result, 'get_product_detail');
         }
 
         return null;
-    }
-
-    private function looksLikeProductSearch(string $normalized): bool
-    {
-        if (preg_match('/\b(kinh|mat kinh|ao|quan|giay|dep|tui|balo|mu|non|vot|bong|gang|phu kien|san pham|hang|mua|show|tim|kiem)\b/u', $normalized)) {
-            return true;
-        }
-
-        return preg_match('/\b([0-9]+(?:[\.,][0-9]+)?\s*(k|nghin|trieu|m))\b/u', $normalized) === 1;
-    }
-
-    private function extractProductSearchArgsWithAiFallback(string $message, string $normalized): array
-    {
-        $aiFilters = $this->gemini->extractProductSearchFilters($message);
-        if (empty($aiFilters['error']) && ($aiFilters['is_product_search'] ?? false)) {
-            return $this->sanitizeProductSearchArgs($aiFilters, $message);
-        }
-
-        return $this->sanitizeProductSearchArgs($this->extractProductSearchArgs($message, $normalized), $message);
-    }
-
-    private function sanitizeProductSearchArgs(array $args, string $message): array
-    {
-        $safe = [];
-        foreach (['keyword', 'category', 'color', 'size'] as $field) {
-            if (!empty($args[$field]) && is_string($args[$field])) {
-                $safe[$field] = mb_substr(strip_tags(trim($args[$field])), 0, 60);
-            }
-        }
-
-        if (!empty($args['categories']) && is_array($args['categories'])) {
-            $safe['categories'] = array_slice(array_values(array_filter(array_map(function ($category) {
-                return is_string($category) ? mb_substr(strip_tags(trim($category)), 0, 60) : null;
-            }, $args['categories']))), 0, 3);
-        }
-
-        foreach (['min_price', 'max_price'] as $field) {
-            if (isset($args[$field]) && is_numeric($args[$field])) {
-                $safe[$field] = (int) min(max((float) $args[$field], 0), 100000000);
-            }
-        }
-
-        if (isset($safe['min_price'], $safe['max_price']) && $safe['min_price'] > $safe['max_price']) {
-            [$safe['min_price'], $safe['max_price']] = [$safe['max_price'], $safe['min_price']];
-        }
-
-        if (empty($safe['keyword']) && empty($safe['category']) && empty($safe['categories'])) {
-            $safe['keyword'] = mb_substr(strip_tags(trim($message)), 0, 80);
-        }
-
-        return $safe;
-    }
-
-    private function extractProductSearchArgs(string $message, string $normalized): array
-    {
-        $args = [];
-
-        $categoryMap = [
-            'mat kinh' => 'Mắt kính',
-            'kinh' => 'Mắt kính',
-            'ao' => 'Áo',
-            'quan' => 'Quần',
-            'giay' => 'Giày',
-            'dep' => 'Dép',
-            'tui' => 'Túi',
-            'balo' => 'Balo',
-            'mu' => 'Mũ',
-            'non' => 'Nón',
-            'phu kien' => 'Phụ kiện',
-        ];
-
-        $categories = [];
-        foreach ($categoryMap as $keyword => $category) {
-            if (preg_match('/\b' . preg_quote($keyword, '/') . '\b/u', $normalized)) {
-                $categories[] = $category;
-            }
-        }
-        $categories = array_values(array_unique($categories));
-        if (count($categories) === 1) {
-            $args['keyword'] = $categories[0];
-            $args['category'] = $categories[0];
-        } elseif (count($categories) > 1) {
-            $args['categories'] = $categories;
-        }
-
-        if (preg_match('/(?:tu|khoang|tam)?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(k|nghin|trieu|m)?\s*(?:den|toi|-)\s*([0-9]+(?:[\.,][0-9]+)?)\s*(k|nghin|trieu|m)?/u', $normalized, $matches)) {
-            $args['min_price'] = $this->parseVietnamesePrice($matches[1], $matches[2] ?? '');
-            $args['max_price'] = $this->parseVietnamesePrice($matches[3], $matches[4] ?: ($matches[2] ?? ''));
-        } elseif (preg_match('/(?:duoi|nho hon|toi da|<=|<)\s*([0-9]+(?:[\.,][0-9]+)?)\s*(k|nghin|trieu|m)?/u', $normalized, $matches)) {
-            $args['max_price'] = $this->parseVietnamesePrice($matches[1], $matches[2] ?? '');
-        } elseif (preg_match('/(?:tren|lon hon|tu)\s*([0-9]+(?:[\.,][0-9]+)?)\s*(k|nghin|trieu|m)?/u', $normalized, $matches)) {
-            $args['min_price'] = $this->parseVietnamesePrice($matches[1], $matches[2] ?? '');
-        } elseif (preg_match('/(?:tam|khoang|gia)\s*([0-9]+(?:[\.,][0-9]+)?)\s*(k|nghin|trieu|m)?/u', $normalized, $matches)) {
-            $price = $this->parseVietnamesePrice($matches[1], $matches[2] ?? '');
-            $args['min_price'] = max(0, (int) floor($price * 0.8));
-            $args['max_price'] = (int) ceil($price * 1.2);
-        }
-
-        foreach (['den' => 'đen', 'trang' => 'trắng', 'xanh' => 'xanh', 'do' => 'đỏ', 'hong' => 'hồng', 'xam' => 'xám', 'nau' => 'nâu', 'be' => 'be'] as $plain => $color) {
-            if (preg_match('/\b' . $plain . '\b/u', $normalized)) {
-                $args['color'] = $color;
-                break;
-            }
-        }
-
-        if (preg_match('/\b(xs|s|m|l|xl|xxl|2xl|3xl|4xl)\b/u', $normalized, $matches)) {
-            $args['size'] = strtoupper($matches[1]);
-        }
-
-        if (isset($args['min_price'], $args['max_price']) && $args['min_price'] > $args['max_price']) {
-            [$args['min_price'], $args['max_price']] = [$args['max_price'], $args['min_price']];
-        }
-
-        return $args ?: ['keyword' => mb_substr($message, 0, 80)];
-    }
-
-    private function parseVietnamesePrice(string $number, string $unit): int
-    {
-        $value = (float) str_replace(',', '.', $number);
-        $unit = trim($unit);
-
-        if (in_array($unit, ['k', 'nghin'], true)) {
-            return (int) round($value * 1000);
-        }
-
-        if (in_array($unit, ['trieu', 'm'], true)) {
-            return (int) round($value * 1000000);
-        }
-
-        if ($value < 1000) {
-            $value = $value * 1000;
-        }
-
-        return (int) min(max(round($value), 0), 100000000);
-    }
-
-    private function normalizeVietnameseText(string $text): string
-    {
-        $text = mb_strtolower(trim($text));
-        $map = [
-            'à'=>'a','á'=>'a','ạ'=>'a','ả'=>'a','ã'=>'a','â'=>'a','ầ'=>'a','ấ'=>'a','ậ'=>'a','ẩ'=>'a','ẫ'=>'a','ă'=>'a','ằ'=>'a','ắ'=>'a','ặ'=>'a','ẳ'=>'a','ẵ'=>'a',
-            'è'=>'e','é'=>'e','ẹ'=>'e','ẻ'=>'e','ẽ'=>'e','ê'=>'e','ề'=>'e','ế'=>'e','ệ'=>'e','ể'=>'e','ễ'=>'e',
-            'ì'=>'i','í'=>'i','ị'=>'i','ỉ'=>'i','ĩ'=>'i',
-            'ò'=>'o','ó'=>'o','ọ'=>'o','ỏ'=>'o','õ'=>'o','ô'=>'o','ồ'=>'o','ố'=>'o','ộ'=>'o','ổ'=>'o','ỗ'=>'o','ơ'=>'o','ờ'=>'o','ớ'=>'o','ợ'=>'o','ở'=>'o','ỡ'=>'o',
-            'ù'=>'u','ú'=>'u','ụ'=>'u','ủ'=>'u','ũ'=>'u','ư'=>'u','ừ'=>'u','ứ'=>'u','ự'=>'u','ử'=>'u','ữ'=>'u',
-            'ỳ'=>'y','ý'=>'y','ỵ'=>'y','ỷ'=>'y','ỹ'=>'y','đ'=>'d',
-        ];
-        return strtr($text, $map);
     }
 
     private function formatDirectResponse(string $message, array $result, string $type): array
@@ -417,6 +383,71 @@ class ChatbotController extends Controller
     }
 
     /**
+     * Quick Order với variant đã chọn
+     * POST /api/chatbot/quick-order
+     */
+    public function quickOrder(Request $request)
+    {
+        $request->validate([
+            'variant_id' => 'required|integer',
+            'quantity' => 'nullable|integer|min:1|max:20',
+            'coupon_code' => 'nullable|string|max:50',
+        ]);
+
+        $result = $this->chatbotActions->quickOrderWithVariant(
+            $request->only(['variant_id', 'quantity', 'coupon_code']),
+            auth('api')->user()
+        );
+
+        $status = $result['status'] ?? 'error';
+        $responseType = match ($status) {
+            'choose_variant' => 'quick_order_choose_variant',
+            'no_address' => 'quick_order_no_address',
+            'over_limit' => 'quick_order_over_limit',
+            'success' => 'order_preview',
+            default => 'quick_order',
+        };
+
+        return response()->json([
+            'success' => $status === 'success',
+            'message' => $result['message'] ?? '',
+            'data' => $result['data'] ?? null,
+            'type' => $responseType,
+        ], $status === 'success' ? 200 : 422);
+    }
+
+    /**
+     * Cập nhật preferences (default payment method)
+     * POST /api/chatbot/preferences
+     */
+    public function updatePreferences(Request $request)
+    {
+        $request->validate([
+            'default_payment_method' => 'required|in:cod,bank_transfer',
+        ]);
+
+        $user = auth('api')->user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bạn cần đăng nhập để cập nhật tuỳ chọn.',
+            ], 401);
+        }
+
+        $user->forceFill([
+            'default_payment_method' => $request->input('default_payment_method'),
+        ])->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã lưu phương thức thanh toán mặc định.',
+            'data' => ['default_payment_method' => $user->default_payment_method],
+            'type'    => 'text',
+        'session_id' => $sessionId ?? '',
+        ]);
+    }
+
+    /**
      * Build conversation history theo format Gemini API
      */
     private function buildConversationHistory(array $history, string $newMessage): array
@@ -461,7 +492,9 @@ class ChatbotController extends Controller
             'add_to_cart',
             'get_my_addresses',
             'prepare_order',
-            'confirm_order'        => $this->chatbotActions->execute($functionName, $arguments, $customerUser, $request),
+            'confirm_order',
+            'auto_order',
+            'quick_order'          => $this->chatbotActions->execute($functionName, $arguments, $customerUser, $request),
             'get_order_status'     => $this->getOrderStatus($arguments, $authUser),
             'get_available_coupons'=> $this->getAvailableCoupons(),
             'get_categories'       => $this->getCategories(),
@@ -511,9 +544,19 @@ class ChatbotController extends Controller
 
     private function buildProductDetailFallback(array $data): string
     {
-        $name = $data['name'] ?? '';
+        $name  = $data['name'] ?? 'Sản phẩm';
         $price = $data['price_range'] ?? '';
-        return "Sản phẩm {$name} - Giá: {$price}. Bạn có muốn xem thêm chi tiết không?";
+
+        $colors = !empty($data['available_colors']) ? implode(', ', $data['available_colors']) : null;
+        $sizes  = !empty($data['available_sizes'])  ? implode(', ', $data['available_sizes'])  : null;
+
+        $lines = ["Sản phẩm: {$name}"];
+        if ($price)  $lines[] = "Giá: {$price}";
+        if ($colors) $lines[] = "Màu sắc hiện có: {$colors}";
+        if ($sizes)  $lines[] = "Size hiện có: {$sizes}";
+        $lines[] = 'Bạn muốn chọn màu/size nào để đặt hàng?';
+
+        return implode("\n", $lines);
     }
 
     private function buildOrderFallback($data): string

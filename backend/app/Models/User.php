@@ -29,6 +29,7 @@ class User extends Authenticatable implements JWTSubject
         'email',
         'password',
         'phone',
+        'default_payment_method',
         'avatar_url',
         'date_of_birth',
         'google_id',
@@ -80,6 +81,15 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Quan hệ: User có 1 Address mặc định (cho Quick Order)
+     */
+    public function defaultAddress()
+    {
+        return $this->hasOne(\App\Models\Address::class, 'user_id', 'user_id')
+            ->where('is_default', true);
+    }
+
+    /**
      * Quan hệ: User có 1 Cart (giỏ hàng)
      */
     public function cart()
@@ -107,6 +117,8 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(ReturnRequest::class, 'user_id', 'user_id');
     }
+
+
 
     // ==================== Affiliate Relationships ====================
 

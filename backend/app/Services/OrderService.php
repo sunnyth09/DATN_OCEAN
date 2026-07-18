@@ -173,6 +173,9 @@ class OrderService
                 }
             }
 
+            // Xác định đơn hàng có từ giỏ hàng bỏ quên hay không
+            $isAbandonedCheckout = !$isDirectOrder && isset($cart) && $cart->is_abandoned_reminded;
+
             // Tính grand_total sau wallet discount
             $paymentMethod   = $data['payment_method'];
             $grandTotalAfterWallet = max(0, $grandTotal - $walletTotalDiscount);
@@ -205,6 +208,7 @@ class OrderService
                 $paymentMethod,
                 $cart,
                 $isAbandonedCheckout,
+                $isDirectOrder,
                 $rewardPointsUsed
             ) {
                 $this->lockAndValidateStock($cartItems);
@@ -306,8 +310,11 @@ class OrderService
                 }
 
                 // Reset trạng thái giỏ hàng bỏ quên
-                if ($isAbandonedCheckout && $cart) {
-                    $cart->update(['is_abandoned_reminded' => false]);
+                if ($isAbandonedCheckout && !$isDirectOrder) {
+                    $activeCart = $this->cartRepository->getActiveCart($userId);
+                    if ($activeCart) {
+                        $activeCart->update(['is_abandoned_reminded' => false]);
+                    }
                 }
 
                 // Thực hiện trừ tiền từ ví nếu thanh toán bằng ví
@@ -343,6 +350,7 @@ class OrderService
                         'status' => 'success',
                         'message' => 'Đặt hàng thành công!',
                         'data' => [
+                            'order_id'   => $order->order_id,
                             'order_code' => $order->order_code,
                             'grand_total' => $order->grand_total,
                         ],
@@ -544,7 +552,8 @@ class OrderService
                         'status' => 'success',
                         'message' => 'Đặt hàng thành công!',
                         'data' => [
-                            'order_code' => $order->order_code,
+                            'order_id'    => $order->order_id,
+                            'order_code'  => $order->order_code,
                             'grand_total' => $order->grand_total,
                         ],
                     ],

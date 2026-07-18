@@ -199,194 +199,301 @@ onMounted(fetchFlashSales);
 </script>
 
 <template>
-    <div class="admin-fs-container container-fluid py-4">
-        <div class="d-flex justify-content-between mb-4">
-            <h4>⚡ Quản lý Flash Sale Campaign</h4>
-            <button class="btn btn-primary" @click="openCreate">+ Tạo Campaign</button>
-        </div>
+  <div class="admin-fs-container animate-in py-4 px-2">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="header-left">
+        <h2 class="section-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Quản lý Flash Sale Campaign
+        </h2>
+        <p class="section-desc">Thiết lập sự kiện Flash Sale và quản lý danh sách sản phẩm giảm giá.</p>
+      </div>
+      <div class="tab-header-actions">
+        <button class="btn-create" @click="openCreate">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Tạo Campaign
+        </button>
+      </div>
+    </div>
 
-        <!-- LIST VIEW -->
-        <div class="card shadow-sm border-0">
-            <div class="card-body">
-                <table class="table table-hover align-middle">
-                    <thead class="table-light">
+    <!-- LIST VIEW -->
+    <div class="ocean-card table-wrapper">
+      <table class="ws-table">
+        <thead>
+          <tr>
+            <th>Tên Campaign</th>
+            <th>Thời gian bắt đầu</th>
+            <th>Thời gian kết thúc</th>
+            <th class="text-center">Số lượng SP</th>
+            <th class="status-th">Trạng thái</th>
+            <th class="actions-th">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="isLoading">
+            <td colspan="6" class="empty-cell"><div class="ws-spinner"></div></td>
+          </tr>
+          <tr v-else-if="flashSales.length === 0">
+            <td colspan="6" class="empty-cell">Chưa có chiến dịch Flash Sale nào.</td>
+          </tr>
+          <tr v-else v-for="fs in flashSales" :key="fs.id" class="ws-row">
+            <td>
+              <div class="shift-info-cell">
+                <div class="shift-icon" style="background:#fff3e0; color:#e65100;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                </div>
+                <span class="shift-name">{{ fs.name }}</span>
+              </div>
+            </td>
+            <td><span class="time-badge time-start">{{ new Date(fs.start_time).toLocaleString('vi-VN') }}</span></td>
+            <td><span class="time-badge time-end">{{ new Date(fs.end_time).toLocaleString('vi-VN') }}</span></td>
+            <td class="text-center fw-bold" style="color: var(--text-muted)">{{ fs.items?.length || 0 }} SP</td>
+            <td class="status-cell">
+              <span class="ws-status-badge" :class="fs.status === 'active' ? 'status-active' : (fs.status === 'ended' ? 'status-ended' : 'status-inactive')">
+                {{ STATUS_LABELS[fs.status]?.text || fs.status }}
+              </span>
+            </td>
+            <td class="actions-cell">
+              <button class="btn-action edit" @click="openEdit(fs)" title="Sửa">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="btn-action delete" @click="handleDelete(fs.id)" title="Xóa">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- FORM MODAL -->
+    <Teleport to="body">
+    <Transition name="ws-modal">
+      <div v-if="isModalOpen" class="ws-modal-overlay" @click.self="isModalOpen = false">
+        <div class="ws-modal-box fs-modal-box">
+          <div class="ws-modal-head">
+            <h3>{{ isEditing ? 'Sửa Flash Sale' : 'Tạo mới Flash Sale' }}</h3>
+            <button class="ws-btn-close" @click="isModalOpen = false">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="ws-modal-body" style="max-height: 80vh; overflow-y: auto; padding: 24px;">
+            <!-- General Settings -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-6 ws-form-group">
+                    <label>Tên Campaign <span class="ws-required">*</span></label>
+                    <input v-model="form.name" type="text" class="ws-form-control" placeholder="Ví dụ: Siêu Sale Giữa Tháng" />
+                    <small class="text-danger mt-1 d-block">{{ errors.name?.[0] }}</small>
+                </div>
+                <div class="col-md-6 ws-form-group">
+                    <label>Trạng thái</label>
+                    <select v-model="form.status" class="ws-form-control ws-form-select">
+                        <option value="draft">Bản nháp</option>
+                        <option value="active">Active (Set lên Redis)</option>
+                        <option value="ended">Ended (Thu hồi Redis)</option>
+                    </select>
+                    <small class="text-danger mt-1 d-block">{{ errors.status?.[0] }}</small>
+                </div>
+                <div class="col-md-6 ws-form-group">
+                    <label>Thời gian bắt đầu <span class="ws-required">*</span></label>
+                    <input v-model="form.start_time" type="datetime-local" class="ws-form-control" />
+                    <small class="text-danger mt-1 d-block">{{ errors.start_time?.[0] }}</small>
+                </div>
+                <div class="col-md-6 ws-form-group">
+                    <label>Thời gian kết thúc <span class="ws-required">*</span></label>
+                    <input v-model="form.end_time" type="datetime-local" class="ws-form-control" />
+                    <small class="text-danger mt-1 d-block">{{ errors.end_time?.[0] }}</small>
+                </div>
+            </div>
+
+            <!-- Dynamic Items Settings -->
+            <hr style="border-color: var(--border-color, #d9e8f0); margin: 24px 0;" />
+            <h6 class="fw-bold mb-3 d-flex align-items-center gap-2" style="color: var(--text-main)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                Danh sách sản phẩm Sale
+            </h6>
+            
+            <div class="position-relative mb-3" style="z-index: 1055;">
+                <input v-model="productSearchTerm" @input="searchProducts" type="text" 
+                       class="ws-form-control" placeholder="🔍 Gõ tên để thêm sản phẩm vào sự kiện..." style="padding-left: 14px;" />
+                
+                <ul v-if="searchedProducts && searchedProducts.length > 0" class="list-group position-absolute w-100 mt-1 shadow-lg border-0" style="z-index: 9999; max-height: 250px; overflow-y: auto; border-radius: 8px;">
+                    <li v-for="prod in searchedProducts" :key="prod.product_id" 
+                        class="list-group-item list-group-item-action cursor-pointer d-flex align-items-center border-bottom"
+                        @click="addProductToItems(prod)" style="padding: 12px 16px;">
+                        <img :src="resolveThumbnail(prod.thumbnail)" alt="" style="width: 36px; height: 36px; object-fit: cover; border-radius: 6px; margin-right: 12px; border: 1px solid #eee" />
+                        <div>
+                            <div class="fw-bold" style="font-size: 0.85rem; color: #102a43;">{{ prod.name }}</div>
+                            <small style="font-size: 0.75rem; color: #627d98;">Giá gốc: <span class="text-decoration-line-through">{{ formatCurrency(prod.base_price) }}</span> | Kho hiện tại: {{ prod.stock }}</small>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="table-responsive rounded border" style="max-height: 400px; overflow-y: auto; border-color: var(--border-color) !important;">
+                <table class="table align-middle mb-0" style="font-size: 0.85rem;">
+                    <thead class="position-sticky top-0" style="background: var(--ocean-deepest, #f0f7fa); z-index: 10;">
                         <tr>
-                            <th>Tên Campaign</th>
-                            <th>Thời gian bắt đầu</th>
-                            <th>Thời gian kết thúc</th>
-                            <th>Số lượng SP</th>
-                            <th>Trạng thái</th>
-                            <th>Thao tác</th>
+                            <th class="py-3 px-3 text-uppercase text-muted" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Tên sản phẩm</th>
+                            <th class="py-3 px-3 text-uppercase text-muted" width="120" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Giảm giá (%)</th>
+                            <th class="py-3 px-3 text-uppercase text-muted" width="160" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Giá Sale (VNĐ)</th>
+                            <th class="py-3 px-3 text-uppercase text-muted" width="130" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">SL cấp FB</th>
+                            <th class="py-3 px-3 text-uppercase text-muted" width="90" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Đã bán</th>
+                            <th class="py-3 px-3 text-uppercase text-muted text-center" width="70" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Xóa</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="isLoading"><td colspan="6" class="text-center">Đang tải...</td></tr>
-                        <tr v-else-if="flashSales.length === 0"><td colspan="6" class="text-center">Chưa có chiến dịch Flash Sale nào.</td></tr>
-                        <tr v-for="fs in flashSales" :key="fs.id">
-                            <td class="fw-bold">{{ fs.name }}</td>
-                            <td>{{ new Date(fs.start_time).toLocaleString('vi-VN') }}</td>
-                            <td>{{ new Date(fs.end_time).toLocaleString('vi-VN') }}</td>
-                            <td>{{ fs.items?.length || 0 }} Sản phẩm</td>
-                            <td>
-                                <span :class="['badge', STATUS_LABELS[fs.status]?.class || 'bg-secondary']">
-                                    {{ STATUS_LABELS[fs.status]?.text || fs.status }}
-                                </span>
+                        <tr v-for="(item, index) in form.items" :key="index" style="transition: background 0.15s;">
+                            <td class="px-3">
+                                <div class="d-flex align-items-center">
+                                    <img v-if="item.product && item.product.thumbnail" :src="resolveThumbnail(item.product.thumbnail)" alt="" style="width: 32px; height: 32px; object-fit: cover; border-radius: 6px; margin-right: 12px; border: 1px solid #eee;" />
+                                    <span class="fw-semibold" style="color: var(--text-main)">{{ item.product?.name || `Product ID: ${item.product_id}` }}</span>
+                                </div>
                             </td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-info me-1" @click="openEdit(fs)">Sửa</button>
-                                <button class="btn btn-sm btn-outline-danger" @click="handleDelete(fs.id)">Xóa</button>
+                            <td class="px-3">
+                                <div class="input-group input-group-sm" style="border-radius: 6px; overflow: hidden;">
+                                    <input v-model="item.discount_percent" @input="onDiscountPercentChange(item)" type="number" min="0" max="100" class="form-control text-center" style="border-color: #d9e8f0; background: #fff;" />
+                                    <span class="input-group-text bg-light border-light" style="border-color: #d9e8f0 !important;">%</span>
+                                </div>
+                            </td>
+                            <td class="px-3">
+                                <input v-model="item.campaign_price" @input="onCampaignPriceChange(item)" type="number" class="form-control form-control-sm" style="border-radius: 6px; border-color: #d9e8f0;" />
+                                <small class="text-danger d-block mt-1" v-if="errors[`items.${index}.campaign_price`]">{{ errors[`items.${index}.campaign_price`][0] }}</small>
+                            </td>
+                            <td class="px-3">
+                                <input v-model="item.campaign_stock" type="number" class="form-control form-control-sm text-center" style="border-radius: 6px; border-color: #d9e8f0;" />
+                                <small class="text-danger d-block mt-1" v-if="errors[`items.${index}.campaign_stock`]">{{ errors[`items.${index}.campaign_stock`][0] }}</small>
+                            </td>
+                            <td class="px-3 text-center fw-bold" style="color: var(--text-muted);">{{ item.sold }}</td>
+                            <td class="px-3 text-center">
+                                <button class="btn btn-sm btn-outline-danger border-0 rounded-circle" @click="removeItem(index)" style="width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #ffebee;">✖</button>
+                            </td>
+                        </tr>
+                        <tr v-if="form.items.length === 0">
+                            <td colspan="6" class="text-center text-muted py-5">
+                                <div class="mb-2"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                                Chưa có sản phẩm nào. Hãy tìm kiếm và chọn sản phẩm ở trên.
                             </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
+            <small class="text-danger mt-2 d-block">{{ errors.items?.[0] }}</small>
+
+          </div>
+          <div class="ws-modal-footer p-4 border-top" style="background: var(--card-bg);">
+            <button type="button" @click="isModalOpen = false" class="ws-btn-outline">Hủy bỏ</button>
+            <button type="button" @click="handleSubmit" class="ws-btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Lưu Thay Đổi
+            </button>
+          </div>
         </div>
+      </div>
+    </Transition>
+    </Teleport>
 
-        <!-- FORM MODAL (Full Width/Overlay) -->
-        <div v-if="isModalOpen" class="fs-modal-overlay">
-            <div class="card fs-modal-content">
-                <div class="card-header d-flex justify-content-between align-items-center bg-white border-bottom">
-                    <h5 class="m-0">{{ isEditing ? 'Sửa Flash Sale' : 'Tạo mới Flash Sale' }}</h5>
-                    <button class="btn-close" @click="isModalOpen = false"></button>
-                </div>
-                
-                <div class="card-body" style="overflow: visible;">
-                    <!-- General Settings -->
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label">Tên Campaign <span class="text-danger">*</span></label>
-                            <input v-model="form.name" type="text" class="form-control" />
-                            <small class="text-danger">{{ errors.name?.[0] }}</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Trạng thái</label>
-                            <select v-model="form.status" class="form-select">
-                                <option value="draft">Bản nháp</option>
-                                <option value="active">Active (Set lên Redis)</option>
-                                <option value="ended">Ended (Thu hồi Redis)</option>
-                            </select>
-                            <small class="text-danger">{{ errors.status?.[0] }}</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Thời gian bắt đầu <span class="text-danger">*</span></label>
-                            <input v-model="form.start_time" type="datetime-local" class="form-control" />
-                            <small class="text-danger">{{ errors.start_time?.[0] }}</small>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Thời gian kết thúc <span class="text-danger">*</span></label>
-                            <input v-model="form.end_time" type="datetime-local" class="form-control" />
-                            <small class="text-danger">{{ errors.end_time?.[0] }}</small>
-                        </div>
-                    </div>
-
-                    <!-- Dynamic Items Settings -->
-                    <hr/>
-                    <h6 class="fw-bold mb-3">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                     Danh sách sản phẩm Sale</h6>
-                    <div class="position-relative mb-3" style="z-index: 1055;">
-                        <input v-model="productSearchTerm" @input="searchProducts" type="text" 
-                               class="form-control shadow-sm" placeholder="🔍 Gõ tên để thêm sản phẩm vào sự kiện..." />
-                        
-                        <ul v-if="searchedProducts && searchedProducts.length > 0" class="list-group position-absolute w-100 mt-1 shadow-lg" style="z-index: 9999; max-height: 250px; overflow-y: auto;">
-                            <li v-for="prod in searchedProducts" :key="prod.product_id" 
-                                class="list-group-item list-group-item-action cursor-pointer d-flex align-items-center"
-                                @click="addProductToItems(prod)">
-                                <img :src="resolveThumbnail(prod.thumbnail)" alt="" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px; margin-right: 10px;" />
-                                <div>
-                                    <div class="fw-bold">{{ prod.name }}</div>
-                                    <small>Giá gốc: <span class="text-decoration-line-through text-muted">{{ formatCurrency(prod.base_price) }}</span> | Kho hiện tại: {{ prod.stock }}</small>
-                                </div>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-bordered align-middle">
-                            <thead class="table-light position-sticky top-0 shadow-sm">
-                                <tr>
-                                    <th>Tên sản phẩm</th>
-                                <th width="120">Giảm giá (%)</th>
-                                <th width="180">Giá Sale (VNĐ)</th>
-                                <th width="150">Số lượng cấp FB</th>
-                                <th width="100">Đã bán</th>
-                                <th width="80">Xóa</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(item, index) in form.items" :key="index">
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <img v-if="item.product && item.product.thumbnail" :src="resolveThumbnail(item.product.thumbnail)" alt="" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px; margin-right: 10px;" />
-                                        <span>{{ item.product?.name || `Product ID: ${item.product_id}` }}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="input-group input-group-sm">
-                                        <input v-model="item.discount_percent" @input="onDiscountPercentChange(item)" type="number" min="0" max="100" class="form-control" />
-                                        <span class="input-group-text">%</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <input v-model="item.campaign_price" @input="onCampaignPriceChange(item)" type="number" class="form-control form-control-sm" />
-                                    <small class="text-danger" v-if="errors[`items.${index}.campaign_price`]">{{ errors[`items.${index}.campaign_price`][0] }}</small>
-                                </td>
-                                <td>
-                                    <input v-model="item.campaign_stock" type="number" class="form-control form-control-sm" />
-                                    <small class="text-danger" v-if="errors[`items.${index}.campaign_stock`]">{{ errors[`items.${index}.campaign_stock`][0] }}</small>
-                                </td>
-                                <td>{{ item.sold }}</td>
-                                <td class="text-center">
-                                    <button class="btn btn-sm btn-outline-danger" @click="removeItem(index)">✖</button>
-                                </td>
-                            </tr>
-                            <tr v-if="form.items.length === 0">
-                                <td colspan="5" class="text-center text-muted">Chưa có sản phẩm nào. Hãy tìm kiếm và chọn sản phẩm ở trên.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    </div>
-                    <small class="text-danger">{{ errors.items?.[0] }}</small>
-
-                </div>
-                <!-- Action Bottom -->
-                <div class="card-footer bg-white text-end">
-                    <button class="btn btn-secondary me-2" @click="isModalOpen = false">Hủy</button>
-                    <button class="btn btn-primary" @click="handleSubmit">Lưu Thay Đổi</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bootstrap Toast -->
-        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-            <div class="toast align-items-center border-0" :class="toastObj.type === 'success' ? 'text-bg-success' : (toastObj.type === 'warning' ? 'text-bg-warning' : 'text-bg-danger')" id="flashSaleToast" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body fw-bold text-white fs-6">{{ toastObj.message }}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Toast -->
+    <Teleport to="body">
+    <Transition name="ws-toast">
+      <div v-if="toastObj.message" class="ws-toast" :class="toastObj.type === 'success' ? 'ws-toast-success' : (toastObj.type === 'warning' ? 'ws-toast-warning' : 'ws-toast-error')" style="display: block;">
+        {{ toastObj.message }}
+      </div>
+    </Transition>
+    </Teleport>
+  </div>
 </template>
 
 <style scoped>
-.fs-modal-overlay {
-    position: fixed;
-    top: 0; left: 0; width: 100vw; height: 100vh;
-    background: rgba(0,0,0,0.5);
-    z-index: 1050;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+/* ===== Page Header ===== */
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+.section-title { font-size: 1.4rem; font-weight: 700; color: var(--text-main, #102a43); display: flex; align-items: center; }
+.section-desc { font-size: 0.85rem; color: var(--text-muted, #627d98); margin-top: 4px; }
+
+.tab-header-actions { display: flex; justify-content: flex-end; }
+.btn-create {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--primary, #e63b6f); color: white; border: none;
+  padding: 10px 20px; border-radius: 10px;
+  font-weight: 600; font-size: 0.85rem; cursor: pointer;
+  transition: all 0.2s; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25);
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
-.fs-modal-content {
-    width: 900px;
-    max-width: 95vw;
-    max-height: 90vh;
+.btn-create:hover { background: #d82f65; transform: translateY(-1px); }
+
+/* ===== Table ===== */
+.table-wrapper { overflow-x: auto; margin-bottom: 24px; }
+.ws-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.ws-table th {
+  text-align: left; padding: 14px 16px; font-weight: 700; font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted, #627d98); border-bottom: 1px solid var(--border-color, #d9e8f0); 
+  background: var(--ocean-deepest, #f0f7fa);
 }
+.ws-table td { padding: 14px 16px; border-bottom: 1px solid var(--border-color, #d9e8f0); vertical-align: middle; }
+.ws-row { transition: background 0.15s; }
+.ws-row:hover { background: var(--hover-bg, #e6f4fa); }
+
+.shift-info-cell { display: flex; align-items: center; gap: 12px; }
+.shift-name { font-weight: 600; color: var(--text-main, #102a43); }
+.shift-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.time-badge {
+  display: inline-flex; padding: 4px 10px; border-radius: 6px;
+  font-size: 0.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+}
+.time-start { background: #e8f5e9; color: #2e7d32; }
+.time-end { background: #ffebee; color: #c62828; }
+
+.ws-status-badge {
+  display: inline-flex; align-items: center; padding: 5px 12px;
+  border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+}
+.status-active { background: #e8f5e9; color: #2e7d32; }
+.status-draft { background: #f5f5f5; color: #757575; }
+.status-ended { background: #ffebee; color: #c62828; }
+.status-inactive { background: #f5f5f5; color: #757575; }
+
+.status-th, .actions-th { text-align: center !important; }
+.status-cell, .actions-cell { text-align: center; }
+.actions-cell { display: flex; gap: 6px; justify-content: center; }
+
+.btn-action {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s; border: 1.5px solid;
+}
+.btn-action.edit { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
+.btn-action.edit:hover { background: #bbdefb; color: #0d47a1; }
+.btn-action.delete { background: #ffebee; color: var(--primary, #e63b6f); border-color: #ffcdd2; }
+.btn-action.delete:hover { background: #ffcdd2; color: #c62828; }
+
+/* Empty state */
+.empty-cell { text-align: center; padding: 40px !important; color: var(--text-light, #9fb3c8); }
+
+/* Custom Modal Sizing overrides */
+.fs-modal-box {
+    max-width: 900px !important;
+    width: 95% !important;
+}
+
 .cursor-pointer { cursor: pointer; }
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: #f1f1f1; }
 ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #888; }
+</style>
+<style>
+/* Đảm bảo toast hiển thị mượt mà */
+.ws-toast-enter-active { transition: all 0.3s ease; }
+.ws-toast-leave-active { transition: all 0.2s ease; }
+.ws-toast-enter-from { opacity: 0; transform: translateX(40px); }
+.ws-toast-leave-to { opacity: 0; transform: translateX(40px); }
+.ws-toast-warning { background: #ff9800 !important; }
 </style>

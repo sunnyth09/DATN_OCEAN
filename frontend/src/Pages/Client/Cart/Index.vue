@@ -838,6 +838,13 @@ onUnmounted(() => {
     min-height: 60vh;
 }
 
+.upsell-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #102a43;
+    margin-bottom: 24px;
+}
+
 /* Page Header */
 .page-header {
     text-align: left;
