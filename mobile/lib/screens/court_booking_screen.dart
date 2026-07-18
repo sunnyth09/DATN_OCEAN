@@ -210,9 +210,6 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       return;
     }
 
-    final confirmed = await _showBookingConfirmDialog();
-    if (confirmed != true) return;
-
     final indexes = _orderedSelectedIndexes;
     final start = _slots[indexes.first].startTime;
     final end = _slots[indexes.last].endTime;
@@ -230,7 +227,29 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       if (lockToken == null || lockToken.isEmpty) {
         throw Exception('Khong nhan duoc lock token tu may chu.');
       }
+    } catch (e) {
+      setState(() => _actionLoading = false);
+      _showSnack(_service.errorMessage(e), isError: true);
+      return;
+    }
+    
+    // Lock acquired! Reload availability so grid shows our lock, and stop loading indicator.
+    await _loadAvailability(silent: true);
+    setState(() => _actionLoading = false);
 
+    final confirmed = await _showBookingConfirmDialog();
+    
+    if (confirmed != true) {
+      // User cancelled or timeout
+      try {
+        await _service.releaseLock(lockToken);
+      } catch (_) {}
+      await _loadAvailability(silent: true);
+      return;
+    }
+
+    setState(() => _actionLoading = true);
+    try {
       final booking = await _service.createBooking(
         courtId: _selectedCourtId!,
         date: _dateParam,
@@ -249,14 +268,11 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       });
       await Future.wait([_loadAvailability(), _loadMyBookings(), if (_isStaff) _loadStaffBookings()]);
     } catch (e) {
-      if (lockToken != null) {
-        try {
-          await _service.releaseLock(lockToken);
-        } catch (releaseError) {
-          debugPrint('[CourtBooking] releaseLock failed: $releaseError');
-        }
-      }
       _showSnack(_service.errorMessage(e), isError: true);
+      try {
+        await _service.releaseLock(lockToken);
+      } catch (_) {}
+      await _loadAvailability(silent: true);
     } finally {
       if (mounted) setState(() => _actionLoading = false);
     }
@@ -284,7 +300,41 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Xac nhan dat san', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Xac nhan dat san', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                          TweenAnimationBuilder<Duration>(
+                            duration: const Duration(minutes: 5),
+                            tween: Tween(begin: const Duration(minutes: 5), end: Duration.zero),
+                            onEnd: () {
+                              if (Navigator.canPop(context)) Navigator.pop(context, false);
+                              _showSnack('Het thoi gian giu cho!', isError: true);
+                            },
+                            builder: (context, value, child) {
+                              final minutes = value.inMinutes;
+                              final seconds = value.inSeconds % 60;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.timer_outlined, color: Colors.red, size: 16),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$minutes:${seconds.toString().padLeft(2, '0')}',
+                                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       _summaryRow('San', _selectedCourt?.name ?? ''),
                       _summaryRow('Ngay', DateFormat('dd/MM/yyyy').format(_selectedDate)),

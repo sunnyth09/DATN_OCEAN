@@ -47,17 +47,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Xác định màn hình khởi động:
-    // 1. Lần đầu mở app → Onboarding
-    // 2. Đã đăng nhập → MainWrapper (thẳng vào trang chủ)
-    // 3. Chưa đăng nhập → LoginScreen
     Widget homeScreen;
     if (isFirstLaunch) {
       homeScreen = const OnboardingScreen();
-    } else if (authProvider.isAuthenticated) {
-      homeScreen = const MainWrapper();
     } else {
-      homeScreen = const LoginScreen();
+      homeScreen = const MainWrapper();
     }
 
     return MultiProvider(

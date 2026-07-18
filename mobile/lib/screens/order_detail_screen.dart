@@ -6,6 +6,7 @@ import '../services/api_client.dart';
 import 'main_wrapper.dart';
 import 'review_screen.dart';
 import '../config/app_config.dart';
+import '../utils/format_utils.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -380,7 +381,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
-                            child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                            child: Text(FormatUtils.translateStatus(status), style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),

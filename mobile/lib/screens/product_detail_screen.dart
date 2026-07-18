@@ -6,7 +6,11 @@ import '../config/app_config.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../utils/format_utils.dart';
+import 'package:provider/provider.dart';
+import '../providers/cart_provider.dart';
 import 'login_screen.dart';
+import 'cart_screen.dart';
+import 'main_wrapper.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> product;
@@ -177,11 +181,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
       if (mounted) Navigator.pop(context);
 
+      if (mounted) {
+        context.read<CartProvider>().fetchCart(silent: true);
+      }
+
       final msg = response.data['message'] ?? 'Thêm vào giỏ thành công!';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.green,
+            action: actionStr != 'Mua ngay' ? SnackBarAction(
+              label: 'XEM GIỎ',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MainWrapper(initialIndex: 3)),
+                );
+              },
+            ) : null,
+          ),
         );
+        if (actionStr == 'Mua ngay') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MainWrapper(initialIndex: 3)),
+          );
+        }
       }
     } on DioException catch (e) {
       if (mounted) Navigator.pop(context);
@@ -306,6 +333,45 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
         actions: [
           IconButton(icon: const Icon(Icons.share_outlined), onPressed: () {}),
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart_outlined),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MainWrapper(initialIndex: 3)),
+                  );
+                },
+              ),
+              Consumer<CartProvider>(
+                builder: (context, cart, child) {
+                  if (cart.itemCount == 0) return const SizedBox.shrink();
+                  return Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        cart.itemCount > 99 ? '99+' : cart.itemCount.toString(),
+                        style: const TextStyle(
+                          fontSize: 8,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Stack(

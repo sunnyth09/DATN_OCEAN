@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io' show Platform;
+
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -95,7 +95,7 @@ class NotificationService {
 
   String get _deviceType {
     if (kIsWeb) return 'web';
-    if (Platform.isIOS) return 'ios';
+    if (defaultTargetPlatform == TargetPlatform.iOS) return 'ios';
     return 'android';
   }
 

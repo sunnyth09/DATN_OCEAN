@@ -6,6 +6,7 @@ import '../models/cart_model.dart';
 import '../providers/cart_provider.dart';
 import '../utils/format_utils.dart';
 import 'checkout_screen.dart';
+import 'main_wrapper.dart';
 
 class CartScreen extends StatefulWidget {
   final VoidCallback? onContinueShopping;
@@ -54,6 +55,22 @@ class _CartScreenState extends State<CartScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFFE63B6F)),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else if (widget.onContinueShopping != null) {
+              widget.onContinueShopping!();
+            } else {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const MainWrapper(initialIndex: 0)),
+                (route) => false,
+              );
+            }
+          },
+        ),
         title: const Text(
           'Giỏ hàng',
           style: TextStyle(
@@ -131,7 +148,13 @@ class _CartScreenState extends State<CartScreen> {
                 ),
                 elevation: 0,
               ),
-              onPressed: () => widget.onContinueShopping?.call(),
+              onPressed: () {
+                if (widget.onContinueShopping != null) {
+                  widget.onContinueShopping!();
+                } else if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              },
               child: const Text(
                 'Mua sắm ngay',
                 style: TextStyle(
