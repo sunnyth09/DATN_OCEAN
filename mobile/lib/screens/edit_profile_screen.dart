@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -65,7 +66,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cập nhật thành công!'), backgroundColor: Colors.green));
-        Navigator.pop(context, response.data['data'] ?? response.data['user']);
+        context.pop(false);
       }
     } on DioException catch (e) {
       if (mounted) {

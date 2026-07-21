@@ -1,5 +1,8 @@
+import 'dart:io';
+import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../config/app_config.dart';
 import '../services/api_client.dart';
 
@@ -24,6 +27,40 @@ class _ReviewScreenState extends State<ReviewScreen> {
   int _rating = 5;
   final _commentCtrl = TextEditingController();
   bool _isSubmitting = false;
+  
+  final List<File> _selectedImages = [];
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImages() async {
+    if (_selectedImages.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chỉ được chọn tối đa 5 ảnh')));
+      return;
+    }
+    
+    try {
+      final List<XFile> images = await _picker.pickMultiImage(
+        imageQuality: 70, // Basic compression
+      );
+      
+      if (images.isNotEmpty) {
+        setState(() {
+          for (var img in images) {
+            if (_selectedImages.length < 5) {
+              _selectedImages.add(File(img.path));
+            }
+          }
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể chọn ảnh')));
+    }
+  }
+  
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
 
   @override
   void dispose() {
@@ -40,19 +77,30 @@ class _ReviewScreenState extends State<ReviewScreen> {
     try {
       final orderItemId = widget.orderItem['order_item_id'] ?? widget.orderItem['id'];
 
+      final formData = FormData.fromMap({
+        'product_id': widget.productId,
+        'order_item_id': orderItemId,
+        'rating': _rating,
+        'content': _commentCtrl.text.trim(),
+      });
+
+      for (var i = 0; i < _selectedImages.length; i++) {
+        formData.files.add(
+          MapEntry(
+            'images[]',
+            await MultipartFile.fromFile(_selectedImages[i].path, filename: 'review_image_$i.jpg'),
+          ),
+        );
+      }
+
       await ApiClient().dio.post(
         '/profile/orders/feedback',
-        data: {
-          'product_id': widget.productId,
-          'order_item_id': orderItemId,
-          'rating': _rating,
-          'content': _commentCtrl.text.trim(),
-        },
+        data: formData,
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đánh giá thành công! Cảm ơn bạn.'), backgroundColor: Colors.green));
-        Navigator.pop(context, true);
+        context.pop(true);
       }
     } on DioException catch (e) {
       final message = e.response?.data is Map ? e.response?.data['message'] : null;
@@ -162,6 +210,61 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Thêm hình ảnh (Tối đa 5 ảnh)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      ...List.generate(_selectedImages.length, (index) {
+                        return Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                _selectedImages[index],
+                                width: 70,
+                                height: 70,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: -8,
+                              right: -8,
+                              child: IconButton(
+                                icon: const Icon(Icons.cancel, color: Colors.red),
+                                onPressed: () => _removeImage(index),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                      if (_selectedImages.length < 5)
+                        GestureDetector(
+                          onTap: _pickImages,
+                          child: Container(
+                            width: 70,
+                            height: 70,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFE2E8F0), style: BorderStyle.solid),
+                            ),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_a_photo_outlined, color: Color(0xFF94A3B8), size: 24),
+                                SizedBox(height: 4),
+                                Text('Thêm ảnh', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),

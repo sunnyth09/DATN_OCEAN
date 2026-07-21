@@ -218,6 +218,14 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span>
             <span>Mã giảm giá</span>
           </router-link>
+          <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/rewards" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Quà tặng Loyalty</span>
+          </router-link>
+          <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/user-rewards" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Lịch sử đổi quà</span>
+          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/flash-sale" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Flash Sale</span>

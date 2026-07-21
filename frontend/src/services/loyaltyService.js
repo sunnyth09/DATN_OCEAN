@@ -38,4 +38,19 @@ export const loyaltyService = {
   socialShare(productId) {
     return api.post('/loyalty/social-share', { product_id: productId });
   },
+
+  /**
+   * Lấy danh sách quà tặng (Rewards)
+   */
+  getRewards() {
+    return api.get('/loyalty/rewards');
+  },
+
+  /**
+   * Đổi quà
+   * @param {number} rewardId 
+   */
+  redeem(rewardId) {
+    return api.post('/loyalty/redeem', { reward_id: rewardId });
+  },
 };

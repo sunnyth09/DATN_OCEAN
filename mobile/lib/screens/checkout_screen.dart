@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
@@ -12,6 +13,7 @@ import 'checkout/widgets/checkout_payment_box.dart';
 import 'checkout/widgets/checkout_coupon_box.dart';
 import 'checkout/widgets/checkout_order_summary.dart';
 import 'checkout/widgets/checkout_bottom_bar.dart';
+import 'payment_webview_screen.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -311,7 +313,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     try {
       final pm = ['cod', 'vnpay', 'momo'][selectedPayment];
-      await ApiClient().dio.post(
+      final response = await ApiClient().dio.post(
         '/profile/orders',
         data: {
           'address_id': defaultAddress!['address_id'] ?? defaultAddress!['id'],
@@ -321,13 +323,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         },
       );
 
-      if (mounted) Navigator.pop(context); // hide loading
+      if (mounted) context.pop(); // hide loading
 
       if (mounted) {
         context.read<CartProvider>().fetchCart(silent: true);
       }
 
-      if (mounted) {
+      final resData = response.data;
+      final vnpayUrl = resData['vnpay_url'];
+      final momoUrl = resData['momo_url'];
+      final paymentUrl = vnpayUrl ?? momoUrl;
+
+      if (paymentUrl != null && mounted) {
+        // Mở WebView thanh toán
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PaymentWebviewScreen(
+              url: paymentUrl,
+              paymentMethod: pm,
+            ),
+          ),
+        );
+      } else if (mounted) {
+        // Thanh toán COD hoặc ví -> đi tới trang thành công
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('🎉 Đặt hàng thành công!'),
@@ -341,7 +360,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
       }
     } on DioException catch (e) {
-      if (mounted) Navigator.pop(context);
+      if (mounted) context.pop();
       final msg = e.response?.data?['message'] ?? 'Lỗi đặt hàng';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -350,7 +369,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     } catch (_) {
       if (mounted) {
-        Navigator.pop(context);
+        context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Lỗi kết nối máy chủ!'),
@@ -393,7 +412,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       centerTitle: true,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back, color: Color(0xFFE63B6F)),
-        onPressed: () => Navigator.pop(context),
+        onPressed: () => context.pop(),
       ),
     );
   }

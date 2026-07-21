@@ -15,6 +15,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import ClientHeader from '../components/ClientHeader.vue';
 import ClientFooter from '../components/ClientFooter.vue';
 import ChatbotWidget from '../components/ChatbotWidget.vue';

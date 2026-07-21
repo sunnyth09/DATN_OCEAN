@@ -1,12 +1,16 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../models/cart_model.dart';
 import '../providers/cart_provider.dart';
+import '../providers/navigation_provider.dart';
 import '../utils/format_utils.dart';
+import '../widgets/shimmer_loading.dart';
+import '../services/api_client.dart';
+import '../config/app_config.dart';
 import 'checkout_screen.dart';
-import 'main_wrapper.dart';
 
 class CartScreen extends StatefulWidget {
   final VoidCallback? onContinueShopping;
@@ -18,13 +22,33 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  List<dynamic> _recommendedProducts = [];
+  bool _isLoadingRecommendations = true;
+
   @override
   void initState() {
     super.initState();
     // Nạp giỏ hàng sau frame đầu để có thể dùng context.read an toàn.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<CartProvider>().fetchCart();
+      _fetchRecommendations();
     });
+  }
+
+  Future<void> _fetchRecommendations() async {
+    try {
+      final response = await ApiClient().dio.get('/products', queryParameters: {'per_page': 5});
+      if (mounted) {
+        setState(() {
+          _recommendedProducts = response.data['data'] ?? [];
+          _isLoadingRecommendations = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingRecommendations = false);
+      }
+    }
   }
 
   Future<void> _changeQuantity(int cartItemId, int quantity) async {
@@ -59,15 +83,12 @@ class _CartScreenState extends State<CartScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFFE63B6F)),
           onPressed: () {
             if (Navigator.canPop(context)) {
-              Navigator.pop(context);
+              context.pop();
             } else if (widget.onContinueShopping != null) {
               widget.onContinueShopping!();
             } else {
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const MainWrapper(initialIndex: 0)),
-                (route) => false,
-              );
+              context.read<NavigationProvider>().setTab(0);
+              context.go('/home');
             }
           },
         ),
@@ -89,9 +110,7 @@ class _CartScreenState extends State<CartScreen> {
 
   Widget _buildBody(CartProvider cart) {
     if (cart.isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFFE63B6F)),
-      );
+      return const ListShimmerLoading();
     }
 
     if (cart.status == CartStatus.error) {
@@ -152,7 +171,7 @@ class _CartScreenState extends State<CartScreen> {
                 if (widget.onContinueShopping != null) {
                   widget.onContinueShopping!();
                 } else if (Navigator.canPop(context)) {
-                  Navigator.pop(context);
+                  context.pop();
                 }
               },
               child: const Text(
@@ -176,12 +195,91 @@ class _CartScreenState extends State<CartScreen> {
             onRefresh: () => cart.fetchCart(silent: true),
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: cart.items.length,
-              itemBuilder: (context, index) => _buildCartItem(cart.items[index]),
+              itemCount: cart.items.length + 1,
+              itemBuilder: (context, index) {
+                if (index < cart.items.length) {
+                  return _buildCartItem(cart.items[index]);
+                }
+                return _buildRecommendations();
+              },
             ),
           ),
         ),
         _buildCheckoutSection(cart),
+      ],
+    );
+  }
+
+  Widget _buildRecommendations() {
+    if (_isLoadingRecommendations) {
+      return const SizedBox(height: 150, child: Center(child: CircularProgressIndicator()));
+    }
+    if (_recommendedProducts.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 16, bottom: 12),
+          child: Text(
+            'Có thể bạn cũng thích',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          ),
+        ),
+        SizedBox(
+          height: 220,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _recommendedProducts.length,
+            itemBuilder: (context, index) {
+              final product = _recommendedProducts[index];
+              return GestureDetector(
+                onTap: () => context.push('/product/${product['product_id']}'),
+                child: Container(
+                  width: 140,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                        child: _buildProductImage(
+                          AppConfig.imageUrl(product['image_url'] ?? ''),
+                          140,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product['name'] ?? '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              FormatUtils.formatCurrency(product['price'] ?? 0),
+                              style: const TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -283,17 +381,17 @@ class _CartScreenState extends State<CartScreen> {
               if (qty > 1) _changeQuantity(item.cartItemId, qty - 1);
             },
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Icon(
                 Icons.remove,
-                size: 16,
+                size: 20,
                 color: qty > 1 ? const Color(0xFF475569) : Colors.grey.shade400,
               ),
             ),
           ),
           Text(
             '$qty',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           GestureDetector(
             onTap: () {
@@ -307,8 +405,8 @@ class _CartScreenState extends State<CartScreen> {
               }
             },
             child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Icon(Icons.add, size: 16, color: Color(0xFF475569)),
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Icon(Icons.add, size: 20, color: Color(0xFF475569)),
             ),
           ),
         ],

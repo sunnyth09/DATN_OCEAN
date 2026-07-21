@@ -623,7 +623,8 @@ const handleAddToCart = async (event) => {
 }
 
 .image-shell {
-    /* height: 210px; */
+    height: 210px;
+    width: 100%;
     position: relative;
     border-radius: 16px 16px 0 0;
     background:
@@ -1059,7 +1060,7 @@ const handleAddToCart = async (event) => {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow: hidden;
-    min-height: 46px;
+    height: 48px;
 }
 
 .footer-row {
@@ -1112,6 +1113,7 @@ const handleAddToCart = async (event) => {
 
     .image-shell {
         height: 168px;
+        width: 100%;
     }
 
     .content {
@@ -1124,7 +1126,7 @@ const handleAddToCart = async (event) => {
 
     .name {
         font-size: 0.95rem;
-        min-height: 42px;
+        height: 44px;
     }
 
     .original-price {

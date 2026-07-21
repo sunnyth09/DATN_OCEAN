@@ -474,11 +474,34 @@ class CourtBookingAdminController extends Controller
         return DB::transaction(function () use ($booking, $validated, $request) {
             $booking = CourtBooking::whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
 
-        $newEndTime = Carbon::parse($booking->end_time)
-            ->addMinutes($validated['extension_minutes'])
-            ->format('H:i:s');
+        $currentEnd = Carbon::parse($booking->end_time);
+        $newEnd     = $currentEnd->copy()->addMinutes($validated['extension_minutes']);
 
-        // Check conflict
+        // Chặn gia hạn vượt qua nửa đêm: end_time là cột TIME, nếu cộng phút khiến
+        // sang ngày mới thì "H:i:s" sẽ nhỏ hơn end_time hiện tại → mọi so sánh overlap
+        // theo TIME đều sai. Không cho phép và yêu cầu xử lý thủ công.
+        if ($newEnd->format('Y-m-d') !== $currentEnd->format('Y-m-d')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Không thể gia hạn qua nửa đêm. Vui lòng tạo booking mới cho ngày hôm sau.'
+            ], 400);
+        }
+
+        $newEndTime = $newEnd->format('H:i:s');
+
+        // Chặn gia hạn vượt quá giờ đóng cửa của sân trong ngày (nếu có lịch mở cửa).
+        $schedule = \App\Models\CourtSchedule::where('court_id', $booking->court_id)
+            ->where('day_of_week', $booking->booking_date->dayOfWeek)
+            ->where('is_active', true)
+            ->first();
+        if ($schedule && $schedule->close_time && $newEndTime > Carbon::parse($schedule->close_time)->format('H:i:s')) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Không thể gia hạn vượt quá giờ đóng cửa của sân.'
+            ], 400);
+        }
+
+        // Check conflict (đã nằm trong lockForUpdate của booking + query index-safe)
         $conflict = DB::table('court_bookings')
             ->where('court_id', $booking->court_id)
             ->where('booking_date', $booking->booking_date)
@@ -758,39 +781,46 @@ class CourtBookingAdminController extends Controller
 
         $courts = Court::with(['schedules'])->orderBy('sort_order')->get();
 
-        $courtsData = $courts->map(function ($court) use ($date, $now) {
+        // Batch-load toàn bộ booking blocking trong ngày + maintenance (mỗi loại 1 query),
+        // rồi group theo court_id — tránh N+1 (trước đây mỗi sân bắn 4 query).
+        $bookingsByCourt = CourtBooking::with(['user'])
+            ->where('booking_date', $date)
+            ->whereIn('status', CourtBooking::BLOCKING_STATUSES)
+            ->orderBy('start_time')
+            ->get()
+            ->groupBy('court_id');
+
+        $maintenanceCourtIds = DB::table('court_maintenances')
+            ->whereIn('status', ['scheduled', 'in_progress'])
+            ->where('start_datetime', '<=', "$date 23:59:59")
+            ->where('end_datetime', '>=', "$date 00:00:00")
+            ->pluck('court_id')
+            ->unique()
+            ->flip();
+
+        $courtsData = $courts->map(function ($court) use ($now, $bookingsByCourt, $maintenanceCourtIds) {
+            $courtBookings = $bookingsByCourt->get($court->court_id) ?? collect();
+
             // Current booking (đang chơi ngay bây giờ)
-            $currentBooking = CourtBooking::with(['user'])
-                ->where('court_id', $court->court_id)
-                ->where('booking_date', $date)
-                ->whereIn('status', ['checked_in', 'playing', 'extended'])
-                ->where('start_time', '<=', $now)
-                ->where('end_time', '>', $now)
-                ->first();
+            $currentBooking = $courtBookings->first(fn ($b) =>
+                in_array($b->status, ['checked_in', 'playing', 'extended'], true)
+                && $b->start_time <= $now && $b->end_time > $now
+            );
 
             // Next booking
-            $nextBooking = CourtBooking::with(['user'])
-                ->where('court_id', $court->court_id)
-                ->where('booking_date', $date)
-                ->whereIn('status', ['pending', 'confirmed'])
-                ->where('start_time', '>', $now)
-                ->orderBy('start_time')
+            $nextBooking = $courtBookings
+                ->filter(fn ($b) =>
+                    in_array($b->status, ['pending', 'confirmed'], true)
+                    && $b->start_time > $now
+                )
+                ->sortBy('start_time')
                 ->first();
 
             // All bookings today
-            $todayBookings = CourtBooking::where('court_id', $court->court_id)
-                ->where('booking_date', $date)
-                ->whereIn('status', CourtBooking::BLOCKING_STATUSES)
-                ->orderBy('start_time')
-                ->count();
+            $todayBookings = $courtBookings->count();
 
             // Check maintenance
-            $hasMaintenance = DB::table('court_maintenances')
-                ->where('court_id', $court->court_id)
-                ->whereIn('status', ['scheduled', 'in_progress'])
-                ->where('start_datetime', '<=', "$date 23:59:59")
-                ->where('end_datetime', '>=', "$date 00:00:00")
-                ->exists();
+            $hasMaintenance = $maintenanceCourtIds->has($court->court_id);
 
             // Determine real-time status
             $realtimeStatus = $court->status;
@@ -911,11 +941,16 @@ class CourtBookingAdminController extends Controller
         $daysInPeriod = $fromDate->diffInDays($toDate) + 1;
         $hoursPerDay = 17; // 05:00 - 22:00
 
-        $utilization = $courts->map(function ($court) use ($fromDate, $toDate, $daysInPeriod, $hoursPerDay) {
-            $totalBookedMinutes = CourtBooking::where('court_id', $court->court_id)
-                ->whereBetween('booking_date', [$fromDate, $toDate])
-                ->whereIn('status', ['completed', 'checked_in', 'playing', 'extended'])
-                ->sum('duration_minutes');
+        // Gom tổng số phút đã đặt theo từng sân trong 1 query (tránh N+1: trước đây
+        // mỗi sân bắn 1 query SUM riêng).
+        $bookedMinutesByCourt = CourtBooking::whereBetween('booking_date', [$fromDate, $toDate])
+            ->whereIn('status', ['completed', 'checked_in', 'playing', 'extended'])
+            ->select('court_id', DB::raw('SUM(duration_minutes) as total_minutes'))
+            ->groupBy('court_id')
+            ->pluck('total_minutes', 'court_id');
+
+        $utilization = $courts->map(function ($court) use ($daysInPeriod, $hoursPerDay, $bookedMinutesByCourt) {
+            $totalBookedMinutes = (int) ($bookedMinutesByCourt[$court->court_id] ?? 0);
 
             $totalAvailableMinutes = $daysInPeriod * $hoursPerDay * 60;
             $rate = $totalAvailableMinutes > 0 ? round(($totalBookedMinutes / $totalAvailableMinutes) * 100, 1) : 0;
@@ -966,5 +1001,85 @@ class CourtBookingAdminController extends Controller
                 'utilization' => $utilization,
             ]
         ]);
+    }
+
+    /**
+     * Check if a dragged booking conflicts with existing bookings.
+     */
+    public function checkConflicts(Request $request)
+    {
+        $validated = $request->validate([
+            'court_id' => 'required|exists:courts,court_id',
+            'booking_date' => 'required|date_format:Y-m-d',
+            'start_time' => 'required|date_format:H:i:s',
+            'end_time' => 'required|date_format:H:i:s|after:start_time',
+            'exclude_booking_id' => 'nullable|integer',
+        ]);
+
+        $query = CourtBooking::where('court_id', $validated['court_id'])
+            ->where('booking_date', $validated['booking_date'])
+            ->whereIn('status', CourtBooking::BLOCKING_STATUSES)
+            ->where('start_time', '<', $validated['end_time'])
+            ->where('end_time', '>', $validated['start_time']);
+
+        if (!empty($validated['exclude_booking_id'])) {
+            $query->where('booking_id', '!=', $validated['exclude_booking_id']);
+        }
+
+        $conflicts = $query->get();
+
+        return response()->json([
+            'status' => 'success',
+            'has_conflict' => $conflicts->isNotEmpty(),
+            'conflicts' => $conflicts,
+        ]);
+    }
+
+    /**
+     * Record split payment (e.g., partial deposit, partial cash)
+     */
+    public function splitPayment(Request $request, $id)
+    {
+        $booking = CourtBooking::findOrFail($id);
+
+        $validated = $request->validate([
+            'payments' => 'required|array|min:1',
+            'payments.*.payment_method' => 'required|in:cash,vnpay,momo,bank_transfer',
+            'payments.*.payment_type' => 'required|in:deposit,full,additional',
+            'payments.*.amount' => 'required|integer|min:1000',
+            'payments.*.transaction_code' => 'nullable|string|max:120',
+            'payments.*.note' => 'nullable|string|max:255',
+        ]);
+
+        $recordedPayments = [];
+        try {
+            DB::transaction(function () use ($booking, $validated, &$recordedPayments, $request) {
+                foreach ($validated['payments'] as $paymentData) {
+                    $recordedPayments[] = $this->workflowService->recordPayment(
+                        $booking,
+                        $paymentData,
+                        'admin',
+                        auth()->guard('admin')->id(),
+                        $request
+                    );
+                    
+                    if ($paymentData['payment_type'] === 'deposit') {
+                        $booking->deposit_amount += $paymentData['amount'];
+                    }
+                }
+                $booking->save();
+            });
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Split payments recorded successfully.',
+                'data' => $recordedPayments,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 400);
+        }
     }
 }

@@ -443,7 +443,25 @@ let barcodeBuffer = '';
 let barcodeTimeout = null;
 
 const handleGlobalKeydown = (e) => {
-  // Nếu đang focus vào input khác (search, form...) thì bỏ qua
+  // Bắt phím tắt POS
+  if (e.key === 'F2') {
+    e.preventDefault();
+    if (cartItems.value.length > 0) processCheckout();
+    return;
+  }
+  if (e.key === 'F3') {
+    e.preventDefault();
+    const searchInput = document.querySelector('.pos-search input');
+    if (searchInput) searchInput.focus();
+    return;
+  }
+  if (e.key === 'F4') {
+    e.preventDefault();
+    printInvoice();
+    return;
+  }
+
+  // Nếu đang focus vào input khác (search, form...) thì bỏ qua phần quét mã vạch
   const activeEl = document.activeElement;
   const isOtherInput = activeEl && 
     (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && 

@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/context.read<CategoryProvider>().dart';
+import '../providers/category_context.read<CategoryProvider>().dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
@@ -22,26 +24,10 @@ class _CategoryScreenState extends State<CategoryScreen>
   bool get wantKeepAlive => true;
 
   // ─── Products ───────────────────────────────────────────
-  List<dynamic> products = [];
-  bool isLoading = true;
-  bool isFetchingMore = false;
-  bool hasMore = true;
-  String? errorMessage;
-  int currentPage = 1;
-
   // ─── Categories ─────────────────────────────────────────
-  List<dynamic> categories = [];
-  int? selectedCategoryId;
-  String? selectedCategoryName;
-
   // ─── Filter / Sort ──────────────────────────────────────
-  String _sortBy = 'newest'; // newest | price_asc | price_desc | popular
-  RangeValues _priceRange = const RangeValues(0, 50000000);
-  bool _filterInStock = false;
-
   // ─── Search ─────────────────────────────────────────────
   final _searchCtrl = TextEditingController();
-  String _searchQuery = '';
   Timer? _debounce;
 
   // ─── Scroll ─────────────────────────────────────────────
@@ -50,7 +36,9 @@ class _CategoryScreenState extends State<CategoryScreen>
   @override
   void initState() {
     super.initState();
-    _loadAll();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CategoryProvider>().loadAll();
+    });
     _scrollCtrl.addListener(_onScroll);
   }
 
@@ -63,135 +51,15 @@ class _CategoryScreenState extends State<CategoryScreen>
   }
 
   void _onScroll() {
-    if (_scrollCtrl.position.pixels >=
-        _scrollCtrl.position.maxScrollExtent - 250) {
-      if (!isLoading && !isFetchingMore && hasMore) {
-        currentPage++;
-        fetchProducts(loadMore: true);
-      }
+    if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 250) {
+      context.read<CategoryProvider>().loadMore();
     }
-  }
-
-  Future<void> _loadAll() async {
-    await Future.wait([fetchCategories(), fetchProducts()]);
-  }
-
-  Future<void> fetchCategories() async {
-    try {
-      final res = await ApiClient().dio.get('/categories');
-      final data = res.data['data'] as List? ?? [];
-      final roots = data.where((c) {
-        final pid = c['parent_id'];
-        return pid == null || pid == 0;
-      }).toList();
-      if (mounted) setState(() => categories = roots);
-    } catch (_) {}
-  }
-
-  Future<void> fetchProducts({bool loadMore = false}) async {
-    if (!mounted) return;
-    if (loadMore) {
-      setState(() => isFetchingMore = true);
-    } else {
-      setState(() {
-        isLoading = true;
-        errorMessage = null;
-        products.clear();
-        hasMore = true;
-      });
-    }
-
-    try {
-      final params = <String, dynamic>{'page': currentPage};
-      if (selectedCategoryId != null) {
-        params['category_id'] = selectedCategoryId;
-      }
-      if (_searchQuery.isNotEmpty) params['search'] = _searchQuery;
-      if (_sortBy == 'price_asc') params['sort'] = 'price_asc';
-      if (_sortBy == 'price_desc') params['sort'] = 'price_desc';
-      if (_sortBy == 'popular') params['sort'] = 'popular';
-      if (_filterInStock) params['in_stock'] = 1;
-      if (_priceRange.start > 0) {
-        params['min_price'] = _priceRange.start.toInt();
-      }
-      if (_priceRange.end < 50000000) {
-        params['max_price'] = _priceRange.end.toInt();
-      }
-
-      final res = await ApiClient().dio.get(
-        '/products',
-        queryParameters: params,
-      );
-      final data = res.data;
-      List<dynamic> fetched = [];
-      if (data is List) {
-        fetched = data;
-        hasMore = false;
-      } else if (data['data'] is List) {
-        fetched = data['data'];
-        final page = int.tryParse(data['page']?.toString() ?? '1') ?? 1;
-        final totalPages =
-            int.tryParse(data['total_pages']?.toString() ?? '1') ?? 1;
-        hasMore = page < totalPages;
-      }
-
-      if (mounted) {
-        setState(() {
-          if (loadMore) {
-            products.addAll(fetched);
-          } else {
-            products = fetched;
-          }
-          isLoading = false;
-          isFetchingMore = false;
-        });
-      }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = e.response?.data?['message'] ?? 'Lỗi kết nối';
-          isLoading = false;
-          isFetchingMore = false;
-          if (loadMore) currentPage--;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          errorMessage = 'Lỗi kết nối máy chủ';
-          isLoading = false;
-          isFetchingMore = false;
-          if (loadMore) currentPage--;
-        });
-      }
-    }
-  }
-
-  void _resetAndFetch() {
-    currentPage = 1;
-    fetchProducts();
-  }
-
-  void _onSearchChanged(String v) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 450), () {
-      setState(() => _searchQuery = v.trim());
-      _resetAndFetch();
-    });
-  }
-
-  void _selectCategory(int? id, String? name) {
-    setState(() {
-      selectedCategoryId = id;
-      selectedCategoryName = name;
-    });
-    _resetAndFetch();
   }
 
   void _showFilterSheet() {
-    String tmpSort = _sortBy;
-    RangeValues tmpPrice = _priceRange;
-    bool tmpInStock = _filterInStock;
+    String tmpSort = context.read<CategoryProvider>().sortBy;
+    RangeValues tmpPrice = context.read<CategoryProvider>().priceRange;
+    bool tmpInStock = context.read<CategoryProvider>().filterInStock;
 
     showModalBottomSheet(
       context: context,
@@ -384,12 +252,8 @@ class _CategoryScreenState extends State<CategoryScreen>
                     ),
                     onPressed: () {
                       Navigator.pop(ctx);
-                      setState(() {
-                        _sortBy = tmpSort;
-                        _priceRange = tmpPrice;
-                        _filterInStock = tmpInStock;
-                      });
-                      _resetAndFetch();
+                      context.read<CategoryProvider>().applyFilters(sort: tmpSort, price: tmpPrice, inStock: tmpInStock);
+                      
                     },
                     child: const Text(
                       'Áp dụng',
@@ -447,14 +311,15 @@ class _CategoryScreenState extends State<CategoryScreen>
   }
 
   bool get _hasActiveFilter =>
-      selectedCategoryId != null ||
-      _sortBy != 'newest' ||
-      _filterInStock ||
-      _priceRange.start > 0 ||
-      _priceRange.end < 50000000;
+      context.read<CategoryProvider>().selectedCategoryId != null ||
+      context.read<CategoryProvider>().sortBy != 'newest' ||
+      context.read<CategoryProvider>().filterInStock ||
+      context.read<CategoryProvider>().priceRange.start > 0 ||
+      context.read<CategoryProvider>().priceRange.end < 50000000;
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<CategoryProvider>();
     super.build(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -492,8 +357,8 @@ class _CategoryScreenState extends State<CategoryScreen>
                     ),
                   ),
                   Text(
-                    selectedCategoryName != null
-                        ? selectedCategoryName!
+                    context.watch<CategoryProvider>().selectedCategoryName != null
+                        ? context.watch<CategoryProvider>().selectedCategoryName!
                         : 'Tất cả sản phẩm',
                     style: const TextStyle(
                       fontSize: 13,
@@ -565,11 +430,11 @@ class _CategoryScreenState extends State<CategoryScreen>
             ),
             child: TextField(
               controller: _searchCtrl,
-              onChanged: _onSearchChanged,
+              onChanged: context.read<CategoryProvider>().updateSearch,
               onSubmitted: (v) {
                 _debounce?.cancel();
-                setState(() => _searchQuery = v.trim());
-                _resetAndFetch();
+                setState(() => context.watch<CategoryProvider>().searchQuery = v.trim());
+                
               },
               decoration: InputDecoration(
                 hintText: 'Tìm kiếm sản phẩm...',
@@ -582,7 +447,7 @@ class _CategoryScreenState extends State<CategoryScreen>
                   color: Color(0xFF94A3B8),
                   size: 20,
                 ),
-                suffixIcon: _searchQuery.isNotEmpty
+                suffixIcon: context.watch<CategoryProvider>().searchQuery.isNotEmpty
                     ? IconButton(
                         icon: const Icon(
                           Icons.close,
@@ -591,8 +456,8 @@ class _CategoryScreenState extends State<CategoryScreen>
                         ),
                         onPressed: () {
                           _searchCtrl.clear();
-                          setState(() => _searchQuery = '');
-                          _resetAndFetch();
+                          setState(() => context.watch<CategoryProvider>().searchQuery = '');
+                          
                         },
                       )
                     : null,
@@ -607,7 +472,7 @@ class _CategoryScreenState extends State<CategoryScreen>
   }
 
   Widget _buildCategoryChips() {
-    if (categories.isEmpty) return const SizedBox(height: 8);
+    if (context.watch<CategoryProvider>().categories.isEmpty) return const SizedBox(height: 8);
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.only(bottom: 12),
@@ -616,22 +481,22 @@ class _CategoryScreenState extends State<CategoryScreen>
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: categories.length + 1, // +1 for "All"
+          itemCount: context.watch<CategoryProvider>().categories.length + 1, // +1 for "All"
           itemBuilder: (_, i) {
             if (i == 0) {
-              final sel = selectedCategoryId == null;
-              return _chip('Tất cả', sel, () => _selectCategory(null, null));
+              final sel = context.watch<CategoryProvider>().selectedCategoryId == null;
+              return _chip('Tất cả', sel, () => context.watch<CategoryProvider>().selectCategory(null, null));
             }
-            final cat = categories[i - 1];
+            final cat = context.watch<CategoryProvider>().categories[i - 1];
             final id = cat['category_id'] ?? cat['id'];
             final name = cat['name']?.toString() ?? '';
             final sel =
-                selectedCategoryId != null &&
-                selectedCategoryId.toString() == id.toString();
+                context.watch<CategoryProvider>().selectedCategoryId != null &&
+                context.watch<CategoryProvider>().selectedCategoryId.toString() == id.toString();
             return _chip(
               name,
               sel,
-              () => _selectCategory(int.tryParse(id.toString()), name),
+              () => context.watch<CategoryProvider>().selectCategory(int.tryParse(id.toString()), name),
             );
           },
         ),
@@ -669,7 +534,7 @@ class _CategoryScreenState extends State<CategoryScreen>
     return RefreshIndicator(
       color: const Color(0xFFE63B6F),
       onRefresh: () async {
-        currentPage = 1;
+        context.read<CategoryProvider>().currentPage = 1;
         await fetchProducts();
       },
       child: CustomScrollView(
@@ -680,12 +545,12 @@ class _CategoryScreenState extends State<CategoryScreen>
           if (_hasActiveFilter) SliverToBoxAdapter(child: _buildActiveBadges()),
 
           // Products count
-          if (!isLoading && products.isNotEmpty)
+          if (!context.watch<CategoryProvider>().isLoading && context.watch<CategoryProvider>().products.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: Text(
-                  '${products.length} sản phẩm${hasMore ? '+' : ''}',
+                  '${context.watch<CategoryProvider>().products.length} sản phẩm${context.watch<CategoryProvider>().hasMore ? '+' : ''}',
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xFF64748B),
@@ -696,18 +561,18 @@ class _CategoryScreenState extends State<CategoryScreen>
             ),
 
           // Loading
-          if (isLoading && products.isEmpty) const SliverShimmerLoading(),
+          if (context.watch<CategoryProvider>().isLoading && context.watch<CategoryProvider>().products.isEmpty) const SliverShimmerLoading(),
 
           // Error
-          if (errorMessage != null && products.isEmpty)
+          if (context.watch<CategoryProvider>().errorMessage != null && context.watch<CategoryProvider>().products.isEmpty)
             SliverToBoxAdapter(child: _buildError()),
 
           // Empty
-          if (!isLoading && products.isEmpty && errorMessage == null)
+          if (!context.watch<CategoryProvider>().isLoading && context.watch<CategoryProvider>().products.isEmpty && context.watch<CategoryProvider>().errorMessage == null)
             SliverToBoxAdapter(child: _buildEmpty()),
 
           // Grid
-          if (products.isNotEmpty)
+          if (context.watch<CategoryProvider>().products.isNotEmpty)
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               sliver: SliverGrid(
@@ -718,14 +583,14 @@ class _CategoryScreenState extends State<CategoryScreen>
                   childAspectRatio: 0.64,
                 ),
                 delegate: SliverChildBuilderDelegate(
-                  (_, i) => _buildCard(products[i]),
-                  childCount: products.length,
+                  (_, i) => _buildCard(context.watch<CategoryProvider>().products[i]),
+                  childCount: context.watch<CategoryProvider>().products.length,
                 ),
               ),
             ),
 
           // Load more indicator
-          if (isFetchingMore)
+          if (context.watch<CategoryProvider>().isFetchingMore)
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
@@ -738,13 +603,13 @@ class _CategoryScreenState extends State<CategoryScreen>
               ),
             ),
 
-          if (!hasMore && products.length > 4)
+          if (!context.watch<CategoryProvider>().hasMore && context.watch<CategoryProvider>().products.length > 4)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
-                    '✨ Bạn đã xem hết ${products.length} sản phẩm',
+                    '✨ Bạn đã xem hết ${context.watch<CategoryProvider>().products.length} sản phẩm',
                     style: const TextStyle(
                       color: Color(0xFF94A3B8),
                       fontSize: 13,
@@ -765,28 +630,28 @@ class _CategoryScreenState extends State<CategoryScreen>
         spacing: 8,
         runSpacing: 0,
         children: [
-          if (_sortBy != 'newest')
+          if (context.watch<CategoryProvider>().sortBy != 'newest')
             _badge(
               _sortLabel(),
               onRemove: () {
-                setState(() => _sortBy = 'newest');
-                _resetAndFetch();
+                setState(() => context.watch<CategoryProvider>().sortBy = 'newest');
+                
               },
             ),
-          if (_filterInStock)
+          if (context.watch<CategoryProvider>().filterInStock)
             _badge(
               'Còn hàng',
               onRemove: () {
-                setState(() => _filterInStock = false);
-                _resetAndFetch();
+                setState(() => context.watch<CategoryProvider>().filterInStock = false);
+                
               },
             ),
-          if (_priceRange.start > 0 || _priceRange.end < 50000000)
+          if (context.watch<CategoryProvider>().priceRange.start > 0 || context.watch<CategoryProvider>().priceRange.end < 50000000)
             _badge(
-              '${_fmtPrice(_priceRange.start)}–${_fmtPrice(_priceRange.end)} đ',
+              '${_fmtPrice(context.watch<CategoryProvider>().priceRange.start)}–${_fmtPrice(context.watch<CategoryProvider>().priceRange.end)} đ',
               onRemove: () {
-                setState(() => _priceRange = const RangeValues(0, 50000000));
-                _resetAndFetch();
+                setState(() => context.watch<CategoryProvider>().priceRange = const RangeValues(0, 50000000));
+                
               },
             ),
         ],
@@ -810,7 +675,7 @@ class _CategoryScreenState extends State<CategoryScreen>
   }
 
   String _sortLabel() {
-    switch (_sortBy) {
+    switch (context.watch<CategoryProvider>().sortBy) {
       case 'price_asc':
         return 'Giá tăng dần';
       case 'price_desc':
@@ -831,7 +696,7 @@ class _CategoryScreenState extends State<CategoryScreen>
           const Icon(Icons.cloud_off_outlined, size: 60, color: Colors.grey),
           const SizedBox(height: 16),
           Text(
-            errorMessage!,
+            context.watch<CategoryProvider>().errorMessage!,
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.grey),
           ),
@@ -917,25 +782,7 @@ class _CategoryScreenState extends State<CategoryScreen>
             Expanded(
               child: Stack(
                 children: [
-                  NetworkImageWidget(
-                    imageUrl: imageUrl,
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(18),
-                    ),
-                    errorWidget: Container(
-                      color: const Color(0xFFF1F5F9),
-                      child: const Center(
-                        child: Icon(
-                          Icons.image,
-                          color: Color(0xFFCBD5E1),
-                          size: 32,
-                        ),
-                      ),
-                    ),
-                  ),
+                  Hero(tag: product['id'] ?? product['slug'] ?? UniqueKey().toString(), child: NetworkImageWidget(imageUrl: imageUrl, width: double.infinity, height: double.infinity, fit: BoxFit.cover, borderRadius: const BorderRadius.vertical(top: Radius.circular(18)), errorWidget: Container(color: const Color(0xFFF1F5F9), child: const Center(child: Icon(Icons.image, color: Color(0xFFCBD5E1), size: 32)))), ),
                   // Favorite button
                   Positioned(
                     top: 8,
@@ -1059,3 +906,4 @@ class _CategoryScreenState extends State<CategoryScreen>
     );
   }
 }
+

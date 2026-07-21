@@ -1,8 +1,11 @@
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../config/app_config.dart';
+import '../providers/home_provider.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../utils/format_utils.dart';
@@ -26,83 +29,23 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   bool get wantKeepAlive => true;
 
-  // ===== STATE =====
-  List<dynamic> products = [];
-  bool isLoading = true;
-  String? errorMessage;
-  int currentPage = 1;
-  int totalPages = 1;
-  int totalProducts = 0;
-  String search = '';
   final ScrollController _scrollController = ScrollController();
   Timer? _searchDebounce;
-
-  // ===== CATEGORIES =====
-  List<dynamic> categories = [];
-  bool isCatLoading = true;
-
-  // ===== GỌI API =====
-  Future<void> fetchProducts() async {
-    if (!mounted) return;
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
-    try {
-      final response = await ApiClient().dio.get(
-        '/products',
-        queryParameters: {'page': currentPage, 'search': search},
-      );
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        List<dynamic> fetched = [];
-
-        if (data is List) {
-          fetched = data;
-          if (mounted) {
-            setState(() {
-              products = fetched;
-              totalPages = 1;
-              totalProducts = fetched.length;
-              isLoading = false;
-            });
-          }
-        } else if (data['data'] is List) {
-          fetched = data['data'];
-          if (mounted) {
-            setState(() {
-              products = fetched;
-              totalPages = data['total_pages'] ?? 1;
-              totalProducts = data['total'] ?? fetched.length;
-              isLoading = false;
-            });
-          }
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage = 'Lỗi server: ${response.statusCode}';
-            isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = 'Không kết nối được API!\nLỗi: $e';
-          isLoading = false;
-        });
-      }
-    }
-  }
 
   @override
   void initState() {
     super.initState();
-    fetchProducts();
-    fetchCategories();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<HomeProvider>();
+      if (provider.products.isEmpty) provider.fetchProducts();
+      if (provider.categories.isEmpty) provider.fetchCategories();
+    });
+    
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+        context.read<HomeProvider>().loadMoreProducts();
+      }
+    });
   }
 
   @override
@@ -113,27 +56,21 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _openSearchResults(String rawText) {
-    final query = rawText.trim();
-    if (query.isEmpty) return;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProductListScreen(searchQuery: query),
-      ),
-    );
+    // Legacy function, no longer used. See _buildSearchBar
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final provider = context.watch<HomeProvider>();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            currentPage = 1;
-            await fetchProducts();
+            await context.read<HomeProvider>().fetchProducts(refresh: true);
+            await context.read<HomeProvider>().fetchCategories();
           },
           child: CustomScrollView(
             controller: _scrollController,
@@ -143,11 +80,16 @@ class _HomeScreenState extends State<HomeScreen>
               SliverToBoxAdapter(child: _buildSearchBar()),
               SliverToBoxAdapter(child: _buildHeroBanner()),
               SliverToBoxAdapter(child: _buildQuickActions()),
-              SliverToBoxAdapter(child: _buildCategories()),
-              _buildProductsSection(),
+              SliverToBoxAdapter(child: _buildCategories(provider)),
+              _buildProductsSection(provider),
             ],
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.push('/chat'),
+        backgroundColor: const Color(0xFFE63B6F),
+        child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
       ),
     );
   }
@@ -196,29 +138,36 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: TextField(
-          decoration: InputDecoration(
-            hintText: 'Bạn muốn tìm gì?',
-            hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
-            prefixIcon: const Icon(Icons.search, color: Color(0xFF94A3B8)),
-            suffixIcon: const Icon(Icons.filter_list, color: Color(0xFFE63B6F)),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 15),
+      child: GestureDetector(
+        onTap: () {
+          context.push('/search');
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          // onChanged removed to prevent abruptly pushing to a new screen while typing
-          onSubmitted: _openSearchResults,
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
+          child: Row(
+            children: [
+              const Icon(Icons.search, color: Color(0xFF94A3B8)),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Bạn muốn tìm gì?',
+                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
+                ),
+              ),
+              const Icon(Icons.filter_list, color: Color(0xFFE63B6F)),
+            ],
+          ),
         ),
       ),
     );
@@ -498,7 +447,7 @@ class _HomeScreenState extends State<HomeScreen>
     Color(0xFFCA8A04),
   ];
 
-  Widget _buildCategories() {
+  Widget _buildCategories(HomeProvider provider) {
     return Column(
       children: [
         Padding(
@@ -533,7 +482,7 @@ class _HomeScreenState extends State<HomeScreen>
         const SizedBox(height: 10),
         SizedBox(
           height: 110,
-          child: isCatLoading
+          child: provider.isCategoriesLoading
               ? ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -563,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                 )
-              : categories.isEmpty
+              : provider.categories.isEmpty
               ? const Center(
                   child: Text(
                     'Chưa có danh mục',
@@ -573,9 +522,9 @@ class _HomeScreenState extends State<HomeScreen>
               : ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
-                  itemCount: categories.length,
+                  itemCount: provider.categories.length,
                   itemBuilder: (context, index) {
-                    final cat = categories[index];
+                    final cat = provider.categories[index];
                     final catName = cat['name']?.toString() ?? '';
                     final catId = cat['category_id'] ?? cat['id'];
                     final colors = _colorsForIndex(index);
@@ -645,7 +594,7 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildProductsSection() {
+  Widget _buildProductsSection(HomeProvider provider) {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
       sliver: SliverMainAxisGroup(
@@ -669,17 +618,17 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
                 ),
                 const SizedBox(height: 16),
-                if (errorMessage != null && !isLoading)
+                if (provider.productsErrorMessage != null && !provider.isProductsLoading)
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.all(20),
                       child: Text(
-                        errorMessage!,
+                        provider.productsErrorMessage!,
                         style: const TextStyle(color: Colors.red),
                       ),
                     ),
                   )
-                else if (products.isEmpty && !isLoading)
+                else if (provider.products.isEmpty && !provider.isProductsLoading)
                   const Center(
                     child: Padding(
                       padding: EdgeInsets.all(20),
@@ -689,9 +638,9 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
           ),
-          if (isLoading && products.isEmpty)
+          if (provider.isProductsLoading && provider.products.isEmpty)
             const SliverShimmerLoading()
-          else if (!isLoading && errorMessage == null && products.isNotEmpty)
+          else if (!provider.isProductsLoading && provider.productsErrorMessage == null && provider.products.isNotEmpty)
             SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
@@ -700,8 +649,8 @@ class _HomeScreenState extends State<HomeScreen>
                 childAspectRatio: 0.65,
               ),
               delegate: SliverChildBuilderDelegate((context, index) {
-                return _buildProductCard(products[index]);
-              }, childCount: products.length),
+                return _buildProductCard(provider.products[index]);
+              }, childCount: provider.products.length),
             ),
         ],
       ),
@@ -720,12 +669,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailScreen(product: product),
-          ),
-        );
+        context.push('/product-detail', extra: product);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -744,24 +688,27 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             Stack(
               children: [
-                NetworkImageWidget(
-                      imageUrl: imageUrl,
-                      height: 160,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
-                      placeholder: Container(
-                        height: 160,
-                        color: const Color(0xFFF1F5F9),
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE63B6F)),
-                        ),
-                      ),
-                      errorWidget: _imagePlaceholder(),
+                Hero(
+                  tag: product['id'] ?? product['slug'] ?? 'product_image_${product.hashCode}',
+                  child: NetworkImageWidget(
+                    imageUrl: imageUrl,
+                    height: 160,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
                     ),
+                    placeholder: Container(
+                      height: 160,
+                      color: const Color(0xFFF1F5F9),
+                      child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE63B6F)),
+                      ),
+                    ),
+                    errorWidget: _imagePlaceholder(),
+                  ),
+                ),
                 Positioned(
                   top: 8,
                   right: 8,

@@ -1,9 +1,11 @@
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../widgets/network_image_widget.dart';
 import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
+import '../widgets/shimmer_loading.dart';
 import 'product_detail_screen.dart';
 
 class FlashSaleScreen extends StatefulWidget {
@@ -106,11 +108,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           SliverToBoxAdapter(child: _buildHero()),
           // Content
           if (isLoading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            )
+            const SliverShimmerLoading()
           else if (errorMessage != null)
             SliverFillRemaining(
               child: Center(
@@ -195,7 +193,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => context.pop(),
                   ),
                   const Spacer(),
                   const Text(
@@ -445,19 +443,16 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
 
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailScreen(product: product),
-          ),
-        );
+        context.push('/product-detail', extra: product);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
             // Image
-            NetworkImageWidget(
+            Hero(
+              tag: product['id'] ?? product['slug'] ?? UniqueKey().toString(),
+              child: NetworkImageWidget(
               imageUrl: imageUrl,
               width: 80,
               height: 80,
@@ -469,6 +464,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                 color: const Color(0xFFF1F5F9),
                 child: const Icon(Icons.image, color: Colors.grey),
               ),
+            ),
             ),
             const SizedBox(width: 14),
             // Info

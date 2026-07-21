@@ -420,8 +420,10 @@ PROMPT;
      */
     public function sendMessage(array $conversationHistory, bool $isAuthenticated = false): array
     {
-        $apiKey = $this->getApiKey();
-        $url = "{$this->baseUrl}:generateContent?key={$apiKey}";
+        $cacheKey = 'gemini_resp_' . md5(json_encode($conversationHistory) . '_' . ($isAuthenticated ? '1' : '0'));
+        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 3600, function () use ($conversationHistory, $isAuthenticated) {
+            $apiKey = $this->getApiKey();
+            $url = "{$this->baseUrl}:generateContent?key={$apiKey}";
 
         // Thêm thông tin auth vào system prompt
         $authContext = $isAuthenticated
@@ -538,6 +540,7 @@ PROMPT;
                 'message' => 'Kết nối đến AI bị gián đoạn. Vui lòng thử lại!',
             ];
         }
+        });
     }
 
     /**

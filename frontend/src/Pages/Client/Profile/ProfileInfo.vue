@@ -46,22 +46,15 @@
 
         <!-- Form fields -->
         <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">
-              Họ và tên <span class="required" v-if="isEditing">*</span>
-            </label>
-            <input
-              type="text"
-              v-model="form.full_name"
-              class="form-input"
-              :class="{ 'form-input--error': errors.full_name, 'form-input--disabled': !isEditing }"
-              :disabled="!isEditing"
-              placeholder="Nhập họ và tên"
-              maxlength="120"
-              required
-            />
-            <span v-if="errors.full_name" class="error-text">{{ errors.full_name[0] }}</span>
-          </div>
+          <BaseInput 
+            v-model="form.full_name" 
+            label="Họ và tên" 
+            :required="isEditing" 
+            :disabled="!isEditing" 
+            placeholder="Nhập họ và tên"
+            maxlength="120"
+            :error="errors.full_name ? errors.full_name[0] : ''" 
+          />
 
           <div class="form-group">
             <label class="form-label">
@@ -162,6 +155,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
 import { getAppBaseUrl } from '@/utils/url';
+import BaseInput from '@/components/base/BaseInput.vue';
 
 // Base URL for profile assets.
 const BASE_URL = getAppBaseUrl();

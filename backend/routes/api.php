@@ -10,6 +10,8 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\Api\Admin\RewardAdminController;
+use App\Http\Controllers\Api\Admin\UserRewardAdminController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminStaffController;
 use App\Http\Controllers\BrandController;
@@ -54,19 +56,22 @@ use App\Http\Controllers\OrderTrackingController;
 use App\Services\FcmService;
 // use Illuminate\Http\Request;
 
-Route::post('/test-push', function (Request $request, FcmService $fcm) {
-    // Truyền token của cái máy Flutter mà bạn muốn test vào body request
-    $token = $request->input('token');
+// Route debug gửi push — CHỈ đăng ký ở môi trường local để tránh bị lạm dụng
+// (spam FCM / dò token hợp lệ) trên production. Bọc thêm throttle phòng hờ.
+if (app()->environment('local')) {
+    Route::post('/test-push', function (Request $request, FcmService $fcm) {
+        $token = $request->input('token');
 
-    $success = $fcm->sendNotification(
-        $token,
-        '🚀 Test Thông Báo!',
-        'Nếu bạn thấy dòng này, Laravel và Firebase đã thông nhau!',
-        ['screen' => 'home'] // Data gửi kèm
-    );
+        $success = $fcm->sendNotification(
+            $token,
+            '🚀 Test Thông Báo!',
+            'Nếu bạn thấy dòng này, Laravel và Firebase đã thông nhau!',
+            ['screen' => 'home'] // Data gửi kèm
+        );
 
-    return response()->json(['success' => $success]);
-});
+        return response()->json(['success' => $success]);
+    })->middleware('throttle:5,1');
+}
 // API root health response.
 Route::get('/', function () {
     return response()->json([
@@ -78,8 +83,10 @@ Route::get('/', function () {
 // Auth routes (Public) — có Rate Limiting + Turnstile
 Route::middleware('throttle:20,1')->post('/login', [AuthController::class, 'login']);
 Route::middleware('throttle:10,1')->post('/register', [AuthController::class, 'register']);
-Route::post('/SubmitContact', [ContactController::class, 'SubmitContact']);
-Route::post('/SubmitContactEmail', [ContactController::class, 'SubmitContactEmail']);
+Route::middleware('throttle:5,1')->group(function () {
+    Route::post('/SubmitContact', [ContactController::class, 'SubmitContact']);
+    Route::post('/SubmitContactEmail', [ContactController::class, 'SubmitContactEmail']);
+});
 
 // Forgot Password routes (Public) — có Rate Limiting cho send OTP
 Route::middleware('throttle:3,1')->post('/forgot-password/send-otp', [ForgotPasswordController::class, 'sendOtp']);
@@ -128,7 +135,16 @@ Route::middleware('auth:api,admin')->group(function () {
 
     // Device token
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
-    });
+    
+    // Loyalty (Tích điểm)
+    Route::get('/loyalty/profile', [\App\Http\Controllers\Api\LoyaltyController::class, 'profile']);
+    Route::get('/loyalty/rewards', [\App\Http\Controllers\Api\LoyaltyController::class, 'rewards']);
+    Route::post('/loyalty/redeem', [\App\Http\Controllers\Api\LoyaltyController::class, 'redeem']);
+
+    // Chat (CSKH)
+    Route::get('/chat/messages', [\App\Http\Controllers\Api\ChatController::class, 'getMessages']);
+    Route::post('/chat/messages', [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
+});
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
 Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
@@ -148,7 +164,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // Đơn hàng của tôi
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::post('/orders', [OrderController::class, 'store']);
+    Route::middleware('throttle:10,1')->post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
     Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
@@ -194,7 +210,7 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'getCart']);
     Route::get('/count', [CartController::class, 'getCount']);
     Route::get('/upsell-suggestions', [CartController::class, 'upsellSuggestions']);
-    Route::post('/items', [CartController::class, 'addItem']);
+    Route::middleware('throttle:30,1')->post('/items', [CartController::class, 'addItem']);
     Route::put('/items/{id}', [CartController::class, 'updateItem']);
     Route::put('/items/{id}/variant', [CartController::class, 'changeVariant']);
     Route::delete('/items/{id}', [CartController::class, 'removeItem']);
@@ -204,7 +220,7 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 });
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
-Route::post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:10,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
 Route::middleware('throttle:30,1')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
 Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
@@ -229,6 +245,16 @@ Route::post('/affiliate/track-click', [AffiliateController::class, 'trackClick']
 // NHÓM 1: QUAN TRỊ VIÊN CẤP CAO (admin)
 // ==========================================
 Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(function () {
+    // Quản lý Loyalty & Quà tặng
+    Route::get('/rewards', [RewardAdminController::class, 'index']);
+    Route::post('/rewards', [RewardAdminController::class, 'store']);
+    Route::get('/rewards/{id}', [RewardAdminController::class, 'show']);
+    Route::put('/rewards/{id}', [RewardAdminController::class, 'update']);
+    Route::delete('/rewards/{id}', [RewardAdminController::class, 'destroy']);
+    
+    Route::get('/user-rewards', [UserRewardAdminController::class, 'index']);
+    Route::put('/user-rewards/{id}/status', [UserRewardAdminController::class, 'updateStatus']);
+
     // Quản lý Khách hàng (Thêm/Sửa/Xóa/Phân quyền)
     Route::post('/users', [AdminUserController::class, 'store']);
     Route::put('/users/{id}', [AdminUserController::class, 'update']);
@@ -401,6 +427,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin'
     Route::get('/statistics/top-products', [\App\Http\Controllers\AdminStatisticsController::class, 'getTopProducts']);
     Route::get('/statistics/top-customers', [\App\Http\Controllers\AdminStatisticsController::class, 'getTopCustomers']);
     Route::get('/statistics/report', [\App\Http\Controllers\AdminStatisticsController::class, 'getRevenueReport']);
+    Route::get('/statistics/staff-sales', [\App\Http\Controllers\AdminStatisticsController::class, 'getStaffSales']);
     Route::get('/statistics/export-revenue-last-month', [\App\Http\Controllers\AdminStatisticsController::class, 'exportLastMonthRevenue']);
 });
 
@@ -470,15 +497,6 @@ Route::middleware('auth:api')->prefix('loyalty')->group(function () {
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
     Route::post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
     Route::post('/social-share', [LoyaltyController::class, 'socialShare']); // Chia sẻ MXH +30đ
-});
-
-// ==========================================
-// WALLET (Ví điện tử)
-// ==========================================
-Route::middleware('auth:api')->prefix('wallet')->group(function () {
-    Route::get('/summary', [WalletController::class, 'summary']);         // Tóm tắt ví điện tử
-    Route::get('/history', [WalletController::class, 'history']);         // Lịch sử giao dịch ví
-    Route::post('/withdraw', [WalletController::class, 'withdraw']);       // Yêu cầu rút tiền
 });
 
 // ==========================================
@@ -676,7 +694,7 @@ Route::get('/courts/{id}/availability', [CourtController::class, 'availability']
 Route::get('/court-services', [CourtController::class, 'publicServices']);
 
 Route::middleware('auth:api,admin')->group(function () {
-    Route::post('/court-bookings/lock', [CourtBookingController::class, 'lock']);
+    Route::post('/court-bookings/lock', [CourtBookingController::class, 'lock'])->middleware('throttle:10,1');
     Route::post('/court-bookings/release-lock', [CourtBookingController::class, 'releaseLock']);
     Route::post('/court-bookings', [CourtBookingController::class, 'store']);
     Route::get('/court-bookings', [CourtBookingController::class, 'index']);
@@ -696,7 +714,9 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
     Route::apiResource('court-maintenances', CourtMaintenanceAdminController::class);
 
     // Bookings Management
+    Route::get('/court-bookings/conflicts', [CourtBookingAdminController::class, 'checkConflicts']);
     Route::apiResource('court-bookings', CourtBookingAdminController::class);
+    Route::post('/court-bookings/{id}/split-payment', [CourtBookingAdminController::class, 'splitPayment']);
     Route::post('/court-bookings/{id}/check-in', [CourtBookingAdminController::class, 'checkIn']);
     Route::post('/court-bookings/{id}/check-out', [CourtBookingAdminController::class, 'checkOut']);
     Route::post('/court-bookings/{id}/services', [CourtBookingAdminController::class, 'addService']);

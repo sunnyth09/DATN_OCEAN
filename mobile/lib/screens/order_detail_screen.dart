@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -262,11 +263,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           content: Text('Đã thêm sản phẩm vào giỏ hàng!'),
           backgroundColor: Colors.green,
         ));
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const MainWrapper(initialIndex: 2)),
-          (route) => false,
-        );
+        context.go('/cart');
       }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
@@ -646,6 +643,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   // Nút mua lại (chỉ hiện khi completed)
                   if (isCompleted) ...[
                     Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final result = await context.push<bool>('/create-return/${widget.orderId}');
+                          if (result == true) {
+                            fetchOrderDetail();
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFE63B6F),
+                          side: const BorderSide(color: Color(0xFFE63B6F)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Hoàn trả', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: ElevatedButton.icon(
                         onPressed: _isReordering ? null : _reOrder,
                         icon: _isReordering
@@ -667,7 +682,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   if (!canCancel && !isCompleted)
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => context.pop(),
                         icon: const Icon(Icons.arrow_back, size: 18),
                         label: const Text('Quay lại', style: TextStyle(fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(

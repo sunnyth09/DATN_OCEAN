@@ -20,12 +20,38 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   
   bool _isLoading = false;
   String? _currentWifiInfo;
+  
+  Map<String, dynamic>? _todayStatus;
+  bool _isLoadingStatus = true;
 
   @override
   void initState() {
     super.initState();
     _startClock();
     _loadNetworkInfo();
+    _loadTodayStatus();
+  }
+
+  Future<void> _loadTodayStatus() async {
+    setState(() {
+      _isLoadingStatus = true;
+    });
+    try {
+      final res = await _attendanceService.getTodayStatus();
+      if (mounted && res['status'] == 'success') {
+        setState(() {
+          _todayStatus = res['data'];
+        });
+      }
+    } catch (_) {
+      // Ignore
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingStatus = false;
+        });
+      }
+    }
   }
 
   @override
@@ -99,6 +125,140 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         });
       }
     }
+    
+    // Tải lại thông tin ca sau khi check-in/out
+    _loadTodayStatus();
+  }
+
+  Widget _buildShiftInfo() {
+    if (_isLoadingStatus) {
+      return const Padding(
+        padding: EdgeInsets.only(bottom: 20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    if (_todayStatus == null) return const SizedBox.shrink();
+
+    final currentShift = _todayStatus!['current_shift'];
+    final state = _todayStatus!['state'];
+    
+    if (currentShift != null && currentShift['is_assigned'] == true) {
+      String statusText = '';
+      Color statusColor = Colors.blue;
+      Color bgColor = const Color(0xFFE3F2FD);
+      
+      if (state == 'checked_in') {
+        statusText = 'Đang làm việc';
+        statusColor = Colors.green;
+        bgColor = const Color(0xFFE8F5E9);
+      } else if (state == 'checked_out') {
+        statusText = 'Đã hoàn tất ca';
+        statusColor = Colors.grey;
+        bgColor = const Color(0xFFF5F5F5);
+      } else {
+        statusText = 'Sắp vào ca - Vui lòng Check-in';
+        statusColor = Colors.orange;
+        bgColor = const Color(0xFFFFF3E0);
+      }
+
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: statusColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    statusText,
+                    style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ca hiện tại: ${currentShift['name']} (${currentShift['start_time']} - ${currentShift['end_time']})',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Nếu không có ca hiện tại, tìm ca tiếp theo trong ngày
+    final shifts = _todayStatus!['shifts'] as List?;
+    if (shifts != null && shifts.isNotEmpty) {
+      final nextShifts = shifts.where((s) => s['is_assigned'] == true && s['state'] != 'checked_out').toList();
+      if (nextShifts.isNotEmpty) {
+        final nextShift = nextShifts.first;
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 20),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE3F2FD),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.event_note, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Ca làm việc sắp tới',
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${nextShift['shift_name']} (${nextShift['start_time']} - ${nextShift['end_time']})',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.event_busy, color: Colors.grey),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Hôm nay bạn không có ca làm việc nào (hoặc đã hoàn tất).',
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -114,6 +274,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
+            _buildShiftInfo(),
             // Clock Card
             Container(
               width: double.infinity,

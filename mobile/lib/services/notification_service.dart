@@ -7,11 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:go_router/go_router.dart';
 
 import 'api_client.dart';
-import 'app_navigator.dart';
+import '../router/app_router.dart';
 import 'auth_service.dart';
-import '../screens/notification_screen.dart';
 
 // ⚠️ QUAN TRỌNG: Hàm này PHẢI nằm ngoài class (Top-level function)
 // Lắng nghe thông báo khi app đang chạy ngầm hoặc đã bị tắt.
@@ -154,13 +154,12 @@ class NotificationService {
   }
 
   void _handleNotificationClick(Map<String, dynamic> data) {
-    final navigator = appNavigatorKey.currentState;
-    if (navigator == null) return;
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) return;
 
     // Hiện tại mọi thông báo đều mở màn hình danh sách thông báo.
     // Mở rộng theo data['type'] / data['screen'] khi có thêm màn hình đích.
-    navigator.push(
-      MaterialPageRoute(builder: (_) => const NotificationScreen()),
-    );
+    context.push('/notification');
   }
 }
+

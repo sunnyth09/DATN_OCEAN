@@ -8,7 +8,8 @@ Endpoints:
 
 import os
 import logging
-from fastapi import FastAPI, HTTPException
+import fastapi
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from face_utils import decode_base64_image, encode_face, verify_face
@@ -20,6 +21,7 @@ logger = logging.getLogger("face-service")
 # Config from environment
 FACE_TOLERANCE = float(os.environ.get("FACE_TOLERANCE", "0.45"))
 MAX_ENCODINGS_PER_REQUEST = int(os.environ.get("MAX_ENCODINGS_PER_REQUEST", "10"))
+INTERNAL_SECRET = os.environ.get("FACE_SERVICE_SECRET", "super-secret-default-key-change-in-prod")
 
 app = FastAPI(
     title="Face Verification Service",
@@ -28,6 +30,21 @@ app = FastAPI(
     docs_url=None,   # Disable Swagger UI trong production
     redoc_url=None,  # Disable ReDoc trong production
 )
+
+@app.middleware("http")
+async def verify_internal_secret(request: Request, call_next):
+    # Cho phép health check không cần auth
+    if request.url.path == "/health":
+        return await call_next(request)
+        
+    secret = request.headers.get("X-Internal-Secret")
+    if secret != INTERNAL_SECRET:
+        # Lỗi Unauthorized nếu header bị thiếu hoặc sai
+        return fastapi.responses.JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized: Invalid or missing X-Internal-Secret"}
+        )
+    return await call_next(request)
 
 # CORS — chỉ cho phép internal network
 # TODO(security): Trong production, restrict origins cụ thể thay vì wildcard

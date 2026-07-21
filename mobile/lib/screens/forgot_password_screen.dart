@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
@@ -174,7 +175,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context); // Quay về màn login
+        context.pop(); // Quay về màn login
       }
     } on DioException catch (e) {
       final message = e.response?.data is Map ? e.response?.data['message'] : null;
