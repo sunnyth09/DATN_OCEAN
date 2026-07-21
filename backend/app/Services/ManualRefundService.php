@@ -23,8 +23,8 @@ class ManualRefundService implements PaymentGatewayRefundInterface
                 'refund',
                 [
                     'description' => "Hoàn tiền trả hàng cho đơn {$order->order_code}",
-                    'reference_type' => 'order',
-                    'reference_id' => $order->id,
+                    'reference_type' => Order::class,
+                    'reference_id' => $order->order_id,
                     'metadata' => [
                         'order_code' => $order->order_code,
                     ]

@@ -100,4 +100,19 @@ class AttendanceService {
     }
     return {'ssid': null};
   }
+
+  Future<Map<String, dynamic>> getTodayStatus() async {
+    try {
+      final response = await _dio.get('/admin/attendance/today');
+      final data = response.data;
+      if (data is Map) return Map<String, dynamic>.from(data);
+      return {'status': 'error', 'message': 'Invalid response'};
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        return {'status': 'error', 'message': data['message'].toString()};
+      }
+      return {'status': 'error', 'message': 'Failed to fetch today status.'};
+    }
+  }
 }

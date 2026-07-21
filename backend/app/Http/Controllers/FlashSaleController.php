@@ -158,27 +158,33 @@ class FlashSaleController extends Controller
             return response()->json(['message' => 'Sản phẩm không có trong Flash Sale.'], 400);
         }
 
-        $userPurchaseKey = "flash_sale_{$flashSaleId}_user_{$userId}_prod_{$productId}";
-        $userBought = (int) (Redis::get($userPurchaseKey) ?? 0);
+        $maxPerUser = 1; // Giới hạn mỗi khách 1 sản phẩm
+        $ttl = max(60, now()->diffInSeconds($flashSale->end_time));
 
-        if ($userBought + $quantity > 1) { // hardcode max 1 if not defined
-            return response()->json(['message' => "Mỗi khách hàng chỉ được mua 1 sản phẩm này."], 400);
+        // Reserve suất mua theo user một cách ATOMIC: incrby trước rồi mới kiểm tra
+        // giá trị trả về. Tránh TOCTOU khi nhiều request đồng thời cùng đọc giá trị cũ.
+        $userPurchaseKey = "flash_sale_{$flashSaleId}_user_{$userId}_prod_{$productId}";
+        $userBought = Redis::incrby($userPurchaseKey, $quantity);
+        Redis::expire($userPurchaseKey, $ttl);
+
+        if ($userBought > $maxPerUser) {
+            // Vượt giới hạn → trả lại suất vừa reserve.
+            Redis::decrby($userPurchaseKey, $quantity);
+            return response()->json(['message' => "Mỗi khách hàng chỉ được mua {$maxPerUser} sản phẩm này."], 400);
         }
 
         $stockKey  = "flash_sale_{$flashSaleId}_product_{$productId}_stock";
         $remaining = Redis::decrby($stockKey, $quantity);
 
         if ($remaining < 0) {
-            Redis::incrby($stockKey, $quantity); 
+            Redis::incrby($stockKey, $quantity);
+            // Hết hàng → nhả luôn suất mua đã reserve cho user.
+            Redis::decrby($userPurchaseKey, $quantity);
             return response()->json([
                 'message'  => 'Rất tiếc! Sản phẩm đã hết hàng.',
                 'sold_out' => true,
             ], 400);
         }
-
-        $ttl = max(60, now()->diffInSeconds($flashSale->end_time));
-        Redis::incrby($userPurchaseKey, $quantity);
-        Redis::expire($userPurchaseKey, $ttl);
 
         // Chuẩn bị thông tin đơn hàng
         $orderCode = 'FS-' . strtoupper(uniqid());

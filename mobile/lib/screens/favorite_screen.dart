@@ -1,9 +1,11 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import 'product_detail_screen.dart';
 import '../config/app_config.dart';
+import '../widgets/shimmer_loading.dart';
 
 class FavoriteScreen extends StatefulWidget {
   const FavoriteScreen({super.key});
@@ -109,8 +111,9 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFFE63B6F)),
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: ShimmerLoading(),
       );
     }
 
@@ -189,12 +192,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
 
           return GestureDetector(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ProductDetailScreen(product: product),
-                ),
-              );
+              context.push('/product-detail', extra: product);
             },
             child: Container(
               decoration: BoxDecoration(

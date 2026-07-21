@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
@@ -238,7 +239,7 @@ class _AddressScreenState extends State<AddressScreen> {
                             } else {
                               await ApiClient().dio.post('/profile/addresses', data: payload);
                             }
-                            navigator.pop();
+                            context.pop();
                             messenger.showSnackBar(SnackBar(
                               content: Text(isEditing ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ thành công!'),
                               backgroundColor: Colors.green,
@@ -405,7 +406,7 @@ class _AddressScreenState extends State<AddressScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton(
-                                onPressed: () => Navigator.pop(context, addr),
+                                onPressed: () => context.pop(false),
                                 style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFE63B6F)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                                 child: const Text('Chọn địa chỉ này', style: TextStyle(color: Color(0xFFE63B6F))),
                               ),

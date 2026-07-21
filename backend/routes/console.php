@@ -129,3 +129,16 @@ Schedule::command('ghn:sync-status --limit=50')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+/**
+ * ── 7. Hủy đơn chưa thanh toán quá hạn & hoàn tồn kho ──
+ *
+ * Quét các đơn vnpay/momo/bank_transfer ở trạng thái unpaid+pending quá 30 phút,
+ * tự động hủy và hoàn trả tồn kho + coupon (chống giữ hàng vô thời hạn khi khách
+ * bỏ dở thanh toán qua cổng redirect).
+ */
+Schedule::command('orders:cancel-expired-vnpay --minutes=30')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));

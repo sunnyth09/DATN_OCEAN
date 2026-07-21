@@ -34,17 +34,27 @@ class User extends Authenticatable implements JWTSubject
         'date_of_birth',
         'google_id',
         'facebook_id',
-        'referral_code',
-        'referred_by',
-        'affiliate_registered_at',
-        'is_affiliate',
     ];
 
     /**
-     * FIX C2: Các field nhạy cảm không cho phép mass-assignment.
-     * Phải dùng forceFill() hoặc gán trực tiếp khi admin thay đổi.
+     * Các field đặc quyền KHÔNG cho phép mass-assignment:
+     * - role, status, reward_points: quyền hạn / trạng thái / điểm thưởng.
+     * - is_affiliate, referral_code, referred_by, affiliate_registered_at:
+     *   chỉ được set qua luồng affiliate chính thức (forceFill trong Repository),
+     *   tránh user tự nâng cấp affiliate hoặc gán người giới thiệu để farm điểm.
+     *
+     * Lưu ý: các field này bị loại khỏi $fillable nên đã được bảo vệ; khai báo
+     * $guarded ở đây chỉ để tài liệu hóa ý định rõ ràng (thuộc tính Eloquent thật).
      */
-    protected $guarded_attributes = ['role', 'status', 'reward_points'];
+    protected $guarded = [
+        'role',
+        'status',
+        'reward_points',
+        'is_affiliate',
+        'referral_code',
+        'referred_by',
+        'affiliate_registered_at',
+    ];
 
     /**
      * The attributes that should be hidden for serialization.

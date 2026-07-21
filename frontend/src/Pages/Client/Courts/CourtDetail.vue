@@ -118,9 +118,32 @@ onUnmounted(async () => {
     leaveRealtime();
 });
 
-watch(selectedDate, async () => {
-    await releaseActiveLock();
-    selectedSlots.value = []; // Reset selected slots khi đổi ngày
+let isRevertingDate = false;
+watch(selectedDate, async (newVal, oldVal) => {
+    if (isRevertingDate) {
+        isRevertingDate = false;
+        return;
+    }
+    
+    if (oldVal && newVal !== oldVal && activeLock.value?.lock_token) {
+        const result = await Swal.fire({
+            title: 'Đổi ngày?',
+            text: "Việc chọn ngày khác sẽ hủy các khung giờ bạn đang giữ. Bạn có chắc chắn?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e63b6f',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Đồng ý đổi',
+            cancelButtonText: 'Giữ lại'
+        });
+        if (!result.isConfirmed) {
+            isRevertingDate = true;
+            selectedDate.value = oldVal;
+            return;
+        }
+        await releaseActiveLock();
+    }
+    selectedSlots.value = []; 
     await fetchAvailableSlots();
 });
 
@@ -260,7 +283,7 @@ const lockSelectedSlots = async () => {
 };
 
 const toggleSlot = async (slot) => {
-    if (slot.status !== 'available') return;
+    if (slot.status !== 'available' && !slot.is_my_lock) return;
     if (!ensureAuthenticated()) return;
 
     const index = selectedSlots.value.findIndex(s => s.start_time === slot.start_time);
@@ -424,6 +447,41 @@ const proceedBooking = async () => {
         bookingInProgress.value = false;
     }
 };
+
+const confirmReleaseLock = async () => {
+    const result = await Swal.fire({
+        title: 'Hủy giữ chỗ?',
+        text: "Bạn có chắc chắn muốn hủy khung giờ đã chọn không?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e63b6f',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Đồng ý',
+        cancelButtonText: 'Không'
+    });
+    if (result.isConfirmed) {
+        await releaseActiveLock();
+        selectedSlots.value = [];
+        toast.info('Đã hủy giữ chỗ.');
+        fetchAvailableSlots(true);
+    }
+};
+
+const handleBeforeUnload = (e) => {
+    if (activeLock.value?.lock_token) {
+        // Send a synchronous request or fire-and-forget to release lock when closing tab
+        store.releaseLock({ lock_token: activeLock.value.lock_token }).catch(() => {});
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    releaseActiveLock();
+});
 </script>
 
 <template>
@@ -547,7 +605,7 @@ const proceedBooking = async () => {
                                             'slot--locked': slot.status === 'locked',
                                             'slot--unavailable': ['maintenance', 'past', 'closed'].includes(slot.status)
                                         }"
-                                        @click="slot.status === 'available' && toggleSlot(slot)"
+                                        @click="(slot.status === 'available' || slot.is_my_lock) && toggleSlot(slot)"
                                         :title="getSlotStatusLabel(slot.status) + (slot.price && slot.status === 'available' ? ' - ' + formatCurrency(slot.price) : '')"
                                     >
                                         <div class="slot-time-label">{{ formatTime(slot.start_time) }}</div>
@@ -586,12 +644,12 @@ const proceedBooking = async () => {
                                         </div>
                                     </div>
                                     <div class="service-item__qty-control">
-                                        <button class="btn btn-sm btn-link text-dark text-decoration-none px-2" @click="decreaseService(service)">
-                                            <i class="bi bi-dash"></i>
+                                        <button class="btn btn-sm btn-link text-dark text-decoration-none px-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" @click="decreaseService(service)">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                         </button>
                                         <span class="fw-bold px-2" style="min-width: 20px; text-align: center;">{{ service.quantity }}</span>
-                                        <button class="btn btn-sm btn-link text-decoration-none px-2" style="color: var(--court-primary);" @click="increaseService(service)">
-                                            <i class="bi bi-plus"></i>
+                                        <button class="btn btn-sm btn-link text-decoration-none px-2 d-flex align-items-center justify-content-center" style="color: var(--court-primary); width: 28px; height: 28px;" @click="increaseService(service)">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                         </button>
                                     </div>
                                 </div>
@@ -660,8 +718,11 @@ const proceedBooking = async () => {
                                 <span class="booking-summary__total">{{ formatCurrency(bookingSummary.total) }}</span>
                             </div>
 
-                            <div v-if="activeLock && lockCountdown > 0" class="text-center mb-3 px-3 py-2 rounded-3" style="background: rgba(25,135,84,0.08); color: var(--court-available); font-size: 0.82rem; font-weight: 700;">
-                                Đang giữ chỗ: {{ Math.floor(lockCountdown / 60) }}:{{ String(lockCountdown % 60).padStart(2, '0') }}
+                            <div v-if="activeLock && lockCountdown > 0" class="d-flex justify-content-between align-items-center mb-3 px-3 py-2 rounded-3" style="background: rgba(25,135,84,0.08); color: var(--court-available); font-size: 0.82rem; font-weight: 700;">
+                                <span>Đang giữ chỗ: {{ Math.floor(lockCountdown / 60) }}:{{ String(lockCountdown % 60).padStart(2, '0') }}</span>
+                                <button @click="confirmReleaseLock" class="btn btn-sm btn-link text-danger p-0 fw-semibold text-decoration-none" style="font-size: 0.8rem;">
+                                    Hủy giữ chỗ
+                                </button>
                             </div>
 
                             <button

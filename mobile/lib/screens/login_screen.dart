@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'main_wrapper.dart';
@@ -44,11 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
       NotificationService().syncTokenToServer();
       // Nạp lại giỏ hàng cho phiên mới.
       context.read<CartProvider>().fetchCart(silent: true);
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const MainWrapper()),
-        (route) => false,
-      );
+      context.go('/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
@@ -82,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: EdgeInsets.zero,
                       alignment: Alignment.centerLeft,
                       icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A), size: 28),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => context.pop(),
                     ),
                   ),
                 )

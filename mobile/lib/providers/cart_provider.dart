@@ -13,6 +13,7 @@ class CartProvider extends ChangeNotifier {
   Cart _cart = Cart.empty;
   CartStatus _status = CartStatus.initial;
   String? _errorMessage;
+  DateTime? _lastFetchTime;
 
   Cart get cart => _cart;
   CartStatus get status => _status;
@@ -22,7 +23,15 @@ class CartProvider extends ChangeNotifier {
   bool get isLoading => _status == CartStatus.loading;
 
   /// Tải giỏ hàng. `silent` = true để refresh nền không hiện loading toàn màn.
-  Future<void> fetchCart({bool silent = false}) async {
+  /// `force` = true để bỏ qua bộ đệm thời gian (ví dụ sau khi đặt hàng hoặc logout).
+  Future<void> fetchCart({bool silent = false, bool force = false}) async {
+    // Tối ưu Caching: Nếu không bắt buộc và chưa qua 2 phút thì không gọi lại API
+    if (!force && _lastFetchTime != null) {
+      if (DateTime.now().difference(_lastFetchTime!).inSeconds < 120) {
+        return;
+      }
+    }
+
     if (!silent) {
       _status = CartStatus.loading;
       _errorMessage = null;
@@ -36,6 +45,7 @@ class CartProvider extends ChangeNotifier {
           ? Cart.fromJson(Map<String, dynamic>.from(data))
           : Cart.empty;
       _status = CartStatus.loaded;
+      _lastFetchTime = DateTime.now();
     } catch (_) {
       if (!silent) {
         _status = CartStatus.error;
@@ -54,8 +64,11 @@ class CartProvider extends ChangeNotifier {
     _replaceItem(index, previous.copyWith(quantity: quantity));
 
     try {
-      await _dio.put('/cart/items/$cartItemId', data: {'quantity': quantity});
-      await fetchCart(silent: true);
+      await _dio.post('/cart/items', data: {
+        'product_id': cartItemId,
+        'quantity': quantity,
+      });
+      await fetchCart(silent: true, force: true);
       return true;
     } catch (_) {
       _replaceItem(index, previous);
@@ -75,7 +88,7 @@ class CartProvider extends ChangeNotifier {
 
     try {
       await _dio.delete('/cart/items/$cartItemId');
-      await fetchCart(silent: true);
+      await fetchCart(silent: true, force: true);
       return true;
     } catch (_) {
       final rollback = List<CartItem>.from(_cart.items)..insert(index, removed);
@@ -86,10 +99,11 @@ class CartProvider extends ChangeNotifier {
   }
 
   /// Xoá sạch state cục bộ (dùng khi đăng xuất).
-  void clear() {
+  void clearCart() {
     _cart = Cart.empty;
     _status = CartStatus.initial;
     _errorMessage = null;
+    _lastFetchTime = null;
     notifyListeners();
   }
 
@@ -98,5 +112,20 @@ class CartProvider extends ChangeNotifier {
     // Tự cộng dồn total sau khi đổi local (bỏ giá server cũ đã lệch).
     _cart = Cart(items: updated, serverTotalPrice: null);
     notifyListeners();
+  }
+
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) {
+      super.notifyListeners();
+    }
   }
 }

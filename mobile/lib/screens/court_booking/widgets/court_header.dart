@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/app_theme.dart';
 import '../../../models/court_booking_models.dart';
@@ -45,6 +46,17 @@ class CourtHeader extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          IconButton(
+            onPressed: () async {
+              // Tọa độ giả định của sân để chỉ đường
+              final Uri url = Uri.parse('https://www.google.com/maps/search/?api=1&query=21.028511,105.804817');
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            icon: const Icon(Icons.map_outlined, color: AppColors.primary),
+            tooltip: 'Chỉ đường',
           ),
         ],
       ),

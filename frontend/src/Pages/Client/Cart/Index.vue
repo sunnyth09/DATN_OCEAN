@@ -493,7 +493,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="cart-page">
+    <div class="cart-page container">
         <!-- Toast -->
         <Transition name="toast">
             <div v-if="toast.show" class="toast-notification" :class="toast.type">
@@ -689,9 +689,9 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <div class="coupon-section">
-                        <input type="text" class="coupon-input" placeholder="Mã giảm giá" />
-                        <button class="btn-apply-coupon">Áp dụng</button>
+                    <div class="coupon-section" style="display: flex; gap: 8px;">
+                        <BaseInput placeholder="Mã giảm giá" style="flex: 1; margin-bottom: 0;" />
+                        <BaseButton variant="secondary" size="md">Áp dụng</BaseButton>
                     </div>
 
                     <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0">
@@ -814,16 +814,16 @@ onUnmounted(() => {
         </Transition>
     </Teleport>
 
-    <section class="upsell-section">
+    <section class="upsell-section container mb-5">
         <h2 class="upsell-title">Có thể bạn cũng thích</h2>
-        <div class="container mb-5" v-if="productRelated.length">
+        <div v-if="productRelated.length">
             <div class="row mt-3">
                 <div class="col-lg-3 mt-4" v-for="product in productRelated" :key="product.id">
                     <ProductCard :product="product" :rows="3" />
                 </div>
             </div>
         </div>
-        <div v-else class="empty-state">
+        <div v-else class="empty-state mt-4">
             <p>Không có sản phẩm liên quan</p>
         </div>
 
@@ -940,6 +940,7 @@ onUnmounted(() => {
     display: flex;
     gap: 24px;
     align-items: flex-start;
+    padding-bottom: 120px;
 }
 
 .cart-items-section {

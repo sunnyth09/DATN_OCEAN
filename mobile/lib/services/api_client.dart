@@ -5,12 +5,12 @@ import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
-import 'app_navigator.dart';
+import '../router/app_router.dart';
 import 'auth_service.dart';
 import 'storage_service.dart';
-import '../screens/login_screen.dart';
 
 String get kBaseUrl => AppConfig.kBaseUrl;
 
@@ -118,7 +118,6 @@ class ApiClient {
   bool _handlingUnauthorized = false;
 
   Future<void> _handleUnauthorized() async {
-    // Chống điều hướng lặp khi nhiều request cùng trả 401 một lúc.
     if (_handlingUnauthorized) return;
     _handlingUnauthorized = true;
 
@@ -127,16 +126,113 @@ class ApiClient {
 
     await AuthService.logout();
 
-    // Chỉ thông báo nếu trước đó người dùng thực sự có token
     if (hasToken) {
-      final context = appNavigatorKey.currentContext;
+      final context = rootNavigatorKey.currentContext;
       if (context != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại')),
         );
+        context.go('/login');
       }
     }
 
     _handlingUnauthorized = false;
+  }
+
+  // Wrapper cho các method HTTP phổ biến
+  Future<Response> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await dio.get(
+        path,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Lỗi không xác định: $e');
+    }
+  }
+
+  Future<Response> post(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await dio.post(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Lỗi không xác định: $e');
+    }
+  }
+
+  Future<Response> put(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await dio.put(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Lỗi không xác định: $e');
+    }
+  }
+
+  Future<Response> delete(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await dio.delete(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('Lỗi không xác định: $e');
+    }
+  }
+
+  Exception _handleDioError(DioException e) {
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout) {
+      return Exception('Kết nối máy chủ hết hạn. Vui lòng thử lại.');
+    } else if (e.type == DioExceptionType.connectionError ||
+        e.error is SocketException) {
+      return Exception('Không có kết nối mạng. Vui lòng kiểm tra Wifi/4G.');
+    } else if (e.response != null) {
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        return Exception(data['message']);
+      }
+      return Exception('Lỗi máy chủ (${e.response?.statusCode})');
+    }
+    return Exception('Lỗi kết nối mạng.');
   }
 }

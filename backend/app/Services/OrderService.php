@@ -211,7 +211,7 @@ class OrderService
                 $isDirectOrder,
                 $rewardPointsUsed
             ) {
-                $this->lockAndValidateStock($cartItems);
+                $this->lockAndValidateStock($cartItems, $subtotal);
 
                 // Áp dụng wallet discount (trong transaction để đảm bảo atomic)
                 if ($useWallet && $walletTotalDiscount > 0) {
@@ -239,7 +239,7 @@ class OrderService
                     'ward_code' => $address->ward_code ?? null,
                     'note' => $data['note'] ?? null,
                     'payment_method' => $paymentMethod,
-                    'payment_status' => $grandTotalAfterWallet == 0 ? 'paid' : 'unpaid',
+                    'payment_status' => ($grandTotalAfterWallet == 0 || $data['payment_method'] === 'wallet') ? 'paid' : 'unpaid',
                     'fulfillment_status' => 'pending',
                     'subtotal' => $subtotal,
                     'discount_amount' => $discountAmount,
@@ -248,7 +248,7 @@ class OrderService
                     'shipping_fee' => $shippingFee,
                     'grand_total' => $grandTotalAfterWallet,
                     'combo_discount' => $comboDiscount,
-                    'wallet_spent' => $data['payment_method'] === 'wallet' ? $grandTotal : 0.00,
+                    'wallet_spent' => $data['payment_method'] === 'wallet' ? $grandTotalAfterWallet : 0.00,
                     'is_abandoned_checkout' => $isAbandonedCheckout,
                 ]);
 
@@ -280,7 +280,9 @@ class OrderService
                 ]);
 
                 if ($couponId) {
-                    $this->couponService->markCouponAsUsed(
+                    // Tiêu thụ coupon atomic (conditional UPDATE) để chống race/over-redemption.
+                    // Ném OrderException → rollback toàn bộ đơn nếu đã hết lượt.
+                    $this->couponService->consumeCoupon(
                         $userId,
                         $couponResult['coupon']
                     );
@@ -317,11 +319,13 @@ class OrderService
                     }
                 }
 
-                // Thực hiện trừ tiền từ ví nếu thanh toán bằng ví
-                if ($data['payment_method'] === 'wallet') {
+                // Thực hiện trừ tiền từ ví nếu thanh toán bằng ví.
+                // Số tiền cần trả là grand_total SAU khi đã trừ wallet-discount (nếu có),
+                // tránh trừ ví hai lần khi user vừa dùng ví giảm giá vừa chọn thanh toán ví.
+                if ($data['payment_method'] === 'wallet' && $grandTotalAfterWallet > 0) {
                     $this->walletService->spend(
                         $userId,
-                        $grandTotal,
+                        $grandTotalAfterWallet,
                         "Thanh toán đơn hàng #{$order->order_code}",
                         $order->order_id,
                         Order::class
@@ -359,16 +363,26 @@ class OrderService
                 ];
             });
 
-            // Ghi nhận affiliate conversion SAU transaction thành công
+            // Các side-effect SAU transaction: đơn hàng, tồn kho, ví, điểm ĐÃ commit.
+            // Bọc riêng để lỗi ở đây KHÔNG khiến trả 500 "tạo đơn thất bại" — nếu không
+            // user sẽ retry và tạo đơn trùng (double stock/points).
             if (isset($result['_order'])) {
-                $this->affiliateService->createConversionFromOrder(
-                    $result['_order'],
-                    $data['referral_code'] ?? null
-                );
+                try {
+                    $this->affiliateService->createConversionFromOrder(
+                        $result['_order'],
+                        $data['referral_code'] ?? null
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('Affiliate conversion failed (đơn đã được tạo thành công): ' . $e->getMessage());
+                }
                 unset($result['_order']); // Không trả _order ra response
             }
 
-            \Illuminate\Support\Facades\Cache::flush();
+            try {
+                \Illuminate\Support\Facades\Cache::flush();
+            } catch (\Throwable $e) {
+                Log::warning('Cache flush failed sau khi tạo đơn: ' . $e->getMessage());
+            }
 
             return $result;
         } catch (OrderException $e) {
@@ -471,7 +485,7 @@ class OrderService
                 $couponId,
                 $couponResult
             ) {
-                $this->lockAndValidateStock($cartItems);
+                $this->lockAndValidateStock($cartItems, $subtotal);
 
                 $order = $this->orderRepository->create([
                     'order_code' => $this->generateOrderCode(),
@@ -587,21 +601,23 @@ class OrderService
 
     public function cancelOrder(int $userId, int $orderId, string $reason): array
     {
-        $order = $this->orderRepository->findUserOrder($userId, $orderId);
-
-        if (!$order) {
-            return $this->error('Không tìm thấy đơn hàng!', 404);
-        }
-
-        if ($order->fulfillment_status !== OrderStatus::PENDING->value) {
-            return $this->error(
-                'Bạn chỉ có thể hủy đơn hàng khi đang chờ xác nhận!',
-                400
-            );
-        }
-
         try {
-            DB::transaction(function () use ($order, $reason) {
+            DB::transaction(function () use ($userId, $orderId, $reason) {
+                // Lock dòng đơn hàng và re-check trạng thái BÊN TRONG transaction để chống
+                // race: 2 request hủy đồng thời không thể cùng hoàn ví/tồn kho/điểm hai lần.
+                $order = Order::where('user_id', $userId)
+                    ->whereKey($orderId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$order) {
+                    throw new OrderException('Không tìm thấy đơn hàng!');
+                }
+
+                if ($order->fulfillment_status !== OrderStatus::PENDING->value) {
+                    throw new OrderException('Bạn chỉ có thể hủy đơn hàng khi đang chờ xác nhận!');
+                }
+
                 $this->orderRepository->cancel($order, $reason);
 
                 $this->orderRepository->createStatusHistory([
@@ -646,6 +662,8 @@ class OrderService
                     'message' => 'Đã hủy đơn hàng thành công!',
                 ],
             ];
+        } catch (OrderException $e) {
+            return $this->error($e->getMessage(), 400);
         } catch (\Exception $e) {
             Log::error('Order cancel error: ' . $e->getMessage());
 
@@ -728,11 +746,13 @@ class OrderService
         return $subtotal;
     }
 
-    private function lockAndValidateStock($cartItems): void
+    private function lockAndValidateStock($cartItems, float $expectedSubtotal): void
     {
         $variantIds = $cartItems->pluck('variant_id')->toArray();
 
         $lockedVariants = $this->variantRepository->lockVariants($variantIds);
+
+        $actualSubtotal = 0;
 
         foreach ($cartItems as $cartItem) {
             $lockedVariant = $lockedVariants[$cartItem->variant_id] ?? null;
@@ -742,6 +762,13 @@ class OrderService
                     'Sản phẩm ' . $cartItem->variant->product->name . ' đã hết hàng khi bạn đặt mua!'
                 );
             }
+
+            $actualSubtotal += $lockedVariant->price * $cartItem->quantity;
+        }
+
+        // Re-validate price
+        if (abs($actualSubtotal - $expectedSubtotal) > 0.01) {
+            throw new OrderException('Giá của một số sản phẩm đã thay đổi trong lúc thanh toán. Vui lòng tải lại giỏ hàng!');
         }
     }
 
@@ -757,7 +784,7 @@ class OrderService
 
     private function generateOrderCode(): string
     {
-        return 'ORD' . strtoupper(uniqid()) . rand(10, 99);
+        return 'ORD-' . strtoupper(substr(\Illuminate\Support\Str::uuid()->toString(), 0, 8)) . '-' . rand(100, 999);
     }
 
     private function dispatchOrderCreatedEvent($order): void

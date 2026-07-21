@@ -220,39 +220,49 @@ class CartService
     {
         $cart = $this->cartRepository->getOrCreateActiveCart($userId);
 
+        // Batch-load variant + cart item theo variant_id (tránh N+1: trước đây mỗi
+        // vòng lặp bắn 2 query — 1 tìm variant, 1 tìm cart item).
+        $variantIds = collect($items)->pluck('variant_id')->filter()->unique()->values()->all();
+        $variants = ProductVariant::whereIn('variant_id', $variantIds)->get()->keyBy('variant_id');
+        $existingItems = CartItem::where('cart_id', $cart->cart_id)
+            ->whereIn('variant_id', $variantIds)
+            ->get()
+            ->keyBy('variant_id');
+
         foreach ($items as $item) {
-            $variant = ProductVariant::find($item['variant_id']);
+            $variant = $variants->get($item['variant_id']);
             if (!$variant || $variant->status !== 'active') {
                 continue;
             }
 
-            $existingItem = CartItem::where('cart_id', $cart->cart_id)
-                ->where('variant_id', $item['variant_id'])
-                ->first();
+            $existingItem = $existingItems->get($item['variant_id']);
 
             $currentQty = $existingItem ? $existingItem->quantity : 0;
             $targetQty = $currentQty + $item['quantity'];
 
             if ($variant->stock <= 0) {
                 if (!$existingItem) {
-                    CartItem::create([
+                    $created = CartItem::create([
                         'cart_id'    => $cart->cart_id,
                         'variant_id' => $item['variant_id'],
                         'quantity'   => 1,
                         'selected'   => false,
                     ]);
+                    // Ghi lại vào collection để item trùng variant_id sau trong payload thấy được.
+                    $existingItems->put($item['variant_id'], $created);
                 }
             } else {
                 $finalQty = min($targetQty, $variant->stock);
                 if ($existingItem) {
                     $existingItem->update(['quantity' => $finalQty]);
                 } else {
-                    CartItem::create([
+                    $created = CartItem::create([
                         'cart_id'    => $cart->cart_id,
                         'variant_id' => $item['variant_id'],
                         'quantity'   => $finalQty,
                         'selected'   => true,
                     ]);
+                    $existingItems->put($item['variant_id'], $created);
                 }
             }
         }
@@ -376,8 +386,17 @@ class CartService
         $totalAdded = 0;
         $errorMessages = [];
 
+        // Batch-load variant + cart item theo variant_id (tránh N+1: trước đây mỗi
+        // vòng lặp bắn 2 query — 1 tìm variant, 1 tìm cart item).
+        $variantIds = $orderItems->pluck('variant_id')->filter()->unique()->values()->all();
+        $variants = ProductVariant::whereIn('variant_id', $variantIds)->get()->keyBy('variant_id');
+        $existingItems = CartItem::where('cart_id', $cart->cart_id)
+            ->whereIn('variant_id', $variantIds)
+            ->get()
+            ->keyBy('variant_id');
+
         foreach ($orderItems as $orderItem) {
-            $variant = ProductVariant::find($orderItem->variant_id);
+            $variant = $variants->get($orderItem->variant_id);
             if (!$variant || $variant->status !== 'active') {
                 $name = $orderItem->product_name;
                 if ($orderItem->variant_name) {
@@ -387,9 +406,7 @@ class CartService
                 continue;
             }
 
-            $existingItem = CartItem::where('cart_id', $cart->cart_id)
-                ->where('variant_id', $variant->variant_id)
-                ->first();
+            $existingItem = $existingItems->get($variant->variant_id);
 
             $newQuantity = $existingItem
                 ? $existingItem->quantity + $orderItem->quantity
@@ -407,12 +424,14 @@ class CartService
             if ($existingItem) {
                 $existingItem->update(['quantity' => $newQuantity]);
             } else {
-                CartItem::create([
+                $created = CartItem::create([
                     'cart_id'    => $cart->cart_id,
                     'variant_id' => $variant->variant_id,
                     'quantity'   => $orderItem->quantity,
                     'selected'   => true,
                 ]);
+                // Cập nhật collection để item trùng variant sau đó cộng dồn đúng.
+                $existingItems->put($variant->variant_id, $created);
             }
             $totalAdded++;
         }

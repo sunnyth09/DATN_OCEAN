@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_client.dart';
@@ -128,7 +129,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
           const Text('Hãy khám phá kho voucher để nhận ưu đãi hấp dẫn', style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.pop(),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,

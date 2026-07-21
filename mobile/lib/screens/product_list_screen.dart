@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../widgets/network_image_widget.dart';
@@ -363,12 +364,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailScreen(product: product),
-          ),
-        );
+        context.push('/product-detail', extra: product);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -389,7 +385,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
             Expanded(
               child: Stack(
                 children: [
-                  NetworkImageWidget(
+                  Hero(
+                    tag: product['id'] ?? product['slug'] ?? UniqueKey().toString(),
+                    child: NetworkImageWidget(
                         imageUrl: imageUrl,
                         width: double.infinity,
                         height: double.infinity,
@@ -400,6 +398,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         ),
                         errorWidget: _imagePlaceholder(),
                       ),
+                  ),
                   Positioned(
                     top: 10,
                     right: 10,

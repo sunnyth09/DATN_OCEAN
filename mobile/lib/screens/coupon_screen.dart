@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_client.dart';
@@ -106,7 +107,7 @@ class _CouponScreenState extends State<CouponScreen> {
     final loggedIn = await AuthService.isLoggedIn();
     if (!loggedIn) {
       if (mounted) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+        context.push('/login');
       }
       return;
     }
@@ -222,7 +223,7 @@ class _CouponScreenState extends State<CouponScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 children: [
-                  IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
+                  IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => context.pop()),
                   const Spacer(),
                   const Text('Săn Voucher', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
                   const Spacer(),

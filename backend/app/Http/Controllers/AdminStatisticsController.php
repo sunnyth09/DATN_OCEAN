@@ -84,4 +84,15 @@ class AdminStatisticsController extends Controller
     {
         return $this->statisticsService->exportLastMonthRevenue();
     }
+
+    /**
+     * Get staff sales report
+     */
+    public function getStaffSales(Request $request)
+    {
+        return response()->json([
+            'status' => 'success',
+            'data'   => $this->statisticsService->getStaffSales($request),
+        ]);
+    }
 }

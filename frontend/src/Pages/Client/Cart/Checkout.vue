@@ -692,9 +692,17 @@ const placeOrder = async () => {
 
 // Các hàm tiện ích
 const getProductImage = (item) => {
-    if (item.variant?.image_url) return `${APP_URL}/storage/${item.variant.image_url}`;
-    if (item.product?.main_image) return `${APP_URL}/storage/${item.product.main_image}`;
-    if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return `${APP_URL}/storage/${item.product.thumbnail_url}`;
+    const getStorageUrl = (path) => {
+        if (!path) return 'https://placehold.co/120x120?text=No+Image';
+        if (path.startsWith('http')) return path;
+        // Xử lý trường hợp path đã có chữ storage/ ở đầu
+        const cleanPath = path.replace(/^\/?storage\//, '');
+        return `${APP_URL}/storage/${cleanPath}`;
+    };
+
+    if (item.variant?.image_url) return getStorageUrl(item.variant.image_url);
+    if (item.product?.main_image) return getStorageUrl(item.product.main_image);
+    if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return getStorageUrl(item.product.thumbnail_url);
     return 'https://placehold.co/120x120?text=No+Image';
 };
 
@@ -716,7 +724,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="checkout-page theme-brown">
+    <div class="checkout-page theme-brown container">
 
         <!-- ===== BANKING QR MODAL ===== -->
         <Teleport to="body">
@@ -786,7 +794,7 @@ onMounted(async () => {
             <p>Đang chuẩn bị trang thanh toán...</p>
         </div>
 
-        <div v-else class="checkout-wrapper container">
+        <div v-else class="checkout-wrapper">
             <div class="page-header animate-in">
                 <router-link to="/cart" class="back-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="back-icon" stroke="currentColor"

@@ -8,6 +8,7 @@ use App\Enums\RefundStatus;
 use App\Enums\ReturnRequestStatus;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\ReturnRequest;
 use App\Repositories\OrderRepository;
 use App\Repositories\ReturnRequestRepository;
 use Carbon\Carbon;
@@ -210,72 +211,96 @@ class ReturnRequestService
 
     public function refund(int $id, array $data): array
     {
-        $returnRequest = $this->returnRequestRepository->findForAdmin($id);
+        // Kiểm tra sơ bộ ngoài transaction để trả message thân thiện (fail nhanh).
+        $preCheck = $this->returnRequestRepository->findForAdmin($id);
 
-        if (!$returnRequest) {
+        if (!$preCheck) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
-        if ($returnRequest->status !== ReturnRequestStatus::RECEIVED->value) {
-            return $this->error('Chỉ có thể hoàn tiền sau khi đã nhận hàng hoàn.', 422);
-        }
+        try {
+            DB::transaction(function () use ($id, $data) {
+                // Lock chính bản ghi return request để chống double-refund do race.
+                $returnRequest = ReturnRequest::whereKey($id)->lockForUpdate()->firstOrFail();
 
-        if ($returnRequest->refund_status === RefundStatus::SUCCESS->value) {
-            return $this->error('Yêu cầu này đã được hoàn tiền trước đó.', 422);
-        }
+                // Re-check trạng thái BÊN TRONG lock — đây mới là guard có hiệu lực.
+                if ($returnRequest->status !== ReturnRequestStatus::RECEIVED->value) {
+                    throw new \App\Exceptions\OrderException('Chỉ có thể hoàn tiền sau khi đã nhận hàng hoàn.');
+                }
 
-        $order = $returnRequest->order;
-        $refundAmount = (float) $data['refund_amount'];
+                if ($returnRequest->refund_status === RefundStatus::SUCCESS->value) {
+                    throw new \App\Exceptions\OrderException('Yêu cầu này đã được hoàn tiền trước đó.');
+                }
 
-        if ($refundAmount > (float) $order->grand_total) {
-            return $this->error('Số tiền hoàn không được vượt quá tổng tiền đơn hàng.', 422);
-        }
+                // Lock đơn hàng để tính tổng đã hoàn một cách nhất quán.
+                $order = Order::whereKey($returnRequest->order_id)->lockForUpdate()->firstOrFail();
+                $refundAmount = (float) $data['refund_amount'];
 
-        if (!in_array($order->payment_status, PaymentStatus::refundableValues(), true)) {
-            return $this->error('Đơn hàng hiện không ở trạng thái có thể hoàn tiền.', 422);
-        }
+                if ($refundAmount <= 0) {
+                    throw new \App\Exceptions\OrderException('Số tiền hoàn phải lớn hơn 0.');
+                }
 
-        $refundResult = $this->refundService->processManualRefund($order, $data);
-        if (!$refundResult['success']) {
-            return $this->error($refundResult['message'], 422);
-        }
+                // Chống hoàn vượt tổng đơn khi có nhiều yêu cầu trả hàng (cộng dồn).
+                $alreadyRefunded = (float) ReturnRequest::where('order_id', $order->order_id)
+                    ->where('refund_status', RefundStatus::SUCCESS->value)
+                    ->where('id', '!=', $returnRequest->id)
+                    ->sum('refund_amount');
+                $remaining = (float) $order->grand_total - $alreadyRefunded;
 
-        DB::transaction(function () use ($returnRequest, $order, $data, $refundAmount, $refundResult) {
-            $returnRequest->update([
-                'status' => ReturnRequestStatus::REFUNDED->value,
-                'refund_status' => RefundStatus::SUCCESS->value,
-                'refund_amount' => $refundAmount,
-                'refund_method' => $data['refund_method'],
-                'admin_note' => $data['admin_note'] ?? $returnRequest->admin_note,
-                'refunded_at' => now(),
-            ]);
+                if ($refundAmount > $remaining) {
+                    throw new \App\Exceptions\OrderException(
+                        'Số tiền hoàn vượt quá phần còn lại có thể hoàn (' . number_format($remaining) . 'đ).'
+                    );
+                }
 
-            $this->updateOrderStatus(
-                $order,
-                OrderStatus::REFUNDED->value,
-                'Admin xác nhận hoàn tiền thủ công.'
-            );
+                if (!in_array($order->payment_status, PaymentStatus::refundableValues(), true)) {
+                    throw new \App\Exceptions\OrderException('Đơn hàng hiện không ở trạng thái có thể hoàn tiền.');
+                }
 
-            $this->updatePaymentStatus(
-                $order,
-                PaymentStatus::REFUNDED->value,
-                '[Thanh toán] Đã hoàn tiền thủ công qua ' . $data['refund_method'] . '.'
-            );
+                // Credit ví NẰM TRONG transaction → nếu bất kỳ bước sau lỗi, tiền được rollback.
+                $refundResult = $this->refundService->processManualRefund($order, $data);
+                if (!$refundResult['success']) {
+                    throw new \App\Exceptions\OrderException($refundResult['message']);
+                }
 
-            $payment = Payment::where('order_id', $order->order_id)
-                ->latest('payment_id')
-                ->first();
-
-            if ($payment) {
-                $payment->update([
-                    'status' => 'refunded',
-                    'gateway_response' => array_merge($payment->gateway_response ?? [], [
-                        'manual_refund' => $refundResult['metadata'] ?? [],
-                        'refunded_at' => now()->toDateTimeString(),
-                    ]),
+                $returnRequest->update([
+                    'status' => ReturnRequestStatus::REFUNDED->value,
+                    'refund_status' => RefundStatus::SUCCESS->value,
+                    'refund_amount' => $refundAmount,
+                    'refund_method' => $data['refund_method'],
+                    'admin_note' => $data['admin_note'] ?? $returnRequest->admin_note,
+                    'refunded_at' => now(),
                 ]);
-            }
-        });
+
+                $this->updateOrderStatus(
+                    $order,
+                    OrderStatus::REFUNDED->value,
+                    'Admin xác nhận hoàn tiền thủ công.'
+                );
+
+                $this->updatePaymentStatus(
+                    $order,
+                    PaymentStatus::REFUNDED->value,
+                    '[Thanh toán] Đã hoàn tiền thủ công qua ' . $data['refund_method'] . '.'
+                );
+
+                $payment = Payment::where('order_id', $order->order_id)
+                    ->latest('payment_id')
+                    ->first();
+
+                if ($payment) {
+                    $payment->update([
+                        'status' => 'refunded',
+                        'gateway_response' => array_merge($payment->gateway_response ?? [], [
+                            'manual_refund' => $refundResult['metadata'] ?? [],
+                            'refunded_at' => now()->toDateTimeString(),
+                        ]),
+                    ]);
+                }
+            });
+        } catch (\App\Exceptions\OrderException $e) {
+            return $this->error($e->getMessage(), 422);
+        }
 
         return $this->success('Đã xác nhận hoàn tiền thành công.');
     }

@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -73,13 +74,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     await context.read<AuthProvider>().logout();
     if (!mounted) return;
-    context.read<CartProvider>().clear();
-    Navigator.pop(context);
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
+    context.read<CartProvider>().clearCart();
+    context.pop(); // Close dialog
+    context.go('/login');
   }
 
   @override
@@ -237,7 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     userData?['role'] == 'seller' ||
                     userData?['role'] == 'staff') ...[
                   _buildMenuItem(Icons.qr_code_scanner, 'Máy quét POS', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const PosScannerScreen()));
+                    context.push('/pos-scanner');
                   }),
                   _buildMenuItem(Icons.fingerprint, 'Điểm danh (Chấm công)', () {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const AttendanceScreen()));
@@ -254,22 +251,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   }
                 }),
                 _buildMenuItem(Icons.location_on_outlined, 'Sổ địa chỉ', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AddressScreen()));
+                  context.push('/address');
                 }),
                 _buildMenuItem(Icons.lock_outline, 'Đổi mật khẩu', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen()));
+                  context.push('/change-password');
                 }),
                 _buildMenuItem(Icons.favorite_border, 'Sản phẩm yêu thích', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const FavoriteScreen()));
+                  context.push('/favorite');
                 }),
                 _buildMenuItem(Icons.confirmation_number_outlined, 'Mã giảm giá của tôi', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const MyCouponsScreen()));
+                  context.push('/my-coupons');
                 }),
                 _buildMenuItem(Icons.assignment_return_outlined, 'Yêu cầu hoàn hàng', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ReturnRequestsScreen()));
+                  context.push('/return-requests');
+                }),
+                _buildMenuItem(Icons.stars_outlined, 'Tích điểm đổi quà', () {
+                  context.push('/loyalty');
                 }),
                 _buildMenuItem(Icons.sports_tennis, 'Lịch sử đặt sân', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const BookingHistoryScreen()));
+                  context.push('/booking-history');
                 }),
                 const SizedBox(height: 8),
                 Padding(
@@ -277,10 +277,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Text('Khám phá', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8))),
                 ),
                 _buildMenuItem(Icons.flash_on, 'Flash Sale', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const FlashSaleScreen()));
+                  context.push('/flash-sale');
                 }),
                 _buildMenuItem(Icons.local_offer_outlined, 'Săn Voucher', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const CouponScreen()));
+                  context.push('/coupon');
                 }),
                 _buildMenuItem(Icons.article_outlined, 'Chính sách & Quy định', () {}),
                 const SizedBox(height: 16),

@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/api_client.dart';
@@ -118,92 +119,130 @@ class _PosScannerScreenState extends State<PosScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Máy Quét POS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFFE63B6F),
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          if (sessionId != null)
-            IconButton(
-              icon: const Icon(Icons.link_off),
-              tooltip: 'Ngắt kết nối POS',
-              onPressed: () {
-                setState(() { sessionId = null; });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã ngắt kết nối với Web POS.')),
-                );
-              },
-            ),
-        ],
-      ),
-      body: Column(
+      body: Stack(
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-            color: sessionId == null ? Colors.orange.shade100 : Colors.green.shade100,
-            child: Row(
-              children: [
-                Icon(
-                  sessionId == null ? Icons.qr_code_scanner : Icons.barcode_reader,
-                  color: sessionId == null ? Colors.orange.shade800 : Colors.green.shade800,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        sessionId == null ? 'BƯỚC 1: LIÊN KẾT MÁY POS' : 'BƯỚC 2: QUÉT SẢN PHẨM',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: sessionId == null ? Colors.orange.shade900 : Colors.green.shade900,
-                        ),
-                      ),
-                      Text(
-                        sessionId == null 
-                            ? 'Vui lòng quét mã QR trên màn hình máy tính (Web POS) để kết nối.' 
-                            : 'Đã sẵn sàng. Quét mã vạch sản phẩm để tự động thêm vào đơn hàng.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: sessionId == null ? Colors.orange.shade800 : Colors.green.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          MobileScanner(
+            controller: scannerController,
+            onDetect: handleBarcode,
+          ),
+          
+          // Scanner overlay box
+          Center(
+            child: Container(
+              width: 250,
+              height: sessionId == null ? 250 : 150,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 3),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
           
-          Expanded(
-            child: Stack(
-              children: [
-                MobileScanner(
-                  controller: scannerController,
-                  onDetect: handleBarcode,
-                ),
-                // Scanner overlay box
-                Center(
-                  child: Container(
-                    width: 250,
-                    height: sessionId == null ? 250 : 150,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 3),
-                      borderRadius: BorderRadius.circular(12),
+          // Instruction overlay
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => context.pop(),
+                      ),
                     ),
-                  ),
+                    if (sessionId != null)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.link_off, color: Colors.white),
+                          tooltip: 'Ngắt kết nối POS',
+                          onPressed: () {
+                            setState(() { sessionId = null; });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Đã ngắt kết nối với Web POS.')),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
                 ),
-                if (isProcessing)
-                  Container(
-                    color: Colors.black54,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    ),
-                  ),
-              ],
+              ),
             ),
           ),
+
+          // Bottom Instruction Panel
+          Positioned(
+            bottom: 30,
+            left: 20,
+            right: 20,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                color: sessionId == null ? Colors.orange.shade100 : Colors.green.shade100,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  )
+                ]
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    sessionId == null ? Icons.qr_code_scanner : Icons.barcode_reader,
+                    color: sessionId == null ? Colors.orange.shade800 : Colors.green.shade800,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          sessionId == null ? 'BƯỚC 1: LIÊN KẾT MÁY POS' : 'BƯỚC 2: QUÉT SẢN PHẨM',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: sessionId == null ? Colors.orange.shade900 : Colors.green.shade900,
+                          ),
+                        ),
+                        Text(
+                          sessionId == null 
+                              ? 'Vui lòng quét mã QR trên màn hình máy tính (Web POS) để kết nối.' 
+                              : 'Đã sẵn sàng. Quét mã vạch sản phẩm để tự động thêm vào đơn hàng.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: sessionId == null ? Colors.orange.shade800 : Colors.green.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          if (isProcessing)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+            ),
         ],
       ),
     );

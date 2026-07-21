@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
@@ -302,13 +303,7 @@ class _OrderScreenState extends State<OrderScreen>
 
         return GestureDetector(
           onTap: () async {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    OrderDetailScreen(orderId: (order['order_id'] ?? order['id']).toString()),
-              ),
-            );
+            await context.push('/order-detail', extra: (order['order_id'] ?? order['id']).toString());
             fetchOrders();
           },
           child: Container(

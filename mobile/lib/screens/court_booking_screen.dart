@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -308,7 +309,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                             duration: const Duration(minutes: 5),
                             tween: Tween(begin: const Duration(minutes: 5), end: Duration.zero),
                             onEnd: () {
-                              if (Navigator.canPop(context)) Navigator.pop(context, false);
+                              if (Navigator.canPop(context)) context.pop(false);
                               _showSnack('Het thoi gian giu cho!', isError: true);
                             },
                             builder: (context, value, child) {
@@ -393,7 +394,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () => Navigator.pop(context, true),
+                          onPressed: () => context.pop(false),
                           icon: const Icon(Icons.event_available),
                           label: const Text('Dat san ngay'),
                         ),
@@ -683,8 +684,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Luu')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Luu')),
         ],
       ),
     );
@@ -721,7 +722,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
         builder: (context) => AlertDialog(
           title: Text('QR ${booking.code}'),
           content: SelectableText('court_booking:${booking.id}:${data['qr_token']}'),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Dong'))],
+          actions: [TextButton(onPressed: () => context.pop(), child: const Text('Dong'))],
         ),
       );
     }, reload: false);
@@ -738,8 +739,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           decoration: const InputDecoration(labelText: 'QR token hoac chuoi QR'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Check-in')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Check-in')),
         ],
       ),
     );
@@ -778,8 +779,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Them')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Them')),
         ],
       ),
     );
@@ -807,8 +808,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Gia han')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Gia han')),
         ],
       ),
     );
@@ -844,8 +845,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Check-out')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Check-out')),
         ],
       ),
     );
@@ -876,8 +877,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
         title: const Text('Xac nhan'),
         content: Text(text),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Dong y')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Dong y')),
         ],
       ),
     );

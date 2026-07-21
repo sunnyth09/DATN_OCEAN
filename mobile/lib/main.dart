@@ -3,15 +3,18 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/main_wrapper.dart';
-import 'screens/login_screen.dart';
 import 'config/app_theme.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
+import 'providers/home_provider.dart';
+import 'providers/category_provider.dart';
+import 'providers/product_detail_provider.dart';
+import 'providers/loyalty_provider.dart';
+import 'providers/chat_provider.dart';
 import 'services/notification_service.dart';
-import 'services/app_navigator.dart';
+import 'widgets/offline_banner.dart';
+import 'router/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,9 +39,11 @@ void main() async {
   runApp(MyApp(isFirstLaunch: isFirstLaunch, authProvider: authProvider));
 }
 
+
 class MyApp extends StatelessWidget {
   final bool isFirstLaunch;
   final AuthProvider authProvider;
+  
   const MyApp({
     super.key,
     required this.isFirstLaunch,
@@ -47,25 +52,26 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget homeScreen;
-    if (isFirstLaunch) {
-      homeScreen = const OnboardingScreen();
-    } else {
-      homeScreen = const MainWrapper();
-    }
-
+    final router = createRouter(isFirstLaunch: isFirstLaunch);
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => HomeProvider()),
+        ChangeNotifierProvider(create: (_) => CategoryProvider()),
+        ChangeNotifierProvider(create: (_) => ProductDetailProvider()),
+        ChangeNotifierProvider(create: (_) => LoyaltyProvider()),
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
-      child: MaterialApp(
+      child: MaterialApp.router(
         title: 'Quyền Sport',
         debugShowCheckedModeBanner: false,
-        navigatorKey: appNavigatorKey,
+        routerConfig: router,
         // Sử dụng theme tập trung đồng bộ với website
         theme: AppTheme.lightTheme,
-        home: homeScreen,
+        builder: (context, child) {
+          return OfflineBanner(child: child!);
+        },
       ),
     );
   }

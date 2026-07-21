@@ -210,18 +210,20 @@ class AdminWalletController extends Controller
      */
     public function confirmDeposit(int $depositId): JsonResponse
     {
-        $deposit = WalletDeposit::find($depositId);
-
-        if (!$deposit) {
-            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy yêu cầu nạp tiền'], 404);
-        }
-
-        if ($deposit->status !== 'pending') {
-            return response()->json(['status' => 'error', 'message' => 'Yêu cầu đã được xử lý trước đó'], 422);
-        }
-
         try {
-            DB::transaction(function () use ($deposit) {
+            $deposit = DB::transaction(function () use ($depositId) {
+                // Lock dòng deposit và re-check trạng thái BÊN TRONG transaction để chống
+                // double-credit khi có 2 request confirm đồng thời.
+                $deposit = WalletDeposit::whereKey($depositId)->lockForUpdate()->first();
+
+                if (!$deposit) {
+                    throw new \App\Exceptions\OrderException('Không tìm thấy yêu cầu nạp tiền', 404);
+                }
+
+                if ($deposit->status !== 'pending') {
+                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                }
+
                 // Credit ví user
                 $this->walletService->credit(
                     userId: $deposit->user_id,
@@ -234,12 +236,21 @@ class AdminWalletController extends Controller
                     ],
                 );
 
-                // Update deposit status
-                $deposit->update([
-                    'status'                 => 'completed',
-                    'completed_at'           => now(),
-                    'gateway_transaction_id' => 'ADMIN_CONFIRM',
-                ]);
+                // Update có điều kiện status='pending' → nếu 0 dòng bị ảnh hưởng nghĩa là
+                // request khác đã xử lý trước, ném lỗi để rollback credit vừa thực hiện.
+                $affected = WalletDeposit::whereKey($deposit->id)
+                    ->where('status', 'pending')
+                    ->update([
+                        'status'                 => 'completed',
+                        'completed_at'           => now(),
+                        'gateway_transaction_id' => 'ADMIN_CONFIRM',
+                    ]);
+
+                if ($affected === 0) {
+                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                }
+
+                return $deposit;
             });
 
             Log::info('Admin confirmed wallet deposit', [
@@ -253,6 +264,8 @@ class AdminWalletController extends Controller
                 'status'  => 'success',
                 'message' => 'Đã duyệt nạp ' . number_format($deposit->amount) . '₫ vào ví user.',
             ]);
+        } catch (\App\Exceptions\OrderException $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], $e->getCode() ?: 422);
         } catch (\Exception $e) {
             Log::error('Admin confirm deposit failed', ['error' => $e->getMessage()]);
             return response()->json(['status' => 'error', 'message' => 'Duyệt nạp tiền thất bại, vui lòng thử lại.'], 500);
@@ -359,26 +372,36 @@ class AdminWalletController extends Controller
      */
     public function rejectWithdrawal(Request $request, int $id): JsonResponse
     {
-        $withdrawal = DB::table('wallet_withdrawals')->where('id', $id)->first();
-
-        if (!$withdrawal) {
-            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy yêu cầu rút tiền'], 404);
-        }
-
-        if ($withdrawal->status !== 'processing') {
-            return response()->json(['status' => 'error', 'message' => 'Yêu cầu đã được xử lý trước đó'], 422);
-        }
-
         $note = $request->input('note', 'Bị từ chối bởi Admin');
 
         try {
-            DB::transaction(function () use ($withdrawal, $note) {
-                // Đổi trạng thái thành failed
-                DB::table('wallet_withdrawals')->where('id', $withdrawal->id)->update([
-                    'status'     => 'failed',
-                    'note'       => $note,
-                    'updated_at' => now(),
-                ]);
+            $withdrawal = DB::transaction(function () use ($id, $note) {
+                // Lock dòng withdrawal và re-check trạng thái BÊN TRONG transaction để chống
+                // double-refund khi có 2 request reject đồng thời.
+                $withdrawal = DB::table('wallet_withdrawals')->where('id', $id)->lockForUpdate()->first();
+
+                if (!$withdrawal) {
+                    throw new \App\Exceptions\OrderException('Không tìm thấy yêu cầu rút tiền', 404);
+                }
+
+                if ($withdrawal->status !== 'processing') {
+                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                }
+
+                // Update có điều kiện status='processing' → 0 dòng nghĩa là đã bị xử lý bởi
+                // request khác, ném lỗi để không hoàn tiền hai lần.
+                $affected = DB::table('wallet_withdrawals')
+                    ->where('id', $withdrawal->id)
+                    ->where('status', 'processing')
+                    ->update([
+                        'status'     => 'failed',
+                        'note'       => $note,
+                        'updated_at' => now(),
+                    ]);
+
+                if ($affected === 0) {
+                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                }
 
                 // Hoàn tiền lại (amount + fee)
                 $this->walletService->credit(
@@ -393,6 +416,8 @@ class AdminWalletController extends Controller
                         ]
                     ]
                 );
+
+                return $withdrawal;
             });
 
             Log::info('Admin rejected wallet withdrawal', [
@@ -407,6 +432,8 @@ class AdminWalletController extends Controller
                 'status'  => 'success',
                 'message' => 'Đã từ chối và hoàn tiền lại vào ví cho khách hàng.',
             ]);
+        } catch (\App\Exceptions\OrderException $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], $e->getCode() ?: 422);
         } catch (\Exception $e) {
             Log::error('Admin reject withdrawal failed', ['error' => $e->getMessage()]);
             return response()->json(['status' => 'error', 'message' => 'Từ chối rút tiền thất bại.'], 500);

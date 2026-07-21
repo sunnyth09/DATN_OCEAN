@@ -197,4 +197,28 @@ class StatisticsRepository
             ->orderBy('date', 'DESC')
             ->get();
     }
+
+    /**
+     * Doanh số theo nhân viên
+     */
+    public function getStaffSales($startDate, $endDate)
+    {
+        return Order::select(
+            'seller_id',
+            DB::raw('COUNT(order_id) as total_orders'),
+            DB::raw('SUM(grand_total) as total_revenue')
+        )
+            ->whereNotNull('seller_id')
+            ->whereNotIn('fulfillment_status', [
+                OrderStatus::CANCELLED->value,
+                OrderStatus::RETURN_APPROVED->value,
+                OrderStatus::RETURNED->value,
+                OrderStatus::REFUNDED->value,
+            ])
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->groupBy('seller_id')
+            ->orderByDesc('total_revenue')
+            ->with('seller:admin_id,full_name,email,role')
+            ->get();
+    }
 }

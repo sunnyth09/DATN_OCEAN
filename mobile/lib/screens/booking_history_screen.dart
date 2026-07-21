@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../config/app_theme.dart';
@@ -51,11 +52,11 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
         content: const Text('Bạn có chắc chắn muốn hủy lịch đặt sân này không?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => context.pop(false),
             child: const Text('Giữ lại'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => context.pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
             child: const Text('Xác nhận hủy'),
           ),
@@ -69,7 +70,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
       await ApiClient().dio.post('/court-bookings/$bookingId/cancel', data: {'reason': 'Khách hàng yêu cầu hủy'});
       if (mounted) {
-        Navigator.pop(context);
+        context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('Hủy lịch thành công'), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         );
@@ -77,7 +78,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
+        context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('Không thể hủy lịch đặt sân'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         );
@@ -236,7 +237,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
           const Text('Hãy đặt sân đầu tiên để bắt đầu trải nghiệm!', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.pop(),
             icon: const Icon(Icons.sports_tennis, size: 18),
             label: const Text('Đặt sân ngay'),
             style: ElevatedButton.styleFrom(
