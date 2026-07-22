@@ -147,7 +147,7 @@ const goBack = () => {
 
 <style scoped>
 .profile-order-detail-page {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   padding: 24px;
@@ -185,20 +185,20 @@ const goBack = () => {
 }
 .btn-back:hover {
   background: #f8fafc;
-  color: #0f172a;
+  color: var(--text-main);
   border-color: #cbd5e1;
 }
 
 .page-title {
   font-size: 1.25rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main);
   margin: 0;
 }
 
 .order-code {
   font-weight: 800;
-  color: #E63B6F;
+  color: var(--primary);
   font-size: 1rem;
   background: rgba(230, 59, 111, 0.1);
   padding: 6px 18px;
@@ -212,7 +212,7 @@ const goBack = () => {
 }
 
 .detail-card {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   overflow: hidden;
@@ -231,7 +231,7 @@ const goBack = () => {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .card-body {
@@ -248,7 +248,7 @@ const goBack = () => {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .detail-block p {
@@ -290,7 +290,7 @@ const goBack = () => {
 .back-link {
   margin-top: 20px;
   display: inline-flex;
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 700;
   text-decoration: none;
   background: rgba(230, 59, 111, 0.1);
@@ -300,7 +300,7 @@ const goBack = () => {
 }
 
 .back-link:hover {
-  background: #E63B6F;
+  background: var(--primary);
   color: white;
 }
 
@@ -312,7 +312,7 @@ const goBack = () => {
   border-radius: 30px;
   font-size: 0.85rem;
   font-weight: 700;
-  background: white;
+  background: var(--card-bg);
   border: 1px solid #e2e8f0;
 }
 
@@ -330,7 +330,7 @@ const goBack = () => {
 .spinner {
   width: 40px; height: 40px;
   border: 3px solid #f1f5f9;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 16px;

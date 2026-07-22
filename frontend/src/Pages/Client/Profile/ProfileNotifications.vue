@@ -81,12 +81,16 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
+// Dùng chung state với ClientHeader qua auth store → badge đồng bộ tức thì
+const { unreadNotificationCount: unreadCount } = storeToRefs(authStore);
 const notifications = ref([]);
-const unreadCount = ref(0);
 const loading = ref(true);
 const isMarking = ref(false);
 
@@ -117,9 +121,7 @@ const handleNotificationClick = async (notification) => {
     try {
       await api.post(`/profile/notifications/${notification.id}/read`);
       notification.read_at = new Date().toISOString();
-      if (unreadCount.value > 0) {
-        unreadCount.value--;
-      }
+      authStore.decrementUnreadNotificationCount();
     } catch (e) {
       console.error(e);
     }
@@ -137,7 +139,7 @@ const markAllAsRead = async () => {
   isMarking.value = true;
   try {
     await api.post('/profile/notifications/read-all');
-    unreadCount.value = 0;
+    authStore.resetUnreadNotificationCount();
     notifications.value.forEach(n => {
       n.read_at = new Date().toISOString();
     });
@@ -167,7 +169,7 @@ const getIconClass = (type) => {
 
 <style scoped>
 .profile-card {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
   overflow: hidden;
@@ -177,7 +179,7 @@ const getIconClass = (type) => {
 .profile-card-header {
   padding: 20px 24px;
   border-bottom: 1px solid #f1f5f9;
-  background: #fff;
+  background: var(--card-bg);
 }
 
 .flex-header {
@@ -189,14 +191,14 @@ const getIconClass = (type) => {
 .profile-card-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
   margin: 0;
 }
 
 .btn-mark-all {
   background: transparent;
   border: none;
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -223,7 +225,7 @@ const getIconClass = (type) => {
   width: 40px;
   height: 40px;
   border: 3px solid #f3f3f3;
-  border-top: 3px solid #E63B6F;
+  border-top: 3px solid var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -251,7 +253,7 @@ const getIconClass = (type) => {
 }
 
 .btn-primary {
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   padding: 10px 20px;
   border-radius: 8px;
@@ -328,7 +330,7 @@ const getIconClass = (type) => {
 .noti-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-main);
   margin: 0 0 6px 0;
 }
 
@@ -348,7 +350,7 @@ const getIconClass = (type) => {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #E63B6F;
+  background: var(--primary);
   position: absolute;
   right: 24px;
   top: 50%;
@@ -365,7 +367,7 @@ const getIconClass = (type) => {
 }
 
 .btn-page {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #cbd5e1;
   width: 36px;
   height: 36px;

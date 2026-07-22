@@ -144,15 +144,15 @@ const BASE_URL = getAppBaseUrl();
   overflow: hidden;
 }
 
-.newsletter-input { flex: 1; padding: 10px 14px; border: none; outline: none; font-size: 0.95rem; font-family: inherit; background: #fff; color: #333; }
+.newsletter-input { flex: 1; padding: 10px 14px; border: none; outline: none; font-size: 0.95rem; font-family: inherit; background: var(--card-bg); color: #333; }
 
 .newsletter-input::placeholder { color: #9ca3af; }
 
-.newsletter-btn { padding: 10px 20px; background: #E63B6F; border: none; color: #fff; font-size: 0.95rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s ease; border-radius: 0 8px 8px 0; }
+.newsletter-btn { padding: 10px 20px; background: var(--primary); border: none; color: #fff; font-size: 0.95rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s ease; border-radius: 0 8px 8px 0; }
 
 .newsletter-btn:hover { background: #d82f65; transform: scale(1.02); }
 
-.footer-heading { font-size: 1.05rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; font-style: normal; }
+.footer-heading { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 20px; font-style: normal; }
 
 .footer-links {
   list-style: none;
@@ -164,7 +164,7 @@ const BASE_URL = getAppBaseUrl();
 
 .footer-links a { font-size: 0.95rem; color: #64748b; text-decoration: none; transition: all 0.2s; }
 
-.footer-links a:hover { color: #E63B6F; text-decoration: underline; text-underline-offset: 4px; }
+.footer-links a:hover { color: var(--primary); text-decoration: underline; text-underline-offset: 4px; }
 
 .footer-contact {
   list-style: none;
@@ -202,8 +202,8 @@ const BASE_URL = getAppBaseUrl();
 }
 
 .social-icon:not(:disabled):hover {
-  background: #E63B6F;
-  border-color: #E63B6F;
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25);

@@ -17,6 +17,7 @@ class SyncGhnOrderStatus extends Command
     public function handle(GhnOrderStatusSyncService $statusSyncService): int
     {
         $query = Order::whereNotNull('ghn_order_code')
+            ->where('created_at', '>=', now()->subDays(30))
             ->whereIn('fulfillment_status', ['pending', 'confirmed', 'processing', 'packing', 'shipping', 'delivered']);
 
         if ($this->option('order_id')) {

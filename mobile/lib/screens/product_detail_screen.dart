@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -6,6 +7,11 @@ import '../config/app_config.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../utils/format_utils.dart';
+import 'package:provider/context.read<ProductDetailProvider>().dart';
+import '../providers/product_detail_context.read<ProductDetailProvider>().dart';
+import '../providers/cart_context.read<ProductDetailProvider>().dart';
+import '../providers/navigation_context.read<ProductDetailProvider>().dart';
+import '../widgets/shimmer_loading.dart';
 import 'login_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -17,100 +23,19 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
-  int _currentImageIndex = 0;
-  String selectedColor = '';
-  String selectedSize = '';
-  List<dynamic> comments = [];
-  bool isLoadingComments = true;
-  Map<String, dynamic> _product = {};
-  bool isLoadingDetails = true;
-  List<dynamic> relatedProducts = [];
-
   @override
   void initState() {
     super.initState();
-    _product = Map<String, dynamic>.from(widget.product);
-    fetchProductDetails();
-    fetchComments();
-    fetchRelatedProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ProductDetailProvider>().fetchProductData(widget.product);
+    });
   }
 
-  Future<void> fetchProductDetails() async {
-    try {
-      final slug = _product['slug'];
-      final id = _product['id'] ?? _product['product_id'];
+  
 
-      Response res;
-      if (slug != null && slug.toString().isNotEmpty) {
-        res = await ApiClient().dio.get('/products/slug/$slug');
-      } else if (id != null) {
-        res = await ApiClient().dio.get('/products/$id');
-      } else {
-        throw Exception('Không có ID hoặc Slug sản phẩm');
-      }
+  
 
-      if (mounted) {
-        setState(() {
-          if (res.data is Map<String, dynamic>) {
-            _product = res.data['data'] ?? res.data;
-          }
-          isLoadingDetails = false;
-          final variants = _product['variants'] as List<dynamic>? ?? [];
-          if (variants.isNotEmpty) {
-            List<String> colors = [];
-            List<String> sizes = [];
-            for (var v in variants) {
-              if (v['color'] != null && !colors.contains(v['color'].toString()))
-                colors.add(v['color'].toString());
-              if (v['size'] != null && !sizes.contains(v['size'].toString()))
-                sizes.add(v['size'].toString());
-            }
-            if (colors.isNotEmpty) selectedColor = colors.first;
-            if (sizes.isNotEmpty) selectedSize = sizes.first;
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => isLoadingDetails = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi tải thông tin sản phẩm: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> fetchComments() async {
-    try {
-      final id = _product['product_id'] ?? _product['id'];
-      final res = await ApiClient().dio.get('/products/$id/comments');
-      if (mounted) {
-        setState(() {
-          comments = res.data['data'] ?? [];
-          isLoadingComments = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => isLoadingComments = false);
-    }
-  }
-
-  Future<void> fetchRelatedProducts() async {
-    try {
-      final slug = _product['slug'];
-      final id = _product['id'] ?? _product['product_id'];
-      final endpoint = slug != null && slug.toString().isNotEmpty
-          ? '/products/$slug/related'
-          : '/products/$id/related';
-      final res = await ApiClient().dio.get(endpoint);
-      if (res.data['status'] == 'success') {
-        if (mounted) setState(() => relatedProducts = res.data['data'] ?? []);
-      }
-    } catch (_) {}
-  }
+  
 
   void _handleActionSelected(String actionStr) async {
     final loggedIn = await AuthService.isLoggedIn();
@@ -173,16 +98,35 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         data: {'variant_id': variantId, 'quantity': 1},
       );
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) context.pop();
+
+      if (mounted) {
+        context.read<CartProvider>().fetchCart(silent: true);
+      }
 
       final msg = response.data['message'] ?? 'Thêm vào giỏ thành công!';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.green,
+            action: actionStr != 'Mua ngay' ? SnackBarAction(
+              label: 'XEM GIỎ',
+              textColor: Colors.white,
+              onPressed: () {
+                context.read<NavigationProvider>().setTab(3);
+                context.go('/home');
+              },
+            ) : null,
+          ),
         );
+        if (actionStr == 'Mua ngay') {
+          context.read<NavigationProvider>().setTab(3);
+          context.go('/home');
+        }
       }
     } on DioException catch (e) {
-      if (mounted) Navigator.pop(context);
+      if (mounted) context.pop();
       final errMsg = e.response?.data?['message'] ?? 'Lỗi thêm sản phẩm!';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -191,7 +135,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
+        context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Không kết nối được máy chủ!'),
@@ -199,21 +143,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         );
       }
-    }
-  }
-
-  String _formatPrice(dynamic price) {
-    try {
-      final num p = num.parse(price.toString());
-      final formatted = p
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]}.',
-          );
-      return '$formatted đ';
-    } catch (_) {
-      return price.toString();
     }
   }
 
@@ -229,14 +158,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoadingDetails) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF8FAFC),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFFE63B6F)),
-        ),
-      );
+    final provider = context.watch<ProductDetailProvider>();
+    final _product = context.watch<ProductDetailProvider>().product;
+    final selectedColor = context.watch<ProductDetailProvider>().selectedColor;
+    final selectedSize = context.watch<ProductDetailProvider>().selectedSize;
+    if (context.watch<ProductDetailProvider>().isLoadingDetails) {
+      return const ProductDetailShimmer();
     }
+
 
     dynamic priceRaw =
         _product['min_price'] ??
@@ -254,8 +183,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (vSize.isNotEmpty && vSize != selectedSize) match = false;
       if (match) {
         if (v['price'] != null) priceRaw = v['price'];
-        if (v['image_url'] != null && v['image_url'].toString().isNotEmpty)
+        if (v['image_url'] != null && v['image_url'].toString().isNotEmpty) {
           rawImage = v['image_url'];
+        }
         break;
       }
     }
@@ -293,8 +223,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         : 'SẢN PHẨM';
     final listColors = _getUniqueAttributes('color');
     final listSizes = _getUniqueAttributes('size');
-    if (selectedSize.isEmpty && listSizes.isNotEmpty)
+    if (selectedSize.isEmpty && listSizes.isNotEmpty) {
       selectedSize = listSizes.first;
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -313,10 +244,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => context.pop(),
         ),
         actions: [
           IconButton(icon: const Icon(Icons.share_outlined), onPressed: () {}),
+          Consumer<CartProvider>(
+            builder: (context, cart, child) {
+              return IconButton(
+                icon: Badge(
+                  isLabelVisible: cart.itemCount > 0,
+                  label: Text(cart.itemCount > 99 ? '99+' : cart.itemCount.toString()),
+                  child: const Icon(Icons.shopping_cart_outlined),
+                ),
+                onPressed: () {
+                  context.read<NavigationProvider>().setTab(3);
+                  context.go('/home');
+                },
+              );
+            },
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Stack(
@@ -342,7 +289,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             });
                           },
                           itemBuilder: (context, index) {
-                            return _buildProductImage(allImages[index], double.infinity, 350);
+                            final imageWidget = _buildProductImage(allImages[index], double.infinity, 350);
+                            if (index == 0) {
+                              return Hero(
+                                tag: _product['id'] ?? _product['slug'] ?? 'product_image',
+                                child: imageWidget,
+                              );
+                            }
+                            return imageWidget;
                           },
                         ),
                       ),
@@ -546,7 +500,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Đánh giá sản phẩm (${comments.length})',
+                        'Đánh giá sản phẩm (${context.watch<ProductDetailProvider>().comments.length})',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -554,9 +508,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      if (isLoadingComments)
+                      if (context.watch<ProductDetailProvider>().isLoadingComments)
                         const Center(child: CircularProgressIndicator())
-                      else if (comments.isEmpty)
+                      else if (context.watch<ProductDetailProvider>().comments.isEmpty)
                         const Text(
                           'Chưa có đánh giá nào.',
                           style: TextStyle(
@@ -565,7 +519,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                         )
                       else
-                        ...comments.map((cmt) {
+                        ...context.watch<ProductDetailProvider>().comments.map((cmt) {
                           final user = cmt['user'] != null
                               ? cmt['user']['full_name']
                               : 'Người dùng';
@@ -646,7 +600,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 const SizedBox(height: 20),
 
                 // Related Products
-                if (relatedProducts.isNotEmpty)
+                if (context.watch<ProductDetailProvider>().relatedProducts.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.all(20),
                     color: Colors.white,
@@ -682,14 +636,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           height: 220,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            itemCount: relatedProducts.length > 6
+                            itemCount: context.watch<ProductDetailProvider>().relatedProducts.length > 6
                                 ? 6
-                                : relatedProducts.length,
-                            separatorBuilder: (_, __) =>
+                                : context.watch<ProductDetailProvider>().relatedProducts.length,
+                            separatorBuilder: (_, _) =>
                                 const SizedBox(width: 12),
                             itemBuilder: (context, index) {
                               final rp =
-                                  relatedProducts[index]
+                                  context.watch<ProductDetailProvider>().relatedProducts[index]
                                       as Map<String, dynamic>;
                               return _buildRelatedProductCard(rp);
                             },
@@ -714,7 +668,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -4),
                   ),
@@ -769,46 +723,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ],
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureItem(IconData icon, String title, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFF64748B), size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF334155),
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF64748B),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
             ),
           ),
         ],
@@ -911,7 +825,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFFE63B6F).withOpacity(0.1)
+                ? const Color(0xFFE63B6F).withValues(alpha: 0.1)
                 : Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
@@ -1005,7 +919,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       width: width,
       height: height,
       fit: BoxFit.cover,
-      placeholder: (_, __) => Container(
+      placeholder: (_, _) => Container(
         width: width,
         height: height,
         color: const Color(0xFFF1F5F9),
@@ -1016,7 +930,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ),
       ),
-      errorWidget: (_, __, ___) => _imagePlaceholder(height: height, width: width),
+      errorWidget: (_, _, _) => _imagePlaceholder(height: height, width: width),
     );
   }
 
@@ -1030,10 +944,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ProductDetailScreen(product: rp)),
-        );
+        context.push('/product-detail', extra: rp);
       },
       child: Container(
         width: 150,
@@ -1043,7 +954,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           border: Border.all(color: const Color(0xFFE9ECEF)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

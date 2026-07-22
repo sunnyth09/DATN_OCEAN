@@ -37,6 +37,12 @@ const posForm = ref({
     note: ''
 });
 
+const openCreatePosModal = () => {
+    posForm.value.booking_date = filterDate.value;
+    const el = document.getElementById('posQuickModal');
+    if (el) Modal.getOrCreateInstance(el).show();
+};
+
 // Clicked booking detail
 const selectedBooking = ref(null);
 
@@ -283,7 +289,7 @@ const handleBookingClick = async (booking) => {
         await store.fetchAdminBookingDetail(booking.booking_id || booking.id);
         selectedBooking.value = store.currentBooking;
         const el = document.getElementById('bookingDetailModal');
-        if (el) new Modal(el).show();
+        if (el) Modal.getOrCreateInstance(el).show();
     } catch (e) {}
 };
 
@@ -311,7 +317,7 @@ const handleSlotClick = (court, hourOffset) => {
         note: ''
     };
     const el = document.getElementById('posQuickModal');
-    if (el) new Modal(el).show();
+    if (el) Modal.getOrCreateInstance(el).show();
 };
 
 const closeModal = (id) => {
@@ -441,7 +447,7 @@ const handleCreatePosBooking = async () => {
                         Hôm nay
                     </button>
                 </div>
-                <button class="scheduler-create-btn" @click="posForm.booking_date = filterDate; (() => { const el = document.getElementById('posQuickModal'); if(el) new Modal(el).show(); })()">
+                <button class="scheduler-create-btn" @click="openCreatePosModal">
                     <i class="bi bi-plus-lg"></i> Tạo Booking
                 </button>
             </div>
@@ -908,7 +914,7 @@ const handleCreatePosBooking = async () => {
 .scheduler-live-clock__bar-fill {
     height: 100%;
     border-radius: 6px;
-    background: linear-gradient(90deg, #FF6B9D 0%, #E63B6F 100%);
+    background: linear-gradient(90deg, #FF6B9D 0%, var(--primary) 100%);
     transition: width 1s linear;
     position: relative;
     overflow: hidden;

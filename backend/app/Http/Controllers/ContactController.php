@@ -167,8 +167,8 @@ class ContactController extends Controller
 
         // Gửi email phản hồi
         try {
-            $emailUser = config('services.email.username');
-            $emailPass = config('services.email.password');
+            $emailUser = env('MAIL_USERNAME');
+            $emailPass = env('MAIL_PASSWORD');
 
             if (!$emailUser || !$emailPass) {
                 return response()->json([
@@ -244,7 +244,7 @@ class ContactController extends Controller
             Log::error('Contact reply email error: ' . $e->getMessage());
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Gửi email thất bại: ' . $e->getMessage(),
+                'message' => 'Gửi email thất bại, vui lòng thử lại sau.',
             ], 500);
         }
 

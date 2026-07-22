@@ -104,7 +104,7 @@
   border-radius: 24px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, #E63B6F 0%, #d92f66 48%, #f05a8a 100%);
+    linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
   box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
 }
 .page-hero h1 {
@@ -131,15 +131,15 @@
 .steps-timeline { position: relative; padding-left: 56px; margin-bottom: 48px; }
 .timeline-step { position: relative; padding-bottom: 32px; }
 .timeline-step:not(.last)::before { content: ''; position: absolute; left: -38px; top: 36px; bottom: 0; width: 2px; background: #E9ECEF; }
-.step-marker { position: absolute; left: -50px; top: 0; width: 36px; height: 36px; border-radius: 50%; background: #E63B6F; color: #fff; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; z-index: 1; }
+.step-marker { position: absolute; left: -50px; top: 0; width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; z-index: 1; }
 .step-marker.done { background: #16a34a; }
-.step-content h3 { font-size: 1.05rem; font-weight: 700; color: #2D3436; margin: 0 0 8px; }
+.step-content h3 { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin: 0 0 8px; }
 .step-content p { font-size: 0.9rem; color: #6b7280; line-height: 1.7; margin: 0; }
 .payment-methods { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .method { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; color: #4b5563; padding: 8px 12px; background: #F8F9FA; border-radius: 8px; }
 .method-icon { font-size: 1.1rem; }
 .content-block { margin-bottom: 36px; }
-.content-block h2 { font-size: 1.3rem; font-weight: 700; color: #2D3436; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }
+.content-block h2 { font-size: 1.3rem; font-weight: 700; color: var(--text-main); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }
 .note-list { padding-left: 24px; margin: 0; }
 .note-list li { font-size: 0.95rem; color: #4b5563; line-height: 1.8; margin-bottom: 6px; }
 

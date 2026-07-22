@@ -65,10 +65,7 @@ const submitTryOn = async () => {
 
   try {
     const response = await api.post('/try-on', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      timeout: 90000 // Timeout 90s cho AI processing
+      timeout: 120000 // Timeout 120s cho AI processing + polling
     });
 
     if (response.data.status === 'success') {
@@ -77,7 +74,19 @@ const submitTryOn = async () => {
     }
   } catch (error) {
     console.error("Try-On Error:", error);
-    errorMessage.value = error.response?.data?.message || "Đã có lỗi xảy ra. Vui lòng thử lại sau.";
+    
+    if (error.code === 'ECONNABORTED') {
+      errorMessage.value = "AI đang xử lý quá lâu. Vui lòng thử lại với ảnh nhỏ hơn.";
+    } else if (!error.response) {
+      // Network error (Failed to fetch, CORS, server unreachable)
+      errorMessage.value = "Không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.";
+    } else if (error.response.status === 401) {
+      errorMessage.value = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+    } else if (error.response.status === 429) {
+      errorMessage.value = "Bạn đã thử quá nhiều lần. Vui lòng đợi 1 phút rồi thử lại.";
+    } else {
+      errorMessage.value = error.response?.data?.message || "Đã có lỗi xảy ra. Vui lòng thử lại sau.";
+    }
   } finally {
     isLoading.value = false;
   }
@@ -208,21 +217,21 @@ onBeforeUnmount(() => {
   position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 10000; padding: 16px;
 }
 .tryon-modal {
-  background: #ffffff; border-radius: 20px; width: 100%; max-width: 750px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column;
+  background: var(--card-bg); border-radius: 20px; width: 100%; max-width: 750px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column;
 }
 .tryon-header {
   display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: #F8F9FA; border-bottom: 1px solid #E9ECEF;
 }
 .tryon-title {
-  display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 800; color: #2D3436; margin: 0;
+  display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin: 0;
 }
 .badge { font-size: 0.7rem; padding: 4px 8px; border-radius: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .badge.active { background: #ECFDF5; color: #059669; }
 
 .tryon-close { background: none; border: none; cursor: pointer; color: #636E72; border-radius: 8px; padding: 4px; display: flex; transition: all 0.2s; }
-.tryon-close:hover { background: #E9ECEF; color: #E63B6F; }
+.tryon-close:hover { background: #E9ECEF; color: var(--primary); }
 
-.tryon-body { position: relative; width: 100%; min-height: 400px; padding: 24px; background: #fff; }
+.tryon-body { position: relative; width: 100%; min-height: 400px; padding: 24px; background: var(--card-bg); }
 
 .tryon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 @media (max-width: 600px) {
@@ -230,39 +239,39 @@ onBeforeUnmount(() => {
 }
 
 .tryon-col { display: flex; flex-direction: column; gap: 12px; }
-.col-title { text-align: center; font-weight: 600; color: #2D3436; font-size: 0.95rem; }
+.col-title { text-align: center; font-weight: 600; color: var(--text-main); font-size: 0.95rem; }
 
 .img-box { width: 100%; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; background: #F8F9FA; display: flex; justify-content: center; align-items: center; border: 1px solid #E9ECEF; position: relative; }
 .img-box img { width: 100%; height: 100%; object-fit: contain; }
 
 .upload-box { cursor: pointer; border: 2px dashed #B2BEC3; transition: all 0.2s; }
-.upload-box:hover { border-color: #E63B6F; background: #FFF0F3; }
-.upload-box.has-img { border: 2px solid #E63B6F; border-style: solid; }
+.upload-box:hover { border-color: var(--primary); background: #FFF0F3; }
+.upload-box.has-img { border: 2px solid var(--primary); border-style: solid; }
 
 .upload-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #636E72; padding: 20px; text-align: center; }
-.upload-placeholder span { font-weight: 600; color: #2D3436; }
+.upload-placeholder span { font-weight: 600; color: var(--text-main); }
 .upload-placeholder small { font-size: 0.8rem; }
 
 .tryon-loading { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; min-height: 350px; text-align: center; gap: 16px; }
-.tryon-loading h4 { margin: 0; color: #2D3436; font-weight: 700; }
+.tryon-loading h4 { margin: 0; color: var(--text-main); font-weight: 700; }
 .tryon-loading p { color: #636E72; font-size: 0.9rem; margin: 0; }
-.spinner { width: 48px; height: 48px; border: 4px solid #F3F4F6; border-top-color: #E63B6F; border-radius: 50%; animation: spin 1s linear infinite; }
+.spinner { width: 48px; height: 48px; border: 4px solid #F3F4F6; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .result-box { aspect-ratio: 3/4; max-height: 500px; margin: 0 auto; width: auto; max-width: 100%; }
 .mock-badge { position: absolute; top: 12px; right: 12px; background: rgba(230, 59, 111, 0.9); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
 
-.tryon-error { background: #FFF0F3; color: #E63B6F; padding: 12px; border-radius: 8px; text-align: center; font-size: 0.9rem; font-weight: 500; margin-top: 20px; }
+.tryon-error { background: #FFF0F3; color: var(--primary); padding: 12px; border-radius: 8px; text-align: center; font-size: 0.9rem; font-weight: 500; margin-top: 20px; }
 
 .tryon-controls { display: flex; justify-content: center; gap: 16px; padding: 16px 24px; background: #F8F9FA; border-top: 1px solid #E9ECEF; }
 .tryon-controls button { padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; transition: all 0.2s; border: none; font-family: inherit; }
 .tryon-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.btn-primary { background: #E63B6F; color: #fff; }
+.btn-primary { background: var(--primary); color: #fff; }
 .btn-primary:hover:not(:disabled) { background: #C4305D; }
 
-.btn-secondary { background: #fff; color: #2D3436; border: 1px solid #B2BEC3 !important; }
-.btn-secondary:hover { background: #F8F9FA; border-color: #2D3436 !important; }
+.btn-secondary { background: var(--card-bg); color: var(--text-main); border: 1px solid #B2BEC3 !important; }
+.btn-secondary:hover { background: #F8F9FA; border-color: var(--text-main) !important; }
 
 .modal-fade-enter-active, .modal-fade-leave-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; transform: scale(0.95); }

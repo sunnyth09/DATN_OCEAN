@@ -1,6 +1,10 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'main_wrapper.dart';
-import '../services/auth_service.dart';
+import '../providers/auth_provider.dart';
+import '../providers/cart_provider.dart';
+import '../services/notification_service.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 
@@ -31,17 +35,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.login(email, password);
+    final result = await context.read<AuthProvider>().login(email, password);
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const MainWrapper()),
-        (route) => false,
-      );
+      // Đăng nhập xong mới gửi FCM token (request cần Bearer token).
+      NotificationService().syncTokenToServer();
+      // Nạp lại giỏ hàng cho phiên mới.
+      context.read<CartProvider>().fetchCart(silent: true);
+      context.go('/home');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
@@ -66,7 +70,21 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 40),
+              if (Navigator.canPop(context))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                      icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A), size: 28),
+                      onPressed: () => context.pop(),
+                    ),
+                  ),
+                )
+              else
+                const SizedBox(height: 40),
               // Logo
               Container(
                 width: 72,
@@ -297,7 +315,7 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -343,7 +361,7 @@ class _LoginScreenState extends State<LoginScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),

@@ -31,6 +31,8 @@ const router = useRouter();
 const orderId = route.params.id;
 
 const order = ref(null);
+const tracking = ref(null);
+const trackingLoading = ref(false);
 const loading = ref(true);
 const actionLoading = ref(false);
 
@@ -81,12 +83,28 @@ const getStatusIcon = (status) => {
   return 'shopping-cart';
 };
 
+const fetchOrderTracking = async () => {
+  trackingLoading.value = true;
+  try {
+    const res = await orderService.getOrderTracking(orderId);
+    if (res.data.status === 'success') {
+      tracking.value = res.data.data;
+    }
+  } catch (err) {
+    console.warn('Không thể lấy tracking GHN, dùng lịch sử đơn hàng hiện có.', err);
+    tracking.value = null;
+  } finally {
+    trackingLoading.value = false;
+  }
+};
+
 const fetchOrderDetail = async () => {
   loading.value = true;
   try {
     const res = await orderService.getProfileOrderDetail(orderId);
     if (res.data.status === 'success') {
       order.value = res.data.data;
+      await fetchOrderTracking();
     }
   } catch (err) {
     console.error('Lỗi lấy chi tiết đơn hàng: ', err);
@@ -363,6 +381,28 @@ onMounted(() => {
         </router-link>
       </div>
 
+      <div v-if="tracking?.ghn_order_code || trackingLoading" class="ghn-tracking-card mt-4">
+        <div class="card-header">
+          <h3>Thông tin vận chuyển GHN</h3>
+        </div>
+        <div class="card-body">
+          <p v-if="trackingLoading" class="tracking-muted">Đang tải thông tin vận chuyển...</p>
+          <template v-else>
+            <div class="ghn-info-row">
+              <span>Mã vận đơn</span>
+              <strong>{{ tracking.ghn_order_code }}</strong>
+            </div>
+            <div class="ghn-info-row" v-if="tracking.receiver_phone">
+              <span>SĐT nhận hàng</span>
+              <strong>{{ tracking.receiver_phone }}</strong>
+            </div>
+            <a v-if="tracking.ghn_tracking_url" class="ghn-tracking-link" :href="tracking.ghn_tracking_url" target="_blank" rel="noopener">
+              Xem trực tiếp trên GHN
+            </a>
+          </template>
+        </div>
+      </div>
+
       <div class="detail-grid">
         <!-- Address Info -->
         <div class="address-card">
@@ -395,7 +435,7 @@ onMounted(() => {
                <span>{{ formatPrice(order.shipping_fee) }}</span>
              </div>
              <div class="summary-row discount" v-if="order.discount_amount > 0">
-               <span>Mã giảm giá</span>
+               <span>Giảm giá</span>
                <span>-{{ formatPrice(order.discount_amount) }}</span>
              </div>
              <div class="summary-row total">
@@ -445,14 +485,14 @@ onMounted(() => {
       </div>
 
       <!-- Order History -->
-      <div class="history-card mt-4" v-if="order.status_history && order.status_history.length > 0">
+      <div class="history-card mt-4" v-if="(tracking?.timeline && tracking.timeline.length > 0) || (order.status_history && order.status_history.length > 0)">
         <div class="card-header">
           <h3>Lịch sử đơn hàng</h3>
         </div>
         <div class="card-body">
           <OrderStatusTimeline
-            :histories="order.status_history"
-            :show-ghn-meta="false"
+            :histories="tracking?.timeline?.length ? tracking.timeline : order.status_history"
+            :show-ghn-meta="Boolean(tracking?.timeline?.length)"
             :get-status-label="getStatusText"
             :get-status-badge-class="getStatusBadgeClass"
             :format-date="formatDate"
@@ -586,7 +626,7 @@ onMounted(() => {
 
 <style scoped>
 .profile-order-detail-page {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   padding: 24px;
@@ -624,20 +664,20 @@ onMounted(() => {
 }
 .btn-back:hover {
   background: #f8fafc;
-  color: #0f172a;
+  color: var(--text-main);
   border-color: #cbd5e1;
 }
 
 .page-title {
   font-size: 1.25rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main);
   margin: 0;
 }
 
 .order-code {
   font-weight: 800;
-  color: #E63B6F;
+  color: var(--primary);
   font-size: 1rem;
   background: #e0f2fe;
   padding: 6px 18px;
@@ -653,7 +693,7 @@ onMounted(() => {
 .spinner {
   width: 40px; height: 40px;
   border: 3px solid #f1f5f9;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 16px;
@@ -696,7 +736,7 @@ onMounted(() => {
   border-radius: 30px;
   font-size: 0.95rem;
   font-weight: 700;
-  background: white;
+  background: var(--card-bg);
   border: 1px solid #e2e8f0;
 }
 .status-badge.status-info { color: #475569; background: #f8fafc; border-color: #cbd5e1; }
@@ -710,7 +750,7 @@ onMounted(() => {
 }
 
 .btn-action {
-  background: white;
+  background: var(--card-bg);
   border: 1.5px solid;
   border-radius: 20px;
   padding: 8px 16px;
@@ -768,7 +808,7 @@ onMounted(() => {
 }
 
 .return-request-link {
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 700;
   text-decoration: none;
 }
@@ -797,7 +837,7 @@ onMounted(() => {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
 }
 .card-body {
   padding: 20px;
@@ -809,7 +849,7 @@ onMounted(() => {
 }
 
 /* Address Card */
-.recipient-name { font-weight: 700; font-size: 1.05rem; color: #0f172a; margin: 0 0 4px 0; }
+.recipient-name { font-weight: 700; font-size: 1.05rem; color: var(--text-main); margin: 0 0 4px 0; }
 .recipient-phone { color: #334155; margin: 0 0 12px 0; font-weight: 600; }
 .recipient-address { color: #475569; line-height: 1.5; margin: 0; }
 .order-note {
@@ -841,10 +881,10 @@ onMounted(() => {
   padding-top: 16px;
   border-top: 1px solid #e2e8f0;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main);
   font-size: 1.1rem;
 }
-.total-price { color: #E63B6F; font-size: 1.25rem; }
+.total-price { color: var(--primary); font-size: 1.25rem; }
 .pay-badge {
   padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600;
 }
@@ -877,11 +917,11 @@ onMounted(() => {
 }
 .item-image img { width: 100%; height: 100%; object-fit: cover; }
 .item-info { flex: 1; }
-.item-name { font-weight: 600; color: #1e293b; margin-bottom: 4px; line-height: 1.4; }
+.item-name { font-weight: 600; color: var(--text-main); margin-bottom: 4px; line-height: 1.4; }
 .item-variant { font-size: 0.85rem; color: #64748b; margin-bottom: 4px; }
-.item-qty { font-size: 0.9rem; font-weight: 700; color: #E63B6F; }
+.item-qty { font-size: 0.9rem; font-weight: 700; color: var(--primary); }
 .item-price { text-align: right; min-width: 100px; }
-.line-total { font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.line-total { font-weight: 700; color: var(--text-main); margin-bottom: 4px; }
 .unit-price { font-size: 0.8rem; color: #94a3b8; }
 
 /* Timeline */
@@ -915,7 +955,7 @@ onMounted(() => {
   flex-shrink: 0;
 }
 .timeline-marker.latest {
-  background: #E63B6F;
+  background: var(--primary);
   box-shadow: 0 0 0 4px #e0f2fe;
 }
 .timeline-content {
@@ -941,20 +981,20 @@ onMounted(() => {
 
 /* Cancel Modal */
 .cancel-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1050; }
-.cancel-modal-box { background: white; border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
+.cancel-modal-box { background: var(--card-bg); border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
 .cancel-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #e2e8f0; }
-.cancel-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a; }
+.cancel-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main); }
 .cancel-modal-close { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.5rem; line-height: 1; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; }
 .cancel-modal-close:hover { background: #f1f5f9; color: #dc2626; }
 .cancel-modal-body { padding: 20px 24px; }
 .cancel-modal-desc { color: #64748b; font-size: 0.88rem; margin: 0 0 14px; }
 .cancel-reason-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
-.cancel-reason-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; background: white; transition: all 0.15s; font-size: 0.88rem; color: #334155; }
-.cancel-reason-item:hover { border-color: #E63B6F; background: #f0f9ff; }
-.cancel-reason-item.selected { border-color: #E63B6F; background: #f0f9ff; }
-.cancel-reason-item input[type="radio"] { accent-color: #E63B6F; width: 16px; height: 16px; flex-shrink: 0; }
+.cancel-reason-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; background: var(--card-bg); transition: all 0.15s; font-size: 0.88rem; color: #334155; }
+.cancel-reason-item:hover { border-color: var(--primary); background: #f0f9ff; }
+.cancel-reason-item.selected { border-color: var(--primary); background: #f0f9ff; }
+.cancel-reason-item input[type="radio"] { accent-color: var(--primary); width: 16px; height: 16px; flex-shrink: 0; }
 .cancel-custom-input { width: 100%; margin-top: 12px; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.88rem; min-height: 80px; resize: vertical; outline: none; font-family: inherit; box-sizing: border-box; }
-.cancel-custom-input:focus { border-color: #E63B6F; }
+.cancel-custom-input:focus { border-color: var(--primary); }
 .return-file-input {
   width: 100%;
   margin-top: 12px;
@@ -967,12 +1007,12 @@ onMounted(() => {
 }
 .cancel-validation-error { color: #dc2626; font-size: 0.82rem; font-weight: 600; margin: 10px 0 0; }
 .cancel-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #e2e8f0; }
-.btn-cancel-dismiss { padding: 8px 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.btn-cancel-dismiss { padding: 8px 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: var(--card-bg); color: #64748b; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .btn-cancel-dismiss:hover { background: #f1f5f9; }
 .btn-cancel-confirm { padding: 8px 20px; border-radius: 8px; border: none; background: #dc2626; color: white; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .btn-cancel-confirm:hover { background: #b91c1c; }
 .return-confirm-btn {
-  background: #E63B6F;
+  background: var(--primary);
 }
 .return-confirm-btn:hover {
   background: #c53061;
@@ -1020,7 +1060,7 @@ onMounted(() => {
   font-size: 0.9rem;
   outline: none;
   font-family: inherit;
-  color: #0f172a;
+  color: var(--text-main);
 }
 .ticket-select:focus { border-color: #1d4ed8; }
 .ticket-file-input {
@@ -1029,4 +1069,40 @@ onMounted(() => {
   padding: 8px 0;
   color: #64748b;
 }
+
+.ghn-tracking-card {
+  background: var(--card-bg);
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+.ghn-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.ghn-info-row:last-of-type { border-bottom: none; }
+.ghn-info-row span,
+.tracking-muted {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+.ghn-info-row strong { color: var(--text-main); }
+.ghn-tracking-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 800;
+  text-decoration: none;
+}
+.ghn-tracking-link:hover { background: #dbeafe; }
 </style>

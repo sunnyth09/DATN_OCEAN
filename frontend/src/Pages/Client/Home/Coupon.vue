@@ -267,7 +267,7 @@ onMounted(fetchPublicCoupons);
 
 /* Hero Banner Breakout to fill screen width */
 .hero-section {
-  background: linear-gradient(135deg, #B50C4D 0%, #E63B6F 100%);
+  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
   position: relative;
   width: 100vw;
   margin-left: calc(-50vw + 50%);
@@ -287,12 +287,12 @@ onMounted(fetchPublicCoupons);
 }
 
 .input-group:focus-within {
-  border-color: #E63B6F !important;
+  border-color: var(--primary) !important;
   box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.15) !important;
 }
 
 .input-group-text svg {
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .form-control:focus {
@@ -301,7 +301,7 @@ onMounted(fetchPublicCoupons);
 
 /* Coupon Card Layout */
 .coupon-card {
-  background: #ffffff;
+  background: var(--card-bg);
   border: 1px solid #FFE3E8 !important;
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(230, 59, 111, 0.03);
@@ -326,17 +326,17 @@ onMounted(fetchPublicCoupons);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   background: #FFF0F3;
-  color: #E63B6F;
+  color: var(--primary);
   border: 1px solid rgba(230, 59, 111, 0.1);
 }
 
 /* Code Display Box */
 .coupon-code-box {
   background: #FFF5F7;
-  border: 1.5px dashed #E63B6F;
+  border: 1.5px dashed var(--primary);
   border-radius: 10px;
   padding: 8px 14px;
-  color: #E63B6F;
+  color: var(--primary);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -360,7 +360,7 @@ onMounted(fetchPublicCoupons);
 .coupon-value {
   font-size: 1.5rem;
   font-weight: 900;
-  color: #0F172A;
+  color: var(--text-main);
   letter-spacing: -0.5px;
 }
 
@@ -414,7 +414,7 @@ onMounted(fetchPublicCoupons);
 
 /* Buttons */
 .btn-save-coupon {
-  background: #E63B6F;
+  background: var(--primary);
   border: none;
   padding: 8px 16px;
   border-radius: 10px;
@@ -423,7 +423,7 @@ onMounted(fetchPublicCoupons);
 }
 
 .btn-save-coupon:hover:not(:disabled) {
-  background: #B50C4D;
+  background: var(--primary-dark);
   transform: translateY(-1px);
 }
 
@@ -436,8 +436,8 @@ onMounted(fetchPublicCoupons);
 
 .btn-copy-coupon {
   background: transparent;
-  color: #E63B6F;
-  border: 1.5px solid #E63B6F;
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
   padding: 8px 16px;
   border-radius: 10px;
   font-size: 0.85rem;
@@ -446,7 +446,7 @@ onMounted(fetchPublicCoupons);
 
 .btn-copy-coupon:hover {
   background: #FFF0F3;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 /* Disabled Coupon Card Styling */

@@ -25,7 +25,7 @@ return [
         env('URL_CORS_LOCAL', 'http://localhost:3302'),
     ]),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => ['*'],
 
     'allowed_headers' => ['*'],
 

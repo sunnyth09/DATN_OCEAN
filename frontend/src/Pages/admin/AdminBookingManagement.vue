@@ -94,7 +94,7 @@ const openModal = async (modalId, booking = null) => {
     
     const modalEl = document.getElementById(modalId);
     if(modalEl) {
-        const modal = new Modal(modalEl);
+        const modal = Modal.getOrCreateInstance(modalEl);
         modal.show();
     }
 };
@@ -487,12 +487,20 @@ const clearFilters = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Loading -->
-                        <tr v-if="store.loading">
-                            <td colspan="7" class="text-center py-5">
-                                <div class="spinner-border spinner-border-sm me-2" style="color: var(--court-primary);" role="status"></div>
-                                <span class="text-muted" style="font-size: 0.9rem;">Đang tải dữ liệu...</span>
+                        <!-- Skeleton Loading -->
+                        <tr v-if="store.loading" v-for="i in 3" :key="'skeleton'+i">
+                            <td>
+                                <div class="placeholder-glow">
+                                    <span class="placeholder col-8 mb-1 rounded"></span>
+                                    <br><span class="placeholder col-5 placeholder-sm rounded"></span>
+                                </div>
                             </td>
+                            <td><span class="placeholder-glow"><span class="placeholder col-10 rounded"></span></span></td>
+                            <td><span class="placeholder-glow"><span class="placeholder col-7 rounded"></span></span></td>
+                            <td><span class="placeholder-glow"><span class="placeholder col-12 rounded"></span></span></td>
+                            <td><span class="placeholder-glow"><span class="placeholder col-8 rounded"></span></span></td>
+                            <td><span class="placeholder-glow"><span class="placeholder col-6 rounded"></span></span></td>
+                            <td class="text-end"><span class="placeholder-glow"><span class="placeholder col-4 rounded"></span></span></td>
                         </tr>
                         <!-- Empty -->
                         <tr v-else-if="!store.adminBookings || store.adminBookings.length === 0">

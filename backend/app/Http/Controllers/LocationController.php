@@ -2,44 +2,37 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\GHNService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
- * LocationController — Cung cấp danh sách Tỉnh/Quận/Phường cho frontend.
- *
- * Nguồn dữ liệu: provinces.open-api.vn (API công khai, KHÔNG cần token).
- * Trả về key tương thích với frontend AddressSelector.
+ * LocationController — Cung cấp danh sách Tỉnh/Quận/Phường chuẩn GHN cho frontend.
  */
 class LocationController extends Controller
 {
-    private string $apiBaseUrl = 'https://provinces.open-api.vn/api/';
     private const TTL = 86400; // 24h
 
     public function getProvinces()
     {
-        $cached = Cache::get('vn_provinces_v2');
+        $cached = Cache::get('ghn_provinces_v3');
         if (is_array($cached) && count($cached) > 0) {
             return $this->ok($cached);
         }
 
-        $data = [];
-        try {
-            $response = Http::timeout(10)->get($this->apiBaseUrl, ['depth' => 1]);
-
-            if ($response->successful()) {
-                $data = collect($response->json())->map(fn ($p) => [
-                    'ProvinceID'   => $p['code'],
-                    'ProvinceName' => $p['name'],
-                ])->values()->toArray();
-            }
-        } catch (\Throwable $e) {
-            $data = [];
-        }
+        $data = collect(GHNService::getProvinces())
+            ->reject(fn ($p) => $this->isSandboxTestLocation($p['ProvinceName'] ?? $p['province_name'] ?? null, $p['ProvinceID'] ?? $p['province_id'] ?? null))
+            ->map(fn ($p) => [
+                'ProvinceID' => $p['ProvinceID'] ?? $p['province_id'] ?? null,
+                'ProvinceName' => $p['ProvinceName'] ?? $p['province_name'] ?? null,
+            ])
+            ->filter(fn ($p) => $p['ProvinceID'] && $p['ProvinceName'])
+            ->values()
+            ->toArray();
 
         if (count($data) > 0) {
-            Cache::put('vn_provinces_v2', $data, self::TTL);
+            Cache::put('ghn_provinces_v3', $data, self::TTL);
         }
 
         return $this->ok($data);
@@ -47,25 +40,21 @@ class LocationController extends Controller
 
     public function getDistricts($provinceCode)
     {
-        $cacheKey = "vn_districts_v2_{$provinceCode}";
+        $cacheKey = "ghn_districts_v3_{$provinceCode}";
         $cached = Cache::get($cacheKey);
         if (is_array($cached) && count($cached) > 0) {
             return $this->ok($cached);
         }
 
-        $data = [];
-        try {
-            $response = Http::timeout(10)->get($this->apiBaseUrl . "p/{$provinceCode}", ['depth' => 2]);
-
-            if ($response->successful()) {
-                $data = collect($response->json()['districts'] ?? [])->map(fn ($d) => [
-                    'DistrictID'   => $d['code'],
-                    'DistrictName' => $d['name'],
-                ])->values()->toArray();
-            }
-        } catch (\Throwable $e) {
-            $data = [];
-        }
+        $data = collect(GHNService::getDistricts((int) $provinceCode))
+            ->reject(fn ($d) => $this->isSandboxTestLocation($d['DistrictName'] ?? $d['district_name'] ?? null, $d['DistrictID'] ?? $d['district_id'] ?? null))
+            ->map(fn ($d) => [
+                'DistrictID' => $d['DistrictID'] ?? $d['district_id'] ?? null,
+                'DistrictName' => $d['DistrictName'] ?? $d['district_name'] ?? null,
+            ])
+            ->filter(fn ($d) => $d['DistrictID'] && $d['DistrictName'])
+            ->values()
+            ->toArray();
 
         if (count($data) > 0) {
             Cache::put($cacheKey, $data, self::TTL);
@@ -76,25 +65,21 @@ class LocationController extends Controller
 
     public function getWards($districtCode)
     {
-        $cacheKey = "vn_wards_v2_{$districtCode}";
+        $cacheKey = "ghn_wards_v3_{$districtCode}";
         $cached = Cache::get($cacheKey);
         if (is_array($cached) && count($cached) > 0) {
             return $this->ok($cached);
         }
 
-        $data = [];
-        try {
-            $response = Http::timeout(10)->get($this->apiBaseUrl . "d/{$districtCode}", ['depth' => 2]);
-
-            if ($response->successful()) {
-                $data = collect($response->json()['wards'] ?? [])->map(fn ($w) => [
-                    'WardCode' => (string) $w['code'],
-                    'WardName' => $w['name'],
-                ])->values()->toArray();
-            }
-        } catch (\Throwable $e) {
-            $data = [];
-        }
+        $data = collect(GHNService::getWards((int) $districtCode))
+            ->reject(fn ($w) => $this->isSandboxTestLocation($w['WardName'] ?? $w['ward_name'] ?? null, $w['WardCode'] ?? $w['ward_code'] ?? null))
+            ->map(fn ($w) => [
+                'WardCode' => (string) ($w['WardCode'] ?? $w['ward_code'] ?? ''),
+                'WardName' => $w['WardName'] ?? $w['ward_name'] ?? null,
+            ])
+            ->filter(fn ($w) => $w['WardCode'] && $w['WardName'])
+            ->values()
+            ->toArray();
 
         if (count($data) > 0) {
             Cache::put($cacheKey, $data, self::TTL);
@@ -109,32 +94,36 @@ class LocationController extends Controller
 
         if (strlen($keyword) < 2) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Từ khóa tìm kiếm phải có ít nhất 2 ký tự.',
             ], 422);
         }
 
-        try {
-            $response = Http::timeout(10)->get($this->apiBaseUrl . 'p/search/', ['q' => $keyword]);
+        $provinces = collect($this->getProvinces()->getData(true)['data'] ?? []);
+        $matches = $provinces->filter(fn ($p) => str_contains(mb_strtolower($p['ProvinceName']), mb_strtolower($keyword)))->values();
 
-            if ($response->successful()) {
-                return $this->ok($response->json());
-            }
-        } catch (\Throwable $e) {
-            // fallthrough
+        return $this->ok($matches);
+    }
+
+    private function isSandboxTestLocation(?string $name, mixed $id = null): bool
+    {
+        if (!$name) {
+            return false;
         }
 
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'Không thể tìm kiếm địa điểm.',
-        ], 500);
+        $normalized = mb_strtolower($name);
+
+        return in_array((string) $id, ['298', '2002'], true)
+            || str_contains($normalized, 'test')
+            || str_contains($normalized, 'alert')
+            || trim($normalized) === 'hà nội 02';
     }
 
     private function ok($data)
     {
         return response()->json([
             'status' => 'success',
-            'data'   => $data,
+            'data' => $data,
         ]);
     }
 }

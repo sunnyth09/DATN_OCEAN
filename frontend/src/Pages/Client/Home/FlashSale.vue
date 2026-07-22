@@ -47,10 +47,10 @@ onMounted(async () => {
         <div class="boards-container">
           <div class="board-wrapper" v-for="item in items" :key="item.item_id">
             <FlashSaleBoard :item-id="item.item_id" />
-          </div>
-          <div v-if="items.length === 0" class="text-center py-5">
-             <h4 class="text-muted">Hiện tại không có chương trình Flash Sale nào.</h4>
-          </div>
+          </div>          
+        </div>
+        <div v-if="items.length === 0" class="d-flex justify-content-center">
+            <h4 class="text-muted" >Hiện tại không có chương trình Flash Sale nào.</h4>
         </div>
 
         <!-- Quy tắc -->
@@ -100,6 +100,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+
 .flash-sale-page {
   min-height: 100vh;
   background: #fff;
@@ -107,27 +108,9 @@ onMounted(async () => {
 
 /* ── HERO ── */
 .hero {
-  background: linear-gradient(135deg, #e63b6f, #a0204e);
-  color: #fff;
-  border-radius: 16px;
-  padding: 32px;
-  margin: 24px auto 28px;
-  max-width: 1140px;
-  width: calc(100% - 40px);
-  position: relative;
-  overflow: hidden;
-  text-align: left;
-}
-
-.hero::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -10%;
-  width: 300px;
-  height: 300px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary) 60%, #FF6B9D 100%);
+  padding: 64px 20px 56px;
+  text-align: center;
 }
 
 .hero-inner {
@@ -196,7 +179,7 @@ onMounted(async () => {
 
 /* ── RULES CARD ── */
 .rules-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #F1F3F5;
   border-radius: 14px;
   padding: 24px 22px;
@@ -206,7 +189,7 @@ onMounted(async () => {
 }
 
 .rules-title {
-  color: #E63B6F;
+  color: var(--primary);
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
@@ -240,14 +223,14 @@ onMounted(async () => {
   width: 20px;
   height: 20px;
   line-height: 1.5;
-  color: #E63B6F;
+  color: var(--primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .rules-list li strong {
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 700;
 }
 

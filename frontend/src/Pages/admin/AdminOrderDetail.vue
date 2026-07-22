@@ -3,8 +3,10 @@ import { ref, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { Toast, Modal } from 'bootstrap';
+import Swal from 'sweetalert2';
 import { getStorageUrl } from '@/utils/url';
 import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline.vue';
+import AppIcon from '@/icons/AppIcon.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -26,6 +28,7 @@ const order = ref(null);
 const loading = ref(true);
 const ghnLookup = ref(null);
 const isLookingUpGhn = ref(false);
+const isStatusActionLoading = ref(false);
 
 const statuses = [
   { value: 'pending', label: 'Chờ duyệt' },
@@ -64,13 +67,30 @@ statusTransitions.return_rejected = ['return_rejected'];
 statusTransitions.returned = ['returned'];
 statusTransitions.refunded = ['refunded'];
 
-const getAllowedFulfillmentOptions = (currentStatus) => {
-  const allowed = statusTransitions[currentStatus] || [currentStatus];
-  return statuses.filter(s => allowed.includes(s.value));
-};
-
 const isLockedFulfillmentStatus = (status) => {
   return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returned', 'refunded'].includes(status);
+};
+
+const statusActionDefinitions = {
+  confirmed: { icon: 'check', label: 'Duyệt đơn', success: 'Đã duyệt đơn hàng thành công!' },
+  processing: { icon: 'clock', label: 'Chuyển sang đang xử lý', success: 'Đã chuyển đơn sang đang xử lý!' },
+  packing: { icon: 'clipboard-list', label: 'Chuyển sang đóng gói', success: 'Đã chuyển đơn sang đóng gói!' },
+  shipping: { icon: 'truck', label: 'Chuyển sang đang giao', success: 'Đã chuyển đơn sang đang giao!' },
+  delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
+  completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
+  cancelled: { icon: 'x', label: 'Hủy đơn', success: 'Đã hủy đơn hàng thành công!' },
+};
+
+const getCurrentOrderStatusActions = () => {
+  if (!order.value) return [];
+  const current = order.value.fulfillment_status;
+  const allowed = (statusTransitions[current] || []).filter(status => status !== current);
+  return allowed
+    .filter((status) => {
+      if (status === 'delivered' && order.value.ghn_order_code) return false;
+      return Boolean(statusActionDefinitions[status]);
+    })
+    .map((status) => ({ value: status, ...statusActionDefinitions[status] }));
 };
 
 // ====== Payment Status (Chỉ hiển thị, tự động bởi hệ thống) ======
@@ -82,11 +102,6 @@ const paymentOptions = [
   { value: 'refunded', label: 'Hoàn tiền' },
   { value: 'partially_refunded', label: 'Hoàn một phần' },
 ];
-
-const isTerminalOrder = (or) => {
-  if (!or) return true;
-  return ['cancelled', 'completed', 'return_requested', 'return_approved', 'return_rejected', 'returned', 'refunded'].includes(or.fulfillment_status);
-};
 
 const getStatusLabel = (value) => statuses.find(s => s.value === value)?.label || paymentOptions.find(p => p.value === value)?.label || value;
 
@@ -169,52 +184,42 @@ const dismissCancelModal = () => {
   if (cancelReasonResolver) cancelReasonResolver(null);
 };
 
-const updateFulfillment = async () => {
-  const oldStatus = order.value._prevFulfillmentStatus;
+const updateOrderStatus = async (action) => {
+  if (!order.value || action.value === order.value._prevFulfillmentStatus) return;
 
-  // Nếu chọn lại đúng trạng thái hiện tại → báo lỗi
-  if (order.value.fulfillment_status === oldStatus) {
-    toast.error(`Đơn hàng đang ở trạng thái "${getStatusLabel(oldStatus)}" rồi. Vui lòng chọn trạng thái tiếp theo!`);
-    return;
-  }
-
-  // Nếu chọn hủy → bắt buộc nhập lý do
-  if (order.value.fulfillment_status === 'cancelled') {
+  const payload = { fulfillment_status: action.value };
+  if (action.value === 'cancelled') {
     const cancelReason = await showCancelReasonModal();
-    if (!cancelReason) {
-      order.value.fulfillment_status = oldStatus;
+    if (!cancelReason) return;
+    payload.note = cancelReason;
+  } else {
+    const confirmResult = await Swal.fire({
+      title: 'Xác nhận',
+      text: `Bạn có chắc chắn muốn ${action.label.toLowerCase()} cho đơn hàng #${order.value.order_code}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#E63B6F',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    
+    if (!confirmResult.isConfirmed) {
       return;
     }
-    try {
-      const res = await api.put(`/admin/orders/${order.value.order_id}/status`, {
-        fulfillment_status: 'cancelled',
-        note: cancelReason
-      });
-      if (res.data.status === 'success') {
-        order.value._prevFulfillmentStatus = 'cancelled';
-        toast.success('Đã hủy đơn hàng thành công!');
-        fetchOrder();
-      }
-    } catch (error) {
-      order.value.fulfillment_status = oldStatus;
-      toast.error(error.response?.data?.message || 'Lỗi hủy đơn hàng');
-    }
-    return;
   }
 
-  // Các trạng thái khác
+  isStatusActionLoading.value = true;
   try {
-    const res = await api.put(`/admin/orders/${order.value.order_id}/status`, {
-      fulfillment_status: order.value.fulfillment_status
-    });
+    const res = await api.put(`/admin/orders/${order.value.order_id}/status`, payload);
     if (res.data.status === 'success') {
-      order.value._prevFulfillmentStatus = order.value.fulfillment_status;
-      toast.success('Cập nhật trạng thái xử lý thành công!');
-      fetchOrder();
+      toast.success(action.success || 'Cập nhật trạng thái thành công!');
+      await fetchOrder();
     }
   } catch (error) {
-    order.value.fulfillment_status = oldStatus;
     toast.error(error.response?.data?.message || 'Lỗi cập nhật trạng thái');
+  } finally {
+    isStatusActionLoading.value = false;
   }
 };
 
@@ -525,9 +530,21 @@ onMounted(() => fetchOrder());
             </h3>
             <div class="action-group">
               <label class="action-label">Xử lý đơn hàng</label>
-              <select class="form-select" v-model="order.fulfillment_status" @change="updateFulfillment" :disabled="isLockedFulfillmentStatus(order.fulfillment_status)">
-                <option v-for="s in getAllowedFulfillmentOptions(order._prevFulfillmentStatus)" :key="s.value" :value="s.value">{{ s.label }}</option>
-              </select>
+              <div class="status-inline-row">
+                <span class="status-readonly-badge" :class="getStatusBadgeClass(order.fulfillment_status)">
+                  {{ getStatusLabel(order.fulfillment_status) }}
+                </span>
+                <button
+                  v-for="action in getCurrentOrderStatusActions()"
+                  :key="action.value"
+                  class="btn-status-action"
+                  :class="action.value"
+                  @click="updateOrderStatus(action)"
+                  :disabled="isStatusActionLoading"
+                  :title="action.label"
+                  :aria-label="action.label"
+                ><AppIcon :name="action.icon" size="14" stroke-width="3" /></button>
+              </div>
             </div>
             <div class="action-group">
               <label class="action-label">Thanh toán</label>
@@ -980,22 +997,48 @@ onMounted(() => fetchOrder());
 .action-group { margin-bottom: 16px; }
 .action-group:last-child { margin-bottom: 0; }
 .action-label { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; display: block; }
-.form-select {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1.5px solid var(--border-color);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  outline: none;
-  transition: border-color 0.2s;
-  background-color: var(--background);
-  color: var(--text-main);
-  cursor: pointer;
+.status-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
-.form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.15); }
-.form-select:disabled { background-color: var(--surface-container-low); cursor: not-allowed; opacity: 0.7; color: var(--text-muted); }
- 
+.status-readonly-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.btn-status-action {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  line-height: 1;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.btn-status-action.confirmed,
+.btn-status-action.completed { background: #dcfce7; color: #15803d; }
+.btn-status-action.processing { background: #e0f2fe; color: #0369a1; }
+.btn-status-action.packing { background: #ede9fe; color: #6d28d9; }
+.btn-status-action.shipping,
+.btn-status-action.delivered { background: #dbeafe; color: #1d4ed8; }
+.btn-status-action.cancelled { background: #fee2e2; color: #b91c1c; }
+.btn-status-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(0.96); }
+.btn-status-action:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
 /* Info Rows */
 .info-rows { display: flex; flex-direction: column; gap: 14px; }
 .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }

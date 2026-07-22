@@ -26,7 +26,7 @@ class CancelExpiredVnpayOrders extends Command
     {
         $minutes = (int) $this->option('minutes');
 
-        $expiredOrders = Order::whereIn('payment_method', ['vnpay', 'momo'])
+        $expiredOrders = Order::whereIn('payment_method', ['vnpay', 'momo', 'bank_transfer'])
             ->where('payment_status', PaymentStatus::UNPAID->value)
             ->where('fulfillment_status', OrderStatus::PENDING->value)
             ->where('created_at', '<', now()->subMinutes($minutes))
@@ -46,13 +46,24 @@ class CancelExpiredVnpayOrders extends Command
             try {
                 DB::beginTransaction();
 
-                // Cập nhật trạng thái đơn hàng
-                $order->update([
-                    'fulfillment_status' => OrderStatus::CANCELLED->value,
-                    'payment_status' => PaymentStatus::FAILED->value,
-                    'cancelled_at' => now(),
-                    'cancel_reason' => 'Hệ thống tự động hủy: quá thời hạn thanh toán (' . $minutes . ' phút)',
-                ]);
+                // Guard atomic: chỉ hủy khi đơn VẪN ở trạng thái pending+unpaid.
+                // where(...)->update trả về số dòng bị ảnh hưởng — nếu 0 nghĩa là
+                // user (hoặc tiến trình khác) đã cancel/thanh toán trước → bỏ qua để
+                // KHÔNG hoàn trả tồn kho/coupon hai lần.
+                $affected = Order::where('order_id', $order->order_id)
+                    ->where('fulfillment_status', OrderStatus::PENDING->value)
+                    ->where('payment_status', PaymentStatus::UNPAID->value)
+                    ->update([
+                        'fulfillment_status' => OrderStatus::CANCELLED->value,
+                        'payment_status' => PaymentStatus::FAILED->value,
+                        'cancelled_at' => now(),
+                        'cancel_reason' => 'Hệ thống tự động hủy: quá thời hạn thanh toán (' . $minutes . ' phút)',
+                    ]);
+
+                if ($affected === 0) {
+                    DB::rollBack();
+                    continue;
+                }
 
                 // Ghi lịch sử
                 OrderStatusHistory::create([

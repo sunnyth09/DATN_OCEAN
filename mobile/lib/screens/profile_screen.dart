@@ -1,8 +1,8 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
-import '../services/auth_service.dart';
-import '../services/api_client.dart';
-import '../config/app_theme.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/cart_provider.dart';
 import 'login_screen.dart';
 import 'address_screen.dart';
 import 'change_password_screen.dart';
@@ -44,33 +44,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isGuest = false;
     });
 
-    final loggedIn = await AuthService.isLoggedIn();
-    if (!loggedIn) {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated) {
       if (mounted) setState(() { isGuest = true; isLoading = false; });
       return;
     }
 
     try {
-      final response = await ApiClient().dio.get('/me');
-      if (mounted) {
-        setState(() {
-          userData = response.data['user'];
-          isLoading = false;
-        });
+      final ok = await auth.loadProfile();
+      if (!mounted) return;
+      if (!ok) {
+        setState(() { isGuest = true; isLoading = false; });
+        return;
       }
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        await AuthService.logout();
-        if (mounted) setState(() { isGuest = true; isLoading = false; });
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage = 'Không thể lấy thông tin (${e.response?.statusCode})';
-            isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
+      setState(() {
+        userData = auth.user?.raw;
+        isLoading = false;
+      });
+    } catch (_) {
       if (mounted) setState(() { errorMessage = 'Lỗi kết nối máy chủ.'; isLoading = false; });
     }
   }
@@ -81,15 +72,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
-    await AuthService.logout();
-    if (mounted) {
-      Navigator.pop(context);
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    context.read<CartProvider>().clearCart();
+    context.pop(); // Close dialog
+    context.go('/login');
   }
 
   @override
@@ -247,7 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     userData?['role'] == 'seller' ||
                     userData?['role'] == 'staff') ...[
                   _buildMenuItem(Icons.qr_code_scanner, 'Máy quét POS', () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const PosScannerScreen()));
+                    context.push('/pos-scanner');
                   }),
                   _buildMenuItem(Icons.fingerprint, 'Điểm danh (Chấm công)', () {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const AttendanceScreen()));
@@ -264,22 +251,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   }
                 }),
                 _buildMenuItem(Icons.location_on_outlined, 'Sổ địa chỉ', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const AddressScreen()));
+                  context.push('/address');
                 }),
                 _buildMenuItem(Icons.lock_outline, 'Đổi mật khẩu', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen()));
+                  context.push('/change-password');
                 }),
                 _buildMenuItem(Icons.favorite_border, 'Sản phẩm yêu thích', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const FavoriteScreen()));
+                  context.push('/favorite');
                 }),
                 _buildMenuItem(Icons.confirmation_number_outlined, 'Mã giảm giá của tôi', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const MyCouponsScreen()));
+                  context.push('/my-coupons');
                 }),
                 _buildMenuItem(Icons.assignment_return_outlined, 'Yêu cầu hoàn hàng', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ReturnRequestsScreen()));
+                  context.push('/return-requests');
+                }),
+                _buildMenuItem(Icons.stars_outlined, 'Tích điểm đổi quà', () {
+                  context.push('/loyalty');
                 }),
                 _buildMenuItem(Icons.sports_tennis, 'Lịch sử đặt sân', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const BookingHistoryScreen()));
+                  context.push('/booking-history');
                 }),
                 const SizedBox(height: 8),
                 Padding(
@@ -287,10 +277,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Text('Khám phá', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8))),
                 ),
                 _buildMenuItem(Icons.flash_on, 'Flash Sale', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const FlashSaleScreen()));
+                  context.push('/flash-sale');
                 }),
                 _buildMenuItem(Icons.local_offer_outlined, 'Săn Voucher', () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const CouponScreen()));
+                  context.push('/coupon');
                 }),
                 _buildMenuItem(Icons.article_outlined, 'Chính sách & Quy định', () {}),
                 const SizedBox(height: 16),
@@ -310,7 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: ListTile(
@@ -318,7 +308,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: isLogout ? Colors.red.withOpacity(0.1) : const Color(0xFFF1F5F9),
+            color: isLogout ? Colors.red.withValues(alpha: 0.1) : const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: isLogout ? Colors.red : const Color(0xFF64748B), size: 20),

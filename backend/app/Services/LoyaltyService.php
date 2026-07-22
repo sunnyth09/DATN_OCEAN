@@ -45,6 +45,16 @@ class LoyaltyService
         $rule = LoyaltyRule::findByKey('ORDER_COMPLETE');
         if (!$rule) return null;
 
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
+            ->where('reference_type', Order::class)
+            ->where('reference_id', $order->order_id)
+            ->where('description', 'like', 'Tích điểm đơn hàng%')
+            ->exists();
+
+        if ($alreadyEarned) return null;
+
+        if ($order->grand_total < 100000) return null;
+
         // 1 point / 10.000đ
         $points = (int) floor(($order->grand_total / 10000) * $rule->points_per_unit);
 
@@ -67,6 +77,12 @@ class LoyaltyService
     {
         $rule = LoyaltyRule::findByKey('FIRST_ORDER');
         if (!$rule) return null;
+
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
+            ->where('description', 'like', 'Bonus đơn hàng đầu tiên%')
+            ->exists();
+
+        if ($alreadyEarned) return null;
 
         $points = (int) $rule->points_per_unit;
         if ($points <= 0) return null;
@@ -345,7 +361,10 @@ class LoyaltyService
             throw new \InvalidArgumentException('Số điểm burn phải > 0');
         }
 
-        $currentBalance = $this->getBalance($user->user_id);
+        // Khóa dòng user và đọc lại balance DƯỚI khóa để chống race (double-spend điểm).
+        // burnPoints được gọi bên trong DB::transaction() của OrderService nên khóa
+        // được giữ suốt quá trình checkout.
+        $currentBalance = $this->getBalanceForUpdate($user->user_id);
 
         if ($currentBalance < $pointsToUse) {
             throw new \Exception("Không đủ điểm. Hiện có: {$currentBalance}, cần: {$pointsToUse}");
@@ -397,23 +416,26 @@ class LoyaltyService
 
         if ($alreadyRefunded) return null;
 
-        $currentBalance = $this->getBalance($user->user_id);
-        $newBalance     = $currentBalance + $burnTx->points;
+        return DB::transaction(function () use ($user, $order, $burnTx) {
+            // Đọc balance dưới khóa dòng để tránh race với burn/adjust đồng thời.
+            $currentBalance = $this->getBalanceForUpdate($user->user_id);
+            $newBalance     = $currentBalance + $burnTx->points;
 
-        DB::table('users')
-            ->where('user_id', $user->user_id)
-            ->increment('reward_points', $burnTx->points);
+            DB::table('users')
+                ->where('user_id', $user->user_id)
+                ->increment('reward_points', $burnTx->points);
 
-        return LoyaltyTransaction::create([
-            'user_id'        => $user->user_id,
-            'type'           => 'refund',
-            'points'         => $burnTx->points,
-            'balance_before' => $currentBalance,
-            'balance_after'  => $newBalance,
-            'reference_type' => Order::class,
-            'reference_id'   => $order->order_id,
-            'description'    => "Hoàn {$burnTx->points} điểm từ đơn #{$order->order_code}",
-        ]);
+            return LoyaltyTransaction::create([
+                'user_id'        => $user->user_id,
+                'type'           => 'refund',
+                'points'         => $burnTx->points,
+                'balance_before' => $currentBalance,
+                'balance_after'  => $newBalance,
+                'reference_type' => Order::class,
+                'reference_id'   => $order->order_id,
+                'description'    => "Hoàn {$burnTx->points} điểm từ đơn #{$order->order_code}",
+            ]);
+        });
     }
 
     // ─── ADMIN ADJUST ────────────────────────────────────────────────────
@@ -428,32 +450,36 @@ class LoyaltyService
      */
     public function adjustPoints(int $userId, int $delta, string $description, int $adminId): LoyaltyTransaction
     {
-        $user           = User::findOrFail($userId);
-        $currentBalance = $this->getBalance($userId);
-        $points         = abs($delta);
-        $type           = 'adjust';
+        $user  = User::findOrFail($userId);
+        $points = abs($delta);
+        $type   = 'adjust';
 
-        if ($delta > 0) {
-            DB::table('users')->where('user_id', $userId)->increment('reward_points', $points);
-            $newBalance = $currentBalance + $points;
-        } else {
-            if ($currentBalance < $points) {
-                throw new \Exception("Không thể trừ {$points} điểm. Số dư hiện tại: {$currentBalance}");
+        return DB::transaction(function () use ($userId, $delta, $points, $type, $description, $adminId) {
+            // Đọc balance dưới khóa dòng để chống race với burn/refund/adjust đồng thời.
+            $currentBalance = $this->getBalanceForUpdate($userId);
+
+            if ($delta > 0) {
+                DB::table('users')->where('user_id', $userId)->increment('reward_points', $points);
+                $newBalance = $currentBalance + $points;
+            } else {
+                if ($currentBalance < $points) {
+                    throw new \Exception("Không thể trừ {$points} điểm. Số dư hiện tại: {$currentBalance}");
+                }
+                DB::table('users')->where('user_id', $userId)->decrement('reward_points', $points);
+                $newBalance = $currentBalance - $points;
             }
-            DB::table('users')->where('user_id', $userId)->decrement('reward_points', $points);
-            $newBalance = $currentBalance - $points;
-        }
 
-        return LoyaltyTransaction::create([
-            'user_id'        => $userId,
-            'type'           => $type,
-            'points'         => $points,
-            'balance_before' => $currentBalance,
-            'balance_after'  => $newBalance,
-            'reference_type' => 'admin',
-            'reference_id'   => $adminId,
-            'description'    => $description . ($delta < 0 ? " (-{$points}đ)" : " (+{$points}đ)"),
-        ]);
+            return LoyaltyTransaction::create([
+                'user_id'        => $userId,
+                'type'           => $type,
+                'points'         => $points,
+                'balance_before' => $currentBalance,
+                'balance_after'  => $newBalance,
+                'reference_type' => 'admin',
+                'reference_id'   => $adminId,
+                'description'    => $description . ($delta < 0 ? " (-{$points}đ)" : " (+{$points}đ)"),
+            ]);
+        });
     }
 
     // ─── EXPIRY JOB ─────────────────────────────────────────────────────
@@ -531,6 +557,19 @@ class LoyaltyService
     {
         return (int) DB::table('users')
             ->where('user_id', $userId)
+            ->value('reward_points') ?? 0;
+    }
+
+    /**
+     * Đọc số dư điểm DƯỚI khóa dòng (SELECT ... FOR UPDATE).
+     * PHẢI gọi bên trong một DB::transaction() để khóa có hiệu lực.
+     * Dùng cho các luồng mutate điểm (burn/refund/adjust) để chống race.
+     */
+    private function getBalanceForUpdate(int $userId): int
+    {
+        return (int) DB::table('users')
+            ->where('user_id', $userId)
+            ->lockForUpdate()
             ->value('reward_points') ?? 0;
     }
 

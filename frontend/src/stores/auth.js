@@ -175,6 +175,10 @@ export const useAuthStore = defineStore('auth', () => {
     unreadNotificationCount.value += amount;
   };
 
+  const decrementUnreadNotificationCount = (amount = 1) => {
+    unreadNotificationCount.value = Math.max(0, unreadNotificationCount.value - amount);
+  };
+
   const resetUnreadNotificationCount = () => {
     unreadNotificationCount.value = 0;
   };
@@ -200,6 +204,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     fetchUnreadNotificationCount,
     incrementUnreadNotificationCount,
+    decrementUnreadNotificationCount,
     resetUnreadNotificationCount,
   };
 });

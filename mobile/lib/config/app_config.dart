@@ -26,8 +26,8 @@ class AppConfig {
     return _apiIpOverride.isNotEmpty ? _apiIpOverride : '10.0.2.2';
   }
 
-  static String get kLocalBaseUrl => 'http://$_localIp:8383/api';
-  static String get kLocalStorageUrl => 'http://$_localIp:8383/storage';
+  static String get kLocalBaseUrl => 'https://kilometric-unprotrusively-romona.ngrok-free.dev/api';
+  static String get kLocalStorageUrl => 'https://kilometric-unprotrusively-romona.ngrok-free.dev/storage';
 
   static String get kBaseUrl {
     if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;

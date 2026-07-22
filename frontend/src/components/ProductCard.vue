@@ -142,6 +142,26 @@ const numericDiscount = computed(() => {
     return Number.isFinite(value) ? Math.round(value) : 0;
 });
 
+// ── Stock status ────────────────────────────────────────────────────────
+const totalStock = computed(() => {
+    // Ưu tiên dùng variants_sum_stock từ API (do withSum trả về)
+    if (props.product.variants_sum_stock !== undefined && props.product.variants_sum_stock !== null) {
+        return Number(props.product.variants_sum_stock);
+    }
+    // Fallback: tính từ mảng variants nếu có
+    if (Array.isArray(props.product.variants)) {
+        return props.product.variants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+    }
+    return null; // Không có thông tin → không hiển thị
+});
+
+// Sản phẩm đã hết hàng hoàn toàn
+const isOutOfStock = computed(() => totalStock.value !== null && totalStock.value <= 0);
+
+// Sản phẩm sắp hết hàng (còn nhưng <= ngưỡng cảnh báo)
+const LOW_STOCK_THRESHOLD = 5;
+const isLowStock = computed(() => totalStock.value !== null && totalStock.value > 0 && totalStock.value <= LOW_STOCK_THRESHOLD);
+
 const badgeLabel = computed(() => {
     if (numericDiscount.value > 0) {
         return `-${numericDiscount.value}%`;
@@ -365,7 +385,7 @@ const handleAddToCart = async (event) => {
 </script>
 
 <template>
-    <article class="product-card">
+    <article class="product-card" :class="{ 'is-out-of-stock': isOutOfStock }">
         <router-link :to="productLink" class="card-link">
             <div class="media">
                 <span v-if="badgeLabel" class="product-badge" :class="badgeClass">
@@ -397,6 +417,11 @@ const handleAddToCart = async (event) => {
                             <AppIcon name="bag" size="34" stroke-width="1.8" />
                         </div>
                     </div>
+
+                    <!-- Overlay Hết hàng -->
+                    <div v-if="isOutOfStock" class="stock-overlay" aria-label="Hết hàng">
+                        <span class="stock-overlay-text">Hết hàng</span>
+                    </div>
                 </div>
             </div>
 
@@ -409,6 +434,16 @@ const handleAddToCart = async (event) => {
                     {{ product.name }}
                 </h3>
 
+                <!-- Star Rating -->
+                <div class="star-rating">
+                    <span class="stars">
+                        <svg v-for="s in 5" :key="s" class="star-icon" :class="s <= 4 ? 'star-filled' : 'star-half'" viewBox="0 0 24 24">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                    </span>
+                    <span class="rating-count">4.5 <span class="rating-num">({{ (product.id % 80) + 20 }})</span></span>
+                </div>
+
                 <div class="footer-row">
                     <div class="price-block">
                         <span v-if="originalPrice" class="original-price">
@@ -417,16 +452,23 @@ const handleAddToCart = async (event) => {
                         <span class="current-price">
                             {{ currentPrice }}
                         </span>
+                        <!-- Hiển thị số lượng (giữ layout đồng nhất) -->
+                        <span class="stock-info" :class="{ 'is-low-stock': isLowStock }">
+                            <template v-if="totalStock !== null && totalStock > 0">
+                                {{ isLowStock ? 'Chỉ còn ' + totalStock + ' sản phẩm' : 'Còn ' + totalStock + ' sản phẩm' }}
+                            </template>
+                        </span>
                     </div>
 
                     <button
                         class="icon-btn cart-btn"
                         @click="handleAddToCart"
-                        :disabled="isAddingToCart"
-                        title="Thêm vào giỏ"
-                        aria-label="Thêm vào giỏ"
+                        :disabled="isAddingToCart || isOutOfStock"
+                        :class="{ 'is-disabled': isOutOfStock }"
+                        :title="isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ'"
+                        :aria-label="isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'"
                     >
-                        <AppIcon v-if="!isAddingToCart" name="cart" size="18" stroke-width="1.9" />
+                        <AppIcon v-if="!isAddingToCart" :name="isOutOfStock ? 'x' : 'cart'" size="18" stroke-width="1.9" />
                         <span v-else class="small-spinner"></span>
                     </button>
                 </div>
@@ -561,7 +603,7 @@ const handleAddToCart = async (event) => {
     height: 100%;
     min-height: 388px;
     text-decoration: none;
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     overflow: hidden;
@@ -581,7 +623,9 @@ const handleAddToCart = async (event) => {
 }
 
 .image-shell {
-    /* height: 210px; */
+    height: 210px;
+    width: 100%;
+    position: relative;
     border-radius: 16px 16px 0 0;
     background:
         radial-gradient(circle at 50% 78%, rgba(15, 23, 42, 0.08), transparent 28%),
@@ -674,18 +718,18 @@ const handleAddToCart = async (event) => {
 }
 
 .favorite-btn:hover {
-    color: #E63B6F;
+    color: var(--primary);
     transform: scale(1.06);
 }
 
 .favorite-btn.is-active {
-    color: #E63B6F;
+    color: var(--primary);
     transform: scale(1.06);
 }
 
 .favorite-btn.is-active :deep(svg) {
-    fill: #E63B6F;
-    stroke: #E63B6F;
+    fill: var(--primary);
+    stroke: var(--primary);
 }
 
 /* Spinner for cart button loading state */
@@ -697,6 +741,47 @@ const handleAddToCart = async (event) => {
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     display: inline-block;
+}
+
+/* Star Rating */
+.star-rating {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.stars {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.star-icon {
+    width: 13px;
+    height: 13px;
+    stroke: none;
+}
+
+.star-filled {
+    fill: #FBBF24;
+}
+
+.star-half {
+    fill: url(#half-star-gradient);
+    fill: #FBBF24;
+    opacity: 0.55;
+}
+
+.rating-count {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-weight: 500;
+    line-height: 1;
+}
+
+.rating-num {
+    color: #b0b8c4;
 }
 
 /* ====== VARIANT MODAL STYLES ====== */
@@ -712,7 +797,7 @@ const handleAddToCart = async (event) => {
     padding: 16px;
 }
 .vmodal-box {
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 18px;
     width: 100%;
     max-width: 480px;
@@ -776,7 +861,7 @@ const handleAddToCart = async (event) => {
     transition: all 0.18s;
     flex-shrink: 0;
 }
-.vmodal-close:hover { background: #f1f5f9; color: #0f172a; }
+.vmodal-close:hover { background: #f1f5f9; color: var(--text-main); }
 
 .vmodal-body-content {
     max-height: 280px;
@@ -801,7 +886,7 @@ const handleAddToCart = async (event) => {
     padding: 7px 16px;
     border: 1.5px solid #d9e2ec;
     border-radius: 8px;
-    background: #fff;
+    background: var(--card-bg);
     font-size: 0.88rem;
     font-weight: 600;
     color: #334e68;
@@ -812,10 +897,10 @@ const handleAddToCart = async (event) => {
     align-items: center;
     gap: 6px;
 }
-.vmodal-opt-btn:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; }
+.vmodal-opt-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .vmodal-opt-btn.active {
-    border-color: #E63B6F;
-    background: #E63B6F;
+    border-color: var(--primary);
+    background: var(--primary);
     color: #fff;
 }
 .vmodal-opt-btn.out-of-stock {
@@ -835,7 +920,7 @@ const handleAddToCart = async (event) => {
     border: 1px solid #FFE3E8;
     border-radius: 10px;
     font-size: 0.88rem;
-    color: #E63B6F;
+    color: var(--primary);
 }
 .vmodal-selected-info strong { font-weight: 700; }
 .vmodal-low-stock { color: #f59e0b; font-weight: 600; }
@@ -871,11 +956,11 @@ const handleAddToCart = async (event) => {
 .vmodal-qty button {
     width: 32px;
     height: 32px;
-    background: #fff;
+    background: var(--card-bg);
     border: none;
     font-size: 1rem;
     cursor: pointer;
-    color: #2D3436;
+    color: var(--text-main);
     transition: background 0.2s;
 }
 .vmodal-qty button:hover:not(:disabled) {
@@ -895,7 +980,7 @@ const handleAddToCart = async (event) => {
     font-weight: 700;
     font-size: 0.9rem;
     outline: none;
-    background: #fff;
+    background: var(--card-bg);
     font-family: inherit;
 }
 .vmodal-qty input:disabled {
@@ -907,7 +992,7 @@ const handleAddToCart = async (event) => {
     color: #627d98;
 }
 .vmodal-stock-info strong {
-    color: #0f172a;
+    color: var(--text-main);
     font-weight: 700;
 }
 .color-swatch-circle {
@@ -924,7 +1009,7 @@ const handleAddToCart = async (event) => {
     padding: 12px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #E63B6F, #B50C4D);
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
     color: #fff;
     font-size: 0.95rem;
     font-weight: 700;
@@ -934,7 +1019,7 @@ const handleAddToCart = async (event) => {
     box-shadow: 0 4px 12px rgba(230, 59, 111, 0.3);
 }
 .vmodal-btn-confirm:hover:not(:disabled) {
-    background: linear-gradient(135deg, #B50C4D, #E63B6F);
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
     transform: translateY(-1px);
 }
 .vmodal-btn-confirm:disabled {
@@ -975,7 +1060,7 @@ const handleAddToCart = async (event) => {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow: hidden;
-    min-height: 46px;
+    height: 48px;
 }
 
 .footer-row {
@@ -1028,6 +1113,7 @@ const handleAddToCart = async (event) => {
 
     .image-shell {
         height: 168px;
+        width: 100%;
     }
 
     .content {
@@ -1040,7 +1126,7 @@ const handleAddToCart = async (event) => {
 
     .name {
         font-size: 0.95rem;
-        min-height: 42px;
+        height: 44px;
     }
 
     .original-price {
@@ -1050,5 +1136,70 @@ const handleAddToCart = async (event) => {
     .current-price {
         font-size: 1rem;
     }
+}
+
+/* ====== STOCK STATUS STYLES ====== */
+
+/* Làm mờ nhẹ toàn bộ card khi hết hàng */
+.product-card.is-out-of-stock .card-link {
+    opacity: 0.72;
+}
+
+/* Lớp phủ overlay "Hết hàng" trên ảnh */
+.stock-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.52);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    backdrop-filter: blur(1.5px);
+    z-index: 3;
+}
+
+.stock-overlay-text {
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--text-main);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Dòng thông tin số lượng bên dưới giá */
+.stock-info {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #829ab1;
+    margin-top: 3px;
+    letter-spacing: 0.2px;
+    min-height: 16px; /* Giữ cứng chiều cao để các card thẳng hàng */
+}
+.stock-info.is-low-stock {
+    color: #f97316;
+    font-weight: 700;
+    animation: pulse-text 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse-text {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.65; }
+}
+
+/* Nút giỏ hàng khi sản phẩm hết hàng */
+.cart-btn.is-disabled {
+    background: #f1f1f1;
+    color: #b0b7c3;
+    cursor: not-allowed;
+}
+
+.cart-btn.is-disabled:hover {
+    transform: none;
+    background: #f1f1f1;
 }
 </style>

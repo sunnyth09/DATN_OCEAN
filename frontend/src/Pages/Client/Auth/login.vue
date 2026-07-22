@@ -264,7 +264,7 @@ const login = async () => {
 .auth-box-classic {
   width: 100%;
   max-width: 1000px;
-  background: #ffffff;
+  background: var(--card-bg);
   border-radius: 20px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
   /* Clean boxed shadow */
@@ -278,7 +278,7 @@ const login = async () => {
   flex: 1;
   /* 50% width */
   padding: 48px;
-  background: #ffffff;
+  background: var(--card-bg);
   display: flex;
   align-items: center;
   position: relative;
@@ -309,7 +309,7 @@ const login = async () => {
 }
 
 .brand-text {
-  color: #0f172a;
+  color: var(--text-main);
   font-weight: 800;
   font-size: 1.3rem;
   letter-spacing: -0.5px;
@@ -365,7 +365,7 @@ const login = async () => {
 }
 
 .input-modern-wrapper:focus-within {
-  background: #ffffff;
+  background: var(--card-bg);
   border-color: #ffd9de;
   box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
@@ -380,7 +380,7 @@ const login = async () => {
   background: transparent;
   padding: 0;
   font-size: 0.95rem;
-  color: #0f172a;
+  color: var(--text-main);
   outline: none;
   font-weight: 500;
   height: 100%;
@@ -401,7 +401,7 @@ const login = async () => {
 }
 
 .input-modern-wrapper:focus-within .icon {
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .input-password {
@@ -423,7 +423,7 @@ const login = async () => {
 }
 
 .toggle-pw:hover {
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .field-error {
@@ -471,12 +471,12 @@ const login = async () => {
 }
 
 .remember-me:hover input~.checkmark {
-  border-color: #E63B6F;
+  border-color: var(--primary);
 }
 
 .remember-me input:checked~.checkmark {
-  background-color: #E63B6F;
-  border-color: #E63B6F;
+  background-color: var(--primary);
+  border-color: var(--primary);
 }
 
 .remember-me input:checked~.checkmark:after {
@@ -491,7 +491,7 @@ const login = async () => {
 }
 
 .recover-link {
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 600;
   text-decoration: none;
   transition: 0.2s;
@@ -527,7 +527,7 @@ const login = async () => {
 }
 
 .btn-primary {
-  background: #E63B6F;
+  background: var(--primary);
   color: white;
   border: none;
   border-radius: 10px;
@@ -602,7 +602,7 @@ const login = async () => {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  background: #ffffff;
+  background: var(--card-bg);
   color: #334155;
 }
 
@@ -620,7 +620,7 @@ const login = async () => {
 }
 
 .register-hint a {
-  color: #E63B6F;
+  color: var(--primary);
   font-weight: 700;
   text-decoration: none;
   position: relative;

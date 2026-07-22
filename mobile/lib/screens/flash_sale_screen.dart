@@ -1,9 +1,11 @@
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../widgets/network_image_widget.dart';
 import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
+import '../widgets/shimmer_loading.dart';
 import 'product_detail_screen.dart';
 
 class FlashSaleScreen extends StatefulWidget {
@@ -51,18 +53,20 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
         } else if (data['data'] is Map && data['data']['data'] is List) {
           list = data['data']['data'];
         }
-        if (mounted)
+        if (mounted) {
           setState(() {
             flashSales = list;
             isLoading = false;
           });
+        }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           errorMessage = 'Không thể tải Flash Sale';
           isLoading = false;
         });
+      }
     }
   }
 
@@ -75,7 +79,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
             RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
             (m) => '${m[1]}.',
           );
-      return '${formatted}đ';
+      return '$formattedđ';
     } catch (_) {
       return price.toString();
     }
@@ -104,11 +108,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           SliverToBoxAdapter(child: _buildHero()),
           // Content
           if (isLoading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              ),
-            )
+            const SliverShimmerLoading()
           else if (errorMessage != null)
             SliverFillRemaining(
               child: Center(
@@ -193,7 +193,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => context.pop(),
                   ),
                   const Spacer(),
                   const Text(
@@ -229,7 +229,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                       Text(
                         'CHƯƠNG TRÌNH ĐẶC BIỆT',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.75),
+                          color: Colors.white.withValues(alpha: 0.75),
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 2,
@@ -269,7 +269,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -286,7 +286,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                     'Số lượng cực kỳ có hạn — Cơ hội săn deal không thể bỏ lỡ!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.75),
+                      color: Colors.white.withValues(alpha: 0.75),
                       fontSize: 13,
                     ),
                   ),
@@ -315,7 +315,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
         border: Border.all(color: const Color(0xFFF1F3F5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -361,7 +361,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                   Row(
                     children: [
                       _countdownBox(
-                        '${countdown['h']!.toString().padLeft(2, '0')}',
+                        countdown['h']!.toString().padLeft(2, '0'),
                       ),
                       const Text(
                         ' : ',
@@ -371,7 +371,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                         ),
                       ),
                       _countdownBox(
-                        '${countdown['m']!.toString().padLeft(2, '0')}',
+                        countdown['m']!.toString().padLeft(2, '0'),
                       ),
                       const Text(
                         ' : ',
@@ -381,7 +381,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                         ),
                       ),
                       _countdownBox(
-                        '${countdown['s']!.toString().padLeft(2, '0')}',
+                        countdown['s']!.toString().padLeft(2, '0'),
                       ),
                     ],
                   ),
@@ -443,19 +443,16 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
 
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailScreen(product: product),
-          ),
-        );
+        context.push('/product-detail', extra: product);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
             // Image
-            NetworkImageWidget(
+            Hero(
+              tag: product['id'] ?? product['slug'] ?? UniqueKey().toString(),
+              child: NetworkImageWidget(
               imageUrl: imageUrl,
               width: 80,
               height: 80,
@@ -467,6 +464,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                 color: const Color(0xFFF1F5F9),
                 child: const Icon(Icons.image, color: Colors.grey),
               ),
+            ),
             ),
             const SizedBox(width: 14),
             // Info
@@ -503,7 +501,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(

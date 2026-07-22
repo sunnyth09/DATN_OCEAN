@@ -91,6 +91,7 @@ onMounted(() => {
 
 <template>
     <div class="payment-result-page">
+      <div class="container d-flex justify-content-center">
         <!-- Loading State -->
         <div v-if="loading" class="result-loading">
             <div class="loading-spinner"></div>
@@ -196,6 +197,7 @@ onMounted(() => {
                 <router-link to="/" class="btn-secondary">Về trang chủ</router-link>
             </div>
         </div>
+      </div>
     </div>
 </template>
 
@@ -219,7 +221,7 @@ onMounted(() => {
     width: 56px;
     height: 56px;
     border: 4px solid #e2e8f0;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin: 0 auto 20px;
@@ -237,7 +239,7 @@ onMounted(() => {
 
 /* Card */
 .result-card {
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 20px;
     padding: 48px 40px;
     max-width: 520px;
@@ -328,13 +330,13 @@ onMounted(() => {
 }
 
 .detail-value {
-    color: #0f172a;
+    color: var(--text-main);
     font-size: 0.9rem;
     font-weight: 600;
 }
 
 .detail-value.highlight {
-    color: #E63B6F;
+    color: var(--primary);
     font-family: 'Roboto Mono', monospace;
     letter-spacing: 0.5px;
 }
@@ -369,7 +371,7 @@ onMounted(() => {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: linear-gradient(135deg, #E63B6F, #C4305D);
+    background: linear-gradient(135deg, var(--primary), #C4305D);
     color: #fff;
     padding: 12px 28px;
     border-radius: 10px;

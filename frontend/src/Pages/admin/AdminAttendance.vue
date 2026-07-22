@@ -525,16 +525,16 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
 
 .clock-badge { background: #eef2ff; color: #4f46e5; padding: 8px 16px; border-radius: 50px; font-weight: bold; font-size: 1.1rem; }
 .shift-badge { background: #dcfce3; color: #065f46; padding: 6px 14px; border-radius: 50px; font-weight: 600; font-size: 0.85rem; }
-.shift-badge-off { background: #f3f4f6; color: #6b7280; }
+.shift-badge-off { background: #f3f4f6; color: var(--text-muted); }
 
-.shift-status-row { background: #f9fafb; transition: all 0.2s; }
+.shift-status-row { background: var(--surface-container); transition: all 0.2s; }
 .shift-status-row:hover { background: #f0f2f5; }
 .shift-current { background: #eef2ff !important; border: 1px solid #c7d2fe; }
 
 .result-grid { display: flex; flex-direction: column; gap: 8px; }
 .result-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f3f4f6; }
 .result-item:last-child { border-bottom: none; }
-.result-label { color: #6b7280; font-size: 0.9rem; }
+.result-label { color: var(--text-muted); font-size: 0.9rem; }
 .result-value { font-size: 0.9rem; }
 
 .camera-box { border-radius: 16px; overflow: hidden; }
@@ -610,7 +610,7 @@ onUnmounted(() => { clearInterval(clockInterval); stopCamera(); });
 }
 .scan-step {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
-  color: #94a3b8; font-size: 0.7rem; font-weight: 600;
+  color: var(--text-light); font-size: 0.7rem; font-weight: 600;
   transition: all 0.3s; min-width: 60px;
 }
 .scan-step i { font-size: 1.2rem; }

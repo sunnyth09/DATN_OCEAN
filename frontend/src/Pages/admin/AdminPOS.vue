@@ -443,7 +443,25 @@ let barcodeBuffer = '';
 let barcodeTimeout = null;
 
 const handleGlobalKeydown = (e) => {
-  // Nếu đang focus vào input khác (search, form...) thì bỏ qua
+  // Bắt phím tắt POS
+  if (e.key === 'F2') {
+    e.preventDefault();
+    if (cartItems.value.length > 0) processCheckout();
+    return;
+  }
+  if (e.key === 'F3') {
+    e.preventDefault();
+    const searchInput = document.querySelector('.pos-search input');
+    if (searchInput) searchInput.focus();
+    return;
+  }
+  if (e.key === 'F4') {
+    e.preventDefault();
+    printInvoice();
+    return;
+  }
+
+  // Nếu đang focus vào input khác (search, form...) thì bỏ qua phần quét mã vạch
   const activeEl = document.activeElement;
   const isOtherInput = activeEl && 
     (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && 
@@ -868,7 +886,7 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 .scanner-toggle-btn.active {
-  background: linear-gradient(135deg, #FF6B9D, #E63B6F);
+  background: linear-gradient(135deg, #FF6B9D, var(--primary));
   color: white;
   border-color: transparent;
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35);
@@ -893,7 +911,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #FF6B9D, #E63B6F, #FF6B9D);
+  background: linear-gradient(90deg, #FF6B9D, var(--primary), #FF6B9D);
   background-size: 200% 100%;
   animation: scannerLine 2s linear infinite;
 }
@@ -920,7 +938,7 @@ onUnmounted(() => {
 }
 .scanner-icon {
   font-size: 1.8rem;
-  color: #E63B6F;
+  color: var(--primary);
   transition: all 0.3s;
 }
 .scanner-icon.scanning {
@@ -960,7 +978,7 @@ onUnmounted(() => {
   transition: border-color 0.3s;
 }
 .barcode-input:focus {
-  border-color: #E63B6F;
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
 }
 .barcode-submit-btn {
@@ -970,7 +988,7 @@ onUnmounted(() => {
 }
 
 .scanner-hint {
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 0.78rem;
   width: 100%;
   padding-left: 62px;
@@ -1097,7 +1115,7 @@ onUnmounted(() => {
 .product-title {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
   margin-bottom: 6px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1142,7 +1160,7 @@ onUnmounted(() => {
 }
 .cart-header-icon {
   font-size: 1.2rem;
-  color: #E63B6F;
+  color: var(--primary);
 }
 .cart-header-title {
   margin: 0;
@@ -1151,7 +1169,7 @@ onUnmounted(() => {
   color: var(--text-main, #102a43);
 }
 .cart-count-badge {
-  background: #E63B6F;
+  background: var(--primary);
   color: white;
   font-size: 0.7rem;
   font-weight: 700;
@@ -1387,7 +1405,7 @@ onUnmounted(() => {
   outline: none;
 }
 .input-icon-wrapper input:focus {
-  border-color: #E63B6F;
+  border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(230, 59, 111, 0.1);
 }
 .input-icon-wrapper input::placeholder {
@@ -1443,12 +1461,12 @@ onUnmounted(() => {
   border-color: var(--ocean-mid, #b3e0f2);
 }
 .pay-method.active {
-  border-color: #E63B6F;
+  border-color: var(--primary);
   background: linear-gradient(135deg, rgba(230, 59, 111, 0.06), rgba(230, 59, 111, 0.1));
 }
 .pay-method.active i,
 .pay-method.active span {
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 /* Coupon */
@@ -1479,7 +1497,7 @@ onUnmounted(() => {
   outline: none;
 }
 .coupon-input-wrap input:focus {
-  border-color: #E63B6F;
+  border-color: var(--primary);
 }
 .btn-coupon {
   padding: 7px 14px;
@@ -1492,7 +1510,7 @@ onUnmounted(() => {
   transition: all 0.2s;
 }
 .btn-coupon.apply {
-  background: #E63B6F;
+  background: var(--primary);
   color: white;
 }
 .btn-coupon.apply:hover {
@@ -1584,7 +1602,7 @@ onUnmounted(() => {
   padding: 14px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, #FF6B9D, #E63B6F);
+  background: linear-gradient(135deg, #FF6B9D, var(--primary));
   color: white;
   font-size: 1rem;
   font-weight: 700;
@@ -1626,18 +1644,18 @@ onUnmounted(() => {
 }
 
 .variant-item:hover:not(.is-out-of-stock) {
-    border-color: #94a3b8;
+    border-color: var(--text-light);
 }
 
 .variant-item.is-selected {
-    border-color: #E63B6F;
-    background-color: #FFF0F3;
+    border-color: var(--primary);
+    background-color: var(--hover-bg);
 }
 
 .variant-item.is-out-of-stock {
     opacity: 0.5;
     cursor: not-allowed;
-    background: #f8fafc;
+    background: var(--surface-container);
 }
 
 .variant-img {
@@ -1669,7 +1687,7 @@ onUnmounted(() => {
 }
 
 .vue-modal-content {
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 12px;
     padding: 24px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.15);

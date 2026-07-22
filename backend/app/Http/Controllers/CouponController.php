@@ -214,15 +214,19 @@ class CouponController extends Controller
      */
     public function saveCoupon(Request $request)
     {
-        // Ưu tiên guard 'api' (bảng users), fallback sang 'admin' (bảng admins)
+        // Chỉ khách hàng (guard 'api', bảng users) mới lưu được mã. KHÔNG fallback sang
+        // guard 'admin': admins là bảng riêng, dùng admin_id làm user_id sẽ ghi nhầm mã
+        // sang một khách hàng khác có cùng giá trị khóa (đụng không gian id giữa 2 bảng).
         $user = auth('api')->user();
         $userId = $user ? $user->user_id : null;
 
         if (!$userId && auth('admin')->check()) {
-            $adminUser = auth('admin')->user();
-            $userId = $adminUser->getKey();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Tài khoản nhân viên/quản trị không thể lưu mã giảm giá. Vui lòng đăng nhập bằng tài khoản khách hàng.'
+            ], 403);
         }
-        
+
         if (!$userId) {
             return response()->json([
                 'status' => 'error',

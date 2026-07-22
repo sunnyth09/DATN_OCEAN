@@ -45,9 +45,9 @@
               v-model="form.new_password"
               class="form-input"
               :class="{ 'form-input--error': errors.new_password }"
-              placeholder="Ít nhất 6 ký tự"
+              placeholder="Ít nhất 8 ký tự"
               autocomplete="new-password"
-              minlength="6"
+              minlength="8"
               required
             />
             <button type="button" class="eye-btn" @click="show.newPw = !show.newPw" tabindex="-1">
@@ -68,7 +68,7 @@
               :class="{ 'form-input--error': confirmMismatch }"
               placeholder="Nhập lại mật khẩu mới"
               autocomplete="new-password"
-              minlength="6"
+              minlength="8"
               required
             />
             <button type="button" class="eye-btn" @click="show.confirm = !show.confirm" tabindex="-1">
@@ -81,10 +81,13 @@
 
         <!-- Strength indicator -->
         <div v-if="form.new_password" class="strength-wrap">
+          <div class="strength-header">
+            <span class="strength-title">Độ bảo mật:</span>
+            <span class="strength-label" :class="strength.cls">{{ strength.label }}</span>
+          </div>
           <div class="strength-bar">
             <div class="strength-fill" :class="strength.cls" :style="{ width: strength.pct + '%' }"></div>
           </div>
-          <span class="strength-label" :class="strength.cls">{{ strength.label }}</span>
         </div>
 
         <div class="form-actions">
@@ -143,7 +146,7 @@ const strength = computed(() => {
   const pw = form.value.new_password;
   if (!pw) return { pct: 0, label: '', cls: '' };
   let score = 0;
-  if (pw.length >= 6)  score++;
+  if (pw.length >= 8)  score++;
   if (pw.length >= 10) score++;
   if (/[A-Z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
@@ -163,7 +166,7 @@ const submitChangePassword = async () => {
   serverError.value = '';
 
   if (confirmMismatch.value) return;
-  if (form.value.new_password.length < 6) return;
+  if (form.value.new_password.length < 8) return;
 
   loading.value = true;
   try {
@@ -197,7 +200,7 @@ const submitChangePassword = async () => {
 }
 
 .section-header { margin-bottom: 4px; }
-.section-title  { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
+.section-title  { font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin: 0; }
 .section-desc   { font-size: 0.875rem; color: #6b7280; margin: 4px 0 0; }
 
 .alert {
@@ -212,7 +215,7 @@ const submitChangePassword = async () => {
 .alert-error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
 
 .form-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 28px;
@@ -237,13 +240,13 @@ const submitChangePassword = async () => {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 0.9rem;
-  color: #111827;
+  color: var(--text-main);
   outline: none;
   transition: border 0.15s, box-shadow 0.15s;
-  background: #fff;
+  background: var(--card-bg);
   box-sizing: border-box;
 }
-.form-input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230,59,111,0.12); }
+.form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230,59,111,0.12); }
 .form-input--error { border-color: #ef4444; }
 
 .eye-btn {
@@ -257,29 +260,40 @@ const submitChangePassword = async () => {
   display: flex;
   align-items: center;
 }
-.eye-btn:hover { color: #E63B6F; }
+.eye-btn:hover { color: var(--primary); }
 
 .form-divider { height: 1px; background: #f3f4f6; }
 
 .error-text { font-size: 0.78rem; color: #ef4444; }
 
 /* Password Strength */
-.strength-wrap { display: flex; align-items: center; gap: 10px; }
-.strength-bar  { flex: 1; height: 5px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
-.strength-fill { height: 100%; border-radius: 99px; transition: width 0.3s, background 0.3s; }
-.strength-label { font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+.strength-wrap { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.strength-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+.strength-title { color: #6b7280; font-weight: 500; }
+.strength-label { font-weight: 700; transition: color 0.3s ease; }
+.strength-bar  { width: 100%; height: 6px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+.strength-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease-out, background-color 0.4s ease; }
 
-.str-veryweak  .strength-fill, .str-veryweak  { background: #ef4444; color: #ef4444; }
-.str-weak      .strength-fill, .str-weak      { background: #f97316; color: #f97316; }
-.str-medium    .strength-fill, .str-medium    { background: #eab308; color: #ca8a04; }
-.str-strong    .strength-fill, .str-strong    { background: #22c55e; color: #16a34a; }
-.str-verystrong .strength-fill, .str-verystrong { background: #10b981; color: #059669; }
+.strength-fill.str-veryweak { background-color: #ef4444; }
+.strength-label.str-veryweak { color: #ef4444; }
+
+.strength-fill.str-weak { background-color: #f97316; }
+.strength-label.str-weak { color: #f97316; }
+
+.strength-fill.str-medium { background-color: #f59e0b; }
+.strength-label.str-medium { color: #f59e0b; }
+
+.strength-fill.str-strong { background-color: #22c55e; }
+.strength-label.str-strong { color: #22c55e; }
+
+.strength-fill.str-verystrong { background-color: #10b981; }
+.strength-label.str-verystrong { color: #10b981; }
 
 /* Actions */
 .form-actions { margin-top: 8px; }
 .btn-primary {
   padding: 11px 28px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -293,7 +307,7 @@ const submitChangePassword = async () => {
   min-width: 180px;
   transition: background 0.2s;
 }
-.btn-primary:hover:not(:disabled) { background: #b50c4d; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
 .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
 
 .spinner {

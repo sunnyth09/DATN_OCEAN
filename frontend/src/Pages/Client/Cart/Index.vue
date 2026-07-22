@@ -493,7 +493,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="cart-page">
+    <div class="cart-page container">
         <!-- Toast -->
         <Transition name="toast">
             <div v-if="toast.show" class="toast-notification" :class="toast.type">
@@ -625,9 +625,8 @@ onUnmounted(() => {
                             <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
                                 Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
                             </div>
-
-                            <div class="item-price">{{ formatPrice(item.variant?.price) }}</div>
                         </div>
+                            <div class="item-price">{{ formatPrice(item.variant?.price) }}</div>
 
                         <!-- Spacer to push quantity to the right -->
                         <div style="flex: 1"></div>
@@ -689,7 +688,12 @@ onUnmounted(() => {
                             <div class="vat-note">(Đã bao gồm VAT nếu có)</div>
                         </div>
                     </div>
-                      
+
+                    <div class="coupon-section" style="display: flex; gap: 8px;">
+                        <BaseInput placeholder="Mã giảm giá" style="flex: 1; margin-bottom: 0;" />
+                        <BaseButton variant="secondary" size="md">Áp dụng</BaseButton>
+                    </div>
+
                     <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0">
                         Thanh toán
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -810,16 +814,16 @@ onUnmounted(() => {
         </Transition>
     </Teleport>
 
-    <section class="upsell-section">
+    <section class="upsell-section container mb-5">
         <h2 class="upsell-title">Có thể bạn cũng thích</h2>
-        <div class="container mb-5" v-if="productRelated.length">
+        <div v-if="productRelated.length">
             <div class="row mt-3">
                 <div class="col-lg-3 mt-4" v-for="product in productRelated" :key="product.id">
-                    <ProductCard :product="product" />
+                    <ProductCard :product="product" :rows="3" />
                 </div>
             </div>
         </div>
-        <div v-else class="empty-state">
+        <div v-else class="empty-state mt-4">
             <p>Không có sản phẩm liên quan</p>
         </div>
 
@@ -832,6 +836,13 @@ onUnmounted(() => {
     font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
     color: #102a43;
     min-height: 60vh;
+}
+
+.upsell-title {
+    font-size: 2rem;
+    font-weight: 800;
+    color: #102a43;
+    margin-bottom: 24px;
 }
 
 /* Page Header */
@@ -929,6 +940,7 @@ onUnmounted(() => {
     display: flex;
     gap: 24px;
     align-items: flex-start;
+    padding-bottom: 120px;
 }
 
 .cart-items-section {

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth';
 
 // ==================== CORE LAYOUTS (eager load) ====================
 import ClientLayout from "../layouts/ClientLayout.vue";
+import CheckoutLayout from "../layouts/CheckoutLayout.vue";
 
 // ==================== HOME PAGES (eager load - trang chính) ====================
 import Home from "../Pages/Client/Home/Home.vue";
@@ -27,8 +28,31 @@ const AdminCategory = () => import("../Pages/admin/AdminCategory.vue");
 const AdminStaff = () => import("../Pages/admin/AdminStaff.vue");
 const AdminContact = () => import("../Pages/admin/AdminContact.vue");
 const AdminCoupon = () => import("../Pages/admin/AdminCoupon.vue");
+const AdminRewards = () => import("../Pages/admin/AdminRewards.vue");
+const AdminUserRewards = () => import("../Pages/admin/AdminUserRewards.vue");
 
 const routes = [
+
+    {
+        path: "/cart",
+        component: CheckoutLayout,
+        children: [{ path: "", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { title: 'Giỏ hàng' } }]
+    },
+    {
+        path: "/checkout",
+        component: CheckoutLayout,
+        children: [{ path: "", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { title: 'Thanh toán' } }]
+    },
+    {
+        path: "/order-success/:order_code?",
+        component: CheckoutLayout,
+        children: [{ path: "", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { title: 'Đặt hàng thành công' } }]
+    },
+    {
+        path: "/payment/result",
+        component: CheckoutLayout,
+        children: [{ path: "", name: "payment-result", component: () => import("../Pages/Client/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } }]
+    },
     {
         path: "/",
         component: ClientLayout,
@@ -39,14 +63,8 @@ const routes = [
             { path: "product/:id", name: "product-detail", component: () => import("../Pages/Client/Home/productDetail.vue"), meta: { title: 'Chi tiết sản phẩm' } },
             // Flash Sale & Coupon
             { path: "flash-sale", name: "flash-sale", component: () => import("../Pages/Client/Home/FlashSale.vue"), meta: { title: 'Flash Sale' } },
-            { path: "coupon", name: "coupon", component: () => import("../Pages/Client/Home/Coupon.vue"), meta: { title: 'Mã giảm giá' } },
-            // Cart
-            { path: "cart", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { title: 'Giỏ hàng' } },
-            { path: "checkout", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { title: 'Thanh toán' } },
-            { path: "order-success/:order_code?", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { title: 'Đặt hàng thành công' } },
-            // Payment
-            { path: "payment/result", name: "payment-result", component: () => import("../Pages/Client/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } },
-            // Profile
+            { path: "coupon", name: "coupon", component: () => import("../Pages/Client/Home/Coupon.vue"), meta: { title: 'Mã giảm giá' } },            { path: "tracking", name: "guest-tracking", component: () => import("../Pages/Client/GuestTracking.vue"), meta: { title: 'Tra cứu đơn hàng' } },
+            { path: "tracking/:token", name: "guest-tracking-token", component: () => import("../Pages/Client/GuestTracking.vue"), meta: { title: 'Theo dõi đơn hàng' } },            // Profile
             {
                 path: "profile",
                 component: () => import("../Pages/Client/Profile/ProfileLayout.vue"),
@@ -63,6 +81,7 @@ const routes = [
                     { path: "coupons", name: "profile-coupons", component: () => import("../Pages/Client/Profile/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
                     { path: "affiliate", name: "profile-affiliate", component: () => import("../Pages/Client/Profile/ProfileAffiliate.vue"), meta: { title: 'Affiliate' } },
                     { path: "wallet", name: "profile-wallet", component: () => import("../Pages/Client/Profile/ProfileWallet.vue"), meta: { title: 'Ví của tôi' } },
+                    { path: "loyalty", name: "profile-loyalty", component: () => import("../Pages/Client/Profile/ProfileLoyalty.vue"), meta: { title: 'Điểm thưởng' } },
                     { path: "court-bookings", name: "profile-court-bookings", component: () => import("../Pages/Client/Courts/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
                     { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
                     { path: "loyalty", name: "profile-loyalty", component: () => import("../Pages/Client/Profile/ProfileLoyalty.vue"), meta: { title: 'Khách hàng thân thiết' } },
@@ -206,10 +225,22 @@ const routes = [
                 meta: { roles: ['admin', 'seller'], title: 'Tin nhắn khách hàng' },
             },
             {
-                path: "coupon",
-                name: "admin-coupon",
+                path: "coupons",
+                name: "admin-coupons",
                 component: AdminCoupon,
-                meta: { roles: ['admin'], title: 'Quản lý mã giảm giá' },
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý Mã giảm giá' },
+            },
+            {
+                path: "rewards",
+                name: "admin-rewards",
+                component: AdminRewards,
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý Quà Tặng' },
+            },
+            {
+                path: "user-rewards",
+                name: "admin-user-rewards",
+                component: AdminUserRewards,
+                meta: { roles: ['admin', 'staff'], title: 'Lịch sử đổi quà' },
             },
             {
                 path: "flash-sale",
@@ -222,6 +253,12 @@ const routes = [
                 name: "admin-wallet-deposits",
                 component: () => import("../Pages/admin/AdminWalletDeposits.vue"),
                 meta: { roles: ['admin'], title: 'Ví & Nạp tiền' },
+            },
+            {
+                path: "wallet-withdrawals",
+                name: "admin-wallet-withdrawals",
+                component: () => import("../Pages/admin/AdminWalletWithdrawals.vue"),
+                meta: { roles: ['admin'], title: 'Duyệt rút tiền' },
             },
             {
                 path: "post",
@@ -299,7 +336,7 @@ const routes = [
                 path: "work-locations",
                 name: "admin-work-locations",
                 component: () => import("../Pages/admin/AdminWorkLocations.vue"),
-                meta: { roles: ['admin'], title: 'Quản lý vị trí làm việc' },
+                meta: { roles: ['admin'], title: 'Quản lý chi nhánh' },
             },
             {
                 path: "work-shifts",

@@ -8,6 +8,7 @@ import AddressSelector from '@/components/AddressSelector.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
 import { walletService } from '@/services/walletService';
+import { loyaltyService } from '@/services/loyaltyService';
 import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/icons/AppIcon.vue';
 
@@ -56,7 +57,8 @@ const leadtimeDate = ref(null);
 
 
 // --- Thanh toán & Khác ---
-const paymentMethod = ref('cod'); // cod, vnpay, momo, banking
+const paymentMethod = ref('cod'); // cod, vnpay, momo, banking, wallet
+const walletBalance = ref(0);
 const note = ref('');
 
 // --- Banking QR Modal ---
@@ -139,6 +141,29 @@ const fetchBuyNowItem = async () => {
         router.push('/cart');
     }
 };
+
+// Lấy điểm thưởng (Loyalty Points)
+const loyaltyPoints = ref(0);
+const useLoyaltyPoints = ref(false);
+const inputPoints = ref(0);
+
+const fetchLoyaltyPoints = async () => {
+    if (!authStore.isAuthenticated) return;
+    try {
+        const res = await loyaltyService.getSummary();
+        if (res.data?.status === 'success') {
+            loyaltyPoints.value = res.data.data.current_balance || 0;
+        }
+    } catch (e) {
+        console.error('Lỗi khi lấy điểm thưởng:', e);
+    }
+};
+
+watch(() => authStore.isAuthenticated, (val) => {
+    if (val) {
+        fetchLoyaltyPoints();
+    }
+}, { immediate: true });
 
 // Lấy sản phẩm Flash Sale thay vì giỏ hàng
 const fetchFlashSaleData = async () => {
@@ -308,6 +333,7 @@ const shippingWeight = computed(() => {
         }, 0)
     );
 });
+
 const getShippingFee = async (district_id, ward_code) => {
     if (!district_id || !ward_code) return;
     isCalculatingFee.value = true;
@@ -377,15 +403,43 @@ const discount = computed(() => {
     }
 });
 
+const maxPointsCanUse = computed(() => {
+    let max = loyaltyPoints.value;
+    const totalBeforeLoyalty = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
+    const maxForTotal = Math.floor((totalBeforeLoyalty * 0.3) / 100);
+    return Math.min(max, maxForTotal);
+});
+
+watch(useLoyaltyPoints, (val) => {
+    if (val) {
+        inputPoints.value = maxPointsCanUse.value;
+    } else {
+        inputPoints.value = 0;
+    }
+});
+
+watch(inputPoints, (val) => {
+    if (val > maxPointsCanUse.value) {
+        inputPoints.value = maxPointsCanUse.value;
+    } else if (val < 0) {
+        inputPoints.value = 0;
+    }
+});
+
+const loyaltyDiscount = computed(() => {
+    if (!useLoyaltyPoints.value) return 0;
+    return (inputPoints.value || 0) * 100;
+});
+
 const total = computed(() => {
-    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
+    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value);
     return Math.max(0, base - walletDiscount.value);
 });
 
 // --- Wallet ---
 const walletDiscount = computed(() => {
     if (!useWallet.value || !walletPreview.value) return 0;
-    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value;
+    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value;
     return Math.min(walletPreview.value.total_available || 0, Math.max(0, maxDiscount));
 });
 
@@ -479,6 +533,7 @@ const placeOrder = async () => {
         referral_code: localStorage.getItem('affiliate_ref') || null,
         use_wallet: useWallet.value && walletDiscount.value > 0,
         wallet_amount: useWallet.value ? walletDiscount.value : 0,
+        reward_points_used: useLoyaltyPoints.value ? inputPoints.value : 0,
     };
 
     // --- Email nhận xác nhận đơn hàng (bắt buộc) ---
@@ -573,9 +628,12 @@ const placeOrder = async () => {
             if (isBuyNow.value) {
                 // Mua nhanh: chỉ dọn item tạm, KHÔNG đụng giỏ hàng
                 sessionStorage.removeItem('buy_now_item');
-            } else if (!authStore.isAuthenticated && !isFlashSale.value) {
-                // Xóa giỏ hàng local của guest
-                localStorage.removeItem('cart_items');
+            } else if (!isFlashSale.value) {
+                // Đặt từ giỏ hàng: backend đã xóa item khỏi giỏ (user đăng nhập),
+                // guest thì xóa giỏ local. Bắn cart-updated để badge refresh cho CẢ HAI.
+                if (!authStore.isAuthenticated) {
+                    localStorage.removeItem('cart_items');
+                }
                 window.dispatchEvent(new Event('cart-updated'));
             }
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {
@@ -635,15 +693,25 @@ const placeOrder = async () => {
 
 // Các hàm tiện ích
 const getProductImage = (item) => {
-    if (item.variant?.image_url) return `${APP_URL}/storage/${item.variant.image_url}`;
-    if (item.product?.main_image) return `${APP_URL}/storage/${item.product.main_image}`;
-    if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return `${APP_URL}/storage/${item.product.thumbnail_url}`;
+    const getStorageUrl = (path) => {
+        if (!path) return 'https://placehold.co/120x120?text=No+Image';
+        if (path.startsWith('http')) return path;
+        // Xử lý trường hợp path đã có chữ storage/ ở đầu
+        const cleanPath = path.replace(/^\/?storage\//, '');
+        return `${APP_URL}/storage/${cleanPath}`;
+    };
+
+    if (item.variant?.image_url) return getStorageUrl(item.variant.image_url);
+    if (item.product?.main_image) return getStorageUrl(item.product.main_image);
+    if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return getStorageUrl(item.product.thumbnail_url);
     return 'https://placehold.co/120x120?text=No+Image';
 };
 
 onMounted(async () => {
     const promises = [fetchAddresses(), fetchCoupons(), fetchUpsellData()];
-    if (authStore.isAuthenticated) promises.push(fetchWalletPreview());
+    if (authStore.isAuthenticated) {
+        promises.push(fetchWalletPreview());
+    }
     if (isFlashSale.value) {
         promises.push(fetchFlashSaleData());
     } else if (isBuyNow.value) {
@@ -657,7 +725,7 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="checkout-page theme-brown">
+    <div class="checkout-page theme-brown container">
 
         <!-- ===== BANKING QR MODAL ===== -->
         <Teleport to="body">
@@ -966,6 +1034,22 @@ onMounted(async () => {
                                         <span class="payment-name-simple">VNPay</span>
                                     </div>
                                 </label>
+
+                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'wallet', 'is-disabled': walletBalance < total }">
+                                    <input type="radio" v-model="paymentMethod" value="wallet" :disabled="walletBalance < total" class="hidden-radio" />
+                                    <div class="ac-left">
+                                        <div class="radio-indicator">
+                                            <div class="radio-dot"></div>
+                                        </div>
+                                    </div>
+                                    <div class="payment-info-simple">
+                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8d6e63" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="method-icon"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="12" y1="4" x2="12" y2="20"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+                                        <span class="payment-name-simple">
+                                            Ví điện tử (Ocean Pay) - <strong>{{ formatPrice(walletBalance) }}</strong>
+                                            <span v-if="walletBalance < total" style="color: #ef4444; font-size: 11px; margin-left: 8px;">(Số dư không đủ)</span>
+                                        </span>
+                                    </div>
+                                </label>
                             </div>
                         </div>
                     </section>
@@ -1034,6 +1118,24 @@ onMounted(async () => {
                                     </div>
                                 </div>
 
+                                <!-- Tiêu điểm thưởng -->
+                                <div v-if="authStore.isAuthenticated" class="loyalty-section" style="margin-top: 16px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #f87171;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500; cursor: pointer;">
+                                            <input type="checkbox" v-model="useLoyaltyPoints" :disabled="loyaltyPoints < 100" style="width: 16px; height: 16px; accent-color: #ef4444;" />
+                                            Sử dụng điểm thưởng
+                                        </label>
+                                        <span style="font-size: 0.9rem; color: #ef4444; font-weight: 600;">Bạn có: {{ loyaltyPoints }} điểm</span>
+                                    </div>
+                                    <div v-if="useLoyaltyPoints" style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                                        <input type="number" v-model="inputPoints" :max="maxPointsCanUse" min="0" style="width: 100px; padding: 6px; border: 1px solid #fca5a5; border-radius: 4px; text-align: center; outline: none;" />
+                                        <span style="font-size: 0.9rem; color: #666;">điểm = <strong style="color: #ef4444;">-{{ formatPrice(loyaltyDiscount) }}</strong></span>
+                                    </div>
+                                    <div style="font-size: 0.75rem; color: #f59e0b; margin-top: 8px; padding-top: 8px; border-top: 1px solid #fca5a5; line-height: 1.4;">
+                                        * Tối thiểu 100 điểm để đổi giảm giá. Tối đa 30% giá trị đơn hàng. Điểm có hiệu lực 365 ngày kể từ ngày tích.
+                                    </div>
+                                </div>
+
                                 <div class="totals-section">
                                     <div class="total-row">
                                         <span>Tạm tính ({{ totalQuantity }} sản phẩm)</span>
@@ -1069,6 +1171,10 @@ onMounted(async () => {
                                                 style="color: #10b981;">Freeship: - {{ formatPrice(shippingDiscount)
                                                 }}</span>
                                         </div>
+                                    </div>
+                                    <div class="total-row" v-if="loyaltyDiscount > 0">
+                                        <span>Điểm thưởng ({{ inputPoints }} điểm)</span>
+                                        <span class="discount-val" style="color: #ef4444;">- {{ formatPrice(loyaltyDiscount) }}</span>
                                     </div>
 
 
@@ -1247,7 +1353,7 @@ onMounted(async () => {
 .wt-knob {
     width: 18px;
     height: 18px;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 50%;
     position: absolute;
     top: 2px;
@@ -1309,21 +1415,15 @@ onMounted(async () => {
 .checkout-page {
     padding: 40px 0 80px;
     font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
-    color: #0f172a;
+    color: var(--text-main);
     min-height: 80vh;
 }
 
 /* Base states & Header */
-.checkout-wrapper {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 16px;
-}
-
 .loading-state {
     text-align: center;
     padding: 100px 0;
-    color: #E63B6F;
+    color: var(--primary);
     font-weight: 500;
 }
 
@@ -1331,7 +1431,7 @@ onMounted(async () => {
     width: 44px;
     height: 44px;
     border: 4px solid #e2e8f0;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin: 0 auto 16px;
@@ -1349,7 +1449,7 @@ onMounted(async () => {
 
 .spinner-small.brown {
     border-color: #e2e8f0;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
 }
 
 @keyframes spin {
@@ -1370,23 +1470,23 @@ onMounted(async () => {
     gap: 8px;
     font-size: 1rem;
     font-weight: 600;
-    color: #E63B6F;
+    color: var(--primary);
     text-decoration: none;
     padding: 8px 12px;
     border-radius: 8px;
     transition: all 0.2s;
-    background: white;
+    background: var(--card-bg);
     border: 1.5px solid #e2e8f0;
 }
 
 .back-link:hover {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .icon-brown {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .icon-green {
@@ -1420,7 +1520,7 @@ h2 {
 .section-header h2 {
     font-size: 1.35rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1428,7 +1528,7 @@ h2 {
 }
 
 .block-border {
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 16px;
     padding: 24px;
     box-shadow: 0 10px 40px rgba(230, 59, 111, 0.04);
@@ -1461,7 +1561,7 @@ h2 {
     font-weight: 600;
     font-size: 0.95rem;
     background: #DCE4E6;
-    color: #000000;
+    color: var(--text-main);
     border: 1.5px solid transparent;
     border-radius: 20px;
     cursor: pointer;
@@ -1471,11 +1571,11 @@ h2 {
 }
 
 .add-tab:hover:not(.active) {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .add-tab.active {
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.05);
 }
@@ -1496,7 +1596,7 @@ h2 {
 
 /* Form Elements */
 .form-box {
-    background: #ffffff;
+    background: var(--card-bg);
     padding: 24px;
     border-radius: 16px;
     border: 1.5px solid #e2e8f0;
@@ -1536,12 +1636,12 @@ h2 {
     outline: none;
     transition: all 0.2s ease;
     background: #f1f5f9;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .form-input:focus {
-    background: #ffffff;
-    border-color: #E63B6F;
+    background: var(--card-bg);
+    border-color: var(--primary);
     box-shadow: 0 4px 15px rgba(230, 59, 111, 0.08);
 }
 
@@ -1604,12 +1704,12 @@ textarea.note-input {
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
-    background: white;
+    background: var(--card-bg);
 }
 
 .checkbox-input:checked+.checkbox-custom {
-    background: #E63B6F;
-    border-color: #E63B6F;
+    background: var(--primary);
+    border-color: var(--primary);
 }
 
 .checkbox-input:checked+.checkbox-custom::after {
@@ -1652,7 +1752,7 @@ textarea.note-input {
     border-radius: 14px;
     cursor: pointer;
     transition: all 0.25s ease;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .hidden-radio {
@@ -1667,7 +1767,7 @@ textarea.note-input {
 }
 
 .address-card.is-selected {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: #f4faff;
     box-shadow: 0 4px 15px rgba(230, 59, 111, 0.08);
 }
@@ -1680,7 +1780,7 @@ textarea.note-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
+    background: var(--card-bg);
     transition: all 0.2s ease;
 }
 
@@ -1694,12 +1794,12 @@ textarea.note-input {
 }
 
 .is-selected .radio-indicator {
-    border-color: #E63B6F;
-    background: #ffffff;
+    border-color: var(--primary);
+    background: var(--card-bg);
 }
 
 .is-selected .radio-dot {
-    background: #E63B6F;
+    background: var(--primary);
     transform: scale(1);
 }
 
@@ -1718,13 +1818,13 @@ textarea.note-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .addr-name {
     font-weight: 700;
     font-size: 1.05rem;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .addr-phone {
@@ -1734,7 +1834,7 @@ textarea.note-input {
 }
 
 .badge-default {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     padding: 2px 8px;
     border-radius: 12px;
@@ -1770,7 +1870,7 @@ textarea.note-input {
 .empty-address-box {
     text-align: center;
     padding: 40px 20px;
-    background: #ffffff;
+    background: var(--card-bg);
     border: 2px dashed #e2e8f0;
     border-radius: 12px;
 }
@@ -1785,7 +1885,7 @@ textarea.note-input {
 .btn-save {
     padding: 12px 24px;
     font-weight: 600;
-    background: #E63B6F;
+    background: var(--primary);
     border: none;
     color: white;
     border-radius: 10px;
@@ -1807,7 +1907,7 @@ textarea.note-input {
 .btn-cancel {
     padding: 12px 24px;
     font-weight: 600;
-    background: white;
+    background: var(--card-bg);
     border: 1.5px solid #e2e8f0;
     color: #475569;
     border-radius: 10px;
@@ -1821,8 +1921,8 @@ textarea.note-input {
 
 .btn-outline-brown {
     background: transparent;
-    border: 2px solid #E63B6F;
-    color: #E63B6F;
+    border: 2px solid var(--primary);
+    color: var(--primary);
     padding: 10px 24px;
     border-radius: 10px;
     font-weight: 600;
@@ -1831,7 +1931,7 @@ textarea.note-input {
 }
 
 .btn-outline-brown:hover {
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
 }
 
@@ -1853,16 +1953,16 @@ textarea.note-input {
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.25s;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .payment-card-simple:hover {
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .payment-card-simple.is-selected {
-    border-color: #E63B6F;
-    background: #ffffff;
+    border-color: var(--primary);
+    background: var(--card-bg);
 }
 
 .payment-info-simple {
@@ -1885,7 +1985,7 @@ textarea.note-input {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: white;
+    background: var(--card-bg);
     transition: all 0.2s ease;
 }
 
@@ -1929,7 +2029,7 @@ textarea.note-input {
     padding: 20px 24px;
     font-size: 1.25rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     display: flex;
     align-items: center;
     gap: 12px;
@@ -1976,7 +2076,7 @@ textarea.note-input {
     object-fit: cover;
     border-radius: 6px;
     border: 1px solid #f1f5f9;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .bill-item-info {
@@ -1990,7 +2090,7 @@ textarea.note-input {
     margin: 0;
     font-size: 0.95rem;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--text-main);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     line-clamp: 2;
@@ -2022,7 +2122,7 @@ textarea.note-input {
 
 .bill-item-price {
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     font-size: 0.95rem;
 }
 
@@ -2034,7 +2134,7 @@ textarea.note-input {
 
 /* Coupons */
 .coupon-section {
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px dashed #e2e8f0;
     border-radius: 8px;
     padding: 16px;
@@ -2057,17 +2157,17 @@ textarea.note-input {
     outline: none;
     transition: all 0.2s;
     text-transform: uppercase;
-    background: white;
+    background: var(--card-bg);
 }
 
 .coupon-input:focus {
-    border-color: #E63B6F;
+    border-color: var(--primary);
 }
 
 .btn-apply-coupon {
     padding: 0 20px;
     font-weight: 600;
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 6px;
@@ -2123,7 +2223,7 @@ textarea.note-input {
 .btn-select-coupon {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #E63B6F;
+    color: var(--primary);
     background: none;
     border: none;
     cursor: pointer;
@@ -2155,7 +2255,7 @@ textarea.note-input {
 
 .fw-600 {
     font-weight: 600;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .shipping-free-text {
@@ -2215,12 +2315,12 @@ textarea.note-input {
 .total-price {
     font-size: 1.8rem;
     font-weight: 800;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .btn-place-order {
     width: 100%;
-    background: #E63B6F;
+    background: var(--primary);
     /* Deep elegant ocean blue */
     color: white;
     border: none;
@@ -2280,7 +2380,7 @@ textarea.note-input {
 }
 
 .modal-content {
-    background: white;
+    background: var(--card-bg);
     border-radius: 20px;
     width: 100%;
     max-width: 480px;
@@ -2306,7 +2406,7 @@ textarea.note-input {
 .modal-title {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #0f172a;
+    color: var(--text-main);
     margin: 0;
     display: flex;
     align-items: center;
@@ -2314,7 +2414,7 @@ textarea.note-input {
 }
 
 .modal-close {
-    background: white;
+    background: var(--card-bg);
     border: 1.5px solid #e2e8f0;
     width: 36px;
     height: 36px;
@@ -2336,7 +2436,7 @@ textarea.note-input {
 .modal-body {
     padding: 24px;
     flex: 1;
-    background: #ffffff;
+    background: var(--card-bg);
 }
 
 .coupon-list {
@@ -2363,7 +2463,7 @@ textarea.note-input {
     border-radius: 12px;
     align-items: stretch;
     position: relative;
-    background: white;
+    background: var(--card-bg);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     transition: all 0.2s ease;
 }
@@ -2374,7 +2474,7 @@ textarea.note-input {
 }
 
 .coupon-card.is-applied {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     background: #f0f9ff;
     box-shadow: 0 4px 12px rgba(230, 59, 111, 0.12);
 }
@@ -2398,7 +2498,7 @@ textarea.note-input {
     position: absolute;
     width: 16px;
     height: 16px;
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 50%;
     right: -9px;
     border: 1px solid #e2e8f0;
@@ -2421,12 +2521,12 @@ textarea.note-input {
 
 .coupon-card.is-applied .cp-left::before,
 .coupon-card.is-applied .cp-left::after {
-    background: #ffffff;
-    border-color: #E63B6F;
+    background: var(--card-bg);
+    border-color: var(--primary);
 }
 
 .coupon-card.is-applied .cp-left {
-    border-right-color: #E63B6F;
+    border-right-color: var(--primary);
     background: #e0f2fe;
 }
 
@@ -2444,7 +2544,7 @@ textarea.note-input {
     margin: 0 0 6px;
     font-size: 1.15rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text-main);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -2453,7 +2553,7 @@ textarea.note-input {
     margin: 0 0 4px;
     font-size: 0.95rem;
     font-weight: 600;
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .cp-min {
@@ -2467,7 +2567,7 @@ textarea.note-input {
     right: 16px;
     top: 50%;
     transform: translateY(-50%);
-    background: #E63B6F;
+    background: var(--primary);
     color: white;
     border: none;
     padding: 8px 18px;
@@ -2673,7 +2773,7 @@ textarea.note-input {
 }
 
 .banking-modal {
-    background: white;
+    background: var(--card-bg);
     border-radius: 24px;
     width: 100%;
     max-width: 520px;
@@ -2773,7 +2873,7 @@ textarea.note-input {
 .bank-value {
     font-size: 0.95rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text-main);
 }
 
 .bank-value.highlight {

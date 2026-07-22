@@ -1,8 +1,5 @@
-import 'dart:convert';
-import '../config/app_theme.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
@@ -10,8 +7,7 @@ import '../services/api_client.dart';
 import 'main_wrapper.dart';
 import 'review_screen.dart';
 import '../config/app_config.dart';
-
-String get kBaseUrl => AppConfig.kBaseUrl;
+import '../utils/format_utils.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -151,7 +147,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           ),
                         ),
                       );
-                    }).toList(),
+                    }),
 
                     // Custom input nếu chọn "Lý do khác"
                     if (showCustomInput) ...[
@@ -230,30 +226,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
     setState(() => _isCancelling = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
-      final response = await http.put(
-        Uri.parse('$kBaseUrl/profile/orders/${widget.orderId}/cancel'),
-        headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-        body: jsonEncode({'cancel_reason': finalReason}),
+      await ApiClient().dio.put(
+        '/profile/orders/${widget.orderId}/cancel',
+        data: {'cancel_reason': finalReason},
       );
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Đơn hàng đã được huỷ thành công!'),
-            backgroundColor: Colors.orange,
-          ));
-          fetchOrderDetail();
-        }
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(data['message'] ?? 'Không thể huỷ đơn hàng!'),
-            backgroundColor: Colors.red,
-          ));
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Đơn hàng đã được huỷ thành công!'),
+          backgroundColor: Colors.orange,
+        ));
+        fetchOrderDetail();
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(message ?? 'Không thể huỷ đơn hàng!'),
+          backgroundColor: Colors.red,
+        ));
       }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
@@ -265,27 +256,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _reOrder() async {
     setState(() => _isReordering = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/cart/buy-again/${widget.orderId}'),
-        headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
-      );
+      await ApiClient().dio.post('/cart/buy-again/${widget.orderId}');
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Đã thêm sản phẩm vào giỏ hàng!'),
-            backgroundColor: Colors.green,
-          ));
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const MainWrapper(initialIndex: 2)),
-            (route) => false,
-          );
-        }
-      } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể thêm vào giỏ hàng!'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Đã thêm sản phẩm vào giỏ hàng!'),
+          backgroundColor: Colors.green,
+        ));
+        context.go('/cart');
       }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
@@ -381,13 +359,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10)],
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: statusColor.withOpacity(0.1), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), shape: BoxShape.circle),
                       child: Icon(_getStatusIcon(status), color: statusColor, size: 28),
                     ),
                     const SizedBox(width: 16),
@@ -399,8 +377,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           const SizedBox(height: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                            child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                            decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                            child: Text(FormatUtils.translateStatus(status), style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -422,7 +400,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       final h = entry.value;
                       final isLast = entry.key == histories.length - 1;
                       final note = h['note'] ?? h['status'] ?? '';
-                      final date = h['created_at']?.toString().split('T')?[0] ?? '';
+                      final date = h['created_at']?.toString().split('T')[0] ?? '';
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -639,7 +617,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, -4))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 16, offset: const Offset(0, -4))],
             ),
             child: SafeArea(
               child: Row(
@@ -665,6 +643,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   // Nút mua lại (chỉ hiện khi completed)
                   if (isCompleted) ...[
                     Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final result = await context.push<bool>('/create-return/${widget.orderId}');
+                          if (result == true) {
+                            fetchOrderDetail();
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFE63B6F),
+                          side: const BorderSide(color: Color(0xFFE63B6F)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Hoàn trả', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: ElevatedButton.icon(
                         onPressed: _isReordering ? null : _reOrder,
                         icon: _isReordering
@@ -686,7 +682,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   if (!canCancel && !isCompleted)
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => context.pop(),
                         icon: const Icon(Icons.arrow_back, size: 18),
                         label: const Text('Quay lại', style: TextStyle(fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
@@ -708,12 +704,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _sectionTitle(String title) => Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)));
-
-  Widget _imgPlaceholder() => Container(
-    width: 60, height: 60,
-    decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
-    child: const Icon(Icons.image_outlined, color: Colors.grey, size: 24),
-  );
 
   Widget _priceRow(String label, String value, {Color? valueColor}) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -763,7 +753,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       width: size,
       height: size,
       fit: BoxFit.cover,
-      placeholder: (_, __) => SizedBox(
+      placeholder: (_, _) => SizedBox(
         width: size,
         height: size,
         child: const Center(
@@ -773,7 +763,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
         ),
       ),
-      errorWidget: (_, __, ___) => SizedBox(
+      errorWidget: (_, _, _) => SizedBox(
         width: size,
         height: size,
         child: const Icon(Icons.image_outlined, color: Color(0xFFCBD5E1), size: 22),

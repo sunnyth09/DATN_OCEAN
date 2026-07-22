@@ -16,7 +16,6 @@ const handleSubmit = async () => {
     try {
         isSubmitting.value = true;
         const response = await api.post('/post-categories', postCategory);
-        console.log(response.data);
         if (response.data.status === 'success') {
             showToast(response.data.message, 'success');
             router.push('/admin/post-categories');

@@ -80,6 +80,17 @@ const deleteShift = async (s) => {
   }
 };
 
+const restoreShift = async (s) => {
+  const r = await Swal.fire({
+    title: 'Xác nhận', text: `Khôi phục ca "${s.name}"?`, icon: 'question',
+    showCancelButton: true, confirmButtonText: 'Khôi phục', cancelButtonText: 'Hủy', confirmButtonColor: '#1565c0',
+  });
+  if (r.isConfirmed) {
+    try { await api.put(`/admin/work-shifts/${s.id}`, { is_active: true }); showToast('Đã khôi phục ca.'); fetchShifts(); }
+    catch { showToast('Lỗi khi khôi phục.', 'error'); }
+  }
+};
+
 // ===== TAB 2: PHÂN CA =====
 const dayLabels = [
   { value: 1, label: 'Thứ 2' }, { value: 2, label: 'Thứ 3' }, { value: 3, label: 'Thứ 4' },
@@ -188,7 +199,7 @@ onMounted(() => { fetchShifts(); });
               <th>Tên ca</th>
               <th>Bắt đầu</th>
               <th>Kết thúc</th>
-              <th>Buffer sớm</th>
+              <th>Chấm sớm</th>
               <th class="status-th">Trạng thái</th>
               <th class="actions-th">Thao tác</th>
             </tr>
@@ -222,8 +233,11 @@ onMounted(() => { fetchShifts(); });
                 <button class="btn-action edit" @click="openShiftForm(s)" title="Sửa">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
-                <button class="btn-action delete" @click="deleteShift(s)" title="Vô hiệu hóa">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                <button v-if="s.is_active" class="btn-action delete" @click="deleteShift(s)" title="Vô hiệu hóa">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                </button>
+                <button v-else class="btn-action restore" @click="restoreShift(s)" title="Khôi phục">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
                 </button>
               </td>
             </tr>
@@ -318,7 +332,7 @@ onMounted(() => { fetchShifts(); });
             </div>
             <div class="ws-form-row">
               <div class="ws-form-group">
-                <label>Buffer sớm (phút)</label>
+                <label>Chấm sớm (phút)</label>
                 <input type="number" class="ws-form-control" v-model.number="shiftForm.early_buffer_minutes" min="0" max="120" />
               </div>
               <div class="ws-form-group">
@@ -368,14 +382,14 @@ onMounted(() => { fetchShifts(); });
   transition: all 0.2s; font-family: var(--font-inter);
 }
 .ws-tab:hover { background: var(--hover-bg); color: var(--text-main); }
-.ws-tab.active { background: #E63B6F; color: white; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25); }
+.ws-tab.active { background: var(--primary); color: white; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25); }
 .ws-tab.active svg { stroke: white; }
 
 .tab-header-actions { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 
 .btn-create {
   display: flex; align-items: center; gap: 8px;
-  background: #E63B6F; color: white; border: none;
+  background: var(--primary); color: white; border: none;
   padding: 10px 20px; border-radius: 10px;
   font-weight: 600; font-size: 0.85rem; cursor: pointer;
   transition: all 0.2s; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25);
@@ -432,13 +446,15 @@ onMounted(() => { fetchShifts(); });
 .btn-action.edit:hover { background: #bbdefb; color: #0d47a1; }
 .btn-action.delete { background: #ffebee; color: var(--primary); border-color: #ffcdd2; }
 .btn-action.delete:hover { background: #ffcdd2; color: #c62828; }
+.btn-action.restore { background: #f0f4c3; color: #827717; border-color: #dce775; }
+.btn-action.restore:hover { background: #dce775; color: #558b2f; }
 
 /* Schedule Table */
 .schedule-table th { text-align: center; }
 .schedule-cell { padding: 8px 4px !important; }
 .shift-check-item { display: inline-flex; margin: 2px 2px; }
 .shift-checkbox-label { display: flex; align-items: center; gap: 3px; cursor: pointer; font-size: 0.8rem; }
-.shift-checkbox-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: #E63B6F; cursor: pointer; }
+.shift-checkbox-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
 .shift-check-text { font-weight: 700; font-size: 0.78rem; }
 .shift-label-morning { color: #1565c0; }
 .shift-label-afternoon { color: #2e7d32; }
@@ -446,7 +462,7 @@ onMounted(() => { fetchShifts(); });
 
 .staff-assign-cell { display: flex; align-items: center; gap: 12px; }
 .assign-avatar {
-  width: 36px; height: 36px; border-radius: 50%; background: #E63B6F; color: white;
+  width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: white;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 0.85rem; flex-shrink: 0;
 }
@@ -455,7 +471,7 @@ onMounted(() => { fetchShifts(); });
 
 .btn-save-assign {
   width: 36px; height: 36px; border-radius: 8px; border: none;
-  background: #E63B6F; color: white; cursor: pointer;
+  background: var(--primary); color: white; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   transition: all 0.2s; box-shadow: 0 2px 8px rgba(230, 59, 111, 0.25);
 }
@@ -508,7 +524,7 @@ onMounted(() => { fetchShifts(); });
   color: var(--text-muted, #627d98); display: flex; align-items: center; justify-content: center;
   padding: 4px; border-radius: 6px; transition: all 0.2s;
 }
-.ws-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, #E63B6F); }
+.ws-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, var(--primary)); }
 
 .ws-modal-body { padding: 24px; }
 .ws-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
@@ -516,14 +532,14 @@ onMounted(() => { fetchShifts(); });
 /* Form */
 .ws-form-group { margin-bottom: 16px; }
 .ws-form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main, #102a43); margin-bottom: 8px; }
-.ws-required { color: var(--primary, #E63B6F); }
+.ws-required { color: var(--primary, var(--primary)); }
 .ws-form-control {
   width: 100%; padding: 10px 14px; border-radius: 8px;
   border: 1px solid var(--border-color, #d9e8f0); background: var(--ocean-deepest, #f0f7fa);
   color: var(--text-main, #102a43); font-family: var(--font-inter, 'Inter', sans-serif);
   font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.ws-form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.ws-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .ws-form-control::placeholder { color: var(--text-light, #9fb3c8); }
 .ws-form-select {
   appearance: none;
@@ -536,13 +552,13 @@ onMounted(() => { fetchShifts(); });
 /* Buttons */
 .ws-btn-outline {
   padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color, #d9e8f0);
-  background: #fff; color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
+  background: var(--card-bg); color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; font-family: var(--font-inter, 'Inter', sans-serif);
 }
 .ws-btn-outline:hover { border-color: var(--ocean-mid, #b3e0f2); background: var(--ocean-deepest, #f0f7fa); }
 .ws-btn-primary {
   padding: 10px 20px; border-radius: 8px; border: none;
-  background: #E63B6F; color: #fff; font-size: 0.85rem; font-weight: 600;
+  background: var(--primary); color: #fff; font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
   font-family: var(--font-inter, 'Inter', sans-serif);
 }

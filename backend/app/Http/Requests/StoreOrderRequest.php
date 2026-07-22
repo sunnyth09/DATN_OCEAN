@@ -47,6 +47,9 @@ class StoreOrderRequest  extends FormRequest
             // Wallet discount
             'use_wallet'    => 'nullable|boolean',
             'wallet_amount' => 'nullable|numeric|min:0',
+
+            // Loyalty points
+            'reward_points_used' => 'nullable|integer|min:0',
         ];
     }
     
@@ -55,6 +58,8 @@ class StoreOrderRequest  extends FormRequest
         return [            
             'payment_method.required' => 'Vui lòng chọn phương thức thanh toán.',
             'payment_method.in' => 'Phương thức thanh toán không hợp lệ.',
+            'reward_points_used.integer' => 'Số điểm thưởng không hợp lệ.',
+            'reward_points_used.min' => 'Số điểm thưởng không thể nhỏ hơn 0.',
         ];
     }
 }

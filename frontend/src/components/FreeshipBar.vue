@@ -67,7 +67,7 @@ const barStyle = computed(() => ({
 
 <style scoped>
 .freeship-bar-wrapper {
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid #e8ecf1;
     border-radius: 14px;
     padding: 14px 20px;
@@ -97,7 +97,7 @@ const barStyle = computed(() => ({
     height: 34px;
     background: linear-gradient(135deg, #fff3e0 0%, #e8f5e9 100%);
     border-radius: 50%;
-    color: #E63B6F;
+    color: var(--primary);
     flex-shrink: 0;
 }
 
@@ -136,7 +136,7 @@ const barStyle = computed(() => ({
 }
 
 .freeship-badge.badge-done {
-    background: linear-gradient(90deg, #E63B6F, #ca3a60);
+    background: linear-gradient(90deg, var(--primary), #ca3a60);
     color: #fff;
 }
 
@@ -155,7 +155,7 @@ const barStyle = computed(() => ({
     top: 0;
     height: 100%;
     border-radius: 999px;
-    background: #E63B6F;
+    background: var(--primary);
     background-size: 200% 100%;
     transition: width 0.65s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;

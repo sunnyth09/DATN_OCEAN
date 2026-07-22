@@ -368,7 +368,7 @@ onMounted(() => {
 
 <style scoped>
 .profile-orders-page {
-  background: #fff;
+  background: var(--card-bg);
   border-radius: 12px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   padding: 24px;
@@ -384,7 +384,7 @@ onMounted(() => {
 .page-title {
   font-size: 1.25rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -406,7 +406,7 @@ onMounted(() => {
 }
 
 .status-tab {
-  background: white;
+  background: var(--card-bg);
   border: 1px solid #cbd5e1;
   padding: 6px 18px;
   border-radius: 20px;
@@ -418,13 +418,13 @@ onMounted(() => {
 }
 .status-tab:hover {
   background: #f8fafc;
-  color: #0f172a;
+  color: var(--text-main);
   border-color: #94a3b8;
 }
 .status-tab.active {
-  background: #E63B6F;
+  background: var(--primary);
   color: white;
-  border-color: #E63B6F;
+  border-color: var(--primary);
 }
 
 /* Loading & Empty */
@@ -436,7 +436,7 @@ onMounted(() => {
 .spinner {
   width: 40px; height: 40px;
   border: 3px solid #f1f5f9;
-  border-top-color: #E63B6F;
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 16px;
@@ -456,7 +456,7 @@ onMounted(() => {
 .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
 .empty-state h3 { font-size: 1.1rem; color: #334155; margin-bottom: 8px; font-weight: 700; }
 .empty-state p { color: #64748b; font-size: 0.95rem; }
-.btn-primary { display: inline-block; background: #E63B6F; color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; text-align: center; transition: background 0.2s; }
+.btn-primary { display: inline-block; background: var(--primary); color: white; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; text-align: center; transition: background 0.2s; }
 .btn-primary:hover { background: #cb184d; transition: 0.2s ease; }
 .mt-4 { margin-top: 16px; }
 
@@ -489,7 +489,7 @@ onMounted(() => {
 }
 .order-code {
   font-weight: 800;
-  color: #1e293b;
+  color: var(--text-main);
   font-size: 1.05rem;
 }
 .order-meta {
@@ -516,7 +516,7 @@ onMounted(() => {
   border-radius: 30px;
   font-size: 0.85rem;
   font-weight: 600;
-  background: white;
+  background: var(--card-bg);
   border: 1px solid #e2e8f0;
 }
 .status-badge.status-info { color: #475569; background: #f8fafc; border-color: #e2e8f0; }
@@ -534,7 +534,7 @@ onMounted(() => {
 
 .order-total {
   font-weight: 800;
-  color: #E63B6F;
+  color: var(--primary);
   font-size: 1.1rem;
 }
 
@@ -545,7 +545,7 @@ onMounted(() => {
   font-weight: 600;
 }
 .payment-status-badge.pending { background: #f1f5f9; color: #64748b; }
-.payment-status-badge.shipping { background: #e0f2fe; color: #E63B6F; }
+.payment-status-badge.shipping { background: #e0f2fe; color: var(--primary); }
 .payment-status-badge.completed { background: #fee2e2; color: #ef4444; }
 .payment-status-badge.cancelled { background: #fee2e2; color: #dc2626; }
 .payment-status-badge.return_requested,
@@ -568,7 +568,7 @@ onMounted(() => {
 .return-status-chip.status-danger { color: #dc2626; background: #fee2e2; border-color: #fecaca; }
 
 .btn-action {
-  background: white;
+  background: var(--card-bg);
   border: 1.5px solid;
   border-radius: 20px;
   padding: 6px 14px;
@@ -591,12 +591,12 @@ onMounted(() => {
 .btn-cancel-order:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-buy-again {
-  border-color: #E63B6F;
-  color: #E63B6F;
+  border-color: var(--primary);
+  color: var(--primary);
 }
 .btn-buy-again:hover {
   background: #f0f9ff;
-  border-color: #E63B6F;
+  border-color: var(--primary);
 }
 
 .btn-feedback {
@@ -623,7 +623,7 @@ onMounted(() => {
 .btn-detail:hover {
   background: #f8fafc;
   border-color: #475569;
-  color: #0f172a;
+  color: var(--text-main);
 }
 
 /* Order items preview */
@@ -638,7 +638,7 @@ onMounted(() => {
 }
 .item-name { font-weight: 600; }
 .item-variant { color: #64748b; margin-left: 4px; }
-.item-qty { font-weight: 700; color: #E63B6F; margin-left: 6px; }
+.item-qty { font-weight: 700; color: var(--primary); margin-left: 6px; }
 .preview-more { color: #94a3b8; margin-top: 4px; font-style: italic; }
 
 /* Pagination */
@@ -650,14 +650,14 @@ onMounted(() => {
   margin-top: 20px;
 }
 .page-btn {
-  background: white;
+  background: var(--card-bg);
   border: 1px solid #cbd5e1;
   width: 36px; height: 36px;
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; font-weight: 700; color: #334155;
 }
-.page-btn:hover:not(:disabled) { background: #f1f5f9; color: #E63B6F; border-color: #E63B6F; }
+.page-btn:hover:not(:disabled) { background: #f1f5f9; color: var(--primary); border-color: var(--primary); }
 .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .page-info { font-size: 0.9rem; font-weight: 600; color: #64748b; }
 
@@ -677,23 +677,23 @@ onMounted(() => {
 
 /* Cancel Modal */
 .cancel-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1050; }
-.cancel-modal-box { background: white; border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
+.cancel-modal-box { background: var(--card-bg); border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
 .cancel-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #e2e8f0; }
-.cancel-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a; }
+.cancel-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main); }
 .cancel-modal-close { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.5rem; line-height: 1; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; }
 .cancel-modal-close:hover { background: #f1f5f9; color: #dc2626; }
 .cancel-modal-body { padding: 20px 24px; }
 .cancel-modal-desc { color: #64748b; font-size: 0.88rem; margin: 0 0 14px; }
 .cancel-reason-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
-.cancel-reason-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; background: white; transition: all 0.15s; font-size: 0.88rem; color: #334155; }
-.cancel-reason-item:hover { border-color: #E63B6F; background: #f0f9ff; }
-.cancel-reason-item.selected { border-color: #E63B6F; background: #f0f9ff; }
-.cancel-reason-item input[type="radio"] { accent-color: #E63B6F; width: 16px; height: 16px; flex-shrink: 0; }
+.cancel-reason-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; background: var(--card-bg); transition: all 0.15s; font-size: 0.88rem; color: #334155; }
+.cancel-reason-item:hover { border-color: var(--primary); background: #f0f9ff; }
+.cancel-reason-item.selected { border-color: var(--primary); background: #f0f9ff; }
+.cancel-reason-item input[type="radio"] { accent-color: var(--primary); width: 16px; height: 16px; flex-shrink: 0; }
 .cancel-custom-input { width: 100%; margin-top: 12px; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.88rem; min-height: 80px; resize: vertical; outline: none; font-family: inherit; box-sizing: border-box; }
-.cancel-custom-input:focus { border-color: #E63B6F; }
+.cancel-custom-input:focus { border-color: var(--primary); }
 .cancel-validation-error { color: #dc2626; font-size: 0.82rem; font-weight: 600; margin: 10px 0 0; }
 .cancel-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #e2e8f0; }
-.btn-cancel-dismiss { padding: 8px 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; color: #64748b; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.btn-cancel-dismiss { padding: 8px 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: var(--card-bg); color: #64748b; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .btn-cancel-dismiss:hover { background: #f1f5f9; }
 .btn-cancel-confirm { padding: 8px 20px; border-radius: 8px; border: none; background: #dc2626; color: white; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .btn-cancel-confirm:hover { background: #b91c1c; }

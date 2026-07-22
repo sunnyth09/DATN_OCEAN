@@ -70,7 +70,7 @@
   border-radius: 24px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, #E63B6F 0%, #d92f66 48%, #f05a8a 100%);
+    linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
   box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
 }
 .page-hero h1 {
@@ -95,7 +95,7 @@
 .hero-sub { max-width: 700px; margin: 0 auto; color: rgba(255,255,255,0.9); font-size: 1.05rem; line-height: 1.7; }
 .page-content { padding: 48px 24px 64px; }
 .content-block { margin-bottom: 32px; }
-.content-block h2 { font-size: 1.15rem; font-weight: 700; color: #2D3436; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }
+.content-block h2 { font-size: 1.15rem; font-weight: 700; color: var(--text-main); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #FFF0F3; }
 .content-block p { font-size: 0.95rem; color: #4b5563; line-height: 1.8; margin-bottom: 10px; }
 .styled-list { padding-left: 24px; margin: 8px 0; }
 .styled-list li { font-size: 0.95rem; color: #4b5563; line-height: 1.8; margin-bottom: 4px; }

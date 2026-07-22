@@ -267,8 +267,8 @@ onMounted(fetchContacts);
   font-family: var(--font-inter); font-size: 0.78rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s;
 }
-.filter-tab:hover { border-color: #E63B6F; color: #E63B6F; }
-.filter-tab.active { background: rgba(230, 59, 111,0.1); border-color: rgba(230, 59, 111,0.3); color: #E63B6F; }
+.filter-tab:hover { border-color: var(--primary); color: var(--primary); }
+.filter-tab.active { background: rgba(230, 59, 111,0.1); border-color: rgba(230, 59, 111,0.3); color: var(--primary); }
 .contact-count { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; background: var(--ocean-deepest); padding: 4px 10px; border-radius: 20px; }
 
 /* ===== Table ===== */
@@ -348,7 +348,7 @@ onMounted(fetchContacts);
   color: var(--text-main, #102a43); font-family: var(--font-inter, 'Inter', sans-serif);
   font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box; resize: vertical;
 }
-.contact-form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111,0.1); }
+.contact-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111,0.1); }
 .contact-form-control::placeholder { color: var(--text-light, #9fb3c8); }
 .contact-form-error {
   padding: 10px 14px; background: #ffebee; border: 1px solid #ffcdd2;
@@ -359,13 +359,13 @@ onMounted(fetchContacts);
 /* Buttons */
 .contact-btn-outline {
   padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color, #d9e8f0);
-  background: #fff; color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
+  background: var(--card-bg); color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; font-family: var(--font-inter, 'Inter', sans-serif);
 }
 .contact-btn-outline:hover { border-color: var(--ocean-mid, #b3e0f2); background: var(--ocean-deepest, #f0f7fa); }
 .contact-btn-primary {
   padding: 10px 20px; border-radius: 8px; border: none;
-  background: #E63B6F; color: #fff; font-size: 0.85rem; font-weight: 600;
+  background: var(--primary); color: #fff; font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
   font-family: var(--font-inter, 'Inter', sans-serif);
 }

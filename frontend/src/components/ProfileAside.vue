@@ -11,7 +11,15 @@
         <p class="aside-user-email">{{ userEmail }}</p>
         <!-- Điểm thưởng mini badge -->
         <div v-if="rewardPoints > 0" class="aside-points-badge">
-          🏆 <strong>{{ formatPoints(rewardPoints) }}</strong> điểm
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #fbbf24; margin-right: 2px;">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+          </svg>
+          <strong>{{ formatPoints(rewardPoints) }}</strong> điểm
         </div>
       </div>
     </div>
@@ -146,6 +154,7 @@
         <span v-if="rewardPoints > 0" class="aside-points-pill">{{ formatPoints(rewardPoints) }}</span>
       </router-link>
       
+
       <router-link
         to="/profile/change-password"
         class="aside-nav-item"
@@ -286,7 +295,7 @@ const handleLogout = async () => {
 <style scoped>
 .profile-aside {
   width: 280px;
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   overflow: hidden;
@@ -299,7 +308,7 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 14px;
-  background-color:  #E63B6F;
+  background-color:  var(--primary);
   color: #fff;
 }
 
@@ -395,7 +404,7 @@ const handleLogout = async () => {
 
 .aside-nav-item:hover {
   background: #fff0f3;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 .aside-nav-item:hover .aside-nav-icon {
@@ -404,19 +413,19 @@ const handleLogout = async () => {
 
 .aside-nav-item--active {
   background: #fff0f3 !important;
-  color: #E63B6F !important;
+  color: var(--primary) !important;
   font-weight: 600;
 }
 
 .aside-nav-item--active .aside-nav-icon {
   opacity: 1;
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 /* Điểm thưởng pill badge */
 .aside-points-pill {
   margin-left: auto;
-  background: linear-gradient(135deg, #E63B6F, #f97316);
+  background: linear-gradient(135deg, var(--primary), #f97316);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 700;

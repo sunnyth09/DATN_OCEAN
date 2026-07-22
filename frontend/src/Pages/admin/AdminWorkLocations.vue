@@ -83,10 +83,10 @@ const submitForm = async () => {
   try {
     if (editingLocation.value) {
       await api.put(`/admin/work-locations/${editingLocation.value.id}`, form.value);
-      showToast('Cập nhật vị trí thành công!', 'success');
+      showToast('Cập nhật chi nhánh thành công!', 'success');
     } else {
       await api.post('/admin/work-locations', form.value);
-      showToast('Tạo vị trí mới thành công!', 'success');
+      showToast('Tạo chi nhánh mới thành công!', 'success');
     }
     closeForm();
     fetchLocations();
@@ -101,7 +101,7 @@ const submitForm = async () => {
 const confirmDelete = async (loc) => {
   const result = await Swal.fire({
     title: 'Xác nhận',
-    text: `Bạn có chắc muốn vô hiệu hóa vị trí "${loc.name}"?`,
+    text: `Bạn có chắc muốn vô hiệu hóa chi nhánh "${loc.name}"?`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonText: 'Vô hiệu hóa',
@@ -112,10 +112,32 @@ const confirmDelete = async (loc) => {
   if (result.isConfirmed) {
     try {
       await api.delete(`/admin/work-locations/${loc.id}`);
-      showToast('Đã vô hiệu hóa vị trí.', 'success');
+      showToast('Đã vô hiệu hóa chi nhánh.', 'success');
       fetchLocations();
     } catch {
-      showToast('Không thể vô hiệu hóa vị trí.', 'error');
+      showToast('Không thể vô hiệu hóa chi nhánh.', 'error');
+    }
+  }
+};
+
+const restoreLocation = async (loc) => {
+  const result = await Swal.fire({
+    title: 'Xác nhận',
+    text: `Bạn có chắc muốn khôi phục chi nhánh "${loc.name}"?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Khôi phục',
+    cancelButtonText: 'Hủy',
+    confirmButtonColor: '#1565c0',
+  });
+
+  if (result.isConfirmed) {
+    try {
+      await api.put(`/admin/work-locations/${loc.id}`, { is_active: true });
+      showToast('Đã khôi phục chi nhánh.', 'success');
+      fetchLocations();
+    } catch {
+      showToast('Không thể khôi phục chi nhánh.', 'error');
     }
   }
 };
@@ -130,7 +152,7 @@ onMounted(() => {
     <div class="page-header">
       <div class="header-left">
         <h2 class="section-title">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Quản lý Vị trí Làm việc
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>Quản lý chi nhánh
         </h2>
         <p class="section-desc">Thiết lập các địa điểm làm việc và bán kính chấm công GPS.</p>
       </div>
@@ -138,7 +160,7 @@ onMounted(() => {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
-        Thêm vị trí
+        Thêm chi nhánh
       </button>
     </div>
 
@@ -148,7 +170,7 @@ onMounted(() => {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Tên vị trí</th>
+            <th>Tên chi nhánh</th>
             <th>Địa chỉ</th>
             <th>Tọa độ</th>
             <th>Bán kính</th>
@@ -163,7 +185,7 @@ onMounted(() => {
             </td>
           </tr>
           <tr v-else-if="locations.length === 0">
-            <td colspan="7" class="empty-cell">Chưa có vị trí làm việc nào.</td>
+            <td colspan="7" class="empty-cell">Chưa có chi nhánh nào.</td>
           </tr>
           <tr v-else v-for="loc in locations" :key="loc.id" class="wl-row">
             <td class="id-cell">#{{ loc.id }}</td>
@@ -193,8 +215,11 @@ onMounted(() => {
               <button class="btn-action edit" @click="openForm(loc)" title="Sửa">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
               </button>
-              <button class="btn-action delete" @click="confirmDelete(loc)" title="Vô hiệu hóa">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+              <button v-if="loc.is_active" class="btn-action delete" @click="confirmDelete(loc)" title="Vô hiệu hóa">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+              </button>
+              <button v-else class="btn-action restore" @click="restoreLocation(loc)" title="Khôi phục">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
               </button>
             </td>
           </tr>
@@ -208,14 +233,14 @@ onMounted(() => {
       <div v-if="showModal" class="wl-modal-overlay" @click.self="closeForm">
         <div class="wl-modal-box">
           <div class="wl-modal-head">
-            <h3>{{ editingLocation ? 'Sửa vị trí' : 'Thêm vị trí mới' }}</h3>
+            <h3>{{ editingLocation ? 'Sửa chi nhánh' : 'Thêm chi nhánh mới' }}</h3>
             <button class="wl-btn-close" @click="closeForm">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
           <form @submit.prevent="submitForm" class="wl-modal-body">
             <div class="wl-form-group">
-              <label>Tên vị trí <span class="wl-required">*</span></label>
+              <label>Tên chi nhánh <span class="wl-required">*</span></label>
               <input type="text" class="wl-form-control" v-model="form.name" placeholder="Ví dụ: Cửa hàng chính" id="input-location-name" />
             </div>
             <div class="wl-form-group">
@@ -277,7 +302,7 @@ onMounted(() => {
 .section-desc { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
 .btn-create {
   display: flex; align-items: center; gap: 8px;
-  background: #E63B6F; color: white; border: none;
+  background: var(--primary); color: white; border: none;
   padding: 10px 20px; border-radius: 10px;
   font-weight: 600; font-size: 0.85rem; cursor: pointer;
   transition: all 0.2s; box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25);
@@ -302,7 +327,7 @@ onMounted(() => {
 .loc-info-cell { display: flex; align-items: center; gap: 12px; }
 .loc-name { font-weight: 600; color: var(--text-main); }
 .loc-icon {
-  width: 36px; height: 36px; border-radius: 50%; background: #fce4ec; color: #E63B6F;
+  width: 36px; height: 36px; border-radius: 50%; background: #fce4ec; color: var(--primary);
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 
@@ -337,6 +362,8 @@ onMounted(() => {
 .btn-action.edit:hover { background: #bbdefb; color: #0d47a1; border-color: #90caf9; }
 .btn-action.delete { background: #ffebee; color: var(--primary); border-color: #ffcdd2; }
 .btn-action.delete:hover { background: #ffcdd2; color: #c62828; border-color: #ef9a9a; }
+.btn-action.restore { background: #f0f4c3; color: #827717; border-color: #dce775; }
+.btn-action.restore:hover { background: #dce775; color: #558b2f; }
 
 /* Spinner */
 .wl-spinner {
@@ -371,7 +398,7 @@ onMounted(() => {
   color: var(--text-muted, #627d98); display: flex; align-items: center; justify-content: center;
   padding: 4px; border-radius: 6px; transition: all 0.2s;
 }
-.wl-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, #E63B6F); }
+.wl-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, var(--primary)); }
 
 .wl-modal-body { padding: 24px; }
 .wl-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
@@ -379,14 +406,14 @@ onMounted(() => {
 /* Form */
 .wl-form-group { margin-bottom: 16px; }
 .wl-form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main, #102a43); margin-bottom: 8px; }
-.wl-required { color: var(--primary, #E63B6F); }
+.wl-required { color: var(--primary, var(--primary)); }
 .wl-form-control {
   width: 100%; padding: 10px 14px; border-radius: 8px;
   border: 1px solid var(--border-color, #d9e8f0); background: var(--ocean-deepest, #f0f7fa);
   color: var(--text-main, #102a43); font-family: var(--font-inter, 'Inter', sans-serif);
   font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
-.wl-form-control:focus { border-color: #E63B6F; outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.wl-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .wl-form-control::placeholder { color: var(--text-light, #9fb3c8); }
 .wl-form-select {
   appearance: none;
@@ -399,13 +426,13 @@ onMounted(() => {
 /* Buttons */
 .wl-btn-outline {
   padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color, #d9e8f0);
-  background: #fff; color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
+  background: var(--card-bg); color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; font-family: var(--font-inter, 'Inter', sans-serif);
 }
 .wl-btn-outline:hover { border-color: var(--ocean-mid, #b3e0f2); background: var(--ocean-deepest, #f0f7fa); }
 .wl-btn-primary {
   padding: 10px 20px; border-radius: 8px; border: none;
-  background: #E63B6F; color: #fff; font-size: 0.85rem; font-weight: 600;
+  background: var(--primary); color: #fff; font-size: 0.85rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
   font-family: var(--font-inter, 'Inter', sans-serif);
 }

@@ -46,22 +46,15 @@
 
         <!-- Form fields -->
         <div class="form-grid">
-          <div class="form-group">
-            <label class="form-label">
-              Họ và tên <span class="required" v-if="isEditing">*</span>
-            </label>
-            <input
-              type="text"
-              v-model="form.full_name"
-              class="form-input"
-              :class="{ 'form-input--error': errors.full_name, 'form-input--disabled': !isEditing }"
-              :disabled="!isEditing"
-              placeholder="Nhập họ và tên"
-              maxlength="120"
-              required
-            />
-            <span v-if="errors.full_name" class="error-text">{{ errors.full_name[0] }}</span>
-          </div>
+          <BaseInput 
+            v-model="form.full_name" 
+            label="Họ và tên" 
+            :required="isEditing" 
+            :disabled="!isEditing" 
+            placeholder="Nhập họ và tên"
+            maxlength="120"
+            :error="errors.full_name ? errors.full_name[0] : ''" 
+          />
 
           <div class="form-group">
             <label class="form-label">
@@ -162,6 +155,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
 import { getAppBaseUrl } from '@/utils/url';
+import BaseInput from '@/components/base/BaseInput.vue';
 
 // Base URL for profile assets.
 const BASE_URL = getAppBaseUrl();
@@ -449,7 +443,7 @@ onUnmounted(() => {
 
 /* Header */
 .section-header { margin-bottom: 4px; }
-.section-title  { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
+.section-title  { font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin: 0; }
 .section-desc   { font-size: 0.875rem; color: #6b7280; margin: 4px 0 0; }
 
 /* Alert */
@@ -467,7 +461,7 @@ onUnmounted(() => {
 
 /* Card */
 .info-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   overflow: hidden;
@@ -499,7 +493,7 @@ onUnmounted(() => {
   position: absolute;
   bottom: 2px;
   right: 2px;
-  background: #E63B6F ;
+  background: var(--primary) ;
   color: #fff;
   width: 28px;
   height: 28px;
@@ -511,10 +505,10 @@ onUnmounted(() => {
   border: 2px solid #fff;
   transition: background 0.2s;
 }
-.avatar-upload-btn:hover { background: #b50c4d; }
+.avatar-upload-btn:hover { background: var(--primary-dark); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
 
-.avatar-info h4 { font-size: 0.95rem; font-weight: 600; color: #111827; margin: 0 0 4px; }
+.avatar-info h4 { font-size: 0.95rem; font-weight: 600; color: var(--text-main); margin: 0 0 4px; }
 .avatar-info p  { font-size: 0.8rem; color: #9ca3af; margin: 0; }
 
 /* Divider */
@@ -544,12 +538,12 @@ onUnmounted(() => {
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 0.9rem;
-  color: #111827;
+  color: var(--text-main);
   outline: none;
   transition: border 0.15s, box-shadow 0.15s;
-  background: #fff;
+  background: var(--card-bg);
 }
-.form-input:focus { border-color: #E63B6F; box-shadow: 0 0 0 3px rgba(230,59,111,0.12); }
+.form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230,59,111,0.12); }
 .form-input--error { border-color: #ef4444; }
 .form-input--disabled { background: #f9fafb; color: #6b7280; cursor: not-allowed; }
 
@@ -575,7 +569,7 @@ onUnmounted(() => {
 }
 .btn-primary {
   padding: 10px 28px;
-  background: #E63B6F;
+  background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -594,7 +588,7 @@ onUnmounted(() => {
 
 .btn-outline {
   padding: 10px 28px;
-  background: #fff;
+  background: var(--card-bg);
   color: #4b5563;
   border: 1px solid #d1d5db;
   border-radius: 8px;
@@ -608,7 +602,7 @@ onUnmounted(() => {
 }
 .btn-outline:hover {
   background: #f9fafb;
-  color: #111827;
+  color: var(--text-main);
   border-color: #9ca3af;
 }
 
@@ -631,7 +625,7 @@ onUnmounted(() => {
   gap: 16px;
 }
 .stat-card {
-  background: #fff;
+  background: var(--card-bg);
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   padding: 20px;
@@ -656,7 +650,7 @@ onUnmounted(() => {
 .stat-icon--green { background: #ecfdf5; color: #059669; }
 
 .stat-info { display: flex; flex-direction: column; }
-.stat-number { font-size: 1.5rem; font-weight: 700; color: #111827; line-height: 1; }
+.stat-number { font-size: 1.5rem; font-weight: 700; color: var(--text-main); line-height: 1; }
 .stat-label  { font-size: 0.8rem; color: #6b7280; margin-top: 4px; }
 
 @media (max-width: 640px) {

@@ -179,7 +179,7 @@ onMounted(async () => {
   color: var(--text-main);
   margin-bottom: 6px;
 }
-.highlight { color: #E63B6F; }
+.highlight { color: var(--primary); }
 .welcome-sub {
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -238,7 +238,7 @@ onMounted(async () => {
 .card-title { font-size: 1rem; font-weight: 800; color: var(--text-main); }
 .link-all {
   font-size: 0.8rem; font-weight: 600;
-  color: #E63B6F; text-decoration: none;
+  color: var(--primary); text-decoration: none;
 }
 .link-all:hover { color: var(--ocean-bright); text-decoration: underline; }
 
@@ -250,7 +250,7 @@ onMounted(async () => {
   font-family: var(--font-inter); font-size: 0.75rem; font-weight: 600;
   cursor: pointer; transition: all 0.2s;
 }
-.tab.active { background: #E63B6F; color: white; }
+.tab.active { background: var(--primary); color: white; }
 .tab:hover:not(.active) { color: var(--text-main); }
 
 /* Bar chart */
@@ -262,7 +262,7 @@ onMounted(async () => {
 .bar-track { height: 160px; display: flex; align-items: flex-end; width: 100%; justify-content: center; }
 .bar-fill {
   width: 32px; border-radius: 6px 6px 2px 2px;
-  background: #E63B6F;
+  background: var(--primary);
   position: relative; transition: all 0.2s; cursor: pointer;
   min-height: 12px;
 }
@@ -301,7 +301,7 @@ onMounted(async () => {
 }
 .s-done { background: rgba(38, 166, 154, 0.15); color: #167a70; }
 .s-pending { background: rgba(255, 167, 38, 0.15); color: #e65100; }
-.s-shipped { background: rgba(3, 169, 244, 0.15); color: #E63B6F; }
+.s-shipped { background: rgba(3, 169, 244, 0.15); color: var(--primary); }
 
 /* Quick Actions */
 .section-title { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 14px; }

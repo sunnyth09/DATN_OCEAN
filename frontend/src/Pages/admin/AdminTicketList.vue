@@ -325,7 +325,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
+  background: var(--card-bg);
   padding: 16px;
   border-radius: 12px;
   margin-bottom: 24px;
@@ -346,7 +346,7 @@ onMounted(() => {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--text-light);
 }
 
 .search-box input {
@@ -370,13 +370,13 @@ onMounted(() => {
   border-radius: 8px;
   font-size: 0.95rem;
   outline: none;
-  background: white;
+  background: var(--card-bg);
   min-width: 160px;
 }
 
 /* Table */
 .table-container {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 0;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -389,7 +389,7 @@ onMounted(() => {
 }
 
 .table th {
-  background: #f8fafc;
+  background: var(--surface-container);
   padding: 16px;
   text-align: left;
   font-weight: 600;
@@ -407,8 +407,8 @@ onMounted(() => {
 }
 
 .user-info { display: flex; flex-direction: column; }
-.user-name { font-weight: 600; color: #0f172a; }
-.user-email { font-size: 0.85rem; color: #64748b; }
+.user-name { font-weight: 600; color: var(--text-main); }
+.user-email { font-size: 0.85rem; color: var(--text-muted); }
 
 .order-code {
   background: #e0f2fe;
@@ -438,22 +438,22 @@ onMounted(() => {
 .status-badge.pending { background: #fef3c7; color: #d97706; }
 .status-badge.processing { background: #e0f2fe; color: #0284c7; }
 .status-badge.resolved { background: #dcfce3; color: #16a34a; }
-.status-badge.closed { background: #f1f5f9; color: #64748b; }
+.status-badge.closed { background: var(--surface-container); color: var(--text-muted); }
 
 .text-right { text-align: right !important; }
-.text-muted { color: #94a3b8; }
+.text-muted { color: var(--text-light); }
 
 .btn-icon {
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 8px;
   border-radius: 6px;
   transition: all 0.2s;
 }
 .btn-icon:hover {
-  background: #f1f5f9;
+  background: var(--surface-container);
   color: #1d4ed8;
 }
 
@@ -461,7 +461,7 @@ onMounted(() => {
 .empty-state, .loading-state {
   padding: 60px 20px;
   text-align: center;
-  color: #64748b;
+  color: var(--text-muted);
 }
 .empty-icon { opacity: 0.5; margin-bottom: 16px; }
 
@@ -490,7 +490,7 @@ onMounted(() => {
   backdrop-filter: blur(4px);
 }
 .modal-box {
-  background: white;
+  background: var(--card-bg);
   width: 100%; max-width: 650px;
   border-radius: 16px;
   box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
@@ -504,7 +504,7 @@ onMounted(() => {
 }
 .modal-header h3 { margin: 0; font-size: 1.25rem; font-weight: 700; }
 .btn-close {
-  background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer;
+  background: none; border: none; font-size: 1.5rem; color: var(--text-light); cursor: pointer;
 }
 .modal-body {
   padding: 24px;
@@ -513,11 +513,11 @@ onMounted(() => {
 .info-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;
 }
-.info-group label { display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 4px; }
-.info-group p { margin: 0; font-weight: 600; color: #1e293b; }
+.info-group label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+.info-group p { margin: 0; font-weight: 600; color: var(--text-main); }
 
 .ticket-content {
-  background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e2e8f0;
+  background: var(--surface-container); padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e2e8f0;
 }
 .ticket-content h4 { margin: 0 0 12px; font-size: 1.1rem; color: #dc2626; }
 .description-box { color: #334155; line-height: 1.6; white-space: pre-wrap; }
@@ -539,7 +539,7 @@ onMounted(() => {
 .btn {
   padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s;
 }
-.btn-secondary { background: #f1f5f9; color: #475569; }
+.btn-secondary { background: var(--surface-container); color: #475569; }
 .btn-secondary:hover { background: #e2e8f0; }
 .btn-primary { background: #1d4ed8; color: white; display: flex; align-items: center; gap: 8px; }
 .btn-primary:hover:not(:disabled) { background: #1e40af; }

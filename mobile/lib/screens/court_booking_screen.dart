@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -5,6 +6,11 @@ import '../config/app_theme.dart';
 import '../models/court_booking_models.dart';
 import '../services/api_client.dart';
 import '../services/court_booking_service.dart';
+import 'court_booking/widgets/court_header.dart';
+import 'court_booking/widgets/slot_grid.dart';
+import 'court_booking/widgets/booking_summary_bar.dart';
+import 'court_booking/widgets/booking_card.dart';
+import 'court_booking/widgets/stepper_counter.dart';
 
 class CourtBookingScreen extends StatefulWidget {
   const CourtBookingScreen({super.key});
@@ -21,6 +27,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
   Timer? _refreshTimer;
   bool _loading = true;
   bool _actionLoading = false;
+  bool _isRefreshing = false;
   bool _isStaff = false;
   String? _error;
 
@@ -116,14 +123,19 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
   }
 
   Future<void> _silentRefresh() async {
-    if (!mounted || _actionLoading) return;
+    if (!mounted || _actionLoading || _isRefreshing) return;
+    _isRefreshing = true;
     try {
       await Future.wait([
         if (_selectedCourtId != null) _loadAvailability(silent: true),
         _loadMyBookings(silent: true),
         if (_isStaff) _loadStaffBookings(silent: true),
       ]);
-    } catch (_) {}
+    } catch (_) {
+      // Background refresh failures stay silent to avoid repeated snackbars.
+    } finally {
+      _isRefreshing = false;
+    }
   }
 
   Future<void> _loadAvailability({bool silent = false}) async {
@@ -199,9 +211,6 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       return;
     }
 
-    final confirmed = await _showBookingConfirmDialog();
-    if (confirmed != true) return;
-
     final indexes = _orderedSelectedIndexes;
     final start = _slots[indexes.first].startTime;
     final end = _slots[indexes.last].endTime;
@@ -219,7 +228,29 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       if (lockToken == null || lockToken.isEmpty) {
         throw Exception('Khong nhan duoc lock token tu may chu.');
       }
+    } catch (e) {
+      setState(() => _actionLoading = false);
+      _showSnack(_service.errorMessage(e), isError: true);
+      return;
+    }
+    
+    // Lock acquired! Reload availability so grid shows our lock, and stop loading indicator.
+    await _loadAvailability(silent: true);
+    setState(() => _actionLoading = false);
 
+    final confirmed = await _showBookingConfirmDialog();
+    
+    if (confirmed != true) {
+      // User cancelled or timeout
+      try {
+        await _service.releaseLock(lockToken);
+      } catch (_) {}
+      await _loadAvailability(silent: true);
+      return;
+    }
+
+    setState(() => _actionLoading = true);
+    try {
       final booking = await _service.createBooking(
         courtId: _selectedCourtId!,
         date: _dateParam,
@@ -238,12 +269,11 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       });
       await Future.wait([_loadAvailability(), _loadMyBookings(), if (_isStaff) _loadStaffBookings()]);
     } catch (e) {
-      if (lockToken != null) {
-        try {
-          await _service.releaseLock(lockToken);
-        } catch (_) {}
-      }
       _showSnack(_service.errorMessage(e), isError: true);
+      try {
+        await _service.releaseLock(lockToken);
+      } catch (_) {}
+      await _loadAvailability(silent: true);
     } finally {
       if (mounted) setState(() => _actionLoading = false);
     }
@@ -271,7 +301,41 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Xac nhan dat san', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Xac nhan dat san', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                          TweenAnimationBuilder<Duration>(
+                            duration: const Duration(minutes: 5),
+                            tween: Tween(begin: const Duration(minutes: 5), end: Duration.zero),
+                            onEnd: () {
+                              if (Navigator.canPop(context)) context.pop(false);
+                              _showSnack('Het thoi gian giu cho!', isError: true);
+                            },
+                            builder: (context, value, child) {
+                              final minutes = value.inMinutes;
+                              final seconds = value.inSeconds % 60;
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.timer_outlined, color: Colors.red, size: 16),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$minutes:${seconds.toString().padLeft(2, '0')}',
+                                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       _summaryRow('San', _selectedCourt?.name ?? ''),
                       _summaryRow('Ngay', DateFormat('dd/MM/yyyy').format(_selectedDate)),
@@ -314,7 +378,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                         }),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
-                        value: _paymentMethod,
+                        initialValue: _paymentMethod,
                         decoration: const InputDecoration(labelText: 'Phuong thuc thanh toan'),
                         items: const [
                           DropdownMenuItem(value: 'cash', child: Text('Tien mat tai san')),
@@ -330,7 +394,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: () => Navigator.pop(context, true),
+                          onPressed: () => context.pop(false),
                           icon: const Icon(Icons.event_available),
                           label: const Text('Dat san ngay'),
                         ),
@@ -405,7 +469,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
             ),
             if (_actionLoading)
               Container(
-                color: Colors.black.withOpacity(0.18),
+                color: Colors.black.withValues(alpha: 0.18),
                 child: const Center(child: CircularProgressIndicator()),
               ),
           ],
@@ -432,7 +496,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<int>(
-                  value: _selectedCourtId,
+                  initialValue: _selectedCourtId,
                   decoration: const InputDecoration(labelText: 'San'),
                   items: _courts
                       .map((court) => DropdownMenuItem(value: court.id, child: Text(court.name, overflow: TextOverflow.ellipsis)))
@@ -449,111 +513,23 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          if (_selectedCourt != null) _courtHeader(_selectedCourt!),
+          if (_selectedCourt != null) CourtHeader(_selectedCourt!),
           const SizedBox(height: 14),
           const Text('Khung gio trong ngay', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
           const SizedBox(height: 10),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _slots.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 2.25,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemBuilder: (context, index) => _slotTile(index),
+          SlotGrid(
+            slots: _slots,
+            selectedIndexes: _selectedSlotIndexes,
+            money: _money,
+            onToggle: _toggleSlot,
           ),
           const SizedBox(height: 16),
-          _bookingSummaryBar(),
-        ],
-      ),
-    );
-  }
-
-  Widget _courtHeader(Court court) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(color: AppColors.primarySoft, borderRadius: BorderRadius.circular(14)),
-            child: const Icon(Icons.stadium_outlined, color: AppColors.primary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(court.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text('${court.code} - ${court.type} - ${court.maxPlayers} nguoi',
-                    style: const TextStyle(color: AppColors.textSecondary)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _slotTile(int index) {
-    final slot = _slots[index];
-    final selected = _selectedSlotIndexes.contains(index);
-    final enabled = slot.isAvailable;
-    return InkWell(
-      onTap: enabled ? () => _toggleSlot(index) : null,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : (enabled ? Colors.white : const Color(0xFFE2E8F0)),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: selected ? AppColors.primary : AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('${slot.startTime} - ${slot.endTime}',
-                style: TextStyle(fontWeight: FontWeight.w900, color: selected ? Colors.white : AppColors.textDark)),
-            const SizedBox(height: 4),
-            Text(enabled ? _money.format(slot.price) : _slotStatusLabel(slot.status),
-                style: TextStyle(fontSize: 12, color: selected ? Colors.white70 : AppColors.textSecondary)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _bookingSummaryBar() {
-    final hasSelection = _orderedSelectedIndexes.isNotEmpty;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(hasSelection
-              ? '${_slots[_orderedSelectedIndexes.first].startTime} - ${_slots[_orderedSelectedIndexes.last].endTime}'
-              : 'Chua chon khung gio'),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: Text(_money.format(_slotAmount),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.primary)),
-              ),
-              ElevatedButton.icon(
-                onPressed: hasSelection ? _confirmBooking : null,
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Tiep tuc'),
-              ),
-            ],
+          BookingSummaryBar(
+            slots: _slots,
+            orderedSelectedIndexes: _orderedSelectedIndexes,
+            slotAmount: _slotAmount,
+            money: _money,
+            onContinue: _confirmBooking,
           ),
         ],
       ),
@@ -570,7 +546,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _myBookings.length,
-        itemBuilder: (context, index) => _bookingCard(_myBookings[index], staffMode: false),
+        itemBuilder: (context, index) => _buildBookingCard(_myBookings[index], staffMode: false),
       ),
     );
   }
@@ -593,7 +569,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _staffStatus,
+                  initialValue: _staffStatus,
                   decoration: const InputDecoration(labelText: 'Trang thai'),
                   items: const [
                     DropdownMenuItem(value: 'all', child: Text('Tat ca')),
@@ -628,132 +604,31 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
               child: Center(child: Text('Khong co booking phu hop.')),
             )
           else
-            ..._staffBookings.map((booking) => _bookingCard(booking, staffMode: true)),
+            ..._staffBookings.map((booking) => _buildBookingCard(booking, staffMode: true)),
         ],
       ),
     );
   }
 
-  Widget _bookingCard(CourtBooking booking, {required bool staffMode}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(booking.code, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-              ),
-              _statusChip(booking.status),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text('${booking.courtName ?? 'San #${booking.courtId}'} - ${_formatDate(booking.date)}'),
-          const SizedBox(height: 4),
-          Text('${booking.startTime} - ${booking.endTime}  |  ${booking.durationMinutes} phut',
-              style: const TextStyle(color: AppColors.textSecondary)),
-          if (booking.customerName != null || booking.customerPhone != null) ...[
-            const SizedBox(height: 4),
-            Text('${booking.customerName ?? 'Khach'} ${booking.customerPhone ?? ''}',
-                style: const TextStyle(color: AppColors.textSecondary)),
-          ],
-          const Divider(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: Text('${_money.format(booking.paidAmount)} / ${_money.format(booking.totalAmount)}',
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
-              ),
-              _paymentChip(booking.paymentStatus),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: staffMode ? _staffActions(booking) : _customerActions(booking),
-          ),
-        ],
+  Widget _buildBookingCard(CourtBooking booking, {required bool staffMode}) {
+    return BookingCard(
+      booking: booking,
+      staffMode: staffMode,
+      money: _money,
+      onShowQr: () => _showQr(booking),
+      onPay: () => _showPaymentDialog(booking, staffMode: false),
+      onCancel: () => _cancelCustomerBooking(booking),
+      onConfirm: () => _runAction(() => _service.confirmBooking(booking.id)),
+      onCheckIn: () => _runAction(() => _service.checkIn(booking.id)),
+      onQrCheckIn: () => _showQrCheckInDialog(booking),
+      onAddService: () => _showAddServiceDialog(booking),
+      onExtend: () => _showExtendDialog(booking),
+      onStaffPay: () => _showPaymentDialog(booking, staffMode: true),
+      onCheckout: () => _showCheckoutDialog(booking),
+      onStaffCancel: () => _runAction(
+        () => _service.staffCancelBooking(booking.id, reason: 'Nhan vien huy booking'),
       ),
     );
-  }
-
-  List<Widget> _customerActions(CourtBooking booking) {
-    return [
-      OutlinedButton.icon(
-        onPressed: () => _showQr(booking),
-        icon: const Icon(Icons.qr_code_2),
-        label: const Text('QR'),
-      ),
-      if (booking.amountDue > 0 && !['cancelled', 'completed', 'expired'].contains(booking.status))
-        OutlinedButton.icon(
-          onPressed: () => _showPaymentDialog(booking, staffMode: false),
-          icon: const Icon(Icons.payments_outlined),
-          label: const Text('Thanh toan'),
-        ),
-      if (['pending', 'confirmed'].contains(booking.status))
-        TextButton.icon(
-          onPressed: () => _cancelCustomerBooking(booking),
-          icon: const Icon(Icons.cancel_outlined),
-          label: const Text('Huy'),
-        ),
-    ];
-  }
-
-  List<Widget> _staffActions(CourtBooking booking) {
-    return [
-      if (booking.status == 'pending')
-        ElevatedButton.icon(
-          onPressed: () => _runAction(() => _service.confirmBooking(booking.id)),
-          icon: const Icon(Icons.verified_outlined),
-          label: const Text('Xac nhan'),
-        ),
-      if (booking.status == 'confirmed')
-        ElevatedButton.icon(
-          onPressed: () => _runAction(() => _service.checkIn(booking.id)),
-          icon: const Icon(Icons.login),
-          label: const Text('Check-in'),
-        ),
-      if (booking.status == 'confirmed')
-        OutlinedButton.icon(
-          onPressed: () => _showQrCheckInDialog(booking),
-          icon: const Icon(Icons.qr_code_scanner),
-          label: const Text('QR in'),
-        ),
-      if (['checked_in', 'playing', 'extended'].contains(booking.status))
-        OutlinedButton.icon(
-          onPressed: () => _showAddServiceDialog(booking),
-          icon: const Icon(Icons.add_shopping_cart),
-          label: const Text('Dich vu'),
-        ),
-      if (['checked_in', 'playing', 'extended'].contains(booking.status))
-        OutlinedButton.icon(
-          onPressed: () => _showExtendDialog(booking),
-          icon: const Icon(Icons.more_time),
-          label: const Text('Gia han'),
-        ),
-      if (booking.amountDue > 0 && !['cancelled', 'completed'].contains(booking.status))
-        OutlinedButton.icon(
-          onPressed: () => _showPaymentDialog(booking, staffMode: true),
-          icon: const Icon(Icons.payments_outlined),
-          label: const Text('Thu tien'),
-        ),
-      if (['checked_in', 'playing', 'extended'].contains(booking.status))
-        ElevatedButton.icon(
-          onPressed: () => _showCheckoutDialog(booking),
-          icon: const Icon(Icons.logout),
-          label: const Text('Check-out'),
-        ),
-      if (['pending', 'confirmed'].contains(booking.status))
-        TextButton.icon(
-          onPressed: () => _runAction(() => _service.staffCancelBooking(booking.id, reason: 'Nhan vien huy booking')),
-          icon: const Icon(Icons.cancel_outlined),
-          label: const Text('Huy'),
-        ),
-    ];
   }
 
   Future<void> _cancelCustomerBooking(CourtBooking booking) async {
@@ -777,7 +652,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: method,
+                initialValue: method,
                 decoration: const InputDecoration(labelText: 'Phuong thuc'),
                 items: [
                   if (staffMode) const DropdownMenuItem(value: 'cash', child: Text('Tien mat')),
@@ -790,7 +665,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
               ),
               const SizedBox(height: 10),
               DropdownButtonFormField<String>(
-                value: type,
+                initialValue: type,
                 decoration: const InputDecoration(labelText: 'Loai thanh toan'),
                 items: const [
                   DropdownMenuItem(value: 'deposit', child: Text('Dat coc')),
@@ -809,8 +684,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Luu')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Luu')),
         ],
       ),
     );
@@ -847,7 +722,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
         builder: (context) => AlertDialog(
           title: Text('QR ${booking.code}'),
           content: SelectableText('court_booking:${booking.id}:${data['qr_token']}'),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Dong'))],
+          actions: [TextButton(onPressed: () => context.pop(), child: const Text('Dong'))],
         ),
       );
     }, reload: false);
@@ -864,8 +739,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           decoration: const InputDecoration(labelText: 'QR token hoac chuoi QR'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Check-in')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Check-in')),
         ],
       ),
     );
@@ -892,7 +767,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<int>(
-                value: selectedService,
+                initialValue: selectedService,
                 items: _extraServices
                     .map((service) => DropdownMenuItem(value: service.id, child: Text(service.name)))
                     .toList(),
@@ -904,8 +779,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Them')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Them')),
         ],
       ),
     );
@@ -922,7 +797,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
         title: const Text('Gia han gio choi'),
         content: StatefulBuilder(
           builder: (context, setDialogState) => DropdownButtonFormField<int>(
-            value: minutes,
+            initialValue: minutes,
             decoration: const InputDecoration(labelText: 'So phut'),
             items: const [
               DropdownMenuItem(value: 15, child: Text('15 phut')),
@@ -933,8 +808,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Gia han')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Gia han')),
         ],
       ),
     );
@@ -955,7 +830,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
               if (booking.amountDue > 0) ...[
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: method,
+                  initialValue: method,
                   decoration: const InputDecoration(labelText: 'Phuong thuc thu tien'),
                   items: const [
                     DropdownMenuItem(value: 'cash', child: Text('Tien mat')),
@@ -970,8 +845,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Check-out')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Check-out')),
         ],
       ),
     );
@@ -1002,8 +877,8 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
         title: const Text('Xac nhan'),
         content: Text(text),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Dong y')),
+          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
+          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Dong y')),
         ],
       ),
     );
@@ -1021,111 +896,10 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
     );
   }
 
-  Widget _statusChip(String status) {
-    final color = switch (status) {
-      'confirmed' => AppColors.info,
-      'checked_in' || 'playing' || 'extended' => AppColors.success,
-      'completed' => AppColors.tertiary,
-      'cancelled' || 'no_show' || 'expired' => AppColors.error,
-      _ => AppColors.warning,
-    };
-    return Chip(
-      label: Text(_statusLabel(status), style: const TextStyle(color: Colors.white, fontSize: 11)),
-      backgroundColor: color,
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Widget _paymentChip(String status) {
-    final paid = status == 'paid' || status == 'deposit_paid';
-    return Chip(
-      label: Text(_paymentLabel(status), style: const TextStyle(color: Colors.white, fontSize: 11)),
-      backgroundColor: paid ? AppColors.success : AppColors.warning,
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  BoxDecoration _cardDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppColors.borderLight),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12, offset: const Offset(0, 6))],
-    );
-  }
-
   void _showSnack(String message, {bool isError = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: isError ? AppColors.error : AppColors.success),
-    );
-  }
-
-  String _formatDate(String date) {
-    final parsed = DateTime.tryParse(date);
-    return parsed == null ? date : DateFormat('dd/MM/yyyy').format(parsed);
-  }
-
-  String _slotStatusLabel(String status) {
-    return switch (status) {
-      'booked' => 'Da dat',
-      'locked' => 'Dang giu',
-      'maintenance' => 'Bao tri',
-      'past' => 'Da qua',
-      'closed' => 'Dong cua',
-      _ => status,
-    };
-  }
-
-  String _statusLabel(String status) {
-    return switch (status) {
-      'pending' => 'Cho xac nhan',
-      'confirmed' => 'Da xac nhan',
-      'checked_in' => 'Da check-in',
-      'playing' => 'Dang choi',
-      'extended' => 'Gia han',
-      'completed' => 'Hoan thanh',
-      'cancelled' => 'Da huy',
-      'no_show' => 'Vang mat',
-      'expired' => 'Het han',
-      _ => status,
-    };
-  }
-
-  String _paymentLabel(String status) {
-    return switch (status) {
-      'unpaid' => 'Chua TT',
-      'deposit_paid' => 'Da coc',
-      'partially_paid' => 'TT mot phan',
-      'paid' => 'Da TT',
-      'refunded' => 'Hoan tien',
-      'partially_refunded' => 'Hoan mot phan',
-      _ => status,
-    };
-  }
-}
-
-class StepperCounter extends StatelessWidget {
-  final int value;
-  final ValueChanged<int> onChanged;
-
-  const StepperCounter({super.key, required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton(
-          onPressed: value > 1 ? () => onChanged(value - 1) : null,
-          icon: const Icon(Icons.remove_circle_outline),
-        ),
-        SizedBox(width: 48, child: Center(child: Text(value.toString(), style: const TextStyle(fontWeight: FontWeight.w900)))),
-        IconButton(
-          onPressed: () => onChanged(value + 1),
-          icon: const Icon(Icons.add_circle_outline),
-        ),
-      ],
     );
   }
 }
