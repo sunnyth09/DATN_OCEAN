@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role'          => \App\Http\Middleware\RoleMiddleware::class,
             'customer.only' => \App\Http\Middleware\EnsureCustomerOnly::class,
+            'profanity'     => \App\Http\Middleware\FilterProfanity::class,
         ]);
         $middleware->redirectGuestsTo(fn (\Illuminate\Http\Request $request) => $request->is('api/*') ? abort(response()->json(['message' => 'Unauthenticated.'], 401)) : route('login'));
     })

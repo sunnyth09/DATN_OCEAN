@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\UserNotificationEvent;
 use App\Models\LoyaltyRule;
 use App\Models\LoyaltyTransaction;
 use App\Models\Order;
@@ -117,6 +118,12 @@ class LoyaltyService
 
         if ($alreadyEarned) return null;
 
+        // Rate limit: tối đa 5 lần giới thiệu tích điểm / ngày
+        if ($this->isRateLimited($referrer->user_id, Order::class, maxCount: 5, window: 'day', descriptionLike: 'Điểm giới thiệu%')) {
+            Log::info('LoyaltyRateLimit: earnFromReferral bị chặn', ['referrer_id' => $referrer->user_id, 'order_id' => $order->order_id]);
+            return null;
+        }
+
         $points = (int) $rule->points_per_unit;
         if ($points <= 0) return null;
 
@@ -179,6 +186,12 @@ class LoyaltyService
 
         if ($alreadyEarned) return null;
 
+        // Rate limit: tối đa 5 đánh giá được tích điểm / ngày
+        if ($this->isRateLimited($user->user_id, 'product_comment', maxCount: 5, window: 'day')) {
+            Log::info('LoyaltyRateLimit: earnFromReview bị chặn', ['user_id' => $user->user_id, 'comment_id' => $commentId]);
+            return null;
+        }
+
         $points = (int) $rule->points_per_unit;
 
         return $this->recordEarn(
@@ -201,6 +214,20 @@ class LoyaltyService
     {
         $rule = LoyaltyRule::findByKey('ABANDONED_CART');
         if (!$rule) return null;
+
+        // Tránh earn nhiều lần cho cùng 1 cart
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
+            ->where('reference_type', 'cart')
+            ->where('reference_id', $cartId)
+            ->exists();
+
+        if ($alreadyEarned) return null;
+
+        // Rate limit: tối đa 1 lần / ngày (tránh spam qua nhiều giỏ hàng)
+        if ($this->isRateLimited($user->user_id, 'cart', maxCount: 1, window: 'day')) {
+            Log::info('LoyaltyRateLimit: earnAbandonedCart bị chặn', ['user_id' => $user->user_id, 'cart_id' => $cartId]);
+            return null;
+        }
 
         $points = (int) $rule->points_per_unit;
 
@@ -232,6 +259,12 @@ class LoyaltyService
             ->exists();
 
         if ($alreadyEarned) return null;
+
+        // Rate limit: tối đa 3 lần bonus ảnh / ngày
+        if ($this->isRateLimited($user->user_id, 'product_comment_image', maxCount: 3, window: 'day')) {
+            Log::info('LoyaltyRateLimit: earnFromReviewWithImage bị chặn', ['user_id' => $user->user_id, 'comment_id' => $commentId]);
+            return null;
+        }
 
         $points = (int) $rule->points_per_unit;
 
@@ -265,6 +298,12 @@ class LoyaltyService
             ->exists();
 
         if ($alreadyEarned) return null;
+
+        // Rate limit: tối đa 30 sản phẩm được share tích điểm / ngày
+        if ($this->isRateLimited($user->user_id, 'social_share', maxCount: 30, window: 'day')) {
+            Log::info('LoyaltyRateLimit: earnFromSocialShare bị chặn (global cap)', ['user_id' => $user->user_id, 'product_id' => $productId]);
+            return null;
+        }
 
         $points = (int) $rule->points_per_unit;
 
@@ -640,7 +679,7 @@ class LoyaltyService
             ->where('user_id', $user->user_id)
             ->increment('reward_points', $points);
 
-        return LoyaltyTransaction::create([
+        $transaction = LoyaltyTransaction::create([
             'user_id'        => $user->user_id,
             'type'           => 'earn',
             'points'         => $points,
@@ -651,6 +690,74 @@ class LoyaltyService
             'description'    => $description,
             'expires_at'     => $rule->calcExpiryDate(),
         ]);
+
+        // Gửi thông báo tích điểm tới user
+        try {
+            $notificationData = [
+                'title'   => 'Bạn vừa nhận được điểm thưởng! 🎉',
+                'message' => "+{$points} điểm · {$description} · Số dư: {$newBalance} điểm",
+                'type'    => 'loyalty_earn',
+                'points'  => $points,
+                'balance' => $newBalance,
+            ];
+
+            DB::table('notifications')->insert([
+                'id'              => (string) \Illuminate\Support\Str::uuid(),
+                'type'            => 'App\Notifications\LoyaltyEarnNotification',
+                'notifiable_type' => User::class,
+                'notifiable_id'   => $user->user_id,
+                'data'            => json_encode($notificationData),
+                'read_at'         => null,
+                'created_at'      => Carbon::now(),
+                'updated_at'      => Carbon::now(),
+            ]);
+
+            event(new UserNotificationEvent($user->user_id, $notificationData));
+        } catch (\Exception $e) {
+            Log::error('LoyaltyService: Gửi thông báo tích điểm thất bại', [
+                'user_id' => $user->user_id,
+                'points'  => $points,
+                'error'   => $e->getMessage(),
+            ]);
+        }
+
+        return $transaction;
+    }
+
+    /**
+     * Kiểm tra xem user đã vượt giới hạn earn trong khoảng thời gian chưa.
+     *
+     * @param int         $userId
+     * @param string      $referenceType   Loại giao dịch cần đếm (e.g. 'product_comment', Order::class)
+     * @param int         $maxCount        Số lần tối đa cho phép
+     * @param string      $window          Cửa sổ thời gian: 'hour' | 'day' | 'week' | 'month'
+     * @param string|null $descriptionLike Lọc thêm theo description LIKE (optional)
+     */
+    private function isRateLimited(
+        int     $userId,
+        string  $referenceType,
+        int     $maxCount,
+        string  $window = 'day',
+        ?string $descriptionLike = null,
+    ): bool {
+        $query = LoyaltyTransaction::forUser($userId)
+            ->where('type', 'earn')
+            ->where('reference_type', $referenceType);
+
+        if ($descriptionLike) {
+            $query->where('description', 'like', $descriptionLike);
+        }
+
+        $query = match ($window) {
+            'hour'  => $query->where('created_at', '>=', now()->subHour()),
+            'day'   => $query->whereDate('created_at', today()),
+            'week'  => $query->where('created_at', '>=', now()->startOfWeek()),
+            'month' => $query->whereMonth('created_at', now()->month)
+                             ->whereYear('created_at', now()->year),
+            default => $query->whereDate('created_at', today()),
+        };
+
+        return $query->count() >= $maxCount;
     }
 
     private function burnError(string $message, int $userId, ?int $balance = null): array

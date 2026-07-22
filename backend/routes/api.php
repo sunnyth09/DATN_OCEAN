@@ -84,8 +84,8 @@ Route::get('/', function () {
 Route::middleware('throttle:20,1')->post('/login', [AuthController::class, 'login']);
 Route::middleware('throttle:10,1')->post('/register', [AuthController::class, 'register']);
 Route::middleware('throttle:5,1')->group(function () {
-    Route::post('/SubmitContact', [ContactController::class, 'SubmitContact']);
-    Route::post('/SubmitContactEmail', [ContactController::class, 'SubmitContactEmail']);
+    Route::post('/submitcontact', [ContactController::class, 'SubmitContact']);
+    Route::post('/submitcontactemail', [ContactController::class, 'SubmitContactEmail']);
 });
 
 // Forgot Password routes (Public) — có Rate Limiting cho send OTP
@@ -164,13 +164,13 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // Đơn hàng của tôi
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::middleware('throttle:10,1')->post('/orders', [OrderController::class, 'store']);
+    Route::middleware('throttle:30,1')->post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
     Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
     Route::put('/orders/{id}/cancel', [OrderController::class, 'cancel']);
     // Đánh giá sản phẩm
-    Route::post('/orders/feedback', [ProductCommentController::class, 'store']);
+    Route::middleware(['throttle:5,1', 'profanity'])->post('/orders/feedback', [ProductCommentController::class, 'store']);
 
     // ── Notifications (Thông báo inbox) ──
     Route::get('/notifications', [NotificationController::class, 'index']);
@@ -195,7 +195,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     });
     // Khiếu nại của tôi
     Route::get('/tickets', [TicketController::class, 'clientIndex']);
-    Route::post('/tickets', [TicketController::class, 'clientStore']);
+    Route::middleware('throttle:3,1')->post('/tickets', [TicketController::class, 'clientStore']);
 });
 
 // Tracking routes (Public, optional auth logic handled inside controller)
@@ -220,7 +220,7 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 });
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
-Route::middleware('throttle:10,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:30,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
 Route::middleware('throttle:30,1')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
 Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
@@ -239,7 +239,7 @@ Route::middleware(['auth:api,admin', 'throttle:10,1'])->post('flash-sale/buy', [
 // ==========================================
 // AFFILIATE — Track Click (Public, không cần auth)
 // ==========================================
-Route::post('/affiliate/track-click', [AffiliateController::class, 'trackClick']);
+Route::middleware('throttle:30,1')->post('/affiliate/track-click', [AffiliateController::class, 'trackClick']);
 
 // ==========================================
 // NHÓM 1: QUAN TRỊ VIÊN CẤP CAO (admin)
@@ -495,8 +495,8 @@ Route::get('/loyalty/rules', [LoyaltyController::class, 'rules']);
 Route::middleware('auth:api')->prefix('loyalty')->group(function () {
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
-    Route::post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
-    Route::post('/social-share', [LoyaltyController::class, 'socialShare']); // Chia sẻ MXH +30đ
+    Route::middleware('throttle:20,1')->post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
+    Route::middleware('throttle:5,1')->post('/social-share', [LoyaltyController::class, 'socialShare']); // Chia sẻ MXH +30đ (chống spam)
 });
 
 // ==========================================

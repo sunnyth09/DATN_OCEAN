@@ -108,29 +108,55 @@ class TicketController extends Controller
     public function clientStore(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'order_id' => 'required|exists:orders,order_id',
+            'order_id'   => 'required|exists:orders,order_id',
             'product_id' => 'nullable|exists:products,product_id',
-            'reason' => 'required|string|max:255',
-            'description' => 'required|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            'reason'     => 'required|string|max:255',
+            'description'=> 'required|string',
+            'image'      => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => 'Dữ liệu không hợp lệ',
-                'errors' => $validator->errors()
+                'errors'  => $validator->errors()
             ], 422);
+        }
+
+        $userId = $request->user()->user_id;
+
+        // Guard 1: Đơn hàng phải thuộc về chính user này (tránh khiếu nại giả mạo đơn người khác)
+        $order = \App\Models\Order::where('order_id', $request->order_id)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Đơn hàng không tồn tại hoặc không thuộc về bạn.',
+            ], 403);
+        }
+
+        // Guard 2: Giới hạn tối đa 3 ticket đang chờ xử lý (pending/processing) cùng lúc
+        $openTicketCount = Ticket::where('user_id', $userId)
+            ->whereIn('status', ['pending', 'processing'])
+            ->count();
+
+        if ($openTicketCount >= 3) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Bạn đang có ' . $openTicketCount . ' khiếu nại chờ xử lý. Vui lòng chờ xử lý trước khi gửi thêm.',
+            ], 429);
         }
 
         try {
             $ticket = new Ticket();
-            $ticket->user_id = $request->user()->user_id;
-            $ticket->order_id = $request->order_id;
-            $ticket->product_id = $request->product_id;
-            $ticket->reason = $request->reason;
+            $ticket->user_id     = $userId;
+            $ticket->order_id    = $request->order_id;
+            $ticket->product_id  = $request->product_id;
+            $ticket->reason      = $request->reason;
             $ticket->description = $request->description;
-            $ticket->status = 'pending';
+            $ticket->status      = 'pending';
 
             if ($request->hasFile('image')) {
                 $imagePath = $request->file('image')->store('tickets', 'public');
@@ -140,14 +166,14 @@ class TicketController extends Controller
             $ticket->save();
 
             return response()->json([
-                'status' => 'success',
+                'status'  => 'success',
                 'message' => 'Gửi khiếu nại thành công',
-                'data' => $ticket
+                'data'    => $ticket
             ], 201);
         } catch (\Exception $e) {
             Log::error('Ticket create error: ' . $e->getMessage());
             return response()->json([
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => 'Lỗi khi tạo khiếu nại',
             ], 500);
         }
