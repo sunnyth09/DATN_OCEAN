@@ -513,7 +513,7 @@ class CartService
             ->whereNotIn('product_id', $cartProductIds)
             ->where(function ($q) use ($topMaxPrice) {
                 $q->where('min_price', '<', $topMaxPrice)
-                  ->orWhere('max_price', '<', $topMaxPrice);
+                    ->orWhere('max_price', '<', $topMaxPrice);
             })
             ->whereHas('variants', function ($q) {
                 $q->where('status', 'active')->where('stock', '>', 0);
@@ -521,8 +521,8 @@ class CartService
             ->with([
                 'variants' => function ($q) {
                     $q->where('status', 'active')
-                      ->where('stock', '>', 0)
-                      ->orderBy('price', 'asc');
+                        ->where('stock', '>', 0)
+                        ->orderBy('price', 'asc');
                 },
                 'mainImage',
             ])
