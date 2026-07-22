@@ -52,10 +52,10 @@ onMounted(async () => {
         <div class="boards-container">
           <div class="board-wrapper" v-for="item in items" :key="item.item_id">
             <FlashSaleBoard :item-id="item.item_id" />
-          </div>
-          <div v-if="items.length === 0" class="text-center py-5">
-             <h4 class="text-muted">Hiện tại không có chương trình Flash Sale nào.</h4>
-          </div>
+          </div>          
+        </div>
+        <div v-if="items.length === 0" class="d-flex justify-content-center">
+            <h4 class="text-muted" >Hiện tại không có chương trình Flash Sale nào.</h4>
         </div>
 
         <!-- Quy tắc -->
@@ -105,6 +105,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+
 .flash-sale-page {
   min-height: 100vh;
   background: #F8F9FA;

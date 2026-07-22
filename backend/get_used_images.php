@@ -25,15 +25,15 @@ $categories = DB::table('categories')->pluck('image');
 foreach ($categories as $img) addPath($usedImages, $img);
 
 // 2. Products
-$products = DB::table('products')->pluck('image');
+$products = DB::table('products')->pluck('thumbnail_url');
 foreach ($products as $img) addPath($usedImages, $img);
 
 // 3. Product Images
-$productImages = DB::table('product_images')->pluck('image_path');
+$productImages = DB::table('product_images')->pluck('image_url');
 foreach ($productImages as $img) addPath($usedImages, $img);
 
 // 4. Product Variants
-$productVariants = DB::table('product_variants')->pluck('image');
+$productVariants = DB::table('product_variants')->pluck('image_url');
 foreach ($productVariants as $img) addPath($usedImages, $img);
 
 // 5. Users
@@ -56,8 +56,11 @@ if (Illuminate\Support\Facades\Schema::hasColumn('admins', 'avatar')) {
 
 // 7. Posts
 if (Illuminate\Support\Facades\Schema::hasTable('posts')) {
-    $posts = DB::table('posts')->pluck('thumbnail');
-    foreach ($posts as $img) addPath($usedImages, $img);
+    $postsThumbnail = DB::table('posts')->pluck('thumbnail_url');
+    foreach ($postsThumbnail as $img) addPath($usedImages, $img);
+    
+    $postsBanner = DB::table('posts')->pluck('banner_url');
+    foreach ($postsBanner as $img) addPath($usedImages, $img);
 }
 
 // 8. Attendances

@@ -53,6 +53,8 @@ class LoyaltyService
 
         if ($alreadyEarned) return null;
 
+        if ($order->grand_total < 100000) return null;
+
         // 1 point / 10.000đ
         $points = (int) floor(($order->grand_total / 10000) * $rule->points_per_unit);
 
