@@ -29,6 +29,8 @@ const userEmail = ref("");
 const userAvatar = ref(null);
 const isAdmin = ref(false);
 const showDropdown = ref(false);
+const showNotifDropdown = ref(false);
+const notificationsList = ref([]);
 const showNotificationPopup = ref(false);
 const isMobileMenuOpen = ref(false);
 const headerRewardPoints = ref(0);
@@ -68,6 +70,48 @@ const closeMobileMenu = () => {
     isMobileMenuOpen.value = false;
 };
 
+const toggleNotifMenu = async () => {
+    showNotifDropdown.value = !showNotifDropdown.value;
+    if (showNotifDropdown.value) {
+        closeMobileMenu();
+        showDropdown.value = false;
+        await fetchNotificationsList();
+    }
+};
+
+const fetchNotificationsList = async () => {
+    const token = sessionStorage.getItem("auth_token");
+    if (!token) return;
+    try {
+        const response = await api.get("/profile/notifications?limit=5");
+        if (response.data && response.data.data) {
+            // Check if it's a paginator object (Laravel default)
+            if (response.data.data.data && Array.isArray(response.data.data.data)) {
+                notificationsList.value = response.data.data.data;
+            } else {
+                notificationsList.value = response.data.data;
+            }
+        } else if (Array.isArray(response.data)) {
+            notificationsList.value = response.data.slice(0, 5);
+        }
+    } catch (e) {
+        console.error("Failed to fetch notifications list", e);
+    }
+};
+
+const markAsRead = async (id, url) => {
+    try {
+        await api.post(`/profile/notifications/${id}/mark-as-read`);
+        fetchUnreadNotificationCount();
+        if (url) {
+             window.location.href = url;
+        }
+        showNotifDropdown.value = false;
+    } catch (e) {
+        console.error(e);
+    }
+};
+
 const toggleMobileMenu = () => {
     isMobileMenuOpen.value = !isMobileMenuOpen.value;
     if (isMobileMenuOpen.value) {
@@ -79,6 +123,7 @@ const toggleAccountMenu = () => {
     showDropdown.value = !showDropdown.value;
     if (showDropdown.value) {
         closeMobileMenu();
+        showNotifDropdown.value = false;
     }
 };
 
@@ -199,6 +244,10 @@ const handleDocumentClick = (event) => {
         closeAccountMenu();
     }
     
+    if (!target.closest(".notif-dropdown")) {
+        showNotifDropdown.value = false;
+    }
+    
     if (!target.closest(".search-wrapper")) {
         showDropdownResult.value = false;
         if (!searchQuery.value) {
@@ -276,6 +325,23 @@ watch(isLoggedIn, (val) => {
             window.Echo.private('user.' + userData.user_id)
                 .listen('.UserNotificationEvent', (e) => { // . means it ignores Broadcast namespace
                     authStore.incrementUnreadNotificationCount();
+                    if (showNotifDropdown.value) {
+                        fetchNotificationsList(); // Refresh list if open
+                    }
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'info',
+                        title: e.title || e.notification?.title || 'Thông báo mới',
+                        text: e.message || e.notification?.message || 'Bạn có thông báo mới',
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true,
+                        didOpen: (toast) => {
+                            toast.addEventListener('mouseenter', Swal.stopTimer)
+                            toast.addEventListener('mouseleave', Swal.resumeTimer)
+                        }
+                    });
                     showNotificationPopup.value = true;
                     setTimeout(() => {
                         showNotificationPopup.value = false;
@@ -550,15 +616,43 @@ watch(
                 </div>
 
                 <!-- Thông báo -->
-                <div class="header-notif-container" v-if="isLoggedIn">
-                    <router-link to="/profile/notifications" class="icon-btn notif-icon-btn">
+                <div class="header-notif-container notif-dropdown" v-if="isLoggedIn">
+                    <button class="icon-btn notif-icon-btn" @click.stop="toggleNotifMenu">
                         <div class="cart-icon-wrapper">
                             <AppIcon name="bell" />
                             <span v-if="unreadNotificationCount > 0" class="cart-badge">{{
                                 unreadNotificationCount > 99 ? "99+" : unreadNotificationCount
                             }}</span>
                         </div>
-                    </router-link>
+                    </button>
+
+                    <!-- Notif Dropdown Menu -->
+                    <div class="notif-menu" v-show="showNotifDropdown">
+                        <div class="notif-menu-inner">
+                            <div class="notif-header">
+                                <h3>Thông báo mới</h3>
+                                <router-link to="/profile/notifications" @click="showNotifDropdown = false" class="notif-view-all">Xem tất cả</router-link>
+                            </div>
+                            <div class="notif-list" v-if="notificationsList.length > 0">
+                                <div v-for="notif in notificationsList" :key="notif.id" 
+                                     class="notif-item" 
+                                     :class="{ unread: !notif.read_at }"
+                                     @click="markAsRead(notif.id, notif.data?.url_redirect)">
+                                    <div class="notif-icon-circle">
+                                        <AppIcon name="bell" size="18" />
+                                    </div>
+                                    <div class="notif-content">
+                                        <div class="notif-title">{{ notif.data?.title || 'Thông báo mới' }}</div>
+                                        <div class="notif-desc">{{ notif.data?.message }}</div>
+                                        <div class="notif-time">{{ new Date(notif.created_at).toLocaleString('vi-VN') }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="notif-empty" v-else>
+                                Không có thông báo nào.
+                            </div>
+                        </div>
+                    </div>
 
                     <transition name="notif-popup-slide">
                         <div v-if="showNotificationPopup" class="new-notif-popup" @click="router.push('/profile/notifications'); showNotificationPopup = false">
@@ -1027,6 +1121,121 @@ watch(
     justify-content: center;
     font-size: 0.8rem;
     font-weight: 700;
+}
+
+/* NOTIFICATION DROPDOWN */
+.notif-dropdown {
+    position: relative;
+}
+
+.notif-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    padding-top: 12px;
+    width: 340px;
+    z-index: 200;
+}
+
+.notif-menu-inner {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.notif-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.notif-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.notif-view-all {
+    font-size: 0.85rem;
+    color: #E63B6F;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.notif-list {
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.notif-item {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.notif-item:last-child {
+    border-bottom: none;
+}
+
+.notif-item:hover {
+    background: #f8fafc;
+}
+
+.notif-item.unread {
+    background: #fff0f3;
+}
+
+.notif-icon-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #E63B6F;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.notif-content {
+    flex: 1;
+}
+
+.notif-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 4px;
+}
+
+.notif-desc {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.notif-time {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.notif-empty {
+    padding: 30px 20px;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.9rem;
 }
 
 .account-menu {

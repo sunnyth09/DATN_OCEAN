@@ -103,7 +103,6 @@ class GhnOrderStatusSyncService
         return DB::transaction(function () use ($order, $mappedStatus, $ghnStatus, $source, $happenedAt, $description, $location) {
             $oldStatus = $order->fulfillment_status;
             $shouldUpdateOrder = $this->shouldUpdateOrder($oldStatus, $mappedStatus);
-            
             $lastHistory = OrderStatusHistory::where('order_id', $order->order_id)
                 ->whereNotNull('ghn_status')
                 ->orderByDesc('happened_at')

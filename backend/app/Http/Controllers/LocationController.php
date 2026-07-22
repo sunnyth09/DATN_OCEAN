@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\GHNService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 /**
  * LocationController — Cung cấp danh sách Tỉnh/Quận/Phường chuẩn GHN cho frontend.
@@ -13,9 +14,6 @@ class LocationController extends Controller
 {
     private const TTL = 86400; // 24h
 
-    /**
-     * GET /api/location/provinces
-     */
     public function getProvinces()
     {
         $cached = Cache::get('ghn_provinces_v3');
@@ -40,9 +38,6 @@ class LocationController extends Controller
         return $this->ok($data);
     }
 
-    /**
-     * GET /api/location/districts/{provinceCode}
-     */
     public function getDistricts($provinceCode)
     {
         $cacheKey = "ghn_districts_v3_{$provinceCode}";
@@ -68,9 +63,6 @@ class LocationController extends Controller
         return $this->ok($data);
     }
 
-    /**
-     * GET /api/location/wards/{districtCode}
-     */
     public function getWards($districtCode)
     {
         $cacheKey = "ghn_wards_v3_{$districtCode}";
@@ -96,9 +88,6 @@ class LocationController extends Controller
         return $this->ok($data);
     }
 
-    /**
-     * GET /api/location/search?q=keyword
-     */
     public function search(Request $request)
     {
         $keyword = $request->get('q', '');

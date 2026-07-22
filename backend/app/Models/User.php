@@ -176,4 +176,18 @@ class User extends Authenticatable implements JWTSubject
             'role' => $this->role ?? 'customer',
         ];
     }
+
+    /**
+     * Xác định kênh Broadcast mà model này sẽ lắng nghe Notification
+     */
+    public function receivesBroadcastNotificationsOn()
+    {
+        $channels = ['user.' . $this->user_id];
+        
+        if (in_array($this->role, ['admin', 'staff', 'seller'])) {
+            $channels[] = 'admin-notifications';
+        }
+        
+        return $channels;
+    }
 }

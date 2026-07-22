@@ -12,8 +12,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Exception;
 
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+
 class ProductCommentController extends Controller
 {
+    use AuthorizesRequests;
+
     public function __construct(
         protected LoyaltyService $loyaltyService
     ) {}  
@@ -92,6 +96,18 @@ class ProductCommentController extends Controller
                 'is_approved'    => 0,
                 'images'         => !empty($imagePaths) ? json_encode($imagePaths) : null,
             ]);
+
+            // Nếu rating <= 3, tự động tạo Ticket (Khiếu nại) cho admin
+            if ($request->rating <= 3) {
+                \App\Models\Ticket::create([
+                    'user_id'     => $userId,
+                    'order_id'    => $orderItem->order_id,
+                    'product_id'  => $request->product_id,
+                    'reason'      => 'Phản hồi đánh giá thấp (' . $request->rating . ' sao)',
+                    'description' => $request->content ?? 'Khách hàng đánh giá chất lượng sản phẩm thấp.',
+                    'status'      => 'pending',
+                ]);
+            }
 
             // ── Tích điểm Loyalty ──────────────────────────────────────────
             $user = auth('api')->user();

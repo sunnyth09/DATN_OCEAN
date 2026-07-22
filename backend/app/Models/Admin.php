@@ -48,4 +48,12 @@ class Admin extends Authenticatable implements JWTSubject
             'role' => $this->role,
         ];
     }
+
+    /**
+     * Xác định kênh Broadcast mà model này sẽ lắng nghe Notification
+     */
+    public function receivesBroadcastNotificationsOn()
+    {
+        return 'admin-notifications';
+    }
 }

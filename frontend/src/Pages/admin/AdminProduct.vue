@@ -5,6 +5,7 @@ import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
 import { getApiBaseUrl, getAppBaseUrl } from '@/utils/url';
+import QRCode from 'qrcode';
 import { sanitizeHtml } from '@/utils/sanitize';
 
 const toastData = ref({ message: '', type: 'success' });
@@ -138,6 +139,136 @@ const handleDelete = async (productId, isDeleted) => {
     } catch (error) {
         console.error('Error deleting product:', error);
         showToastMsg('Không thể xóa sản phẩm.', 'danger');
+    }
+};
+
+const printPriceLabel = async (product) => {
+    // Generate default date string for current month
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const defaultDateStr = `${String(firstDay.getDate()).padStart(2, '0')}/${String(firstDay.getMonth() + 1).padStart(2, '0')} - ${String(lastDay.getDate()).padStart(2, '0')}/${String(lastDay.getMonth() + 1).padStart(2, '0')}/${lastDay.getFullYear()}`;
+
+    // Prompt admin for shelf/position and valid date
+    const { value: formValues } = await Swal.fire({
+        title: 'Thông tin bổ sung tem giá',
+        html: `
+            <div style="text-align: left; padding: 10px;">
+                <label style="font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block; color: #333;">Mã kệ / Vị trí (VD: K35 M3 VT6)</label>
+                <input id="swal-shelf" class="swal2-input" placeholder="Nhập vị trí kệ..." style="width: 100%; margin: 0 0 15px 0; max-width: 100%;" value="K01">
+                
+                <label style="font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block; color: #333;">Thời gian áp dụng</label>
+                <input id="swal-date" class="swal2-input" placeholder="VD: 01/07 - 04/08/2026" style="width: 100%; margin: 0 0 15px 0; max-width: 100%;" value="${defaultDateStr}">
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'In Tem',
+        cancelButtonText: 'Hủy',
+        preConfirm: () => {
+            return {
+                shelf: document.getElementById('swal-shelf').value,
+                date: document.getElementById('swal-date').value
+            }
+        }
+    });
+
+    if (!formValues) return;
+
+    try {
+        const productUrl = `${window.location.origin}/product/${product.slug}`;
+        const qrDataUrl = await QRCode.toDataURL(productUrl, { width: 150, margin: 1 });
+        
+        const priceStr = formatPrice(product.min_price || product.lowest_price_variant?.price).replace('₫', '').trim();
+        const skuText = product.variants && product.variants.length > 0 ? product.variants[0].sku : (product.sku || 'N/A');
+        
+        const printWindow = window.open('', '_blank', 'width=400,height=300');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>In Tem Giá - ${product.name}</title>
+                <style>
+                    @page { margin: 0; size: auto; }
+                    body { 
+                        margin: 0; 
+                        font-family: Arial, sans-serif; 
+                        width: 180px; /* Tương đương khổ giấy nhỏ 50mm */
+                        padding: 10px 5px;
+                        box-sizing: border-box;
+                        background: #fff;
+                        color: #000;
+                    }
+                    .price-row {
+                        text-align: center;
+                        font-size: 26px;
+                        font-weight: 900;
+                        letter-spacing: -0.5px;
+                        border-bottom: 1px dashed #000;
+                        padding-bottom: 5px;
+                        margin-bottom: 5px;
+                    }
+                    .price-row span {
+                        font-size: 12px;
+                        font-weight: normal;
+                    }
+                    .content-row {
+                        display: flex;
+                        align-items: flex-start;
+                    }
+                    .qr-col {
+                        margin-right: 6px;
+                    }
+                    .qr-col img {
+                        width: 48px;
+                        height: 48px;
+                        display: block;
+                    }
+                    .info-col {
+                        flex: 1;
+                        font-size: 10px;
+                        line-height: 1.25;
+                    }
+                    .product-name {
+                        font-weight: bold;
+                        font-size: 11px;
+                        text-transform: uppercase;
+                        margin-bottom: 3px;
+                    }
+                    .product-meta {
+                        font-size: 9px;
+                        line-height: 1.3;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="price-row">
+                    ${priceStr} <span>đ</span>
+                </div>
+                <div class="content-row">
+                    <div class="qr-col">
+                        <img src="${qrDataUrl}" />
+                    </div>
+                    <div class="info-col">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-meta">
+                            ${formValues.shelf ? formValues.shelf + ' - ' : ''}SKU: ${skuText} <br/>
+                            Áp dụng: ${formValues.date}
+                        </div>
+                    </div>
+                </div>
+                <script>
+                    window.onload = () => {
+                        window.print();
+                        setTimeout(() => window.close(), 500);
+                    };
+                <\/script>
+            <\/body>
+            <\/html>
+        `);
+        printWindow.document.close();
+    } catch (error) {
+        console.error('Lỗi in tem giá:', error);
+        showToastMsg('Không thể in tem giá.', 'danger');
     }
 };
 
@@ -477,6 +608,13 @@ const formatDate = (dateString) => {
                                 <div class="actions-cell">
                                     <button class="btn-icon view" title="Xem Nhanh" @click="openQuickView(p.slug)">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                    </button>
+                                    <button class="btn-icon" title="In Tem Giá" @click="printPriceLabel(p)" style="color: #6c757d; background: #f8f9fa;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                                            <rect x="6" y="14" width="12" height="8"></rect>
+                                        </svg>
                                     </button>
                                     <router-link :to="`/admin/product/edit/${p.product_id}`" class="btn-icon edit" title="Sửa">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

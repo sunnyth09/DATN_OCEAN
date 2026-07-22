@@ -160,4 +160,29 @@ class AuthController extends Controller
 
         return response()->json($result, $status);
     }
+
+    private function verifyTurnstile(?string $token): bool
+    {
+        // VÔ HIỆU HOÁ CAPTRA TRÁNH BỊ LỖI KHI ĐĂNG NHẬP NẾU CHƯA CẤU HÌNH KEY
+        $secretKey = config('services.turnstile.secret_key');
+        if (!$secretKey || app()->environment('local', 'testing')) {
+            return true;
+        }
+
+        if (!$token) {
+            return false;
+        }
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::asForm()->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
+                'secret' => $secretKey,
+                'response' => $token,
+            ]);
+            return $response->json('success', false);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Turnstile verification failed: ' . $e->getMessage());
+            return false;
+        }
+    }
 }
+
