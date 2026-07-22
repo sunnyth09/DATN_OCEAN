@@ -17,6 +17,7 @@
     "html5-qrcode": "^2.3.8",
     "instantsearch.js": "^4.93.0",
     "laravel-echo": "^2.3.3",
+    "leaflet": "^1.9.4",
     "pinia": "^3.0.4",
     "pusher-js": "^8.4.3",
     "qrcode": "^1.5.4",

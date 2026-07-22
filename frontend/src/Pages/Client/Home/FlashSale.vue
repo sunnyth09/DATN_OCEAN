@@ -100,6 +100,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+
 .flash-sale-page {
   min-height: 100vh;
   background: #fff;
