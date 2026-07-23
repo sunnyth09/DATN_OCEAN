@@ -736,7 +736,7 @@ class ProductService
             $barcode = $this->generateUniqueBarcode();
             $this->productRepository->createVariant([
                 'product_id'       => $product->product_id,
-                'sku'              => $slug . '-default',
+                'sku'              => substr($slug, 0, 50) . '-default',
                 'barcode'          => $barcode,
                 'price'            => $price,
                 'compare_at_price' => $request->compare_at_price,
@@ -784,7 +784,7 @@ class ProductService
                 $barcode = $this->generateUniqueBarcode();
                 $variant = $this->productRepository->createVariant([
                     'product_id'     => $product->product_id,
-                    'sku'            => $slug . '-' . Str::slug($color ?? 'def') . '-' . Str::slug($size ?? 'def') . '-' . Str::random(4),
+                    'sku'            => substr($slug, 0, 50) . '-' . Str::slug(substr($color ?? 'def', 0, 20)) . '-' . Str::slug(substr($size ?? 'def', 0, 20)) . '-' . Str::random(4),
                     'barcode'        => $barcode,
                     'color'          => $color,
                     'size'           => $size,
@@ -862,7 +862,7 @@ class ProductService
                 $barcode = $this->generateUniqueBarcode();
                 $this->productRepository->createVariant([
                     'product_id'       => $product->product_id,
-                    'sku'              => Str::slug($product->name) . '-default',
+                    'sku'              => substr(Str::slug($product->name), 0, 50) . '-default',
                     'barcode'          => $barcode,
                     'price'            => $price,
                     'compare_at_price' => $request->compare_at_price,
@@ -957,7 +957,7 @@ class ProductService
                 $barcode = $this->generateUniqueBarcode();
                 $variant = $this->productRepository->createVariant([
                     'product_id'     => $product->product_id,
-                    'sku'            => Str::slug($product->name) . '-' . Str::slug($color ?? 'def') . '-' . Str::slug($size ?? 'def') . '-' . Str::random(4),
+                    'sku'            => substr(Str::slug($product->name), 0, 50) . '-' . Str::slug(substr($color ?? 'def', 0, 20)) . '-' . Str::slug(substr($size ?? 'def', 0, 20)) . '-' . Str::random(4),
                     'barcode'        => $barcode,
                     'color'          => $color,
                     'size'           => $size,

@@ -67,12 +67,14 @@ onMounted(async () => {
     await fetchProducts();
     if (route.query.edited_id) {
         nextTick(() => {
-            const el = document.getElementById(`product-${route.query.edited_id}`);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.add('highlight-edited');
-                setTimeout(() => el.classList.remove('highlight-edited'), 3000);
-            }
+            setTimeout(() => {
+                const el = document.getElementById(`product-${route.query.edited_id}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('highlight-edited');
+                    setTimeout(() => el.classList.remove('highlight-edited'), 3000);
+                }
+            }, 300);
         });
     }
 });
@@ -863,7 +865,7 @@ const formatDate = (dateString) => {
 
                         <!-- Footer Actions -->
                         <div class="qv-footer">
-                            <router-link :to="`/admin/product/edit/${quickViewProduct.product_id}`" class="btn-primary" @click="closeQuickView">
+                            <router-link :to="{ path: `/admin/product/edit/${quickViewProduct.product_id}`, query: route.query }" class="btn-primary" @click="closeQuickView">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 Chỉnh Sửa Sản Phẩm
                             </router-link>
