@@ -13,13 +13,13 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        // $turnstileToken = $request->input('turnstile_token');
-        // if (!$this->authService->verifyTurnstile($turnstileToken)) {
-        //     return response()->json([
-        //         'status' => 'error',
-        //         'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
-        //     ], 422);
-        // }
+        $turnstileToken = $request->input('turnstile_token');
+        if (!$this->verifyTurnstile($turnstileToken)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+            ], 422);
+        }
         $result = $this->authService->register($request->all());
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
@@ -29,18 +29,14 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        // VÔ HIỆU HOÁ CAPTRA TRÁNH BỊ LỖI KHI ĐĂNG NHẬP
-        // Lý do:
-        // - KEY CAPTCHA CỦA CLAUDFLRE CHƯA ĐƯỢC CẤU HÌNH ĐÚNG
-
         // Verify Cloudflare Turnstile
-        // $turnstileToken = $request->input('turnstile_token');
-        // if (!$this->verifyTurnstile($turnstileToken)) {
-        //     return response()->json([
-        //         'status' => 'error',
-        //         'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
-        //     ], 422);
-        // }
+        $turnstileToken = $request->input('turnstile_token');
+        if (!$this->verifyTurnstile($turnstileToken)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+            ], 422);
+        }
         $credentials = $request->only('email', 'password');
 
         // BƯỚC 1: Thử đăng nhập Admin (nhân sự) trước
