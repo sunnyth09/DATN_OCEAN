@@ -275,20 +275,13 @@ onUnmounted(() => {
 
 <template>
     <div class="product-page">
-        <!-- ══ HERO BANNER ══ -->
-        <section class="product-hero">
-            <div class="product-hero-bg">
-                <img src="https://images.unsplash.com/photo-1461896836934-bd45ba8fcf9b?w=1920&q=80" alt="hero" />
-                <div class="product-hero-overlay"></div>
-            </div>
-            <div class="product-hero-content">
-                <h1>Tất Cả Sản Phẩm</h1>
-                <p><em>Nâng tầm cuộc chơi với trang thiết bị chuyên nghiệp</em></p>
-            </div>
-        </section>
-
         <!-- ══ MAIN CONTENT ══ -->
         <div class="product-container">
+            <!-- ══ HERO BANNER ══ -->
+            <section class="page-hero">
+                <h1>Tất Cả Sản Phẩm</h1>
+                <p class="hero-sub">Nâng tầm cuộc chơi với trang thiết bị chuyên nghiệp</p>
+            </section>
             <!-- Info bar -->
             <div class="product-toolbar">
                 <div class="toolbar-left">
@@ -435,52 +428,28 @@ onUnmounted(() => {
 }
 
 /* ── HERO ── */
-.product-hero {
-    position: relative;
-    width: 100vw;
-    margin-left: calc(-50vw + 50%);
-    height: 220px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.page-hero {
+  background: linear-gradient(135deg, #e63b6f, #a0204e);
+  color: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  margin: 0 0 28px 0;
+  position: relative;
+  overflow: hidden;
+  text-align: left;
 }
-
-.product-hero-bg {
-    position: absolute;
-    inset: 0;
+.page-hero::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
 }
-.product-hero-bg img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 40%;
-}
-.product-hero-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(30, 20, 30, 0.7);
-}
-.product-hero-content {
-    position: relative;
-    z-index: 2;
-    text-align: center;
-}
-.product-hero-content h1 {
-    font-size: 2.4rem;
-    font-weight: 800;
-    color: #fff;
-    margin: 0 0 8px;
-    letter-spacing: -0.5px;
-}
-.product-hero-content p {
-    color: rgba(255,255,255,0.75);
-    font-size: 1rem;
-    margin: 0;
-}
-.product-hero-content em {
-    font-style: italic;
-}
+.page-hero h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 8px; position: relative; z-index: 1; }
+.hero-sub { opacity: 0.85; font-size: 0.95rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.6; }
 
 /* ── CONTAINER ── */
 .product-container {
@@ -806,7 +775,7 @@ onUnmounted(() => {
 
 @media (max-width: 1024px) {
     .products-grid-3 { grid-template-columns: repeat(2, 1fr); }
-    .product-hero-content h1 { font-size: 2rem; }
+    .page-hero h1 { font-size: 1.5rem; }
 }
 
 @media (max-width: 768px) {
@@ -814,8 +783,8 @@ onUnmounted(() => {
     .product-sidebar { width: 100%; position: static; display: flex; flex-wrap: wrap; gap: 24px; }
     .filter-group { flex: 1; min-width: 200px; }
     .product-toolbar { flex-direction: column; align-items: flex-start; gap: 12px; }
-    .product-hero { height: 180px; }
-    .product-hero-content h1 { font-size: 1.6rem; }
+    .page-hero { padding: 24px; }
+    .page-hero h1 { font-size: 1.3rem; }
 }
 
 @media (max-width: 480px) {

@@ -134,8 +134,9 @@ class GHNService
         }
 
         $sender = config('ghn.sender');
-
-
+        if (empty($sender['phone']) || empty($sender['address']) || empty($sender['ward_code']) || empty($sender['district_id'])) {
+            throw new \Exception('Chưa cấu hình đầy đủ địa chỉ kho gửi GHN');
+        }
         $items = [];
         $totalWeight = 0;
         $defaultWeight = (int) config('ghn.default_weight', 500);
@@ -159,6 +160,7 @@ class GHNService
             'payment_type_id' => $order->payment_method === 'cod' ? 2 : 1,
             'service_type_id' => (int) config('ghn.service_type_id', 2),
             'required_note' => (string) config('ghn.required_note', 'KHONGCHOXEMHANG'),
+
             'to_name' => $toName,
             'to_phone' => $toPhone,
             'to_address' => $toAddress,

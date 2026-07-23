@@ -30,13 +30,8 @@ onMounted(async () => {
     <!-- ══ HERO ══ -->
     <section class="hero">
       <div class="hero-inner">
-        <div class="hero-eyebrow">
-          <span class="eyebrow-dot"></span>
-          Chương trình đặc biệt
-          <span class="eyebrow-dot"></span>
-        </div>
         <h1 class="hero-title">
-          <AppIcon name="zap" size="52" stroke-width="2.5" />
+          <AppIcon name="zap" size="28" stroke-width="2.5" />
           Flash Sale
           <span class="hero-accent">Giá Sốc</span>
         </h1>
@@ -108,7 +103,7 @@ onMounted(async () => {
 
 .flash-sale-page {
   min-height: 100vh;
-  background: #F8F9FA;
+  background: #fff;
 }
 
 /* ── HERO ── */
@@ -119,40 +114,18 @@ onMounted(async () => {
 }
 
 .hero-inner {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.hero-eyebrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: rgba(255,255,255,0.75);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-}
-.eyebrow-dot {
-  width: 5px;
-  height: 5px;
-  background: rgba(255,255,255,0.5);
-  border-radius: 50%;
+  position: relative;
+  z-index: 1;
 }
 
 .hero-title {
   color: #fff;
-  font-size: clamp(36px, 8vw, 64px);
-  font-weight: 900;
-  line-height: 1.1;
+  font-size: 1.75rem;
+  font-weight: 800;
   margin: 0 0 8px;
-  letter-spacing: -1px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 10px;
 }
 
@@ -161,19 +134,21 @@ onMounted(async () => {
 }
 
 .hero-accent {
-  display: block;
+  display: inline-flex;
+  align-items: center;
   color: #fff;
   background: rgba(255,255,255,0.2);
   border-radius: 8px;
-  padding: 0 12px;
-  display: inline-block;
-  margin-top: 4px;
+  padding: 2px 10px;
+  font-size: 1rem;
 }
 
 .hero-sub {
-  color: rgba(255,255,255,0.75);
-  font-size: 15px;
-  margin: 12px 0 0;
+  color: rgba(255,255,255,0.85);
+  font-size: 0.95rem;
+  max-width: 500px;
+  margin: 0;
+  line-height: 1.6;
 }
 
 /* ── CONTENT ── */
@@ -260,7 +235,7 @@ onMounted(async () => {
 }
 
 @media (max-width: 480px) {
-  .hero { padding: 48px 16px 44px; }
-  .content { padding: 24px 12px 40px; }
+  .hero { padding: 24px; margin: 16px auto; }
+  .content { padding: 0 12px 40px; }
 }
 </style>

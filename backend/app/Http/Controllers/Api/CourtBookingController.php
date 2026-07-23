@@ -62,6 +62,29 @@ class CourtBookingController extends Controller
     {
         try {
             $booking = $this->bookingService->createBooking($request->validated());
+            
+            // Notify Customer
+            $user = auth()->guard('api')->user();
+            if ($user) {
+                $user->notify(new \App\Notifications\SystemNotification(
+                    'Đặt sân thành công',
+                    'Bạn đã đặt sân thành công. Mã đặt sân: ' . $booking->booking_code,
+                    '/profile/court-bookings',
+                    'calendar'
+                ));
+            }
+
+            // Notify Staff and Admins
+            $staffs = \App\Models\Admin::whereIn('role', ['admin', 'staff'])->get();
+            if ($staffs->count() > 0) {
+                \Illuminate\Support\Facades\Notification::send($staffs, new \App\Notifications\SystemNotification(
+                    'Lịch đặt sân mới',
+                    'Khách hàng ' . ($user->full_name ?? 'Khách') . ' vừa đặt sân. Mã: ' . $booking->booking_code,
+                    '/admin/court-bookings/' . $booking->booking_id,
+                    'calendar'
+                ));
+            }
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Booking created successfully.',

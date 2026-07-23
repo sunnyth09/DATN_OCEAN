@@ -142,3 +142,14 @@ Schedule::command('orders:cancel-expired-vnpay --minutes=30')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+/**
+ * ── 6. Đồng bộ trạng thái GHN fallback ──
+ *
+ * Webhook là realtime path, command này là fallback polling khi webhook bị miss
+ * hoặc môi trường dev chưa public backend bằng ngrok/Cloudflare Tunnel.
+ */
+Schedule::command('ghn:sync-status --limit=50')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));

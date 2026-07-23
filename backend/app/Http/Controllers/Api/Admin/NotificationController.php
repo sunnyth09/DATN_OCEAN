@@ -13,10 +13,10 @@ class NotificationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $admin = $request->user();
+        $admin = auth('api')->user() ?? auth('admin')->user();
         
         if (!$admin) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
 
         $query = $admin->notifications();
@@ -42,8 +42,11 @@ class NotificationController extends Controller
      */
     public function markAsRead(Request $request, $id): JsonResponse
     {
-        $admin = $request->user();
-        if (!$admin) return response()->json(['success' => false], 401);
+        $admin = auth('api')->user() ?? auth('admin')->user();
+        
+        if (!$admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
         
         $notification = $admin->notifications()->where('id', $id)->first();
         
@@ -62,10 +65,13 @@ class NotificationController extends Controller
      */
     public function markAllAsRead(Request $request): JsonResponse
     {
-        $admin = $request->user();
-        if ($admin) {
-            $admin->unreadNotifications->markAsRead();
+        $admin = auth('api')->user() ?? auth('admin')->user();
+        
+        if (!$admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
+
+        $admin->unreadNotifications->markAsRead();
 
         return response()->json([
             'success' => true,
@@ -78,8 +84,11 @@ class NotificationController extends Controller
      */
     public function destroy(Request $request, $id): JsonResponse
     {
-        $admin = $request->user();
-        if (!$admin) return response()->json(['success' => false], 401);
+        $admin = auth('api')->user() ?? auth('admin')->user();
+        
+        if (!$admin) {
+            return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
+        }
         
         $notification = $admin->notifications()->where('id', $id)->first();
         

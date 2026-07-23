@@ -31,7 +31,6 @@ class GhnWebhookController extends Controller
             Log::warning('GHN webhook rejected by IP whitelist', ['ip' => $request->ip()]);
             return response()->json(['message' => 'Forbidden'], 403);
         }
-
         $payload = $request->all();
         $orderCode = $payload['OrderCode'] ?? $payload['order_code'] ?? null;
         $ghnStatus = $payload['Status'] ?? $payload['status'] ?? null;
