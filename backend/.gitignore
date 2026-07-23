@@ -1,1 +1,6 @@
 /storage/app/firebase/firebase_credentials.json
+
+# Debug/throwaway scripts ở gốc backend — không được commit
+/fix_role.php
+/reset.php
+/test_*.php

@@ -9,6 +9,7 @@
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "*",
         "endroid/qr-code": "^6.0",
+        "guzzlehttp/guzzle": "^7.9",
         "http-interop/http-factory-guzzle": "^1.2",
         "inertiajs/inertia-laravel": "^2.0",
         "kreait/firebase-php": "*",
@@ -18,9 +19,12 @@
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
         "meilisearch/meilisearch-php": "^1.16",
+        "mews/purifier": "^3.4",
         "php-open-source-saver/jwt-auth": "^2.8",
         "phpoffice/phpspreadsheet": "^1.30",
         "predis/predis": "^3.4",
+        "symfony/css-selector": "^7.0",
+        "symfony/dom-crawler": "^7.0",
         "tightenco/ziggy": "^2.0"
     },
     "require-dev": {

@@ -118,10 +118,10 @@ class PaymentGatewayService
 
     private function handleBanking($order): array
     {
-        // Lấy thông tin tài khoản ngân hàng từ .env hoặc config
-        $bankBin  = env('BANK_BIN');
-        $bankAccount = env('BANK_ACCOUNT_NUMBER');
-        $accountName  = env('BANK_ACCOUNT_NAME');
+        // Lấy thông tin tài khoản ngân hàng từ config (hoạt động đúng khi config:cache)
+        $bankBin  = config('services.bank.bin');
+        $bankAccount = config('services.bank.account_number');
+        $accountName  = config('services.bank.account_name');
         $amount   = (int) $order->grand_total;
         $orderCode = $order->order_code;
 

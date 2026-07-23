@@ -154,6 +154,20 @@ class AdminOrderService
                         );
                     }
 
+                    // Hoàn ví GIẢM GIÁ (cột độc lập với wallet_spent; áp được cho mọi
+                    // payment method — COD/vnpay vẫn có thể dùng ví giảm giá). Không gate
+                    // theo payment_method='wallet' như khối trên.
+                    $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                    $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
+                    if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
+                        $this->walletService->reverseOrderDiscount(
+                            $order->user_id,
+                            $walletDeposit,
+                            $walletCommission,
+                            $order->order_id
+                        );
+                    }
+
                     // Hoàn tồn kho
                     $this->orderRepository->restoreStock($order->items);
 
@@ -309,9 +323,21 @@ class AdminOrderService
                             );
                         }
 
-                        // Hoàn tồn kho
-                        $items = DB::table('order_items')->where('order_id', $order->order_id)->get();
-                        $this->orderRepository->restoreStock($items->filter(fn($i) => $i->variant_id)->all());
+                        // Hoàn ví GIẢM GIÁ (deposit/commission discount) — cột độc lập với
+                        // wallet_spent; áp cho mọi payment_method nên không gate theo 'wallet'.
+                        $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                        $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
+                        if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
+                            $this->walletService->reverseOrderDiscount(
+                                $order->user_id,
+                                $walletDeposit,
+                                $walletCommission,
+                                $order->order_id
+                            );
+                        }
+
+                        // Hoàn tồn kho (dùng items đã eager-load, tránh N+1)
+                        $this->orderRepository->restoreStock($order->items->filter(fn($i) => $i->variant_id)->all());
 
                         // Gửi email thông báo hủy đơn
                         if ($order->user && $order->user->email) {
@@ -361,14 +387,14 @@ class AdminOrderService
                 ], true);
 
                 foreach ($orders as $order) {
-                    $this->affiliateService->updateConversionOnStatusChange($order->fresh(), $newFulfillmentStatus);
+                    $freshOrder = $order->fresh();
+                    $this->affiliateService->updateConversionOnStatusChange($freshOrder, $newFulfillmentStatus);
 
                     // Tích điểm loyalty
                     if ($isDeliveredOrCompleted && $order->user) {
                         try {
-                            $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
+                            $this->loyaltyService->earnFromOrder($order->user, $freshOrder);
 
-                            $freshOrder = $order->fresh();
                             if ($freshOrder->is_abandoned_checkout) {
                                 $this->loyaltyService->earnAbandonedCart($order->user, $freshOrder->order_id);
                                 $order->update(['is_abandoned_checkout' => false]);

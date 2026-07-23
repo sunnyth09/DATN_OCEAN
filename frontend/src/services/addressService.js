@@ -38,13 +38,18 @@ export const addressService = {
             return 0;
         }
 
-        const response = await api.post('/ghn/calculate-fee', {
-            district_id: Number.parseInt(districtCode, 10),
-            ward_code: String(wardCode),
-            weight,
-            service_type_id: serviceTypeId,
-        });
+        try {
+            const response = await api.post('/ghn/calculate-fee', {
+                service_type_id: serviceTypeId,
+                to_district_id: Number.parseInt(districtCode, 10),
+                to_ward_code: String(wardCode),
+                weight: weight,
+            });
 
-        return response.data?.data?.total || 0;
+            return response.data?.data?.total || 0;
+        } catch (error) {
+            console.error('Lỗi tính phí vận chuyển GHN (qua Backend):', error);
+            return 30000; // Fallback fee
+        }
     },
 };

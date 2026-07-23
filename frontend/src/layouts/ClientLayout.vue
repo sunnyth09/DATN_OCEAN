@@ -15,21 +15,20 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import ClientHeader from '../components/ClientHeader.vue';
 import ClientFooter from '../components/ClientFooter.vue';
 import ChatbotWidget from '../components/ChatbotWidget.vue';
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-
 .page-wrapper {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  color: #2D3436;
-  background: #FFFFFF;
+  color: var(--text-main);
+  background: var(--card-bg);
   overflow-x: clip;
 }
 

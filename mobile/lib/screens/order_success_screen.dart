@@ -1,14 +1,17 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
+import 'package:provider/provider.dart';
+import '../providers/navigation_provider.dart';
 import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../utils/format_utils.dart';
 import '../widgets/network_image_widget.dart';
-import 'main_wrapper.dart';
-import 'product_detail_screen.dart';
 
 class OrderSuccessScreen extends StatefulWidget {
-  const OrderSuccessScreen({super.key});
+  final String? orderCode;
+  final num? grandTotal;
+
+  const OrderSuccessScreen({super.key, this.orderCode, this.grandTotal});
 
   @override
   State<OrderSuccessScreen> createState() => _OrderSuccessScreenState();
@@ -87,7 +90,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE63B6F).withOpacity(0.1),
+                  color: const Color(0xFFE63B6F).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -120,6 +123,64 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                   ),
                 ),
               ),
+              // Thông tin đơn: mã đơn + tổng tiền để người dùng tra cứu.
+              if (widget.orderCode != null || widget.grandTotal != null) ...[
+                const SizedBox(height: 24),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFF1F3F5)),
+                  ),
+                  child: Column(
+                    children: [
+                      if (widget.orderCode != null)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Mã đơn hàng',
+                              style: TextStyle(color: Color(0xFF636E72), fontSize: 14),
+                            ),
+                            Text(
+                              widget.orderCode!,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (widget.orderCode != null && widget.grandTotal != null)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Divider(height: 1),
+                        ),
+                      if (widget.grandTotal != null)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Tổng thanh toán',
+                              style: TextStyle(color: Color(0xFF636E72), fontSize: 14),
+                            ),
+                            Text(
+                              FormatUtils.formatPrice(widget.grandTotal!),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: Color(0xFFE63B6F),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
               // Actions
               Padding(
@@ -129,12 +190,8 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const MainWrapper(initialIndex: 3)),
-                            (route) => false,
-                          );
+                          context.read<NavigationProvider>().setTab(4);
+                          context.go('/home');
                         },
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -157,12 +214,8 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const MainWrapper(initialIndex: 0)),
-                            (route) => false,
-                          );
+                          context.read<NavigationProvider>().setTab(0);
+                          context.go('/home');
                         },
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -265,12 +318,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailScreen(product: product),
-          ),
-        );
+        context.push('/product-detail', extra: product);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -278,7 +326,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -288,26 +336,29 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            NetworkImageWidget(
-              imageUrl: imageUrl,
-              height: 160,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              placeholder: Container(
+            Hero(
+              tag: product['id'] ?? product['slug'] ?? 'product_image_${product.hashCode}',
+              child: NetworkImageWidget(
+                imageUrl: imageUrl,
                 height: 160,
-                color: const Color(0xFFF1F5F9),
-                child: const Center(
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE63B6F)),
+                width: double.infinity,
+                fit: BoxFit.cover,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  topRight: Radius.circular(16),
                 ),
-              ),
-              errorWidget: Container(
-                height: 160,
-                color: const Color(0xFFF1F5F9),
-                child: const Icon(Icons.image_not_supported, color: Color(0xFFCBD5E1)),
+                placeholder: Container(
+                  height: 160,
+                  color: const Color(0xFFF1F5F9),
+                  child: const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE63B6F)),
+                  ),
+                ),
+                errorWidget: Container(
+                  height: 160,
+                  color: const Color(0xFFF1F5F9),
+                  child: const Icon(Icons.image_not_supported, color: Color(0xFFCBD5E1)),
+                ),
               ),
             ),
             Padding(

@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
@@ -24,7 +25,7 @@ class _OrderScreenState extends State<OrderScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     fetchOrders();
   }
 
@@ -38,11 +39,12 @@ class _OrderScreenState extends State<OrderScreen>
 
     final loggedIn = await AuthService.isLoggedIn();
     if (!loggedIn) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           isGuest = true;
           isLoading = false;
         });
+      }
       return;
     }
 
@@ -61,46 +63,35 @@ class _OrderScreenState extends State<OrderScreen>
         fetchedOrders = decoded['orders'];
       }
 
-      if (mounted)
+      if (mounted) {
         setState(() {
           allOrders = fetchedOrders;
           isLoading = false;
         });
+      }
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             isGuest = true;
             isLoading = false;
           });
+        }
       } else {
-        if (mounted)
+        if (mounted) {
           setState(() {
             errorMessage = 'Lỗi truy xuất đơn hàng (${e.response?.statusCode})';
             isLoading = false;
           });
+        }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           errorMessage = 'Lỗi kết nối máy chủ.';
           isLoading = false;
         });
-    }
-  }
-
-  String _formatPrice(dynamic price) {
-    try {
-      final num p = num.parse(price.toString());
-      final formatted = p
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]}.',
-          );
-      return '$formatted đ';
-    } catch (_) {
-      return price.toString();
+      }
     }
   }
 
@@ -137,6 +128,7 @@ class _OrderScreenState extends State<OrderScreen>
             Tab(text: 'Chờ xử lý'),
             Tab(text: 'Đang giao'),
             Tab(text: 'Hoàn thành'),
+            Tab(text: 'Đã hủy'),
           ],
         ),
       ),
@@ -161,7 +153,7 @@ class _OrderScreenState extends State<OrderScreen>
               const Icon(
                 Icons.receipt_long_outlined,
                 size: 64,
-                color: Color(0xFF94A3B8),
+                color: Color(0xFF64748B),
               ),
               const SizedBox(height: 16),
               const Text(
@@ -236,6 +228,7 @@ class _OrderScreenState extends State<OrderScreen>
         _buildOrderList('pending'),
         _buildOrderList('shipping'),
         _buildOrderList('completed'),
+        _buildOrderList('cancelled'),
       ],
     );
   }
@@ -249,16 +242,23 @@ class _OrderScreenState extends State<OrderScreen>
             .toString()
             .toLowerCase();
         if (statusFilter == 'pending' &&
-            (st.contains('pending') || st.contains('processing')))
+            (st.contains('pending') || st.contains('processing'))) {
           return true;
+        }
         if (statusFilter == 'shipping' &&
-            (st.contains('shipping') || st.contains('delivering')))
+            (st.contains('shipping') || st.contains('delivering'))) {
           return true;
+        }
         if (statusFilter == 'completed' &&
             (st.contains('completed') ||
                 st.contains('delivered') ||
-                st.contains('success')))
+                st.contains('success'))) {
           return true;
+        }
+        if (statusFilter == 'cancelled' &&
+            (st.contains('cancel') || st.contains('fail'))) {
+          return true;
+        }
         return false;
       }).toList();
     }
@@ -278,7 +278,7 @@ class _OrderScreenState extends State<OrderScreen>
       itemBuilder: (context, index) {
         final order = filtered[index];
         final orderCode = order['order_code'] ?? order['id'].toString();
-        final date = order['created_at']?.split('T')?[0] ?? 'N/A';
+        final date = FormatUtils.formatDate(order['created_at']);
         final total = FormatUtils.formatPrice(
           order['grand_total'] ?? order['total'],
         );
@@ -289,24 +289,22 @@ class _OrderScreenState extends State<OrderScreen>
 
         // Màu status cơ bản
         Color statusColor = const Color(0xFF64748B);
-        if (status.contains('PENDING'))
+        if (status.contains('PENDING')) {
           statusColor = Colors.orange;
-        else if (status.contains('SHIP'))
+        } else if (status.contains('SHIP')) {
           statusColor = Colors.blue;
-        else if (status.contains('COMPLETED') ||
+        } else if (status.contains('COMPLETED') ||
             status.contains('DELIVERED') ||
-            status.contains('SUCCESS'))
+            status.contains('SUCCESS')) {
           statusColor = Colors.green;
+        } else if (status.contains('CANCEL') || status.contains('FAIL')) {
+          statusColor = Colors.red;
+        }
 
         return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    OrderDetailScreen(orderId: (order['order_id'] ?? order['id']).toString()),
-              ),
-            );
+          onTap: () async {
+            await context.push('/order-detail', extra: (order['order_id'] ?? order['id']).toString());
+            fetchOrders();
           },
           child: Container(
             margin: const EdgeInsets.only(bottom: 16),
@@ -316,7 +314,7 @@ class _OrderScreenState extends State<OrderScreen>
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -341,11 +339,11 @@ class _OrderScreenState extends State<OrderScreen>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
+                        color: statusColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        status,
+                        FormatUtils.translateStatus(status),
                         style: TextStyle(
                           color: statusColor,
                           fontSize: 10,

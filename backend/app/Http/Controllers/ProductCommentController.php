@@ -9,6 +9,7 @@ use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -113,11 +114,11 @@ class ProductCommentController extends Controller
             if ($user) {
                 // +20 điểm khi viết nhận xét có nội dung
                 if (!empty(trim($request->content ?? ''))) {
-                    $this->loyaltyService->earnFromReview($user, $comment->id);
+                    $this->loyaltyService->earnFromReview($user, $comment->comment_id);
                 }
                 // +50 điểm bonus khi đính kèm hình ảnh
                 if (!empty($imagePaths)) {
-                    $this->loyaltyService->earnFromReviewWithImage($user, $comment->id);
+                    $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
                 }
             }
             // ───────────────────────────────────────────────────────────────
@@ -134,7 +135,8 @@ class ProductCommentController extends Controller
             ], 201);
         } catch (Exception $e) {
             DB::rollBack();
-            return response()->json(['status' => 'error', 'message' => 'Đã xảy ra lỗi: ' . $e->getMessage()], 500);
+            Log::error('Product comment store failed', ['error' => $e->getMessage()]);
+            return response()->json(['status' => 'error', 'message' => 'Đã xảy ra lỗi, vui lòng thử lại sau.'], 500);
         }
     }
 

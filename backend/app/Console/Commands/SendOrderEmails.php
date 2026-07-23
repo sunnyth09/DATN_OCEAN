@@ -142,8 +142,8 @@ class SendOrderEmails extends Command
      */
     private function sendEmail(Order $order, string $recipientEmail): void
     {
-        $emailUser = env('MAIL_USERNAME', env('EMAIL_USER'));
-        $emailPass = env('MAIL_PASSWORD', env('EMAIL_PASS'));
+        $emailUser = config('mail.mailers.smtp.username') ?: config('services.email.username');
+        $emailPass = config('mail.mailers.smtp.password') ?: config('services.email.password');
 
         if (!$emailUser || !$emailPass) {
             throw new \RuntimeException('MAIL_USERNAME hoặc MAIL_PASSWORD chưa được cấu hình trong .env');

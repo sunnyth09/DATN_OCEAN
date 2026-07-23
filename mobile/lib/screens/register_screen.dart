@@ -1,5 +1,5 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import '../config/app_theme.dart';
 import '../services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -55,7 +55,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Đăng ký thành công! Vui lòng đăng nhập.'), backgroundColor: Colors.green),
         );
-        Navigator.pop(context); // Go back to Login Screen
+        context.pop(); // Go back to Login Screen
       }
     } else {
       if (mounted) {
@@ -84,7 +84,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SafeArea(
@@ -194,7 +194,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: TextField(
@@ -202,10 +202,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         obscureText: isPassword && obscure,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-          prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+          hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+          prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
           suffixIcon: isPassword ? IconButton(
-            icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF94A3B8), size: 20),
+            icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF64748B), size: 20),
             onPressed: () {
               setState(() {
                 if (isConfirmPass) {

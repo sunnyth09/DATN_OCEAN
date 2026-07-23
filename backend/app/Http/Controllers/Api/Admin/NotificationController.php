@@ -18,10 +18,6 @@ class NotificationController extends Controller
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
-        
-        if (!$admin) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
-        }
 
         $query = $admin->notifications();
 
@@ -70,9 +66,11 @@ class NotificationController extends Controller
     public function markAllAsRead(Request $request): JsonResponse
     {
         $admin = auth('api')->user() ?? auth('admin')->user();
+        
         if (!$admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
+
         $admin->unreadNotifications->markAsRead();
 
         return response()->json([

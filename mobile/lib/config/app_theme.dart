@@ -21,7 +21,8 @@ class AppColors {
   // ── Màu chữ / Text ──
   static const Color textPrimary = Color(0xFF2D3436);
   static const Color textSecondary = Color(0xFF636E72);
-  static const Color textMuted = Color(0xFF94A3B8);
+  // Slate-500: đạt WCAG AA (~4.7:1) trên nền trắng cho text thường.
+  static const Color textMuted = Color(0xFF64748B);
   static const Color textDark = Color(0xFF0F172A);
   static const Color textLabel = Color(0xFF334155);
 
@@ -49,8 +50,8 @@ class AppColors {
   static const Color shadowColor = Color(0x14293346); // rgba(45, 52, 70, 0.08)
 
   // ── Primary nhạt (cho chip, badge, selected bg) ──
-  static Color get primarySoft => primary.withOpacity(0.10);
-  static Color get primarySoftBg => primary.withOpacity(0.06);
+  static Color get primarySoft => primary.withValues(alpha: 0.10);
+  static Color get primarySoftBg => primary.withValues(alpha: 0.06);
 }
 
 class AppTextStyles {

@@ -23,20 +23,22 @@ class SepayController extends Controller
 
     public function handleWebhook(Request $request)
     {
-        // 1. Authenticate Request (optional — skip nếu SEPAY_API_KEY chưa cấu hình)
-        $expectedKey = env('SEPAY_API_KEY');
+        // 1. Authenticate Request (bắt buộc — hard-fail nếu chưa cấu hình key)
+        $expectedKey = config('services.sepay.api_key');
 
-        if ($expectedKey) {
-            $authHeader = $request->header('Authorization');
-            $apiKey = $authHeader ? str_replace('Apikey ', '', $authHeader) : null;
+        if (empty($expectedKey)) {
+            Log::critical('SePay Webhook: SEPAY_API_KEY chưa được cấu hình — từ chối mọi webhook');
+            return response()->json(['status' => 'error', 'message' => 'Webhook not configured'], 500);
+        }
 
-            if ($apiKey !== $expectedKey) {
-                Log::warning('SePay Webhook: Unauthorized webhook call', [
-                    'ip' => $request->ip(),
-                    'received_key' => $apiKey
-                ]);
-                return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
-            }
+        $authHeader = $request->header('Authorization');
+        $apiKey = $authHeader ? str_replace('Apikey ', '', $authHeader) : '';
+
+        if (!hash_equals($expectedKey, $apiKey)) {
+            Log::warning('SePay Webhook: Unauthorized webhook call', [
+                'ip' => $request->ip(),
+            ]);
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
         $payload = $request->all();
@@ -145,8 +147,12 @@ class SepayController extends Controller
                     return ['status' => 'error', 'message' => 'Deposit code not found: ' . $depositCode];
                 }
 
-                if ($deposit->status === 'completed') {
-                    return ['status' => 'success', 'message' => 'Deposit already processed']; // Idempotency
+                // Chặn cả trạng thái terminal 'completed' VÀ 'failed'. deposit_code là
+                // duy nhất mỗi lần init (WDP + random, không tái dùng khi retry), nên một
+                // deposit đã 'failed' không bao giờ được nạp lại hợp lệ → chặn để tránh
+                // double-credit khi webhook failed đến trước rồi success đến sau cùng code.
+                if (in_array($deposit->status, ['completed', 'failed'], true)) {
+                    return ['status' => 'success', 'message' => 'Deposit already in terminal state']; // Idempotency
                 }
 
                 // Verify amount (cho phép chênh lệch nhỏ < 10 VND)

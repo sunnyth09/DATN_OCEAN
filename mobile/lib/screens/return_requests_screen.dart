@@ -12,6 +12,7 @@ class ReturnRequestsScreen extends StatefulWidget {
 class _ReturnRequestsScreenState extends State<ReturnRequestsScreen> {
   List<dynamic> requests = [];
   bool isLoading = true;
+  String? errorMessage;
   String currentFilter = 'all';
   int currentPage = 1;
   int lastPage = 1;
@@ -32,31 +33,40 @@ class _ReturnRequestsScreenState extends State<ReturnRequestsScreen> {
 
   Future<void> fetchReturnRequests({int page = 1}) async {
     try {
-      setState(() => isLoading = true);
+      setState(() { isLoading = true; errorMessage = null; });
       final params = <String, dynamic>{'page': page};
       if (currentFilter != 'all') params['status'] = currentFilter;
 
-      final res = await ApiClient().dio.get('/profile/return-requests', queryParameters: params);
+      final res = await ApiClient().dio.get('/my/return-requests', queryParameters: params);
       if (res.data['status'] == 'success') {
         final data = res.data['data'];
         if (data is Map) {
-          if (mounted) setState(() {
+          if (mounted) {
+            setState(() {
             requests = data['data'] ?? [];
             currentPage = data['current_page'] ?? 1;
             lastPage = data['last_page'] ?? 1;
             isLoading = false;
           });
+          }
         } else if (data is List) {
-          if (mounted) setState(() {
+          if (mounted) {
+            setState(() {
             requests = data;
             isLoading = false;
           });
+          }
         }
       } else {
         if (mounted) setState(() => isLoading = false);
       }
     } catch (e) {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Không tải được danh sách yêu cầu hoàn hàng. Vui lòng thử lại.';
+        });
+      }
     }
   }
 
@@ -74,7 +84,7 @@ class _ReturnRequestsScreenState extends State<ReturnRequestsScreen> {
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (m) => '${m[1]}.',
       );
-      return '${formatted}₫';
+      return '$formatted₫';
     } catch (_) {
       return '0₫';
     }
@@ -127,9 +137,10 @@ class _ReturnRequestsScreenState extends State<ReturnRequestsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Yêu cầu hoàn hàng'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        title: const Text('Yêu cầu hoàn hàng', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
+        iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
         elevation: 0,
         centerTitle: true,
       ),
@@ -155,7 +166,7 @@ class _ReturnRequestsScreenState extends State<ReturnRequestsScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isActive ? AppColors.primary.withOpacity(0.1) : Colors.white,
+                          color: isActive ? AppColors.primary.withValues(alpha: 0.1) : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: isActive ? AppColors.primary : const Color(0xFFCBD5E1)),
                         ),
@@ -177,20 +188,46 @@ class _ReturnRequestsScreenState extends State<ReturnRequestsScreen> {
           Expanded(
             child: isLoading
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                : requests.isEmpty
+                : errorMessage != null
+                    ? _buildError()
+                    : requests.isEmpty
                     ? _buildEmpty()
                     : RefreshIndicator(
                         onRefresh: () => fetchReturnRequests(),
                         child: ListView.separated(
                           padding: const EdgeInsets.all(16),
                           itemCount: requests.length + (lastPage > 1 ? 1 : 0),
-                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          separatorBuilder: (_, _) => const SizedBox(height: 12),
                           itemBuilder: (context, index) {
                             if (index == requests.length) return _buildPagination();
                             return _buildRequestCard(requests[index]);
                           },
                         ),
                       ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.cloud_off_outlined, size: 64, color: Color(0xFFCBD5E1)),
+          const SizedBox(height: 16),
+          Text(errorMessage ?? 'Đã có lỗi xảy ra', textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, color: Color(0xFF64748B))),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => fetchReturnRequests(page: currentPage),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Thử lại'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           ),
         ],
       ),
@@ -225,7 +262,7 @@ class _ReturnRequestsScreenState extends State<ReturnRequestsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -251,7 +288,7 @@ class _ReturnRequestsScreenState extends State<ReturnRequestsScreen> {
                   decoration: BoxDecoration(
                     color: _getStatusBg(status),
                     borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: _getStatusColor(status).withOpacity(0.3)),
+                    border: Border.all(color: _getStatusColor(status).withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     _getStatusLabel(status),

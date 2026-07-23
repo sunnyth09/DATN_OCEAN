@@ -1,7 +1,7 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
 import '../config/app_theme.dart';
-import '../config/app_config.dart';
 
 class BookingHistoryScreen extends StatefulWidget {
   const BookingHistoryScreen({super.key});
@@ -52,11 +52,11 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
         content: const Text('Bạn có chắc chắn muốn hủy lịch đặt sân này không?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => context.pop(false),
             child: const Text('Giữ lại'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => context.pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
             child: const Text('Xác nhận hủy'),
           ),
@@ -64,13 +64,13 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     try {
       showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
       await ApiClient().dio.post('/court-bookings/$bookingId/cancel', data: {'reason': 'Khách hàng yêu cầu hủy'});
       if (mounted) {
-        Navigator.pop(context);
+        context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('Hủy lịch thành công'), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         );
@@ -78,7 +78,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       }
     } catch (e) {
       if (mounted) {
-        Navigator.pop(context);
+        context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: const Text('Không thể hủy lịch đặt sân'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         );
@@ -93,7 +93,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (m) => '${m[1]}.',
       );
-      return '${formatted}₫';
+      return '$formatted₫';
     } catch (_) {
       return '0₫';
     }
@@ -179,9 +179,10 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Lịch Sử Đặt Sân'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        title: const Text('Lịch Sử Đặt Sân', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
+        iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
         elevation: 0,
         centerTitle: true,
       ),
@@ -196,7 +197,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: bookings.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 14),
+                        separatorBuilder: (_, _) => const SizedBox(height: 14),
                         itemBuilder: (context, index) => _buildBookingCard(bookings[index]),
                       ),
       ),
@@ -237,7 +238,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
           const Text('Hãy đặt sân đầu tiên để bắt đầu trải nghiệm!', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.pop(),
             icon: const Icon(Icons.sports_tennis, size: 18),
             label: const Text('Đặt sân ngay'),
             style: ElevatedButton.styleFrom(
@@ -270,7 +271,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Column(
         children: [
@@ -294,7 +295,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                   decoration: BoxDecoration(
                     color: _getStatusBg(status),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _getStatusColor(status).withOpacity(0.2)),
+                    border: Border.all(color: _getStatusColor(status).withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -318,7 +319,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                     Container(
                       width: 48, height: 48,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.08),
+                        color: AppColors.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(Icons.sports_tennis, color: AppColors.primary, size: 24),
@@ -359,7 +360,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text('Tổng tiền', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                        const Text('Tổng tiền', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
                         const SizedBox(height: 2),
                         Text(_formatCurrency(totalAmount), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary)),
                       ],
@@ -437,11 +438,11 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text('${stepIdx + 1}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isActive ? Colors.white : const Color(0xFF94A3B8))),
+                  child: Text('${stepIdx + 1}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isActive ? Colors.white : const Color(0xFF64748B))),
                 ),
               ),
               const SizedBox(height: 4),
-              Text(steps[stepIdx], style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isActive ? AppColors.primary : const Color(0xFF94A3B8))),
+              Text(steps[stepIdx], style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isActive ? AppColors.primary : const Color(0xFF64748B))),
             ],
           );
         }

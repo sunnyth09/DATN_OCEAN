@@ -860,8 +860,11 @@ class PaymentProcessingService
                     return;
                 }
 
-                if ($deposit->status === 'completed') {
-                    return; // Idempotency
+                // Idempotency: bỏ qua nếu deposit đã ở trạng thái terminal (đã xử lý xong
+                // hoặc đã đánh dấu thất bại). Chống double-credit khi VNPay gửi failed IPN
+                // trước rồi success IPN sau cho cùng deposit_code.
+                if (in_array($deposit->status, ['completed', 'failed'], true)) {
+                    return;
                 }
 
                 // Verify amount

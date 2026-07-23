@@ -49,33 +49,14 @@ class MoMoController extends Controller
         $resultCode = $request->input('resultCode');
         $orderCode = $request->input('orderId');
 
-        $order = \App\Models\Order::where('order_code', $orderCode)->first();
+        // CHỈ TRẢ VỀ TRẠNG THÁI CHO CLIENT/UI, KHÔNG UPDATE DATABASE Ở ĐÂY.
+        // IPN (Webhook) SẼ LÀ NƠI DUY NHẤT CẬP NHẬT TRẠNG THÁI THANH TOÁN (Tránh user fake Return URL).
 
         if ($resultCode == "0") {
-            if ($order && $order->payment_status !== 'paid') {
-                $order->update(['payment_status' => 'paid']);
-                \App\Models\Payment::updateOrCreate(
-                    ['order_id' => $order->order_id, 'payment_method' => 'momo'],
-                    [
-                        'transaction_code' => $request->input('transId'),
-                        'amount' => $request->input('amount'),
-                        'status' => 'success',
-                        'paid_at' => now(),
-                        'gateway_response' => json_encode($request->all())
-                    ]
-                );
-                
-                \App\Models\OrderStatusHistory::create([
-                    'order_id' => $order->order_id,
-                    'new_status' => $order->fulfillment_status,
-                    'note' => 'Thanh toán MoMo thành công',
-                ]);
-            }
-
             return response()->json([
                 "status" => "success",
                 "payment_status" => "paid",
-                "message" => "Thanh toán thành công",
+                "message" => "Thanh toán thành công (Đang chờ xác nhận từ IPN)",
                 "data" => [
                     "order_code" => $orderCode,
                     "grand_total" => $request->input('amount'),
@@ -86,19 +67,6 @@ class MoMoController extends Controller
             ]);
         }
         
-        if ($order && $order->payment_status !== 'paid') {
-            $order->update(['payment_status' => 'failed']);
-            \App\Models\Payment::updateOrCreate(
-                ['order_id' => $order->order_id, 'payment_method' => 'momo'],
-                [
-                    'transaction_code' => $request->input('transId'),
-                    'amount' => $request->input('amount'),
-                    'status' => 'failed',
-                    'gateway_response' => json_encode($request->all())
-                ]
-            );
-        }
-
         return response()->json([
             "status" => "error",
             "payment_status" => "failed",
@@ -134,49 +102,152 @@ class MoMoController extends Controller
         }
 
         $resultCode = $request->input('resultCode');
-        $orderCode = $request->input('orderId');
+        $orderCode  = $request->input('orderId');
+        $amount     = (float) ($request->input('amount') ?? 0);
+        $transId    = (string) ($request->input('transId') ?? '');
+
+        // ── Nạp ví qua MoMo (mã có tiền tố WDP) ──
+        // Trước đây nhánh này bị thiếu → tiền nạp ví MoMo bị tra như đơn hàng, 404,
+        // và không bao giờ được credit vào ví. Xử lý idempotent + khóa dòng ở đây.
+        if (is_string($orderCode) && str_starts_with($orderCode, 'WDP')) {
+            return $this->handleMomoWalletDeposit($orderCode, $amount, $transId, $data, (int) $resultCode);
+        }
 
         try {
-            $order = \App\Models\Order::where('order_code', $orderCode)->first();
-            
-            if (!$order) {
-                Log::warning("MoMo IPN: Không tìm thấy hóa đơn $orderCode");
-                return response()->json(['message' => 'Order not found'], 404);
-            }
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($orderCode, $resultCode, $amount, $transId) {
+                // Khóa dòng đơn để chống race giữa nhiều callback (MoMo IPN + Return) trên cùng đơn.
+                $order = \App\Models\Order::where('order_code', $orderCode)->lockForUpdate()->first();
 
-            if ($resultCode == 0) {
-                if ($order->payment_status !== 'paid') {
-                    $order->update(['payment_status' => 'paid']);
+                if (!$order) {
+                    Log::warning("MoMo IPN: Không tìm thấy hóa đơn $orderCode");
+                    return response()->json(['message' => 'Order not found'], 404);
+                }
+
+                if ((int) $resultCode === 0) {
+                    // Defense-in-depth: đối chiếu số tiền MoMo báo với tổng đơn (chữ ký đã phủ
+                    // amount, nhưng vẫn kiểm tra để chống sai lệch cấu hình/manh mối gian lận).
+                    if (abs($amount - (float) $order->grand_total) > 10) {
+                        Log::error('MoMo IPN: Amount mismatch', [
+                            'order_code' => $orderCode,
+                            'expected'   => $order->grand_total,
+                            'received'   => $amount,
+                        ]);
+                        return response()->json(['message' => 'Amount mismatch'], 400);
+                    }
+
+                    if ($order->payment_status !== 'paid') {
+                        $order->update(['payment_status' => 'paid']);
+                        \App\Models\Payment::where('order_id', $order->order_id)
+                                            ->where('payment_method', 'momo')
+                                            ->update(['status' => 'completed']);
+
+                        \App\Models\OrderStatusHistory::create([
+                            'order_id'   => $order->order_id,
+                            'new_status' => $order->fulfillment_status,
+                            'note'       => 'Thanh toán MoMo thành công',
+                        ]);
+
+                        Log::info("Thanh toán MoMo thành công đơn hàng số: $orderCode");
+                    }
+                } else {
+                    Log::warning("Thanh toán MoMo thất bại đơn hàng số: $orderCode");
                     \App\Models\Payment::where('order_id', $order->order_id)
                                         ->where('payment_method', 'momo')
-                                        ->update(['status' => 'completed']);
-                                        
-                    \App\Models\OrderStatusHistory::create([
-                        'order_id' => $order->order_id,
-                        'new_status' => $order->fulfillment_status,
-                        'note' => 'Thanh toán MoMo thành công',
-                    ]);
-                    
-                    Log::info("Thanh toán MoMo thành công đơn hàng số: $orderCode");
+                                        ->where('status', 'pending')
+                                        ->update(['status' => 'failed']);
                 }
-            } else {
-                // Xử lý logic cho việc thanh toán thất bại
-                Log::warning("Thanh toán MoMo thất bại đơn hàng số: $orderCode");
-                \App\Models\Payment::where('order_id', $order->order_id)
-                                    ->where('payment_method', 'momo')
-                                    ->where('status', 'pending')
-                                    ->update(['status' => 'failed']);
-            }
-            
-            // MoMo yêu cầu status code 204 No Content khi xử lý đúng đắn IPN
-            return response()->noContent();
-            
+
+                // MoMo yêu cầu status code 204 No Content khi xử lý đúng đắn IPN
+                return response()->noContent();
+            });
         } catch (\Exception $e) {
             Log::error('MoMo IPN Handling Error: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
                 'message' => 'Internal Server Error'
             ], 500);
+        }
+    }
+
+    /**
+     * Xử lý nạp ví qua MoMo (mã WDP) — idempotent, khóa dòng, đối chiếu số tiền.
+     */
+    private function handleMomoWalletDeposit(string $depositCode, float $amount, string $transId, array $payload, int $resultCode)
+    {
+        if ($resultCode !== 0) {
+            \Illuminate\Support\Facades\DB::table('wallet_deposits')
+                ->where('deposit_code', $depositCode)
+                ->where('status', 'pending')
+                ->update(['status' => 'failed', 'updated_at' => now()]);
+            return response()->noContent();
+        }
+
+        try {
+            $result = \Illuminate\Support\Facades\DB::transaction(function () use ($depositCode, $amount, $transId, $payload) {
+                $deposit = \Illuminate\Support\Facades\DB::table('wallet_deposits')
+                    ->where('deposit_code', $depositCode)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$deposit) {
+                    Log::warning('MoMo Wallet: Deposit code not found', ['code' => $depositCode]);
+                    return ['status' => 'error', 'message' => 'Deposit code not found'];
+                }
+
+                // Chặn cả trạng thái terminal 'completed' VÀ 'failed'. deposit_code là
+                // duy nhất mỗi lần init (WDP + random, không tái dùng khi retry), nên một
+                // deposit đã 'failed' không bao giờ được nạp lại hợp lệ → chặn để tránh
+                // double-credit khi IPN failed đến trước rồi success đến sau cùng code.
+                if (in_array($deposit->status, ['completed', 'failed'], true)) {
+                    return ['status' => 'success', 'message' => 'Deposit already in terminal state']; // Idempotency
+                }
+
+                if (abs($amount - (float) $deposit->amount) > 10) {
+                    Log::error('MoMo Wallet: Amount mismatch', [
+                        'deposit_code' => $depositCode,
+                        'expected'     => $deposit->amount,
+                        'received'     => $amount,
+                    ]);
+                    return ['status' => 'error', 'message' => 'Amount mismatch'];
+                }
+
+                app(\App\Services\WalletService::class)->credit(
+                    userId: $deposit->user_id,
+                    amount: (float) $deposit->amount,
+                    type: 'deposit',
+                    opts: [
+                        'description' => 'Nạp ví qua MoMo',
+                        'metadata'    => [
+                            'deposit_code'   => $depositCode,
+                            'transaction_id' => $transId,
+                            'method'         => 'momo',
+                        ],
+                    ]
+                );
+
+                \Illuminate\Support\Facades\DB::table('wallet_deposits')
+                    ->where('deposit_code', $depositCode)
+                    ->update([
+                        'status'                 => 'completed',
+                        'gateway_transaction_id' => $transId,
+                        'gateway_response'       => json_encode($payload),
+                        'completed_at'           => now(),
+                        'updated_at'             => now(),
+                    ]);
+
+                Log::info('MoMo Wallet: Deposit completed', [
+                    'user_id'      => $deposit->user_id,
+                    'deposit_code' => $depositCode,
+                    'amount'       => $deposit->amount,
+                ]);
+
+                return ['status' => 'success', 'message' => 'Wallet deposit processed'];
+            });
+
+            return response()->noContent();
+        } catch (\Exception $e) {
+            Log::error('MoMo Wallet deposit error: ' . $e->getMessage(), ['deposit_code' => $depositCode]);
+            return response()->json(['status' => 'error', 'message' => 'Internal Server Error'], 500);
         }
     }
 

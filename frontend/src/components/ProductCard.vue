@@ -603,7 +603,7 @@ const handleAddToCart = async (event) => {
     height: 100%;
     min-height: 388px;
     text-decoration: none;
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     overflow: hidden;
@@ -623,7 +623,8 @@ const handleAddToCart = async (event) => {
 }
 
 .image-shell {
-    /* height: 210px; */
+    height: 210px;
+    width: 100%;
     position: relative;
     border-radius: 16px 16px 0 0;
     background:
@@ -717,18 +718,18 @@ const handleAddToCart = async (event) => {
 }
 
 .favorite-btn:hover {
-    color: #E63B6F;
+    color: var(--primary);
     transform: scale(1.06);
 }
 
 .favorite-btn.is-active {
-    color: #E63B6F;
+    color: var(--primary);
     transform: scale(1.06);
 }
 
 .favorite-btn.is-active :deep(svg) {
-    fill: #E63B6F;
-    stroke: #E63B6F;
+    fill: var(--primary);
+    stroke: var(--primary);
 }
 
 /* Spinner for cart button loading state */
@@ -796,7 +797,7 @@ const handleAddToCart = async (event) => {
     padding: 16px;
 }
 .vmodal-box {
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 18px;
     width: 100%;
     max-width: 480px;
@@ -860,7 +861,7 @@ const handleAddToCart = async (event) => {
     transition: all 0.18s;
     flex-shrink: 0;
 }
-.vmodal-close:hover { background: #f1f5f9; color: #0f172a; }
+.vmodal-close:hover { background: #f1f5f9; color: var(--text-main); }
 
 .vmodal-body-content {
     max-height: 280px;
@@ -885,7 +886,7 @@ const handleAddToCart = async (event) => {
     padding: 7px 16px;
     border: 1.5px solid #d9e2ec;
     border-radius: 8px;
-    background: #fff;
+    background: var(--card-bg);
     font-size: 0.88rem;
     font-weight: 600;
     color: #334e68;
@@ -896,10 +897,10 @@ const handleAddToCart = async (event) => {
     align-items: center;
     gap: 6px;
 }
-.vmodal-opt-btn:hover:not(:disabled) { border-color: #E63B6F; color: #E63B6F; }
+.vmodal-opt-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
 .vmodal-opt-btn.active {
-    border-color: #E63B6F;
-    background: #E63B6F;
+    border-color: var(--primary);
+    background: var(--primary);
     color: #fff;
 }
 .vmodal-opt-btn.out-of-stock {
@@ -919,7 +920,7 @@ const handleAddToCart = async (event) => {
     border: 1px solid #FFE3E8;
     border-radius: 10px;
     font-size: 0.88rem;
-    color: #E63B6F;
+    color: var(--primary);
 }
 .vmodal-selected-info strong { font-weight: 700; }
 .vmodal-low-stock { color: #f59e0b; font-weight: 600; }
@@ -955,11 +956,11 @@ const handleAddToCart = async (event) => {
 .vmodal-qty button {
     width: 32px;
     height: 32px;
-    background: #fff;
+    background: var(--card-bg);
     border: none;
     font-size: 1rem;
     cursor: pointer;
-    color: #2D3436;
+    color: var(--text-main);
     transition: background 0.2s;
 }
 .vmodal-qty button:hover:not(:disabled) {
@@ -979,7 +980,7 @@ const handleAddToCart = async (event) => {
     font-weight: 700;
     font-size: 0.9rem;
     outline: none;
-    background: #fff;
+    background: var(--card-bg);
     font-family: inherit;
 }
 .vmodal-qty input:disabled {
@@ -991,7 +992,7 @@ const handleAddToCart = async (event) => {
     color: #627d98;
 }
 .vmodal-stock-info strong {
-    color: #0f172a;
+    color: var(--text-main);
     font-weight: 700;
 }
 .color-swatch-circle {
@@ -1008,7 +1009,7 @@ const handleAddToCart = async (event) => {
     padding: 12px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #E63B6F, #B50C4D);
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
     color: #fff;
     font-size: 0.95rem;
     font-weight: 700;
@@ -1018,7 +1019,7 @@ const handleAddToCart = async (event) => {
     box-shadow: 0 4px 12px rgba(230, 59, 111, 0.3);
 }
 .vmodal-btn-confirm:hover:not(:disabled) {
-    background: linear-gradient(135deg, #B50C4D, #E63B6F);
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
     transform: translateY(-1px);
 }
 .vmodal-btn-confirm:disabled {
@@ -1059,7 +1060,7 @@ const handleAddToCart = async (event) => {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow: hidden;
-    min-height: 46px;
+    height: 48px;
 }
 
 .footer-row {
@@ -1112,6 +1113,7 @@ const handleAddToCart = async (event) => {
 
     .image-shell {
         height: 168px;
+        width: 100%;
     }
 
     .content {
@@ -1124,7 +1126,7 @@ const handleAddToCart = async (event) => {
 
     .name {
         font-size: 0.95rem;
-        min-height: 42px;
+        height: 44px;
     }
 
     .original-price {
@@ -1158,7 +1160,7 @@ const handleAddToCart = async (event) => {
 
 .stock-overlay-text {
     background: rgba(255, 255, 255, 0.95);
-    color: #1e293b;
+    color: var(--text-main);
     font-size: 0.82rem;
     font-weight: 800;
     letter-spacing: 1.2px;

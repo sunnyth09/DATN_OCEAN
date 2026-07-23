@@ -25,14 +25,23 @@ class GHNService
 
     private static function url(string $path): string
     {
-        return rtrim((string) config('ghn.base_url'), '/') . '/' . ltrim($path, '/');
+        return rtrim((string) config('ghn.base_url', 'https://online-gateway.ghn.vn'), '/') . '/' . ltrim($path, '/');
     }
 
     private static function ensureConfigured(): void
     {
-        if (!config('ghn.token') || !config('ghn.shop_id')) {
+        $token = config('ghn.token');
+        $shopId = config('ghn.shop_id');
+
+        if (!$token || !$shopId) {
             throw new \Exception('Chưa cấu hình GHN_TOKEN hoặc GHN_SHOP_ID trong .env');
         }
+
+        // Bổ sung config nếu bị mất cache
+        config([
+            'ghn.token' => $token,
+            'ghn.shop_id' => $shopId,
+        ]);
     }
 
     public static function getProvinces(): array
@@ -128,7 +137,6 @@ class GHNService
         if (empty($sender['phone']) || empty($sender['address']) || empty($sender['ward_code']) || empty($sender['district_id'])) {
             throw new \Exception('Chưa cấu hình đầy đủ địa chỉ kho gửi GHN');
         }
-
         $items = [];
         $totalWeight = 0;
         $defaultWeight = (int) config('ghn.default_weight', 500);
@@ -152,11 +160,7 @@ class GHNService
             'payment_type_id' => $order->payment_method === 'cod' ? 2 : 1,
             'service_type_id' => (int) config('ghn.service_type_id', 2),
             'required_note' => (string) config('ghn.required_note', 'KHONGCHOXEMHANG'),
-            'from_name' => (string) ($sender['name'] ?? 'OCEAN SHOP'),
-            'from_phone' => (string) $sender['phone'],
-            'from_address' => (string) $sender['address'],
-            'from_ward_code' => (string) $sender['ward_code'],
-            'from_district_id' => (int) $sender['district_id'],
+
             'to_name' => $toName,
             'to_phone' => $toPhone,
             'to_address' => $toAddress,
@@ -168,6 +172,13 @@ class GHNService
             'height' => 10,
             'items' => $items,
         ];
+
+        if (!empty($sender['name'])) $payload['from_name'] = (string) $sender['name'];
+        if (!empty($sender['phone'])) $payload['from_phone'] = (string) $sender['phone'];
+        if (!empty($sender['address'])) $payload['from_address'] = (string) $sender['address'];
+        if (!empty($sender['ward_code'])) $payload['from_ward_code'] = (string) $sender['ward_code'];
+        if (!empty($sender['district_id'])) $payload['from_district_id'] = (int) $sender['district_id'];
+
 
         try {
             $response = self::client()->post(self::url('/shiip/public-api/v2/shipping-order/create'), $payload);
@@ -197,14 +208,18 @@ class GHNService
 
         try {
             $sender = config('ghn.sender');
-            $response = self::client()->post(self::url('/shiip/public-api/v2/shipping-order/leadtime'), [
-                'from_district_id' => (int) $sender['district_id'],
-                'from_ward_code' => (string) $sender['ward_code'],
+            $payload = [
                 'to_district_id' => (int) ($data['district_id'] ?? $data['to_district_id']),
                 'to_ward_code' => (string) ($data['ward_code'] ?? $data['to_ward_code']),
                 'service_id' => isset($data['service_id']) ? (int) $data['service_id'] : null,
                 'service_type_id' => (int) config('ghn.service_type_id', 2),
-            ]);
+            ];
+
+            if (!empty($sender['district_id'])) $payload['from_district_id'] = (int) $sender['district_id'];
+            if (!empty($sender['ward_code'])) $payload['from_ward_code'] = (string) $sender['ward_code'];
+
+            $response = self::client()->post(self::url('/shiip/public-api/v2/shipping-order/leadtime'), $payload);
+
 
             return $response->json();
         } catch (\Exception $e) {

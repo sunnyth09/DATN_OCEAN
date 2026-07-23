@@ -1,7 +1,7 @@
 import 'dart:async';
-import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/attendance_service.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -21,12 +21,38 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   
   bool _isLoading = false;
   String? _currentWifiInfo;
+  
+  Map<String, dynamic>? _todayStatus;
+  bool _isLoadingStatus = true;
 
   @override
   void initState() {
     super.initState();
     _startClock();
     _loadNetworkInfo();
+    _loadTodayStatus();
+  }
+
+  Future<void> _loadTodayStatus() async {
+    setState(() {
+      _isLoadingStatus = true;
+    });
+    try {
+      final res = await _attendanceService.getTodayStatus();
+      if (mounted && res['status'] == 'success') {
+        setState(() {
+          _todayStatus = res['data'];
+        });
+      }
+    } catch (_) {
+      // Ignore
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingStatus = false;
+        });
+      }
+    }
   }
 
   @override
@@ -79,6 +105,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         );
         _noteController.clear();
+      } else if (res['needs_settings'] == true) {
+        // Quyền vị trí bị từ chối vĩnh viễn — không request lại được, phải ra Settings.
+        _showOpenSettingsDialog(res['message'] ?? 'Cần cấp quyền Vị trí.');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -100,6 +129,198 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         });
       }
     }
+    
+    // Tải lại thông tin ca sau khi check-in/out
+    _loadTodayStatus();
+  }
+
+  /// Hiện dialog hướng dẫn mở Cài đặt khi quyền Vị trí bị từ chối vĩnh viễn.
+  void _showOpenSettingsDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cần quyền Vị trí'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Để sau'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              openAppSettings();
+            },
+            child: const Text('Mở Cài đặt'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Nút check-in/out: disable ngay khi đang xử lý để chặn spam tap,
+  /// hiện spinner tại chỗ nên layout không nhảy.
+  Widget _buildCheckButton({
+    required bool isCheckIn,
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return ElevatedButton(
+      onPressed: _isLoading ? null : () => _handleCheck(isCheckIn),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        disabledBackgroundColor: color.withValues(alpha: 0.6),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 0,
+      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 28,
+              width: 28,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 28),
+                const SizedBox(height: 8),
+                Text(label, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildShiftInfo() {
+    if (_isLoadingStatus) {
+      return const Padding(
+        padding: EdgeInsets.only(bottom: 20),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    if (_todayStatus == null) return const SizedBox.shrink();
+
+    final currentShift = _todayStatus!['current_shift'];
+    final state = _todayStatus!['state'];
+    
+    if (currentShift != null && currentShift['is_assigned'] == true) {
+      String statusText = '';
+      Color statusColor = Colors.blue;
+      Color bgColor = const Color(0xFFE3F2FD);
+      
+      if (state == 'checked_in') {
+        statusText = 'Đang làm việc';
+        statusColor = Colors.green;
+        bgColor = const Color(0xFFE8F5E9);
+      } else if (state == 'checked_out') {
+        statusText = 'Đã hoàn tất ca';
+        statusColor = Colors.grey;
+        bgColor = const Color(0xFFF5F5F5);
+      } else {
+        statusText = 'Sắp vào ca - Vui lòng Check-in';
+        statusColor = Colors.orange;
+        bgColor = const Color(0xFFFFF3E0);
+      }
+
+      return Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          border: Border.all(color: statusColor.withValues(alpha: 0.5)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: statusColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    statusText,
+                    style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Ca hiện tại: ${currentShift['name']} (${currentShift['start_time']} - ${currentShift['end_time']})',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Nếu không có ca hiện tại, tìm ca tiếp theo trong ngày
+    final shifts = _todayStatus!['shifts'] as List?;
+    if (shifts != null && shifts.isNotEmpty) {
+      final nextShifts = shifts.where((s) => s['is_assigned'] == true && s['state'] != 'checked_out').toList();
+      if (nextShifts.isNotEmpty) {
+        final nextShift = nextShifts.first;
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 20),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE3F2FD),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.event_note, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Ca làm việc sắp tới',
+                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${nextShift['shift_name']} (${nextShift['start_time']} - ${nextShift['end_time']})',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.event_busy, color: Colors.grey),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Hôm nay bạn không có ca làm việc nào (hoặc đã hoàn tất).',
+              style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -115,6 +336,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
+            _buildShiftInfo(),
             // Clock Card
             Container(
               width: double.infinity,
@@ -123,7 +345,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10)),
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
                 ],
               ),
               child: Column(
@@ -178,46 +400,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             
             const SizedBox(height: 30),
             
-            // Buttons
-            _isLoading 
-                ? const Center(child: CircularProgressIndicator())
-                : Row(
+            // Buttons — giữ nguyên vị trí, disable khi đang xử lý để chống spam.
+            Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _handleCheck(true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(Icons.login, color: Colors.white, size: 28),
-                        SizedBox(height: 8),
-                        Text('CHECK-IN', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                  child: _buildCheckButton(
+                    isCheckIn: true,
+                    color: const Color(0xFF10B981),
+                    icon: Icons.login,
+                    label: 'CHECK-IN',
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _handleCheck(false),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF43F5E),
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(Icons.logout, color: Colors.white, size: 28),
-                        SizedBox(height: 8),
-                        Text('CHECK-OUT', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                  child: _buildCheckButton(
+                    isCheckIn: false,
+                    color: const Color(0xFFF43F5E),
+                    icon: Icons.logout,
+                    label: 'CHECK-OUT',
                   ),
                 ),
               ],
@@ -227,7 +427,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             const Text(
               'Hệ thống yêu cầu đứng trong vòng 50m quanh công ty (GPS) hoặc kết nối đúng mạng WiFi nội bộ để điểm danh hợp lệ.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
             )
           ],
         ),

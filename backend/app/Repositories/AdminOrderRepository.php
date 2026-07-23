@@ -70,7 +70,7 @@ class AdminOrderRepository
      */
     public function findByIds(array $ids)
     {
-        return Order::whereIn('order_id', $ids)->get();
+        return Order::with(['user', 'items'])->whereIn('order_id', $ids)->get();
     }
 
     /**

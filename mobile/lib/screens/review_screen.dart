@@ -1,11 +1,10 @@
-import 'dart:convert';
-import '../config/app_theme.dart';
+import 'dart:io';
+import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
 import '../config/app_config.dart';
-
-String get kBaseUrl => AppConfig.kBaseUrl;
+import '../services/api_client.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> orderItem;
@@ -28,6 +27,40 @@ class _ReviewScreenState extends State<ReviewScreen> {
   int _rating = 5;
   final _commentCtrl = TextEditingController();
   bool _isSubmitting = false;
+  
+  final List<File> _selectedImages = [];
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImages() async {
+    if (_selectedImages.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chỉ được chọn tối đa 5 ảnh')));
+      return;
+    }
+    
+    try {
+      final List<XFile> images = await _picker.pickMultiImage(
+        imageQuality: 70, // Basic compression
+      );
+      
+      if (images.isNotEmpty) {
+        setState(() {
+          for (var img in images) {
+            if (_selectedImages.length < 5) {
+              _selectedImages.add(File(img.path));
+            }
+          }
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể chọn ảnh')));
+    }
+  }
+  
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
 
   @override
   void dispose() {
@@ -42,30 +75,36 @@ class _ReviewScreenState extends State<ReviewScreen> {
     }
     setState(() => _isSubmitting = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
       final orderItemId = widget.orderItem['order_item_id'] ?? widget.orderItem['id'];
 
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/profile/orders/feedback'),
-        headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-        body: jsonEncode({
-          'product_id': widget.productId,
-          'order_item_id': orderItemId,
-          'rating': _rating,
-          'content': _commentCtrl.text.trim(),
-        }),
+      final formData = FormData.fromMap({
+        'product_id': widget.productId,
+        'order_item_id': orderItemId,
+        'rating': _rating,
+        'content': _commentCtrl.text.trim(),
+      });
+
+      for (var i = 0; i < _selectedImages.length; i++) {
+        formData.files.add(
+          MapEntry(
+            'images[]',
+            await MultipartFile.fromFile(_selectedImages[i].path, filename: 'review_image_$i.jpg'),
+          ),
+        );
+      }
+
+      await ApiClient().dio.post(
+        '/profile/orders/feedback',
+        data: formData,
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đánh giá thành công! Cảm ơn bạn.'), backgroundColor: Colors.green));
-          Navigator.pop(context, true);
-        }
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Không thể gửi đánh giá!'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đánh giá thành công! Cảm ơn bạn.'), backgroundColor: Colors.green));
+        context.pop(true);
       }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message ?? 'Không thể gửi đánh giá!'), backgroundColor: Colors.red));
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
     } finally {
@@ -101,7 +140,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     borderRadius: BorderRadius.circular(10),
                     child: imageUrl.isNotEmpty
                         ? Image.network(imageUrl, width: 70, height: 70, fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _placeholder())
+                            errorBuilder: (_, _, _) => _placeholder())
                         : _placeholder(),
                   ),
                   const SizedBox(width: 14),
@@ -165,12 +204,67 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     maxLength: 1000,
                     decoration: InputDecoration(
                       hintText: 'Chia sẻ trải nghiệm của bạn về sản phẩm này...',
-                      hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                      hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                       focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Thêm hình ảnh (Tối đa 5 ảnh)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A))),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      ...List.generate(_selectedImages.length, (index) {
+                        return Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                _selectedImages[index],
+                                width: 70,
+                                height: 70,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: -8,
+                              right: -8,
+                              child: IconButton(
+                                icon: const Icon(Icons.cancel, color: Colors.red),
+                                onPressed: () => _removeImage(index),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                      if (_selectedImages.length < 5)
+                        GestureDetector(
+                          onTap: _pickImages,
+                          child: Container(
+                            width: 70,
+                            height: 70,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFE2E8F0), style: BorderStyle.solid),
+                            ),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_a_photo_outlined, color: Color(0xFF64748B), size: 24),
+                                SizedBox(height: 4),
+                                Text('Thêm ảnh', style: TextStyle(color: Color(0xFF64748B), fontSize: 10)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),

@@ -231,12 +231,186 @@ class WalletService
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // THANH TOÁN BẰNG VÍ (Spend)
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Thanh toán trực tiếp bằng ví (không phải discount).
+     *
+     * Khác với applyOrderDiscount (giới hạn hoa hồng 10%): đây là thanh toán
+     * toàn phần đơn hàng bằng ví, ưu tiên trừ deposit_balance trước rồi tới
+     * commission_balance. Có khóa dòng ví (pessimistic lock) để chống race.
+     *
+     * @param int         $userId
+     * @param float       $amount         Số tiền cần trừ (> 0)
+     * @param string      $description
+     * @param int|null    $referenceId    ID đối tượng liên quan (order_id, booking_id...)
+     * @param string|null $referenceType  Class name (Order::class...)
+     * @return array{deposit_used: float, commission_used: float, total_spent: float, transactions: WalletTransaction[]}
+     */
+    public function spend(int $userId, float $amount, string $description, ?int $referenceId = null, ?string $referenceType = null): array
+    {
+        if ($amount <= 0) {
+            throw new \InvalidArgumentException('Số tiền thanh toán phải lớn hơn 0');
+        }
+
+        return DB::transaction(function () use ($userId, $amount, $description, $referenceId, $referenceType) {
+            $this->getOrCreateWallet($userId);
+            $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->first();
+
+            if (!$wallet->isActive()) {
+                throw new \Exception('Ví đã bị đóng băng hoặc đóng.');
+            }
+
+            if ($wallet->getTotalBalance() < $amount) {
+                throw new \Exception('Số dư ví không đủ để thanh toán.');
+            }
+
+            // Ưu tiên trừ deposit trước, phần còn lại trừ commission
+            $fromDeposit    = min($amount, (float) $wallet->deposit_balance);
+            $fromCommission = $amount - $fromDeposit;
+
+            $transactions = [];
+
+            if ($fromDeposit > 0) {
+                $before = (float) $wallet->deposit_balance;
+                $wallet->deposit_balance -= $fromDeposit;
+                $wallet->total_used      += $fromDeposit;
+
+                $transactions[] = WalletTransaction::create([
+                    'wallet_id'        => $wallet->wallet_id,
+                    'transaction_code' => $this->generateTransactionCode(),
+                    'type'             => 'order_discount',
+                    'balance_type'     => 'deposit',
+                    'direction'        => 'debit',
+                    'amount'           => $fromDeposit,
+                    'balance_before'   => $before,
+                    'balance_after'    => (float) $wallet->deposit_balance,
+                    'reference_type'   => $referenceType,
+                    'reference_id'     => $referenceId,
+                    'description'      => $description . ' (từ số dư nạp)',
+                    'status'           => 'completed',
+                ]);
+            }
+
+            if ($fromCommission > 0) {
+                $before = (float) $wallet->commission_balance;
+                $wallet->commission_balance -= $fromCommission;
+                $wallet->total_used         += $fromCommission;
+
+                $transactions[] = WalletTransaction::create([
+                    'wallet_id'        => $wallet->wallet_id,
+                    'transaction_code' => $this->generateTransactionCode(),
+                    'type'             => 'order_discount',
+                    'balance_type'     => 'commission',
+                    'direction'        => 'debit',
+                    'amount'           => $fromCommission,
+                    'balance_before'   => $before,
+                    'balance_after'    => (float) $wallet->commission_balance,
+                    'reference_type'   => $referenceType,
+                    'reference_id'     => $referenceId,
+                    'description'      => $description . ' (từ hoa hồng)',
+                    'status'           => 'completed',
+                ]);
+            }
+
+            $wallet->save();
+
+            Log::info('Wallet spend', [
+                'user_id'         => $userId,
+                'amount'          => $amount,
+                'from_deposit'    => $fromDeposit,
+                'from_commission' => $fromCommission,
+                'reference_id'    => $referenceId,
+            ]);
+
+            return [
+                'deposit_used'    => $fromDeposit,
+                'commission_used' => $fromCommission,
+                'total_spent'     => $amount,
+                'transactions'    => $transactions,
+            ];
+        });
+    }
+
+    /**
+     * Alias tiện dụng: lấy ví (tạo nếu chưa có). Dùng cho các service khác
+     * cần truy vấn số dư trực tiếp (vd AffiliateService).
+     */
+    public function getWallet(int $userId): Wallet
+    {
+        return $this->getOrCreateWallet($userId);
+    }
+
+    /**
+     * Trừ riêng commission_balance (hoa hồng affiliate) một cách atomic, có khóa dòng.
+     *
+     * Khác với spend(): chỉ động vào commission_balance, dùng cho clawback hoa hồng
+     * khi đơn bị hủy/hoàn. Không đụng tới deposit_balance.
+     */
+    public function debitCommission(int $userId, float $amount, string $description, ?int $referenceId = null, ?string $referenceType = null): WalletTransaction
+    {
+        if ($amount <= 0) {
+            throw new \InvalidArgumentException('Số tiền thu hồi phải lớn hơn 0');
+        }
+
+        return DB::transaction(function () use ($userId, $amount, $description, $referenceId, $referenceType) {
+            $this->getOrCreateWallet($userId);
+            $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->first();
+
+            // Không cho commission_balance xuống âm — thu hồi tối đa bằng số dư hiện có.
+            $before  = (float) $wallet->commission_balance;
+            $deduct  = min($amount, $before);
+            $wallet->commission_balance -= $deduct;
+            $wallet->total_used         += $deduct;
+            $wallet->save();
+
+            return WalletTransaction::create([
+                'wallet_id'        => $wallet->wallet_id,
+                'transaction_code' => $this->generateTransactionCode(),
+                'type'             => 'adjustment',
+                'balance_type'     => 'commission',
+                'direction'        => 'debit',
+                'amount'           => $deduct,
+                'balance_before'   => $before,
+                'balance_after'    => (float) $wallet->commission_balance,
+                'reference_type'   => $referenceType,
+                'reference_id'     => $referenceId,
+                'description'      => $description,
+                'status'           => 'completed',
+            ]);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // HOÀN TRẢ KHI CANCEL ORDER
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Hoàn tiền ví khi cancel đơn hàng.
-     * Hoàn lại đúng loại balance đã dùng.
+     * Hoàn tiền ví khi hủy đơn ĐÃ THANH TOÁN TOÀN PHẦN bằng ví (cột wallet_spent).
+     * Khác reverseOrderDiscount (hoàn phần ví dùng để GIẢM GIÁ) — đây hoàn phần ví
+     * dùng để THANH TOÁN. Hoàn vào deposit_balance để user dùng lại, nhất quán với
+     * cách reverseOrderDiscount hoàn phần deposit (credit type='refund').
+     *
+     * Lưu ý: order chỉ lưu tổng wallet_spent (không tách deposit/commission), nên
+     * phần vốn trừ từ commission cũng hoàn về deposit — chấp nhận được cho refund.
+     */
+    public function refund(int $userId, float $amount, string $description, ?int $referenceId = null, ?string $referenceType = null): WalletTransaction
+    {
+        if ($amount <= 0) {
+            throw new \InvalidArgumentException('Số tiền hoàn phải lớn hơn 0');
+        }
+
+        return $this->credit($userId, $amount, 'refund', [
+            'reference_type' => $referenceType,
+            'reference_id'   => $referenceId,
+            'description'    => $description,
+        ]);
+    }
+
+    /**
+     * Hoàn tiền ví khi cancel đơn hàng có dùng ví GIẢM GIÁ.
+     * Hoàn lại đúng loại balance đã dùng (deposit → deposit, commission → commission).
      */
     public function reverseOrderDiscount(int $userId, float $depositAmount, float $commissionAmount, int $orderId): void
     {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../config/app_theme.dart';
 import '../services/api_client.dart';
+import '../utils/format_utils.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -14,6 +15,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Timer? _timer;
   List<dynamic> notifications = [];
   bool isLoading = true;
+  bool _isFetching = false;
   int unreadCount = 0;
 
   @override
@@ -30,7 +32,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> fetchNotifications({bool silent = false}) async {
+    if (_isFetching) return;
+    _isFetching = true;
     if (!silent && mounted) setState(() => isLoading = true);
+
     try {
       final res = await ApiClient().dio.get('/profile/notifications');
       final payload = res.data['data'];
@@ -38,27 +43,48 @@ class _NotificationScreenState extends State<NotificationScreen> {
       if (mounted) {
         setState(() {
           notifications = items is List ? items : [];
-          unreadCount = int.tryParse((res.data['unread_count'] ?? 0).toString()) ?? 0;
+          unreadCount =
+              int.tryParse((res.data['unread_count'] ?? 0).toString()) ?? 0;
           isLoading = false;
         });
       }
     } catch (_) {
       if (mounted) setState(() => isLoading = false);
+    } finally {
+      _isFetching = false;
     }
   }
 
   Future<void> markAsRead(String id) async {
     try {
       await ApiClient().dio.post('/profile/notifications/$id/read');
-      fetchNotifications(silent: true);
-    } catch (_) {}
+      await fetchNotifications(silent: true);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể đánh dấu thông báo đã đọc.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> markAllAsRead() async {
     try {
       await ApiClient().dio.post('/profile/notifications/read-all');
-      fetchNotifications(silent: true);
-    } catch (_) {}
+      await fetchNotifications(silent: true);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể đánh dấu tất cả thông báo đã đọc.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -91,7 +117,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       final isRead = notif['read_at'] != null;
                       final title = data['title'] ?? 'Thong bao he thong';
                       final message = data['message'] ?? '';
-                      final date = notif['created_at']?.toString().split('T').first ?? '';
+                      final date = FormatUtils.formatDate(notif['created_at']);
 
                       return InkWell(
                         onTap: () {
@@ -104,8 +130,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           decoration: BoxDecoration(
                             color: isRead ? Colors.white : const Color(0xFFF0F9FF),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: isRead ? Colors.transparent : AppColors.primaryLight.withOpacity(0.35)),
-                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                            border: Border.all(color: isRead ? Colors.transparent : AppColors.primaryLight.withValues(alpha: 0.35)),
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10)],
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
