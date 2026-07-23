@@ -42,6 +42,17 @@ class CategoryProvider extends ChangeNotifier {
     await Future.wait([fetchCategories(), fetchProducts()]);
   }
 
+  /// Tải lại từ trang 1 (dùng cho pull-to-refresh và nút "Thử lại").
+  Future<void> refresh() async {
+    _currentPage = 1;
+    await fetchProducts();
+  }
+
+  /// Gỡ một filter đang áp mà giữ nguyên các filter còn lại.
+  void clearSort() => applyFilters(sort: 'newest', price: _priceRange, inStock: _filterInStock);
+  void clearInStock() => applyFilters(sort: _sortBy, price: _priceRange, inStock: false);
+  void clearPriceRange() => applyFilters(sort: _sortBy, price: const RangeValues(0, 50000000), inStock: _filterInStock);
+
   Future<void> fetchCategories() async {
     try {
       final res = await ApiClient().dio.get('/categories');

@@ -179,9 +179,10 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Lịch Sử Đặt Sân'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        title: const Text('Lịch Sử Đặt Sân', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
+        iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
         elevation: 0,
         centerTitle: true,
       ),
@@ -359,7 +360,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text('Tổng tiền', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                        const Text('Tổng tiền', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
                         const SizedBox(height: 2),
                         Text(_formatCurrency(totalAmount), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary)),
                       ],
@@ -437,11 +438,11 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text('${stepIdx + 1}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isActive ? Colors.white : const Color(0xFF94A3B8))),
+                  child: Text('${stepIdx + 1}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isActive ? Colors.white : const Color(0xFF64748B))),
                 ),
               ),
               const SizedBox(height: 4),
-              Text(steps[stepIdx], style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isActive ? AppColors.primary : const Color(0xFF94A3B8))),
+              Text(steps[stepIdx], style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isActive ? AppColors.primary : const Color(0xFF64748B))),
             ],
           );
         }

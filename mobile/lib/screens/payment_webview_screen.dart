@@ -5,12 +5,16 @@ import 'order_success_screen.dart';
 
 class PaymentWebviewScreen extends StatefulWidget {
   final String url;
-  final String paymentMethod; 
+  final String paymentMethod;
+  final String? orderCode;
+  final num? grandTotal;
 
   const PaymentWebviewScreen({
     super.key,
     required this.url,
     required this.paymentMethod,
+    this.orderCode,
+    this.grandTotal,
   });
 
   @override
@@ -36,9 +40,9 @@ class _PaymentWebviewScreenState extends State<PaymentWebviewScreen> {
           },
           onNavigationRequest: (NavigationRequest request) {
             final url = request.url;
-            // QS-project scheme hoặc URL chứa tham số trả về
-            if (url.startsWith('qs-project://payment-return') || 
-                url.contains('vnp_ResponseCode') || 
+            // QS-project scheme hoặc URL chứa tham số trả về từ cổng thanh toán
+            if (url.startsWith('qs-project://payment-return') ||
+                url.contains('vnp_ResponseCode') ||
                 url.contains('resultCode')) {
               _handlePaymentReturn(url);
               return NavigationDecision.prevent;
@@ -51,18 +55,58 @@ class _PaymentWebviewScreenState extends State<PaymentWebviewScreen> {
   }
 
   void _handlePaymentReturn(String url) {
-    if (mounted) {
+    if (!mounted) return;
+
+    final params = Uri.parse(url).queryParameters;
+    // VNPay: vnp_ResponseCode == '00' là thành công (24 = huỷ, khác = lỗi).
+    // MoMo: resultCode == '0' là thành công.
+    final vnpCode = params['vnp_ResponseCode'];
+    final momoCode = params['resultCode'];
+
+    bool success;
+    if (vnpCode != null) {
+      success = vnpCode == '00';
+    } else if (momoCode != null) {
+      success = momoCode == '0';
+    } else {
+      // Scheme qs-project://payment-return có thể kèm status
+      final status = params['status'];
+      success = status == 'success' || status == '00' || status == '0';
+    }
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Xử lý thanh toán hoàn tất!'),
+          content: Text('Thanh toán thành công!'),
           backgroundColor: Colors.green,
         ),
       );
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const OrderSuccessScreen()),
+        MaterialPageRoute(
+          builder: (_) => OrderSuccessScreen(
+            orderCode: widget.orderCode,
+            grandTotal: widget.grandTotal,
+          ),
+        ),
         (route) => false,
       );
+    } else {
+      // Huỷ hoặc thất bại: KHÔNG đưa sang màn thành công. Đơn đã tạo,
+      // user có thể thanh toán lại trong "Đơn hàng của tôi".
+      final isCancelled = vnpCode == '24' || momoCode == '1003';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isCancelled
+                ? 'Bạn đã huỷ thanh toán. Đơn hàng vẫn được lưu, có thể thanh toán lại trong "Đơn hàng của tôi".'
+                : 'Thanh toán thất bại. Đơn hàng vẫn được lưu, vui lòng thử lại trong "Đơn hàng của tôi".',
+          ),
+          backgroundColor: isCancelled ? Colors.orange : Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      Navigator.of(context).pop();
     }
   }
 

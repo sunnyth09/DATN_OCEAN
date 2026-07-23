@@ -167,8 +167,8 @@ class ContactController extends Controller
 
         // Gửi email phản hồi
         try {
-            $emailUser = env('MAIL_USERNAME');
-            $emailPass = env('MAIL_PASSWORD');
+            $emailUser = config('mail.mailers.smtp.username');
+            $emailPass = config('mail.mailers.smtp.password');
 
             if (!$emailUser || !$emailPass) {
                 return response()->json([

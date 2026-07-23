@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/context.read<CategoryProvider>().dart';
-import '../providers/category_context.read<CategoryProvider>().dart';
-import 'package:dio/dio.dart';
+import 'package:provider/provider.dart';
+import '../providers/category_provider.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../utils/format_utils.dart';
@@ -319,7 +318,6 @@ class _CategoryScreenState extends State<CategoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<CategoryProvider>();
     super.build(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -433,18 +431,17 @@ class _CategoryScreenState extends State<CategoryScreen>
               onChanged: context.read<CategoryProvider>().updateSearch,
               onSubmitted: (v) {
                 _debounce?.cancel();
-                setState(() => context.watch<CategoryProvider>().searchQuery = v.trim());
-                
+                context.read<CategoryProvider>().updateSearch(v.trim());
               },
               decoration: InputDecoration(
                 hintText: 'Tìm kiếm sản phẩm...',
                 hintStyle: const TextStyle(
-                  color: Color(0xFF94A3B8),
+                  color: Color(0xFF64748B),
                   fontSize: 14,
                 ),
                 prefixIcon: const Icon(
                   Icons.search,
-                  color: Color(0xFF94A3B8),
+                  color: Color(0xFF64748B),
                   size: 20,
                 ),
                 suffixIcon: context.watch<CategoryProvider>().searchQuery.isNotEmpty
@@ -452,12 +449,11 @@ class _CategoryScreenState extends State<CategoryScreen>
                         icon: const Icon(
                           Icons.close,
                           size: 16,
-                          color: Color(0xFF94A3B8),
+                          color: Color(0xFF64748B),
                         ),
                         onPressed: () {
                           _searchCtrl.clear();
-                          setState(() => context.watch<CategoryProvider>().searchQuery = '');
-                          
+                          context.read<CategoryProvider>().updateSearch('');
                         },
                       )
                     : null,
@@ -533,10 +529,7 @@ class _CategoryScreenState extends State<CategoryScreen>
   Widget _buildBody() {
     return RefreshIndicator(
       color: const Color(0xFFE63B6F),
-      onRefresh: () async {
-        context.read<CategoryProvider>().currentPage = 1;
-        await fetchProducts();
-      },
+      onRefresh: () => context.read<CategoryProvider>().refresh(),
       child: CustomScrollView(
         controller: _scrollCtrl,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -561,7 +554,13 @@ class _CategoryScreenState extends State<CategoryScreen>
             ),
 
           // Loading
-          if (context.watch<CategoryProvider>().isLoading && context.watch<CategoryProvider>().products.isEmpty) const SliverShimmerLoading(),
+          if (context.watch<CategoryProvider>().isLoading && context.watch<CategoryProvider>().products.isEmpty)
+            const SliverShimmerLoading(
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 16),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.64,
+            ),
 
           // Error
           if (context.watch<CategoryProvider>().errorMessage != null && context.watch<CategoryProvider>().products.isEmpty)
@@ -611,7 +610,7 @@ class _CategoryScreenState extends State<CategoryScreen>
                   child: Text(
                     '✨ Bạn đã xem hết ${context.watch<CategoryProvider>().products.length} sản phẩm',
                     style: const TextStyle(
-                      color: Color(0xFF94A3B8),
+                      color: Color(0xFF64748B),
                       fontSize: 13,
                     ),
                   ),
@@ -624,35 +623,39 @@ class _CategoryScreenState extends State<CategoryScreen>
   }
 
   Widget _buildActiveBadges() {
+    final provider = context.watch<CategoryProvider>();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
       child: Wrap(
         spacing: 8,
         runSpacing: 0,
         children: [
-          if (context.watch<CategoryProvider>().sortBy != 'newest')
+          if (provider.sortBy != 'newest')
             _badge(
               _sortLabel(),
-              onRemove: () {
-                setState(() => context.watch<CategoryProvider>().sortBy = 'newest');
-                
-              },
+              onRemove: () => provider.applyFilters(
+                sort: 'newest',
+                price: provider.priceRange,
+                inStock: provider.filterInStock,
+              ),
             ),
-          if (context.watch<CategoryProvider>().filterInStock)
+          if (provider.filterInStock)
             _badge(
               'Còn hàng',
-              onRemove: () {
-                setState(() => context.watch<CategoryProvider>().filterInStock = false);
-                
-              },
+              onRemove: () => provider.applyFilters(
+                sort: provider.sortBy,
+                price: provider.priceRange,
+                inStock: false,
+              ),
             ),
-          if (context.watch<CategoryProvider>().priceRange.start > 0 || context.watch<CategoryProvider>().priceRange.end < 50000000)
+          if (provider.priceRange.start > 0 || provider.priceRange.end < 50000000)
             _badge(
-              '${_fmtPrice(context.watch<CategoryProvider>().priceRange.start)}–${_fmtPrice(context.watch<CategoryProvider>().priceRange.end)} đ',
-              onRemove: () {
-                setState(() => context.watch<CategoryProvider>().priceRange = const RangeValues(0, 50000000));
-                
-              },
+              '${_fmtPrice(provider.priceRange.start)}–${_fmtPrice(provider.priceRange.end)} đ',
+              onRemove: () => provider.applyFilters(
+                sort: provider.sortBy,
+                price: const RangeValues(0, 50000000),
+                inStock: provider.filterInStock,
+              ),
             ),
         ],
       ),
@@ -702,7 +705,7 @@ class _CategoryScreenState extends State<CategoryScreen>
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: _resetAndFetch,
+            onPressed: () => context.read<CategoryProvider>().refresh(),
             icon: const Icon(Icons.refresh),
             label: const Text('Thử lại'),
             style: ElevatedButton.styleFrom(
@@ -736,7 +739,7 @@ class _CategoryScreenState extends State<CategoryScreen>
           const SizedBox(height: 8),
           const Text(
             'Thử thay đổi bộ lọc hoặc từ khóa',
-            style: TextStyle(color: Color(0xFF94A3B8)),
+            style: TextStyle(color: Color(0xFF64748B)),
           ),
         ],
       ),
@@ -844,7 +847,7 @@ class _CategoryScreenState extends State<CategoryScreen>
                         child: Icon(
                           isFav ? Icons.favorite : Icons.favorite_border,
                           size: 16,
-                          color: isFav ? Colors.red : const Color(0xFF94A3B8),
+                          color: isFav ? Colors.red : const Color(0xFF64748B),
                         ),
                       ),
                     ),

@@ -80,24 +80,45 @@ class ProductParser
                 $data['specifications'] = $specNode->html();
             }
             
-            // Images
-            $crawler->filter('img')->each(function (Crawler $node) use (&$data) {
-                $src = $node->attr('data-image') ?? $node->attr('data-src') ?? $node->attr('src');
-                
-                if ($src && strpos($src, 'data:image') === false && strpos($src, 'captcha') === false && strpos($src, 'themes_new') === false) {
-                    if (strpos($src, 'http') !== 0) {
-                        $src = 'https://cdn.shopvnb.com' . (strpos($src, '/') === 0 ? '' : '/') . $src;
-                    }
-                    if (!in_array($src, $data['images'])) {
-                        $data['images'][] = $src;
-                    }
-                }
-            });
+            // Images — CHỈ lấy ảnh trong container gallery của sản phẩm chính.
+            // Trang nguồn có ~57 thẻ <img> (logo brand, badge, sản phẩm liên quan...);
+            // nếu quét toàn trang sẽ gắn nhầm ảnh rác vào sản phẩm. Vùng ảnh chính nằm
+            // trong .product-images; ảnh "sản phẩm liên quan" ở .product-relate-swiper riêng.
+            $gallery = $crawler->filter('.product-images');
+            $imageNodes = $gallery->count() ? $gallery->filter('img') : null;
+
+            if ($imageNodes && $imageNodes->count()) {
+                $imageNodes->each(function (Crawler $node) use (&$data) {
+                    $this->collectImage($node, $data);
+                });
+            }
             
         } catch (\Exception $e) {
             // Ignore parse errors, returning what we have
         }
 
         return $data;
+    }
+
+    /**
+     * Trích URL ảnh từ 1 thẻ <img>, chuẩn hóa tuyệt đối, lọc rác và chống trùng.
+     */
+    private function collectImage(Crawler $node, array &$data): void
+    {
+        $src = $node->attr('data-image') ?? $node->attr('data-src') ?? $node->attr('src');
+
+        if (!$src || strpos($src, 'data:image') !== false
+            || strpos($src, 'captcha') !== false
+            || strpos($src, 'themes_new') !== false) {
+            return;
+        }
+
+        if (strpos($src, 'http') !== 0) {
+            $src = 'https://cdn.shopvnb.com' . (strpos($src, '/') === 0 ? '' : '/') . $src;
+        }
+
+        if (!in_array($src, $data['images'])) {
+            $data['images'][] = $src;
+        }
     }
 }

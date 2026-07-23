@@ -100,18 +100,33 @@ class ShimmerBlock extends StatelessWidget {
   }
 }
 class SliverShimmerLoading extends StatelessWidget {
-  const SliverShimmerLoading({super.key});
+  /// Cho phép mỗi màn truyền đúng khung grid của nó để skeleton khớp
+  /// layout thật → không nhảy layout (CLS) khi data về.
+  final EdgeInsetsGeometry padding;
+  final double crossAxisSpacing;
+  final double mainAxisSpacing;
+  final double childAspectRatio;
+  final int itemCount;
+
+  const SliverShimmerLoading({
+    super.key,
+    this.padding = EdgeInsets.zero,
+    this.crossAxisSpacing = 16,
+    this.mainAxisSpacing = 16,
+    this.childAspectRatio = 0.65,
+    this.itemCount = 4,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
-      padding: const EdgeInsets.all(0),
+      padding: padding,
       sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 0.65,
+          crossAxisSpacing: crossAxisSpacing,
+          mainAxisSpacing: mainAxisSpacing,
+          childAspectRatio: childAspectRatio,
         ),
         delegate: SliverChildBuilderDelegate(
           (context, index) {
@@ -121,7 +136,7 @@ class SliverShimmerLoading extends StatelessWidget {
                child: const ShimmerProductItemTemplate()
             );
           },
-          childCount: 4, // 4 items nhấp nháy cho CustomScrollView
+          childCount: itemCount,
         ),
       ),
     );
@@ -246,6 +261,61 @@ class ProductDetailShimmer extends StatelessWidget {
               )
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Skeleton dạng list cho CustomScrollView (flash sale, các màn dùng sliver).
+class SliverListShimmerLoading extends StatelessWidget {
+  final int itemCount;
+  const SliverListShimmerLoading({super.key, this.itemCount = 4});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverPadding(
+      padding: const EdgeInsets.all(16),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => Shimmer.fromColors(
+            baseColor: Colors.grey.shade300,
+            highlightColor: Colors.grey.shade100,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(height: 14, width: double.infinity, color: Colors.white),
+                        const SizedBox(height: 8),
+                        Container(height: 14, width: 100, color: Colors.white),
+                        const SizedBox(height: 12),
+                        Container(height: 16, width: 80, color: Colors.white),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          childCount: itemCount,
         ),
       ),
     );

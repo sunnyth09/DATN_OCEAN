@@ -92,6 +92,19 @@ class AffiliateConversionRepository
     }
 
     /**
+     * Chuyển approved → cancelled bằng conditional UPDATE atomic.
+     * Chỉ request THẮNG race (status đang 'approved') mới nhận true → clawback
+     * hoa hồng đúng 1 lần dù 2 request hủy đồng thời (không phụ thuộc rowCount
+     * semantics của PDO như khi so sánh $oldStatus đọc trước).
+     */
+    public function markCancelledFromApproved(int $orderId): bool
+    {
+        return AffiliateConversion::where('order_id', $orderId)
+            ->where('status', 'approved')
+            ->update(['status' => 'cancelled']) > 0;
+    }
+
+    /**
      * Admin: danh sách tất cả conversions (có phân trang)
      */
     public function adminList(int $perPage = 15)

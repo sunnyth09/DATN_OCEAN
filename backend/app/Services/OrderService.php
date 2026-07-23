@@ -631,7 +631,7 @@ class OrderService
 
                 $this->variantRepository->restoreStockFromOrderItems($items);
 
-                // ── Hoàn ví nếu đơn có dùng wallet discount ──
+                // ── Hoàn ví nếu đơn có dùng ví GIẢM GIÁ ──
                 $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
                 $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
 
@@ -641,6 +641,20 @@ class OrderService
                         $walletDeposit,
                         $walletCommission,
                         $order->order_id
+                    );
+                }
+
+                // ── Hoàn ví nếu đơn THANH TOÁN TOÀN PHẦN bằng ví (wallet_spent) ──
+                // Đây là cột độc lập với wallet discount ở trên; đơn có thể có cả hai.
+                // Chỉ hoàn khi đơn đã ở trạng thái paid để tránh hoàn cho đơn chưa trừ tiền.
+                $walletSpent = (float) ($order->wallet_spent ?? 0);
+                if ($walletSpent > 0 && $order->user_id && $order->payment_status === 'paid') {
+                    $this->walletService->refund(
+                        $order->user_id,
+                        $walletSpent,
+                        "Hoàn tiền hủy đơn hàng #{$order->order_code}",
+                        $order->order_id,
+                        Order::class
                     );
                 }
 

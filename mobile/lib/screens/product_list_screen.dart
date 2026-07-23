@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../widgets/network_image_widget.dart';
 import '../services/api_client.dart';
+import '../services/auth_service.dart';
 import '../utils/format_utils.dart';
 import '../widgets/shimmer_loading.dart';
 import '../config/app_config.dart';
-import 'product_detail_screen.dart';
 
 class ProductListScreen extends StatefulWidget {
   final int? categoryId;
@@ -207,19 +207,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 decoration: InputDecoration(
                   hintText: 'Tìm kiếm sản phẩm...',
                   hintStyle: const TextStyle(
-                    color: Color(0xFF94A3B8),
+                    color: Color(0xFF64748B),
                     fontSize: 14,
                   ),
                   prefixIcon: const Icon(
                     Icons.search,
-                    color: Color(0xFF94A3B8),
+                    color: Color(0xFF64748B),
                     size: 20,
                   ),
                   suffixIcon: _searchCtrl.text.isNotEmpty
                       ? IconButton(
                           icon: const Icon(
                             Icons.close,
-                            color: Color(0xFF94A3B8),
+                            color: Color(0xFF64748B),
                             size: 18,
                           ),
                           onPressed: () {
@@ -254,7 +254,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
         controller: _scrollController,
         slivers: [
           if (isLoading && products.isEmpty)
-            const SliverShimmerLoading()
+            const SliverShimmerLoading(
+              padding: EdgeInsets.all(20),
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 20,
+              childAspectRatio: 0.62,
+            )
           else if (errorMessage != null && products.isEmpty)
             SliverToBoxAdapter(
               child: Center(
@@ -342,7 +347,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 child: Center(
                   child: Text(
                     'Bạn đã xem hết sản phẩm',
-                    style: TextStyle(color: Color(0xFF94A3B8)),
+                    style: TextStyle(color: Color(0xFF64748B)),
                   ),
                 ),
               ),
@@ -350,6 +355,36 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _toggleFavorite(Map<String, dynamic> product) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final loggedIn = await AuthService.isLoggedIn();
+      if (!loggedIn) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Vui lòng đăng nhập để lưu!')),
+        );
+        return;
+      }
+      await ApiClient().dio.post(
+        '/profile/favorites/toggle',
+        data: {'product_id': product['product_id'] ?? product['id']},
+      );
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Đã cập nhật danh sách yêu thích!'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Không thể cập nhật yêu thích. Vui lòng thử lại.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildProductCard(Map<String, dynamic> product) {
@@ -402,23 +437,26 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   Positioned(
                     top: 10,
                     right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.favorite_border,
-                        size: 16,
-                        color: Color(0xFF64748B),
+                    child: GestureDetector(
+                      onTap: () => _toggleFavorite(product),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.favorite_border,
+                          size: 18,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
                     ),
                   ),

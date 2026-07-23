@@ -7,10 +7,10 @@ import '../config/app_config.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../utils/format_utils.dart';
-import 'package:provider/context.read<ProductDetailProvider>().dart';
-import '../providers/product_detail_context.read<ProductDetailProvider>().dart';
-import '../providers/cart_context.read<ProductDetailProvider>().dart';
-import '../providers/navigation_context.read<ProductDetailProvider>().dart';
+import 'package:provider/provider.dart';
+import '../providers/product_detail_provider.dart';
+import '../providers/cart_provider.dart';
+import '../providers/navigation_provider.dart';
 import '../widgets/shimmer_loading.dart';
 import 'login_screen.dart';
 
@@ -23,6 +23,8 @@ class ProductDetailScreen extends StatefulWidget {
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  int _currentImageIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -52,9 +54,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return;
     }
 
+    if (!mounted) return;
+
     // Tìm Variant ID
+    final detailProvider = context.read<ProductDetailProvider>();
+    final product = detailProvider.product;
+    final selectedColor = detailProvider.selectedColor;
+    final selectedSize = detailProvider.selectedSize;
+
     int? variantId;
-    final variants = _product['variants'] as List<dynamic>? ?? [];
+    final variants = product['variants'] as List<dynamic>? ?? [];
     for (var v in variants) {
       final vColor = v['color']?.toString() ?? '';
       final vSize = v['size']?.toString() ?? '';
@@ -146,8 +155,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
   }
 
-  List<String> _getUniqueAttributes(String key) {
-    final variants = _product['variants'] as List<dynamic>? ?? [];
+  List<String> _getUniqueAttributes(Map<String, dynamic> product, String key) {
+    final variants = product['variants'] as List<dynamic>? ?? [];
     List<String> list = [];
     for (var v in variants) {
       final val = v[key]?.toString() ?? '';
@@ -159,10 +168,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ProductDetailProvider>();
-    final _product = context.watch<ProductDetailProvider>().product;
-    final selectedColor = context.watch<ProductDetailProvider>().selectedColor;
-    final selectedSize = context.watch<ProductDetailProvider>().selectedSize;
-    if (context.watch<ProductDetailProvider>().isLoadingDetails) {
+    // ignore: no_leading_underscores_for_local_identifiers
+    final _product = provider.product;
+    final selectedColor = provider.selectedColor;
+    final selectedSize = provider.selectedSize;
+    if (provider.isLoadingDetails) {
       return const ProductDetailShimmer();
     }
 
@@ -189,9 +199,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         break;
       }
     }
-
-    final double rawValue = double.tryParse(priceRaw.toString()) ?? 0;
-    final String oldPrice = FormatUtils.formatPrice(rawValue * 1.15);
 
     List<String> allImages = [];
     if (rawImage.isNotEmpty) {
@@ -221,11 +228,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final categoryName = _product['category'] is Map
         ? (_product['category']['name'] ?? 'SẢN PHẨM')
         : 'SẢN PHẨM';
-    final listColors = _getUniqueAttributes('color');
-    final listSizes = _getUniqueAttributes('size');
-    if (selectedSize.isEmpty && listSizes.isNotEmpty) {
-      selectedSize = listSizes.first;
-    }
+    final listColors = _getUniqueAttributes(_product, 'color');
+    final listSizes = _getUniqueAttributes(_product, 'size');
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -353,7 +357,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                           const Icon(
                             Icons.favorite_border,
-                            color: Color(0xFF94A3B8),
+                            color: Color(0xFF64748B),
                           ),
                         ],
                       ),
@@ -368,28 +372,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            FormatUtils.formatPrice(priceRaw),
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFFE63B6F),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            oldPrice,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF94A3B8),
-                              decoration: TextDecoration.lineThrough,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        FormatUtils.formatPrice(priceRaw),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFE63B6F),
+                        ),
                       ),
                       const SizedBox(height: 24),
                       // GridView removed to avoid hardcoded watch features in a sports store
@@ -525,7 +514,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               : 'Người dùng';
                           final rating = cmt['rating'] ?? 5;
                           final content = cmt['comment'] ?? '';
-                          final date = cmt['created_at']?.split('T')?[0] ?? '';
+                          final date = FormatUtils.formatDate(cmt['created_at']);
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 16),
                             child: Row(
@@ -731,7 +720,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _buildColorChoice(String colorVal) {
-    final isSelected = selectedColor == colorVal;
+    final detailProvider = context.watch<ProductDetailProvider>();
+    final isSelected = detailProvider.selectedColor == colorVal;
     Color? clr;
     if (colorVal.startsWith('#')) {
       try {
@@ -795,7 +785,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
     if (clr != null) {
       return GestureDetector(
-        onTap: () => setState(() => selectedColor = colorVal),
+        onTap: () => context.read<ProductDetailProvider>().selectColor(colorVal),
         child: Container(
           margin: const EdgeInsets.only(right: 12),
           padding: const EdgeInsets.all(4),
@@ -819,7 +809,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
     } else {
       return GestureDetector(
-        onTap: () => setState(() => selectedColor = colorVal),
+        onTap: () => context.read<ProductDetailProvider>().selectColor(colorVal),
         child: Container(
           margin: const EdgeInsets.only(right: 12),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -850,9 +840,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _buildSizeChoice(String sizeVal) {
-    final isSelected = selectedSize == sizeVal;
+    final isSelected = context.watch<ProductDetailProvider>().selectedSize == sizeVal;
     return GestureDetector(
-      onTap: () => setState(() => selectedSize = sizeVal),
+      onTap: () => context.read<ProductDetailProvider>().selectSize(sizeVal),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
@@ -981,7 +971,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF94A3B8),
+                        color: Color(0xFF64748B),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

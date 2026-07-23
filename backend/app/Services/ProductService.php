@@ -410,6 +410,7 @@ class ProductService
             DB::rollBack();
             $isDbError = $e instanceof \Illuminate\Database\QueryException || $e instanceof \PDOException;
             $errorMsg = $isDbError ? 'Lỗi hệ thống.' : $e->getMessage();
+            Log::error('Update Product Error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return [
                 '_status' => 500,
                 'success' => false,

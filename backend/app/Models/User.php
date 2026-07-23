@@ -128,6 +128,14 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(ReturnRequest::class, 'user_id', 'user_id');
     }
 
+    /**
+     * Quan hệ: User có nhiều UserDevice (FCM token cho push notification)
+     */
+    public function devices()
+    {
+        return $this->hasMany(UserDevice::class, 'user_id', 'user_id');
+    }
+
 
 
     // ==================== Affiliate Relationships ====================

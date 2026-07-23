@@ -66,7 +66,7 @@ class CheckoutCouponBox extends StatelessWidget {
                     decoration: InputDecoration(
                       hintText: 'Nhập mã giảm giá...',
                       hintStyle: const TextStyle(
-                        color: Color(0xFF94A3B8),
+                        color: Color(0xFF64748B),
                         fontSize: 13,
                       ),
                       filled: true,

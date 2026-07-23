@@ -138,7 +138,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             children: [
                               Icon(
                                 isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                                color: isSelected ? Colors.red : const Color(0xFF94A3B8),
+                                color: isSelected ? Colors.red : const Color(0xFF64748B),
                                 size: 20,
                               ),
                               const SizedBox(width: 12),
@@ -158,7 +158,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         maxLength: 500,
                         decoration: InputDecoration(
                           hintText: 'Nhập lý do của bạn...',
-                          hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                          hintStyle: const TextStyle(color: Color(0xFF64748B)),
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
@@ -400,7 +400,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       final h = entry.value;
                       final isLast = entry.key == histories.length - 1;
                       final note = h['note'] ?? h['status'] ?? '';
-                      final date = h['created_at']?.toString().split('T')[0] ?? '';
+                      final date = FormatUtils.formatDate(h['created_at']);
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -514,7 +514,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Text('x$qty', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                                      Text('x$qty', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                                       const Spacer(),
                                       Text(_formatPrice(num.parse(price.toString()) * qty), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE63B6F))),
                                     ],
@@ -572,7 +572,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Phương thức thanh toán', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                          const Text('Phương thức thanh toán', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                           Text(paymentMethod.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         ],
                       ),

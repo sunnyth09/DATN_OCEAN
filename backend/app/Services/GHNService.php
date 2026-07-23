@@ -30,8 +30,8 @@ class GHNService
 
     private static function ensureConfigured(): void
     {
-        $token = config('ghn.token') ?: env('GHN_TOKEN');
-        $shopId = config('ghn.shop_id') ?: env('GHN_SHOP_ID');
+        $token = config('ghn.token');
+        $shopId = config('ghn.shop_id');
 
         if (!$token || !$shopId) {
             throw new \Exception('Chưa cấu hình GHN_TOKEN hoặc GHN_SHOP_ID trong .env');

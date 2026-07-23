@@ -35,9 +35,9 @@ class Coupon extends Model
         'is_first_order'  => 'boolean',
         'auto_apply'      => 'boolean',
         'min_product_qty' => 'integer',
-        'value'           => 'float',
-        'max_discount_value' => 'float',
-        'min_order_value' => 'float',
+        'value'           => 'decimal:2',
+        'max_discount_value' => 'decimal:2',
+        'min_order_value' => 'decimal:2',
         'start_date'      => 'datetime',
         'end_date'        => 'datetime',
     ];

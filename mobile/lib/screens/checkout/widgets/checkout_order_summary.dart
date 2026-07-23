@@ -88,7 +88,7 @@ class CheckoutOrderSummary extends StatelessWidget {
                           'Đang tính...',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF94A3B8),
+                            color: Color(0xFF64748B),
                             fontStyle: FontStyle.italic,
                           ),
                         ),

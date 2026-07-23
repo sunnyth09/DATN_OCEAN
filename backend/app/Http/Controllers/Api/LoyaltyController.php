@@ -67,7 +67,7 @@ class LoyaltyController extends Controller
 
             // Record user reward
             $userReward = new UserReward();
-            $userReward->user_id = $user->id;
+            $userReward->user_id = $user->user_id;
             $userReward->reward_id = $reward->id;
             $userReward->points_spent = $reward->points_required;
             $userReward->status = 'completed'; // or pending if item
@@ -75,7 +75,7 @@ class LoyaltyController extends Controller
 
             // Log loyalty transaction
             DB::table('loyalty_transactions')->insert([
-                'user_id' => $user->id,
+                'user_id' => $user->user_id,
                 'type' => 'burn',
                 'points' => $reward->points_required,
                 'balance_before' => $oldPoints,

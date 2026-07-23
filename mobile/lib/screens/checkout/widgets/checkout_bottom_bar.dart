@@ -6,11 +6,13 @@ import '../../../utils/format_utils.dart';
 class CheckoutBottomBar extends StatelessWidget {
   final int grandTotal;
   final VoidCallback onPlaceOrder;
+  final bool isPlacing;
 
   const CheckoutBottomBar({
     super.key,
     required this.grandTotal,
     required this.onPlaceOrder,
+    this.isPlacing = false,
   });
 
   @override
@@ -50,26 +52,36 @@ class CheckoutBottomBar extends StatelessWidget {
               ],
             ),
             ElevatedButton(
-              onPressed: onPlaceOrder,
+              onPressed: isPlacing ? null : onPlaceOrder,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 36,
                   vertical: 14,
                 ),
                 backgroundColor: const Color(0xFFE63B6F),
+                disabledBackgroundColor: const Color(0xFFE63B6F).withValues(alpha: 0.6),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
               ),
-              child: const Text(
-                'Đặt hàng',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
+              child: isPlacing
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : const Text(
+                      'Đặt hàng',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
             ),
           ],
         ),

@@ -31,8 +31,8 @@ class SendBulkCouponEmail implements ShouldQueue
     public function handle(): void
     {
         try {
-            $emailUser = env('EMAIL_USER');
-            $emailPass = env('EMAIL_PASS');
+            $emailUser = config('services.email.username');
+            $emailPass = config('services.email.password');
 
             if (!$emailUser || !$emailPass) {
                 Log::warning('Coupon email: EMAIL_USER hoặc EMAIL_PASS chưa cấu hình.');

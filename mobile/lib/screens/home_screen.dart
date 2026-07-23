@@ -14,7 +14,6 @@ import '../widgets/shimmer_loading.dart';
 import 'coupon_screen.dart';
 import 'flash_sale_screen.dart';
 import 'notification_screen.dart';
-import 'product_detail_screen.dart';
 import 'product_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -157,12 +156,12 @@ class _HomeScreenState extends State<HomeScreen>
           padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
           child: Row(
             children: [
-              const Icon(Icons.search, color: Color(0xFF94A3B8)),
+              const Icon(Icons.search, color: Color(0xFF64748B)),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
                   'Bạn muốn tìm gì?',
-                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
+                  style: TextStyle(color: Color(0xFF64748B), fontSize: 15),
                 ),
               ),
               const Icon(Icons.filter_list, color: Color(0xFFE63B6F)),
@@ -353,27 +352,6 @@ class _HomeScreenState extends State<HomeScreen>
         }).toList(),
       ),
     );
-  }
-
-  // ===== FETCH CATEGORIES =====
-  Future<void> fetchCategories() async {
-    try {
-      final res = await ApiClient().dio.get('/categories');
-      final data = res.data['data'] as List? ?? [];
-      // Chỉ lấy cấp 1 (parent_id == null hoặc == 0)
-      final rootCats = data.where((c) {
-        final pid = c['parent_id'];
-        return pid == null || pid == 0;
-      }).toList();
-      if (mounted) {
-        setState(() {
-          categories = rootCats;
-          isCatLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => isCatLoading = false);
-    }
   }
 
   /// Lấy icon thích hợp dựa trên tên danh mục
@@ -614,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen>
                         color: Color(0xFF0F172A),
                       ),
                     ),
-                    const Icon(Icons.more_horiz, color: Color(0xFF94A3B8)),
+                    const Icon(Icons.more_horiz, color: Color(0xFF64748B)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -758,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen>
                       child: const Icon(
                         Icons.favorite_border,
                         size: 16,
-                        color: Color(0xFF94A3B8),
+                        color: Color(0xFF64748B),
                       ),
                     ),
                   ),

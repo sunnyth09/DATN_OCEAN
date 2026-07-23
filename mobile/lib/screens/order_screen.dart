@@ -153,7 +153,7 @@ class _OrderScreenState extends State<OrderScreen>
               const Icon(
                 Icons.receipt_long_outlined,
                 size: 64,
-                color: Color(0xFF94A3B8),
+                color: Color(0xFF64748B),
               ),
               const SizedBox(height: 16),
               const Text(
@@ -278,7 +278,7 @@ class _OrderScreenState extends State<OrderScreen>
       itemBuilder: (context, index) {
         final order = filtered[index];
         final orderCode = order['order_code'] ?? order['id'].toString();
-        final date = order['created_at']?.split('T')?[0] ?? 'N/A';
+        final date = FormatUtils.formatDate(order['created_at']);
         final total = FormatUtils.formatPrice(
           order['grand_total'] ?? order['total'],
         );

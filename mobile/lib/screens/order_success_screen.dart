@@ -6,10 +6,12 @@ import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../utils/format_utils.dart';
 import '../widgets/network_image_widget.dart';
-import 'product_detail_screen.dart';
 
 class OrderSuccessScreen extends StatefulWidget {
-  const OrderSuccessScreen({super.key});
+  final String? orderCode;
+  final num? grandTotal;
+
+  const OrderSuccessScreen({super.key, this.orderCode, this.grandTotal});
 
   @override
   State<OrderSuccessScreen> createState() => _OrderSuccessScreenState();
@@ -121,6 +123,64 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                   ),
                 ),
               ),
+              // Thông tin đơn: mã đơn + tổng tiền để người dùng tra cứu.
+              if (widget.orderCode != null || widget.grandTotal != null) ...[
+                const SizedBox(height: 24),
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFF1F3F5)),
+                  ),
+                  child: Column(
+                    children: [
+                      if (widget.orderCode != null)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Mã đơn hàng',
+                              style: TextStyle(color: Color(0xFF636E72), fontSize: 14),
+                            ),
+                            Text(
+                              widget.orderCode!,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (widget.orderCode != null && widget.grandTotal != null)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Divider(height: 1),
+                        ),
+                      if (widget.grandTotal != null)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Tổng thanh toán',
+                              style: TextStyle(color: Color(0xFF636E72), fontSize: 14),
+                            ),
+                            Text(
+                              FormatUtils.formatPrice(widget.grandTotal!),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: Color(0xFFE63B6F),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
               // Actions
               Padding(

@@ -96,12 +96,7 @@ PROMPT;
     public function __construct()
     {
         // Load nhiều API keys để rotate khi bị rate limit
-        $keys = array_filter([
-            env('GEMINI_API_KEY', ''),
-            env('GEMINI_API_KEY_2', ''),
-            env('GEMINI_API_KEY_3', ''),
-            env('GEMINI_API_KEY_4', ''),
-        ]);
+        $keys = config('services.gemini.keys', []);
         $this->apiKeys = !empty($keys) ? $keys : [''];
     }
 
