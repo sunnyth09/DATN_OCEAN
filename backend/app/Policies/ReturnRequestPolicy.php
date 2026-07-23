@@ -24,9 +24,9 @@ class ReturnRequestPolicy
      */
     public function before(mixed $user, string $ability): bool|null
     {
-        $role = $user->role ?? null;
-        if (in_array($role, ['admin', 'staff'], true)) {
-            return true;
+        if (auth('admin')->check()) {
+            $adminUser = auth('admin')->user();
+            return in_array($adminUser->role, ['admin', 'staff'], true);
         }
 
         return null;
@@ -54,8 +54,9 @@ class ReturnRequestPolicy
      * Chỉ Admin (không phải staff) được xử lý refund tiền.
      * Staff chỉ được approve/reject, không refund.
      */
-    public function processRefund(mixed $user): bool
+    public function processRefund(): bool
     {
-        return ($user->role ?? null) === 'admin';
+        if (!auth('admin')->check()) return false;
+        return auth('admin')->user()->role === 'admin';
     }
 }

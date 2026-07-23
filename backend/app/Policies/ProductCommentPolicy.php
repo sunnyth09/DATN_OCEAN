@@ -24,12 +24,9 @@ class ProductCommentPolicy
      */
     public function before(mixed $user, string $ability): bool|null
     {
-        // Chỉ shortcircuit với admin abilities (moderate, delete)
-        if (in_array($ability, ['moderate', 'delete'], true)) {
-            $role = $user->role ?? null;
-            if (in_array($role, ['admin', 'staff', 'seller'], true)) {
-                return true;
-            }
+        // Chỉ shortcircuit với admin abilities (moderate)
+        if (in_array($ability, ['moderate', 'delete'], true) && auth('admin')->check()) {
+            return in_array(auth('admin')->user()->role, ['admin', 'staff'], true);
         }
 
         return null;
