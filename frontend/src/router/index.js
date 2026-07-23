@@ -4,80 +4,100 @@ import { useAuthStore } from '@/stores/auth';
 
 // ==================== CORE LAYOUTS (eager load) ====================
 import ClientLayout from "../layouts/ClientLayout.vue";
+import CheckoutLayout from "../layouts/CheckoutLayout.vue";
 
 // ==================== HOME PAGES (eager load - trang chính) ====================
-import Home from "../Pages/Client/Home/Home.vue";
+import Home from "@/features/shop/pages/Home/Home.vue";
 
 // ==================== LAZY LOADED PAGES ====================
 
 // Auth
-const Login = () => import("../Pages/Client/Auth/login.vue");
-const Register = () => import("../Pages/Client/Auth/Register.vue");
-const Forgot = () => import("../Pages/Client/Auth/Forgot.vue");
-const GoogleCallback = () => import("../Pages/Client/Auth/GoogleCallback.vue");
-const FacebookCallback = () => import("../Pages/Client/Auth/FacebookCallback.vue");
+const Login = () => import("@/features/auth/pages/login.vue");
+const Register = () => import("@/features/auth/pages/Register.vue");
+const Forgot = () => import("@/features/auth/pages/Forgot.vue");
+const GoogleCallback = () => import("@/features/auth/pages/GoogleCallback.vue");
+const FacebookCallback = () => import("@/features/auth/pages/FacebookCallback.vue");
 
 // Admin (lazy load toàn bộ - chỉ tải khi admin truy cập)
 const AdminLayout = () => import("../layouts/AdminLayout.vue");
-const AdminHome = () => import("../Pages/admin/AdminHome.vue");
-const AdminProduct = () => import("../Pages/admin/AdminProduct.vue");
-const AdminCreateProduct = () => import("../Pages/admin/AdminCreateProduct.vue");
-const AdminUsers = () => import("../Pages/admin/AdminUsers.vue");
-const AdminCategory = () => import("../Pages/admin/AdminCategory.vue");
-const AdminStaff = () => import("../Pages/admin/AdminStaff.vue");
-const AdminContact = () => import("../Pages/admin/AdminContact.vue");
-const AdminCoupon = () => import("../Pages/admin/AdminCoupon.vue");
+const AdminHome = () => import("@/features/admin/pages/AdminHome.vue");
+const AdminProduct = () => import("@/features/shop/pages/admin/AdminProduct.vue");
+const AdminCreateProduct = () => import("@/features/shop/pages/admin/AdminCreateProduct.vue");
+const AdminUsers = () => import("@/features/admin/pages/AdminUsers.vue");
+const AdminCategory = () => import("@/features/shop/pages/admin/AdminCategory.vue");
+const AdminStaff = () => import("@/features/hr/pages/AdminStaff.vue");
+const AdminContact = () => import("@/features/support/pages/AdminContact.vue");
+const AdminCoupon = () => import("@/features/shop/pages/admin/AdminCoupon.vue");
+const AdminRewards = () => import("@/features/shop/pages/admin/AdminRewards.vue");
+const AdminUserRewards = () => import("@/features/shop/pages/admin/AdminUserRewards.vue");
 
 const routes = [
+
+    {
+        path: "/cart",
+        component: CheckoutLayout,
+        children: [{ path: "", name: "cart", component: () => import("@/features/shop/pages/Cart/Index.vue"), meta: { title: 'Giỏ hàng' } }]
+    },
+    {
+        path: "/checkout",
+        component: CheckoutLayout,
+        children: [{ path: "", name: "checkout", component: () => import("@/features/shop/pages/Cart/Checkout.vue"), meta: { title: 'Thanh toán' } }]
+    },
+    {
+        path: "/order-success/:order_code?",
+        component: CheckoutLayout,
+        children: [{ path: "", name: "order-success", component: () => import("@/features/shop/pages/Cart/OrderSuccess.vue"), meta: { title: 'Đặt hàng thành công' } }]
+    },
+    {
+        path: "/payment/result",
+        component: CheckoutLayout,
+        children: [{ path: "", name: "payment-result", component: () => import("@/features/shop/pages/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } }]
+    },
     {
         path: "/",
         component: ClientLayout,
         children: [
             { path: "", name: "home", component: Home, meta: { title: 'Trang chủ' } },
             // Product pages
-            { path: "product", name: "product-list", component: () => import("../Pages/Client/Home/Product.vue"), meta: { title: 'Sản phẩm' } },
-            { path: "product/:id", name: "product-detail", component: () => import("../Pages/Client/Home/productDetail.vue"), meta: { title: 'Chi tiết sản phẩm' } },
+            { path: "product", name: "product-list", component: () => import("@/features/shop/pages/Home/Product.vue"), meta: { title: 'Sản phẩm' } },
+            { path: "product/:id", name: "product-detail", component: () => import("@/features/shop/pages/Home/productDetail.vue"), meta: { title: 'Chi tiết sản phẩm' } },
             // Flash Sale & Coupon
-            { path: "flash-sale", name: "flash-sale", component: () => import("../Pages/Client/Home/FlashSale.vue"), meta: { title: 'Flash Sale' } },
-            { path: "coupon", name: "coupon", component: () => import("../Pages/Client/Home/Coupon.vue"), meta: { title: 'Mã giảm giá' } },
-            // Cart
-            { path: "cart", name: "cart", component: () => import("../Pages/Client/Cart/Index.vue"), meta: { requiresAuth: true, title: 'Giỏ hàng' } },
-            { path: "checkout", name: "checkout", component: () => import("../Pages/Client/Cart/Checkout.vue"), meta: { requiresAuth: true, title: 'Thanh toán' } },
-            { path: "order-success/:order_code?", name: "order-success", component: () => import("../Pages/Client/Cart/OrderSuccess.vue"), meta: { requiresAuth: true, title: 'Đặt hàng thành công' } },
-            // Payment
-            { path: "payment/result", name: "payment-result", component: () => import("../Pages/Client/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } },
-            // Profile
+            { path: "flash-sale", name: "flash-sale", component: () => import("@/features/shop/pages/Home/FlashSale.vue"), meta: { title: 'Flash Sale' } },
+            { path: "coupon", name: "coupon", component: () => import("@/features/shop/pages/Home/Coupon.vue"), meta: { title: 'Mã giảm giá' } },            { path: "tracking", name: "guest-tracking", component: () => import("@/features/shop/pages/client/GuestTracking.vue"), meta: { title: 'Tra cứu đơn hàng' } },
+            { path: "tracking/:token", name: "guest-tracking-token", component: () => import("@/features/shop/pages/client/GuestTracking.vue"), meta: { title: 'Theo dõi đơn hàng' } },            // Profile
             {
                 path: "profile",
-                component: () => import("../Pages/Client/Profile/ProfileLayout.vue"),
+                component: () => import("@/features/profile/pages/ProfileLayout.vue"),
                 meta: { requiresAuth: true },
                 children: [
-                    { path: "", name: "profile-info", component: () => import("../Pages/Client/Profile/ProfileInfo.vue"), meta: { title: 'Thông tin cá nhân' } },
-                    { path: "orders", name: "profile-orders", component: () => import("../Pages/Client/Profile/ProfileOrders.vue"), meta: { title: 'Đơn hàng' } },
-                    { path: "orders/:id", name: "profile-order-detail", component: () => import("../Pages/Client/Profile/ProfileOrderDetail.vue"), meta: { title: 'Chi tiết đơn hàng' } },
-                    { path: "return-requests", name: "profile-return-requests", component: () => import("../Pages/Client/Profile/ProfileReturnRequests.vue"), meta: { title: 'Yêu cầu hoàn hàng' } },
-                    { path: "return-requests/:id", name: "profile-return-request-detail", component: () => import("../Pages/Client/Profile/ProfileReturnRequestDetail.vue"), meta: { title: 'Chi tiết yêu cầu hoàn hàng' } },
-                    { path: "addresses", name: "profile-address", component: () => import("../Pages/Client/Profile/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
-                    { path: "change-password", name: "profile-change-password", component: () => import("../Pages/Client/Profile/ProfileChangePassword.vue"), meta: { title: 'Đổi mật khẩu' } },
-                    { path: "wishlist", name: "profile-wishlist", component: () => import("../Pages/Client/Profile/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
-                    { path: "coupons", name: "profile-coupons", component: () => import("../Pages/Client/Profile/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
-                    { path: "affiliate", name: "profile-affiliate", component: () => import("../Pages/Client/Profile/ProfileAffiliate.vue"), meta: { title: 'Affiliate' } },
-                    { path: "court-bookings", name: "profile-court-bookings", component: () => import("../Pages/Client/Courts/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
-                    { path: "notifications", name: "profile-notifications", component: () => import("../Pages/Client/Profile/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
+                    { path: "", name: "profile-info", component: () => import("@/features/profile/pages/ProfileInfo.vue"), meta: { title: 'Thông tin cá nhân' } },
+                    { path: "orders", name: "profile-orders", component: () => import("@/features/profile/pages/ProfileOrders.vue"), meta: { title: 'Đơn hàng' } },
+                    { path: "orders/:id", name: "profile-order-detail", component: () => import("@/features/profile/pages/ProfileOrderDetail.vue"), meta: { title: 'Chi tiết đơn hàng' } },
+                    { path: "return-requests", name: "profile-return-requests", component: () => import("@/features/profile/pages/ProfileReturnRequests.vue"), meta: { title: 'Yêu cầu hoàn hàng' } },
+                    { path: "return-requests/:id", name: "profile-return-request-detail", component: () => import("@/features/profile/pages/ProfileReturnRequestDetail.vue"), meta: { title: 'Chi tiết yêu cầu hoàn hàng' } },
+                    { path: "addresses", name: "profile-address", component: () => import("@/features/profile/pages/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
+                    { path: "change-password", name: "profile-change-password", component: () => import("@/features/profile/pages/ProfileChangePassword.vue"), meta: { title: 'Đổi mật khẩu' } },
+                    { path: "wishlist", name: "profile-wishlist", component: () => import("@/features/profile/pages/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
+                    { path: "coupons", name: "profile-coupons", component: () => import("@/features/profile/pages/ProfileCoupon.vue"), meta: { title: 'Mã giảm giá của tôi' } },
+                    { path: "affiliate", name: "profile-affiliate", component: () => import("@/features/profile/pages/ProfileAffiliate.vue"), meta: { title: 'Affiliate' } },
+                    { path: "wallet", name: "profile-wallet", component: () => import("@/features/profile/pages/ProfileWallet.vue"), meta: { title: 'Ví của tôi' } },
+                    { path: "loyalty", name: "profile-loyalty", component: () => import("@/features/profile/pages/ProfileLoyalty.vue"), meta: { title: 'Điểm thưởng' } },
+                    { path: "court-bookings", name: "profile-court-bookings", component: () => import("@/features/courts/pages/client/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
+                    { path: "notifications", name: "profile-notifications", component: () => import("@/features/profile/pages/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
                 ],
             },
             // Static pages
-            { path: "brand-story", name: "brand-story", component: () => import("../Pages/Client/Static/BrandStory.vue"), meta: { title: 'Câu chuyện thương hiệu' } },
-            { path: "careers", name: "careers", component: () => import("../Pages/Client/Static/Careers.vue"), meta: { title: 'Tuyển dụng' } },
-            { path: "contact", name: "contact", component: () => import("../Pages/Client/Static/Contact.vue"), meta: { title: 'Liên hệ' } },
-            { path: "faq", name: "faq", component: () => import("../Pages/Client/Static/FAQ.vue"), meta: { title: 'Câu hỏi thường gặp' } },
-            { path: "privacy", name: "privacy", component: () => import("../Pages/Client/Static/Privacy.vue"), meta: { title: 'Chính sách bảo mật' } },
-            { path: "return-policy", name: "return-policy", component: () => import("../Pages/Client/Static/ReturnPolicy.vue"), meta: { title: 'Chính sách đổi trả' } },
-            { path: "shopping-guide", name: "shopping-guide", component: () => import("../Pages/Client/Static/ShoppingGuide.vue"), meta: { title: 'Hướng dẫn mua hàng' } },
-            { path: "terms", name: "terms", component: () => import("../Pages/Client/Static/Terms.vue"), meta: { title: 'Điều khoản dịch vụ' } },
+            { path: "brand-story", name: "brand-story", component: () => import("@/features/content/pages/static/BrandStory.vue"), meta: { title: 'Câu chuyện thương hiệu' } },
+            { path: "careers", name: "careers", component: () => import("@/features/content/pages/static/Careers.vue"), meta: { title: 'Tuyển dụng' } },
+            { path: "contact", name: "contact", component: () => import("@/features/content/pages/static/Contact.vue"), meta: { title: 'Liên hệ' } },
+            { path: "faq", name: "faq", component: () => import("@/features/content/pages/static/FAQ.vue"), meta: { title: 'Câu hỏi thường gặp' } },
+            { path: "privacy", name: "privacy", component: () => import("@/features/content/pages/static/Privacy.vue"), meta: { title: 'Chính sách bảo mật' } },
+            { path: "return-policy", name: "return-policy", component: () => import("@/features/content/pages/static/ReturnPolicy.vue"), meta: { title: 'Chính sách đổi trả' } },
+            { path: "shopping-guide", name: "shopping-guide", component: () => import("@/features/content/pages/static/ShoppingGuide.vue"), meta: { title: 'Hướng dẫn mua hàng' } },
+            { path: "terms", name: "terms", component: () => import("@/features/content/pages/static/Terms.vue"), meta: { title: 'Điều khoản dịch vụ' } },
             // Court Booking Pages
-            { path: "courts", name: "courts-list", component: () => import("../Pages/Client/Courts/CourtsList.vue"), meta: { title: 'Đặt sân cầu lông' } },
-            { path: "courts/:id", name: "court-detail", component: () => import("../Pages/Client/Courts/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },
+            { path: "courts", name: "courts-list", component: () => import("@/features/courts/pages/client/CourtsList.vue"), meta: { title: 'Đặt sân cầu lông' } },
+            { path: "courts/:id", name: "court-detail", component: () => import("@/features/courts/pages/client/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },
 
         ],
     },
@@ -140,37 +160,37 @@ const routes = [
             {
                 path: "pos",
                 name: "admin-pos",
-                component: () => import("../Pages/admin/AdminPOS.vue"),
+                component: () => import("@/features/shop/pages/admin/AdminPOS.vue"),
                 meta: { roles: ['admin', 'seller'], title: 'Bán Hàng Trực Tiếp (POS)' },
             },
             {
                 path: "order",
                 name: "admin-order",
-                component: () => import("../Pages/admin/AdminOrder.vue"),
+                component: () => import("@/features/shop/pages/admin/AdminOrder.vue"),
                 meta: { roles: ['admin', 'seller'], title: 'Quản lý Đơn hàng' },
             },
             {
                 path: "return-requests",
                 name: "admin-return-requests",
-                component: () => import("../Pages/admin/AdminReturnRequests.vue"),
+                component: () => import("@/features/shop/pages/admin/AdminReturnRequests.vue"),
                 meta: { roles: ['admin'], title: 'Yêu cầu hoàn hàng' },
             },
             {
                 path: "return-requests/:id",
                 name: "admin-return-request-detail",
-                component: () => import("../Pages/admin/AdminReturnRequestDetail.vue"),
+                component: () => import("@/features/shop/pages/admin/AdminReturnRequestDetail.vue"),
                 meta: { roles: ['admin'], title: 'Chi tiết yêu cầu hoàn hàng' },
             },
             {
                 path: "order/:id",
                 name: "admin-order-detail",
-                component: () => import("../Pages/admin/AdminOrderDetail.vue"),
+                component: () => import("@/features/shop/pages/admin/AdminOrderDetail.vue"),
                 meta: { roles: ['admin', 'seller'], title: 'Chi tiết Đơn hàng' },
             },
             {
                 path: "product/edit/:id",
                 name: "admin-product-edit",
-                component: () => import("../Pages/admin/AdminEditProduct.vue"),
+                component: () => import("@/features/shop/pages/admin/AdminEditProduct.vue"),
                 meta: { roles: ['admin', 'staff'], title: 'Sửa sản phẩm' },
             },
             {
@@ -200,129 +220,159 @@ const routes = [
             {
                 path: "chat",
                 name: "admin-chat",
-                component: () => import("../Pages/admin/AdminChat.vue"),
+                component: () => import("@/features/support/pages/AdminChat.vue"),
                 meta: { roles: ['admin', 'seller'], title: 'Tin nhắn khách hàng' },
             },
             {
-                path: "coupon",
-                name: "admin-coupon",
+                path: "coupons",
+                name: "admin-coupons",
                 component: AdminCoupon,
-                meta: { roles: ['admin'], title: 'Quản lý mã giảm giá' },
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý Mã giảm giá' },
+            },
+            {
+                path: "rewards",
+                name: "admin-rewards",
+                component: AdminRewards,
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý Quà Tặng' },
+            },
+            {
+                path: "user-rewards",
+                name: "admin-user-rewards",
+                component: AdminUserRewards,
+                meta: { roles: ['admin', 'staff'], title: 'Lịch sử đổi quà' },
             },
             {
                 path: "flash-sale",
                 name: "admin-flash-sale",
-                component: () => import("../Pages/admin/AdminFlashSale.vue"),
+                component: () => import("@/features/shop/pages/admin/AdminFlashSale.vue"),
                 meta: { roles: ['admin'], title: 'Quản lý Flash Sale' },
+            },
+            {
+                path: "wallet-deposits",
+                name: "admin-wallet-deposits",
+                component: () => import("@/features/admin/pages/AdminWalletDeposits.vue"),
+                meta: { roles: ['admin'], title: 'Ví & Nạp tiền' },
+            },
+            {
+                path: "wallet-withdrawals",
+                name: "admin-wallet-withdrawals",
+                component: () => import("@/features/admin/pages/AdminWalletWithdrawals.vue"),
+                meta: { roles: ['admin'], title: 'Duyệt rút tiền' },
             },
             {
                 path: "post",
                 name: "admin-post",
-                component: () => import("../Pages/admin/AdminPost.vue"),
+                component: () => import("@/features/content/pages/admin/AdminPost.vue"),
                 meta: { roles: ['admin'], title: 'Quản lý bài viết' },
             },
             {
                 path: "post/create",
                 name: "admin-post-create",
-                component: () => import("../Pages/admin/AdminCreatePost.vue"),
+                component: () => import("@/features/content/pages/admin/AdminCreatePost.vue"),
                 meta: { roles: ['admin'], title: 'Thêm bài viết' },
             },
             {
                 path: "post/edit/:id",
                 name: "admin-post-edit",
-                component: () => import("../Pages/admin/AdminEditPost.vue"),
+                component: () => import("@/features/content/pages/admin/AdminEditPost.vue"),
                 meta: { roles: ['admin'], title: 'Sửa bài viết' },
             },
             {
                 path: "post-category",
                 name: "admin-post-category",
-                component: () => import("../Pages/admin/AdminPostCategory.vue"),
+                component: () => import("@/features/content/pages/admin/AdminPostCategory.vue"),
                 meta: { roles: ['admin'], title: 'Danh mục bài viết' },
             },
             {
                 path: "post-category/create",
                 name: "admin-post-category-create",
-                component: () => import("../Pages/admin/AdminCreatePostCategory.vue"),
+                component: () => import("@/features/content/pages/admin/AdminCreatePostCategory.vue"),
                 meta: { roles: ['admin'], title: 'Thêm danh mục bài viết' },
             },
             {
                 path: "review",
                 name: "admin-review",
-                component: () => import("../Pages/admin/AdminReview.vue"),
+                component: () => import("@/features/shop/pages/admin/AdminReview.vue"),
                 meta: { roles: ['admin', 'seller'], title: 'Quản lý đánh giá' },
             },
 
             {
+                path: "tickets",
+                name: "admin-tickets",
+                component: () => import("@/features/support/pages/AdminTicketList.vue"),
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý khiếu nại' },
+            },
+            {
                 path: "attendance",
                 name: "admin-attendance",
-                component: () => import("../Pages/admin/AdminAttendance.vue"),
+                component: () => import("../features/hr/pages/AdminAttendance.vue"),
                 meta: { roles: ['admin', 'seller', 'staff'], title: 'Chấm Công' },
             },
             {
                 path: "face-register",
                 name: "admin-face-register",
-                component: () => import("../Pages/admin/FaceRegister.vue"),
+                component: () => import("../features/hr/pages/FaceRegister.vue"),
                 meta: { roles: ['admin', 'seller', 'staff'], title: 'Đăng ký Khuôn mặt' },
             },
             {
                 path: "face-management",
                 name: "admin-face-management",
-                component: () => import("../Pages/admin/AdminFaceManagement.vue"),
+                component: () => import("../features/hr/pages/AdminFaceManagement.vue"),
                 meta: { roles: ['admin'], title: 'Quản lý Khuôn mặt' },
             },
             {
                 path: "stats",
                 name: "admin-stats",
-                component: () => import("../Pages/admin/AdminStats.vue"),
-                meta: { roles: ['admin', 'staff'], title: 'Thống kê' },
+                component: () => import("@/features/admin/pages/AdminStats.vue"),
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thống kê' },
             },
             {
                 path: "attendance-list",
                 name: "admin-attendance-list",
-                component: () => import("../Pages/admin/AdminAttendanceList.vue"),
+                component: () => import("../features/hr/pages/AdminAttendanceList.vue"),
                 meta: { roles: ['admin'], title: 'Danh sách Chấm công' },
             },
             {
                 path: "work-locations",
                 name: "admin-work-locations",
-                component: () => import("../Pages/admin/AdminWorkLocations.vue"),
-                meta: { roles: ['admin'], title: 'Quản lý vị trí làm việc' },
+                component: () => import("../features/hr/pages/AdminWorkLocations.vue"),
+                meta: { roles: ['admin'], title: 'Quản lý chi nhánh' },
             },
             {
                 path: "work-shifts",
                 name: "admin-work-shifts",
-                component: () => import("../Pages/admin/AdminWorkShifts.vue"),
+                component: () => import("../features/hr/pages/AdminWorkShifts.vue"),
                 meta: { roles: ['admin'], title: 'Ca làm việc & Phân ca' },
             },
             // Court Booking Admin Pages
             {
                 path: "courts",
                 name: "admin-courts",
-                component: () => import("../Pages/admin/AdminCourtManagement.vue"),
-                meta: { roles: ['admin', 'staff'], title: 'Quản lý Hệ thống Sân' },
+                component: () => import("@/features/courts/pages/admin/AdminCourtManagement.vue"),
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Quản lý Hệ thống Sân' },
             },
             {
                 path: "court-bookings",
                 name: "admin-court-bookings",
-                component: () => import("../Pages/admin/AdminBookingManagement.vue"),
+                component: () => import("@/features/courts/pages/admin/AdminBookingManagement.vue"),
                 meta: { roles: ['admin', 'staff', 'seller'], title: 'Quản lý Đặt Sân' },
             },
             {
                 path: "court-dashboard",
                 name: "admin-court-dashboard",
-                component: () => import("../Pages/admin/AdminCourtDashboard.vue"),
+                component: () => import("@/features/courts/pages/admin/AdminCourtDashboard.vue"),
                 meta: { roles: ['admin', 'staff', 'seller'], title: 'Dashboard Lễ Tân' },
             },
             {
                 path: "court-reports",
                 name: "admin-court-reports",
-                component: () => import("../Pages/admin/AdminCourtReports.vue"),
+                component: () => import("@/features/courts/pages/admin/AdminCourtReports.vue"),
                 meta: { roles: ['admin'], title: 'Thống Kê Sân' },
             },
             {
                 path: "notifications",
                 name: "admin-notifications",
-                component: () => import("../Pages/admin/AdminNotifications.vue"),
+                component: () => import("@/features/admin/pages/AdminNotifications.vue"),
                 meta: { roles: ['admin', 'seller', 'staff'], title: 'Thông báo hệ thống' },
             },
         ],
@@ -336,12 +386,12 @@ const router = createRouter({
     // Scroll to top khi navigate
     scrollBehavior(to, from, savedPosition) {
         if (savedPosition) return savedPosition;
-        
+
         // Không cuộn lên đầu trang nếu chỉ thay đổi query param trên cùng một route (ví dụ: lọc, phân trang)
         if (to.path === from.path) {
             return false;
         }
-        
+
         return { top: 0 };
     },
 });

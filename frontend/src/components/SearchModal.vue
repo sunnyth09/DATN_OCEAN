@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { catalogService, extractCollection } from '@/services/catalogService';
+import { getStorageUrl } from '@/utils/url';
 
 const props = defineProps({
     modelValue: { type: Boolean, default: false },
@@ -14,14 +15,11 @@ const results = ref([]);
 const isLoading = ref(false);
 const hasSearched = ref(false);
 
-const BASE_URL = (import.meta.env.VITE_BASE_URL || 'http://localhost:8383').replace('/api', '');
-
 const defaultSvg = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="#f0f7ff"/><circle cx="100" cy="80" r="40" fill="#bfdbfe"/><path d="M60,160 Q100,120 140,160" stroke="#93c5fd" stroke-width="8" fill="none" stroke-linecap="round"/></svg>`);
 
 const getImageUrl = (path) => {
     if (!path || path === '0' || path === '') return defaultSvg;
-    if (path.startsWith('http')) return path;
-    return `${BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
 };
 
 const formatPrice = (price) =>
@@ -248,7 +246,7 @@ const clickTip = (kw) => {
 .search-dialog {
     width: 100%;
     max-width: 640px;
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 20px;
     box-shadow:
         0 24px 60px rgba(2, 40, 90, 0.18),
@@ -268,7 +266,7 @@ const clickTip = (kw) => {
     border-bottom: 1px solid #eef2f7;
     flex-shrink: 0;
 }
-.header-icon { color: #E63B6F; flex-shrink: 0; }
+.header-icon { color: var(--primary); flex-shrink: 0; }
 .header-title {
     flex: 1;
     font-size: 0.97rem;
@@ -305,12 +303,12 @@ const clickTip = (kw) => {
     transition: border-color .2s, box-shadow .2s, background .2s;
 }
 .input-row:focus-within {
-    border-color: #E63B6F;
+    border-color: var(--primary);
     box-shadow: 0 0 0 4px rgba(230, 59, 111, 0.1);
-    background: #fff;
+    background: var(--card-bg);
 }
 .input-icon { color: #94a3b8; flex-shrink: 0; transition: color .2s; }
-.input-row:focus-within .input-icon { color: #E63B6F; }
+.input-row:focus-within .input-icon { color: var(--primary); }
 .search-input {
     flex: 1;
     border: none;
@@ -334,7 +332,7 @@ const clickTip = (kw) => {
 .spinner {
     width: 16px; height: 16px;
     border: 2px solid #e2e8f0;
-    border-top-color: #E63B6F;
+    border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin .6s linear infinite;
     flex-shrink: 0;
@@ -364,7 +362,7 @@ const clickTip = (kw) => {
 .view-all-btn {
     display: flex; align-items: center; gap: 4px;
     background: none; border: none; cursor: pointer;
-    color: #E63B6F; font-size: 0.82rem; font-weight: 700;
+    color: var(--primary); font-size: 0.82rem; font-weight: 700;
     padding: 0;
     transition: opacity .15s;
 }
@@ -405,7 +403,7 @@ const clickTip = (kw) => {
     font-size: 0.76rem; color: #94a3b8; margin-bottom: 4px;
 }
 .hit-price {
-    font-size: 0.85rem; font-weight: 700; color: #E63B6F;
+    font-size: 0.85rem; font-weight: 700; color: var(--primary);
     display: flex; align-items: center; gap: 6px;
 }
 .hit-badge {
@@ -414,7 +412,7 @@ const clickTip = (kw) => {
     padding: 1px 7px; border-radius: 999px;
 }
 .hit-arrow { color: #c8d5e0; flex-shrink: 0; transition: color .15s; }
-.hit-item:hover .hit-arrow { color: #E63B6F; }
+.hit-item:hover .hit-arrow { color: var(--primary); }
 
 /* ── Empty / Placeholder ──────────────────────────────────────── */
 .empty-state,

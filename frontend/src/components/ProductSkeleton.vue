@@ -13,7 +13,7 @@
 .product-skeleton-card {
     display: flex;
     flex-direction: column;
-    background: #ffffff;
+    background: var(--card-bg);
     border: 1px solid #f1f5f9;
     border-radius: 16px;
     overflow: hidden;

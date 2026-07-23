@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// ============================================================
 /// HỆ THỐNG THEME TẬP TRUNG - ĐỒNG BỘ VỚI WEBSITE
@@ -20,7 +21,8 @@ class AppColors {
   // ── Màu chữ / Text ──
   static const Color textPrimary = Color(0xFF2D3436);
   static const Color textSecondary = Color(0xFF636E72);
-  static const Color textMuted = Color(0xFF94A3B8);
+  // Slate-500: đạt WCAG AA (~4.7:1) trên nền trắng cho text thường.
+  static const Color textMuted = Color(0xFF64748B);
   static const Color textDark = Color(0xFF0F172A);
   static const Color textLabel = Color(0xFF334155);
 
@@ -48,8 +50,8 @@ class AppColors {
   static const Color shadowColor = Color(0x14293346); // rgba(45, 52, 70, 0.08)
 
   // ── Primary nhạt (cho chip, badge, selected bg) ──
-  static Color get primarySoft => primary.withOpacity(0.10);
-  static Color get primarySoftBg => primary.withOpacity(0.06);
+  static Color get primarySoft => primary.withValues(alpha: 0.10);
+  static Color get primarySoftBg => primary.withValues(alpha: 0.06);
 }
 
 class AppTextStyles {
@@ -57,40 +59,60 @@ class AppTextStyles {
 
   // ── Headlines ──
   static const TextStyle headlineXl = TextStyle(
-    fontSize: 48, fontWeight: FontWeight.w800, height: 56 / 48,
-    letterSpacing: -0.02 * 48, color: AppColors.textDark,
+    fontSize: 48,
+    fontWeight: FontWeight.w800,
+    height: 56 / 48,
+    letterSpacing: -0.02 * 48,
+    color: AppColors.textDark,
   );
   static const TextStyle headlineLg = TextStyle(
-    fontSize: 32, fontWeight: FontWeight.w700, height: 40 / 32,
-    letterSpacing: -0.01 * 32, color: AppColors.textDark,
+    fontSize: 32,
+    fontWeight: FontWeight.w700,
+    height: 40 / 32,
+    letterSpacing: -0.01 * 32,
+    color: AppColors.textDark,
   );
   static const TextStyle headlineLgMobile = TextStyle(
-    fontSize: 28, fontWeight: FontWeight.w700, height: 36 / 28,
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
+    height: 36 / 28,
     color: AppColors.textDark,
   );
   static const TextStyle headlineMd = TextStyle(
-    fontSize: 24, fontWeight: FontWeight.w700, height: 32 / 24,
+    fontSize: 24,
+    fontWeight: FontWeight.w700,
+    height: 32 / 24,
     color: AppColors.textDark,
   );
 
   // ── Body ──
   static const TextStyle bodyLg = TextStyle(
-    fontSize: 18, fontWeight: FontWeight.w400, height: 28 / 18,
+    fontSize: 18,
+    fontWeight: FontWeight.w400,
+    height: 28 / 18,
     color: AppColors.textPrimary,
   );
   static const TextStyle bodyMd = TextStyle(
-    fontSize: 16, fontWeight: FontWeight.w400, height: 24 / 16,
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    height: 24 / 16,
     color: AppColors.textPrimary,
   );
 
   // ── Labels ──
   static const TextStyle labelMd = TextStyle(
-    fontSize: 14, fontWeight: FontWeight.w600, height: 20 / 14,
-    letterSpacing: 0.01 * 14, color: AppColors.textPrimary,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    height: 20 / 14,
+    letterSpacing: 0.01 * 14,
+    color: AppColors.textPrimary,
   );
   static const TextStyle labelSm = TextStyle(
-    fontSize: 12, fontWeight: FontWeight.w700, height: 16 / 12,
-    letterSpacing: 0.05 * 12, color: AppColors.textPrimary,
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
+    height: 16 / 12,
+    letterSpacing: 0.05 * 12,
+    color: AppColors.textPrimary,
   );
 }
 
@@ -98,8 +120,14 @@ class AppTheme {
   AppTheme._();
 
   static ThemeData get lightTheme {
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme().apply(
+      bodyColor: AppColors.textPrimary,
+      displayColor: AppColors.textDark,
+    );
+
     return ThemeData(
       useMaterial3: true,
+      textTheme: textTheme,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         primary: AppColors.primary,
@@ -110,13 +138,14 @@ class AppTheme {
         brightness: Brightness.light,
       ),
       scaffoldBackgroundColor: AppColors.surface,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.primary,
         foregroundColor: AppColors.onPrimary,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontSize: 18, fontWeight: FontWeight.w700,
+        titleTextStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
           color: AppColors.onPrimary,
         ),
       ),
@@ -126,7 +155,9 @@ class AppTheme {
           foregroundColor: AppColors.onPrimary,
           elevation: 0,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
       ),
@@ -145,7 +176,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
       ),
       cardTheme: CardThemeData(
@@ -156,7 +190,10 @@ class AppTheme {
           side: const BorderSide(color: AppColors.borderLight),
         ),
       ),
-      dividerTheme: const DividerThemeData(color: AppColors.divider, thickness: 1),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.divider,
+        thickness: 1,
+      ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: AppColors.background,
         selectedItemColor: AppColors.primary,
@@ -170,7 +207,6 @@ class AppTheme {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      fontFamily: 'Plus Jakarta Sans',
     );
   }
 }

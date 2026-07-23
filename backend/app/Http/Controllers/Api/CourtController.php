@@ -20,7 +20,13 @@ class CourtController extends Controller
      */
     public function index(Request $request)
     {
-        $courts = Court::active()->orderBy('sort_order')->get();
+        $query = Court::active();
+        
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
+        }
+
+        $courts = $query->orderBy('sort_order')->get();
         return response()->json([
             'status' => 'success',
             'data' => $courts
@@ -69,7 +75,7 @@ class CourtController extends Controller
         $locks = CourtBookingLock::where('court_id', $id)
             ->where('booking_date', $date)
             ->where('expires_at', '>', now())
-            ->get(['lock_id', 'start_time', 'end_time', 'expires_at']);
+            ->get(['lock_id', 'start_time', 'end_time', 'expires_at', 'user_id', 'lock_token']);
 
         // 4. Get maintenance windows
         $maintenances = CourtMaintenance::where('court_id', $id)
@@ -102,6 +108,8 @@ class CourtController extends Controller
             $status = 'available';
             $bookingId = null;
             $lockExpiresAt = null;
+            $isMyLock = false;
+            $myLockToken = null;
 
             if ($court->status !== 'active') {
                 $status = $court->status === 'maintenance' ? 'maintenance' : 'closed';
@@ -129,6 +137,10 @@ class CourtController extends Controller
                     if ($slotStart < $lock->end_time && $slotEnd > $lock->start_time) {
                         $status = 'locked';
                         $lockExpiresAt = $lock->expires_at;
+                        if (auth('api')->check() && $lock->user_id === auth('api')->id()) {
+                            $isMyLock = true;
+                            $myLockToken = $lock->lock_token;
+                        }
                         break;
                     }
                 }
@@ -166,6 +178,8 @@ class CourtController extends Controller
                 'status' => $status,
                 'booking_id' => $bookingId,
                 'lock_expires_at' => $lockExpiresAt,
+                'is_my_lock' => $isMyLock,
+                'lock_token' => $myLockToken,
             ];
 
             $current->addMinutes(30);

@@ -2,6 +2,7 @@
 import { ref, watch, nextTick, computed } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
+import { getStorageUrl } from '@/utils/url';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -123,14 +124,8 @@ const submitFeedback = async () => {
 };
 
 const getImageUrl = (path) => {
-    const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
     if (!path || path === '0') return 'https://placehold.co/100x100?text=No+Image';
-    if (path.startsWith('http')) return path;
-    if (path.startsWith('/storage/') || path.startsWith('storage/')) {
-        const cleanPath = path.startsWith('/') ? path : `/${path}`;
-        return `${BASE_URL}${cleanPath}`;
-    }
-    return `${BASE_URL}/storage/${path}`;
+    return getStorageUrl(path);
 };
 </script>
 
@@ -219,16 +214,16 @@ const getImageUrl = (path) => {
   padding: 20px;
 }
 .review-modal-container {
-  background: white; border-radius: 12px; width: 100%; max-width: 600px;
+  background: var(--card-bg); border-radius: 12px; width: 100%; max-width: 600px;
   display: flex; flex-direction: column; max-height: 90vh;
 }
 .modal-header {
   display: flex; justify-content: space-between; align-items: center;
   padding: 16px 20px; border-bottom: 1px solid #e2e8f0;
 }
-.modal-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: #1e293b; }
+.modal-title { margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--text-main); }
 .btn-close { background: none; border: none; cursor: pointer; color: #64748b; padding: 4px; }
-.btn-close:hover { color: #0f172a; }
+.btn-close:hover { color: var(--text-main); }
 
 .modal-body {
   padding: 20px; overflow-y: auto; flex: 1;
@@ -244,7 +239,7 @@ const getImageUrl = (path) => {
 .product-info-mini { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .mini-img { width: 48px; height: 48px; border-radius: 6px; object-fit: cover; border: 1px solid #e2e8f0; }
 .mini-details p { margin: 0; }
-.mini-name { font-weight: 600; font-size: 0.95rem; color: #0f172a; }
+.mini-name { font-weight: 600; font-size: 0.95rem; color: var(--text-main); }
 .mini-variant { font-size: 0.85rem; color: #64748b; margin-top: 4px; }
 
 .rating-box { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
@@ -256,16 +251,16 @@ const getImageUrl = (path) => {
 
 .review-textarea {
   width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px;
-  font-family: inherit; font-size: 0.95rem; resize: vertical; outline: none; background: white;
+  font-family: inherit; font-size: 0.95rem; resize: vertical; outline: none; background: var(--card-bg);
 }
-.review-textarea:focus { border-color: #E63B6F; }
+.review-textarea:focus { border-color: var(--primary); }
 
 .modal-footer {
   padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;
 }
-.btn-cancel { padding: 10px 20px; background: white; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer; }
+.btn-cancel { padding: 10px 20px; background: var(--card-bg); border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; color: #475569; cursor: pointer; }
 .btn-cancel:hover { background: #f1f5f9; }
-.btn-submit { padding: 10px 20px; background: #E63B6F; border: 1px solid #E63B6F; border-radius: 8px; font-weight: 600; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; min-width: 120px; }
+.btn-submit { padding: 10px 20px; background: var(--primary); border: 1px solid var(--primary); border-radius: 8px; font-weight: 600; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; min-width: 120px; }
 .btn-submit:hover:not(:disabled) { background: #0369a1; }
 .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
 

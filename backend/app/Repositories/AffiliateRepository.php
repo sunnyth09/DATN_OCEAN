@@ -23,11 +23,12 @@ class AffiliateRepository
     {
         $user = User::where('user_id', $userId)->firstOrFail();
 
-        $user->update([
+        // Các field affiliate là $guarded (không mass-assignable) nên phải forceFill.
+        $user->forceFill([
             'referral_code' => $referralCode,
             'is_affiliate' => true,
             'affiliate_registered_at' => now(),
-        ]);
+        ])->save();
 
         return $user->fresh();
     }

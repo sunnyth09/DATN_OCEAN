@@ -14,9 +14,11 @@
     "@unhead/vue": "^2.1.12",
     "bootstrap": "^5.3.8",
     "chart.js": "^4.5.1",
+    "dompurify": "^3.4.12",
     "html5-qrcode": "^2.3.8",
     "instantsearch.js": "^4.93.0",
     "laravel-echo": "^2.3.3",
+    "leaflet": "^1.9.4",
     "pinia": "^3.0.4",
     "pusher-js": "^8.4.3",
     "qrcode": "^1.5.4",
@@ -28,7 +30,6 @@
     "vue-instantsearch": "^4.24.4"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.1",
     "@vitejs/plugin-vue": "^6.0.4",
     "autoprefixer": "^10.4.27",
     "axios": "^1.13.6",

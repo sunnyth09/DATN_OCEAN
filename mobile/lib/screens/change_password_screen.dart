@@ -1,5 +1,5 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import '../config/app_theme.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 
@@ -35,7 +35,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     setState(() => _isSaving = true);
     try {
-      final res = await ApiClient().dio.put('/profile/password', data: {
+      await ApiClient().dio.put('/profile/password', data: {
         'current_password': currentCtrl.text,
         'new_password': newCtrl.text,
         'new_password_confirmation': confirmCtrl.text,
@@ -43,7 +43,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đổi mật khẩu thành công!'), backgroundColor: Colors.green));
-        Navigator.pop(context);
+        context.pop();
       }
     } on DioException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.response?.data?['message'] ?? 'Lỗi thay đổi mật khẩu!'), backgroundColor: Colors.red));
@@ -70,7 +70,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         padding: const EdgeInsets.all(20),
         child: Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)]),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10)]),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -117,7 +117,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F), width: 1.5)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             suffixIcon: IconButton(
-              icon: Icon(show ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF94A3B8), size: 20),
+              icon: Icon(show ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF64748B), size: 20),
               onPressed: toggle,
             ),
           ),

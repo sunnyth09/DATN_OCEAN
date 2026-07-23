@@ -1,13 +1,13 @@
-import 'dart:convert';
-import '../config/app_theme.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
+import '../services/api_client.dart';
 import 'main_wrapper.dart';
 import 'review_screen.dart';
 import '../config/app_config.dart';
-
-String get kBaseUrl => AppConfig.kBaseUrl;
+import '../utils/format_utils.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -33,27 +33,37 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> fetchOrderDetail() async {
     setState(() { isLoading = true; errorMessage = null; });
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
-      final url = Uri.parse('$kBaseUrl/profile/orders/${widget.orderId}');
-      final response = await http.get(
-        url,
-        headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
-      );
+      debugPrint('Fetching order details for ID: ${widget.orderId}');
+      if (widget.orderId == 'null') {
+        throw Exception('Invalid orderId (null)');
+      }
+      final response = await ApiClient().dio.get('/profile/orders/${widget.orderId}');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final data = response.data;
         if (mounted) {
           setState(() {
             orderData = data['data'];
             isLoading = false;
           });
         }
-      } else {
-        if (mounted) setState(() { errorMessage = 'Không thể xem chi tiết đơn hàng'; isLoading = false; });
+      }
+    } on DioException catch (e) {
+      debugPrint('DioException in fetchOrderDetail: ${e.message}');
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Không thể xem chi tiết đơn hàng: ${e.response?.statusCode}';
+          isLoading = false;
+        });
       }
     } catch (e) {
-      if (mounted) setState(() { errorMessage = 'Lỗi kết nối máy chủ'; isLoading = false; });
+      debugPrint('Exception in fetchOrderDetail: $e');
+      if (mounted) {
+        setState(() { 
+          errorMessage = 'Lỗi xử lý dữ liệu: $e'; 
+          isLoading = false; 
+        });
+      }
     }
   }
 
@@ -128,7 +138,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             children: [
                               Icon(
                                 isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                                color: isSelected ? Colors.red : const Color(0xFF94A3B8),
+                                color: isSelected ? Colors.red : const Color(0xFF64748B),
                                 size: 20,
                               ),
                               const SizedBox(width: 12),
@@ -137,7 +147,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           ),
                         ),
                       );
-                    }).toList(),
+                    }),
 
                     // Custom input nếu chọn "Lý do khác"
                     if (showCustomInput) ...[
@@ -148,7 +158,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         maxLength: 500,
                         decoration: InputDecoration(
                           hintText: 'Nhập lý do của bạn...',
-                          hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                          hintStyle: const TextStyle(color: Color(0xFF64748B)),
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
@@ -216,30 +226,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
     setState(() => _isCancelling = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
-      final response = await http.put(
-        Uri.parse('$kBaseUrl/profile/orders/${widget.orderId}/cancel'),
-        headers: {'Accept': 'application/json', 'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-        body: jsonEncode({'cancel_reason': finalReason}),
+      await ApiClient().dio.put(
+        '/profile/orders/${widget.orderId}/cancel',
+        data: {'cancel_reason': finalReason},
       );
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Đơn hàng đã được huỷ thành công!'),
-            backgroundColor: Colors.orange,
-          ));
-          fetchOrderDetail();
-        }
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(data['message'] ?? 'Không thể huỷ đơn hàng!'),
-            backgroundColor: Colors.red,
-          ));
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Đơn hàng đã được huỷ thành công!'),
+          backgroundColor: Colors.orange,
+        ));
+        fetchOrderDetail();
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(message ?? 'Không thể huỷ đơn hàng!'),
+          backgroundColor: Colors.red,
+        ));
       }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
@@ -251,27 +256,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> _reOrder() async {
     setState(() => _isReordering = true);
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('access_token');
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/cart/buy-again/${widget.orderId}'),
-        headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
-      );
+      await ApiClient().dio.post('/cart/buy-again/${widget.orderId}');
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Đã thêm sản phẩm vào giỏ hàng!'),
-            backgroundColor: Colors.green,
-          ));
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const MainWrapper(initialIndex: 2)),
-            (route) => false,
-          );
-        }
-      } else {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể thêm vào giỏ hàng!'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Đã thêm sản phẩm vào giỏ hàng!'),
+          backgroundColor: Colors.green,
+        ));
+        context.go('/cart');
       }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
@@ -367,13 +359,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10)],
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: statusColor.withOpacity(0.1), shape: BoxShape.circle),
+                      decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), shape: BoxShape.circle),
                       child: Icon(_getStatusIcon(status), color: statusColor, size: 28),
                     ),
                     const SizedBox(width: 16),
@@ -385,8 +377,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           const SizedBox(height: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                            child: Text(status, style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
+                            decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+                            child: Text(FormatUtils.translateStatus(status), style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -408,7 +400,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       final h = entry.value;
                       final isLast = entry.key == histories.length - 1;
                       final note = h['note'] ?? h['status'] ?? '';
-                      final date = h['created_at']?.toString().split('T')?[0] ?? '';
+                      final date = FormatUtils.formatDate(h['created_at']);
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -492,7 +484,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     final name = item['product_name'] ?? item['variant_name'] ?? '';
                     final qty = item['quantity'] ?? 1;
                     final price = item['unit_price'] ?? 0;
-                    final imageUrl = _resolveImageUrl(item['thumbnail_url'] ?? item['image_url'] ?? '');
+                    final product = item['product'];
+                    final variant = item['variant'];
+                    String imageUrl = '';
+                    if (variant != null && variant['image_url'] != null && variant['image_url'].toString().isNotEmpty) {
+                      imageUrl = _resolveImageUrl(variant['image_url'].toString());
+                    }
+                    if (imageUrl.isEmpty && product != null) {
+                      imageUrl = AppConfig.productImageUrl(product);
+                    }
+                    if (imageUrl.isEmpty) {
+                      imageUrl = _resolveImageUrl(item['thumbnail_url']?.toString() ?? item['image_url']?.toString() ?? '');
+                    }
 
                     return Column(
                       children: [
@@ -500,10 +503,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10),
-                              child: imageUrl.isNotEmpty
-                                ? Image.network(imageUrl, width: 60, height: 60, fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => _imgPlaceholder())
-                                : _imgPlaceholder(),
+                              child: _buildProductImage(imageUrl, 60),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -514,7 +514,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                   const SizedBox(height: 4),
                                   Row(
                                     children: [
-                                      Text('x$qty', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                                      Text('x$qty', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                                       const Spacer(),
                                       Text(_formatPrice(num.parse(price.toString()) * qty), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE63B6F))),
                                     ],
@@ -572,7 +572,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Phương thức thanh toán', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                          const Text('Phương thức thanh toán', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                           Text(paymentMethod.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         ],
                       ),
@@ -617,7 +617,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 16, offset: const Offset(0, -4))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 16, offset: const Offset(0, -4))],
             ),
             child: SafeArea(
               child: Row(
@@ -643,6 +643,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   // Nút mua lại (chỉ hiện khi completed)
                   if (isCompleted) ...[
                     Expanded(
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final result = await context.push<bool>('/create-return/${widget.orderId}');
+                          if (result == true) {
+                            fetchOrderDetail();
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFE63B6F),
+                          side: const BorderSide(color: Color(0xFFE63B6F)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Hoàn trả', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: ElevatedButton.icon(
                         onPressed: _isReordering ? null : _reOrder,
                         icon: _isReordering
@@ -664,7 +682,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   if (!canCancel && !isCompleted)
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => context.pop(),
                         icon: const Icon(Icons.arrow_back, size: 18),
                         label: const Text('Quay lại', style: TextStyle(fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
@@ -687,12 +705,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Widget _sectionTitle(String title) => Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)));
 
-  Widget _imgPlaceholder() => Container(
-    width: 60, height: 60,
-    decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
-    child: const Icon(Icons.image_outlined, color: Colors.grey, size: 24),
-  );
-
   Widget _priceRow(String label, String value, {Color? valueColor}) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
@@ -703,5 +715,59 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   String _resolveImageUrl(String raw) {
     return AppConfig.imageUrl(raw);
+  }
+
+  /// Widget hiển thị ảnh sản phẩm: hỗ trợ SVG lẫn raster (JPG/PNG/WebP)
+  Widget _buildProductImage(String imgUrl, double size) {
+    if (imgUrl.isEmpty) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: const Icon(Icons.image_outlined, color: Color(0xFFCBD5E1), size: 22),
+      );
+    }
+
+    final isSvg = imgUrl.toLowerCase().endsWith('.svg');
+
+    if (isSvg) {
+      return SvgPicture.network(
+        imgUrl,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        placeholderBuilder: (_) => SizedBox(
+          width: size,
+          height: size,
+          child: const Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Color(0xFFE63B6F),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: imgUrl,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      placeholder: (_, _) => SizedBox(
+        width: size,
+        height: size,
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Color(0xFFE63B6F),
+          ),
+        ),
+      ),
+      errorWidget: (_, _, _) => SizedBox(
+        width: size,
+        height: size,
+        child: const Icon(Icons.image_outlined, color: Color(0xFFCBD5E1), size: 22),
+      ),
+    );
   }
 }

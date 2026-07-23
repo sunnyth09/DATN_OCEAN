@@ -25,6 +25,8 @@ return [
         env('URL_CORS_LOCAL', 'http://localhost:3302'),
     ]),
 
+    // KHÔNG dùng pattern '*' — nó match mọi origin, vô hiệu hoá whitelist ở trên
+    // và kết hợp supports_credentials=true là lỗ hổng CORS nghiêm trọng.
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],

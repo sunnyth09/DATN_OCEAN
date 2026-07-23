@@ -95,6 +95,9 @@ class ProductRepository
             $query->whereIn('brand_id', $brandIds);
         }
 
+        // Push out-of-stock items to the bottom
+        $query->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC');
+
         // Sort
         match ($filters['sort_by'] ?? null) {
             'oldest'     => $query->orderBy('created_at', 'asc'),
@@ -130,7 +133,10 @@ class ProductRepository
                 $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'stock', 'product_id');
             },
         ])
+            ->withSum('variants', 'stock')
             ->where('status', 'active')
+            ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
+            ->orderBy('product_id', 'desc')
             ->offset($offset)
             ->limit($limit)
             ->get();
@@ -142,8 +148,10 @@ class ProductRepository
     public function getFeaturedProducts(int $limit = 4)
     {
         return Product::with($this->listEagerLoads())
+            ->withSum('variants', 'stock')
             ->where('is_featured', true)
             ->where('status', 'active')
+            ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
             ->orderBy('product_id', 'desc')
             ->orderBy('created_at', 'desc')
             ->limit($limit)
@@ -163,8 +171,11 @@ class ProductRepository
                 $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'stock', 'product_id');
             },
         ])
+            ->withSum('variants', 'stock')
             ->where('status', 'active')
             ->where('is_featured', true)
+            ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
+            ->orderBy('product_id', 'desc')
             ->get();
     }
 
@@ -224,10 +235,12 @@ class ProductRepository
             },
             'category:category_id,name',
         ])
+            ->withSum('variants', 'stock')
             ->where('category_id', $categoryId)
             ->where('product_id', '!=', $productId)
             ->where('status', 'active')
             ->whereNull('deleted_at')
+            ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
             ->orderBy('product_id', 'desc')
             ->limit($limit)
             ->get();

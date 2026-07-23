@@ -8,15 +8,20 @@ import Swal from "sweetalert2";
 import AppIcon from "@/icons/AppIcon.vue";
 import { useCartStore } from "@/stores/cart";
 import { useCatalogStore } from "@/stores/catalog";
+import { useAuthStore } from "@/stores/auth";
 import { catalogService, extractCollection } from "@/services/catalogService";
+import { getAppBaseUrl } from "@/utils/url";
+import { loyaltyService } from "@/services/loyaltyService";
 
-const BASE_URL = import.meta.env.VITE_BASE_URL;
+const BASE_URL = getAppBaseUrl();
 const route = useRoute();
 const router = useRouter();
 const cartStore = useCartStore();
 const catalogStore = useCatalogStore();
+const authStore = useAuthStore();
 const { count: cartCount } = storeToRefs(cartStore);
 const { categories } = storeToRefs(catalogStore);
+const { unreadNotificationCount } = storeToRefs(authStore);
 
 const isLoggedIn = ref(false);
 const userName = ref("");
@@ -25,9 +30,10 @@ const userAvatar = ref(null);
 const isAdmin = ref(false);
 const showDropdown = ref(false);
 const showNotifDropdown = ref(false);
-const unreadNotificationCount = ref(0);
 const notificationsList = ref([]);
+const showNotificationPopup = ref(false);
 const isMobileMenuOpen = ref(false);
+const headerRewardPoints = ref(0);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
@@ -285,17 +291,16 @@ const checkAuth = () => {
     }
 };
 
-const fetchUnreadNotificationCount = async () => {
+const fetchUnreadNotificationCount = () => authStore.fetchUnreadNotificationCount();
+
+const fetchHeaderRewardPoints = async () => {
     const token = sessionStorage.getItem("auth_token");
-    if (!token) {
-        unreadNotificationCount.value = 0;
-        return;
-    }
+    if (!token) { headerRewardPoints.value = 0; return; }
     try {
-        const response = await api.get("/profile/notifications");
-        unreadNotificationCount.value = response.data.unread_count || 0;
+        const res = await loyaltyService.getSummary();
+        headerRewardPoints.value = res.data?.data?.current_balance ?? 0;
     } catch (e) {
-        unreadNotificationCount.value = 0;
+        headerRewardPoints.value = 0;
     }
 };
 
@@ -311,6 +316,7 @@ const leaveNotificationChannel = () => {
 watch(isLoggedIn, (val) => {
     if (val) {
         fetchUnreadNotificationCount();
+        fetchHeaderRewardPoints();
         const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
         if (window.Echo && userData && userData.user_id) {
             if (notificationUserId === userData.user_id) return;
@@ -318,7 +324,7 @@ watch(isLoggedIn, (val) => {
             notificationUserId = userData.user_id;
             window.Echo.private('user.' + userData.user_id)
                 .listen('.UserNotificationEvent', (e) => { // . means it ignores Broadcast namespace
-                    unreadNotificationCount.value++;
+                    authStore.incrementUnreadNotificationCount();
                     if (showNotifDropdown.value) {
                         fetchNotificationsList(); // Refresh list if open
                     }
@@ -336,10 +342,15 @@ watch(isLoggedIn, (val) => {
                             toast.addEventListener('mouseleave', Swal.resumeTimer)
                         }
                     });
+                    showNotificationPopup.value = true;
+                    setTimeout(() => {
+                        showNotificationPopup.value = false;
+                    }, 4000);
                 });
         }
     } else {
-        unreadNotificationCount.value = 0;
+        authStore.resetUnreadNotificationCount();
+        headerRewardPoints.value = 0;
         leaveNotificationChannel();
     }
 }, { immediate: true });
@@ -513,6 +524,8 @@ watch(
                         :class="{ 'is-expanded': isSearchExpanded }"
                     >
                         <input
+                            id="site-search"
+                            name="search"
                             type="text"
                             class="search-input"
                             v-model="searchQuery"
@@ -521,6 +534,7 @@ watch(
                             @blur="handleSearchBlur"
                             @focus="handleSearchFocus"
                             placeholder="Tìm kiếm sản phẩm..."
+                            aria-label="Tìm kiếm sản phẩm"
                         />
                         <button
                             class="icon-btn search-icon-btn"
@@ -602,7 +616,7 @@ watch(
                 </div>
 
                 <!-- Thông báo -->
-                <div class="notif-dropdown" v-if="isLoggedIn">
+                <div class="header-notif-container notif-dropdown" v-if="isLoggedIn">
                     <button class="icon-btn notif-icon-btn" @click.stop="toggleNotifMenu">
                         <div class="cart-icon-wrapper">
                             <AppIcon name="bell" />
@@ -639,12 +653,18 @@ watch(
                             </div>
                         </div>
                     </div>
+
+                    <transition name="notif-popup-slide">
+                        <div v-if="showNotificationPopup" class="new-notif-popup" @click="router.push('/profile/notifications'); showNotificationPopup = false">
+                            Bạn có thông báo mới
+                        </div>
+                    </transition>
                 </div>
 
                 <!-- Giỏ hàng -->
                 <router-link to="/cart" id="cart-icon" class="icon-btn cart-icon-btn">
                     <div class="cart-icon-wrapper">
-                        <AppIcon name="order" />
+                        <AppIcon name="cart" />
                         <span v-if="cartCount > 0" class="cart-badge">{{
                             cartCount > 99 ? "99+" : cartCount
                         }}</span>
@@ -683,6 +703,22 @@ watch(
                                         </div>
                                     </div>
                                 </div>
+                                <!-- Điểm thưởng mini trong header dropdown -->
+                                <router-link v-if="headerRewardPoints >= 0" to="/profile/loyalty" class="header-loyalty-row" @click="closeAccountMenu">
+                                    <span class="header-loyalty-icon">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f59e0b;">
+                                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                                            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                                            <path d="M4 22h16"/>
+                                            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+                                            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+                                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+                                        </svg>
+                                    </span>
+                                    <span class="header-loyalty-label">Số điểm:</span>
+                                    <span class="header-loyalty-pts">{{ new Intl.NumberFormat('vi-VN').format(headerRewardPoints) }} điểm</span>
+                                    <span class="header-loyalty-arrow">›</span>
+                                </router-link>
                                 <div class="dropdown-divider"></div>
                                 <router-link to="/profile" class="account-menu-item">Tài khoản của tôi</router-link>
                                 <router-link v-if="isAdmin" to="/admin" class="account-menu-item">Quản trị</router-link>
@@ -841,11 +877,11 @@ watch(
 }
 
 .nav-link:hover {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .nav-link.active {
-    color: #E63B6F;
+    color: var(--primary);
 }
 
 .nav-link.active::after {
@@ -855,7 +891,7 @@ watch(
     left: 0;
     right: 0;
     height: 2px;
-    background-color: #E63B6F;
+    background-color: var(--primary);
     border-radius: 2px;
 }
 
@@ -899,17 +935,21 @@ watch(
     display: flex;
     align-items: center;
     position: relative;
-    width: 36px; /* only icon width */
-    height: 36px;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 40px; /* matched to new height */
+    height: 40px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s, box-shadow 0.3s;
     overflow: hidden;
     border-radius: 20px;
     background: transparent;
 }
 .search-container.is-expanded {
-    width: 280px;
+    width: 300px;
     background: #f1f5f9;
-    padding-left: 12px;
+    padding-left: 16px;
+}
+.search-container.is-expanded:focus-within {
+    background: var(--card-bg);
+    box-shadow: 0 0 0 1.5px var(--primary); /* focus ring */
 }
 .search-input {
     border: none;
@@ -920,19 +960,33 @@ watch(
     transition:
         opacity 0.3s,
         width 0.3s;
-    font-size: 0.9rem;
-    color: #111;
+    font-size: 0.95rem;
+    color: var(--text-main);
 }
 .search-container.is-expanded .search-input {
-    width: flex-grow;
+    width: 100%;
     flex: 1;
     opacity: 1;
+    padding-right: 40px; /* prevent overlap with absolute icon */
 }
 .search-icon-btn {
     position: absolute;
     right: 0;
     top: 50%;
     transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+.search-icon-btn:hover {
+    color: var(--primary);
 }
 
 /* SEARCH DROPDOWN */
@@ -941,7 +995,7 @@ watch(
     top: calc(100% + 12px);
     right: 0;
     width: 380px;
-    background: #fff;
+    background: var(--card-bg);
     border-radius: 12px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
     border: 1px solid #e2e8f0;
@@ -991,7 +1045,7 @@ watch(
 .search-item-name {
     font-size: 0.95rem;
     font-weight: 600;
-    color: #0f172a;
+    color: var(--text-main);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -1002,13 +1056,13 @@ watch(
 .search-item-price {
     font-size: 0.9rem;
     font-weight: 700;
-    color: #E63B6F; /* Ocean blue theme */
+    color: var(--primary); /* Ocean blue theme */
 }
 .search-view-all {
     padding: 14px;
     text-align: center;
     background: #f8fafc;
-    color: #E63B6F;
+    color: var(--primary);
     font-weight: 700;
     font-size: 0.9rem;
     cursor: pointer;
@@ -1029,7 +1083,7 @@ watch(
     position: absolute;
     top: -4px;
     right: -6px;
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     font-size: 0.65rem;
     font-weight: 700;
@@ -1060,7 +1114,7 @@ watch(
     width: 24px;
     height: 24px;
     border-radius: 50%;
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     display: flex;
     align-items: center;
@@ -1194,7 +1248,7 @@ watch(
 }
 
 .account-menu-inner {
-    background: #fff;
+    background: var(--card-bg);
     border: 1px solid #e5e7eb;
     border-radius: 12px;
     padding: 8px;
@@ -1219,7 +1273,7 @@ watch(
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #E63B6F;
+    background: var(--primary);
     color: #fff;
     display: flex;
     align-items: center;
@@ -1241,6 +1295,40 @@ watch(
     height: 1px;
     background: #f0f0f0;
     margin: 4px 0;
+}
+
+/* Loyalty points row in header dropdown */
+.header-loyalty-container {
+    background: linear-gradient(135deg, #fff7ed, #fef3f2);
+    border-radius: 10px;
+    margin: 4px 0;
+    border: 1px solid #fed7aa;
+    padding: 10px 12px;
+}
+.header-loyalty-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.header-loyalty-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.header-loyalty-label {
+    font-size: 0.78rem;
+    color: #92400e;
+    font-weight: 500;
+}
+.header-loyalty-pts {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--primary);
+    flex: 1;
+}
+.header-loyalty-arrow {
+    color: var(--primary);
+    font-size: 1.1rem;
+    font-weight: 700;
 }
 
 .account-menu-item {
@@ -1285,7 +1373,7 @@ watch(
 .mobile-nav-panel {
     width: min(88vw, 360px);
     height: calc(100vh - 24px);
-    background: #ffffff;
+    background: var(--card-bg);
     border-radius: 24px;
     padding: 18px;
     display: flex;
@@ -1314,7 +1402,7 @@ watch(
     margin: 0;
     font-size: 1.2rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text-main);
 }
 
 .mobile-nav-close {
@@ -1325,8 +1413,8 @@ watch(
 .mobile-account-link {
     width: 100%;
     border: 1px solid #e2e8f0;
-    background: #ffffff;
-    color: #0f172a;
+    background: var(--card-bg);
+    color: var(--text-main);
     border-radius: 14px;
     padding: 14px 16px;
     font-size: 0.95rem;
@@ -1370,7 +1458,7 @@ watch(
 
 .mobile-nav-link:hover,
 .mobile-nav-link.active {
-    color: #E63B6F;
+    color: var(--primary);
     background: #fff1f4;
     border-color: rgba(230, 59, 111, 0.18);
 }
@@ -1389,7 +1477,7 @@ watch(
 }
 
 .mobile-account-text strong {
-    color: #0f172a;
+    color: var(--text-main);
     font-size: 0.96rem;
 }
 
@@ -1432,7 +1520,7 @@ watch(
     display: flex;
     align-items: center;
     gap: 6px;
-    background: linear-gradient(135deg, #E63B6F, #d82f65);
+    background: linear-gradient(135deg, var(--primary), #d82f65);
     color: #fff;
     padding: 10px 16px;
     border-radius: 30px;
@@ -1463,6 +1551,53 @@ watch(
         transform: scale(1);
         box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
     }
+}
+
+.header-notif-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.new-notif-popup {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: -10px; /* Căn phải hoặc tùy chỉnh */
+    background: var(--card-bg);
+    color: #1a2b4a;
+    padding: 10px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 1000;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+}
+
+.new-notif-popup::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 20px;
+    width: 12px;
+    height: 12px;
+    background: var(--card-bg);
+    transform: rotate(45deg);
+    border-top: 1px solid #e2e8f0;
+    border-left: 1px solid #e2e8f0;
+}
+
+.notif-popup-slide-enter-active,
+.notif-popup-slide-leave-active {
+    transition: all 0.3s ease;
+}
+
+.notif-popup-slide-enter-from,
+.notif-popup-slide-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
 }
 
 @media (max-width: 768px) {

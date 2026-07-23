@@ -19,24 +19,32 @@ class CourtBookingService
      */
     public function lockSlot(array $data)
     {
-        return DB::transaction(function () use ($data) {
-            $courtId = $data['court_id'];
-            $date = $data['booking_date'];
-            $startTime = $this->normalizeTime($data['start_time']);
-            $endTime = $this->normalizeTime($data['end_time']);
-            $userId = auth()->guard('api')->id();
+        $courtId = $data['court_id'];
+        $date = $data['booking_date'];
+        $startTime = $this->normalizeTime($data['start_time']);
+        $endTime = $this->normalizeTime($data['end_time']);
+
+        $lockName = $this->slotLockName($courtId, $date);
+        $gotLock = DB::selectOne('SELECT GET_LOCK(?, 10) AS ok', [$lockName]);
+        if (!$gotLock || (int) $gotLock->ok !== 1) {
+            throw new Exception('Hệ thống đang bận, vui lòng thử lại sau giây lát.');
+        }
+
+        try {
+            return DB::transaction(function () use ($data, $courtId, $date, $startTime, $endTime) {
+                $userId = auth()->guard('api')->id();
 
             if (!$userId) {
                 throw new Exception('Vui lòng đăng nhập bằng tài khoản khách hàng để giữ chỗ.');
             }
 
-            // 1. Check existing booking overlap
+            // 1. Check existing booking overlap (so sánh cột thô để tận dụng index)
             $conflict = DB::table('court_bookings')
                 ->where('court_id', $courtId)
-                ->whereDate('booking_date', $date)
+                ->where('booking_date', $date)
                 ->whereIn('status', CourtBooking::BLOCKING_STATUSES)
-                ->whereTime('start_time', '<', $endTime)
-                ->whereTime('end_time', '>', $startTime)
+                ->where('start_time', '<', $endTime)
+                ->where('end_time', '>', $startTime)
                 ->lockForUpdate()
                 ->exists();
 
@@ -47,10 +55,10 @@ class CourtBookingService
             // 2. Check existing active lock
             $lockConflict = DB::table('court_booking_locks')
                 ->where('court_id', $courtId)
-                ->whereDate('booking_date', $date)
+                ->where('booking_date', $date)
                 ->where('expires_at', '>', now())
-                ->whereTime('start_time', '<', $endTime)
-                ->whereTime('end_time', '>', $startTime)
+                ->where('start_time', '<', $endTime)
+                ->where('end_time', '>', $startTime)
                 ->lockForUpdate()
                 ->exists();
 
@@ -78,7 +86,7 @@ class CourtBookingService
                 'end_time' => $endTime,
                 'user_id' => $userId,
                 'lock_token' => (string) \Illuminate\Support\Str::uuid(),
-                'expires_at' => now()->addMinutes(10),
+                'expires_at' => now()->addMinutes(5),
             ]);
 
             app(CourtBookingWorkflowService::class)->logActivity('booking.lock.created', $lock, null, $lock->toArray(), 'user', $userId, request());
@@ -91,7 +99,10 @@ class CourtBookingService
             ]);
 
             return $lock;
-        });
+            });
+        } finally {
+            DB::selectOne('SELECT RELEASE_LOCK(?) AS released', [$lockName]);
+        }
     }
 
     public function releaseLock(string $lockToken, ?int $userId = null): bool
@@ -127,60 +138,71 @@ class CourtBookingService
      */
     public function createBooking(array $data): CourtBooking
     {
-        return DB::transaction(function () use ($data) {
-            $courtId = $data['court_id'];
-            $date = $data['booking_date'];
-            $startTime = $this->normalizeTime($data['start_time']);
-            $endTime = $this->normalizeTime($data['end_time']);
-            $userId = auth()->guard('api')->id();
+        $courtId = $data['court_id'];
+        $date = $data['booking_date'];
+        $startTime = $this->normalizeTime($data['start_time']);
+        $endTime = $this->normalizeTime($data['end_time']);
 
-            if (!$userId) {
-                throw new Exception('Vui lòng đăng nhập bằng tài khoản khách hàng để đặt sân.');
-            }
+        // Serialize mọi lượt đặt cùng 1 sân + ngày để chống double-booking.
+        // Dùng GET_LOCK (advisory lock) thay vì dựa vào gap-lock của InnoDB — gap-lock
+        // bị vô hiệu dưới READ COMMITTED, còn whereDate/whereTime lại vô hiệu hóa index.
+        $lockName = $this->slotLockName($courtId, $date);
+        $gotLock = DB::selectOne('SELECT GET_LOCK(?, 10) AS ok', [$lockName]);
+        if (!$gotLock || (int) $gotLock->ok !== 1) {
+            throw new Exception('Hệ thống đang bận, vui lòng thử lại sau giây lát.');
+        }
 
-            // 1. Check overlap again (in case lock expired or user didn't use lock)
-            $conflict = DB::table('court_bookings')
-                ->where('court_id', $courtId)
-                ->whereDate('booking_date', $date)
-                ->whereIn('status', CourtBooking::BLOCKING_STATUSES)
-                ->whereTime('start_time', '<', $endTime)
-                ->whereTime('end_time', '>', $startTime)
-                ->lockForUpdate()
-                ->exists();
+        try {
+            return DB::transaction(function () use ($data, $courtId, $date, $startTime, $endTime) {
+                $userId = auth()->guard('api')->id();
 
-            if ($conflict) {
-                throw new Exception('Sân đã được đặt trong khung giờ này.');
-            }
+                if (!$userId) {
+                    throw new Exception('Vui lòng đăng nhập bằng tài khoản khách hàng để đặt sân.');
+                }
 
-            // 2. If no lock token provided, check for active locks from others
-            if (empty($data['lock_token'])) {
-                $lockConflict = DB::table('court_booking_locks')
+                // 1. Check overlap (so sánh cột thô để tận dụng index, không bọc DATE()/TIME())
+                $conflict = DB::table('court_bookings')
                     ->where('court_id', $courtId)
-                    ->whereDate('booking_date', $date)
-                    ->where('expires_at', '>', now())
-                    ->whereTime('start_time', '<', $endTime)
-                    ->whereTime('end_time', '>', $startTime)
+                    ->where('booking_date', $date)
+                    ->whereIn('status', CourtBooking::BLOCKING_STATUSES)
+                    ->where('start_time', '<', $endTime)
+                    ->where('end_time', '>', $startTime)
                     ->lockForUpdate()
                     ->exists();
 
-                if ($lockConflict) {
-                    throw new Exception('Slot đang được giữ tạm bởi người khác. Vui lòng thử lại sau.');
+                if ($conflict) {
+                    throw new Exception('Sân đã được đặt trong khung giờ này.');
                 }
-            } else {
-                // Verify lock token
-                $lock = CourtBookingLock::where('lock_token', $data['lock_token'])
-                    ->where('court_id', $courtId)
-                    ->whereDate('booking_date', $date)
-                    ->whereTime('start_time', $startTime)
-                    ->whereTime('end_time', $endTime)
-                    ->where('user_id', $userId)
-                    ->where('expires_at', '>', now())
-                    ->lockForUpdate()
-                    ->first();
-                if (!$lock) {
-                    throw new Exception('Lock token không hợp lệ hoặc đã hết hạn.');
+
+                // 2. If no lock token provided, check for active locks from others
+                if (empty($data['lock_token'])) {
+                    $lockConflict = DB::table('court_booking_locks')
+                        ->where('court_id', $courtId)
+                        ->where('booking_date', $date)
+                        ->where('expires_at', '>', now())
+                        ->where('start_time', '<', $endTime)
+                        ->where('end_time', '>', $startTime)
+                        ->lockForUpdate()
+                        ->exists();
+
+                    if ($lockConflict) {
+                        throw new Exception('Slot đang được giữ tạm bởi người khác. Vui lòng thử lại sau.');
+                    }
+                } else {
+                    // Verify lock token
+                    $lock = CourtBookingLock::where('lock_token', $data['lock_token'])
+                        ->where('court_id', $courtId)
+                        ->where('booking_date', $date)
+                        ->where('start_time', $startTime)
+                        ->where('end_time', $endTime)
+                        ->where('user_id', $userId)
+                        ->where('expires_at', '>', now())
+                        ->lockForUpdate()
+                        ->first();
+                    if (!$lock) {
+                        throw new Exception('Lock token không hợp lệ hoặc đã hết hạn.');
+                    }
                 }
-            }
 
             // 3. Maintenance check
             $maintenanceConflict = DB::table('court_maintenances')
@@ -204,17 +226,9 @@ class CourtBookingService
             $isWeekend = ($dayOfWeek == 0 || $dayOfWeek == 6);
             $dayType = $isWeekend ? 'weekend' : 'weekday';
             
-            $courtPrice = \App\Models\CourtPrice::where('court_id', $courtId)
-                ->where('is_active', true)
-                ->where(function($q) use ($dayType) {
-                    $q->where('day_type', $dayType)->orWhere('day_type', 'all');
-                })
-                ->where('from_time', '<=', $startTime)
-                ->where('to_time', '>=', $endTime)
-                ->first();
-
-            $pricePerHour = $courtPrice ? $courtPrice->price_per_hour : 100000; // Default fallback
-            $originalPrice = (int) round(($pricePerHour / 60) * $durationMinutes);
+            // Tính giá theo TỪNG block giờ chồng lấn (blended) — booking bắc qua ranh giới
+            // cao điểm/thấp điểm sẽ được tính đúng theo số phút thuộc mỗi block.
+            $originalPrice = $this->priceForRange($courtId, $dayType, $startTime, $endTime);
             $serviceItems = collect($data['services'] ?? []);
             $serviceAmount = 0;
             $serviceSnapshots = [];
@@ -285,25 +299,111 @@ class CourtBookingService
                     ->delete();
             }
 
+            // logActivity là audit log → giữ trong transaction để atomic với booking.
             app(CourtBookingWorkflowService::class)->logActivity('booking.created', $booking, null, $booking->toArray(), 'user', $userId, request());
-            app(CourtBookingWorkflowService::class)->broadcast('CourtBookingCreated', $booking);
-            app(CourtBookingWorkflowService::class)->notifyUser($booking, 'CourtBookingCreated');
-            app(CourtBookingWorkflowService::class)->notifyAdmins($booking, 'created');
 
-            // Gửi email xác nhận đặt sân cho khách (qua queue để không block response)
-            if ($booking->user?->email) {
-                try {
-                    Mail::to($booking->user->email)->queue(new CourtBookingCreatedMail($booking));
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::warning('Failed to queue booking created mail', [
-                        'booking_id' => $booking->booking_id,
-                        'error'      => $e->getMessage(),
-                    ]);
+            // Các side-effect (broadcast realtime, notification, email) chỉ chạy SAU khi
+            // transaction commit thành công — tránh gửi thông báo cho booking bị rollback,
+            // và tránh worker đọc phải row chưa commit khi queue driver = sync.
+            DB::afterCommit(function () use ($booking) {
+                $workflow = app(CourtBookingWorkflowService::class);
+                $workflow->broadcast('CourtBookingCreated', $booking);
+                $workflow->notifyUser($booking, 'CourtBookingCreated');
+                $workflow->notifyAdmins($booking, 'created');
+
+                if ($booking->user?->email) {
+                    try {
+                        Mail::to($booking->user->email)->queue(new CourtBookingCreatedMail($booking));
+                    } catch (\Exception $e) {
+                        \Illuminate\Support\Facades\Log::warning('Failed to queue booking created mail', [
+                            'booking_id' => $booking->booking_id,
+                            'error'      => $e->getMessage(),
+                        ]);
+                    }
+                }
+            });
+
+                return $booking;
+            });
+        } finally {
+            // Luôn giải phóng advisory lock dù transaction thành công hay lỗi.
+            DB::selectOne('SELECT RELEASE_LOCK(?) AS released', [$lockName]);
+        }
+    }
+
+    /**
+     * Tên advisory lock để serialize đặt sân theo court + ngày.
+     * Giới hạn 64 ký tự của MySQL GET_LOCK.
+     */
+    private function slotLockName(int|string $courtId, string $date): string
+    {
+        return 'court_booking:' . $courtId . ':' . $date;
+    }
+
+    /**
+     * Tính giá đặt sân theo từng block giờ chồng lấn (blended pricing).
+     *
+     * Cộng dồn giá theo số phút thực thuộc mỗi block giá. Xử lý đúng trường hợp
+     * booking bắc qua ranh giới cao điểm/thấp điểm. Fail-closed: nếu không có block
+     * giá nào bao phủ khoảng thời gian thì ném lỗi thay vì đoán một mức giá magic.
+     *
+     * @throws Exception nếu chưa cấu hình giá cho khung giờ.
+     */
+    private function priceForRange(int|string $courtId, string $dayType, string $startTime, string $endTime): int
+    {
+        $blocks = \App\Models\CourtPrice::where('court_id', $courtId)
+            ->where('is_active', true)
+            ->where(function ($q) use ($dayType) {
+                $q->where('day_type', $dayType)->orWhere('day_type', 'all');
+            })
+            ->where('from_time', '<', $endTime)
+            ->where('to_time', '>', $startTime)
+            ->orderBy('from_time')
+            ->get();
+
+        if ($blocks->isEmpty()) {
+            throw new Exception('Chưa cấu hình giá cho khung giờ này. Vui lòng liên hệ quản trị viên.');
+        }
+
+        $rangeStart = strtotime($startTime);
+        $rangeEnd   = strtotime($endTime);
+        $total      = 0.0;
+        $coveredMinutes = 0;
+
+        // Ưu tiên block cụ thể (weekday/weekend/holiday) hơn 'all' khi trùng khoảng:
+        // sắp xếp để block khớp day_type cụ thể đứng trước, tránh tính chồng.
+        $ordered = $blocks->sortBy(fn ($b) => $b->day_type === 'all' ? 1 : 0)->values();
+        $claimed = []; // các phút đã được tính (chống overlap giữa các block)
+
+        foreach ($ordered as $block) {
+            $segStart = max($rangeStart, strtotime($block->from_time));
+            $segEnd   = min($rangeEnd, strtotime($block->to_time));
+
+            if ($segEnd <= $segStart) {
+                continue;
+            }
+
+            // Trừ đi phần phút đã bị block trước chiếm để không tính hai lần.
+            $minutes = 0;
+            for ($t = $segStart; $t < $segEnd; $t += 60) {
+                if (!isset($claimed[$t])) {
+                    $claimed[$t] = true;
+                    $minutes++;
                 }
             }
 
-            return $booking;
-        });
+            if ($minutes > 0) {
+                $total += ((float) $block->price_per_hour / 60) * $minutes;
+                $coveredMinutes += $minutes;
+            }
+        }
+
+        $requestedMinutes = (int) round(($rangeEnd - $rangeStart) / 60);
+        if ($coveredMinutes < $requestedMinutes) {
+            throw new Exception('Khung giờ đặt sân nằm ngoài bảng giá đã cấu hình.');
+        }
+
+        return (int) round($total);
     }
 
     private function normalizeTime(string $time): string

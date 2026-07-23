@@ -13,6 +13,18 @@ export const orderService = {
     return api.get(`/profile/orders/${orderId}`);
   },
 
+  getOrderTracking(orderId) {
+    return api.get(`/profile/orders/${orderId}/tracking`);
+  },
+
+  trackOrderByToken(token) {
+    return api.get(`/tracking/${token}`);
+  },
+
+  trackGuestOrder(payload) {
+    return api.post('/orders/guest-tracking', payload);
+  },
+
   cancelProfileOrder(orderId, cancelReason) {
     return api.put(`/profile/orders/${orderId}/cancel`, {
       cancel_reason: cancelReason,

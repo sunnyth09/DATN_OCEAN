@@ -13,7 +13,6 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        // Verify Cloudflare Turnstile
         $turnstileToken = $request->input('turnstile_token');
         if (!$this->verifyTurnstile($turnstileToken)) {
             return response()->json([
@@ -21,7 +20,6 @@ class AuthController extends Controller
                 'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
             ], 422);
         }
-
         $result = $this->authService->register($request->all());
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
@@ -31,10 +29,6 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        // VÔ HIỆU HOÁ CAPTRA TRÁNH BỊ LỖI KHI ĐĂNG NHẬP
-        // Lý do:
-        // - KEY CAPTCHA CỦA CLAUDFLRE CHƯA ĐƯỢC CẤU HÌNH ĐÚNG
-
         // Verify Cloudflare Turnstile
         $turnstileToken = $request->input('turnstile_token');
         if (!$this->verifyTurnstile($turnstileToken)) {
@@ -43,13 +37,10 @@ class AuthController extends Controller
                 'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
             ], 422);
         }
-
         $credentials = $request->only('email', 'password');
-        // \Illuminate\Support\Facades\Log::info("Login attempt", $credentials);
 
         // BƯỚC 1: Thử đăng nhập Admin (nhân sự) trước
         $adminToken = auth('admin')->attempt($credentials);
-        \Illuminate\Support\Facades\Log::info("Admin attempt result", ['token' => (bool)$adminToken]);
         if ($adminToken) {
             $user = auth('admin')->user();
             if (isset($user->status) && $user->status !== 'active') {
@@ -81,11 +72,11 @@ class AuthController extends Controller
             }
             return $this->respondWithToken($token, 'customer');
         }
+        $result = $this->authService->login($request->all());
+        $status = $result['_status'] ?? 200;
+        unset($result['_status']);
 
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Email hoặc mật khẩu không chính xác!'
-        ], 401);
+        return response()->json($result, $status);
     }
 
     protected function respondWithToken($token, $guardType)

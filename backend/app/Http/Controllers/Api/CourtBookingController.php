@@ -30,7 +30,7 @@ class CourtBookingController extends Controller
             $lock = $this->bookingService->lockSlot($request->validated());
             return response()->json([
                 'status' => 'success',
-                'message' => 'Slot locked successfully for 10 minutes.',
+                'message' => 'Slot locked successfully for 5 minutes.',
                 'data' => $lock
             ]);
         } catch (\Exception $e) {

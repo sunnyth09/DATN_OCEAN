@@ -118,8 +118,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import { useUiStore } from '@/stores/ui';
-
-const BASE_URL = import.meta.env.VITE_APP_URL || 'http://localhost:8383';
+import { getAbsoluteUrl } from '@/utils/url';
 
 const props = defineProps({
   collapsed: {
@@ -146,7 +145,7 @@ onMounted(() => {
       const path = user.avatar_url || '';
       
       userName.value = user.full_name || user.name || 'Seller';
-      userAvatar.value = path.startsWith('http') ? path : (path ? `${BASE_URL}${path}` : ''); 
+      userAvatar.value = path ? getAbsoluteUrl(path) : '';
       userRole.value = 'Nhân viên Bán hàng';
     } catch (e) {
       console.error("Failed to parse user data", e);
@@ -275,7 +274,7 @@ const handleLogout = async () => {
 
 .aside-toggle-btn:hover {
   background: var(--hover-bg, #f3f4f6);
-  color: #E63B6F;
+  color: var(--primary);
 }
 
 /* Nav */
@@ -318,7 +317,7 @@ const handleLogout = async () => {
 }
 
 .nav-item--active {
-  background: #E63B6F !important;
+  background: var(--primary) !important;
   color: white !important;
   font-weight: 600;
 }
@@ -345,7 +344,7 @@ const handleLogout = async () => {
   height: 36px;
   border-radius: 50%;
   background: var(--hover-bg, #FFF0F3);
-  color: #E63B6F;
+  color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;

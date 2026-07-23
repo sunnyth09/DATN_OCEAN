@@ -229,8 +229,27 @@ class StatisticsService
         return Excel::download(new LastMonthRevenueExport, $fileName);
     }
 
+    public function getStaffSales(Request $request): array
+    {
+        [$startDate, $endDate] = $this->getDateRange($request);
+
+        $staffSales = $this->statsRepository->getStaffSales($startDate, $endDate);
+
+        return $staffSales->map(function ($row) {
+            return [
+                'staff_id'      => $row->seller_id,
+                'staff_name'    => $row->seller ? $row->seller->full_name : 'Unknown',
+                'staff_email'   => $row->seller ? $row->seller->email : 'Unknown',
+                'role'          => $row->seller ? $row->seller->role : 'Unknown',
+                'total_orders'  => (int) $row->total_orders,
+                'total_revenue' => (float) $row->total_revenue,
+            ];
+        })->toArray();
+    }
+
     private function calculateChange(float $prev, float $current): float
     {
+
         if ($prev == 0) {
             return $current > 0 ? 100 : 0;
         }

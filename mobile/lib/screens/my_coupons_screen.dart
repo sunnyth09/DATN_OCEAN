@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_client.dart';
@@ -13,6 +14,7 @@ class MyCouponsScreen extends StatefulWidget {
 class _MyCouponsScreenState extends State<MyCouponsScreen> {
   List<dynamic> coupons = [];
   bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
@@ -22,7 +24,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
 
   Future<void> fetchUserCoupons() async {
     try {
-      setState(() => isLoading = true);
+      setState(() { isLoading = true; errorMessage = null; });
       final res = await ApiClient().dio.get('/profile/coupons');
       if (res.data['status'] == 'success') {
         if (mounted) setState(() { coupons = res.data['data'] ?? []; isLoading = false; });
@@ -30,7 +32,8 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
         if (mounted) setState(() => isLoading = false);
       }
     } catch (e) {
-      if (mounted) setState(() => isLoading = false);
+      // Không nuốt lỗi thành empty state: giữ cờ lỗi để hiện nút thử lại.
+      if (mounted) setState(() { isLoading = false; errorMessage = 'Không tải được danh sách mã. Vui lòng thử lại.'; });
     }
   }
 
@@ -43,7 +46,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
   String _formatValue(Map<String, dynamic> coupon) {
     final type = coupon['type']?.toString() ?? '';
     final value = coupon['value'];
-    if (type == 'percent') return 'Giảm ${value}%';
+    if (type == 'percent') return 'Giảm $value%';
     if (type == 'free_ship') return 'Freeship ${_formatCurrency(value)}';
     return 'Giảm ${_formatCurrency(value)}';
   }
@@ -56,9 +59,9 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
         (m) => '${m[1]}.',
       );
-      return '${formatted}₫';
+      return '$formatted₫';
     } catch (_) {
-      return '${val}₫';
+      return '$val₫';
     }
   }
 
@@ -86,9 +89,10 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Mã giảm giá của tôi'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        title: const Text('Mã giảm giá của tôi', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0F172A),
+        iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
         elevation: 0,
         centerTitle: true,
       ),
@@ -96,15 +100,47 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
         onRefresh: fetchUserCoupons,
         child: isLoading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-            : coupons.isEmpty
+            : errorMessage != null
+                ? _buildError()
+                : coupons.isEmpty
                 ? _buildEmpty()
                 : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: coupons.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) => _buildCouponCard(coupons[index]),
                   ),
       ),
+    );
+  }
+
+  Widget _buildError() {
+    return ListView(
+      children: [
+        const SizedBox(height: 120),
+        const Icon(Icons.cloud_off_outlined, size: 60, color: Color(0xFFCBD5E1)),
+        const SizedBox(height: 16),
+        Center(
+          child: Text(
+            errorMessage ?? 'Đã có lỗi xảy ra.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF64748B)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: ElevatedButton.icon(
+            onPressed: fetchUserCoupons,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Thử lại'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -128,7 +164,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
           const Text('Hãy khám phá kho voucher để nhận ưu đãi hấp dẫn', style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => context.pop(),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -177,7 +213,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFE5E7EB)),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2))],
             ),
             child: IntrinsicHeight(
               child: Row(
@@ -260,7 +296,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.4),
+                  color: Colors.white.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(

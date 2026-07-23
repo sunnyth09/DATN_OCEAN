@@ -4,10 +4,13 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Models\AffiliateConversion;
 use App\Repositories\AffiliateRepository;
 use App\Repositories\AffiliateClickRepository;
 use App\Repositories\AffiliateConversionRepository;
 use App\Repositories\AffiliateWithdrawalRepository;
+use App\Services\WalletService;
+use App\Services\LoyaltyService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -18,7 +21,9 @@ class AffiliateService
         protected AffiliateRepository $affiliateRepo,
         protected AffiliateClickRepository $clickRepo,
         protected AffiliateConversionRepository $conversionRepo,
-        protected AffiliateWithdrawalRepository $withdrawalRepo
+        protected AffiliateWithdrawalRepository $withdrawalRepo,
+        protected WalletService $walletService,
+        protected LoyaltyService $loyaltyService
     ) {}
 
     // =====================================================================
@@ -166,28 +171,41 @@ class AffiliateService
             return $this->error("Số tiền rút tối thiểu là " . number_format($minAmount) . " VND!", 422);
         }
 
-        // Tính số dư khả dụng = approved commission - đã rút (pending/approved/paid)
-        $summary = $this->conversionRepo->getSummaryByReferrer($userId);
-        $totalWithdrawn = $this->withdrawalRepo->getTotalWithdrawnOrPending($userId);
-        $availableBalance = $summary['approved_commission'] + $summary['paid_commission'] - $totalWithdrawn;
-
-        if ($amount > $availableBalance) {
-            return $this->error('Số tiền vượt quá số dư khả dụng (' . number_format($availableBalance) . ' VND)!', 422);
-        }
-
         try {
-            $withdrawal = DB::transaction(function () use ($userId, $data, $amount) {
+            // Toàn bộ (kiểm tra pending + số dư + tạo yêu cầu) nằm trong 1 transaction có khóa
+            // dòng ví để chống race: 2 request đồng thời không thể cùng vượt số dư khả dụng.
+            $withdrawal = DB::transaction(function () use ($userId, $amount, $data) {
+                // Khóa dòng ví trước khi đọc số dư hoa hồng.
+                $wallet = \App\Models\Wallet::where('user_id', $userId)->lockForUpdate()->firstOrFail();
+
+                // Số dư khả dụng = hoa hồng hiện có − (đã rút/đang chờ rút).
+                $pendingOrWithdrawn = $this->withdrawalRepo->getTotalWithdrawnOrPending($userId);
+                $availableBalance   = (float) $wallet->commission_balance - $pendingOrWithdrawn;
+
+                if ($amount > $availableBalance) {
+                    throw new \App\Exceptions\OrderException(
+                        'Số dư hoa hồng khả dụng không đủ để rút (' . number_format(max(0, $availableBalance)) . ' VND)!'
+                    );
+                }
+
+                // Kiểm tra pending BÊN TRONG lock để chống tạo trùng yêu cầu.
+                if ($this->withdrawalRepo->hasPendingWithdrawal($userId)) {
+                    throw new \App\Exceptions\OrderException('Bạn đang có yêu cầu rút tiền chưa được xử lý. Vui lòng chờ duyệt!');
+                }
+
                 return $this->withdrawalRepo->create([
-                    'user_id' => $userId,
-                    'amount' => $amount,
-                    'bank_name' => $data['bank_name'],
-                    'bank_account_name' => $data['bank_account_name'],
-                    'bank_account_number' => $data['bank_account_number'],
-                    'status' => 'pending',
+                    'user_id'             => $userId,
+                    'amount'              => $amount,
+                    'bank_name'           => $data['bank_name'] ?? 'VNPay Payout',
+                    'bank_account_name'   => $data['bank_account_name'] ?? '',
+                    'bank_account_number' => $data['bank_account_number'] ?? '',
+                    'status'              => 'pending',
                 ]);
             });
 
             return $this->success('Gửi yêu cầu rút tiền thành công! Vui lòng chờ duyệt.', $withdrawal);
+        } catch (\App\Exceptions\OrderException $e) {
+            return $this->error($e->getMessage(), 422);
         } catch (\Exception $e) {
             Log::error('Affiliate withdrawal error: ' . $e->getMessage());
             return $this->error('Lỗi khi gửi yêu cầu rút tiền!', 500);
@@ -214,7 +232,7 @@ class AffiliateService
      */
     public function createConversionFromOrder(Order $order, ?string $referralCode): void
     {
-        if (!$referralCode) {
+        if (!$referralCode || !$order->user_id) {
             return;
         }
 
@@ -271,8 +289,13 @@ class AffiliateService
                 return;
             }
 
+            $oldStatus = $conversion->status;
+
             if (in_array($newStatus, [OrderStatus::COMPLETED->value, OrderStatus::DELIVERED->value], true)) {
                 $this->conversionRepo->updateStatusByOrderId($order->order_id, 'approved');
+
+                // ★ Auto-deposit commission vào ví affiliate
+                $this->depositCommissionToWallet($order);
             }
 
             if (in_array($newStatus, [
@@ -281,7 +304,30 @@ class AffiliateService
                 OrderStatus::RETURNED->value,
                 OrderStatus::REFUNDED->value,
             ], true)) {
-                $this->conversionRepo->updateStatusByOrderId($order->order_id, 'cancelled');
+                // Conditional update atomic: chỉ chuyển approved→cancelled đúng MỘT lần.
+                // Hai request hủy đồng thời → chỉ request thắng race trả true → clawback
+                // chạy đúng một lần (không double-deduct hoa hồng của conversion khác).
+                $clawback = $this->conversionRepo->markCancelledFromApproved($order->order_id);
+
+                // Với các status khác (pending) chỉ cần đánh dấu cancelled, không clawback.
+                if (!$clawback && $oldStatus !== 'approved') {
+                    $this->conversionRepo->updateStatusByOrderId($order->order_id, 'cancelled');
+                }
+
+                if ($clawback) {
+                    // Thu hồi lại hoa hồng nếu đã được cộng trước đó (trừ đúng commission_balance).
+                    try {
+                        $this->walletService->debitCommission(
+                            $conversion->referrer_id,
+                            (float) $conversion->commission_amount,
+                            "Thu hồi hoa hồng từ đơn hàng #{$order->order_code} (Hủy đơn/Trả hàng)",
+                            $conversion->id,
+                            AffiliateConversion::class
+                        );
+                    } catch (\Exception $e) {
+                        Log::error("Failed to revoke commission for order #{$order->order_id}: " . $e->getMessage());
+                    }
+                }
             }
         } catch (\Exception $e) {
             Log::error('Affiliate conversion status update failed: ' . $e->getMessage());
@@ -299,7 +345,29 @@ class AffiliateService
 
     public function adminApproveConversion(int $id): array
     {
+        $conversion = AffiliateConversion::find($id);
+        if (!$conversion || $conversion->status !== 'pending') {
+            return $this->error('Conversion không hợp lệ hoặc đã duyệt!', 422);
+        }
+
         $updated = $this->conversionRepo->updateStatus($id, 'approved');
+        if ($updated) {
+            try {
+                // Credit hoa hồng dùng chung luồng đã có khóa+dedupe (chống double-credit
+                // khi admin-approve chạy song song với DELIVERED/COMPLETED auto-deposit).
+                if ($conversion->order) {
+                    $this->depositCommissionToWallet($conversion->order);
+
+                    // Tích điểm giới thiệu cho referrer
+                    $referrer = \App\Models\User::find($conversion->referrer_id);
+                    if ($referrer) {
+                        $this->loyaltyService->earnFromReferral($referrer, $conversion->order);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error("Failed to deposit commission on admin approve: " . $e->getMessage());
+            }
+        }
         return $updated
             ? $this->success('Đã duyệt hoa hồng!')
             : $this->error('Không tìm thấy conversion!', 404);
@@ -307,7 +375,26 @@ class AffiliateService
 
     public function adminCancelConversion(int $id): array
     {
+        $conversion = AffiliateConversion::find($id);
+        if (!$conversion) {
+            return $this->error('Không tìm thấy conversion!', 404);
+        }
+        $oldStatus = $conversion->status;
         $updated = $this->conversionRepo->updateStatus($id, 'cancelled');
+        if ($updated && $oldStatus === 'approved') {
+            try {
+                // Thu hồi hoa hồng: trừ đúng commission_balance (không deposit-first).
+                $this->walletService->debitCommission(
+                    $conversion->referrer_id,
+                    (float) $conversion->commission_amount,
+                    "Thu hồi hoa hồng #" . $conversion->id . " bởi Admin",
+                    $conversion->id,
+                    AffiliateConversion::class
+                );
+            } catch (\Exception $e) {
+                Log::error("Failed to revoke commission on admin cancel: " . $e->getMessage());
+            }
+        }
         return $updated
             ? $this->success('Đã hủy hoa hồng!')
             : $this->error('Không tìm thấy conversion!', 404);
@@ -322,30 +409,128 @@ class AffiliateService
     {
         $withdrawal = $this->withdrawalRepo->findById($id);
         if (!$withdrawal || $withdrawal->status !== 'pending') {
-            return $this->error('Yêu cầu không hợp lệ hoặc đã xử lý!', 422);
+            return $this->error('Yêu cầu rút tiền không hợp lệ hoặc đã được xử lý!', 422);
         }
-        $this->withdrawalRepo->updateStatus($id, 'approved');
-        return $this->success('Đã duyệt yêu cầu rút tiền!');
+
+        // Duyệt: chuyển sang approved. Tiền đã bị "giữ" (tính vào getTotalWithdrawnOrPending)
+        // ngay từ lúc user gửi yêu cầu nên không trừ ví lần nữa ở đây.
+        return $this->withdrawalRepo->updateStatus($id, 'approved')
+            ? $this->success('Đã duyệt yêu cầu rút tiền!')
+            : $this->error('Không tìm thấy yêu cầu rút tiền!', 404);
     }
 
     public function adminRejectWithdrawal(int $id, ?string $note = null): array
     {
-        $withdrawal = $this->withdrawalRepo->findById($id);
-        if (!$withdrawal || $withdrawal->status !== 'pending') {
-            return $this->error('Yêu cầu không hợp lệ hoặc đã xử lý!', 422);
+        try {
+            return DB::transaction(function () use ($id, $note) {
+                // Lock dòng withdrawal, re-check trạng thái để chống double-refund.
+                $withdrawal = \App\Models\AffiliateWithdrawal::whereKey($id)->lockForUpdate()->first();
+                if (!$withdrawal || !in_array($withdrawal->status, ['pending', 'approved'], true)) {
+                    return $this->error('Yêu cầu rút tiền không hợp lệ hoặc đã được xử lý!', 422);
+                }
+
+                $affected = \App\Models\AffiliateWithdrawal::whereKey($id)
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->update(['status' => 'rejected', 'note' => $note]);
+
+                if ($affected === 0) {
+                    return $this->error('Yêu cầu đã được xử lý trước đó!', 422);
+                }
+
+                // KHÔNG credit lại commission_balance ở đây.
+                // Mô hình giữ tiền: số dư khả dụng = commission_balance − getTotalWithdrawnOrPending()
+                // (chỉ tính pending/approved/paid). Khi reject, row rời khỏi tổng đó nên khả dụng
+                // tự phục hồi. Nếu credit thêm sẽ thành hoàn kép (double-refund).
+
+                return $this->success('Đã từ chối yêu cầu rút tiền và hoàn lại số dư!');
+            });
+        } catch (\Exception $e) {
+            Log::error('Affiliate reject withdrawal failed: ' . $e->getMessage());
+            return $this->error('Từ chối yêu cầu rút tiền thất bại.', 500);
         }
-        $this->withdrawalRepo->updateStatus($id, 'rejected', $note);
-        return $this->success('Đã từ chối yêu cầu rút tiền!');
     }
 
     public function adminMarkPaidWithdrawal(int $id): array
     {
         $withdrawal = $this->withdrawalRepo->findById($id);
         if (!$withdrawal || $withdrawal->status !== 'approved') {
-            return $this->error('Chỉ có thể thanh toán yêu cầu đã duyệt!', 422);
+            return $this->error('Chỉ có thể đánh dấu đã thanh toán cho yêu cầu đã duyệt!', 422);
         }
-        $this->withdrawalRepo->updateStatus($id, 'paid');
-        return $this->success('Đã đánh dấu thanh toán thành công!');
+
+        return $this->withdrawalRepo->updateStatus($id, 'paid')
+            ? $this->success('Đã đánh dấu thanh toán thành công!')
+            : $this->error('Không tìm thấy yêu cầu rút tiền!', 404);
+    }
+
+    // =====================================================================
+    // WALLET INTEGRATION
+    // =====================================================================
+
+    /**
+     * Auto-deposit hoa hồng vào ví affiliate khi order completed/delivered.
+     * Nạp vào commission_balance (không phải deposit_balance).
+     */
+    private function depositCommissionToWallet(Order $order): void
+    {
+        try {
+            $conversion = $this->conversionRepo->findByOrderId($order->order_id);
+
+            if (!$conversion) {
+                return;
+            }
+
+            \Illuminate\Support\Facades\DB::transaction(function () use ($order, $conversion) {
+                // Khóa row ví người nhận TRƯỚC để serialize các lần deposit đồng thời
+                // cùng conversion (admin double-click, DELIVERED + COMPLETED race).
+                // credit() mở nested transaction re-lock cùng row → reentrant, an toàn.
+                $this->walletService->getOrCreateWallet($conversion->referrer_id);
+                \App\Models\Wallet::where('user_id', $conversion->referrer_id)->lockForUpdate()->first();
+
+                // Re-check chống duplicate BÊN TRONG khóa: request thứ 2 chờ request 1
+                // commit rồi mới thấy transaction commission đã tồn tại → thoát.
+                $alreadyDeposited = \App\Models\WalletTransaction::where('reference_type', AffiliateConversion::class)
+                    ->where('reference_id', $conversion->id)
+                    ->where('type', 'commission')
+                    ->exists();
+
+                if ($alreadyDeposited) {
+                    Log::info('Affiliate commission already deposited to wallet', [
+                        'conversion_id' => $conversion->id,
+                        'order_id'      => $order->order_id,
+                    ]);
+                    return;
+                }
+
+                $this->walletService->credit(
+                    userId: $conversion->referrer_id,
+                    amount: (float) $conversion->commission_amount,
+                    type: 'commission',  // → chảy vào commission_balance
+                    opts: [
+                        'reference_type' => AffiliateConversion::class,
+                        'reference_id'   => $conversion->id,
+                        'description'    => "Hoa hồng affiliate đơn #{$order->order_code}",
+                        'metadata'       => [
+                            'order_id'        => $order->order_id,
+                            'order_code'      => $order->order_code,
+                            'total_amount'    => $conversion->total_amount,
+                            'commission_rate' => $conversion->commission_rate,
+                        ],
+                    ]
+                );
+
+                Log::info('Affiliate commission deposited to wallet', [
+                    'referrer_id'       => $conversion->referrer_id,
+                    'commission_amount' => $conversion->commission_amount,
+                    'order_code'        => $order->order_code,
+                ]);
+            });
+
+        } catch (\Exception $e) {
+            // Không throw — wallet lỗi không ảnh hưởng affiliate status flow
+            Log::error('Affiliate commission wallet deposit failed: ' . $e->getMessage(), [
+                'order_id' => $order->order_id,
+            ]);
+        }
     }
 
     // =====================================================================

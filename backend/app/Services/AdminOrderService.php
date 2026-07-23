@@ -5,13 +5,17 @@ namespace App\Services;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Repositories\AdminOrderRepository;
+use App\Mail\OrderShippingMail;
 use App\Models\Order;
 use App\Services\LoyaltyService;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\OrderCancelledMail;
+use Illuminate\Support\Str;
 
 class AdminOrderService
 {
@@ -43,6 +47,7 @@ class AdminOrderService
         protected AdminOrderRepository $orderRepository,
         protected AffiliateService $affiliateService,
         protected LoyaltyService $loyaltyService,
+        protected WalletService $walletService,
     ) {}
 
     /**
@@ -138,6 +143,31 @@ class AdminOrderService
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 
+                    if ($order->payment_method === 'wallet' && $order->payment_status === PaymentStatus::PAID->value) {
+                        $updates['payment_status'] = PaymentStatus::REFUNDED->value;
+                        $this->walletService->refund(
+                            $order->user_id,
+                            (float) $order->wallet_spent,
+                            "Hoàn tiền hủy đơn hàng #{$order->order_code}",
+                            $order->order_id,
+                            Order::class
+                        );
+                    }
+
+                    // Hoàn ví GIẢM GIÁ (cột độc lập với wallet_spent; áp được cho mọi
+                    // payment method — COD/vnpay vẫn có thể dùng ví giảm giá). Không gate
+                    // theo payment_method='wallet' như khối trên.
+                    $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                    $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
+                    if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
+                        $this->walletService->reverseOrderDiscount(
+                            $order->user_id,
+                            $walletDeposit,
+                            $walletCommission,
+                            $order->order_id
+                        );
+                    }
+
                     // Hoàn tồn kho
                     $this->orderRepository->restoreStock($order->items);
 
@@ -198,6 +228,13 @@ class AdminOrderService
 
                         if ($isFirstOrder) {
                             $this->loyaltyService->earnFirstOrder($order->user, $order->fresh());
+                        }
+
+                        // Thưởng điểm giỏ hàng bỏ quên nếu có
+                        $freshOrder = $order->fresh();
+                        if ($freshOrder->is_abandoned_checkout) {
+                            $this->loyaltyService->earnAbandonedCart($order->user, $freshOrder->order_id);
+                            $order->update(['is_abandoned_checkout' => false]);
                         }
                     } catch (\Exception $e) {
                         Log::error("LoyaltyEarn failed for order #{$order->order_id}: " . $e->getMessage());
@@ -275,9 +312,32 @@ class AdminOrderService
                             $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                         }
 
-                        // Hoàn tồn kho
-                        $items = DB::table('order_items')->where('order_id', $order->order_id)->get();
-                        $this->orderRepository->restoreStock($items->filter(fn($i) => $i->variant_id)->all());
+                        if ($order->payment_method === 'wallet' && $order->payment_status === PaymentStatus::PAID->value) {
+                            $updates['payment_status'] = PaymentStatus::REFUNDED->value;
+                            $this->walletService->refund(
+                                $order->user_id,
+                                (float) $order->wallet_spent,
+                                "Hoàn tiền hủy hàng loạt đơn hàng #{$order->order_code}",
+                                $order->order_id,
+                                Order::class
+                            );
+                        }
+
+                        // Hoàn ví GIẢM GIÁ (deposit/commission discount) — cột độc lập với
+                        // wallet_spent; áp cho mọi payment_method nên không gate theo 'wallet'.
+                        $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                        $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
+                        if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
+                            $this->walletService->reverseOrderDiscount(
+                                $order->user_id,
+                                $walletDeposit,
+                                $walletCommission,
+                                $order->order_id
+                            );
+                        }
+
+                        // Hoàn tồn kho (dùng items đã eager-load, tránh N+1)
+                        $this->orderRepository->restoreStock($order->items->filter(fn($i) => $i->variant_id)->all());
 
                         // Gửi email thông báo hủy đơn
                         if ($order->user && $order->user->email) {
@@ -327,12 +387,18 @@ class AdminOrderService
                 ], true);
 
                 foreach ($orders as $order) {
-                    $this->affiliateService->updateConversionOnStatusChange($order->fresh(), $newFulfillmentStatus);
+                    $freshOrder = $order->fresh();
+                    $this->affiliateService->updateConversionOnStatusChange($freshOrder, $newFulfillmentStatus);
 
                     // Tích điểm loyalty
                     if ($isDeliveredOrCompleted && $order->user) {
                         try {
-                            $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
+                            $this->loyaltyService->earnFromOrder($order->user, $freshOrder);
+
+                            if ($freshOrder->is_abandoned_checkout) {
+                                $this->loyaltyService->earnAbandonedCart($order->user, $freshOrder->order_id);
+                                $order->update(['is_abandoned_checkout' => false]);
+                            }
                         } catch (\Exception $e) {
                             Log::error("LoyaltyEarn bulk failed for order #{$order->order_id}: " . $e->getMessage());
                         }
@@ -365,13 +431,45 @@ class AdminOrderService
      */
     public function syncGHN(int $id): array
     {
-        $order = Order::with(['items', 'address'])->where('order_id', $id)->first();
-        if (!$order) {
-            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+        $lock = Cache::lock("ghn_sync_order_{$id}", 30);
+
+        if (!$lock->get()) {
+            return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đang được đồng bộ GHN. Vui lòng thử lại sau!'];
         }
 
         try {
+            $order = Order::with(['items.product', 'address'])->where('order_id', $id)->first();
+            if (!$order) {
+                return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+            }
+
+            if ($order->ghn_order_code) {
+                return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã được đồng bộ GHN!'];
+            }
+
             $result = \App\Services\GHNService::createOrder($order);
+
+            if (isset($result['data']['order_code'])) {
+                $oldStatus = $order->fulfillment_status;
+                $order->ghn_order_code = $result['data']['order_code'];
+                if (!$order->tracking_token) {
+                    $order->tracking_token = hash('sha256', $order->order_code . Str::random(40) . microtime(true));
+                }
+                $order->save();
+
+                $this->sendOrderShippingMail($order->fresh(['address']));
+
+                $this->orderRepository->createStatusHistory([
+                    'order_id' => $order->order_id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $order->fulfillment_status,
+                    'note' => 'Đã đồng bộ đơn hàng sang GHN',
+                    'source' => 'system',
+                    'description' => 'Đã đồng bộ đơn hàng sang GHN',
+                    'happened_at' => now(),
+                ]);
+            }
+
             return [
                 '_status' => 200,
                 'status'  => 'success',
@@ -380,6 +478,25 @@ class AdminOrderService
             ];
         } catch (\Exception $e) {
             return ['_status' => 500, 'status' => 'error', 'message' => $e->getMessage()];
+        } finally {
+            optional($lock)->release();
+        }
+    }
+
+    private function sendOrderShippingMail(Order $order): void
+    {
+        if (!$order->email) {
+            return;
+        }
+
+        try {
+            Mail::to($order->email)->queue(new OrderShippingMail($order));
+        } catch (\Throwable $e) {
+            Log::warning('Không thể gửi email tracking GHN', [
+                'order_id' => $order->order_id,
+                'email' => $order->email,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 }

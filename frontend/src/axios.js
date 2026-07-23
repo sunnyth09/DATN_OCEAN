@@ -87,9 +87,11 @@ const refreshAccessToken = () => {
 api.interceptors.request.use(
     async (config) => {
         let token = getToken();
-        if (token && !config.skipAuthRefresh && !isAuthEndpoint(config.url) && isTokenExpiring(token)) {
-            token = await refreshAccessToken();
-        }
+        // Skip preemptive refresh check on request to prevent clock drift issues,
+        // relying instead on the 401 response interceptor for silent token refresh.
+        // if (token && !config.skipAuthRefresh && !isAuthEndpoint(config.url) && isTokenExpiring(token)) {
+        //     token = await refreshAccessToken();
+        // }
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -115,6 +117,20 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
+
+        // 422: chuẩn hóa lỗi validation từ Laravel FormRequest.
+        // Laravel trả { message, errors: { field: ['msg1', ...] } }.
+        // Gắn error.validationErrors = { field: 'msg đầu tiên' } để form bind thẳng vào input.
+        if (error.response?.status === 422) {
+            const raw = error.response.data?.errors ?? {};
+            error.validationErrors = Object.fromEntries(
+                Object.entries(raw).map(([field, messages]) => [
+                    field,
+                    Array.isArray(messages) ? messages[0] : messages,
+                ]),
+            );
+            return Promise.reject(error);
+        }
 
         if (
             !error.response ||

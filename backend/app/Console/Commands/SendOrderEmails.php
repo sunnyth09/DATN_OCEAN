@@ -8,6 +8,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * =====================================================================
@@ -70,18 +71,24 @@ class SendOrderEmails extends Command
 
         foreach ($pendingOrders as $order) {
             try {
-                // Lấy user từ relationship
+                // Lấy user (có thể null nếu là khách vãng lai)
                 $user = $order->user;
-                if (!$user || empty($user->email)) {
-                    $this->warn("  ⚠ Đơn {$order->order_code}: user không có email, đánh dấu bỏ qua.");
+
+                // Email nhận xác nhận: ưu tiên email lưu trên đơn (guest nhập ở checkout),
+                // fallback về email tài khoản (khách đăng nhập).
+                $recipientEmail = $order->email ?: ($user->email ?? null);
+
+                if (empty($recipientEmail)) {
+                    $this->warn("  ⚠ Đơn {$order->order_code}: không có email, đánh dấu bỏ qua.");
                     $order->update(['email_sent' => true]); // Đánh dấu để không query lại
                     continue;
                 }
 
                 // ─── Bước 2: Gửi email qua SMTP ───
-                $this->sendEmail($order, $user);
+                $this->sendEmail($order, $recipientEmail);
 
-                // --- Bước 2.1: Tạo thông báo in-app (vào DB) ---
+                // --- Bước 2.1: Tạo thông báo in-app (chỉ cho khách đã đăng nhập) ---
+                if ($user) {
                 try {
                     $notificationData = [
                         'title'       => 'Đặt hàng thành công',
@@ -107,11 +114,12 @@ class SendOrderEmails extends Command
                 } catch (\Exception $ex) {
                     Log::error("Save order notification failed for {$order->order_code}: " . $ex->getMessage());
                 }
+                } // end if ($user)
 
                 // ─── Bước 3: Đánh dấu đã gửi ───
                 $order->update(['email_sent' => true]);
 
-                $this->info("  ✅ Đơn {$order->order_code} → {$user->email}");
+                $this->info("  ✅ Đơn {$order->order_code} → {$recipientEmail}");
                 $successCount++;
 
             } catch (\Exception $e) {
@@ -132,10 +140,10 @@ class SendOrderEmails extends Command
      * Giữ nguyên template HTML gốc từ OrderController cũ,
      * nhưng dùng biến MAIL_* từ .env thay vì EMAIL_USER/EMAIL_PASS
      */
-    private function sendEmail(Order $order, $user): void
+    private function sendEmail(Order $order, string $recipientEmail): void
     {
-        $emailUser = env('MAIL_USERNAME', env('EMAIL_USER'));
-        $emailPass = env('MAIL_PASSWORD', env('EMAIL_PASS'));
+        $emailUser = config('mail.mailers.smtp.username') ?: config('services.email.username');
+        $emailPass = config('mail.mailers.smtp.password') ?: config('services.email.password');
 
         if (!$emailUser || !$emailPass) {
             throw new \RuntimeException('MAIL_USERNAME hoặc MAIL_PASSWORD chưa được cấu hình trong .env');
@@ -153,6 +161,9 @@ class SendOrderEmails extends Command
 
         // Load items nếu chưa có
         $order->loadMissing('items');
+
+        $actionUrl = $this->buildOrderActionUrl($order);
+        $actionLabel = $order->user_id ? 'Xem lịch sử đơn hàng' : 'Theo dõi đơn hàng';
 
         // Build HTML table cho các sản phẩm
         $itemsHtml = '';
@@ -205,10 +216,10 @@ class SendOrderEmails extends Command
                     <p><strong>Người nhận:</strong> ' . htmlspecialchars($order->recipient_name) . '</p>
                     <p><strong>Điện thoại:</strong> ' . htmlspecialchars($order->recipient_phone) . '</p>
                     <p><strong>Địa chỉ:</strong> ' . htmlspecialchars($order->shipping_address) . '</p>
-                    <p><strong>Phương thức TT:</strong> ' . strtoupper($order->payment_method) . '</p>
+                    <p><strong>Phương thức thanh toán:</strong> ' . strtoupper($order->payment_method) . '</p>
 
                     <div style="text-align: center; margin-top: 30px;">
-                        <a href="http://localhost:3302/profile/orders" style="background: #0288d1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Xem lịch sử đơn hàng</a>
+                        <a href="' . htmlspecialchars($actionUrl, ENT_QUOTES, 'UTF-8') . '" style="background: #0288d1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">' . htmlspecialchars($actionLabel, ENT_QUOTES, 'UTF-8') . '</a>
                     </div>
                 </div>
             </div>
@@ -218,10 +229,34 @@ class SendOrderEmails extends Command
 
         $emailMessage = (new \Symfony\Component\Mime\Email())
             ->from($emailUser)
-            ->to($user->email)
+            ->to($recipientEmail)
             ->subject('Xác nhận đơn hàng ' . $order->order_code . ' - Ocean Store')
             ->html($htmlBody);
 
         $mailer->send($emailMessage);
+    }
+
+    private function buildOrderActionUrl(Order $order): string
+    {
+        $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
+
+        if ($order->user_id) {
+            return $frontendUrl . '/profile/orders';
+        }
+
+        $token = $this->ensureTrackingToken($order);
+        return $token ? $frontendUrl . '/tracking/' . $token : $frontendUrl . '/tracking';
+    }
+
+    private function ensureTrackingToken(Order $order): ?string
+    {
+        if ($order->tracking_token) {
+            return $order->tracking_token;
+        }
+
+        $order->tracking_token = hash('sha256', $order->order_code . Str::random(40) . microtime(true));
+        $order->save();
+
+        return $order->tracking_token;
     }
 }

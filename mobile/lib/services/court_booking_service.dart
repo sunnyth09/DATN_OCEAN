@@ -97,7 +97,7 @@ class CourtBookingService {
     final response = await _dio.post('/court-bookings/$bookingId/payments', data: {
       'payment_method': paymentMethod,
       'payment_type': paymentType,
-      if (amount != null) 'amount': amount,
+      'amount': ?amount,
       if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
     });
     return Map<String, dynamic>.from(response.data['data'] ?? {});
@@ -148,7 +148,7 @@ class CourtBookingService {
     String? note,
   }) async {
     await _dio.post('/admin/court-bookings/$bookingId/check-out', data: {
-      if (paymentMethod != null) 'payment_method': paymentMethod,
+      'payment_method': ?paymentMethod,
       if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
     });
   }
@@ -163,7 +163,7 @@ class CourtBookingService {
     await _dio.post('/admin/court-bookings/$bookingId/payments', data: {
       'payment_method': paymentMethod,
       'payment_type': paymentType,
-      if (amount != null) 'amount': amount,
+      'amount': ?amount,
       if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
     });
   }

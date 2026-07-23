@@ -94,6 +94,8 @@ class AdminStaffController extends Controller
             'role' => 'required|in:admin,staff,seller',
         ]);
 
+        $oldEmail = $admin->email;
+
         $admin->update($request->only('full_name', 'email', 'role'));
 
         if ($request->filled('password')) {
@@ -102,14 +104,15 @@ class AdminStaffController extends Controller
         }
 
         // Sync to users table
-        $user = \App\Models\User::where('email', $admin->email)->first();
+        $user = \App\Models\User::where('email', $oldEmail)->first();
         if ($user) {
             $user->update([
                 'full_name' => $admin->full_name,
+                'email' => $admin->email,
                 'role' => $admin->role
             ]);
             if ($request->filled('password')) {
-                \App\Models\User::where('email', $admin->email)->update(['password' => $admin->password]);
+                $user->update(['password' => $admin->password]);
             }
         }
 

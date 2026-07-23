@@ -75,17 +75,20 @@ class CourtBookingWorkflowService
                 $request
             );
 
-            $eventName = $newStatus === 'cancelled' ? 'CourtBookingCancelled' : 'CourtBookingStatusChanged';
-            $this->broadcast($eventName, $booking, ['old_status' => $oldStatus, 'new_status' => $newStatus]);
-            $this->notifyUser($booking, $eventName, [
-                'old_status' => $oldStatus,
-                'new_status' => $newStatus,
-                'note' => $note,
-            ]);
+            // Side-effect realtime/notification chỉ chạy sau khi commit thành công.
+            DB::afterCommit(function () use ($booking, $newStatus, $oldStatus, $note) {
+                $eventName = $newStatus === 'cancelled' ? 'CourtBookingCancelled' : 'CourtBookingStatusChanged';
+                $this->broadcast($eventName, $booking, ['old_status' => $oldStatus, 'new_status' => $newStatus]);
+                $this->notifyUser($booking, $eventName, [
+                    'old_status' => $oldStatus,
+                    'new_status' => $newStatus,
+                    'note' => $note,
+                ]);
 
-            if ($newStatus === 'cancelled') {
-                $this->notifyAdmins($booking, 'cancelled');
-            }
+                if ($newStatus === 'cancelled') {
+                    $this->notifyAdmins($booking, 'cancelled');
+                }
+            });
 
             return $booking;
         });
@@ -114,27 +117,34 @@ class CourtBookingWorkflowService
             $updates['payment_status'] = $refundAmount >= $paidAmount ? 'refunded' : 'partially_refunded';
         }
 
-        $booking = $this->transition(
-            $booking,
-            'cancelled',
-            'user',
-            auth()->guard('api')->id(),
-            $updates['cancel_reason'],
-            $updates,
-            $request
-        );
+        // Gói việc đổi trạng thái + tạo bản ghi refund trong 1 transaction để tránh
+        // tình trạng booking đã 'refunded' nhưng không có CourtBookingPayment tương ứng
+        // (transition() tự mở transaction; ở đây transaction ngoài sẽ bao trọn nó).
+        $booking = DB::transaction(function () use ($booking, $updates, $request, $refundAmount, $feeAmount) {
+            $booking = $this->transition(
+                $booking,
+                'cancelled',
+                'user',
+                auth()->guard('api')->id(),
+                $updates['cancel_reason'],
+                $updates,
+                $request
+            );
 
-        if ($refundAmount > 0) {
-            CourtBookingPayment::create([
-                'booking_id'       => $booking->booking_id,
-                'payment_type'     => 'refund',
-                'payment_method'   => $booking->payment_method ?: 'cash',
-                'transaction_code' => 'RF-' . $booking->booking_code . '-' . Str::upper(Str::random(4)),
-                'amount'           => $refundAmount,
-                'status'           => 'pending',
-                'note'             => "Refund pending. Cancellation fee: {$feeAmount}",
-            ]);
-        }
+            if ($refundAmount > 0) {
+                CourtBookingPayment::create([
+                    'booking_id'       => $booking->booking_id,
+                    'payment_type'     => 'refund',
+                    'payment_method'   => $booking->payment_method ?: 'cash',
+                    'transaction_code' => 'RF-' . $booking->booking_code . '-' . Str::upper(Str::random(4)),
+                    'amount'           => $refundAmount,
+                    'status'           => 'pending',
+                    'note'             => "Refund pending. Cancellation fee: {$feeAmount}",
+                ]);
+            }
+
+            return $booking;
+        });
 
         // Gửi email thông báo hủy cho khách hàng
         $booking->loadMissing(['user', 'court']);
@@ -191,18 +201,22 @@ class CourtBookingWorkflowService
             }
 
             $this->logActivity('booking.payment.recorded', $booking, null, $payment->toArray(), $actorType, $actorId, $request);
-            $this->broadcast('CourtBookingPaymentUpdated', $booking, [
-                'payment_status' => $booking->payment_status,
-                'paid_amount' => $booking->paid_amount,
-            ]);
-            $this->notifyUser($booking, 'CourtBookingPaymentUpdated', [
-                'payment_status' => $booking->payment_status,
-                'paid_amount' => $booking->paid_amount,
-                'amount' => $payment->amount,
-                'payment_method' => $payment->payment_method,
-                'payment_type' => $payment->payment_type,
-                'payment_record_status' => $payment->status,
-            ]);
+
+            // Side-effect realtime/notification chỉ chạy sau khi commit thành công.
+            DB::afterCommit(function () use ($booking, $payment) {
+                $this->broadcast('CourtBookingPaymentUpdated', $booking, [
+                    'payment_status' => $booking->payment_status,
+                    'paid_amount' => $booking->paid_amount,
+                ]);
+                $this->notifyUser($booking, 'CourtBookingPaymentUpdated', [
+                    'payment_status' => $booking->payment_status,
+                    'paid_amount' => $booking->paid_amount,
+                    'amount' => $payment->amount,
+                    'payment_method' => $payment->payment_method,
+                    'payment_type' => $payment->payment_type,
+                    'payment_record_status' => $payment->status,
+                ]);
+            });
 
             return $payment;
         });

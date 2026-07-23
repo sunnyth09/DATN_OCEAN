@@ -9,6 +9,7 @@ use App\Models\ProductVariant;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Repositories\CartRepository;
+use Illuminate\Support\Facades\DB;
 
 class CartService
 {
@@ -119,46 +120,48 @@ class CartService
             return ['_status' => 422, 'status' => 'error', 'message' => 'Sản phẩm này hiện không khả dụng.'];
         }
 
-        $cart = $this->cartRepository->getOrCreateActiveCart($userId);
+        return DB::transaction(function () use ($userId, $data, $variant) {
+            $cart = $this->lockActiveCart($userId);
 
-        $existingItem = CartItem::where('cart_id', $cart->cart_id)
-            ->where('variant_id', $data['variant_id'])
-            ->first();
+            $existingItem = CartItem::where('cart_id', $cart->cart_id)
+                ->where('variant_id', $data['variant_id'])
+                ->first();
 
-        $newQuantity = $existingItem
-            ? $existingItem->quantity + $data['quantity']
-            : $data['quantity'];
+            $newQuantity = $existingItem
+                ? $existingItem->quantity + $data['quantity']
+                : $data['quantity'];
 
-        if ($newQuantity > $variant->stock) {
+            if ($newQuantity > $variant->stock) {
+                return [
+                    '_status'         => 422,
+                    'status'          => 'error',
+                    'message'         => "Số lượng vượt quá tồn kho. Chỉ còn {$variant->stock} sản phẩm.",
+                    'available_stock' => $variant->stock,
+                ];
+            }
+
+            if ($existingItem) {
+                $existingItem->update(['quantity' => $newQuantity]);
+                $message = 'Đã cập nhật số lượng trong giỏ hàng!';
+            } else {
+                CartItem::create([
+                    'cart_id'    => $cart->cart_id,
+                    'variant_id' => $data['variant_id'],
+                    'quantity'   => $data['quantity'],
+                    'selected'   => true,
+                ]);
+                $message = 'Đã thêm sản phẩm vào giỏ hàng!';
+            }
+
+            $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
+
             return [
-                '_status'         => 422,
-                'status'          => 'error',
-                'message'         => "Số lượng vượt quá tồn kho. Chỉ còn {$variant->stock} sản phẩm.",
-                'available_stock' => $variant->stock,
+                '_status'     => 200,
+                'status'      => 'success',
+                'message'     => $message,
+                'total_items' => $totalItems,
             ];
-        }
-
-        if ($existingItem) {
-            $existingItem->update(['quantity' => $newQuantity]);
-            $message = 'Đã cập nhật số lượng trong giỏ hàng!';
-        } else {
-            CartItem::create([
-                'cart_id'    => $cart->cart_id,
-                'variant_id' => $data['variant_id'],
-                'quantity'   => $data['quantity'],
-                'selected'   => true,
-            ]);
-            $message = 'Đã thêm sản phẩm vào giỏ hàng!';
-        }
-
-        $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
-
-        return [
-            '_status'     => 200,
-            'status'      => 'success',
-            'message'     => $message,
-            'total_items' => $totalItems,
-        ];
+        });
     }
 
     // ─── UPDATE ITEM ───────────────────────────────────────────────────
@@ -213,6 +216,69 @@ class CartService
         return ['_status' => 200, 'status' => 'success', 'message' => 'Đã xóa sản phẩm khỏi giỏ hàng!'];
     }
 
+    /**
+     * Đồng bộ giỏ hàng từ localStorage sau khi login (có stock capping và xử lý hết hàng)
+     */
+    public function syncCart(int $userId, array $items): array
+    {
+        return DB::transaction(function () use ($userId, $items) {
+            $cart = $this->lockActiveCart($userId);
+
+            // Batch-load variant + cart item theo variant_id (tránh N+1: trước đây mỗi
+            // vòng lặp bắn 2 query — 1 tìm variant, 1 tìm cart item).
+            $variantIds = collect($items)->pluck('variant_id')->filter()->unique()->values()->all();
+            $variants = ProductVariant::whereIn('variant_id', $variantIds)->get()->keyBy('variant_id');
+            $existingItems = CartItem::where('cart_id', $cart->cart_id)
+                ->whereIn('variant_id', $variantIds)
+                ->get()
+                ->keyBy('variant_id');
+
+            foreach ($items as $item) {
+                $variant = $variants->get($item['variant_id']);
+                if (!$variant || $variant->status !== 'active') {
+                    continue;
+                }
+
+                $existingItem = $existingItems->get($item['variant_id']);
+
+                $currentQty = $existingItem ? $existingItem->quantity : 0;
+                $targetQty = $currentQty + $item['quantity'];
+
+                if ($variant->stock <= 0) {
+                    if (!$existingItem) {
+                        $created = CartItem::create([
+                            'cart_id'    => $cart->cart_id,
+                            'variant_id' => $item['variant_id'],
+                            'quantity'   => 1,
+                            'selected'   => false,
+                        ]);
+                        // Ghi lại vào collection để item trùng variant_id sau trong payload thấy được.
+                        $existingItems->put($item['variant_id'], $created);
+                    }
+                } else {
+                    $finalQty = min($targetQty, $variant->stock);
+                    if ($existingItem) {
+                        $existingItem->update(['quantity' => $finalQty]);
+                    } else {
+                        $created = CartItem::create([
+                            'cart_id'    => $cart->cart_id,
+                            'variant_id' => $item['variant_id'],
+                            'quantity'   => $finalQty,
+                            'selected'   => true,
+                        ]);
+                        $existingItems->put($item['variant_id'], $created);
+                    }
+                }
+            }
+
+            return [
+                'status'  => 'success',
+                'message' => 'Đồng bộ giỏ hàng thành công!',
+                'count'   => $this->getCartCount($userId)
+            ];
+        });
+    }
+
     // ─── CLEAR CART ────────────────────────────────────────────────────
 
     /**
@@ -238,57 +304,59 @@ class CartService
      */
     public function changeVariant(int $userId, int $itemId, int $newVariantId): array
     {
-        $cartItem = $this->findOwnedCartItem($userId, $itemId);
-
-        if (!$cartItem) {
-            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy sản phẩm trong giỏ hàng.'];
-        }
-
         $newVariant = ProductVariant::find($newVariantId);
         if (!$newVariant || $newVariant->status !== 'active') {
             return ['_status' => 422, 'status' => 'error', 'message' => 'Biến thể sản phẩm không khả dụng.'];
         }
 
-        // Kiểm tra variant mới thuộc cùng sản phẩm
-        $oldVariant = ProductVariant::find($cartItem->variant_id);
-        if (!$oldVariant || $oldVariant->product_id !== $newVariant->product_id) {
-            return ['_status' => 422, 'status' => 'error', 'message' => 'Biến thể không hợp lệ.'];
-        }
+        return DB::transaction(function () use ($userId, $itemId, $newVariantId, $newVariant) {
+            $this->lockActiveCart($userId);
 
-        // Không thay đổi
-        if ($cartItem->variant_id == $newVariantId) {
-            return ['_status' => 200, 'status' => 'success', 'message' => 'Biến thể không thay đổi.'];
-        }
-
-        // Kiểm tra tồn kho
-        if ($cartItem->quantity > $newVariant->stock) {
-            return [
-                '_status'         => 422,
-                'status'          => 'error',
-                'message'         => "Số lượng vượt quá tồn kho. Chỉ còn {$newVariant->stock} sản phẩm.",
-                'available_stock' => $newVariant->stock,
-            ];
-        }
-
-        // Kiểm tra variant mới đã có sẵn trong giỏ (merge)
-        $cart = Cart::where('user_id', $userId)->where('status', 'active')->first();
-        $existingItem = CartItem::where('cart_id', $cart->cart_id)
-            ->where('variant_id', $newVariantId)
-            ->where('cart_item_id', '!=', $itemId)
-            ->first();
-
-        if ($existingItem) {
-            $mergedQty = $existingItem->quantity + $cartItem->quantity;
-            if ($mergedQty > $newVariant->stock) {
-                $mergedQty = $newVariant->stock;
+            $cartItem = $this->findOwnedCartItem($userId, $itemId);
+            if (!$cartItem) {
+                return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy sản phẩm trong giỏ hàng.'];
             }
-            $existingItem->update(['quantity' => $mergedQty]);
-            $cartItem->delete();
-        } else {
-            $cartItem->update(['variant_id' => $newVariantId]);
-        }
 
-        return ['_status' => 200, 'status' => 'success', 'message' => 'Đã cập nhật biến thể sản phẩm!'];
+            // Kiểm tra variant mới thuộc cùng sản phẩm
+            $oldVariant = ProductVariant::find($cartItem->variant_id);
+            if (!$oldVariant || $oldVariant->product_id !== $newVariant->product_id) {
+                return ['_status' => 422, 'status' => 'error', 'message' => 'Biến thể không hợp lệ.'];
+            }
+
+            // Không thay đổi
+            if ($cartItem->variant_id == $newVariantId) {
+                return ['_status' => 200, 'status' => 'success', 'message' => 'Biến thể không thay đổi.'];
+            }
+
+            // Kiểm tra tồn kho
+            if ($cartItem->quantity > $newVariant->stock) {
+                return [
+                    '_status'         => 422,
+                    'status'          => 'error',
+                    'message'         => "Số lượng vượt quá tồn kho. Chỉ còn {$newVariant->stock} sản phẩm.",
+                    'available_stock' => $newVariant->stock,
+                ];
+            }
+
+            // Kiểm tra variant mới đã có sẵn trong giỏ (merge)
+            $existingItem = CartItem::where('cart_id', $cartItem->cart_id)
+                ->where('variant_id', $newVariantId)
+                ->where('cart_item_id', '!=', $itemId)
+                ->first();
+
+            if ($existingItem) {
+                $mergedQty = $existingItem->quantity + $cartItem->quantity;
+                if ($mergedQty > $newVariant->stock) {
+                    $mergedQty = $newVariant->stock;
+                }
+                $existingItem->update(['quantity' => $mergedQty]);
+                $cartItem->delete();
+            } else {
+                $cartItem->update(['variant_id' => $newVariantId]);
+            }
+
+            return ['_status' => 200, 'status' => 'success', 'message' => 'Đã cập nhật biến thể sản phẩm!'];
+        });
     }
 
     // ─── CART COUNT ────────────────────────────────────────────────────
@@ -321,68 +389,80 @@ class CartService
         }
 
         $orderItems = OrderItem::where('order_id', $orderId)->get();
-        $cart = $this->cartRepository->getOrCreateActiveCart($userId);
-        $totalAdded = 0;
-        $errorMessages = [];
 
-        foreach ($orderItems as $orderItem) {
-            $variant = ProductVariant::find($orderItem->variant_id);
-            if (!$variant || $variant->status !== 'active') {
-                $name = $orderItem->product_name;
-                if ($orderItem->variant_name) {
-                    $name .= ' (' . $orderItem->variant_name . ')';
+        return DB::transaction(function () use ($userId, $orderItems) {
+            $cart = $this->lockActiveCart($userId);
+            $totalAdded = 0;
+            $errorMessages = [];
+
+            // Batch-load variant + cart item theo variant_id (tránh N+1: trước đây mỗi
+            // vòng lặp bắn 2 query — 1 tìm variant, 1 tìm cart item).
+            $variantIds = $orderItems->pluck('variant_id')->filter()->unique()->values()->all();
+            $variants = ProductVariant::whereIn('variant_id', $variantIds)->get()->keyBy('variant_id');
+            $existingItems = CartItem::where('cart_id', $cart->cart_id)
+                ->whereIn('variant_id', $variantIds)
+                ->get()
+                ->keyBy('variant_id');
+
+            foreach ($orderItems as $orderItem) {
+                $variant = $variants->get($orderItem->variant_id);
+                if (!$variant || $variant->status !== 'active') {
+                    $name = $orderItem->product_name;
+                    if ($orderItem->variant_name) {
+                        $name .= ' (' . $orderItem->variant_name . ')';
+                    }
+                    $errorMessages[] = "Sản phẩm " . $name . " hiện không còn bán.";
+                    continue;
                 }
-                $errorMessages[] = "Sản phẩm " . $name . " hiện không còn bán.";
-                continue;
-            }
 
-            $existingItem = CartItem::where('cart_id', $cart->cart_id)
-                ->where('variant_id', $variant->variant_id)
-                ->first();
+                $existingItem = $existingItems->get($variant->variant_id);
 
-            $newQuantity = $existingItem
-                ? $existingItem->quantity + $orderItem->quantity
-                : $orderItem->quantity;
+                $newQuantity = $existingItem
+                    ? $existingItem->quantity + $orderItem->quantity
+                    : $orderItem->quantity;
 
-            if ($newQuantity > $variant->stock) {
-                $name = $orderItem->product_name;
-                if ($orderItem->variant_name) {
-                    $name .= ' (' . $orderItem->variant_name . ')';
+                if ($newQuantity > $variant->stock) {
+                    $name = $orderItem->product_name;
+                    if ($orderItem->variant_name) {
+                        $name .= ' (' . $orderItem->variant_name . ')';
+                    }
+                    $errorMessages[] = "Số lượng vượt quá tồn kho cho sản phẩm " . $name . ".";
+                    continue;
                 }
-                $errorMessages[] = "Số lượng vượt quá tồn kho cho sản phẩm " . $name . ".";
-                continue;
+
+                if ($existingItem) {
+                    $existingItem->update(['quantity' => $newQuantity]);
+                } else {
+                    $created = CartItem::create([
+                        'cart_id'    => $cart->cart_id,
+                        'variant_id' => $variant->variant_id,
+                        'quantity'   => $orderItem->quantity,
+                        'selected'   => true,
+                    ]);
+                    // Cập nhật collection để item trùng variant sau đó cộng dồn đúng.
+                    $existingItems->put($variant->variant_id, $created);
+                }
+                $totalAdded++;
             }
 
-            if ($existingItem) {
-                $existingItem->update(['quantity' => $newQuantity]);
-            } else {
-                CartItem::create([
-                    'cart_id'    => $cart->cart_id,
-                    'variant_id' => $variant->variant_id,
-                    'quantity'   => $orderItem->quantity,
-                    'selected'   => true,
-                ]);
+            $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
+
+            if ($totalAdded === 0 && count($errorMessages) > 0) {
+                return [
+                    '_status' => 422,
+                    'status'  => 'error',
+                    'message' => implode(' ', $errorMessages),
+                ];
             }
-            $totalAdded++;
-        }
 
-        $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
-
-        if ($totalAdded === 0 && count($errorMessages) > 0) {
             return [
-                '_status' => 422,
-                'status'  => 'error',
-                'message' => implode(' ', $errorMessages),
+                '_status'     => 200,
+                'status'      => 'success',
+                'message'     => 'Đã thêm ' . $totalAdded . ' sản phẩm vào giỏ hàng!',
+                'errors'      => $errorMessages,
+                'total_items' => $totalItems,
             ];
-        }
-
-        return [
-            '_status'     => 200,
-            'status'      => 'success',
-            'message'     => 'Đã thêm ' . $totalAdded . ' sản phẩm vào giỏ hàng!',
-            'errors'      => $errorMessages,
-            'total_items' => $totalItems,
-        ];
+        });
     }
 
     // ─── UPSELL SUGGESTIONS ────────────────────────────────────────────
@@ -443,7 +523,7 @@ class CartService
             ->whereNotIn('product_id', $cartProductIds)
             ->where(function ($q) use ($topMaxPrice) {
                 $q->where('min_price', '<', $topMaxPrice)
-                  ->orWhere('max_price', '<', $topMaxPrice);
+                    ->orWhere('max_price', '<', $topMaxPrice);
             })
             ->whereHas('variants', function ($q) {
                 $q->where('status', 'active')->where('stock', '>', 0);
@@ -451,8 +531,8 @@ class CartService
             ->with([
                 'variants' => function ($q) {
                     $q->where('status', 'active')
-                      ->where('stock', '>', 0)
-                      ->orderBy('price', 'asc');
+                        ->where('stock', '>', 0)
+                        ->orderBy('price', 'asc');
                 },
                 'mainImage',
             ])
@@ -493,6 +573,18 @@ class CartService
     }
 
     // ─── PRIVATE HELPERS ───────────────────────────────────────────────
+
+    /**
+     * Lấy (hoặc tạo) cart active rồi khóa row để serialize các request đồng thời
+     * cùng một user. Phải gọi trong DB::transaction. Chống lost-update khi cộng dồn
+     * quantity: 2 request song song đọc quantity cũ rồi ghi đè lẫn nhau.
+     */
+    private function lockActiveCart(int $userId): Cart
+    {
+        $cart = $this->cartRepository->getOrCreateActiveCart($userId);
+
+        return Cart::where('cart_id', $cart->cart_id)->lockForUpdate()->first();
+    }
 
     /**
      * Tìm cart item và kiểm tra quyền sở hữu

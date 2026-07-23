@@ -6,6 +6,7 @@ use App\Models\Ticket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class TicketController extends Controller
 {
@@ -41,10 +42,10 @@ class TicketController extends Controller
                 'data' => $tickets
             ]);
         } catch (\Exception $e) {
+            Log::error('Ticket list error: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
                 'message' => 'Lỗi khi lấy danh sách khiếu nại',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -114,10 +115,10 @@ class TicketController extends Controller
                 'data' => $ticket
             ]);
         } catch (\Exception $e) {
+            Log::error('Ticket update error: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
                 'message' => 'Lỗi khi cập nhật khiếu nại',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -180,10 +181,10 @@ class TicketController extends Controller
                 'data' => $ticket
             ], 201);
         } catch (\Exception $e) {
+            Log::error('Ticket create error: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
                 'message' => 'Lỗi khi tạo khiếu nại',
-                'error' => $e->getMessage()
             ], 500);
         }
     }
@@ -202,10 +203,10 @@ class TicketController extends Controller
                 'data' => $tickets
             ]);
         } catch (\Exception $e) {
+            Log::error('Ticket list error: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
                 'message' => 'Lỗi khi lấy danh sách khiếu nại',
-                'error' => $e->getMessage()
             ], 500);
         }
     }

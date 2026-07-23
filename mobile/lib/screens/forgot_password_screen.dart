@@ -1,10 +1,7 @@
-import 'dart:convert';
-import '../config/app_theme.dart';
+import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../config/app_config.dart';
-
-String get kBaseUrl => AppConfig.kBaseUrl;
+import '../services/api_client.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -14,6 +11,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 }
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  static final RegExp _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
   int _currentStep = 0; // 0: email, 1: otp, 2: reset password
   bool _isLoading = false;
 
@@ -21,6 +19,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _otpCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
+
+  // Token tạm backend cấp sau khi verify OTP; bước reset phải gửi token này.
+  String? _resetToken;
 
   @override
   void dispose() {
@@ -33,28 +34,51 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _sendOtp() async {
     final email = _emailCtrl.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập email hợp lệ!'), backgroundColor: Colors.orange));
+    if (email.isEmpty || !_emailPattern.hasMatch(email)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập email hợp lệ!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/forgot-password/send-otp'),
-        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email}),
+      await ApiClient().dio.post(
+        '/forgot-password/send-otp',
+        data: {'email': email},
       );
 
-      if (response.statusCode == 200) {
-        setState(() => _currentStep = 1);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mã OTP đã được gửi đến email của bạn!'), backgroundColor: Colors.green));
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Lỗi gửi OTP!'), backgroundColor: Colors.red));
+      setState(() => _currentStep = 1);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mã OTP đã được gửi đến email của bạn!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message ?? 'Lỗi gửi OTP!'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể kết nối máy chủ!'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể kết nối máy chủ!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -63,27 +87,53 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Future<void> _verifyOtp() async {
     final otp = _otpCtrl.text.trim();
     if (otp.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập mã OTP!'), backgroundColor: Colors.orange));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập mã OTP!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/forgot-password/verify-otp'),
-        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
-        body: jsonEncode({'email': _emailCtrl.text.trim(), 'otp': otp}),
+      final res = await ApiClient().dio.post(
+        '/forgot-password/verify-otp',
+        data: {'email': _emailCtrl.text.trim(), 'otp': otp},
       );
 
-      if (response.statusCode == 200) {
-        setState(() => _currentStep = 2);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Xác thực OTP thành công!'), backgroundColor: Colors.green));
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Mã OTP không chính xác!'), backgroundColor: Colors.red));
+      final data = res.data;
+      _resetToken = data is Map ? data['reset_token'] as String? : null;
+
+      setState(() => _currentStep = 2);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Xác thực OTP thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message ?? 'Mã OTP không chính xác!'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể kết nối máy chủ!'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể kết nối máy chủ!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -94,38 +144,64 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final confirm = _confirmPasswordCtrl.text;
 
     if (password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mật khẩu phải từ 6 ký tự!'), backgroundColor: Colors.orange));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mật khẩu phải từ 6 ký tự!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
     if (password != confirm) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mật khẩu xác nhận không khớp!'), backgroundColor: Colors.orange));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mật khẩu xác nhận không khớp!'),
+          backgroundColor: Colors.orange,
+        ),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
     try {
-      final response = await http.post(
-        Uri.parse('$kBaseUrl/forgot-password/reset'),
-        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
-        body: jsonEncode({
+      await ApiClient().dio.post(
+        '/forgot-password/reset',
+        data: {
           'email': _emailCtrl.text.trim(),
-          'otp': _otpCtrl.text.trim(),
+          'reset_token': _resetToken,
           'password': password,
-          'password_confirmation': confirm
-        }),
+          'password_confirmation': confirm,
+        },
       );
 
-      if (response.statusCode == 200) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đổi mật khẩu thành công! Hãy đăng nhập lại.'), backgroundColor: Colors.green));
-          Navigator.pop(context); // Quay về màn login
-        }
-      } else {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Lỗi đặt lại mật khẩu!'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đổi mật khẩu thành công! Hãy đăng nhập lại.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.pop(); // Quay về màn login
+      }
+    } on DioException catch (e) {
+      final message = e.response?.data is Map ? e.response?.data['message'] : null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message ?? 'Lỗi đặt lại mật khẩu!'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể kết nối máy chủ!'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Không thể kết nối máy chủ!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -148,16 +224,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             children: [
               const Text(
                 'Quên Mật Khẩu',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
               ),
               const SizedBox(height: 12),
               Text(
                 _currentStep == 0
                     ? 'Nhập địa chỉ email của bạn để nhận mã OTP'
                     : _currentStep == 1
-                        ? 'Nhập mã OTP 6 số đã được gửi đến email ${_emailCtrl.text}'
-                        : 'Vui lòng thiết lập mật khẩu mới',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.5),
+                    ? 'Nhập mã OTP 6 số đã được gửi đến email ${_emailCtrl.text}'
+                    : 'Vui lòng thiết lập mật khẩu mới',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF64748B),
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 32),
 
@@ -185,7 +269,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 Center(
                   child: TextButton(
                     onPressed: _isLoading ? null : _sendOtp,
-                    child: const Text('Gửi lại mã OTP', style: TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Gửi lại mã OTP',
+                      style: TextStyle(
+                        color: Color(0xFFE63B6F),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ] else ...[
@@ -225,7 +315,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF0F172A))),
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: Color(0xFF0F172A),
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
@@ -239,8 +336,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             keyboardType: keyboardType,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-              prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+              hintStyle: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 14,
+              ),
+              prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 16),
             ),
@@ -260,11 +360,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           backgroundColor: const Color(0xFFE63B6F),
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
         child: _isLoading
-            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                text,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
       ),
     );
   }

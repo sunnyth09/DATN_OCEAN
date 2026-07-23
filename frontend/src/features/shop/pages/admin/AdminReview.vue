@@ -1,0 +1,966 @@
+<script setup>
+import { ref, nextTick, onMounted, watch } from 'vue';
+import api from '@/axios';
+import { Toast } from 'bootstrap';
+import Swal from 'sweetalert2';
+import AppIcon from '@/icons/AppIcon.vue';
+import { getAbsoluteUrl, getStorageUrl } from '@/utils/url';
+
+const toastData = ref({ message: '', type: 'success' });
+const showToast = (message, type = 'success') => {
+  toastData.value = { message, type };
+  nextTick(() => {
+    const el = document.getElementById('reviewToast');
+    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
+  });
+};
+const toast = {
+  success: (msg) => showToast(msg, 'success'),
+  error: (msg) => showToast(msg, 'danger'),
+};
+
+const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
+
+// ─── Mode State ───────────────────────────────────────────────────────────────────
+const viewMode = ref('reviews'); // 'reviews' | 'tickets'
+
+// ─── Shared Helpers ───────────────────────────────────────────────────────────────
+const formatDate = (d) => d ? new Date(d).toLocaleString('vi-VN', {
+  day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+}) : '—';
+const avatarUrl = (path) => {
+  if (!path) return 'https://ui-avatars.com/api/?name=U&background=1d4ed8&color=fff&size=40';
+  return getAbsoluteUrl(path);
+};
+const thumbUrl = (path) => {
+  if (!path) return 'https://via.placeholder.com/48x48?text=SP';
+  return getStorageUrl(path);
+};
+
+// ─── Review State & Logic ─────────────────────────────────────────────────────────
+const reviews    = ref([]);
+const reviewLoading = ref(true);
+const reviewSearchQuery = ref('');
+const reviewFilterStatus = ref('all');   // 'all' | 'approved' | 'pending'
+const filterRating = ref('');      // '' | 1-5
+const reviewPagination = ref({ current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null, total: 0 });
+
+const fetchReviews = async (page = 1) => {
+  reviewLoading.value = true;
+  try {
+    const res = await api.get('/admin/reviews', {
+      params: {
+        page,
+        status: reviewFilterStatus.value,
+        rating: filterRating.value || undefined,
+        search: reviewSearchQuery.value || undefined,
+      }
+    });
+    if (res.data.status === 'success') {
+      reviews.value = res.data.data.data;
+      const d = res.data.data;
+      reviewPagination.value = {
+        current_page: d.current_page,
+        last_page:    d.last_page,
+        prev_page_url: d.prev_page_url,
+        next_page_url: d.next_page_url,
+        total: d.total,
+      };
+    }
+  } catch (e) {
+    console.error(e);
+    toast.error('Không thể tải danh sách đánh giá');
+  } finally {
+    reviewLoading.value = false;
+  }
+};
+
+const applyReviewFilter = () => fetchReviews(1);
+const changeReviewPage = (p) => {
+  if (p >= 1 && p <= reviewPagination.value.last_page) fetchReviews(p);
+};
+
+const toggleApprove = async (review) => {
+  const endpoint = review.is_approved ? 'reject' : 'approve';
+  const label    = review.is_approved ? 'Ẩn'    : 'Duyệt';
+
+  const result = await Swal.fire({
+      title: 'Xác nhận',
+      text: `${label} đánh giá này?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+  });
+  if (!result.isConfirmed) return;
+
+  try {
+    await api.put(`/admin/reviews/${review.comment_id}/${endpoint}`);
+    review.is_approved = review.is_approved ? 0 : 1;
+    toast.success(`Đã ${label.toLowerCase()} đánh giá thành công!`);
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Thao tác thất bại');
+  }
+};
+
+const deleteReview = async (review) => {
+  const result = await Swal.fire({
+      title: 'Khuyến cáo',
+      text: 'Xóa đánh giá này? Hành động này không thể hoàn tác!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy'
+  });
+  if (!result.isConfirmed) return;
+
+  try {
+    await api.delete(`/admin/reviews/${review.comment_id}`);
+    reviews.value = reviews.value.filter(r => r.comment_id !== review.comment_id);
+    reviewPagination.value.total = Math.max(0, reviewPagination.value.total - 1);
+    toast.success('Đã xóa đánh giá!');
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Xóa thất bại');
+  }
+};
+
+// ─── Ticket State & Logic ─────────────────────────────────────────────────────────
+const tickets = ref([]);
+const ticketLoading = ref(false);
+const actionLoading = ref(false);
+const ticketSearchQuery = ref('');
+const ticketFilterStatus = ref('all');
+
+const showTicketModal = ref(false);
+const selectedTicket = ref(null);
+const replyContent = ref('');
+const updateStatus = ref('pending');
+
+const fetchTickets = async () => {
+  ticketLoading.value = true;
+  try {
+    const res = await api.get('/admin/tickets', {
+      params: {
+        search: ticketSearchQuery.value,
+        status: ticketFilterStatus.value
+      }
+    });
+    if (res.data.status === 'success') {
+      tickets.value = res.data.data.data || [];
+    }
+  } catch (error) {
+    console.error("Lỗi lấy danh sách khiếu nại:", error);
+    toast.error('Không thể lấy danh sách khiếu nại');
+  } finally {
+    ticketLoading.value = false;
+  }
+};
+
+const applyTicketFilter = () => fetchTickets();
+
+const getStatusText = (status) => {
+  const map = { 'pending': 'Chờ xử lý', 'processing': 'Đang xử lý', 'resolved': 'Đã giải quyết', 'closed': 'Đã đóng' };
+  return map[status] || status;
+};
+
+const openTicketModal = (ticket) => {
+  selectedTicket.value = ticket;
+  replyContent.value = ticket.admin_reply || '';
+  updateStatus.value = ticket.status;
+  showTicketModal.value = true;
+};
+
+const closeTicketModal = () => {
+  showTicketModal.value = false;
+  selectedTicket.value = null;
+};
+
+const submitReply = async () => {
+  if (!selectedTicket.value) return;
+  actionLoading.value = true;
+  try {
+    const res = await api.put(`/admin/tickets/${selectedTicket.value.ticket_id}`, {
+      status: updateStatus.value,
+      admin_reply: replyContent.value
+    });
+
+    if (res.data.status === 'success') {
+      toast.success('Đã cập nhật khiếu nại');
+      closeTicketModal();
+      fetchTickets();
+    }
+  } catch (error) {
+    console.error("Lỗi cập nhật:", error);
+    toast.error('Có lỗi xảy ra khi cập nhật');
+  } finally {
+    actionLoading.value = false;
+  }
+};
+
+const openImage = (path) => {
+  window.open(thumbUrl(path), '_blank');
+};
+
+watch(viewMode, (newVal) => {
+  if (newVal === 'reviews' && reviews.value.length === 0) fetchReviews();
+  else if (newVal === 'tickets' && tickets.value.length === 0) fetchTickets();
+});
+
+onMounted(() => {
+  fetchReviews();
+});
+</script>
+
+<template>
+  <div class="admin-reviews">
+    <!-- Header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Quản lý Đánh giá & Khiếu nại</h1>
+        <p class="page-subtitle">Kiểm duyệt đánh giá sản phẩm và xử lý khiếu nại từ khách hàng</p>
+      </div>
+      <div class="header-badge">
+        <span v-if="viewMode === 'reviews'">{{ reviewPagination.total }} đánh giá</span>
+        <span v-else>{{ tickets.length }} khiếu nại</span>
+      </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="filters-bar">
+      <!-- Mode tabs (Review/Ticket) -->
+      <div class="filter-tabs mode-tabs" style="margin-right: auto; padding-right: 12px; border-right: 1px solid #e9ecef;">
+        <button class="tab-btn" :class="{ 'tab-btn--active': viewMode === 'reviews' }" @click="viewMode = 'reviews'">
+           Đánh giá
+        </button>
+        <button class="tab-btn" :class="{ 'tab-btn--active': viewMode === 'tickets' }" @click="viewMode = 'tickets'">
+           Khiếu nại
+        </button>
+      </div>
+
+      <!-- Search -->
+      <div class="search-wrap">
+        <AppIcon name="search" size="16" class="search-icon" />
+        <input
+          v-if="viewMode === 'reviews'"
+          v-model="reviewSearchQuery"
+          type="text"
+          placeholder="Tìm sản phẩm hoặc khách hàng..."
+          class="search-input"
+          @keyup.enter="applyReviewFilter"
+        />
+        <input
+          v-else
+          v-model="ticketSearchQuery"
+          type="text"
+          placeholder="Tìm mã đơn, tên, lý do..."
+          class="search-input"
+          @keyup.enter="applyTicketFilter"
+        />
+      </div>
+
+      <!-- Status tabs for Reviews -->
+      <div v-if="viewMode === 'reviews'" class="filter-tabs">
+        <button v-for="tab in [{ v:'all', l:'Tất cả' }, { v:'approved', l:'Đã duyệt' }, { v:'pending', l:'Chờ duyệt' }]"
+          :key="tab.v"
+          class="tab-btn"
+          :class="{ 'tab-btn--active': reviewFilterStatus === tab.v }"
+          @click="reviewFilterStatus = tab.v; applyReviewFilter()"
+        >{{ tab.l }}</button>
+      </div>
+
+      <!-- Status tabs for Tickets -->
+      <div v-if="viewMode === 'tickets'" class="filter-tabs">
+        <button v-for="tab in [{ v:'all', l:'Tất cả' }, { v:'pending', l:'Chờ xử lý' }, { v:'processing', l:'Đang xử lý' }, { v:'resolved', l:'Đã giải quyết' }, { v:'closed', l:'Đã đóng' }]"
+          :key="tab.v"
+          class="tab-btn"
+          :class="{ 'tab-btn--active': ticketFilterStatus === tab.v }"
+          @click="ticketFilterStatus = tab.v; applyTicketFilter()"
+        >{{ tab.l }}</button>
+      </div>
+
+      <!-- Star filter (Only Reviews) -->
+      <div v-if="viewMode === 'reviews'" class="star-filter">
+        <button
+          v-for="s in [0, 5, 4, 3, 2, 1]"
+          :key="s"
+          class="star-btn"
+          :class="{ 'star-btn--active': filterRating == s && s > 0 || (s === 0 && !filterRating) }"
+          @click="filterRating = s > 0 ? s : ''; applyReviewFilter()"
+        >
+          <template v-if="s > 0">{{ s }} ⭐</template>
+          <template v-else>Tất cả ⭐</template>
+        </button>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!--                 REVIEW VIEW                -->
+    <!-- ========================================== -->
+    <template v-if="viewMode === 'reviews'">
+      <div v-if="reviewLoading" class="loading-state">
+        <div class="spinner"></div>
+        <span>Đang tải đánh giá...</span>
+      </div>
+
+      <div v-else class="table-wrap">
+        <table class="review-table">
+          <thead>
+            <tr>
+              <th>Sản phẩm</th>
+              <th>Khách hàng</th>
+              <th>Đánh giá</th>
+              <th>Nội dung</th>
+              <th>Ngày gửi</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="reviews.length === 0">
+              <td colspan="7" class="empty-cell">
+                <div class="empty-state">
+                  <p>Không có đánh giá nào phù hợp</p>
+                </div>
+              </td>
+            </tr>
+
+            <tr v-for="r in reviews" :key="r.comment_id" class="review-row" :class="{ 'row--pending': !r.is_approved }">
+              <!-- Sản phẩm -->
+              <td>
+                <div class="product-cell">
+                  <img :src="thumbUrl(r.product?.thumbnail_url)" class="product-thumb" alt="" />
+                  <span class="product-name">{{ r.product?.name || '—' }}</span>
+                </div>
+              </td>
+              <!-- Khách hàng -->
+              <td>
+                <div class="user-cell">
+                  <img :src="avatarUrl((r.commenter_info || r.user)?.avatar_url)" class="user-avatar" alt="" />
+                  <div>
+                    <div class="user-name">{{ (r.commenter_info || r.user)?.full_name || 'Ẩn danh' }}</div>
+                    <div class="user-email">{{ (r.commenter_info || r.user)?.email || '' }}</div>
+                  </div>
+                </div>
+              </td>
+              <!-- Stars -->
+              <td>
+                <div class="stars-row">
+                  <span v-for="s in 5" :key="s" class="star" :class="{ 'star--filled': s <= r.rating }">★</span>
+                </div>
+                <span class="rating-num">{{ r.rating }}/5</span>
+              </td>
+              <!-- Nội dung -->
+              <td>
+                <p class="review-content">{{ r.content || '(Không có nội dung)' }}</p>
+              </td>
+              <!-- Ngày -->
+              <td class="date-cell">{{ formatDate(r.created_at) }}</td>
+              <!-- Trạng thái -->
+              <td>
+                <span class="status-badge" :class="r.is_approved ? 'badge--approved' : 'badge--pending'">
+                  {{ r.is_approved ? 'Đã duyệt' : 'Chờ duyệt' }}
+                </span>
+              </td>
+              <!-- Thao tác -->
+              <td>
+                <div class="action-btns">
+                  <button class="btn-action" :class="r.is_approved ? 'btn-warn' : 'btn-success'" :title="r.is_approved ? 'Ẩn đánh giá' : 'Duyệt đánh giá'" @click="toggleApprove(r)">
+                    {{ r.is_approved ? 'Ẩn' : 'Duyệt' }}
+                  </button>
+                  <button class="btn-action btn-danger" title="Xóa" @click="deleteReview(r)">
+                    Xóa
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination" v-if="reviewPagination.last_page > 1">
+        <button class="page-btn" :disabled="!reviewPagination.prev_page_url" @click="changeReviewPage(reviewPagination.current_page - 1)">← Trước</button>
+        <span class="page-info">Trang {{ reviewPagination.current_page }} / {{ reviewPagination.last_page }}</span>
+        <button class="page-btn" :disabled="!reviewPagination.next_page_url" @click="changeReviewPage(reviewPagination.current_page + 1)">Tiếp →</button>
+      </div>
+    </template>
+
+
+    <!-- ========================================== -->
+    <!--                 TICKET VIEW                -->
+    <!-- ========================================== -->
+    <template v-if="viewMode === 'tickets'">
+      <div v-if="ticketLoading" class="loading-state">
+        <div class="spinner"></div>
+        <span>Đang tải khiếu nại...</span>
+      </div>
+
+      <div v-else class="table-wrap">
+        <table class="review-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Khách hàng</th>
+              <th>Mã đơn</th>
+              <th>Lý do</th>
+              <th>Ngày gửi</th>
+              <th>Trạng thái</th>
+              <th class="text-right">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="tickets.length === 0">
+              <td colspan="7" class="empty-cell">
+                <div class="empty-state">
+                  <p>Không có khiếu nại nào phù hợp</p>
+                </div>
+              </td>
+            </tr>
+
+            <tr v-for="ticket in tickets" :key="ticket.ticket_id" class="review-row">
+              <td>#{{ ticket.ticket_id }}</td>
+              <td>
+                <div class="user-cell">
+                  <div>
+                    <div class="user-name">{{ ticket.user?.full_name || 'Khách' }}</div>
+                    <div class="user-email">{{ ticket.user?.email }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span v-if="ticket.order" class="order-code">#{{ ticket.order.order_code }}</span>
+                <span v-else class="text-muted">-</span>
+              </td>
+              <td>
+                <div class="reason-text" :title="ticket.reason">{{ ticket.reason }}</div>
+              </td>
+              <td class="date-cell">{{ formatDate(ticket.created_at) }}</td>
+              <td>
+                <span class="status-badge-ticket" :class="ticket.status">
+                  {{ getStatusText(ticket.status) }}
+                </span>
+              </td>
+              <td class="text-right">
+                <div class="action-btns" style="align-items: flex-end;">
+                  <button
+                    class="btn-action"
+                    :class="['pending', 'processing'].includes(ticket.status) ? 'btn-primary-action' : 'btn-view'"
+                    @click="openTicketModal(ticket)"
+                  >
+                    {{ ['pending', 'processing'].includes(ticket.status) ? 'Xử lý' : 'Xem' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+
+    <!-- Bootstrap Toast -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
+      <div class="toast align-items-center border-0" :class="toastData.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="reviewToast" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">{{ toastData.message }}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ticket Detail/Reply Modal -->
+    <Transition name="modal">
+      <div v-if="showTicketModal && selectedTicket" class="modal-overlay" @click.self="closeTicketModal">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>Chi tiết Khiếu nại #{{ selectedTicket.ticket_id }}</h3>
+            <button class="btn-close-modal" @click="closeTicketModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="info-grid">
+              <div class="info-group">
+                <label>Khách hàng:</label>
+                <p>{{ selectedTicket.user?.full_name }} ({{ selectedTicket.user?.email }})</p>
+              </div>
+              <div class="info-group">
+                <label>Đơn hàng:</label>
+                <p>
+                  <span v-if="selectedTicket.order" class="order-code">#{{ selectedTicket.order.order_code }}</span>
+                  <span v-else>Không xác định</span>
+                </p>
+              </div>
+              <div class="info-group">
+                <label>Ngày gửi:</label>
+                <p>{{ formatDate(selectedTicket.created_at) }}</p>
+              </div>
+              <div class="info-group">
+                <label>Trạng thái hiện tại:</label>
+                <p>
+                   <span class="status-badge-ticket" :class="selectedTicket.status">
+                    {{ getStatusText(selectedTicket.status) }}
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div class="ticket-content">
+              <h4>Lý do: {{ selectedTicket.reason }}</h4>
+              <div class="description-box">
+                {{ selectedTicket.description }}
+              </div>
+              <div class="image-box" v-if="selectedTicket.image_url">
+                 <p><strong>Ảnh minh chứng:</strong></p>
+                 <img :src="thumbUrl(selectedTicket.image_url)" alt="Minh chứng" class="evidence-img" @click="openImage(selectedTicket.image_url)">
+              </div>
+            </div>
+
+            <div class="reply-section">
+              <h4>Phản hồi từ Admin</h4>
+              <textarea
+                v-model="replyContent"
+                placeholder="Nhập nội dung phản hồi cho khách hàng..."
+                class="reply-input"
+                rows="4"
+              ></textarea>
+
+              <div class="status-update mt-3">
+                <label>Cập nhật trạng thái:</label>
+                <select v-model="updateStatus" class="filter-select w-100">
+                  <option value="pending">Chờ xử lý</option>
+                  <option value="processing">Đang xử lý</option>
+                  <option value="resolved">Đã giải quyết</option>
+                  <option value="closed">Đã đóng</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="closeTicketModal">Đóng</button>
+            <button class="btn btn-primary" @click="submitReply" :disabled="actionLoading">
+              <span v-if="actionLoading" class="spinner-small"></span>
+              <span v-else>Cập nhật & Phản hồi</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </div>
+</template>
+
+<style scoped>
+.admin-reviews {
+  padding: 28px;
+  min-height: calc(100vh - 70px);
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.page-subtitle {
+  color: #6c757d;
+  font-size: 0.92rem;
+  margin: 0;
+}
+.header-badge {
+  background: #1d4ed8;
+  color: #fff;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+
+.search-wrap {
+  position: relative;
+  flex: 1 1 220px;
+}
+.search-icon {
+  position: absolute;
+  top: 50%; left: 12px;
+  transform: translateY(-50%);
+  color: #aaa;
+}
+.search-input {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border 0.2s;
+}
+.search-input:focus { border-color: #1d4ed8; }
+
+.filter-tabs {
+  display: flex;
+  gap: 6px;
+}
+.tab-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  background: var(--card-bg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #495057;
+}
+.tab-btn:hover { background: #f0f4ff; border-color: #1d4ed8; color: #1d4ed8; }
+.tab-btn--active { background: #1d4ed8 !important; color: #fff !important; border-color: #1d4ed8 !important; }
+
+.star-filter {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.star-btn {
+  padding: 5px 11px;
+  border-radius: 7px;
+  border: 1px solid #dee2e6;
+  background: var(--card-bg);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #555;
+}
+.star-btn:hover { border-color: #f59e0b; color: #f59e0b; }
+.star-btn--active { background: #fef9c3 !important; border-color: #f59e0b !important; color: #b45309 !important; font-weight: 600; }
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 60px;
+  color: #6c757d;
+}
+.spinner {
+  width: 28px; height: 28px;
+  border: 3px solid #dee2e6;
+  border-top-color: #1d4ed8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.table-wrap {
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  overflow: hidden;
+}
+.review-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.review-table thead tr {
+  background: var(--surface-container);
+}
+.review-table th {
+  padding: 13px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.83rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e9ecef;
+  white-space: nowrap;
+}
+.review-row {
+  border-bottom: 1px solid #f0f2f5;
+  transition: background 0.15s;
+}
+.review-row:hover { background: #fafbff; }
+.review-row.row--pending { background: #fffbeb; }
+.review-table td {
+  padding: 13px 16px;
+  vertical-align: middle;
+  color: #374151;
+}
+
+/* Product cell */
+.product-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 160px;
+  max-width: 210px;
+}
+.product-thumb {
+  width: 46px; height: 46px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.product-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-main);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* User cell */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 140px;
+}
+.user-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.user-name { font-weight: 500; font-size: 0.88rem; }
+.user-email { font-size: 0.78rem; color: var(--text-light); }
+
+/* Stars */
+.stars-row { display: flex; gap: 1px; }
+.star { font-size: 1rem; color: #d1d5db; }
+.star--filled { color: #f59e0b; }
+.rating-num { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; display: block; }
+
+/* Content */
+.review-content {
+  margin: 0;
+  max-width: 240px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.date-cell {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Status badge */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge--approved { background: #d1fae5; color: #065f46; }
+.badge--pending  { background: #fef3c7; color: #92400e; }
+
+/* Action buttons */
+.action-btns { display: flex; flex-direction: column; gap: 6px; }
+.btn-action {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  white-space: nowrap;
+}
+.btn-action:active { transform: scale(0.96); }
+.btn-success { background: #d1fae5; color: #065f46; }
+.btn-success:hover { background: #a7f3d0; }
+.btn-warn    { background: #fef3c7; color: #92400e; }
+.btn-warn:hover    { background: #fde68a; }
+.btn-danger  { background: #fee2e2; color: #991b1b; }
+.btn-danger:hover  { background: #fecaca; }
+
+.btn-primary-action { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.btn-primary-action:hover { background: #dbeafe; }
+.btn-view { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.btn-view:hover { background: #e2e8f0; }
+
+/* Empty */
+.empty-cell { padding: 0 !important; }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px;
+  color: var(--text-light);
+  font-size: 0.95rem;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+.page-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  background: var(--card-bg);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.page-btn:hover:not(:disabled) { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.page-btn:disabled { opacity: 0.4; cursor: default; }
+.page-info { font-size: 0.88rem; color: #6c757d; }
+
+/* ──────────────────────────────────────────────────────────
+   TICKET STYLES
+────────────────────────────────────────────────────────── */
+.order-code {
+  background: #e0f2fe;
+  color: #0284c7;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.reason-text {
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  color: #334155;
+}
+.status-badge-ticket {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: inline-block;
+}
+.status-badge-ticket.pending { background: #fef3c7; color: #d97706; }
+.status-badge-ticket.processing { background: #e0f2fe; color: #0284c7; }
+.status-badge-ticket.resolved { background: #dcfce3; color: #16a34a; }
+.status-badge-ticket.closed { background: #f1f5f9; color: #64748b; }
+.text-right { text-align: right !important; }
+.text-muted { color: #94a3b8; }
+.btn-icon {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.btn-icon:hover {
+  background: #f1f5f9;
+  color: #1d4ed8;
+}
+
+/* Modal styles for tickets */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+.modal-box {
+  background: white;
+  width: 100%; max-width: 650px;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+  display: flex; flex-direction: column;
+  max-height: 90vh;
+}
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.modal-header h3 { margin: 0; font-size: 1.25rem; font-weight: 700; }
+.btn-close-modal {
+  background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer;
+}
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+}
+.info-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;
+}
+.info-group label { display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 4px; }
+.info-group p { margin: 0; font-weight: 600; color: #1e293b; }
+
+.ticket-content {
+  background: #f8fafc; padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e2e8f0;
+}
+.ticket-content h4 { margin: 0 0 12px; font-size: 1.1rem; color: #dc2626; }
+.description-box { color: #334155; line-height: 1.6; white-space: pre-wrap; }
+
+.image-box { margin-top: 16px; }
+.evidence-img { max-width: 100%; max-height: 200px; border-radius: 8px; cursor: zoom-in; border: 1px solid #e2e8f0; }
+
+.reply-section h4 { margin: 0 0 12px; font-size: 1.05rem; }
+.reply-input {
+  width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+  font-family: inherit; font-size: 0.95rem; resize: vertical; box-sizing: border-box;
+}
+.reply-input:focus { border-color: #1d4ed8; outline: none; }
+
+.modal-footer {
+  padding: 16px 24px; border-top: 1px solid #e2e8f0;
+  display: flex; justify-content: flex-end; gap: 12px;
+}
+.btn {
+  padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s;
+}
+.btn-secondary { background: #f1f5f9; color: #475569; }
+.btn-secondary:hover { background: #e2e8f0; }
+.btn-primary { background: #1d4ed8; color: white; display: flex; align-items: center; gap: 8px; }
+.btn-primary:hover:not(:disabled) { background: #1e40af; }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.mt-3 { margin-top: 16px; }
+.w-100 { width: 100%; box-sizing: border-box; }
+.filter-select {
+  padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px;
+  font-size: 0.95rem; outline: none; background: white;
+}
+
+/* Transitions */
+.modal-enter-active, .modal-leave-active { transition: opacity 0.3s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+</style>

@@ -57,10 +57,6 @@ return [
         'redirect' => env('FACEBOOK_REDIRECT', 'http://localhost:3302/api/auth/facebook/callback'),
     ],
 
-    'ghn' => [
-        'token' => env('VITE_TOKEN_GHN', ''),
-    ],
-
     'store' => [
         'wifi_ip' => env('STORE_WIFI_IP'),
         'lat' => env('STORE_LAT'),
@@ -68,13 +64,23 @@ return [
     ],
 
     'sepay' => [
-        'api_key' => env('SEPAY_API_KEY', 'sepay_secret_token_12345'),
+        'api_key' => env('SEPAY_API_KEY'),
     ],
 
     'bank' => [
         'bin'            => env('BANK_BIN'),
         'account_number' => env('BANK_ACCOUNT_NUMBER'),
         'account_name'   => env('BANK_ACCOUNT_NAME'),
+    ],
+
+    // Gemini API keys — nhiều key để rotate khi bị rate limit
+    'gemini' => [
+        'keys' => array_values(array_filter([
+            env('GEMINI_API_KEY'),
+            env('GEMINI_API_KEY_2'),
+            env('GEMINI_API_KEY_3'),
+            env('GEMINI_API_KEY_4'),
+        ])),
     ],
 
     // Face Verification Microservice (internal Docker network)

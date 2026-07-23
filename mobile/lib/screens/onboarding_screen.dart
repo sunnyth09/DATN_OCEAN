@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'main_wrapper.dart';
@@ -14,10 +15,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_first_launch', false);
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const MainWrapper()),
-    );
+    context.go('/home');
   }
 
   @override
@@ -51,7 +49,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     color: const Color(0xFF0F172A),
                     borderRadius: BorderRadius.circular(40),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10)),
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 10)),
                     ],
                   ),
                   child: Stack(
@@ -67,7 +65,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                            height: 50,
                            decoration: BoxDecoration(
                              gradient: RadialGradient(
-                               colors: [const Color(0xFFE63B6F).withOpacity(0.5), Colors.transparent],
+                               colors: [const Color(0xFFE63B6F).withValues(alpha: 0.5), Colors.transparent],
                                radius: 1.5,
                              ),
                            ),

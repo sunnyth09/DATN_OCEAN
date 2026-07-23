@@ -6,6 +6,7 @@ use App\Models\Coupon;
 use App\Models\FlashSale;
 use App\Models\UserCoupon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -85,19 +86,48 @@ class ComboService
      */
     public function markVouchersAsUsed(array $vouchers, int $userId): void
     {
+        if ($userId <= 0) return;
+
+        // PHẢI gọi bên trong DB::transaction() của đơn hàng (OrderService) để đảm bảo
+        // atomic cùng với việc tạo đơn. Dùng conditional UPDATE trên used_count để
+        // chống over-redemption khi có nhiều request đồng thời.
         foreach ($vouchers as $voucher) {
-            $voucher->increment('used_count');
+            // Tiêu thụ 1 lượt toàn cục: chỉ tăng khi còn lượt.
+            $globalOk = Coupon::where('id', $voucher->id)
+                ->where(function ($q) {
+                    $q->whereNull('usage_limit')
+                      ->orWhereColumn('used_count', '<', 'usage_limit');
+                })
+                ->update(['used_count' => DB::raw('used_count + 1')]);
 
-            // Ghi nhận user đã dùng (tránh dùng lại)
-            UserCoupon::firstOrCreate(
-                ['user_id' => $userId, 'coupon_id' => $voucher->id],
-                ['status' => 'used', 'used_at' => now()]
-            );
+            if (!$globalOk) {
+                // Hết lượt toàn cục → bỏ qua voucher này (không chặn cả đơn vì đây là auto-apply).
+                continue;
+            }
 
-            // Nếu đã có record → update
-            UserCoupon::where('user_id', $userId)
-                      ->where('coupon_id', $voucher->id)
-                      ->update(['status' => 'used', 'used_at' => now()]);
+            // Tiêu thụ lượt theo user trên bảng user_coupons (cột thật là used_count).
+            $perUserLimit = $voucher->user_usage_limit;
+            $query = UserCoupon::where('user_id', $userId)->where('coupon_id', $voucher->id);
+            if ($perUserLimit !== null) {
+                $query->where('used_count', '<', $perUserLimit);
+            }
+            $affected = $query->update(['used_count' => DB::raw('used_count + 1')]);
+
+            if ($affected === 0) {
+                $exists = UserCoupon::where('user_id', $userId)
+                    ->where('coupon_id', $voucher->id)
+                    ->lockForUpdate()
+                    ->exists();
+
+                if (!$exists) {
+                    UserCoupon::create([
+                        'user_id'    => $userId,
+                        'coupon_id'  => $voucher->id,
+                        'used_count' => 1,
+                        'is_saved'   => false,
+                    ]);
+                }
+            }
         }
     }
 
@@ -310,12 +340,13 @@ class ComboService
      */
     private function userCanUseVoucher(int $userId, Coupon $voucher): bool
     {
+        if ($userId <= 0) return true;
         if (!$voucher->user_usage_limit) return true;
 
-        $used = UserCoupon::where('user_id', $userId)
+        // Cột thật trên user_coupons là used_count (không có cột status).
+        $used = (int) (UserCoupon::where('user_id', $userId)
                           ->where('coupon_id', $voucher->id)
-                          ->where('status', 'used')
-                          ->count();
+                          ->value('used_count') ?? 0);
 
         return $used < $voucher->user_usage_limit;
     }

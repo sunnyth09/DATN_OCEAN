@@ -64,62 +64,74 @@ class OrderProcessingJob implements ShouldQueue
             return;
         }
 
-        // Lấy variant đầu tiên của sản phẩm để lưu vào order_items (do flash sale không cho chọn variant)
-        $variant = ProductVariant::where('product_id', $this->productId)->first();
-        if (!$variant) {
-            Log::error("[OrderProcessingJob] Sản phẩm #{$this->productId} không có variant nào khả dụng.");
-            $this->rollbackRedisStock();
-            return;
+        try {
+            DB::transaction(function () use ($flashSaleItem) {
+                // Khóa + chọn variant còn đủ tồn kho THẬT (product_variants.stock) — tồn kho
+                // campaign trên Redis độc lập với tồn kho thật nên phải kiểm tra lại ở đây,
+                // tránh trừ mù khiến stock âm và oversell ở cửa hàng thường.
+                $variant = ProductVariant::where('product_id', $this->productId)
+                    ->where('stock', '>=', $this->quantity)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$variant) {
+                    throw new \RuntimeException("Không đủ tồn kho thực cho sản phẩm #{$this->productId} (cần {$this->quantity}).");
+                }
+
+                $unitPrice  = $flashSaleItem->campaign_price;
+                $subtotal   = $unitPrice * $this->quantity;
+                $shippingFee = 0; // Flash sale: freeship
+                $grandTotal = $subtotal;
+
+                // 1. Tạo đơn hàng
+                $order = Order::create([
+                    'order_code'       => $this->orderCode,
+                    'user_id'          => $this->userId,
+                    'address_id'       => $this->addressId,
+                    'recipient_name'   => $this->recipientName,
+                    'recipient_phone'  => $this->recipientPhone,
+                    'shipping_address' => $this->shippingAddress,
+                    'note'             => "Flash Sale #{$this->flashSaleId}",
+                    'payment_method'   => $this->paymentMethod,
+                    'payment_status'   => 'unpaid',
+                    'fulfillment_status' => 'pending',
+                    'subtotal'         => $subtotal,
+                    'discount_amount'  => 0,
+                    'shipping_fee'     => $shippingFee,
+                    'grand_total'      => $grandTotal,
+                    'email_sent'       => false,
+                ]);
+
+                // 2. Tạo order item từ flash sale
+                OrderItem::create([
+                    'order_id'     => $order->order_id,
+                    'product_id'   => $this->productId,
+                    'variant_id'   => $variant->variant_id,
+                    'product_name' => $flashSaleItem->product->name,
+                    'variant_name' => $variant->variant_name,
+                    'sku'          => $variant->sku,
+                    'color'        => $variant->color,
+                    'size'         => $variant->size,
+                    'quantity'     => $this->quantity,
+                    'unit_price'   => $unitPrice,
+                    'line_total'   => $subtotal,
+                ]);
+
+                // 3. Cập nhật sold_count trong flash_sale_items
+                $flashSaleItem->increment('sold', $this->quantity);
+
+                // 4. Trừ tồn kho trong bảng product_variants (đã khóa + validate ở trên)
+                $variant->decrement('stock', $this->quantity);
+
+                Log::info("[OrderProcessingJob] Tạo đơn #{$this->orderCode} thành công cho user #{$this->userId}, flash_sale #{$this->flashSaleId}.");
+            });
+        } catch (\Throwable $e) {
+            // Không đủ tồn kho thực / lỗi khác → hoàn stock Redis và ném lại để job retry/failed().
+            Log::error("[OrderProcessingJob] Tạo đơn thất bại: {$e->getMessage()}");
+            throw $e;
         }
 
-        DB::transaction(function () use ($flashSaleItem, $variant) {
-            $unitPrice  = $flashSaleItem->campaign_price;
-            $subtotal   = $unitPrice * $this->quantity;
-            $shippingFee = 0; // Flash sale: freeship
-            $grandTotal = $subtotal;
-
-            // 1. Tạo đơn hàng
-            $order = Order::create([
-                'order_code'       => $this->orderCode,
-                'user_id'          => $this->userId,
-                'address_id'       => $this->addressId,
-                'recipient_name'   => $this->recipientName,
-                'recipient_phone'  => $this->recipientPhone,
-                'shipping_address' => $this->shippingAddress,
-                'note'             => "Flash Sale #{$this->flashSaleId}",
-                'payment_method'   => $this->paymentMethod,
-                'payment_status'   => 'unpaid',
-                'fulfillment_status' => 'pending',
-                'subtotal'         => $subtotal,
-                'discount_amount'  => 0,
-                'shipping_fee'     => $shippingFee,
-                'grand_total'      => $grandTotal,
-                'email_sent'       => false,
-            ]);
-
-            // 2. Tạo order item từ flash sale
-            OrderItem::create([
-                'order_id'     => $order->order_id,
-                'product_id'   => $this->productId,
-                'variant_id'   => $variant->variant_id,
-                'product_name' => $flashSaleItem->product->name,
-                'variant_name' => $variant->variant_name,
-                'sku'          => $variant->sku,
-                'color'        => $variant->color,
-                'size'         => $variant->size,
-                'quantity'     => $this->quantity,
-                'unit_price'   => $unitPrice,
-                'line_total'   => $subtotal,
-            ]);
-
-            // 3. Cập nhật sold_count trong flash_sale_items
-            $flashSaleItem->increment('sold', $this->quantity);
-
-            // 4. Trừ tồn kho trong bảng product_variants
-            $variant->decrement('stock', $this->quantity);
-
-            Log::info("[OrderProcessingJob] Tạo đơn #{$this->orderCode} thành công cho user #{$this->userId}, flash_sale #{$this->flashSaleId}.");
-        });
+        \Illuminate\Support\Facades\Cache::flush();
     }
 
     /**
