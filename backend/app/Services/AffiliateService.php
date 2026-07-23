@@ -304,8 +304,17 @@ class AffiliateService
                 OrderStatus::RETURNED->value,
                 OrderStatus::REFUNDED->value,
             ], true)) {
-                $updated = $this->conversionRepo->updateStatusByOrderId($order->order_id, 'cancelled');
-                if ($updated && $oldStatus === 'approved') {
+                // Conditional update atomic: chỉ chuyển approved→cancelled đúng MỘT lần.
+                // Hai request hủy đồng thời → chỉ request thắng race trả true → clawback
+                // chạy đúng một lần (không double-deduct hoa hồng của conversion khác).
+                $clawback = $this->conversionRepo->markCancelledFromApproved($order->order_id);
+
+                // Với các status khác (pending) chỉ cần đánh dấu cancelled, không clawback.
+                if (!$clawback && $oldStatus !== 'approved') {
+                    $this->conversionRepo->updateStatusByOrderId($order->order_id, 'cancelled');
+                }
+
+                if ($clawback) {
                     // Thu hồi lại hoa hồng nếu đã được cộng trước đó (trừ đúng commission_balance).
                     try {
                         $this->walletService->debitCommission(
@@ -344,29 +353,16 @@ class AffiliateService
         $updated = $this->conversionRepo->updateStatus($id, 'approved');
         if ($updated) {
             try {
-                // Chống duplicate: chỉ credit nếu chưa từng cộng hoa hồng cho conversion này.
-                $alreadyDeposited = \App\Models\WalletTransaction::where('reference_type', AffiliateConversion::class)
-                    ->where('reference_id', $conversion->id)
-                    ->where('type', 'commission')
-                    ->exists();
+                // Credit hoa hồng dùng chung luồng đã có khóa+dedupe (chống double-credit
+                // khi admin-approve chạy song song với DELIVERED/COMPLETED auto-deposit).
+                if ($conversion->order) {
+                    $this->depositCommissionToWallet($conversion->order);
 
-                if (!$alreadyDeposited) {
-                    $this->walletService->credit(
-                        userId: $conversion->referrer_id,
-                        amount: (float) $conversion->commission_amount,
-                        type: 'commission', // → chảy vào commission_balance
-                        opts: [
-                            'reference_type' => AffiliateConversion::class,
-                            'reference_id'   => $conversion->id,
-                            'description'    => "Hoa hồng từ đơn hàng #" . ($conversion->order->order_code ?? $conversion->order_id),
-                        ]
-                    );
-                }
-
-                // Tích điểm giới thiệu cho referrer
-                $referrer = \App\Models\User::find($conversion->referrer_id);
-                if ($referrer && $conversion->order) {
-                    $this->loyaltyService->earnFromReferral($referrer, $conversion->order);
+                    // Tích điểm giới thiệu cho referrer
+                    $referrer = \App\Models\User::find($conversion->referrer_id);
+                    if ($referrer) {
+                        $this->loyaltyService->earnFromReferral($referrer, $conversion->order);
+                    }
                 }
             } catch (\Exception $e) {
                 Log::error("Failed to deposit commission on admin approve: " . $e->getMessage());
@@ -483,42 +479,51 @@ class AffiliateService
                 return;
             }
 
-            // Chống duplicate: check đã deposit chưa
-            $alreadyDeposited = \App\Models\WalletTransaction::where('reference_type', AffiliateConversion::class)
-                ->where('reference_id', $conversion->id)
-                ->where('type', 'commission')
-                ->exists();
+            \Illuminate\Support\Facades\DB::transaction(function () use ($order, $conversion) {
+                // Khóa row ví người nhận TRƯỚC để serialize các lần deposit đồng thời
+                // cùng conversion (admin double-click, DELIVERED + COMPLETED race).
+                // credit() mở nested transaction re-lock cùng row → reentrant, an toàn.
+                $this->walletService->getOrCreateWallet($conversion->referrer_id);
+                \App\Models\Wallet::where('user_id', $conversion->referrer_id)->lockForUpdate()->first();
 
-            if ($alreadyDeposited) {
-                Log::info('Affiliate commission already deposited to wallet', [
-                    'conversion_id' => $conversion->id,
-                    'order_id'      => $order->order_id,
+                // Re-check chống duplicate BÊN TRONG khóa: request thứ 2 chờ request 1
+                // commit rồi mới thấy transaction commission đã tồn tại → thoát.
+                $alreadyDeposited = \App\Models\WalletTransaction::where('reference_type', AffiliateConversion::class)
+                    ->where('reference_id', $conversion->id)
+                    ->where('type', 'commission')
+                    ->exists();
+
+                if ($alreadyDeposited) {
+                    Log::info('Affiliate commission already deposited to wallet', [
+                        'conversion_id' => $conversion->id,
+                        'order_id'      => $order->order_id,
+                    ]);
+                    return;
+                }
+
+                $this->walletService->credit(
+                    userId: $conversion->referrer_id,
+                    amount: (float) $conversion->commission_amount,
+                    type: 'commission',  // → chảy vào commission_balance
+                    opts: [
+                        'reference_type' => AffiliateConversion::class,
+                        'reference_id'   => $conversion->id,
+                        'description'    => "Hoa hồng affiliate đơn #{$order->order_code}",
+                        'metadata'       => [
+                            'order_id'        => $order->order_id,
+                            'order_code'      => $order->order_code,
+                            'total_amount'    => $conversion->total_amount,
+                            'commission_rate' => $conversion->commission_rate,
+                        ],
+                    ]
+                );
+
+                Log::info('Affiliate commission deposited to wallet', [
+                    'referrer_id'       => $conversion->referrer_id,
+                    'commission_amount' => $conversion->commission_amount,
+                    'order_code'        => $order->order_code,
                 ]);
-                return;
-            }
-
-            $this->walletService->credit(
-                userId: $conversion->referrer_id,
-                amount: (float) $conversion->commission_amount,
-                type: 'commission',  // → chảy vào commission_balance
-                opts: [
-                    'reference_type' => AffiliateConversion::class,
-                    'reference_id'   => $conversion->id,
-                    'description'    => "Hoa hồng affiliate đơn #{$order->order_code}",
-                    'metadata'       => [
-                        'order_id'        => $order->order_id,
-                        'order_code'      => $order->order_code,
-                        'total_amount'    => $conversion->total_amount,
-                        'commission_rate' => $conversion->commission_rate,
-                    ],
-                ]
-            );
-
-            Log::info('Affiliate commission deposited to wallet', [
-                'referrer_id'       => $conversion->referrer_id,
-                'commission_amount' => $conversion->commission_amount,
-                'order_code'        => $order->order_code,
-            ]);
+            });
 
         } catch (\Exception $e) {
             // Không throw — wallet lỗi không ảnh hưởng affiliate status flow

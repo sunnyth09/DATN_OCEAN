@@ -118,6 +118,20 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
+        // 422: chuẩn hóa lỗi validation từ Laravel FormRequest.
+        // Laravel trả { message, errors: { field: ['msg1', ...] } }.
+        // Gắn error.validationErrors = { field: 'msg đầu tiên' } để form bind thẳng vào input.
+        if (error.response?.status === 422) {
+            const raw = error.response.data?.errors ?? {};
+            error.validationErrors = Object.fromEntries(
+                Object.entries(raw).map(([field, messages]) => [
+                    field,
+                    Array.isArray(messages) ? messages[0] : messages,
+                ]),
+            );
+            return Promise.reject(error);
+        }
+
         if (
             !error.response ||
             error.response.status !== 401 ||

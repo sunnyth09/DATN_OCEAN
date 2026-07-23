@@ -387,8 +387,30 @@ class WalletService
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Hoàn tiền ví khi cancel đơn hàng.
-     * Hoàn lại đúng loại balance đã dùng.
+     * Hoàn tiền ví khi hủy đơn ĐÃ THANH TOÁN TOÀN PHẦN bằng ví (cột wallet_spent).
+     * Khác reverseOrderDiscount (hoàn phần ví dùng để GIẢM GIÁ) — đây hoàn phần ví
+     * dùng để THANH TOÁN. Hoàn vào deposit_balance để user dùng lại, nhất quán với
+     * cách reverseOrderDiscount hoàn phần deposit (credit type='refund').
+     *
+     * Lưu ý: order chỉ lưu tổng wallet_spent (không tách deposit/commission), nên
+     * phần vốn trừ từ commission cũng hoàn về deposit — chấp nhận được cho refund.
+     */
+    public function refund(int $userId, float $amount, string $description, ?int $referenceId = null, ?string $referenceType = null): WalletTransaction
+    {
+        if ($amount <= 0) {
+            throw new \InvalidArgumentException('Số tiền hoàn phải lớn hơn 0');
+        }
+
+        return $this->credit($userId, $amount, 'refund', [
+            'reference_type' => $referenceType,
+            'reference_id'   => $referenceId,
+            'description'    => $description,
+        ]);
+    }
+
+    /**
+     * Hoàn tiền ví khi cancel đơn hàng có dùng ví GIẢM GIÁ.
+     * Hoàn lại đúng loại balance đã dùng (deposit → deposit, commission → commission).
      */
     public function reverseOrderDiscount(int $userId, float $depositAmount, float $commissionAmount, int $orderId): void
     {

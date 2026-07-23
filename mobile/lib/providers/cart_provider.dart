@@ -64,8 +64,9 @@ class CartProvider extends ChangeNotifier {
     _replaceItem(index, previous.copyWith(quantity: quantity));
 
     try {
-      await _dio.post('/cart/items', data: {
-        'product_id': cartItemId,
+      // Đổi số lượng dùng PUT /cart/items/{id} (updateItem), KHÔNG phải
+      // POST /cart/items (addItem — endpoint đó bắt buộc variant_id).
+      await _dio.put('/cart/items/$cartItemId', data: {
         'quantity': quantity,
       });
       await fetchCart(silent: true, force: true);

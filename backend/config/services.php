@@ -73,6 +73,16 @@ return [
         'account_name'   => env('BANK_ACCOUNT_NAME'),
     ],
 
+    // Gemini API keys — nhiều key để rotate khi bị rate limit
+    'gemini' => [
+        'keys' => array_values(array_filter([
+            env('GEMINI_API_KEY'),
+            env('GEMINI_API_KEY_2'),
+            env('GEMINI_API_KEY_3'),
+            env('GEMINI_API_KEY_4'),
+        ])),
+    ],
+
     // Face Verification Microservice (internal Docker network)
     'face' => [
         'url'     => env('FACE_SERVICE_URL', 'http://face-service:8001'),

@@ -147,8 +147,12 @@ class SepayController extends Controller
                     return ['status' => 'error', 'message' => 'Deposit code not found: ' . $depositCode];
                 }
 
-                if ($deposit->status === 'completed') {
-                    return ['status' => 'success', 'message' => 'Deposit already processed']; // Idempotency
+                // Chặn cả trạng thái terminal 'completed' VÀ 'failed'. deposit_code là
+                // duy nhất mỗi lần init (WDP + random, không tái dùng khi retry), nên một
+                // deposit đã 'failed' không bao giờ được nạp lại hợp lệ → chặn để tránh
+                // double-credit khi webhook failed đến trước rồi success đến sau cùng code.
+                if (in_array($deposit->status, ['completed', 'failed'], true)) {
+                    return ['status' => 'success', 'message' => 'Deposit already in terminal state']; // Idempotency
                 }
 
                 // Verify amount (cho phép chênh lệch nhỏ < 10 VND)

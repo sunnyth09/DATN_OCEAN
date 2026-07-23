@@ -154,6 +154,20 @@ class AdminOrderService
                         );
                     }
 
+                    // Hoàn ví GIẢM GIÁ (cột độc lập với wallet_spent; áp được cho mọi
+                    // payment method — COD/vnpay vẫn có thể dùng ví giảm giá). Không gate
+                    // theo payment_method='wallet' như khối trên.
+                    $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                    $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
+                    if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
+                        $this->walletService->reverseOrderDiscount(
+                            $order->user_id,
+                            $walletDeposit,
+                            $walletCommission,
+                            $order->order_id
+                        );
+                    }
+
                     // Hoàn tồn kho
                     $this->orderRepository->restoreStock($order->items);
 
@@ -306,6 +320,19 @@ class AdminOrderService
                                 "Hoàn tiền hủy hàng loạt đơn hàng #{$order->order_code}",
                                 $order->order_id,
                                 Order::class
+                            );
+                        }
+
+                        // Hoàn ví GIẢM GIÁ (deposit/commission discount) — cột độc lập với
+                        // wallet_spent; áp cho mọi payment_method nên không gate theo 'wallet'.
+                        $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                        $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
+                        if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
+                            $this->walletService->reverseOrderDiscount(
+                                $order->user_id,
+                                $walletDeposit,
+                                $walletCommission,
+                                $order->order_id
                             );
                         }
 

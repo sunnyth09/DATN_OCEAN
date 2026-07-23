@@ -6,7 +6,6 @@ import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../widgets/shimmer_loading.dart';
-import 'product_detail_screen.dart';
 
 class FlashSaleScreen extends StatefulWidget {
   const FlashSaleScreen({super.key});
@@ -19,21 +18,11 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
   List<dynamic> flashSales = [];
   bool isLoading = true;
   String? errorMessage;
-  Timer? _countdownTimer;
 
   @override
   void initState() {
     super.initState();
     fetchFlashSales();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _countdownTimer?.cancel();
-    super.dispose();
   }
 
   Future<void> fetchFlashSales() async {
@@ -108,7 +97,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           SliverToBoxAdapter(child: _buildHero()),
           // Content
           if (isLoading)
-            const SliverShimmerLoading()
+            const SliverListShimmerLoading()
           else if (errorMessage != null)
             SliverFillRemaining(
               child: Center(
@@ -149,7 +138,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                     SizedBox(height: 4),
                     Text(
                       'Quay lại sau để săn deal nhé!',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                      style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
                     ),
                   ],
                 ),
@@ -302,6 +291,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
   Widget _buildFlashSaleCard(Map<String, dynamic> sale) {
     final items = (sale['items'] as List<dynamic>?) ?? [];
     final endDate = sale['end_date']?.toString();
+    // Tính 1 lần cho trạng thái item; đồng hồ đếm ngược tự cập nhật riêng.
     final countdown = _getCountdown(endDate);
     final isActive =
         (countdown['h']! > 0 || countdown['m']! > 0 || countdown['s']! > 0);
@@ -324,70 +314,8 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFFF1F3F5))),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        saleName,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        isActive ? 'Đang diễn ra' : 'Đã kết thúc',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isActive ? AppColors.success : Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Countdown
-                if (isActive)
-                  Row(
-                    children: [
-                      _countdownBox(
-                        countdown['h']!.toString().padLeft(2, '0'),
-                      ),
-                      const Text(
-                        ' : ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      _countdownBox(
-                        countdown['m']!.toString().padLeft(2, '0'),
-                      ),
-                      const Text(
-                        ' : ',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      _countdownBox(
-                        countdown['s']!.toString().padLeft(2, '0'),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
+          // Header (chỉ phần này tự tick mỗi giây, không rebuild danh sách ảnh)
+          _FlashSaleHeader(saleName: saleName, endDate: endDate),
           // Items
           if (items.isEmpty)
             const Padding(
@@ -402,24 +330,6 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
           else
             ...items.map((item) => _buildFlashSaleItem(item, isActive)),
         ],
-      ),
-    );
-  }
-
-  Widget _countdownBox(String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        value,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-          fontSize: 14,
-        ),
       ),
     );
   }
@@ -523,7 +433,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                         _formatPrice(originalPrice),
                         style: const TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF94A3B8),
+                          color: Color(0xFF64748B),
                           decoration: TextDecoration.lineThrough,
                         ),
                       ),
@@ -659,6 +569,132 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Header của mỗi flash-sale card: chỉ widget này tick mỗi giây để cập nhật
+/// đồng hồ đếm ngược, thay vì rebuild toàn màn (kèm danh sách ảnh sản phẩm).
+class _FlashSaleHeader extends StatefulWidget {
+  final String saleName;
+  final String? endDate;
+
+  const _FlashSaleHeader({required this.saleName, required this.endDate});
+
+  @override
+  State<_FlashSaleHeader> createState() => _FlashSaleHeaderState();
+}
+
+class _FlashSaleHeaderState extends State<_FlashSaleHeader> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Map<String, int> _getCountdown() {
+    final endDate = widget.endDate;
+    if (endDate == null) return {'h': 0, 'm': 0, 's': 0};
+    final end = DateTime.tryParse(endDate);
+    if (end == null) return {'h': 0, 'm': 0, 's': 0};
+    final diff = end.difference(DateTime.now());
+    if (diff.isNegative) return {'h': 0, 'm': 0, 's': 0};
+    return {
+      'h': diff.inHours,
+      'm': diff.inMinutes % 60,
+      's': diff.inSeconds % 60,
+    };
+  }
+
+  Widget _countdownBox(String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        value,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final countdown = _getCountdown();
+    final isActive =
+        countdown['h']! > 0 || countdown['m']! > 0 || countdown['s']! > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF1F3F5))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.saleName,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isActive ? 'Đang diễn ra' : 'Đã kết thúc',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isActive ? AppColors.success : Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isActive)
+            Row(
+              children: [
+                _countdownBox(countdown['h']!.toString().padLeft(2, '0')),
+                const Text(
+                  ' : ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primary,
+                  ),
+                ),
+                _countdownBox(countdown['m']!.toString().padLeft(2, '0')),
+                const Text(
+                  ' : ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.primary,
+                  ),
+                ),
+                _countdownBox(countdown['s']!.toString().padLeft(2, '0')),
+              ],
+            ),
         ],
       ),
     );

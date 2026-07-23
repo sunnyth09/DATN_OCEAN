@@ -16,6 +16,7 @@ class CouponScreen extends StatefulWidget {
 class _CouponScreenState extends State<CouponScreen> {
   List<dynamic> coupons = [];
   bool isLoading = true;
+  String? errorMessage;
   String searchQuery = '';
 
   @override
@@ -26,7 +27,7 @@ class _CouponScreenState extends State<CouponScreen> {
 
   Future<void> fetchPublicCoupons() async {
     try {
-      setState(() => isLoading = true);
+      setState(() { isLoading = true; errorMessage = null; });
       final res = await ApiClient().dio.get('/coupons/public');
       if (res.data['status'] == 'success') {
         if (mounted) setState(() { coupons = res.data['data'] ?? []; isLoading = false; });
@@ -34,7 +35,12 @@ class _CouponScreenState extends State<CouponScreen> {
         if (mounted) setState(() => isLoading = false);
       }
     } catch (e) {
-      if (mounted) setState(() => isLoading = false);
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Không tải được danh sách voucher. Vui lòng thử lại.';
+        });
+      }
     }
   }
 
@@ -172,6 +178,30 @@ class _CouponScreenState extends State<CouponScreen> {
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
             )
+          else if (errorMessage != null)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.cloud_off_outlined, size: 64, color: Color(0xFFCBD5E1)),
+                    const SizedBox(height: 12),
+                    Text(errorMessage!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 15, color: Color(0xFF64748B))),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: fetchPublicCoupons,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Thử lại'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else if (filteredCoupons.isEmpty)
             const SliverFillRemaining(
               child: Center(
@@ -255,7 +285,7 @@ class _CouponScreenState extends State<CouponScreen> {
           onChanged: (v) => setState(() => searchQuery = v),
           decoration: InputDecoration(
             hintText: 'Tìm mã giảm giá...',
-            hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+            hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
             prefixIcon: const Icon(Icons.search, color: AppColors.primary, size: 20),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -374,7 +404,7 @@ class _CouponScreenState extends State<CouponScreen> {
                       onPressed: isActive ? () => _saveCoupon(coupon['id']) : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isActive ? AppColors.primary : const Color(0xFFE2E8F0),
-                        foregroundColor: isActive ? Colors.white : const Color(0xFF94A3B8),
+                        foregroundColor: isActive ? Colors.white : const Color(0xFF64748B),
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         minimumSize: Size.zero,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../services/attendance_service.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -104,6 +105,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         );
         _noteController.clear();
+      } else if (res['needs_settings'] == true) {
+        // Quyền vị trí bị từ chối vĩnh viễn — không request lại được, phải ra Settings.
+        _showOpenSettingsDialog(res['message'] ?? 'Cần cấp quyền Vị trí.');
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -128,6 +132,64 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     
     // Tải lại thông tin ca sau khi check-in/out
     _loadTodayStatus();
+  }
+
+  /// Hiện dialog hướng dẫn mở Cài đặt khi quyền Vị trí bị từ chối vĩnh viễn.
+  void _showOpenSettingsDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cần quyền Vị trí'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Để sau'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              openAppSettings();
+            },
+            child: const Text('Mở Cài đặt'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Nút check-in/out: disable ngay khi đang xử lý để chặn spam tap,
+  /// hiện spinner tại chỗ nên layout không nhảy.
+  Widget _buildCheckButton({
+    required bool isCheckIn,
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return ElevatedButton(
+      onPressed: _isLoading ? null : () => _handleCheck(isCheckIn),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        disabledBackgroundColor: color.withValues(alpha: 0.6),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 0,
+      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 28,
+              width: 28,
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 28),
+                const SizedBox(height: 8),
+                Text(label, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+    );
   }
 
   Widget _buildShiftInfo() {
@@ -338,46 +400,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             
             const SizedBox(height: 30),
             
-            // Buttons
-            _isLoading 
-                ? const Center(child: CircularProgressIndicator())
-                : Row(
+            // Buttons — giữ nguyên vị trí, disable khi đang xử lý để chống spam.
+            Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _handleCheck(true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(Icons.login, color: Colors.white, size: 28),
-                        SizedBox(height: 8),
-                        Text('CHECK-IN', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                  child: _buildCheckButton(
+                    isCheckIn: true,
+                    color: const Color(0xFF10B981),
+                    icon: Icons.login,
+                    label: 'CHECK-IN',
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _handleCheck(false),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF43F5E),
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
-                    ),
-                    child: const Column(
-                      children: [
-                        Icon(Icons.logout, color: Colors.white, size: 28),
-                        SizedBox(height: 8),
-                        Text('CHECK-OUT', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
+                  child: _buildCheckButton(
+                    isCheckIn: false,
+                    color: const Color(0xFFF43F5E),
+                    icon: Icons.logout,
+                    label: 'CHECK-OUT',
                   ),
                 ),
               ],
@@ -387,7 +427,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             const Text(
               'Hệ thống yêu cầu đứng trong vòng 50m quanh công ty (GPS) hoặc kết nối đúng mạng WiFi nội bộ để điểm danh hợp lệ.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
             )
           ],
         ),

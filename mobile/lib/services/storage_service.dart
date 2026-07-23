@@ -4,7 +4,15 @@ class StorageService {
   StorageService._();
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      // Keystore hỏng (đổi vân tay, restore máy) → xoá key thay vì ném lỗi
+      // khiến app crash lúc đọc token.
+      resetOnError: true,
+    ),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
   );
 
   static Future<String?> read(String key) => _storage.read(key: key);

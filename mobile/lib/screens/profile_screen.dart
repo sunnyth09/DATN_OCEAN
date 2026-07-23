@@ -274,7 +274,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 8),
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 10),
-                  child: Text('Khám phá', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8))),
+                  child: Text('Khám phá', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
                 ),
                 _buildMenuItem(Icons.flash_on, 'Flash Sale', () {
                   context.push('/flash-sale');

@@ -56,19 +56,52 @@ BACKEND: backend/
     seeders/             # Data seeders
 
 FRONTEND: frontend/src/
+  # ── SHARED KERNEL (dùng chung mọi feature — KHÔNG đặt vào features/) ──
   axios.js               # Axios instance DUY NHẤT — có JWT interceptor + refresh
   main.js                # Vue app entry point
   bootstrap.js           # Global setup
   echo.js                # Laravel Echo (WebSocket)
   sessionSync.js         # Multi-tab session sync
-  Pages/                 # Page components (route-level)
-  components/            # Reusable UI components
-  layouts/               # Layout wrappers
-  router/                # Vue Router config
-  services/              # API caller (chỉ gọi API, không xử lý UI)
-  stores/                # Pinia stores (state management)
-  composables/           # Vue composables (logic tái sử dụng)
-  assets/                # Static assets
+  router/                # Vue Router config (map route → features/*/pages)
+  layouts/               # Layout wrappers (ClientLayout, AdminLayout, AuthLayout...)
+  components/            # UI component dùng CHUNG >1 feature (ProductCard, base/*,
+                         #   AddressSelector, OrderStatusTimeline, AdminCategoryFormTree...)
+  services/              # API caller dùng chung (chỉ gọi API, không xử lý UI)
+  stores/                # Pinia store dùng chung (auth, cart, ui, returnRequestStore...)
+  composables/           # Composable dùng chung (useToast, useFormErrors...)
+  utils/  icons/  assets/  # Helper, icon, static asset dùng chung
+
+  # ── FEATURE MODULES (tổ chức theo domain nghiệp vụ) ──
+  features/
+    <feature>/
+      pages/             # Page components (route-level). Có admin+client thì
+                         #   tách pages/admin/ và pages/client/
+      components/        # Component CHỈ feature này dùng (không ai ngoài dùng)
+      composables/       # Composable riêng feature (vd hr: useCamera, useGeolocation)
+      services/          # Service CHỈ feature này dùng (vd courts: courtBookingService)
+      stores/            # Store CHỈ feature này dùng (vd courts: useCourtBookingStore)
+      assets/            # CSS/asset riêng feature (vd courts: court-management.css)
+
+  # Danh sách feature hiện có:
+  #   auth/     — login, register, forgot, OAuth callback
+  #   shop/     — e-commerce: home, product, cart, payment (client) + quản lý
+  #               sản phẩm/đơn/coupon/flash-sale/review/rewards (admin)
+  #   courts/   — đặt sân: client booking + admin quản lý sân (có store/service/css riêng)
+  #   profile/  — tài khoản người dùng: info, orders, wallet, wishlist, loyalty...
+  #   hr/       — nhân sự: chấm công GPS+Face, ca làm, chi nhánh, quản lý nhân viên
+  #   content/  — blog (admin: post, post-category) + trang tĩnh (about, faq, terms...)
+  #   support/  — CSKH: live chat, liên hệ, khiếu nại (ticket)
+  #   admin/    — back-office cross-cutting: dashboard, thống kê, users, ví, thông báo
+
+QUY TẮC ĐẶT FILE (feature vs shared):
+  - Page (route-level) LUÔN đặt trong features/<feature>/pages/.
+  - Component/store/service/composable CHỈ 1 feature dùng → đặt trong feature đó.
+  - Nếu >1 feature dùng chung → đặt ở thư mục shared kernel gốc (components/, stores/...).
+  - KHÔNG bao giờ đặt axios/auth/cart... vào feature (đó là shared kernel).
+  - Feature KHÔNG import trực tiếp pages/components nội bộ của feature khác;
+    chỉ được dùng qua shared kernel. (Tránh coupling chéo giữa các domain.)
+  - Import LUÔN dùng alias '@/...' (độc lập độ sâu, không vỡ khi di chuyển file),
+    KHÔNG dùng relative '../../' để trỏ ra ngoài thư mục file hiện tại.
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -476,7 +509,22 @@ IMPORT trong service:
   import api from '@/axios';   // ĐÚNG — @ alias trỏ src/
   // KHÔNG: import axios from 'axios' và tạo instance mới
 
-SERVICE PATTERN (authService.js):
+TỔ CHỨC FEATURE-BASED (quan trọng):
+  - Code THUỘC MỘT domain → đặt trong features/{domain}/ (pages, components,
+    services, stores, composables, assets riêng của domain đó).
+    Ví dụ: courtBookingService + useCourtBookingStore → features/courts/
+  - Code DÙNG CHUNG nhiều domain (shared kernel) → GIỮ ở src/ top-level:
+    • axios.js — instance DUY NHẤT, mọi feature import '@/axios'
+    • stores/ — auth, cart, ui, toast... (dùng xuyên feature)
+    • services/ — productService, catalogService, authService... (dùng chung)
+    • components/ — ProductCard, Base*, AddressSelector, AdminCategoryFormTree
+    • composables/ — useToast, useFormErrors, useFavorites...
+    • layouts/, icons/, utils/
+  - QUY TẮC quyết định: chỉ 1 feature dùng → vào feature; ≥2 feature dùng → shared.
+  - LUÔN dùng alias '@/...' (không dùng '../../'), để di chuyển file không vỡ import.
+  - Router import page qua alias: () => import('@/features/{domain}/pages/...').
+
+SERVICE PATTERN (authService.js — service dùng chung ở src/services/):
   ```js
   import api from '@/axios';
 

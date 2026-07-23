@@ -68,7 +68,7 @@ class CheckoutAddressBox extends StatelessWidget {
                 const Icon(
                   Icons.person_outline,
                   size: 14,
-                  color: Color(0xFF94A3B8),
+                  color: Color(0xFF64748B),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -82,7 +82,7 @@ class CheckoutAddressBox extends StatelessWidget {
                 const Icon(
                   Icons.phone_outlined,
                   size: 14,
-                  color: Color(0xFF94A3B8),
+                  color: Color(0xFF64748B),
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -101,7 +101,7 @@ class CheckoutAddressBox extends StatelessWidget {
                 const Icon(
                   Icons.home_outlined,
                   size: 14,
-                  color: Color(0xFF94A3B8),
+                  color: Color(0xFF64748B),
                 ),
                 const SizedBox(width: 6),
                 Expanded(
