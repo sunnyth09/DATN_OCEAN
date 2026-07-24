@@ -65,6 +65,26 @@ class ProductCommentController extends Controller
         // Array syntax: [ModelClass, $argument] → Laravel resolve sang ProductCommentPolicy::create($user, $orderItem)
         $this->authorize('create', [\App\Models\ProductComment::class, $orderItem]);
 
+        // Double-check DB: kiểm tra order_item thuộc về user hiện tại (tránh review hộ người khác)
+        if ($orderItem->order->user_id !== $userId) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Bạn không có quyền đánh giá sản phẩm này.',
+            ], 403);
+        }
+
+        // Double-check DB: đảm bảo chưa review order_item này (chống race condition bypass Policy)
+        $alreadyReviewed = ProductComment::where('order_item_id', $request->order_item_id)
+            ->where('user_id', $userId)
+            ->exists();
+
+        if ($alreadyReviewed) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Bạn đã đánh giá sản phẩm này rồi.',
+            ], 409);
+        }
+
         // Verify product matches item
         if ($orderItem->product_id != $request->product_id) {
             return response()->json([

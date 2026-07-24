@@ -9,7 +9,7 @@ const newsletterEmail = ref('');
 const submitNewsletter = async () => {
   if (!newsletterEmail.value) return;
   try {
-    await api.post('/SubmitContactEmail', { email: newsletterEmail.value });
+    await api.post('/submitcontactemail', { email: newsletterEmail.value });
     newsletterEmail.value = '';
     Swal.fire('Thành công', 'Đăng ký nhận tin thành công!', 'success');
   } catch (e) {

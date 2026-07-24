@@ -50,16 +50,30 @@ class OrderController extends Controller
     public function store(StoreOrderRequest $request): JsonResponse
     {
         $user   = auth('api')->user();
-        $result = $this->orderService->createOrder(
-            $user->user_id,
-            $request->validated(),
-            $request
-        );
+        
+        $lock = \Illuminate\Support\Facades\Cache::lock('order_checkout_' . $user->user_id, 5);
 
-        return response()->json(
-            $result['body'],
-            $result['status_code'] ?? 200
-        );
+        if (!$lock->get()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Hệ thống đang xử lý đơn hàng của bạn. Vui lòng không gửi yêu cầu liên tục!',
+            ], 429);
+        }
+
+        try {
+            $result = $this->orderService->createOrder(
+                $user->user_id,
+                $request->validated(),
+                $request
+            );
+
+            return response()->json(
+                $result['body'],
+                $result['status_code'] ?? 200
+            );
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
@@ -99,15 +113,28 @@ class OrderController extends Controller
             'items.required'          => 'Giỏ hàng trống.',
         ]);
 
-        $result = $this->orderService->createGuestOrder(
-            $request->all(),
-            $request
-        );
+        $lock = \Illuminate\Support\Facades\Cache::lock('order_checkout_guest_' . $request->ip(), 5);
 
-        return response()->json(
-            $result['body'],
-            $result['status_code'] ?? 200
-        );
+        if (!$lock->get()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Hệ thống đang xử lý đơn hàng của bạn. Vui lòng không gửi yêu cầu liên tục!',
+            ], 429);
+        }
+
+        try {
+            $result = $this->orderService->createGuestOrder(
+                $request->all(),
+                $request
+            );
+
+            return response()->json(
+                $result['body'],
+                $result['status_code'] ?? 200
+            );
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
