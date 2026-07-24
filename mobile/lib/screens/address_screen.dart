@@ -272,13 +272,13 @@ class _AddressScreenState extends State<AddressScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF94A3B8)),
+          Icon(icon, size: 18, color: const Color(0xFF64748B)),
           const SizedBox(width: 10),
           Expanded(child: TextField(
             controller: controller,
             keyboardType: type,
             style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A)),
-            decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)), border: InputBorder.none, isDense: true),
+            decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF64748B)), border: InputBorder.none, isDense: true),
           )),
         ],
       ),
@@ -290,7 +290,7 @@ class _AddressScreenState extends State<AddressScreen> {
       decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: DropdownButtonFormField<String>(
-        decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)), border: InputBorder.none, isDense: true),
+        decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF64748B)), border: InputBorder.none, isDense: true),
         initialValue: value,
         isExpanded: true,
         items: items,
@@ -318,11 +318,11 @@ class _AddressScreenState extends State<AddressScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.location_off_outlined, size: 64, color: Color(0xFF94A3B8)),
+                      const Icon(Icons.location_off_outlined, size: 64, color: Color(0xFF64748B)),
                       const SizedBox(height: 16),
                       const Text('Chưa có địa chỉ nào', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                       const SizedBox(height: 8),
-                      const Text('Thêm địa chỉ để tiện mua sắm hơn', style: TextStyle(color: Color(0xFF94A3B8))),
+                      const Text('Thêm địa chỉ để tiện mua sắm hơn', style: TextStyle(color: Color(0xFF64748B))),
                     ],
                   ),
                 )
@@ -372,14 +372,14 @@ class _AddressScreenState extends State<AddressScreen> {
                                   GestureDetector(
                                     onTap: () => _showAddAddressModal(existing: addr),
                                     child: const Padding(
-                                      padding: EdgeInsets.all(6),
+                                      padding: EdgeInsets.all(10),
                                       child: Icon(Icons.edit_outlined, color: Color(0xFFE63B6F), size: 20),
                                     ),
                                   ),
                                   GestureDetector(
                                     onTap: () => deleteAddress(addrId),
                                     child: const Padding(
-                                      padding: EdgeInsets.all(6),
+                                      padding: EdgeInsets.all(10),
                                       child: Icon(Icons.delete_outline, color: Colors.red, size: 20),
                                     ),
                                   ),

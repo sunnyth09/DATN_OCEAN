@@ -39,9 +39,9 @@ void _sendMessage() async {
       appBar: AppBar(
         title: Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               backgroundColor: AppColors.primarySoft,
-              child: Icon(Icons.support_agent, color: AppColors.primary),
+              child: const Icon(Icons.support_agent, color: AppColors.primary),
             ),
             const SizedBox(width: 12),
             const Column(
@@ -101,7 +101,7 @@ void _sendMessage() async {
                 children: [
                   IconButton(
                     onPressed: () {},
-                    icon: const Icon(Icons.attach_file, color: Color(0xFF94A3B8)),
+                    icon: const Icon(Icons.attach_file, color: Color(0xFF64748B)),
                   ),
                   Expanded(
                     child: TextField(
@@ -172,7 +172,7 @@ void _sendMessage() async {
             Text(
               time,
               style: TextStyle(
-                color: isMe ? Colors.white70 : const Color(0xFF94A3B8),
+                color: isMe ? Colors.white70 : const Color(0xFF64748B),
                 fontSize: 10,
               ),
             ),

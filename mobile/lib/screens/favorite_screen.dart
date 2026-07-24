@@ -157,7 +157,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
             const SizedBox(height: 8),
             const Text(
               'Nhấn ♡ trên sản phẩm để thêm vào danh sách',
-              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
             ),
           ],
         ),

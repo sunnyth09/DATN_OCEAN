@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -99,11 +100,32 @@ class ApiClient {
             debugPrint('=========================');
           }
 
-          if (e.response?.statusCode == 401 && !_isAuthEndpoint(e.requestOptions.path)) {
-            await _handleUnauthorized();
+          final is401 = e.response?.statusCode == 401;
+          final isAuthPath = _isAuthEndpoint(e.requestOptions.path);
+          // Cờ tránh loop: request đã retry 1 lần mà vẫn 401 → không refresh nữa.
+          final alreadyRetried = e.requestOptions.extra['__retried'] == true;
+
+          if (!is401 || isAuthPath || alreadyRetried) {
+            return handler.next(e);
           }
 
-          return handler.next(e);
+          // Thử refresh token ngầm rồi retry request gốc.
+          final newToken = await _refreshToken();
+          if (newToken == null) {
+            await _handleUnauthorized();
+            return handler.next(e);
+          }
+
+          try {
+            final opts = e.requestOptions
+              ..headers['Authorization'] = 'Bearer $newToken'
+              ..extra['__retried'] = true;
+            final clone = await dio.fetch(opts);
+            return handler.resolve(clone);
+          } catch (_) {
+            await _handleUnauthorized();
+            return handler.next(e);
+          }
         },
       ),
     );
@@ -137,6 +159,59 @@ class ApiClient {
     }
 
     _handlingUnauthorized = false;
+  }
+
+  // Gộp mọi lời gọi refresh đồng thời vào 1 request duy nhất để nhiều
+  // request 401 cùng lúc chỉ refresh token 1 lần.
+  Completer<String?>? _refreshCompleter;
+
+  Future<String?> _refreshToken() {
+    if (_refreshCompleter != null) return _refreshCompleter!.future;
+
+    final completer = Completer<String?>();
+    _refreshCompleter = completer;
+
+    () async {
+      try {
+        final token = await StorageService.read('access_token');
+        if (token == null || token.trim().isEmpty || token == 'null') {
+          completer.complete(null);
+          return;
+        }
+
+        // Dùng Dio RIÊNG (không interceptor) để tránh đệ quy 401.
+        // Backend /refresh đọc JWT từ Authorization header và cấp token mới
+        // nếu còn trong cửa sổ refresh-TTL.
+        final raw = Dio(
+          BaseOptions(
+            baseUrl: kBaseUrl,
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+              if (!kIsWeb) 'User-Agent': kMobileUserAgent,
+              'ngrok-skip-browser-warning': '69420',
+            },
+          ),
+        );
+
+        final res = await raw.post('/refresh');
+        final data = res.data;
+        final newToken = data is Map ? data['access_token'] as String? : null;
+
+        if (newToken != null && newToken.trim().isNotEmpty) {
+          await StorageService.write('access_token', newToken);
+          completer.complete(newToken);
+        } else {
+          completer.complete(null);
+        }
+      } catch (_) {
+        completer.complete(null);
+      } finally {
+        _refreshCompleter = null;
+      }
+    }();
+
+    return completer.future;
   }
 
   // Wrapper cho các method HTTP phổ biến

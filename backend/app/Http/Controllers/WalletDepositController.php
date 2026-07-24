@@ -146,9 +146,9 @@ class WalletDepositController extends Controller
      */
     private function handleBankDeposit($user, int $amount, string $depositCode): JsonResponse
     {
-        $bankBin     = config('services.bank.bin', env('BANK_BIN'));
-        $bankAccount = config('services.bank.account', env('BANK_ACCOUNT_NUMBER'));
-        $accountName = config('services.bank.name', env('BANK_ACCOUNT_NAME'));
+        $bankBin     = config('services.bank.bin');
+        $bankAccount = config('services.bank.account_number');
+        $accountName = config('services.bank.account_name');
 
         $qrUrl = "https://img.vietqr.io/image/{$bankBin}-{$bankAccount}-compact2.png"
             . "?amount={$amount}"

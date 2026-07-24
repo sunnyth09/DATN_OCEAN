@@ -21,7 +21,8 @@ class AppColors {
   // ── Màu chữ / Text ──
   static const Color textPrimary = Color(0xFF2D3436);
   static const Color textSecondary = Color(0xFF636E72);
-  static const Color textMuted = Color(0xFF94A3B8);
+  // Slate-500: đạt WCAG AA (~4.7:1) trên nền trắng cho text thường.
+  static const Color textMuted = Color(0xFF64748B);
   static const Color textDark = Color(0xFF0F172A);
   static const Color textLabel = Color(0xFF334155);
 

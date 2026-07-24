@@ -101,10 +101,10 @@ const fetchNotificationsList = async () => {
 
 const markAsRead = async (id, url) => {
     try {
-        await api.post(`/profile/notifications/${id}/mark-as-read`);
+        await api.post(`/profile/notifications/${id}/read`);
         fetchUnreadNotificationCount();
         if (url) {
-             window.location.href = url;
+             router.push(url);
         }
         showNotifDropdown.value = false;
     } catch (e) {
@@ -212,11 +212,12 @@ const executeSearch = (query = null) => {
 };
 
 const getImageUrl = (item) => {
-    const path = item.thumbnail_url || item.image || item.mainImage?.image_url;
+    const path = item.thumbnail_url || item.image || item.main_image?.image_url || item.mainImage?.image_url;
     if (!path || path === '0') return '';
     if (path.startsWith('http') || path.startsWith('data:')) return path;
+    const normalizedPath = String(path).replace(/^\/+/, '').replace(/^storage\/+/, '');
     const url = BASE_URL.endsWith('/') ? BASE_URL : BASE_URL + '/';
-    return `${url}storage/${path}`;
+    return `${url}storage/${normalizedPath}`;
 };
 
 const formatPrice = (value) => {

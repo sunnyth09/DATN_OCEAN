@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../config/app_theme.dart';
 import '../services/api_client.dart';
+import '../utils/format_utils.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -116,7 +117,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       final isRead = notif['read_at'] != null;
                       final title = data['title'] ?? 'Thong bao he thong';
                       final message = data['message'] ?? '';
-                      final date = notif['created_at']?.toString().split('T').first ?? '';
+                      final date = FormatUtils.formatDate(notif['created_at']);
 
                       return InkWell(
                         onTap: () {

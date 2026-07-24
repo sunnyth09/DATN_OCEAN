@@ -64,6 +64,27 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _removeItem(int cartItemId) async {
+    // Xác nhận trước khi xoá để tránh chạm nhầm mất sản phẩm.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xoá sản phẩm?'),
+        content: const Text('Bạn có chắc muốn xoá sản phẩm này khỏi giỏ hàng?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Huỷ', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Xoá', style: TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     final ok = await context.read<CartProvider>().removeItem(cartItemId);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -266,7 +287,7 @@ class _CartScreenState extends State<CartScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              FormatUtils.formatCurrency(product['price'] ?? 0),
+                              FormatUtils.formatPrice(product['price'] ?? 0),
                               style: const TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                           ],

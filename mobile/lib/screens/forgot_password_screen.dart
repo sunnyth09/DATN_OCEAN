@@ -20,6 +20,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
 
+  // Token tạm backend cấp sau khi verify OTP; bước reset phải gửi token này.
+  String? _resetToken;
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -95,10 +98,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await ApiClient().dio.post(
+      final res = await ApiClient().dio.post(
         '/forgot-password/verify-otp',
         data: {'email': _emailCtrl.text.trim(), 'otp': otp},
       );
+
+      final data = res.data;
+      _resetToken = data is Map ? data['reset_token'] as String? : null;
 
       setState(() => _currentStep = 2);
       if (mounted) {
@@ -162,7 +168,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         '/forgot-password/reset',
         data: {
           'email': _emailCtrl.text.trim(),
-          'otp': _otpCtrl.text.trim(),
+          'reset_token': _resetToken,
           'password': password,
           'password_confirmation': confirm,
         },
@@ -331,10 +337,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: const TextStyle(
-                color: Color(0xFF94A3B8),
+                color: Color(0xFF64748B),
                 fontSize: 14,
               ),
-              prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+              prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 16),
             ),

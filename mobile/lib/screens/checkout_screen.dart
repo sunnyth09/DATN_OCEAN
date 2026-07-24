@@ -38,6 +38,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _couponCtrl = TextEditingController();
   bool _isApplyingCoupon = false;
 
+  // Chống double-submit: chặn tạo đơn khi request trước chưa xong.
+  bool _isPlacingOrder = false;
+
   @override
   void initState() {
     super.initState();
@@ -304,12 +307,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       return;
     }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+    // Chặn chạm lặp: nếu đang gửi thì bỏ qua.
+    if (_isPlacingOrder) return;
+    setState(() => _isPlacingOrder = true);
 
     try {
       final pm = ['cod', 'vnpay', 'momo'][selectedPayment];
@@ -318,12 +318,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         data: {
           'address_id': defaultAddress!['address_id'] ?? defaultAddress!['id'],
           'payment_method': pm,
-          'shipping_fee': shippingFee,
-          if (appliedCoupon != null) 'coupon_code': appliedCoupon!['code'],
+          if (appliedCoupon != null) 'coupon_applied': appliedCoupon!['code'],
         },
       );
-
-      if (mounted) context.pop(); // hide loading
 
       if (mounted) {
         context.read<CartProvider>().fetchCart(silent: true);
@@ -334,6 +331,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final momoUrl = resData['momo_url'];
       final paymentUrl = vnpayUrl ?? momoUrl;
 
+      // Mã đơn + tổng tiền do backend trả về, dùng cho màn xác nhận.
+      final orderData = resData['data'];
+      final orderCode = orderData is Map ? orderData['order_code']?.toString() : null;
+      final grandTotal = orderData is Map
+          ? num.tryParse(orderData['grand_total']?.toString() ?? '')
+          : null;
+
       if (paymentUrl != null && mounted) {
         // Mở WebView thanh toán
         Navigator.push(
@@ -342,6 +346,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             builder: (_) => PaymentWebviewScreen(
               url: paymentUrl,
               paymentMethod: pm,
+              orderCode: orderCode,
+              grandTotal: grandTotal,
             ),
           ),
         );
@@ -355,12 +361,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const OrderSuccessScreen()),
+          MaterialPageRoute(
+            builder: (_) => OrderSuccessScreen(
+              orderCode: orderCode,
+              grandTotal: grandTotal,
+            ),
+          ),
           (route) => false,
         );
       }
     } on DioException catch (e) {
-      if (mounted) context.pop();
       final msg = e.response?.data?['message'] ?? 'Lỗi đặt hàng';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -369,7 +379,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     } catch (_) {
       if (mounted) {
-        context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Lỗi kết nối máy chủ!'),
@@ -377,6 +386,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         );
       }
+    } finally {
+      // Bật lại nút khi quay về màn checkout (VD trở lại từ webview thanh toán).
+      if (mounted) setState(() => _isPlacingOrder = false);
     }
   }
 
@@ -519,6 +531,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             child: CheckoutBottomBar(
               grandTotal: grandTotal,
               onPlaceOrder: placeOrder,
+              isPlacing: _isPlacingOrder,
             ),
           ),
         ],

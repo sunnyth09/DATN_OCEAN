@@ -236,25 +236,41 @@ class AttendanceService
         $imagePath = $this->saveBase64Image($data['image'] ?? null, 'checkin_' . $userId);
 
         // 8. Tạo attendance record
-        $attendance = Attendance::create([
-            'user_id'                  => $userId,
-            'user_type'                => $userType,
-            'work_location_id'         => $validResult['location']->id,
-            'work_shift_id'            => $currentShift->id,
-            'work_date'                => $today,
-            'check_in_at'              => now(),
-            'ip_address'               => request()->ip(),
-            'latitude'                 => $lat,
-            'longitude'                => $lng,
-            'check_in_accuracy'        => $accuracy,
-            'check_in_distance_meters' => $validResult['distance_meters'],
-            'status'                   => 'checked_in',
-            'image_path'               => $imagePath,
-            'face_verified'            => $faceResult ? $faceResult['match'] : null,
-            'face_confidence'          => $faceResult ? $faceResult['confidence'] : null,
-            'face_distance'            => $faceResult ? $faceResult['distance'] : null,
-            'note'                     => $data['note'] ?? null,
-        ]);
+        // Bọc try-catch để bắt unique violation (backstop tầng DB): khi có race
+        // vượt qua Cache::lock (lock hết hạn / Redis restart), unique index sẽ chặn
+        // bản ghi trùng thay vì tạo dữ liệu rác. Trả message thân thiện thay vì HTTP 500.
+        try {
+            $attendance = Attendance::create([
+                'user_id'                  => $userId,
+                'user_type'                => $userType,
+                'work_location_id'         => $validResult['location']->id,
+                'work_shift_id'            => $currentShift->id,
+                'work_date'                => $today,
+                'check_in_at'              => now(),
+                'ip_address'               => request()->ip(),
+                'latitude'                 => $lat,
+                'longitude'                => $lng,
+                'check_in_accuracy'        => $accuracy,
+                'check_in_distance_meters' => $validResult['distance_meters'],
+                'status'                   => 'checked_in',
+                'image_path'               => $imagePath,
+                'face_verified'            => $faceResult ? $faceResult['match'] : null,
+                'face_confidence'          => $faceResult ? $faceResult['confidence'] : null,
+                'face_distance'            => $faceResult ? $faceResult['distance'] : null,
+                'note'                     => $data['note'] ?? null,
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // 23000 = integrity constraint violation (MySQL 1062 duplicate entry)
+            if ($e->getCode() === '23000') {
+                return [
+                    'success'     => false,
+                    'message'     => "Bạn đã check-in \"{$currentShift->name}\" hôm nay rồi.",
+                    'data'        => null,
+                    'status_code' => 409,
+                ];
+            }
+            throw $e;
+        }
 
         return [
             'success'     => true,

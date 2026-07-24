@@ -257,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Text(
                       'Đăng nhập Google, Facebook và Apple sẽ sớm ra mắt.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
                   ),
 
@@ -327,15 +327,15 @@ class _LoginScreenState extends State<LoginScreen> {
         obscureText: isPassword && _obscureText,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-          prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+          hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+          prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
                     _obscureText
                         ? Icons.visibility_off_outlined
                         : Icons.visibility_outlined,
-                    color: const Color(0xFF94A3B8),
+                    color: const Color(0xFF64748B),
                     size: 20,
                   ),
                   onPressed: () => setState(() => _obscureText = !_obscureText),

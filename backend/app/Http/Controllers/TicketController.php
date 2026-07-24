@@ -67,11 +67,47 @@ class TicketController extends Controller
 
         try {
             $ticket = Ticket::findOrFail($id);
+            $oldStatus = $ticket->status;
+            $oldReply = $ticket->admin_reply;
+
             $ticket->status = $request->status;
             if ($request->has('admin_reply')) {
                 $ticket->admin_reply = $request->admin_reply;
             }
             $ticket->save();
+
+            // Gửi thông báo cho user nếu trạng thái thay đổi hoặc có phản hồi mới
+            if ($ticket->status != $oldStatus || ($ticket->admin_reply && $ticket->admin_reply != $oldReply)) {
+                $user = \App\Models\User::find($ticket->user_id);
+                if ($user) {
+                    $statusText = match($ticket->status) {
+                        'pending' => 'Chờ xử lý',
+                        'processing' => 'Đang xử lý',
+                        'resolved' => 'Đã giải quyết',
+                        'closed' => 'Đã đóng',
+                        default => $ticket->status
+                    };
+                    $title = "Cập nhật khiếu nại #" . $ticket->ticket_id;
+                    $message = "Khiếu nại của bạn đã chuyển sang: " . $statusText . ".";
+                    if ($ticket->admin_reply && $ticket->admin_reply != $oldReply) {
+                        $message .= " Admin: " . substr($ticket->admin_reply, 0, 60) . "...";
+                    }
+                    
+                    $notificationData = [
+                        'title' => $title,
+                        'message' => $message,
+                        'url_redirect' => '/profile', // user có thể xem trong profile
+                        'icon' => 'bell'
+                    ];
+
+                    $user->notify(new \App\Notifications\SystemNotification(
+                        $notificationData['title'],
+                        $notificationData['message'],
+                        $notificationData['url_redirect'],
+                        $notificationData['icon']
+                    ));
+                }
+            }
 
             return response()->json([
                 'status' => 'success',

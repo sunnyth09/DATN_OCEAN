@@ -14,7 +14,7 @@ class ChatController extends Controller
         $user = $request->user();
         
         $session = DB::table('chat_sessions')
-            ->where('user_id', $user->id)
+            ->where('user_id', $user->user_id)
             ->where('status', 'open')
             ->first();
 
@@ -45,14 +45,14 @@ class ChatController extends Controller
         $user = $request->user();
 
         $session = DB::table('chat_sessions')
-            ->where('user_id', $user->id)
+            ->where('user_id', $user->user_id)
             ->where('status', 'open')
             ->first();
 
         if (!$session) {
             $sessionId = DB::table('chat_sessions')->insertGetId([
                 'session_token' => \Illuminate\Support\Str::uuid(),
-                'user_id' => $user->id,
+                'user_id' => $user->user_id,
                 'status' => 'open',
                 'created_at' => now(),
                 'updated_at' => now(),

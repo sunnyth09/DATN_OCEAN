@@ -148,7 +148,7 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
                     children: [
                       Icon(
                         isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
-                        color: isSelected ? Colors.red : const Color(0xFF94A3B8),
+                        color: isSelected ? Colors.red : const Color(0xFF64748B),
                         size: 20,
                       ),
                       const SizedBox(width: 12),
@@ -177,7 +177,7 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
               maxLength: 2000,
               decoration: InputDecoration(
                 hintText: 'Nhập thông tin chi tiết về tình trạng sản phẩm...',
-                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
+                hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
@@ -205,7 +205,7 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
                           icon: const Icon(Icons.cancel, color: Colors.red),
                           onPressed: () => _removeImage(index),
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
+                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                         ),
                       ),
                     ],
@@ -224,9 +224,9 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
                       child: const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_a_photo_outlined, color: Color(0xFF94A3B8), size: 24),
+                          Icon(Icons.add_a_photo_outlined, color: Color(0xFF64748B), size: 24),
                           SizedBox(height: 4),
-                          Text('Thêm ảnh', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10)),
+                          Text('Thêm ảnh', style: TextStyle(color: Color(0xFF64748B), fontSize: 10)),
                         ],
                       ),
                     ),

@@ -5,7 +5,8 @@ services:
     image: mysql:8.0
     restart: always
     ports:
-      - "8306:3306"
+      # Bind chỉ localhost — tránh lộ MySQL ra mọi IP của host (0.0.0.0)
+      - "127.0.0.1:8306:3306"
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-ocean_db}
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
@@ -64,7 +65,8 @@ services:
     image: getmeili/meilisearch:v1.7
     restart: always
     ports:
-      - "7700:7700"
+      # Bind chỉ localhost — Meilisearch không nên lộ ra internet (nhất là khi master key còn để mặc định)
+      - "127.0.0.1:7700:7700"
     environment:
       MEILI_MASTER_KEY: ${MEILISEARCH_KEY:-masterKey}
       MEILI_ENV: development

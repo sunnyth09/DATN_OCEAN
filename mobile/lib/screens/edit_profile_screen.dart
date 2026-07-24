@@ -147,7 +147,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text('Nhấn để đổi ảnh đại diện', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12)),
+            const Text('Nhấn để đổi ảnh đại diện', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
             const SizedBox(height: 28),
 
             // Editable fields
@@ -216,13 +216,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+          Icon(icon, color: const Color(0xFF64748B), size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+                Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 TextField(
                   controller: ctrl,
@@ -243,13 +243,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+          Icon(icon, color: const Color(0xFF64748B), size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+                Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 Text(value, style: const TextStyle(fontSize: 15, color: Color(0xFF64748B))),
               ],

@@ -1,5 +1,17 @@
+import 'package:intl/intl.dart';
+
 class FormatUtils {
   FormatUtils._();
+
+  /// Định dạng ngày về dd/MM/yyyy (nhận ISO string hoặc DateTime).
+  /// Trả về chuỗi rỗng nếu không parse được, để UI tự fallback.
+  static String formatDate(dynamic value, {bool withTime = false}) {
+    if (value == null) return '';
+    final d = value is DateTime ? value : DateTime.tryParse(value.toString());
+    if (d == null) return '';
+    final pattern = withTime ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy';
+    return DateFormat(pattern).format(d);
+  }
 
   static String formatPrice(dynamic price) {
     try {
