@@ -8,6 +8,7 @@ import AppIcon from '@/icons/AppIcon.vue';
 import { getApiBaseUrl, getAppBaseUrl } from '@/utils/url';
 import QRCode from 'qrcode';
 import { sanitizeHtml } from '@/utils/sanitize';
+import BaseSelect from '@/components/base/BaseSelect.vue';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastMsg = (message, type = 'success') => {
@@ -25,6 +26,50 @@ const products = ref([]);
 const isLoading = ref(true);
 const searchQuery = ref(route.query.search || '');
 const statusFilter = ref(route.query.status || '');
+const categoryFilter = ref(route.query.category_id || '');
+const brandFilter = ref(route.query.brand_ids || '');
+const sortByFilter = ref(route.query.sort_by || '');
+const priceFilter = ref(route.query.price_range || '');
+
+const categories = ref([]);
+const brands = ref([]);
+
+const fetchCategories = async () => {
+    try {
+        const res = await api.get('/categories');
+        categories.value = res.data.data || res.data;
+    } catch(e) {}
+};
+
+const fetchBrands = async () => {
+    try {
+        const res = await api.get('/brands');
+        brands.value = res.data.data || res.data;
+    } catch(e) {}
+};
+
+const categoryOptions = computed(() => {
+    return categories.value.map(cat => ({ value: cat.category_id, label: cat.name }));
+});
+
+const brandOptions = computed(() => {
+    return brands.value.map(b => ({ value: b.brand_id, label: b.name }));
+});
+
+const priceOptions = [
+    { value: '0-500000', label: 'Dưới 500.000₫' },
+    { value: '500000-1000000', label: '500.000₫ - 1.000.000₫' },
+    { value: '1000000-3000000', label: '1.000.000₫ - 3.000.000₫' },
+    { value: '3000000-5000000', label: '3.000.000₫ - 5.000.000₫' },
+    { value: '5000000-', label: 'Trên 5.000.000₫' }
+];
+
+const sortOptions = [
+    { value: 'latest', label: 'Mới nhất' },
+    { value: 'oldest', label: 'Cũ nhất' },
+    { value: 'price_asc', label: 'Giá tăng dần' },
+    { value: 'price_desc', label: 'Giá giảm dần' }
+];
 const currentPage = ref(parseInt(route.query.page) || 1);
 const totalProducts = ref(0);
 const limit = 10;
@@ -52,6 +97,10 @@ const fetchProducts = async () => {
         });
         if (searchQuery.value) params.append('search', searchQuery.value);
         if (statusFilter.value) params.append('status', statusFilter.value);
+        if (categoryFilter.value) params.append('category_id', categoryFilter.value);
+        if (brandFilter.value) params.append('brand_ids', brandFilter.value);
+        if (sortByFilter.value) params.append('sort_by', sortByFilter.value);
+        if (priceFilter.value) params.append('price_range', priceFilter.value);
 
         const response = await api.get(`/products?${params.toString()}`);
         products.value = response.data.data || response.data;
@@ -64,6 +113,8 @@ const fetchProducts = async () => {
 };
 
 onMounted(async () => {
+    fetchCategories();
+    fetchBrands();
     await fetchProducts();
     if (route.query.edited_id) {
         nextTick(() => {
@@ -143,11 +194,21 @@ const updateRouteAndFetch = () => {
     if (statusFilter.value) query.status = statusFilter.value;
     else delete query.status;
     
+    if (categoryFilter.value) query.category_id = categoryFilter.value; else delete query.category_id;
+    if (brandFilter.value) query.brand_ids = brandFilter.value; else delete query.brand_ids;
+    if (sortByFilter.value) query.sort_by = sortByFilter.value; else delete query.sort_by;
+    if (priceFilter.value) query.price_range = priceFilter.value; else delete query.price_range;
+    
     router.replace({ query }).catch(() => {});
     fetchProducts();
 };
 
 const handleSearch = () => {
+    currentPage.value = 1;
+    updateRouteAndFetch();
+};
+
+const handleAdvancedFilter = () => {
     currentPage.value = 1;
     updateRouteAndFetch();
 };
@@ -562,7 +623,8 @@ const formatDate = (dateString) => {
 
         <!-- Filters & Search -->
         <div class="filters-bar ocean-card animate-in" style="animation-delay: 0.1s">
-            <div class="search-box">
+            <div class="filters-top" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%;">
+                <div class="search-box">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="11" cy="11" r="8"/>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -582,6 +644,37 @@ const formatDate = (dateString) => {
                 <button class="filter-btn" :class="{ active: statusFilter === 'inactive' }" @click="handleFilterStatus('inactive')">Tạm ẩn</button>
                 <button class="filter-btn" :class="{ active: statusFilter === 'out_of_stock' }" @click="handleFilterStatus('out_of_stock')">Hết hàng</button>
                 <button class="filter-btn btn-danger" :class="{ active: statusFilter === 'deleted' }" @click="handleFilterStatus('deleted')">Đã xóa</button>
+            </div>
+            </div>
+            <div class="advanced-filters" style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap; padding-top: 15px; border-top: 1px dashed var(--border-color, #e2e8f0);">
+                <BaseSelect 
+                    v-model="categoryFilter" 
+                    @change="handleAdvancedFilter" 
+                    :options="categoryOptions"
+                    placeholder="-- Danh mục --"
+                    style="min-width: 150px; flex: 1;"
+                />
+                <BaseSelect 
+                    v-model="brandFilter" 
+                    @change="handleAdvancedFilter" 
+                    :options="brandOptions"
+                    placeholder="-- Thương hiệu --"
+                    style="min-width: 150px; flex: 1;"
+                />
+                <BaseSelect 
+                    v-model="priceFilter" 
+                    @change="handleAdvancedFilter" 
+                    :options="priceOptions"
+                    placeholder="-- Khoảng giá --"
+                    style="min-width: 150px; flex: 1;"
+                />
+                <BaseSelect 
+                    v-model="sortByFilter" 
+                    @change="handleAdvancedFilter" 
+                    :options="sortOptions"
+                    placeholder="-- Sắp xếp --"
+                    style="min-width: 150px; flex: 1;"
+                />
             </div>
         </div>
 
@@ -1048,8 +1141,8 @@ const formatDate = (dateString) => {
 
 /* Filters */
 .filters-bar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+    display: flex; flex-direction: column;
+    padding: 16px 20px; margin-bottom: 24px;
 }
 .search-box {
     display: flex; align-items: center; gap: 10px;
