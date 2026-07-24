@@ -295,6 +295,7 @@ const routes = [
                 component: () => import("@/features/shop/pages/admin/AdminReview.vue"),
                 meta: { roles: ['admin', 'seller'], title: 'Quản lý đánh giá' },
             },
+
             {
                 path: "tickets",
                 name: "admin-tickets",
@@ -385,12 +386,12 @@ const router = createRouter({
     // Scroll to top khi navigate
     scrollBehavior(to, from, savedPosition) {
         if (savedPosition) return savedPosition;
-        
+
         // Không cuộn lên đầu trang nếu chỉ thay đổi query param trên cùng một route (ví dụ: lọc, phân trang)
         if (to.path === from.path) {
             return false;
         }
-        
+
         return { top: 0 };
     },
 });
