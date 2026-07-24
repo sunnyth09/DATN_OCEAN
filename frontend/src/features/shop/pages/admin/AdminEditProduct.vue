@@ -302,17 +302,18 @@ const validateForm = () => {
     return ok;
 };
 
+// ===== Submit =====
 const handleSubmit = async () => {
-    if (!validateForm()) { 
+    if (!validateForm()) {
         nextTick(() => {
-            const firstError = document.querySelector('.is-invalid, .field-error');
-            if (firstError) {
-                firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+            const firstErrorEl = document.querySelector('.field-error');
+            if (firstErrorEl) {
+                firstErrorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
             } else {
                 window.scrollTo({ top: 0, behavior: "smooth" });
             }
         });
-        return; 
+        return;
     }
     isSaving.value = true;
 
@@ -367,7 +368,12 @@ const handleSubmit = async () => {
     try {
         await api.post(`/products/${productId.value}`, fd, { headers: { "Content-Type": "multipart/form-data" } });
         Swal.fire('Thành công', 'Cập nhật sản phẩm thành công!', 'success');
-        router.push({ path: "/admin/product", query: { ...route.query, edited_id: productId.value } });
+        
+        // Pass query params and edited_id to retain state
+        router.push({ 
+            path: '/admin/product', 
+            query: { ...route.query, edited_id: productId.value } 
+        });
     } catch (e) {
         console.error("Error:", e.response?.data || e);
         if (e.response?.data?.errors) errors.value = e.response.data.errors;

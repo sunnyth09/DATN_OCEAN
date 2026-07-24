@@ -410,7 +410,6 @@ class ProductService
             DB::rollBack();
             $isDbError = $e instanceof \Illuminate\Database\QueryException || $e instanceof \PDOException;
             $errorMsg = $isDbError ? 'Lỗi hệ thống.' : $e->getMessage();
-            Log::error('Update Product Error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return [
                 '_status' => 500,
                 'success' => false,
@@ -737,7 +736,7 @@ class ProductService
             $barcode = $this->generateUniqueBarcode();
             $this->productRepository->createVariant([
                 'product_id'       => $product->product_id,
-                'sku'              => Str::limit($slug, 30, '') . '-default',
+                'sku'              => substr($slug, 0, 50) . '-default',
                 'barcode'          => $barcode,
                 'price'            => $price,
                 'compare_at_price' => $request->compare_at_price,
@@ -785,7 +784,7 @@ class ProductService
                 $barcode = $this->generateUniqueBarcode();
                 $variant = $this->productRepository->createVariant([
                     'product_id'     => $product->product_id,
-                    'sku'            => Str::limit($slug, 30, '') . '-' . Str::limit(Str::slug($color ?? 'def'), 15, '') . '-' . Str::limit(Str::slug($size ?? 'def'), 15, '') . '-' . Str::random(4),
+                    'sku'            => substr($slug, 0, 50) . '-' . Str::slug(substr($color ?? 'def', 0, 20)) . '-' . Str::slug(substr($size ?? 'def', 0, 20)) . '-' . Str::random(4),
                     'barcode'        => $barcode,
                     'color'          => $color,
                     'size'           => $size,
@@ -863,7 +862,7 @@ class ProductService
                 $barcode = $this->generateUniqueBarcode();
                 $this->productRepository->createVariant([
                     'product_id'       => $product->product_id,
-                    'sku'              => Str::limit(Str::slug($product->name), 30, '') . '-default',
+                    'sku'              => substr(Str::slug($product->name), 0, 50) . '-default',
                     'barcode'          => $barcode,
                     'price'            => $price,
                     'compare_at_price' => $request->compare_at_price,
@@ -958,7 +957,7 @@ class ProductService
                 $barcode = $this->generateUniqueBarcode();
                 $variant = $this->productRepository->createVariant([
                     'product_id'     => $product->product_id,
-                    'sku'            => Str::limit(Str::slug($product->name), 30, '') . '-' . Str::limit(Str::slug($color ?? 'def'), 15, '') . '-' . Str::limit(Str::slug($size ?? 'def'), 15, '') . '-' . Str::random(4),
+                    'sku'            => substr(Str::slug($product->name), 0, 50) . '-' . Str::slug(substr($color ?? 'def', 0, 20)) . '-' . Str::slug(substr($size ?? 'def', 0, 20)) . '-' . Str::random(4),
                     'barcode'        => $barcode,
                     'color'          => $color,
                     'size'           => $size,

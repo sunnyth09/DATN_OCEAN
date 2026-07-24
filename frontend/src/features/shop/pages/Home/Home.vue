@@ -409,7 +409,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </router-link>
                 </div>
                 <!-- Categories Bootstrap row -->
-                <div class="row g-3">
+                <div class="row g-3 justify-content-center">
                     <template v-if="isLoadingCategories">
                         <div v-for="i in 6" :key="i" class="col-6 col-sm-4 col-lg-2">
                             <div class="skeleton-pulse cat-card-shell"></div>
@@ -425,10 +425,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                 <div class="cat-card-icon" v-else>{{ getCatIcon(idx) }}</div>
                                 <div class="cat-card-info">
                                     <span class="cat-card-name">{{ cat.name }}</span>
-                                    <span class="cat-card-count" v-if="cat.product_count">{{ cat.product_count }}
-                                        SP</span>
+                                    <span class="cat-card-count" v-if="cat.product_count">{{ cat.product_count }} SP</span>
                                 </div>
-                                <div class="cat-card-overlay"><span>Xem ngay →</span></div>
                             </router-link>
                         </div>
                     </template>
@@ -1315,21 +1313,30 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .cat-card-img {
     position: absolute;
-    top: 12px;
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
-    width: 80px;
-    height: 80px;
+    width: 90px;
+    height: 90px;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 12px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cat-card:hover .cat-card-img {
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .cat-card-img img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .2));
 }
 
 .cat-card-icon {
@@ -1360,35 +1367,16 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .cat-card-name {
     color: #fff;
-    font-size: .85rem;
+    font-size: .95rem;
     font-weight: 700;
     text-align: center;
     text-shadow: 0 1px 4px rgba(0, 0, 0, .4);
 }
 
 .cat-card-count {
-    color: rgba(255, 255, 255, .75);
-    font-size: .7rem;
+    color: rgba(255, 255, 255, .8);
+    font-size: .75rem;
     font-weight: 500;
-}
-
-.cat-card-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, .45);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity .3s;
-    z-index: 3;
-    color: #fff;
-    font-weight: 700;
-    font-size: .9rem;
-}
-
-.cat-card:hover .cat-card-overlay {
-    opacity: 1;
 }
 
 /* ============================================

@@ -29,9 +29,10 @@ class OrderPolicy
      */
     public function before(mixed $user, string $ability): bool|null
     {
-        $role = $user->role ?? null;
-        if (in_array($role, ['admin', 'staff', 'seller'], true)) {
-            return true;
+        // Admin model dùng 'admin' guard — check role thuộc admin/staff
+        if (auth('admin')->check()) {
+            $adminUser = auth('admin')->user();
+            return in_array($adminUser->role, ['admin', 'staff'], true);
         }
 
         return null; // Để policy tiếp tục xét
@@ -62,7 +63,7 @@ class OrderPolicy
      */
     public function create(User $user): bool
     {
-        $role = $user->role ?? null;
-        return $user->status === 'active' && !in_array($role, ['admin', 'staff', 'seller'], true);
+        // Đã qua auth('api') middleware, chỉ cần confirm không phải admin guard
+        return auth('api')->check() && $user->status === 'active';
     }
 }

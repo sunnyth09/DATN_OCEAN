@@ -18,11 +18,11 @@ const showToastMsg = (message, type = 'success') => {
   });
 };
 
-const products = ref([]);
-const isLoading = ref(true);
 const route = useRoute();
 const router = useRouter();
 
+const products = ref([]);
+const isLoading = ref(true);
 const searchQuery = ref(route.query.search || '');
 const statusFilter = ref(route.query.status || '');
 const currentPage = ref(parseInt(route.query.page) || 1);
@@ -61,25 +61,20 @@ const fetchProducts = async () => {
     } finally {
         isLoading.value = false;
     }
-    
-    // Update route query
-    const query = {};
-    if (currentPage.value > 1) query.page = currentPage.value;
-    if (searchQuery.value) query.search = searchQuery.value;
-    if (statusFilter.value) query.status = statusFilter.value;
-    router.replace({ query }).catch(() => {});
 };
 
 onMounted(async () => {
     await fetchProducts();
     if (route.query.edited_id) {
         nextTick(() => {
-            const row = document.getElementById(`product-row-${route.query.edited_id}`);
-            if (row) {
-                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                row.classList.add('highlight-row');
-                setTimeout(() => row.classList.remove('highlight-row'), 3000);
-            }
+            setTimeout(() => {
+                const el = document.getElementById(`product-${route.query.edited_id}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('highlight-edited');
+                    setTimeout(() => el.classList.remove('highlight-edited'), 3000);
+                }
+            }, 300);
         });
     }
 });
@@ -136,9 +131,25 @@ const getImageUrl = (product) => {
     return null;
 };
 
+const updateRouteAndFetch = () => {
+    const query = { ...route.query };
+    
+    if (currentPage.value > 1) query.page = currentPage.value;
+    else delete query.page;
+    
+    if (searchQuery.value) query.search = searchQuery.value;
+    else delete query.search;
+    
+    if (statusFilter.value) query.status = statusFilter.value;
+    else delete query.status;
+    
+    router.replace({ query }).catch(() => {});
+    fetchProducts();
+};
+
 const handleSearch = () => {
     currentPage.value = 1;
-    fetchProducts();
+    updateRouteAndFetch();
 };
 
 const handleFilterStatus = (status) => {
@@ -148,7 +159,7 @@ const handleFilterStatus = (status) => {
     if (status === 'deleted') {
         statusFilter.value = 'deleted';
     }
-    fetchProducts();
+    updateRouteAndFetch();
 };
 
 const handleDelete = async (productId, isDeleted) => {
@@ -330,7 +341,7 @@ const handleRestore = async (productId) => {
 const goToPage = (page) => {
     if (page >= 1 && page <= totalPages.value) {
         currentPage.value = page;
-        fetchProducts();
+        updateRouteAndFetch();
     }
 };
 
@@ -602,7 +613,7 @@ const formatDate = (dateString) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in products" :key="p.product_id" :id="'product-row-' + p.product_id">
+                        <tr v-for="p in products" :key="p.product_id" :id="`product-${p.product_id}`">
                             <td><span class="badge-id">#{{ p.product_id }}</span></td>
                             <td>
                                 <div class="prod-thumb">
@@ -854,7 +865,7 @@ const formatDate = (dateString) => {
 
                         <!-- Footer Actions -->
                         <div class="qv-footer">
-                            <router-link :to="`/admin/product/edit/${quickViewProduct.product_id}`" class="btn-primary" @click="closeQuickView">
+                            <router-link :to="{ path: `/admin/product/edit/${quickViewProduct.product_id}`, query: route.query }" class="btn-primary" @click="closeQuickView">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 Chỉnh Sửa Sản Phẩm
                             </router-link>
@@ -1398,8 +1409,17 @@ const formatDate = (dateString) => {
     .import-modal { width: 96%; }
 }
 
-.highlight-row {
-    background-color: #fff3cd !important;
-    transition: background-color 3s ease-out;
+.highlight-edited {
+    background-color: rgba(38, 166, 154, 0.15) !important;
+    transition: background-color 2s ease-out;
+}
+
+.badge-type, .badge-status, .badge-stock, .val-price {
+    white-space: nowrap;
+}
+
+.data-table th, .data-table td {
+    padding: 12px 16px;
+    vertical-align: middle;
 }
 </style>
