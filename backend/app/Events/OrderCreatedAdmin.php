@@ -57,7 +57,7 @@ class OrderCreatedAdmin implements ShouldBroadcastNow
             'grand_total' => $this->order->grand_total,
             'fulfillment_status' => $this->order->fulfillment_status,
             'payment_status' => $this->order->payment_status,
-            'created_at' => $this->order->created_at->format('Y-m-d H:i:s')
+            'created_at' => (string) $this->order->created_at
         ];
     }
 }
