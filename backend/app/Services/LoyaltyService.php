@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\UserNotificationEvent;
 use App\Models\LoyaltyRule;
 use App\Models\LoyaltyTransaction;
 use App\Models\Order;
@@ -45,13 +46,13 @@ class LoyaltyService
         $rule = LoyaltyRule::findByKey('ORDER_COMPLETE');
         if (!$rule) return null;
 
-        $dedupe = fn () => LoyaltyTransaction::forUser($user->user_id)
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
             ->where('reference_type', Order::class)
             ->where('reference_id', $order->order_id)
             ->where('description', 'like', 'Tích điểm đơn hàng%')
             ->exists();
 
-        if ($dedupe()) return null;
+        if ($alreadyEarned) return null;
 
         if ($order->grand_total < 100000) return null;
 
@@ -67,7 +68,6 @@ class LoyaltyService
             referenceType: Order::class,
             referenceId: $order->order_id,
             description: "Tích điểm đơn hàng #{$order->order_code} ({$this->formatMoney($order->grand_total)}đ)",
-            dedupeCheck: $dedupe,
         );
     }
 
@@ -79,11 +79,11 @@ class LoyaltyService
         $rule = LoyaltyRule::findByKey('FIRST_ORDER');
         if (!$rule) return null;
 
-        $dedupe = fn () => LoyaltyTransaction::forUser($user->user_id)
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
             ->where('description', 'like', 'Bonus đơn hàng đầu tiên%')
             ->exists();
 
-        if ($dedupe()) return null;
+        if ($alreadyEarned) return null;
 
         $points = (int) $rule->points_per_unit;
         if ($points <= 0) return null;
@@ -95,7 +95,6 @@ class LoyaltyService
             referenceType: Order::class,
             referenceId: $order->order_id,
             description: "Bonus đơn hàng đầu tiên #{$order->order_code}",
-            dedupeCheck: $dedupe,
         );
     }
 
@@ -111,13 +110,19 @@ class LoyaltyService
         if (!$rule) return null;
 
         // Tránh earn nhiều lần cho cùng 1 order
-        $dedupe = fn () => LoyaltyTransaction::forUser($referrer->user_id)
+        $alreadyEarned = LoyaltyTransaction::forUser($referrer->user_id)
             ->where('reference_type', Order::class)
             ->where('reference_id', $order->order_id)
             ->where('type', 'earn')
             ->exists();
 
-        if ($dedupe()) return null;
+        if ($alreadyEarned) return null;
+
+        // Rate limit: tối đa 5 lần giới thiệu tích điểm / ngày
+        if ($this->isRateLimited($referrer->user_id, Order::class, maxCount: 5, window: 'day', descriptionLike: 'Điểm giới thiệu%')) {
+            Log::info('LoyaltyRateLimit: earnFromReferral bị chặn', ['referrer_id' => $referrer->user_id, 'order_id' => $order->order_id]);
+            return null;
+        }
 
         $points = (int) $rule->points_per_unit;
         if ($points <= 0) return null;
@@ -129,7 +134,6 @@ class LoyaltyService
             referenceType: Order::class,
             referenceId: $order->order_id,
             description: "Điểm giới thiệu: bạn bè đặt đơn #{$order->order_code}",
-            dedupeCheck: $dedupe,
         );
     }
 
@@ -143,13 +147,13 @@ class LoyaltyService
         if (!$rule) return null;
 
         // Kiểm tra đã nhận điểm sinh nhật năm nay chưa
-        $dedupe = fn () => LoyaltyTransaction::forUser($user->user_id)
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
             ->where('type', 'earn')
             ->where('reference_type', 'birthday')
             ->whereYear('created_at', now()->year)
             ->exists();
 
-        if ($dedupe()) return null;
+        if ($alreadyEarned) return null;
 
         $points = (int) $rule->points_per_unit;
 
@@ -160,7 +164,6 @@ class LoyaltyService
             referenceType: 'birthday',
             referenceId: null,
             description: 'Quà sinh nhật tháng ' . now()->month,
-            dedupeCheck: $dedupe,
         );
     }
 
@@ -176,12 +179,18 @@ class LoyaltyService
         if (!$rule) return null;
 
         // Tránh earn nhiều lần cho cùng 1 comment
-        $dedupe = fn () => LoyaltyTransaction::forUser($user->user_id)
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
             ->where('reference_type', 'product_comment')
             ->where('reference_id', $commentId)
             ->exists();
 
-        if ($dedupe()) return null;
+        if ($alreadyEarned) return null;
+
+        // Rate limit: tối đa 5 đánh giá được tích điểm / ngày
+        if ($this->isRateLimited($user->user_id, 'product_comment', maxCount: 5, window: 'day')) {
+            Log::info('LoyaltyRateLimit: earnFromReview bị chặn', ['user_id' => $user->user_id, 'comment_id' => $commentId]);
+            return null;
+        }
 
         $points = (int) $rule->points_per_unit;
 
@@ -192,7 +201,6 @@ class LoyaltyService
             referenceType: 'product_comment',
             referenceId: $commentId,
             description: 'Tích điểm viết đánh giá sản phẩm',
-            dedupeCheck: $dedupe,
         );
     }
 
@@ -206,6 +214,20 @@ class LoyaltyService
     {
         $rule = LoyaltyRule::findByKey('ABANDONED_CART');
         if (!$rule) return null;
+
+        // Tránh earn nhiều lần cho cùng 1 cart
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
+            ->where('reference_type', 'cart')
+            ->where('reference_id', $cartId)
+            ->exists();
+
+        if ($alreadyEarned) return null;
+
+        // Rate limit: tối đa 1 lần / ngày (tránh spam qua nhiều giỏ hàng)
+        if ($this->isRateLimited($user->user_id, 'cart', maxCount: 1, window: 'day')) {
+            Log::info('LoyaltyRateLimit: earnAbandonedCart bị chặn', ['user_id' => $user->user_id, 'cart_id' => $cartId]);
+            return null;
+        }
 
         $points = (int) $rule->points_per_unit;
 
@@ -231,12 +253,18 @@ class LoyaltyService
         if (!$rule) return null;
 
         // Tránh earn nhiều lần cho cùng 1 comment
-        $dedupe = fn () => LoyaltyTransaction::forUser($user->user_id)
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
             ->where('reference_type', 'product_comment_image')
             ->where('reference_id', $commentId)
             ->exists();
 
-        if ($dedupe()) return null;
+        if ($alreadyEarned) return null;
+
+        // Rate limit: tối đa 3 lần bonus ảnh / ngày
+        if ($this->isRateLimited($user->user_id, 'product_comment_image', maxCount: 3, window: 'day')) {
+            Log::info('LoyaltyRateLimit: earnFromReviewWithImage bị chặn', ['user_id' => $user->user_id, 'comment_id' => $commentId]);
+            return null;
+        }
 
         $points = (int) $rule->points_per_unit;
 
@@ -247,7 +275,6 @@ class LoyaltyService
             referenceType: 'product_comment_image',
             referenceId: $commentId,
             description: 'Bonus điểm đánh giá kèm hình ảnh',
-            dedupeCheck: $dedupe,
         );
     }
 
@@ -264,13 +291,19 @@ class LoyaltyService
         if (!$rule) return null;
 
         // Giới hạn 1 lần / sản phẩm / ngày
-        $dedupe = fn () => LoyaltyTransaction::forUser($user->user_id)
+        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
             ->where('reference_type', 'social_share')
             ->where('reference_id', $productId)
             ->whereDate('created_at', today())
             ->exists();
 
-        if ($dedupe()) return null;
+        if ($alreadyEarned) return null;
+
+        // Rate limit: tối đa 30 sản phẩm được share tích điểm / ngày
+        if ($this->isRateLimited($user->user_id, 'social_share', maxCount: 30, window: 'day')) {
+            Log::info('LoyaltyRateLimit: earnFromSocialShare bị chặn (global cap)', ['user_id' => $user->user_id, 'product_id' => $productId]);
+            return null;
+        }
 
         $points = (int) $rule->points_per_unit;
 
@@ -281,7 +314,6 @@ class LoyaltyService
             referenceType: 'social_share',
             referenceId: $productId,
             description: 'Chia sẻ sản phẩm lên mạng xã hội',
-            dedupeCheck: $dedupe,
         );
     }
 
@@ -414,24 +446,18 @@ class LoyaltyService
 
         if (!$burnTx) return null; // Không có burn thì không hoàn
 
-        // Fast-path (ngoài khóa, rẻ): đã hoàn rồi thì bỏ qua sớm.
-        $alreadyRefunded = fn () => LoyaltyTransaction::forUser($user->user_id)
+        // Kiểm tra đã hoàn rồi chưa
+        $alreadyRefunded = LoyaltyTransaction::forUser($user->user_id)
             ->where('type', 'refund')
             ->where('reference_type', Order::class)
             ->where('reference_id', $order->order_id)
             ->exists();
 
-        if ($alreadyRefunded()) return null;
+        if ($alreadyRefunded) return null;
 
-        return DB::transaction(function () use ($user, $order, $burnTx, $alreadyRefunded) {
+        return DB::transaction(function () use ($user, $order, $burnTx) {
             // Đọc balance dưới khóa dòng để tránh race với burn/adjust đồng thời.
             $currentBalance = $this->getBalanceForUpdate($user->user_id);
-
-            // Chạy lại guard BÊN TRONG khóa: 2 refund cùng order từ các entry-point
-            // khác nhau (cancelOrder vs ReturnRequestService) — request 2 chờ request 1
-            // commit rồi thấy row refund đã tồn tại → null, không hoàn kép.
-            if ($alreadyRefunded()) return null;
-
             $newBalance     = $currentBalance + $burnTx->points;
 
             DB::table('users')
@@ -520,10 +546,7 @@ class LoyaltyService
             $totalExpiredPoints = $txs->sum('points');
 
             DB::transaction(function () use ($userId, $totalExpiredPoints, $txs, &$expiredCount) {
-                // Đọc balance DƯỚI khóa: nếu dùng getBalance() không khóa, một burn/adjust
-                // đồng thời có thể giảm balance sau khi ta clamp → decrement vô điều kiện
-                // đẩy reward_points xuống âm.
-                $currentBalance = $this->getBalanceForUpdate($userId);
+                $currentBalance = $this->getBalance($userId);
 
                 // Không thể expire nhiều hơn balance hiện tại
                 $actualExpire = min($totalExpiredPoints, $currentBalance);
@@ -648,37 +671,93 @@ class LoyaltyService
         string      $referenceType,
         ?int        $referenceId,
         string      $description,
-        ?\Closure   $dedupeCheck = null,
-    ): ?LoyaltyTransaction {
-        return DB::transaction(function () use ($user, $points, $rule, $referenceType, $referenceId, $description, $dedupeCheck) {
-            // Khóa row user để serialize mọi thao tác earn/burn/refund cùng user.
-            // Balance đọc dưới khóa → balance_before/after chính xác, không bị race.
-            $currentBalance = $this->getBalanceForUpdate($user->user_id);
+    ): LoyaltyTransaction {
+        $currentBalance = $this->getBalance($user->user_id);
+        $newBalance     = $currentBalance + $points;
 
-            // Chạy lại guard chống-trùng BÊN TRONG khóa: 2 request đồng thời cho cùng
-            // order, request thứ 2 chờ request 1 commit rồi mới thấy row đã tồn tại → null.
-            if ($dedupeCheck !== null && $dedupeCheck()) {
-                return null;
-            }
+        DB::table('users')
+            ->where('user_id', $user->user_id)
+            ->increment('reward_points', $points);
 
-            $newBalance = $currentBalance + $points;
+        $transaction = LoyaltyTransaction::create([
+            'user_id'        => $user->user_id,
+            'type'           => 'earn',
+            'points'         => $points,
+            'balance_before' => $currentBalance,
+            'balance_after'  => $newBalance,
+            'reference_type' => $referenceType,
+            'reference_id'   => $referenceId,
+            'description'    => $description,
+            'expires_at'     => $rule->calcExpiryDate(),
+        ]);
 
-            DB::table('users')
-                ->where('user_id', $user->user_id)
-                ->increment('reward_points', $points);
+        // Gửi thông báo tích điểm tới user
+        try {
+            $notificationData = [
+                'title'   => 'Bạn vừa nhận được điểm thưởng! 🎉',
+                'message' => "+{$points} điểm · {$description} · Số dư: {$newBalance} điểm",
+                'type'    => 'loyalty_earn',
+                'points'  => $points,
+                'balance' => $newBalance,
+            ];
 
-            return LoyaltyTransaction::create([
-                'user_id'        => $user->user_id,
-                'type'           => 'earn',
-                'points'         => $points,
-                'balance_before' => $currentBalance,
-                'balance_after'  => $newBalance,
-                'reference_type' => $referenceType,
-                'reference_id'   => $referenceId,
-                'description'    => $description,
-                'expires_at'     => $rule->calcExpiryDate(),
+            DB::table('notifications')->insert([
+                'id'              => (string) \Illuminate\Support\Str::uuid(),
+                'type'            => 'App\Notifications\LoyaltyEarnNotification',
+                'notifiable_type' => User::class,
+                'notifiable_id'   => $user->user_id,
+                'data'            => json_encode($notificationData),
+                'read_at'         => null,
+                'created_at'      => Carbon::now(),
+                'updated_at'      => Carbon::now(),
             ]);
-        });
+
+            event(new UserNotificationEvent($user->user_id, $notificationData));
+        } catch (\Exception $e) {
+            Log::error('LoyaltyService: Gửi thông báo tích điểm thất bại', [
+                'user_id' => $user->user_id,
+                'points'  => $points,
+                'error'   => $e->getMessage(),
+            ]);
+        }
+
+        return $transaction;
+    }
+
+    /**
+     * Kiểm tra xem user đã vượt giới hạn earn trong khoảng thời gian chưa.
+     *
+     * @param int         $userId
+     * @param string      $referenceType   Loại giao dịch cần đếm (e.g. 'product_comment', Order::class)
+     * @param int         $maxCount        Số lần tối đa cho phép
+     * @param string      $window          Cửa sổ thời gian: 'hour' | 'day' | 'week' | 'month'
+     * @param string|null $descriptionLike Lọc thêm theo description LIKE (optional)
+     */
+    private function isRateLimited(
+        int     $userId,
+        string  $referenceType,
+        int     $maxCount,
+        string  $window = 'day',
+        ?string $descriptionLike = null,
+    ): bool {
+        $query = LoyaltyTransaction::forUser($userId)
+            ->where('type', 'earn')
+            ->where('reference_type', $referenceType);
+
+        if ($descriptionLike) {
+            $query->where('description', 'like', $descriptionLike);
+        }
+
+        $query = match ($window) {
+            'hour'  => $query->where('created_at', '>=', now()->subHour()),
+            'day'   => $query->whereDate('created_at', today()),
+            'week'  => $query->where('created_at', '>=', now()->startOfWeek()),
+            'month' => $query->whereMonth('created_at', now()->month)
+                             ->whereYear('created_at', now()->year),
+            default => $query->whereDate('created_at', today()),
+        };
+
+        return $query->count() >= $maxCount;
     }
 
     private function burnError(string $message, int $userId, ?int $balance = null): array

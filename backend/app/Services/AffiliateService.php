@@ -13,6 +13,7 @@ use App\Services\WalletService;
 use App\Services\LoyaltyService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class AffiliateService
@@ -109,14 +110,26 @@ class AffiliateService
             return $this->error('Không thể tự giới thiệu chính mình!', 422);
         }
 
+        // Chống spam click: mỗi IP chỉ được ghi nhận 1 lần / referral_code trong 24h
+        $ipAddress = $data['ip_address'] ?? 'unknown';
+        $dedupKey  = 'affiliate_click:' . md5($ipAddress . ':' . $referralCode);
+
+        if (Cache::has($dedupKey)) {
+            // Trả success để không lộ logic chống spam, nhưng không insert DB
+            return $this->success('Đã ghi nhận lượt click!');
+        }
+
         $this->clickRepo->create([
-            'referrer_id' => $referrer->user_id,
-            'user_id' => $currentUserId,
-            'product_id' => $data['product_id'] ?? null,
+            'referrer_id'   => $referrer->user_id,
+            'user_id'       => $currentUserId,
+            'product_id'    => $data['product_id'] ?? null,
             'referral_code' => $referralCode,
-            'ip_address' => $data['ip_address'] ?? null,
-            'user_agent' => $data['user_agent'] ?? null,
+            'ip_address'    => $ipAddress,
+            'user_agent'    => $data['user_agent'] ?? null,
         ]);
+
+        // Đánh dấu IP này đã click code này, hết hiệu lực sau 24h
+        Cache::put($dedupKey, true, now()->addHours(24));
 
         return $this->success('Đã ghi nhận lượt click!');
     }
