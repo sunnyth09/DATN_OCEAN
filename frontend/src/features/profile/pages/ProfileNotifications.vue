@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="profile-card">
     <div class="profile-card-header flex-header">
       <h2 class="profile-card-title">Thông báo của bạn</h2>
@@ -127,8 +127,10 @@ const handleNotificationClick = async (notification) => {
     }
   }
 
-  // Navigate based on type
-  if (notification.data.type === 'order_created' || notification.data.type === 'payment_success') {
+  // Navigate based on type or url_redirect
+  if (notification.data.url_redirect) {
+    router.push(notification.data.url_redirect);
+  } else if (notification.data.type === 'order_created' || notification.data.type === 'payment_success') {
     router.push('/profile/orders'); // can navigate specifically to order detail if needed
   } else if (notification.data.type === 'coupon_received') {
     router.push('/profile/coupon');
