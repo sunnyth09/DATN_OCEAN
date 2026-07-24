@@ -520,9 +520,6 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                             <template v-if="sideCategories.length > 0">
                                 <router-link v-for="cat in sideCategories" :key="cat.id"
                                     :to="'/product?category=' + cat.id" class="equip-small-card flex-fill">
-                                    <div class="equip-small-img" v-if="cat.image">
-                                        <img :src="cat.image" :alt="cat.name" />
-                                    </div>
                                     <div class="equip-small-info">
                                         <h4 class="equip-small-name mb-1">{{ cat.name }}</h4>
                                         <span class="equip-small-link">
@@ -532,6 +529,9 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                                 <path d="M9 18l6-6-6-6" />
                                             </svg>
                                         </span>
+                                    </div>
+                                    <div class="equip-small-img" v-if="cat.image">
+                                        <img :src="cat.image" :alt="cat.name" />
                                     </div>
                                 </router-link>
                             </template>
@@ -1468,14 +1468,15 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     background: var(--card-bg);
     border: 1px solid #eaeaea;
     border-radius: 16px;
-    padding: 20px;
+    padding: 32px 24px;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    position: relative;
+    justify-content: center;
     min-height: 190px;
     text-decoration: none;
     transition: box-shadow .3s, transform .3s;
+    overflow: hidden;
+    position: relative;
 }
 
 .equip-small-card:hover {
@@ -1484,6 +1485,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .equip-small-card--empty {
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     background: #f8f9fa;
@@ -1491,30 +1493,41 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-small-img {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 70%;
-    height: 50%;
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 50%;
+    height: 130%;
     display: flex;
-    align-items: flex-start;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
 }
 
 .equip-small-img img {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
+    object-position: right center;
+    mix-blend-mode: multiply;
+    transition: transform .4s ease;
+}
+
+.equip-small-card:hover .equip-small-img img {
+    transform: scale(1.15) translateX(-10px);
 }
 
 .equip-small-info {
     position: relative;
+    max-width: 60%;
     z-index: 2;
 }
 
 .equip-small-name {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     font-weight: 800;
     color: var(--text-main);
+    margin-bottom: 8px !important;
 }
 
 .equip-small-link {
