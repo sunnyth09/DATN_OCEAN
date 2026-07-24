@@ -1020,7 +1020,7 @@ class ProductService
 
         // .xls: dùng PhpSpreadsheet chỉ đọc cột A
         $filter = new class implements \PhpOffice\PhpSpreadsheet\Reader\IReadFilter {
-            public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool {
+            public function readCell($columnAddress, $row, $worksheetName = '') {
                 return $columnAddress === 'A';
             }
         };

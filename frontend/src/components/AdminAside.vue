@@ -43,7 +43,7 @@ const handleSubmenuClick = (menu) => {
   if (props.collapsed) {
     uiStore.toggleBackofficeSidebar();
   }
-  
+
   const menus = {
     business: isBusinessMenuOpen,
     store: isStoreMenuOpen,
@@ -54,10 +54,10 @@ const handleSubmenuClick = (menu) => {
     crm: isCrmMenuOpen,
     hr: isHrMenuOpen
   };
-  
+
   if (menus[menu]) {
     menus[menu].value = !menus[menu].value;
-    
+
     // Auto-open submenu when clicking a menu from collapsed state
     if (props.collapsed) {
        menus[menu].value = true;
@@ -71,12 +71,12 @@ onMounted(() => {
     try {
       const user = JSON.parse(userData);
       const path = user.avatar_url;
-      
+
       userName.value = user.full_name || user.name || 'Admin';
       userEmail.value = user.email || '';
       userRoleRaw.value = user.role;
       userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
-      
+
       if (path) {
         userAvatar.value = getAbsoluteUrl(path);
       }
@@ -225,6 +225,22 @@ const handleLogout = async () => {
           </router-link>
           <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/rewards" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Quà tặng Loyalty</span>
+          </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/post" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Bài viết</span>
+          </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/post-category" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Danh mục bài viết</span>
+          </router-link>
+          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/review" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Đánh giá & Khiếu nại</span>
+          </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span>
+            <span>Thống kê</span>
           </router-link>
           <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/user-rewards" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Lịch sử đổi quà</span>
