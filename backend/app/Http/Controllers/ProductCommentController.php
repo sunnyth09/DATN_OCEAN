@@ -113,7 +113,7 @@ class ProductCommentController extends Controller
                 'order_item_id'  => $request->order_item_id,
                 'rating'         => $request->rating,
                 'content'        => $request->content,
-                'is_approved'    => 0,
+                'is_approved'    => $request->rating >= 3 ? 1 : 0,
                 'images'         => !empty($imagePaths) ? json_encode($imagePaths) : null,
             ]);
 
@@ -223,7 +223,7 @@ class ProductCommentController extends Controller
             });
         }
 
-        $comments = $query->orderBy('created_at', 'desc')->paginate(15);
+        $comments = $query->orderBy('created_at', 'desc')->paginate(10);
 
         // Append commenter_info từ đúng bảng (users hoặc admins)
         $comments->getCollection()->transform(function ($comment) {

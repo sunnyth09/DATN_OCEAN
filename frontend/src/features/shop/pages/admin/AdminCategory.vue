@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
@@ -69,6 +69,28 @@ const filteredCategories = computed(() => filterTree(categories.value, searchQue
 
 const countAll = (nodes) => nodes.reduce((sum, n) => sum + 1 + countAll(n.children || []), 0);
 const totalCount = computed(() => countAll(categories.value));
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(5); // Số danh mục gốc trên mỗi trang
+
+watch(searchQuery, () => {
+    currentPage.value = 1; // Reset về trang 1 khi tìm kiếm
+});
+
+const totalPages = computed(() => Math.ceil(filteredCategories.value.length / itemsPerPage.value));
+
+const paginatedCategories = computed(() => {
+    const start = (currentPage.value - 1) * itemsPerPage.value;
+    const end = start + itemsPerPage.value;
+    return filteredCategories.value.slice(start, end);
+});
+
+const changePage = (page) => {
+    if (page >= 1 && page <= totalPages.value) {
+        currentPage.value = page;
+    }
+};
 
 onMounted(fetchCategories);
 
@@ -285,7 +307,7 @@ const deleteCategory = async (id) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <template v-for="cat in filteredCategories" :key="cat.category_id">
+                        <template v-for="cat in paginatedCategories" :key="cat.category_id">
                             <AdminCategoryRow
                                 :category="cat"
                                 :level="0"
@@ -295,6 +317,29 @@ const deleteCategory = async (id) => {
                         </template>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div v-if="totalPages > 1 && filteredCategories.length > 0" class="pagination-controls">
+                <button :disabled="currentPage === 1" @click="changePage(currentPage - 1)" class="btn-page">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    Trước
+                </button>
+                <div class="page-numbers">
+                    <button 
+                        v-for="page in totalPages" 
+                        :key="page" 
+                        @click="changePage(page)" 
+                        class="btn-page-number" 
+                        :class="{'active': currentPage === page}"
+                    >
+                        {{ page }}
+                    </button>
+                </div>
+                <button :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)" class="btn-page">
+                    Sau
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
             </div>
 
             <!-- Empty State -->
@@ -507,6 +552,31 @@ const deleteCategory = async (id) => {
     animation: spin 1s linear infinite; margin: 0 auto 16px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Pagination */
+.pagination-controls {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-top: 1px solid var(--border-color);
+}
+.btn-page {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest); color: var(--text-main);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-page:hover:not(:disabled) { background: var(--hover-bg); border-color: var(--primary); color: var(--primary); }
+.btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+.page-numbers { display: flex; gap: 6px; }
+.btn-page-number {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest); color: var(--text-main);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+}
+.btn-page-number:hover:not(.active) { background: var(--hover-bg); }
+.btn-page-number.active {
+    background: var(--primary); color: white; border-color: var(--primary);
+}
 
 /* Table */
 .table-header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); }

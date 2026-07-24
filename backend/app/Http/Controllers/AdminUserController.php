@@ -18,7 +18,7 @@ class AdminUserController extends Controller
      */
     public function index(Request $request)
     {
-        $users = $this->adminUserService->paginate($request->input('search', ''));
+        $users = $this->adminUserService->paginate($request->input('search', ''), $request->input('per_page', 10));
 
         return response()->json([
             'status' => 'success',
