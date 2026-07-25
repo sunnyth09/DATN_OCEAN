@@ -31,7 +31,6 @@ jobs:
         working-directory: ./backend
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --no-dev --optimize-autoloader
 
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -63,7 +62,7 @@ jobs:
           target: "${{ secrets.PROJECT_PATH }}/backend/public"
           strip_components: 2
 
-      - name: SSH Deploy (Backend)
+      - name: SSH Deploy (Backend with Docker)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_IP }}
@@ -76,26 +75,23 @@ jobs:
             # Kéo code mới nhất từ Git
             git pull origin production
             
-            cd backend
-            # Cài đặt các package PHP (bỏ qua dev)
-            composer install --no-dev --optimize-autoloader --no-interaction
+            # Cập nhật và chạy lại các container ngầm định
+            docker compose up -d --build
             
-            # Chạy migrate database
-            php artisan migrate --force
+            # Xóa các image Docker cũ để giải phóng dung lượng VPS
+            docker image prune -f
             
-            # Xóa cache cũ và tạo cache mới
-            php artisan optimize:clear
-            php artisan optimize
+            # THỰC THI CÁC LỆNH LARAVEL BÊN TRONG CONTAINER
+            # Lưu ý: Thay chữ 'app' bằng tên service Laravel của bro trong docker-compose.yml (ví dụ: backend, php, laravel...)
             
-            # Kiểm tra và restart Queue/Reverb nếu có
-            if php artisan list | grep -q 'queue:restart'; then
-              php artisan queue:restart
-            fi
+            docker compose exec -T backend composer install --no-dev --optimize-autoloader --no-interaction
             
-            if php artisan list | grep -q 'reverb:restart'; then
-              php artisan reverb:restart || true
-            fi
+            docker compose exec -T backend php artisan migrate --force
             
-            if php artisan list | grep -q 'horizon:terminate'; then
-              php artisan horizon:terminate
-            fi
+            docker compose exec -T backend php artisan optimize:clear
+            docker compose exec -T backend php artisan optimize
+            
+            # Restart các dịch vụ nền
+            docker compose exec -T backend php artisan queue:restart || true
+            docker compose exec -T backend php artisan reverb:restart || true
+            docker compose exec -T backend php artisan horizon:terminate || true
