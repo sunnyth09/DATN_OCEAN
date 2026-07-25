@@ -55,10 +55,10 @@ jobs:
       - name: Copy Frontend Build to Server via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.PORT }}
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
           source: "frontend/dist/*"
           target: "${{ secrets.PROJECT_PATH }}/backend/public"
           strip_components: 2
@@ -66,10 +66,10 @@ jobs:
       - name: SSH Deploy (Backend)
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.PORT }}
+          host: ${{ secrets.VPS_IP }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
           script: |
             cd ${{ secrets.PROJECT_PATH }}
             
