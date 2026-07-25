@@ -38,6 +38,14 @@ jobs:
 
       - name: NPM Build (Frontend)
         working-directory: ./frontend
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://apiocean.bcbdev.id.vn/api' }}
+          VITE_BASE_URL: ${{ vars.VITE_BASE_URL || 'https://apiocean.bcbdev.id.vn' }}
+          VITE_API_STORAGE: ${{ vars.VITE_API_STORAGE || 'https://apiocean.bcbdev.id.vn/storage' }}
+          VITE_REVERB_HOST: ${{ vars.VITE_REVERB_HOST || 'apiocean.bcbdev.id.vn' }}
+          VITE_REVERB_PORT: ${{ vars.VITE_REVERB_PORT || '443' }}
+          VITE_REVERB_SCHEME: ${{ vars.VITE_REVERB_SCHEME || 'https' }}
+          VITE_REVERB_APP_KEY: ${{ secrets.REVERB_APP_KEY || 'ocean_realtime_key_2024' }}
         run: npm run build
 
       - name: Upload Frontend Artifact
