@@ -51,13 +51,8 @@ jobs:
         tools: composer, phpunit
         extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, pdo_mysql, dom, filter, gd, json, pdo, redis
         
-    - name: Copy .env
-      run: cp ../.env.example .env
-    
-    - name: Override .env for CI
-      run: |
-        sed -i 's/DB_HOST=db/DB_HOST=127.0.0.1/' .env
-        sed -i 's/REDIS_HOST=.*/REDIS_HOST=127.0.0.1/' .env
+    - name: Setup CI Environment
+      run: cp .env.testing .env
       
     - name: Install Dependencies
       run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist

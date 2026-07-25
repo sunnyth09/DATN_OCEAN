@@ -59,8 +59,9 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
           source: "frontend/dist/*"
-          target: "${{ secrets.PROJECT_PATH }}/backend/public"
+          target: "/tmp/frontend_dist_${{ github.run_id }}"
           strip_components: 2
+          overwrite: true
 
       - name: SSH Deploy (Backend with Docker)
         uses: appleboy/ssh-action@v1.0.3
@@ -72,18 +73,25 @@ jobs:
           script: |
             cd ${{ secrets.PROJECT_PATH }}
             
-            # Kéo code mới nhất từ Git
+            # 1. Kéo code mới nhất từ Git trước (để tránh xung đột với các file build static)
             git pull origin production
             
-            # Cập nhật và chạy lại các container ngầm định
+            # 2. Copy bản build frontend từ thư mục tạm vào public của backend
+            # Ưu tiên copy trực tiếp, fallback sang sudo hoặc docker compose cp nếu thư mục do container sở hữu
+            cp -rf /tmp/frontend_dist_${{ github.run_id }}/* ./backend/public/ 2>/dev/null || sudo cp -rf /tmp/frontend_dist_${{ github.run_id }}/* ./backend/public/ 2>/dev/null || docker compose exec -T backend cp -rf /tmp/frontend_dist_${{ github.run_id }}/* /var/www/public/
+            rm -rf /tmp/frontend_dist_${{ github.run_id }}
+            
+            # 3. Đảm bảo quyền sở hữu file chuẩn xác cho web server / container đọc được
+            sudo chown -R $(whoami):$(whoami) ./backend/public 2>/dev/null || true
+            docker compose exec -T backend chown -R www-data:www-data /var/www/public 2>/dev/null || true
+            
+            # 4. Cập nhật và chạy lại các container ngầm định
             docker compose up -d --build
             
-            # Xóa các image Docker cũ để giải phóng dung lượng VPS
+            # 5. Xóa các image Docker cũ để giải phóng dung lượng VPS
             docker image prune -f
             
             # THỰC THI CÁC LỆNH LARAVEL BÊN TRONG CONTAINER
-            # Lưu ý: Thay chữ 'app' bằng tên service Laravel của bro trong docker-compose.yml (ví dụ: backend, php, laravel...)
-            
             docker compose exec -T backend composer install --no-dev --optimize-autoloader --no-interaction
             
             docker compose exec -T backend php artisan migrate --force
