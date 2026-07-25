@@ -34,6 +34,11 @@ const notificationsList = ref([]);
 const showNotificationPopup = ref(false);
 const isMobileMenuOpen = ref(false);
 const headerRewardPoints = ref(0);
+const isScrolled = ref(false);
+
+const handleScroll = () => {
+    isScrolled.value = window.scrollY > 50;
+};
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
@@ -444,6 +449,7 @@ onMounted(() => {
     window.addEventListener("user-updated", checkAuth);
     window.addEventListener("resize", handleViewportResize);
     document.addEventListener("click", handleDocumentClick);
+    window.addEventListener("scroll", handleScroll);
 
     // adjust initial position for small screens
     if (window.innerWidth < 768) {
@@ -455,6 +461,7 @@ onUnmounted(() => {
     window.removeEventListener("user-updated", checkAuth);
     window.removeEventListener("resize", handleViewportResize);
     document.removeEventListener("click", handleDocumentClick);
+    window.removeEventListener("scroll", handleScroll);
     leaveNotificationChannel();
 });
 watch(
@@ -468,7 +475,7 @@ watch(
 </script>
 
 <template>
-    <header class="site-header">
+    <header class="site-header" :class="{ 'is-scrolled': isScrolled }">
         <div class="header-inner">
             <!-- Wrapper Logo and Nav to stick them together -->
             <div class="header-left">
@@ -707,14 +714,7 @@ watch(
                                 <!-- Điểm thưởng mini trong header dropdown -->
                                 <router-link v-if="headerRewardPoints >= 0" to="/profile/loyalty" class="header-loyalty-row" @click="closeAccountMenu">
                                     <span class="header-loyalty-icon">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f59e0b;">
-                                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
-                                            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
-                                            <path d="M4 22h16"/>
-                                            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
-                                            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
-                                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
-                                        </svg>
+                                        <AppIcon name="trophy" size="16" style="color: #f59e0b;" />
                                     </span>
                                     <span class="header-loyalty-label">Số điểm:</span>
                                     <span class="header-loyalty-pts">{{ new Intl.NumberFormat('vi-VN').format(headerRewardPoints) }} điểm</span>
@@ -828,10 +828,11 @@ watch(
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #F8F9FA;
-    /* position: sticky; */
+    position: sticky;
     top: 0;
     z-index: 1030;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .header-inner {
@@ -842,6 +843,17 @@ watch(
     display: flex;
     align-items: center;
     justify-content: space-between;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrolled Header Changes */
+.site-header.is-scrolled {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.98);
+}
+
+.site-header.is-scrolled .header-inner {
+    height: 54px;
 }
 
 /* LAYOUT */
@@ -856,6 +868,17 @@ watch(
 /* LOGO */
 .logo {
     text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.logo-img {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    height: auto;
+}
+
+.site-header.is-scrolled .logo-img {
+    width: 50px !important;
 }
 
 /* NAVIGATION */
@@ -917,7 +940,15 @@ watch(
     justify-content: center;
     padding: 8px;
     border-radius: 50%;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.site-header.is-scrolled .icon-btn {
+    transform: scale(0.9);
+}
+
+.site-header.is-scrolled .search-icon-btn {
+    transform: translateY(-50%) scale(0.9);
 }
 
 .icon-btn:hover {
@@ -1310,6 +1341,8 @@ watch(
     display: flex;
     align-items: center;
     gap: 8px;
+    text-decoration: none !important;
+    padding: 10px 12px;
 }
 .header-loyalty-icon {
     font-size: 1rem;
