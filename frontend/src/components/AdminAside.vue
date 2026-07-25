@@ -200,10 +200,6 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span>
             <span>Danh mục bài viết</span>
           </router-link>
-          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/review" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span>
-            <span>Đánh giá & Khiếu nại</span>
-          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Thống kê</span>
@@ -233,9 +229,6 @@ const handleLogout = async () => {
           <router-link to="/admin/wallet-withdrawals" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Duyệt rút tiền</span>
           </router-link>
-          <router-link to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Thống kê</span>
-          </router-link>
         </div>
       </transition>
 
@@ -251,10 +244,7 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span><span>Khách hàng</span>
           </router-link>
           <router-link to="/admin/review" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Đánh giá</span>
-          </router-link>
-          <router-link to="/admin/tickets" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Khiếu nại</span>
+            <span class="submenu-dot"></span><span>Đánh giá & Khiếu nại</span>
           </router-link>
           <router-link to="/admin/chat" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Chat</span>

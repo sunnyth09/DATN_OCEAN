@@ -64,7 +64,9 @@ const selectPreset = (val) => {
 };
 
 const onCustomChange = () => {
-  // Option: wait for explicit apply click
+  if (localFilters.value.start_date || localFilters.value.end_date) {
+    applyFilters();
+  }
 };
 
 const applyFilters = () => {

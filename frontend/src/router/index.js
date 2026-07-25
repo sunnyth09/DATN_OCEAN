@@ -224,8 +224,8 @@ const routes = [
                 meta: { roles: ['admin', 'seller'], title: 'Tin nhắn khách hàng' },
             },
             {
-                path: "coupons",
-                name: "admin-coupons",
+                path: "coupon",
+                name: "admin-coupon",
                 component: AdminCoupon,
                 meta: { roles: ['admin', 'staff'], title: 'Quản lý Mã giảm giá' },
             },
