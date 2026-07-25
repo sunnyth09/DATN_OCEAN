@@ -65,7 +65,7 @@
       <!-- Detail Tables Section -->
       <div class="row g-4">
         <div class="col-lg-6">
-          <TopProductsTable :products="topProducts" />
+          <RevenueReportTable :report="revenueReport" />
         </div>
         <div class="col-lg-6">
           <TopCustomersTable :customers="topCustomers" />
@@ -75,7 +75,7 @@
       <!-- Additional Report Table -->
       <div class="row mt-4">
         <div class="col-12">
-          <RevenueReportTable :report="revenueReport" />
+          <TopProductsTable :products="topProducts" />
         </div>
       </div>
     </div>
@@ -235,7 +235,9 @@ onMounted(() => {
     transform: rotate(360deg);
   }
 }
+</style>
 
+<style>
 @media print {
   @page {
     margin: 10mm;
@@ -248,7 +250,7 @@ onMounted(() => {
 
   #printable-dashboard,
   #printable-dashboard * {
-    visibility: visible;
+    visibility: visible !important;
   }
 
   #printable-dashboard {

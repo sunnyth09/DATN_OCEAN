@@ -3,7 +3,14 @@ name: Build and Deploy Laravel + Vue
 on:
   push:
     branches:
-      - main
+      - production
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'face-service/**'
+      - 'mysql/**'
+      - 'nginx/**'
+      - 'docker-compose.yml'
 
 jobs:
   build_and_deploy:
@@ -85,7 +92,7 @@ jobs:
             cd ${{ secrets.PROJECT_PATH }}
             
             # Kéo code mới nhất từ Git
-            git pull origin main
+            git pull origin production
             
             cd backend
             # Cài đặt các package PHP (bỏ qua dev)

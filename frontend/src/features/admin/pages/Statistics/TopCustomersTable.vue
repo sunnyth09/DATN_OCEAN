@@ -76,8 +76,16 @@ const getRandomColor = (string) => {
 
 <style scoped>
 .table-card {
-  background: var(--card-bg);
+  background: var(--card-bg, #ffffff);
+  border-radius: 16px;
   padding: 24px;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--border-color, #f1f5f9);
+  transition: box-shadow 0.3s ease;
+}
+
+.table-card:hover {
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.08);
 }
 
 .card-header {
@@ -96,6 +104,7 @@ const getRandomColor = (string) => {
 
 .ocean-table {
   width: 100%;
+  min-width: 550px;
   border-collapse: collapse;
 }
 
@@ -111,6 +120,7 @@ const getRandomColor = (string) => {
   position: sticky;
   top: 0;
   z-index: 10;
+  white-space: nowrap;
 }
 
 .ocean-table td {

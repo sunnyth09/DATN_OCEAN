@@ -33,7 +33,7 @@ const avatarUrl = (path) => {
   return getAbsoluteUrl(path);
 };
 const thumbUrl = (path) => {
-  if (!path) return 'https://via.placeholder.com/48x48?text=SP';
+  if (!path) return 'https://placehold.co/48x48/f8f9fa/a1a1aa?text=SP';
   return getStorageUrl(path);
 };
 
@@ -137,8 +137,12 @@ const selectedTicket = ref(null);
 const replyContent = ref('');
 const updateStatus = ref('pending');
 
+let hasFetchedTickets = false;
+
 const fetchTickets = async () => {
+  if (ticketLoading.value) return;
   ticketLoading.value = true;
+  hasFetchedTickets = true;
   try {
     const res = await api.get('/admin/tickets', {
       params: {
@@ -204,7 +208,7 @@ const openImage = (path) => {
 
 watch(viewMode, (newVal) => {
   if (newVal === 'reviews' && reviews.value.length === 0) fetchReviews();
-  else if (newVal === 'tickets' && tickets.value.length === 0) fetchTickets();
+  else if (newVal === 'tickets' && !hasFetchedTickets) fetchTickets();
 });
 
 onMounted(() => {
@@ -242,7 +246,7 @@ onMounted(() => {
       <div class="search-wrap">
         <AppIcon name="search" size="16" class="search-icon" />
         <input
-          v-if="viewMode === 'reviews'"
+          v-show="viewMode === 'reviews'"
           v-model="reviewSearchQuery"
           type="text"
           placeholder="Tìm sản phẩm hoặc khách hàng..."
@@ -250,7 +254,7 @@ onMounted(() => {
           @keyup.enter="applyReviewFilter"
         />
         <input
-          v-else
+          v-show="viewMode === 'tickets'"
           v-model="ticketSearchQuery"
           type="text"
           placeholder="Tìm mã đơn, tên, lý do..."
@@ -260,7 +264,7 @@ onMounted(() => {
       </div>
 
       <!-- Status tabs for Reviews -->
-      <div v-if="viewMode === 'reviews'" class="filter-tabs">
+      <div v-show="viewMode === 'reviews'" class="filter-tabs">
         <button v-for="tab in [{ v:'all', l:'Tất cả' }, { v:'approved', l:'Đã duyệt' }, { v:'pending', l:'Chờ duyệt' }]"
           :key="tab.v"
           class="tab-btn"
@@ -270,7 +274,7 @@ onMounted(() => {
       </div>
 
       <!-- Status tabs for Tickets -->
-      <div v-if="viewMode === 'tickets'" class="filter-tabs">
+      <div v-show="viewMode === 'tickets'" class="filter-tabs">
         <button v-for="tab in [{ v:'all', l:'Tất cả' }, { v:'pending', l:'Chờ xử lý' }, { v:'processing', l:'Đang xử lý' }, { v:'resolved', l:'Đã giải quyết' }, { v:'closed', l:'Đã đóng' }]"
           :key="tab.v"
           class="tab-btn"
@@ -280,7 +284,7 @@ onMounted(() => {
       </div>
 
       <!-- Star filter (Only Reviews) -->
-      <div v-if="viewMode === 'reviews'" class="star-filter">
+      <div v-show="viewMode === 'reviews'" class="star-filter">
         <button
           v-for="s in [0, 5, 4, 3, 2, 1]"
           :key="s"
@@ -297,7 +301,7 @@ onMounted(() => {
     <!-- ========================================== -->
     <!--                 REVIEW VIEW                -->
     <!-- ========================================== -->
-    <template v-if="viewMode === 'reviews'">
+    <div v-show="viewMode === 'reviews'">
       <div v-if="reviewLoading" class="loading-state">
         <div class="spinner"></div>
         <span>Đang tải đánh giá...</span>
@@ -329,7 +333,7 @@ onMounted(() => {
               <!-- Sản phẩm -->
               <td>
                 <div class="product-cell">
-                  <img :src="thumbUrl(r.product?.thumbnail_url)" class="product-thumb" alt="" />
+                  <img :src="thumbUrl(r.product?.thumbnail_url)" @error="$event.target.src='https://placehold.co/48x48/f8f9fa/a1a1aa?text=SP'" class="product-thumb" alt="" />
                   <span class="product-name">{{ r.product?.name || '—' }}</span>
                 </div>
               </td>
@@ -384,13 +388,13 @@ onMounted(() => {
         <span class="page-info">Trang {{ reviewPagination.current_page }} / {{ reviewPagination.last_page }}</span>
         <button class="page-btn" :disabled="!reviewPagination.next_page_url" @click="changeReviewPage(reviewPagination.current_page + 1)">Tiếp →</button>
       </div>
-    </template>
+    </div>
 
 
     <!-- ========================================== -->
     <!--                 TICKET VIEW                -->
     <!-- ========================================== -->
-    <template v-if="viewMode === 'tickets'">
+    <div v-show="viewMode === 'tickets'">
       <div v-if="ticketLoading" class="loading-state">
         <div class="spinner"></div>
         <span>Đang tải khiếu nại...</span>
@@ -456,7 +460,7 @@ onMounted(() => {
           </tbody>
         </table>
       </div>
-    </template>
+    </div>
 
     <!-- Bootstrap Toast -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
@@ -629,7 +633,7 @@ onMounted(() => {
   transition: all 0.2s;
   color: #495057;
 }
-.tab-btn:hover { background: var(--hover-bg); border-color: var(--primary); color: var(--primary); }
+.tab-btn:hover { background: #fdf2f8; border-color: var(--primary); color: var(--primary); }
 .tab-btn--active { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
 
 .star-filter {
@@ -804,8 +808,8 @@ onMounted(() => {
 .btn-danger  { background: #fee2e2; color: #991b1b; }
 .btn-danger:hover  { background: #fecaca; }
 
-.btn-primary-action { background: rgba(230, 59, 111, 0.08); color: var(--primary); border: 1px solid rgba(230, 59, 111, 0.2); }
-.btn-primary-action:hover { background: rgba(230, 59, 111, 0.15); }
+.btn-primary-action { background: #fdf2f8; color: var(--primary); border: 1px solid #fbcfe8; }
+.btn-primary-action:hover { background: #fce7f3; }
 .btn-view { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 .btn-view:hover { background: #e2e8f0; }
 
@@ -950,7 +954,7 @@ onMounted(() => {
 .btn-secondary { background: #f1f5f9; color: #475569; }
 .btn-secondary:hover { background: #e2e8f0; }
 .btn-primary { background: var(--primary); color: white; display: flex; align-items: center; gap: 8px; }
-.btn-primary:hover:not(:disabled) { background: var(--ocean-bright); }
+.btn-primary:hover:not(:disabled) { background: #d82f65; }
 .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
 
 .mt-3 { margin-top: 16px; }

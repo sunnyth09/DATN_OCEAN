@@ -367,8 +367,8 @@ const handleSubmit = async () => {
     box-shadow: 0 4px 10px rgba(230, 59, 111, 0.2);
 }
 .btn-primary:hover {
-    background: var(--ocean-bright); transform: translateY(-2px);
-    box-shadow: 0 6px 14px rgba(3, 169, 244, 0.3);
+    background: #d82f65; transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(230, 59, 111, 0.3);
 }
 .btn-primary:disabled { opacity: 0.7; transform: none; cursor: not-allowed; }
 
