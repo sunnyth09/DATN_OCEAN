@@ -38,7 +38,7 @@ const fetchDeposits = async (page = 1) => {
   isLoading.value = true;
   try {
     const res = await api.get('/admin/wallets/deposits/pending', {
-      params: { status: statusFilter.value, per_page: 30, page },
+      params: { status: statusFilter.value, per_page: 10, page },
     });
     if (res.data?.status === 'success') {
       deposits.value = res.data.data.data || [];
@@ -222,13 +222,29 @@ onMounted(() => fetchDeposits());
           </tr>
         </tbody>
       </table>
-    </div>
 
-    <!-- Pagination -->
-    <div v-if="pagination && pagination.last_page > 1" class="pagination">
-      <button class="page-btn" :disabled="pagination.current_page === 1" @click="fetchDeposits(pagination.current_page - 1)">«</button>
-      <span>Trang {{ pagination.current_page }} / {{ pagination.last_page }} ({{ pagination.total }} kết quả)</span>
-      <button class="page-btn" :disabled="pagination.current_page === pagination.last_page" @click="fetchDeposits(pagination.current_page + 1)">»</button>
+      <!-- Pagination -->
+      <div v-if="pagination && pagination.last_page > 1" class="pagination-controls">
+          <button :disabled="pagination.current_page === 1" @click="fetchDeposits(pagination.current_page - 1)" class="btn-page">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              Trước
+          </button>
+          <div class="page-numbers">
+              <button 
+                  v-for="page in pagination.last_page" 
+                  :key="page" 
+                  @click="fetchDeposits(page)" 
+                  class="btn-page-number" 
+                  :class="{'active': pagination.current_page === page}"
+              >
+                  {{ page }}
+              </button>
+          </div>
+          <button :disabled="pagination.current_page === pagination.last_page" @click="fetchDeposits(pagination.current_page + 1)" class="btn-page">
+              Sau
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+      </div>
     </div>
   </div>
 </template>
@@ -540,36 +556,29 @@ onMounted(() => fetchDeposits());
   margin: 0 auto 16px;
 }
 
-/* Pagination */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  color: var(--text-muted);
-  font-size: 0.88rem;
+/* Pagination Controls */
+.pagination-controls {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-top: 1px solid var(--border-color);
 }
-
-.page-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background: var(--card-bg);
-  cursor: pointer;
-  font-size: 1rem;
-  color: var(--text-main);
-  transition: all 0.2s;
+.btn-page {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
 }
-
-.page-btn:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--primary);
+.btn-page:hover:not(:disabled) { background: var(--hover-bg, #f4f6f8); border-color: var(--primary, #e63b6f); color: var(--primary, #e63b6f); }
+.btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+.page-numbers { display: flex; gap: 6px; }
+.btn-page-number {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
 }
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+.btn-page-number:hover:not(.active) { background: var(--hover-bg, #f4f6f8); }
+.btn-page-number.active {
+    background: var(--primary, #e63b6f); color: white; border-color: var(--primary, #e63b6f);
 }
 
 @keyframes spin {

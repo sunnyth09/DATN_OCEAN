@@ -35,7 +35,7 @@ class TicketController extends Controller
                 });
             }
 
-            $tickets = $query->orderBy('created_at', 'desc')->paginate(10);
+            $tickets = $query->orderBy('created_at', 'desc')->paginate(5);
 
             return response()->json([
                 'status' => 'success',
