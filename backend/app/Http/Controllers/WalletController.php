@@ -106,29 +106,33 @@ class WalletController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $request->validate([
-            'amount'              => 'required|numeric|min:10000|max:50000000',
+        $validated = $request->validate([
+            'amount'              => 'required|integer|min:10000|max:50000000',
             'bank_name'           => 'required|string|max:100',
             'bank_account_name'   => 'required|string|max:255',
-            'bank_account_number' => 'required|string|max:50',
+            'bank_account_number' => 'required|string|max:50|regex:/^[0-9\s-]+$/',
         ], [
-            'amount.required'              => 'Vui lòng nhập số tiền rút.',
-            'amount.min'                   => 'Số tiền rút tối thiểu 10,000₫.',
-            'amount.max'                   => 'Số tiền rút tối đa 50,000,000₫.',
-            'bank_name.required'           => 'Vui lòng nhập tên ngân hàng.',
-            'bank_account_name.required'   => 'Vui lòng nhập tên chủ tài khoản.',
-            'bank_account_number.required' => 'Vui lòng nhập số tài khoản.',
+            'amount.required'                  => 'Vui lòng nhập số tiền rút.',
+            'amount.integer'                   => 'Số tiền rút phải là số nguyên.',
+            'amount.min'                       => 'Số tiền rút tối thiểu 10,000₫.',
+            'amount.max'                       => 'Số tiền rút tối đa 50,000,000₫.',
+            'bank_name.required'               => 'Vui lòng nhập tên ngân hàng.',
+            'bank_account_name.required'       => 'Vui lòng nhập tên chủ tài khoản.',
+            'bank_account_number.required'     => 'Vui lòng nhập số tài khoản.',
+            'bank_account_number.regex'        => 'Số tài khoản chỉ được chứa số, khoảng trắng hoặc dấu gạch ngang.',
         ]);
+
+        $bankInfo = [
+            'bank_name'           => preg_replace('/\s+/', ' ', trim($validated['bank_name'])),
+            'bank_account_name'   => preg_replace('/\s+/', ' ', trim($validated['bank_account_name'])),
+            'bank_account_number' => preg_replace('/[\s-]+/', '', trim($validated['bank_account_number'])),
+        ];
 
         try {
             $result = $this->walletService->withdraw(
                 $user->user_id,
-                (float) $request->amount,
-                [
-                    'bank_name'           => $request->bank_name,
-                    'bank_account_name'   => $request->bank_account_name,
-                    'bank_account_number' => $request->bank_account_number,
-                ]
+                (float) $validated['amount'],
+                $bankInfo
             );
 
             return response()->json([

@@ -3,15 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Address;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class AddressController extends Controller
 {
-    private function currentUser()
-    {
-        return auth('api')->user();
-    }
-
     /**
      * Lấy user_id cho bảng addresses
      */
@@ -21,7 +19,7 @@ class AddressController extends Controller
         if ($user) {
             return $user->user_id;
         }
-        
+
         abort(403, 'Tài khoản nhân viên/quản trị không thể sử dụng tính năng của khách hàng. Vui lòng đăng nhập bằng tài khoản khách hàng.');
     }
 
@@ -51,55 +49,30 @@ class AddressController extends Controller
     public function store(Request $request)
     {
         $userId = $this->currentUserId();
+        $validated = $this->validateAddress($request);
 
-        $validated = $request->validate([
-            'recipient_name' => 'required|string|max:120',
-            'phone' => 'required|string|max:20',
-            'address_line' => 'nullable|string|max:255',
-            'ward' => 'nullable|string|max:120',
-            'district' => 'nullable|string|max:120',
-            'province' => 'nullable|string|max:120',
-            'postal_code' => 'nullable|string|max:20',
-            'address_type' => 'nullable|in:home,office,other',
-            'is_default' => 'nullable|boolean',
-        ]);
-        $phoneRegex = '/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/';
-        if (!preg_match($phoneRegex, $validated['phone'])) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Số điện thoại không hợp lệ!',
-            ], 422);
-        }
-        // Thêm location codes nếu có. GHN WardCode là string, không ép int để tránh mất số 0 đầu.
-        foreach (['ward_code', 'district_code', 'province_code'] as $codeField) {
-            if ($request->has($codeField) && is_numeric($request->input($codeField))) {
-                $validated[$codeField] = $codeField === 'ward_code'
-                    ? (string) $request->input($codeField)
-                    : (int) $request->input($codeField);
+        $address = DB::transaction(function () use ($userId, $validated) {
+            User::where('user_id', $userId)->lockForUpdate()->firstOrFail();
+
+            $addressCount = Address::where('user_id', $userId)->count();
+            if ($addressCount >= Address::MAX_PER_USER) {
+                throw ValidationException::withMessages([
+                    'address' => ['Bạn chỉ có thể lưu tối đa ' . Address::MAX_PER_USER . ' địa chỉ.'],
+                ]);
             }
-        }
 
-        $validated['user_id'] = $userId;
-        $validated['country'] = 'Vietnam';
+            $validated['user_id'] = $userId;
+            $validated['country'] = 'Vietnam';
 
-        // Nếu đặt làm mặc định → bỏ mặc định tất cả địa chỉ khác
-        if (!empty($validated['is_default'])) {
-            Address::where('user_id', $userId)->update(['is_default' => false]);
-        }
+            // Nếu là địa chỉ đầu tiên hoặc user chủ động đặt mặc định → đảm bảo chỉ có 1 default.
+            if ($addressCount === 0) {
+                $validated['is_default'] = true;
+            } elseif (!empty($validated['is_default'])) {
+                Address::where('user_id', $userId)->update(['is_default' => false]);
+            }
 
-        // Nếu chưa có địa chỉ nào → tự động đặt mặc định
-        $addressCount = Address::where('user_id', $userId)->count();
-        if ($addressCount === 0) {
-            $validated['is_default'] = true;
-        }
-
-        try {
-            $address = Address::create($validated);
-        } catch (\Exception $e) {
-            // Nếu lỗi do cột _code chưa tồn tại → thử lại không có _code
-            unset($validated['ward_code'], $validated['district_code'], $validated['province_code']);
-            $address = Address::create($validated);
-        }
+            return Address::create($validated);
+        });
 
         return response()->json([
             'status' => 'success',
@@ -115,56 +88,36 @@ class AddressController extends Controller
     public function update(Request $request, $id)
     {
         $userId = $this->currentUserId();
-        $address = Address::where('address_id', $id)
-            ->where('user_id', $userId)
-            ->firstOrFail();
+        $validated = $this->validateAddress($request);
 
-        $validated = $request->validate([
-            'recipient_name' => 'required|string|max:120',
-            'phone' => 'required|string|max:20',
-            'address_line' => 'nullable|string|max:255',
-            'ward' => 'nullable|string|max:120',
-            'district' => 'nullable|string|max:120',
-            'province' => 'nullable|string|max:120',
-            'postal_code' => 'nullable|string|max:20',
-            'address_type' => 'nullable|in:home,office,other',
-            'is_default' => 'nullable|boolean',
-        ]);
-        $phoneRegex = '/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/';
-        if (!preg_match($phoneRegex, $validated['phone'])) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Số điện thoại không hợp lệ!',
-            ], 422);
-        }
+        $address = DB::transaction(function () use ($userId, $id, $validated) {
+            $address = Address::where('address_id', $id)
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Thêm location codes nếu có. GHN WardCode là string, không ép int để tránh mất số 0 đầu.
-        foreach (['ward_code', 'district_code', 'province_code'] as $codeField) {
-            if ($request->has($codeField) && is_numeric($request->input($codeField))) {
-                $validated[$codeField] = $codeField === 'ward_code'
-                    ? (string) $request->input($codeField)
-                    : (int) $request->input($codeField);
+            if ($address->is_default && array_key_exists('is_default', $validated) && !$validated['is_default']) {
+                throw ValidationException::withMessages([
+                    'is_default' => ['Phải có một địa chỉ mặc định. Vui lòng chọn địa chỉ khác làm mặc định trước.'],
+                ]);
             }
-        }
 
-        // Nếu đặt làm mặc định → bỏ mặc định tất cả địa chỉ khác
-        if (!empty($validated['is_default'])) {
-            Address::where('user_id', $userId)
-                ->where('address_id', '!=', $id)
-                ->update(['is_default' => false]);
-        }
+            // Nếu đặt làm mặc định → bỏ mặc định tất cả địa chỉ khác trong cùng transaction.
+            if (!empty($validated['is_default'])) {
+                Address::where('user_id', $userId)
+                    ->where('address_id', '!=', $id)
+                    ->update(['is_default' => false]);
+            }
 
-        try {
             $address->update($validated);
-        } catch (\Exception $e) {
-            unset($validated['ward_code'], $validated['district_code'], $validated['province_code']);
-            $address->update($validated);
-        }
+
+            return $address->fresh();
+        });
 
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật địa chỉ thành công!',
-            'data' => $address->fresh(),
+            'data' => $address,
         ]);
     }
 
@@ -175,22 +128,28 @@ class AddressController extends Controller
     public function destroy($id)
     {
         $userId = $this->currentUserId();
-        $address = Address::where('address_id', $id)
-            ->where('user_id', $userId)
-            ->firstOrFail();
 
-        $wasDefault = $address->is_default;
-        $address->delete();
+        DB::transaction(function () use ($userId, $id) {
+            $address = Address::where('address_id', $id)
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Nếu xóa địa chỉ mặc định → đặt địa chỉ mới nhất làm mặc định
-        if ($wasDefault) {
-            $nextAddress = Address::where('user_id', $userId)
-                ->orderByDesc('created_at')
-                ->first();
-            if ($nextAddress) {
-                $nextAddress->update(['is_default' => true]);
+            $wasDefault = $address->is_default;
+            $address->delete();
+
+            // Nếu xóa địa chỉ mặc định → đặt địa chỉ mới nhất còn lại làm mặc định.
+            if ($wasDefault) {
+                $nextAddress = Address::where('user_id', $userId)
+                    ->lockForUpdate()
+                    ->orderByDesc('created_at')
+                    ->first();
+
+                if ($nextAddress) {
+                    $nextAddress->update(['is_default' => true]);
+                }
             }
-        }
+        });
 
         return response()->json([
             'status' => 'success',
@@ -205,20 +164,47 @@ class AddressController extends Controller
     public function setDefault($id)
     {
         $userId = $this->currentUserId();
-        $address = Address::where('address_id', $id)
-            ->where('user_id', $userId)
-            ->firstOrFail();
 
-        // Bỏ mặc định tất cả
-        Address::where('user_id', $userId)->update(['is_default' => false]);
+        $address = DB::transaction(function () use ($userId, $id) {
+            $address = Address::where('address_id', $id)
+                ->where('user_id', $userId)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        // Đặt mặc định
-        $address->update(['is_default' => true]);
+            if ($address->is_default) {
+                return $address->fresh();
+            }
+
+            Address::where('user_id', $userId)->update(['is_default' => false]);
+            $address->update(['is_default' => true]);
+
+            return $address->fresh();
+        });
 
         return response()->json([
             'status' => 'success',
             'message' => 'Đã đặt làm địa chỉ mặc định!',
-            'data' => $address->fresh(),
+            'data' => $address,
+        ]);
+    }
+
+    private function validateAddress(Request $request): array
+    {
+        return $request->validate([
+            'recipient_name' => 'required|string|max:120',
+            'phone' => ['required', 'string', 'max:20', 'regex:/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/'],
+            'address_line' => 'required|string|max:255',
+            'ward' => 'required|string|max:120',
+            'district' => 'required|string|max:120',
+            'province' => 'required|string|max:120',
+            'ward_code' => 'nullable|integer',
+            'district_code' => 'nullable|integer',
+            'province_code' => 'nullable|integer',
+            'postal_code' => 'nullable|string|max:20',
+            'address_type' => 'nullable|in:home,office,other',
+            'is_default' => 'nullable|boolean',
+        ], [
+            'phone.regex' => 'Số điện thoại không hợp lệ!',
         ]);
     }
 }

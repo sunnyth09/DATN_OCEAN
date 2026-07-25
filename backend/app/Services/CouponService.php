@@ -159,30 +159,29 @@ class CouponService
      */
     public function saveForUser(int $userId, $couponId): array
     {
-        $coupon = Coupon::find($couponId);
-        if (!$coupon || !$coupon->is_active) {
+        $coupon = $this->findSaveableCoupon((int) $couponId);
+        if (!$coupon) {
             return ['state' => 'not_found', 'message' => 'Mã giảm giá không tồn tại hoặc đã hết hạn!'];
         }
 
-        $exists = UserCoupon::where('user_id', $userId)
-            ->where('coupon_id', $couponId)
-            ->exists();
+        $inserted = UserCoupon::insertOrIgnore([
+            'user_id'    => $userId,
+            'coupon_id'  => $coupon->id,
+            'is_saved'   => true,
+            'used_count' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        if ($exists) {
+        if ($inserted === 0) {
             return ['state' => 'already_saved', 'message' => 'Bạn đã lưu mã giảm giá này rồi!'];
         }
-
-        UserCoupon::create([
-            'user_id'   => $userId,
-            'coupon_id' => $couponId,
-            'is_saved'  => true,
-        ]);
 
         return ['state' => 'saved', 'message' => 'Đã lưu mã giảm giá thành công!'];
     }
 
     /**
-     * Danh sách coupon đã lưu của user (ẩn mã đã dùng hết lượt cho phép).
+     * Danh sách coupon đã lưu của user (ẩn mã không còn khả dụng hoặc đã dùng hết lượt).
      */
     public function getSavedForUser(int $userId)
     {
@@ -192,7 +191,7 @@ class CouponService
             ->get()
             ->filter(function ($userCoupon) {
                 $coupon = $userCoupon->coupon;
-                if (!$coupon) return false;
+                if (!$coupon || !$this->isCouponSaveable($coupon)) return false;
                 if ($coupon->user_usage_limit && $userCoupon->used_count >= $coupon->user_usage_limit) {
                     return false;
                 }
@@ -200,6 +199,36 @@ class CouponService
             })
             ->values()
             ->pluck('coupon');
+    }
+
+    private function findSaveableCoupon(int $couponId): ?Coupon
+    {
+        $coupon = Coupon::find($couponId);
+
+        return ($coupon && $this->isCouponSaveable($coupon)) ? $coupon : null;
+    }
+
+    private function isCouponSaveable(Coupon $coupon): bool
+    {
+        $now = now();
+
+        if (!$coupon->is_active || !$coupon->is_public) {
+            return false;
+        }
+
+        if ($coupon->start_date && $now->lt($coupon->start_date)) {
+            return false;
+        }
+
+        if ($coupon->end_date && $now->gt($coupon->end_date)) {
+            return false;
+        }
+
+        if ($coupon->usage_limit !== null && $coupon->used_count >= $coupon->usage_limit) {
+            return false;
+        }
+
+        return true;
     }
 
     public function applyCoupon(int $userId, ?string $couponCode, float $subtotal): array

@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Services\AffiliateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * AffiliateController — Quản lý Affiliate của khách hàng.
@@ -111,10 +113,18 @@ class AffiliateController extends Controller
      */
     public function trackClick(Request $request): JsonResponse
     {
+        $request->merge([
+            'referral_code' => strtoupper(trim((string) $request->input('referral_code', ''))),
+        ]);
+
         $request->validate([
             'referral_code' => 'required|string|max:20',
             'product_id'    => 'nullable|integer',
         ]);
+
+        if ($rateLimited = $this->checkTrackClickRateLimits($request)) {
+            return $rateLimited;
+        }
 
         $userId = auth('api')->id() ?? auth('admin')->id();
 
@@ -127,5 +137,69 @@ class AffiliateController extends Controller
         ]);
 
         return response()->json($result['body'], $result['status_code']);
+    }
+
+    private function checkTrackClickRateLimits(Request $request): ?JsonResponse
+    {
+        $ip = $request->ip() ?: 'unknown';
+        $codeHash = md5($request->input('referral_code'));
+        $limits = config('affiliate.spam_protection.track_click', []);
+
+        $checks = [
+            [
+                'name' => 'ip_per_minute',
+                'key' => 'affiliate:track-click:ip:minute:' . $ip,
+                'max' => (int) ($limits['ip_per_minute'] ?? 30),
+                'decay' => 60,
+            ],
+            [
+                'name' => 'ip_per_hour',
+                'key' => 'affiliate:track-click:ip:hour:' . $ip,
+                'max' => (int) ($limits['ip_per_hour'] ?? 300),
+                'decay' => 3600,
+            ],
+            [
+                'name' => 'code_per_minute',
+                'key' => 'affiliate:track-click:code:minute:' . $codeHash,
+                'max' => (int) ($limits['code_per_minute'] ?? 120),
+                'decay' => 60,
+            ],
+            [
+                'name' => 'code_per_hour',
+                'key' => 'affiliate:track-click:code:hour:' . $codeHash,
+                'max' => (int) ($limits['code_per_hour'] ?? 1000),
+                'decay' => 3600,
+            ],
+        ];
+
+        foreach ($checks as $check) {
+            if ($check['max'] <= 0) {
+                continue;
+            }
+
+            if (RateLimiter::tooManyAttempts($check['key'], $check['max'])) {
+                $seconds = RateLimiter::availableIn($check['key']);
+
+                Log::warning('affiliate.track_click.rate_limited', [
+                    'limiter' => $check['name'],
+                    'ip_hash' => hash('sha256', $ip),
+                    'referral_code_hash' => $codeHash,
+                    'retry_after' => $seconds,
+                ]);
+
+                return response()->json([
+                    'status' => false,
+                    'message' => "Quá nhiều yêu cầu ghi nhận affiliate. Vui lòng thử lại sau {$seconds} giây.",
+                ], 429)->header('Retry-After', $seconds);
+            }
+        }
+
+        foreach ($checks as $check) {
+            if ($check['max'] > 0) {
+                RateLimiter::hit($check['key'], $check['decay']);
+            }
+        }
+
+        return null;
     }
 }
