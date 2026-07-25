@@ -77,19 +77,19 @@ jobs:
           script: |
             cd ${{ secrets.PROJECT_PATH }}
             
-            # 1. Kéo code mới nhất từ Git trước (để tránh xung đột với các file build static)
+            # 1. Kéo code mới nhất từ Git
             git pull origin production
             
-            # 2. Copy bản build frontend từ thư mục tạm vào public của backend
-            # Ưu tiên copy trực tiếp, fallback sang sudo hoặc docker compose cp nếu thư mục do container sở hữu
-            cp -rf /tmp/frontend_dist_${{ github.run_id }}/* ./backend/public/ 2>/dev/null || sudo cp -rf /tmp/frontend_dist_${{ github.run_id }}/* ./backend/public/ 2>/dev/null || docker compose exec -T backend cp -rf /tmp/frontend_dist_${{ github.run_id }}/* /var/www/public/
+            # 2. Deploy Frontend: copy file tĩnh vào thư mục riêng cho VPS Nginx serve
+            sudo mkdir -p /var/www/oceansport/dist
+            sudo cp -rf /tmp/frontend_dist_${{ github.run_id }}/* /var/www/oceansport/dist/
+            sudo chown -R www-data:www-data /var/www/oceansport/dist
             rm -rf /tmp/frontend_dist_${{ github.run_id }}
             
-            # 3. Đảm bảo quyền sở hữu file chuẩn xác cho web server / container đọc được
-            sudo chown -R $(whoami):$(whoami) ./backend/public 2>/dev/null || true
-            docker compose exec -T backend chown -R www-data:www-data /var/www/public 2>/dev/null || true
+            # 3. Reload VPS Nginx để nhận file mới (nếu config đã cài)
+            sudo nginx -t && sudo systemctl reload nginx 2>/dev/null || true
             
-            # 4. Cập nhật và chạy lại các container ngầm định
+            # 4. Cập nhật và chạy lại các container Docker (Backend only)
             docker compose up -d --build
             
             # 5. Xóa các image Docker cũ để giải phóng dung lượng VPS

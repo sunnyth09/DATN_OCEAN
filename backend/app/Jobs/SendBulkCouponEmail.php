@@ -179,7 +179,7 @@ class SendBulkCouponEmail implements ShouldQueue
 
                             <!-- CTA -->
                             <div style="text-align: center;">
-                                <a href="http://localhost:3000" style="display: inline-block; background: linear-gradient(135deg, #0288d1, #03a9f4); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 10px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px;">Mua sắm ngay</a>
+                                <a href="' . rtrim(config('app.frontend_url', 'https://oceansport.bcbdev.id.vn'), '/') . '" style="display: inline-block; background: linear-gradient(135deg, #0288d1, #03a9f4); color: #ffffff; text-decoration: none; padding: 14px 36px; border-radius: 10px; font-size: 14px; font-weight: 700; letter-spacing: 0.5px;">Mua sắm ngay</a>
                             </div>
                         </td></tr>
 
