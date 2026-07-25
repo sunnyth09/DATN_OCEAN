@@ -161,8 +161,10 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
 
     // Coupons (Lưu và xem mã giảm giá của tôi)
-    Route::get('/coupons', [CouponController::class, 'getUserCoupons']);
-    Route::post('/coupons/save', [CouponController::class, 'saveCoupon']);
+    Route::middleware('customer.only')->group(function () {
+        Route::middleware('throttle:60,1')->get('/coupons', [CouponController::class, 'getUserCoupons']);
+        Route::middleware('throttle:10,1')->post('/coupons/save', [CouponController::class, 'saveCoupon']);
+    });
 
     // Đơn hàng của tôi
     Route::get('/orders', [OrderController::class, 'index']);
