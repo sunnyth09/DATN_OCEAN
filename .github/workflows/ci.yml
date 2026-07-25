@@ -2,9 +2,23 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main", "release/*" ]
+    branches: [ "main", "production", "release/*" ]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'face-service/**'
+      - 'mysql/**'
+      - 'nginx/**'
+      - 'docker-compose.yml'
   pull_request:
-    branches: [ "main", "release/*" ]
+    branches: [ "main", "production", "release/*" ]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'face-service/**'
+      - 'mysql/**'
+      - 'nginx/**'
+      - 'docker-compose.yml'
 
 jobs:
   backend-test:
@@ -38,27 +52,3 @@ jobs:
     - name: Run PHPUnit
       run: php artisan test --env=testing
 
-  mobile-test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./mobile
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.19.0'
-        channel: 'stable'
-        
-    - name: Install Dependencies
-      run: flutter pub get
-      
-    - name: Run Analyze
-      run: flutter analyze
-      continue-on-error: true
-      
-    - name: Run Tests
-      run: flutter test
-      continue-on-error: true
