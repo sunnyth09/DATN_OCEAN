@@ -52,7 +52,21 @@ jobs:
         extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, pdo_mysql, dom, filter, gd, json, pdo, redis
         
     - name: Setup CI Environment
-      run: cp .env.testing .env
+      run: |
+        if [ -f .env.testing ]; then
+          cp .env.testing .env
+        else
+          cp ../.env.example .env
+          sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+          sed -i 's/DB_DATABASE=.*/DB_DATABASE=:memory:/' .env
+          sed -i 's/BROADCAST_CONNECTION=.*/BROADCAST_CONNECTION=log/' .env
+          sed -i 's/BROADCAST_DRIVER=.*/BROADCAST_DRIVER=log/' .env
+          sed -i 's/CACHE_DRIVER=.*/CACHE_DRIVER=array/' .env
+          sed -i 's/QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+          sed -i 's/SESSION_DRIVER=.*/SESSION_DRIVER=array/' .env
+          sed -i 's/JWT_SECRET=.*/JWT_SECRET="testing-jwt-secret-key-for-ci-only"/' .env
+          sed -i 's/TURNSTILE_SECRET_KEY=.*/TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"/' .env
+        fi
       
     - name: Install Dependencies
       run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
