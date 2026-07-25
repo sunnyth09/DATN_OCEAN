@@ -1,20 +1,16 @@
 name: Build and Deploy Laravel + Vue
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types:
+      - completed
     branches:
       - production
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'face-service/**'
-      - 'mysql/**'
-      - 'nginx/**'
-      - 'docker-compose.yml'
-      - '.github/workflows/**'
 
 jobs:
   build_and_deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code

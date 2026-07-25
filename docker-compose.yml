@@ -9,6 +9,7 @@ services:
       - "127.0.0.1:8306:3306"
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-ocean_db}
+      MYSQL_USER: ${DB_ROOT_USER:-oceansport}
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_PASSWORD: ${DB_PASSWORD:-root}
     volumes:
@@ -53,7 +54,7 @@ services:
     image: nginx:alpine
     restart: always
     ports:
-      - "0.0.0.0:8383:8383"
+      - "80:8383"
     volumes:
       - ./nginx/backend.conf:/etc/nginx/conf.d/default.conf:ro
       - ./backend:/var/www:ro
