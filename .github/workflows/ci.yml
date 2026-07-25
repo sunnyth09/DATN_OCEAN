@@ -30,6 +30,14 @@ jobs:
         image: redis:alpine
         ports:
           - 6379:6379
+      db:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ocean_db
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -proot" --health-interval=10s --health-timeout=5s --health-retries=3
     defaults:
       run:
         working-directory: ./backend
