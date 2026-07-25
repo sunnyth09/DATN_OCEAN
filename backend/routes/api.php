@@ -151,11 +151,13 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::post('/', [ProfileController::class, 'update']);
     Route::put('/password', [ProfileController::class, 'changePassword']);
 
-    Route::get('/addresses', [AddressController::class, 'index']);
-    Route::post('/addresses', [AddressController::class, 'store']);
-    Route::put('/addresses/{id}', [AddressController::class, 'update']);
-    Route::delete('/addresses/{id}', [AddressController::class, 'destroy']);
-    Route::put('/addresses/{id}/default', [AddressController::class, 'setDefault']);
+    Route::middleware('customer.only')->group(function () {
+        Route::middleware('throttle:60,1')->get('/addresses', [AddressController::class, 'index']);
+        Route::middleware('throttle:5,1')->post('/addresses', [AddressController::class, 'store']);
+        Route::middleware('throttle:10,1')->put('/addresses/{id}', [AddressController::class, 'update']);
+        Route::middleware('throttle:10,1')->delete('/addresses/{id}', [AddressController::class, 'destroy']);
+        Route::middleware('throttle:10,1')->put('/addresses/{id}/default', [AddressController::class, 'setDefault']);
+    });
 
 
     // Coupons (Lưu và xem mã giảm giá của tôi)

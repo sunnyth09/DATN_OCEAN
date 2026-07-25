@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Address extends Model
 {
+    public const MAX_PER_USER = 10;
+
     protected $primaryKey = 'address_id';
 
     protected $fillable = [
