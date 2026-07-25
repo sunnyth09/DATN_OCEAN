@@ -5,6 +5,8 @@ import api from '@/axios';
 const staff = ref([]);
 const loading = ref(true);
 const searchQuery = ref('');
+const currentPage = ref(1);
+const pagination = ref(null);
 const isSubmitting = ref(false);
 const formError = ref('');
 const showCreateModal = ref(false);
@@ -27,14 +29,28 @@ const showToast = (message, type = 'success') => {
 
 const debouncedFetch = () => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => fetchStaff(), 500);
+  searchTimer = setTimeout(() => {
+    currentPage.value = 1;
+    fetchStaff();
+  }, 500);
+};
+
+const changePage = (page) => {
+  if (page < 1 || (pagination.value && page > pagination.value.last_page)) return;
+  currentPage.value = page;
+  fetchStaff();
 };
 
 const fetchStaff = async () => {
   try {
     loading.value = true;
-    const response = await api.get('/admin/staff', { params: { search: searchQuery.value } });
-    staff.value = response.data.data;
+    const response = await api.get('/admin/staff', { params: { search: searchQuery.value, per_page: 5, page: currentPage.value } });
+    staff.value = response.data.data.data;
+    pagination.value = {
+      current_page: response.data.data.current_page,
+      last_page: response.data.data.last_page,
+      total: response.data.data.total,
+    };
   } catch (error) {
     showToast('Lỗi tải danh sách nhân sự!', 'error');
   } finally {
@@ -147,7 +163,7 @@ onMounted(fetchStaff);
         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
       </svg>
       <input v-model="searchQuery" @input="debouncedFetch" type="text" placeholder="Tìm kiếm theo tên hoặc email..." class="search-input" />
-      <span class="user-count">{{ staff.length }} nhân sự</span>
+      <span class="user-count">{{ pagination ? pagination.total : 0 }} nhân sự</span>
     </div>
 
     <!-- Table -->
@@ -213,6 +229,29 @@ onMounted(fetchStaff);
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="pagination && pagination.last_page > 1" class="pagination-controls">
+          <button :disabled="currentPage === 1" @click="changePage(currentPage - 1)" class="btn-page">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              Trước
+          </button>
+          <div class="page-numbers">
+              <button 
+                  v-for="page in pagination.last_page" 
+                  :key="page" 
+                  @click="changePage(page)" 
+                  class="btn-page-number" 
+                  :class="{'active': currentPage === page}"
+              >
+                  {{ page }}
+              </button>
+          </div>
+          <button :disabled="currentPage === pagination.last_page" @click="changePage(currentPage + 1)" class="btn-page">
+              Sau
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+      </div>
     </div>
 
     <!-- ===== MODAL: Thêm nhân sự ===== -->
@@ -373,6 +412,31 @@ onMounted(fetchStaff);
 .actions-cell { text-align: center; }
 .status-th { text-align: center !important; }
 .status-cell { text-align: center; }
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-top: 1px solid var(--border-color);
+}
+.btn-page {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--card-bg, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-page:hover:not(:disabled) { background: var(--hover-bg, #f4f6f8); border-color: var(--primary); color: var(--primary); }
+.btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+.page-numbers { display: flex; gap: 6px; }
+.btn-page-number {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--card-bg, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+}
+.btn-page-number:hover:not(.active) { background: var(--hover-bg, #f4f6f8); }
+.btn-page-number.active {
+    background: var(--primary); color: white; border-color: var(--primary);
+}
 
 /* Switch Toggle CSS */
 .staff-toggle { position: relative; display: inline-block; width: 44px; height: 24px; vertical-align: middle; }
