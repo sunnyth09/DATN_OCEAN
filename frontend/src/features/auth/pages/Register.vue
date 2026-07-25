@@ -1,10 +1,11 @@
-﻿<script setup>
-import { ref, computed, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue';
+<script setup>
+import { ref, computed, reactive, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { Modal } from 'bootstrap';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { useToast } from '@/composables/useToast';
 import { authService } from '@/services/authService';
+import { useAuthStore, getDefaultRouteForRole } from '@/stores/auth';
 
 const name = ref('');
 const email = ref('');
@@ -16,6 +17,7 @@ const agreeTerms = ref(false);
 const errorMsg = ref('');
 const isSubmitting = ref(false);
 const router = useRouter();
+const authStore = useAuthStore();
 const turnstileToken = ref('');
 let turnstileWidgetId = null;
 const { showToast } = useToast();
@@ -121,10 +123,14 @@ const handleRegister = async () => {
         });
 
         if (response.data.status === 'success') {
-            nextTick(() => {
-                const el = document.getElementById('registerSuccessModal');
-                if (el) Modal.getOrCreateInstance(el).show();
+            // Lưu session (token + user) và chuyển thẳng về trang chủ
+            await authStore.setSession(response.data.access_token, {
+                isLoggedIn: true,
+                ...response.data.user
             });
+
+            showToast('Đăng ký tài khoản thành công! Chào mừng bạn đến với Ocean.', 'success');
+            router.push(getDefaultRouteForRole(response.data.user?.role));
         }
     } catch (error) {
         let errorText = 'Có lỗi xảy ra, vui lòng thử lại.';
@@ -146,7 +152,6 @@ const handleRegister = async () => {
     }
 };
 
-const goToLogin = () => { router.push('/client/login'); };
 </script>
 
 <template>
@@ -262,20 +267,7 @@ const goToLogin = () => { router.push('/client/login'); };
         </div>
       </div>
 
-    <!-- Bootstrap Modal -->
-    <div class="modal fade" id="registerSuccessModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header bg-success text-white">
-            <h5 class="modal-title"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Đăng ký thành công!</h5>
-          </div>
-          <div class="modal-body"><p>Vui lòng đăng nhập để tiếp tục.</p></div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-success" @click="goToLogin">Đến trang Đăng nhập</button>
-          </div>
-        </div>
-      </div>
-    </div>
+
 
   </AuthLayout>
 </template>

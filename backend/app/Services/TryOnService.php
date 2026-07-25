@@ -56,7 +56,6 @@ class TryOnService
         }
 
         try {
-            // ═══ BƯỚC 1: Encode ảnh user thành base64 data URI ═══
             $imageContent = file_get_contents($userImagePath);
             if ($imageContent === false) {
                 Log::error('TryOnService: Cannot read user image file', ['path' => $userImagePath]);
