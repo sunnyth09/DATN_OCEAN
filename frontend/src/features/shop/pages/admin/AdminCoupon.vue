@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, nextTick } from 'vue';
 import api from '@/axios';
 import { Toast, Modal } from 'bootstrap';
+import Swal from 'sweetalert2';
 
 const coupons = ref([]);
 const isLoading = ref(true);
@@ -178,8 +179,6 @@ const handleSubmit = async () => {
         isSubmitting.value = false;
     }
 };
-
-import Swal from 'sweetalert2';
 
 const confirmDeleteCouponPrompt = async (id) => {
     const result = await Swal.fire({

@@ -648,14 +648,14 @@ const deleteMaintenance = async (id) => {
                             {{ service.status === 'active' ? 'Hoạt động' : 'Tạm dừng' }}
                         </span>
                     </div>
-                    <p v-if="service.description" class="text-muted mb-0 flex-grow-1" style="font-size: 0.85rem;">{{ service.description }}</p>
+                    <p v-if="service.description" class="text-muted mb-0 flex-grow-1" style="font-size: 0.85rem;" v-html="service.description"></p>
                     <p v-else class="text-muted mb-0 flex-grow-1 fst-italic" style="font-size: 0.85rem;">Chưa có mô tả</p>
                     <div class="d-flex gap-2 mt-3 pt-3" style="border-top: 1px solid var(--border-color, rgba(0,0,0,0.06));">
-                        <button class="court-action-btn court-action-btn--outline flex-fill" @click="openServiceModal(service)">
+                        <button class="court-action-btn court-action-btn--outline flex-fill justify-content-center" @click="openServiceModal(service)">
                             <i class="bi bi-pencil"></i> Sửa
                         </button>
-                        <button class="court-action-btn court-action-btn--danger" @click="deleteService(service.service_id || service.id)">
-                            <i class="bi bi-trash"></i>
+                        <button class="court-action-btn flex-fill justify-content-center" style="background: var(--court-closed-bg); color: var(--court-closed); border: 1px solid var(--court-closed-border);" @click="deleteService(service.service_id || service.id)">
+                            <i class="bi bi-trash"></i> Xóa
                         </button>
                     </div>
                 </div>

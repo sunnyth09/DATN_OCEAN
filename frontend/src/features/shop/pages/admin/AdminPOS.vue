@@ -203,6 +203,32 @@ const customerPhone = ref('');
 const note = ref('');
 const discountAmount = ref(0);
 
+const formattedDiscount = computed(() => {
+  if (!discountAmount.value) return '';
+  return new Intl.NumberFormat('vi-VN').format(discountAmount.value);
+});
+
+const onDiscountInput = (e) => {
+  const el = e.target;
+  let cursorPosition = el.selectionStart;
+  const oldLength = el.value.length;
+  
+  const numericValue = String(el.value).replace(/\D/g, '');
+  const newAmount = numericValue ? parseInt(numericValue, 10) : 0;
+  discountAmount.value = newAmount;
+  
+  const formatted = newAmount ? new Intl.NumberFormat('vi-VN').format(newAmount) : '';
+  
+  if (el.value !== formatted) {
+      el.value = formatted;
+      const newLength = formatted.length;
+      cursorPosition += (newLength - oldLength);
+      // Đảm bảo cursor không bị âm
+      if (cursorPosition < 0) cursorPosition = 0;
+      el.setSelectionRange(cursorPosition, cursorPosition);
+  }
+};
+
 // ================== CUSTOMER SEARCH (LOYALTY) ==================
 const customerId = ref(null);
 const customerFound = ref(false);
@@ -738,7 +764,7 @@ onUnmounted(() => {
               <span>Giảm giá</span>
               <div class="discount-input-wrap">
                 <span class="discount-currency">₫</span>
-                <input type="number" v-model.number="discountAmount" min="0" placeholder="0">
+                <input type="text" :value="formattedDiscount" @input="onDiscountInput" placeholder="0">
               </div>
             </div>
             <div class="total-row grand">
@@ -809,14 +835,14 @@ onUnmounted(() => {
           <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         </div>
         <h5 class="fw-bold mb-2">Thanh toán thành công!</h5>
-        <p class="text-muted mb-3">Mã đơn hàng: <strong class="text-primary">{{ checkoutOrder?.order_code }}</strong></p>
+        <p class="text-muted mb-3">Mã đơn hàng: <strong style="color: var(--primary, #e63b6f);">{{ checkoutOrder?.order_code }}</strong></p>
         <div class="d-flex justify-content-center gap-2">
-          <button class="btn btn-outline-primary" @click="downloadReceiptPdf(checkoutOrder)" :disabled="isDownloadingPdf">
+          <button class="btn btn-outline-custom" @click="downloadReceiptPdf(checkoutOrder)" :disabled="isDownloadingPdf">
             <i v-if="isDownloadingPdf" class="fas fa-spinner fa-spin me-1"></i>
             <i v-else class="fas fa-file-pdf me-1"></i>
             Xuất PDF
           </button>
-          <button class="btn btn-primary" @click="showCheckoutSuccess = false">Đóng</button>
+          <button class="btn btn-custom" @click="showCheckoutSuccess = false">Đóng</button>
         </div>
       </div>
     </div>
@@ -1697,5 +1723,26 @@ onUnmounted(() => {
 
 .vue-modal-body {
     flex: 1 1 auto;
+}
+
+/* Custom Primary Buttons for POS Modal */
+.btn-custom {
+  background-color: var(--primary, #e63b6f);
+  color: white;
+  border: 1px solid var(--primary, #e63b6f);
+}
+.btn-custom:hover {
+  background-color: #d13262;
+  border-color: #d13262;
+  color: white;
+}
+.btn-outline-custom {
+  background-color: transparent;
+  color: var(--primary, #e63b6f);
+  border: 1px solid var(--primary, #e63b6f);
+}
+.btn-outline-custom:hover {
+  background-color: var(--primary, #e63b6f);
+  color: white;
 }
 </style>
