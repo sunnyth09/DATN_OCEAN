@@ -13,13 +13,6 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        $turnstileToken = $request->input('turnstile_token');
-        if (!$this->verifyTurnstile($turnstileToken)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
-            ], 422);
-        }
         $result = $this->authService->register($request->all());
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
@@ -29,75 +22,11 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        // VÔ HIỆU HOÁ CAPTRA TRÁNH BỊ LỖI KHI ĐĂNG NHẬP
-        // Lý do:
-        // - KEY CAPTCHA CỦA CLAUDFLRE CHƯA ĐƯỢC CẤU HÌNH ĐÚNG
-
-        // Verify Cloudflare Turnstile
-        $turnstileToken = $request->input('turnstile_token');
-        if (!$this->verifyTurnstile($turnstileToken)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
-            ], 422);
-        }
-        $credentials = $request->only('email', 'password');
-
-        // BƯỚC 1: Thử đăng nhập Admin (nhân sự) trước
-        $adminToken = auth('admin')->attempt($credentials);
-        if ($adminToken) {
-            $user = auth('admin')->user();
-            if (isset($user->status) && $user->status !== 'active') {
-                auth('admin')->logout();
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'
-                ], 403);
-            }
-            return $this->respondWithToken($adminToken, 'admin');
-        }
-
-        // BƯỚC 2: Thử đăng nhập Customer
-        if ($token = auth('api')->attempt($credentials)) {
-            $user = auth('api')->user();
-            if (isset($user->status) && $user->status !== 'active') {
-                auth('api')->logout();
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'
-                ], 403);
-            }
-            if ($user->deleted_at !== null) {
-                auth('api')->logout();
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Tài khoản của bạn đã bị xóa khỏi hệ thống!'
-                ], 403);
-            }
-            return $this->respondWithToken($token, 'customer');
-        }
         $result = $this->authService->login($request->all());
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
 
         return response()->json($result, $status);
-    }
-
-    protected function respondWithToken($token, $guardType)
-    {
-        $guard = ($guardType === 'admin') ? 'admin' : 'api';
-        $user  = auth($guard)->user();
-
-        return response()->json([
-            'status'        => 'success',
-            'message'       => 'Đăng nhập thành công!',
-            'access_token'  => $token,
-            'refresh_token' => $token,
-            'token_type'    => 'Bearer',
-            'expires_in'    => auth($guard)->factory()->getTTL() * 60,
-            'role'          => $user->role ?? $guardType,
-            'user'          => $user,
-        ], 200);
     }
 
     public function refresh()
@@ -159,30 +88,6 @@ class AuthController extends Controller
         unset($result['_status']);
 
         return response()->json($result, $status);
-    }
-
-    private function verifyTurnstile(?string $token): bool
-    {
-        // Bỏ qua nếu chưa cấu hình key (dev/staging)
-        $secretKey = config('services.turnstile.secret_key');
-        if (!$secretKey) {
-            return true;
-        }
-
-        if (!$token) {
-            return false;
-        }
-
-        try {
-            $response = \Illuminate\Support\Facades\Http::asForm()->post('https://challenges.cloudflare.com/turnstile/v0/siteverify', [
-                'secret' => $secretKey,
-                'response' => $token,
-            ]);
-            return $response->json('success', false);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Turnstile verification failed: ' . $e->getMessage());
-            return false;
-        }
     }
 }
 
