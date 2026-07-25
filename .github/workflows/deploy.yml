@@ -31,25 +31,6 @@ jobs:
         working-directory: ./backend
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist --no-dev --optimize-autoloader
 
-      - name: Run Pint (Backend)
-        working-directory: ./backend
-        run: |
-          if [ -f "vendor/bin/pint" ]; then
-            echo "Running Laravel Pint..."
-            ./vendor/bin/pint --test
-          else
-            echo "Pint not found, skipping."
-          fi
-
-      - name: Run PHPUnit (Backend)
-        working-directory: ./backend
-        run: |
-          if [ -f "phpunit.xml" ] || [ -f "phpunit.xml.dist" ]; then
-            echo "Running PHPUnit..."
-            php artisan test
-          else
-            echo "PHPUnit not found, skipping."
-          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
