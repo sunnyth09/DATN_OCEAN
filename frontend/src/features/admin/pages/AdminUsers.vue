@@ -95,6 +95,29 @@
             </tr>
           </tbody>
         </table>
+
+        <!-- Pagination -->
+        <div v-if="pagination && pagination.last_page > 1" class="pagination-controls">
+            <button :disabled="currentPage === 1" @click="changePage(currentPage - 1)" class="btn-page">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                Trước
+            </button>
+            <div class="page-numbers">
+                <button 
+                    v-for="page in pagination.last_page" 
+                    :key="page" 
+                    @click="changePage(page)" 
+                    class="btn-page-number" 
+                    :class="{'active': currentPage === page}"
+                >
+                    {{ page }}
+                </button>
+            </div>
+            <button :disabled="currentPage === pagination.last_page" @click="changePage(currentPage + 1)" class="btn-page">
+                Sau
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </div>
       </div>
     </div>
 
@@ -353,6 +376,8 @@ const users = ref([]);
 const loading = ref(true);
 const searchQuery = ref('');
 let searchTimer = null;
+const pagination = ref(null);
+const currentPage = ref(1);
 const toast = ref({ message: '', type: 'success' });
 
 const isFormModalOpen = ref(false);
@@ -414,13 +439,30 @@ const showToast = (message, type = 'success') => {
   });
 };
 
-const debouncedFetch = () => { clearTimeout(searchTimer); searchTimer = setTimeout(fetchUsers, 500); };
+const debouncedFetch = () => { 
+  clearTimeout(searchTimer); 
+  searchTimer = setTimeout(() => {
+    currentPage.value = 1;
+    fetchUsers();
+  }, 500); 
+};
+
+const changePage = (page) => {
+  if (page < 1 || (pagination.value && page > pagination.value.last_page)) return;
+  currentPage.value = page;
+  fetchUsers();
+};
 
 const fetchUsers = async () => {
   try {
     loading.value = true;
-    const response = await api.get('/admin/users', { params: { search: searchQuery.value } });
+    const response = await api.get('/admin/users', { params: { search: searchQuery.value, per_page: 10, page: currentPage.value } });
     users.value = response.data.data;
+    pagination.value = {
+      current_page: response.data.current_page,
+      last_page: response.data.last_page,
+      total: response.data.total,
+    };
   } catch (error) {
     showToast('Lỗi tải danh sách!', 'danger');
   } finally {
@@ -589,6 +631,31 @@ onMounted(fetchUsers);
 .search-input { background: none; border: none; outline: none; color: var(--text-main); font-family: var(--font-inter); font-size: 0.9rem; width: 100%; }
 .table-count { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
 .table-count strong { color: var(--text-main); font-weight: 800; }
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-top: 1px solid var(--border-color);
+}
+.btn-page {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-page:hover:not(:disabled) { background: var(--hover-bg, #f4f6f8); border-color: var(--primary, #e63b6f); color: var(--primary, #e63b6f); }
+.btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+.page-numbers { display: flex; gap: 6px; }
+.btn-page-number {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+}
+.btn-page-number:hover:not(.active) { background: var(--hover-bg, #f4f6f8); }
+.btn-page-number.active {
+    background: var(--primary, #e63b6f); color: white; border-color: var(--primary, #e63b6f);
+}
 
 /* Table */
 .table-wrapper { overflow-x: auto; }

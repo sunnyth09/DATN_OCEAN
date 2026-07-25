@@ -192,9 +192,6 @@ const handleLogout = async () => {
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/coupon" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Mã giảm giá</span>
           </router-link>
-          <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/rewards" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Quà tặng Loyalty</span>
-          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/post" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Bài viết</span>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
@@ -40,6 +40,28 @@ const filteredPosts = computed(() => {
     const q = searchQuery.value.toLowerCase();
     return posts.value.filter(p => p.title && p.title.toLowerCase().includes(q));
 });
+
+// Pagination
+const currentPage = ref(1);
+const itemsPerPage = ref(10); 
+
+watch(searchQuery, () => {
+    currentPage.value = 1;
+});
+
+const totalPages = computed(() => Math.ceil(filteredPosts.value.length / itemsPerPage.value));
+
+const paginatedPosts = computed(() => {
+    const start = (currentPage.value - 1) * itemsPerPage.value;
+    const end = start + itemsPerPage.value;
+    return filteredPosts.value.slice(start, end);
+});
+
+const changePage = (page) => {
+    if (page >= 1 && page <= totalPages.value) {
+        currentPage.value = page;
+    }
+};
 
 onMounted(fetchPosts);
 
@@ -142,7 +164,7 @@ const getStatusLabel = (status) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <template v-for="p in filteredPosts" :key="p.post_id">
+                        <template v-for="p in paginatedPosts" :key="p.post_id">
                             <tr>
                                 <td>
                                     <div class="thumbnail-cell">
@@ -180,6 +202,29 @@ const getStatusLabel = (status) => {
                         </template>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div v-if="totalPages > 1 && filteredPosts.length > 0" class="pagination-controls">
+                <button :disabled="currentPage === 1" @click="changePage(currentPage - 1)" class="btn-page">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    Trước
+                </button>
+                <div class="page-numbers">
+                    <button 
+                        v-for="page in totalPages" 
+                        :key="page" 
+                        @click="changePage(page)" 
+                        class="btn-page-number" 
+                        :class="{'active': currentPage === page}"
+                    >
+                        {{ page }}
+                    </button>
+                </div>
+                <button :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)" class="btn-page">
+                    Sau
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
             </div>
 
             <!-- Empty State -->
@@ -264,6 +309,31 @@ const getStatusLabel = (status) => {
     font-size: 0.8rem; font-weight: 600;
 }
 .stat-pill svg { color: var(--primary); }
+
+/* Pagination */
+.pagination-controls {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-top: 1px solid var(--border-color);
+}
+.btn-page {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest); color: var(--text-main);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-page:hover:not(:disabled) { background: var(--hover-bg); border-color: var(--primary); color: var(--primary); }
+.btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+.page-numbers { display: flex; gap: 6px; }
+.btn-page-number {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest); color: var(--text-main);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+}
+.btn-page-number:hover:not(.active) { background: var(--hover-bg); }
+.btn-page-number.active {
+    background: var(--primary); color: white; border-color: var(--primary);
+}
 
 /* Table */
 .table-header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); }
