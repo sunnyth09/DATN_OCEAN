@@ -24,14 +24,14 @@ class AdminOrderService
         'confirmed' => ['processing', 'packing', 'cancelled'],
         'processing' => ['packing', 'shipping', 'cancelled'],
         'packing' => ['shipping', 'cancelled'],
-        'shipping' => ['delivered'],
+        'shipping' => ['delivered', 'cancelled', 'return_requested'],
         'delivered' => ['completed', 'return_requested'],
         'completed' => ['return_requested'],
         'cancelled' => [],
-        'return_requested' => [],
-        'return_approved' => [],
+        'return_requested' => ['return_approved', 'return_rejected'],
+        'return_approved' => ['returned', 'refunded'],
         'return_rejected' => [],
-        'returned' => [],
+        'returned' => ['refunded'],
         'refunded' => [],
     ];
 
@@ -134,6 +134,10 @@ class AdminOrderService
                     && $order->payment_method === 'cod'
                     && $order->payment_status === PaymentStatus::UNPAID->value) {
                     $updates['payment_status'] = PaymentStatus::PAID->value;
+                }
+
+                if ($newFulfillmentStatus === OrderStatus::REFUNDED->value && $order->payment_status !== PaymentStatus::REFUNDED->value) {
+                    $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                 }
 
                 if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
@@ -303,6 +307,10 @@ class AdminOrderService
                         && $order->payment_method === 'cod'
                         && $order->payment_status === PaymentStatus::UNPAID->value) {
                         $updates['payment_status'] = PaymentStatus::PAID->value;
+                    }
+
+                    if ($newFulfillmentStatus === OrderStatus::REFUNDED->value && $order->payment_status !== PaymentStatus::REFUNDED->value) {
+                        $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 
                     if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {

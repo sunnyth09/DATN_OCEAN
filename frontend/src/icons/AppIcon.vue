@@ -162,7 +162,20 @@ const isDecorative = computed(() => props.decorative && !props.title);
     </template>
     <template v-else-if="normalizedName === 'bank'">
       <rect x="2" y="3" width="20" height="16" rx="2" />
-      <path d="M2 10h20" />
+    </template>
+    <template v-else-if="normalizedName === 'rotate-ccw'">
+      <path d="M1 4v6h6" />
+      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+    </template>
+    <template v-else-if="normalizedName === 'package-check'">
+      <path d="M16 16l2 2 4-4" />
+      <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </template>
+    <template v-else-if="normalizedName === 'corner-down-left'">
+      <polyline points="9 10 4 15 9 20" />
+      <path d="M20 4v7a4 4 0 0 1-4 4H4" />
     </template>
     <template v-else>
       <circle cx="12" cy="12" r="9" />
