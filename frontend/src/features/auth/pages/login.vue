@@ -298,7 +298,7 @@ const login = async () => {
 .auth-page {
   flex: 1;
   width: 100%;
-  background: #f1f5f9;
+
   /* Classic soft background */
   padding: 60px 0;
   font-family: var(--font-inter, 'Inter', sans-serif);
