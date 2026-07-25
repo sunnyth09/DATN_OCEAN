@@ -186,12 +186,12 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // ── Affiliate (Hoa hồng giới thiệu) ──
     Route::middleware('customer.only')->group(function () {
-        Route::post('/affiliate/register', [AffiliateController::class, 'register']);
-        Route::get('/affiliate/profile', [AffiliateController::class, 'profile']);
-        Route::get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
-        Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
-        Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
-        Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
+        Route::middleware('throttle:3,60')->post('/affiliate/register', [AffiliateController::class, 'register']);
+        Route::middleware('throttle:60,1')->get('/affiliate/profile', [AffiliateController::class, 'profile']);
+        Route::middleware('throttle:60,1')->get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
+        Route::middleware('throttle:60,1')->get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
+        Route::middleware('throttle:3,60')->post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
+        Route::middleware('throttle:60,1')->get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
     });
     // Khiếu nại của tôi
     Route::get('/tickets', [TicketController::class, 'clientIndex']);
