@@ -18,9 +18,11 @@ class PaymentProcessingServiceTest extends TestCase
 
         config(['vnpay.hash_secret' => 'payment-test-secret']);
 
+        Schema::disableForeignKeyConstraints();
         foreach (['payments', 'order_items', 'orders', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');

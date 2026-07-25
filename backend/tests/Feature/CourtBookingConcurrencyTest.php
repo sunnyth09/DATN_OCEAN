@@ -20,8 +20,9 @@ class CourtBookingConcurrencyTest extends TestCase
         
         // Setup initial data for court and pricing
         $this->court = Court::create([
-            'name' => 'Sân 1',
-            'type' => 'Standard',
+            'court_name' => 'Sân 1',
+            'court_code' => 'SAN-1',
+            'type' => 'standard',
             'status' => 'active'
         ]);
 
@@ -40,8 +41,8 @@ class CourtBookingConcurrencyTest extends TestCase
         // 1. Tạo nhiều users
         $users = User::factory()->count(5)->create();
         $date = now()->addDays(1)->format('Y-m-d');
-        $startTime = '08:00:00';
-        $endTime = '09:00:00';
+        $startTime = '08:00';
+        $endTime = '09:00';
 
         // 2. Chạy đồng thời 5 request gọi API lock vào cùng 1 khung giờ
         $responses = [];

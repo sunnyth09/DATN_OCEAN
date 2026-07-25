@@ -46,9 +46,11 @@ class SpamProtectionTest extends TestCase
             'users',
         ];
 
+        Schema::disableForeignKeyConstraints();
         foreach ($tables as $table) {
             Schema::dropIfExists($table);
         }
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');

@@ -16,7 +16,7 @@ return new class extends Migration
                 $table->id();
                 $table->unsignedBigInteger('user_id')->nullable();
                 $table->string('session_id')->nullable()->index();
-                $table->foreignId('product_id')->constrained()->onDelete('cascade');
+                $table->foreignId('product_id')->constrained('products', 'product_id')->onDelete('cascade');
                 $table->timestamp('viewed_at')->useCurrent();
                 $table->timestamps();
 

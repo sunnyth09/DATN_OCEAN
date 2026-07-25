@@ -23,7 +23,7 @@ class ContactController extends Controller
                 'message' => "Bạn đăng ký quá nhiều lần. Vui lòng thử lại sau {$seconds} giây.",
             ], 429)->header('Retry-After', $seconds);
         }
-        RateLimiter::hit($key, decay: 3600);
+        RateLimiter::hit($key, 3600);
 
         $validator = Validator::make($request->all(), [
             'email' => 'required|email|max:255',
@@ -126,8 +126,8 @@ class ContactController extends Controller
         }
 
         // Ghi hit sau khi vượt qua cả 2 check
-        RateLimiter::hit($ipKey,    decay: 3600);
-        RateLimiter::hit($emailKey, decay: 3600);
+        RateLimiter::hit($ipKey, 3600);
+        RateLimiter::hit($emailKey, 3600);
 
         Contact::create([
             'name'    => $request->name,

@@ -174,7 +174,7 @@ class CourtBookingWorkflowService
         return DB::transaction(function () use ($booking, $data, $actorType, $actorId, $request) {
             $booking = CourtBooking::whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
             $amount = (int) ($data['amount'] ?? max(0, $booking->total_amount - $booking->paid_amount));
-            $status = $actorType === 'admin' && in_array($data['payment_method'], ['cash', 'bank_transfer', 'pos_card', 'pos_transfer'], true)
+            $status = $actorType === 'admin' && in_array($data['payment_method'], ['cash', 'bank_transfer', 'pos_card', 'pos_transfer', 'vnpay', 'momo'], true)
                 ? 'success'
                 : 'pending';
 

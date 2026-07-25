@@ -163,9 +163,9 @@ class AuthController extends Controller
 
     private function verifyTurnstile(?string $token): bool
     {
-        // VÔ HIỆU HOÁ CAPTRA TRÁNH BỊ LỖI KHI ĐĂNG NHẬP NẾU CHƯA CẤU HÌNH KEY
+        // Bỏ qua nếu chưa cấu hình key (dev/staging)
         $secretKey = config('services.turnstile.secret_key');
-        if (!$secretKey || app()->environment('local', 'testing')) {
+        if (!$secretKey) {
             return true;
         }
 

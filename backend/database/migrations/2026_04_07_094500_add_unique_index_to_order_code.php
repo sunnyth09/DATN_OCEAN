@@ -14,9 +14,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $indexExists = collect(
-            \DB::select("SHOW INDEX FROM orders WHERE Key_name = 'orders_order_code_unique'")
-        )->isNotEmpty();
+        if (\DB::connection()->getDriverName() === 'sqlite') {
+            $indexExists = collect(\DB::select("PRAGMA index_list('orders')"))
+                ->contains(fn($idx) => $idx->name === 'orders_order_code_unique');
+        } else {
+            $indexExists = collect(
+                \DB::select("SHOW INDEX FROM orders WHERE Key_name = 'orders_order_code_unique'")
+            )->isNotEmpty();
+        }
 
         if (!$indexExists) {
             Schema::table('orders', function (Blueprint $table) {
