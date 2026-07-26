@@ -27,18 +27,37 @@ class AddressController extends Controller
      * Lấy tất cả địa chỉ của user đang đăng nhập
      * GET /api/profile/addresses
      */
-    public function index()
+    public function index(Request $request)
     {
         $userId = $this->currentUserId();
 
-        $addresses = Address::where('user_id', $userId)
+        $query = Address::where('user_id', $userId)
             ->orderByDesc('is_default')
-            ->orderByDesc('created_at')
-            ->get();
+            ->orderByDesc('created_at');
+
+        if ($request->has('page') || $request->has('per_page')) {
+            $validated = $request->validate([
+                'page' => 'nullable|integer|min:1',
+                'per_page' => 'nullable|integer|min:1|max:' . Address::MAX_PER_USER,
+            ], [
+                'page.integer' => 'Trang không hợp lệ.',
+                'page.min' => 'Trang không hợp lệ.',
+                'per_page.integer' => 'Số địa chỉ mỗi trang không hợp lệ.',
+                'per_page.min' => 'Số địa chỉ mỗi trang không hợp lệ.',
+                'per_page.max' => 'Số địa chỉ mỗi trang không được vượt quá ' . Address::MAX_PER_USER . '.',
+            ]);
+
+            $perPage = (int) ($validated['per_page'] ?? 5);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $query->paginate($perPage),
+            ]);
+        }
 
         return response()->json([
             'status' => 'success',
-            'data' => $addresses,
+            'data' => $query->get(),
         ]);
     }
 
@@ -191,9 +210,9 @@ class AddressController extends Controller
     private function validateAddress(Request $request): array
     {
         return $request->validate([
-            'recipient_name' => 'required|string|max:120',
+            'recipient_name' => 'required|string|min:2|max:120',
             'phone' => ['required', 'string', 'max:20', 'regex:/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/'],
-            'address_line' => 'required|string|max:255',
+            'address_line' => 'required|string|min:5|max:255',
             'ward' => 'required|string|max:120',
             'district' => 'required|string|max:120',
             'province' => 'required|string|max:120',
@@ -204,7 +223,20 @@ class AddressController extends Controller
             'address_type' => 'nullable|in:home,office,other',
             'is_default' => 'nullable|boolean',
         ], [
+            'recipient_name.required' => 'Vui lòng nhập họ tên người nhận.',
+            'recipient_name.min' => 'Họ tên phải có ít nhất 2 ký tự.',
+            'recipient_name.max' => 'Họ tên không được vượt quá 120 ký tự.',
+            'phone.required' => 'Vui lòng nhập số điện thoại.',
             'phone.regex' => 'Số điện thoại không hợp lệ!',
+            'address_line.required' => 'Vui lòng nhập địa chỉ cụ thể.',
+            'address_line.min' => 'Địa chỉ cụ thể quá ngắn, vui lòng nhập số nhà/tên đường.',
+            'address_line.max' => 'Địa chỉ cụ thể không được vượt quá 255 ký tự.',
+            'ward.required' => 'Vui lòng chọn Phường/Xã.',
+            'district.required' => 'Vui lòng chọn Quận/Huyện.',
+            'province.required' => 'Vui lòng chọn Tỉnh/Thành phố.',
+            'ward_code.integer' => 'Phường/Xã không hợp lệ.',
+            'district_code.integer' => 'Quận/Huyện không hợp lệ.',
+            'province_code.integer' => 'Tỉnh/Thành phố không hợp lệ.',
         ]);
     }
 }
