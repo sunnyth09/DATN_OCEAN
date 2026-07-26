@@ -1,8 +1,8 @@
 import api from '@/axios';
 
 export const addressService = {
-    listProfileAddresses() {
-        return api.get('/profile/addresses');
+    listProfileAddresses(params = {}) {
+        return api.get('/profile/addresses', { params });
     },
 
     createProfileAddress(payload) {
