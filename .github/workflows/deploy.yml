@@ -84,7 +84,8 @@ jobs:
             git reset --hard origin/production
             
             # 2. Deploy Frontend & Nginx Configs (dùng quyền Docker để không bao giờ cần sudo)
-            docker run --rm --privileged -v /:/host -v /tmp/frontend_dist_${{ github.run_id }}:/dist -v $(pwd)/nginx/vps:/repo_vps alpine sh -c "mkdir -p /host/var/www/oceansport/dist && cp -rf /dist/* /host/var/www/oceansport/dist/ && chown -R 33:33 /host/var/www/oceansport/dist && cp -rf /repo_vps/* /host/etc/nginx/sites-available/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/apiocean.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/oceansport.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && rm -f /host/etc/nginx/sites-enabled/default"
+            # LƯU Ý: Dùng cp -rn (no clobber) khi copy cấu hình Nginx để KHÔNG ghi đè làm mất block SSL 443 do Certbot đã tạo trên VPS
+            docker run --rm --privileged -v /:/host -v /tmp/frontend_dist_${{ github.run_id }}:/dist -v $(pwd)/nginx/vps:/repo_vps alpine sh -c "mkdir -p /host/var/www/oceansport/dist && cp -rf /dist/* /host/var/www/oceansport/dist/ && chown -R 33:33 /host/var/www/oceansport/dist && cp -rn /repo_vps/* /host/etc/nginx/sites-available/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/apiocean.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/oceansport.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && rm -f /host/etc/nginx/sites-enabled/default"
             rm -rf /tmp/frontend_dist_${{ github.run_id }}
             
             # 3. Reload VPS Nginx để nhận file mới (dùng quyền Docker để không bao giờ cần sudo)
@@ -96,15 +97,14 @@ jobs:
             # 5. Xóa các image Docker cũ để giải phóng dung lượng VPS
             docker image prune -f
             
-            # THỰC THI CÁC LỆNH LARAVEL BÊN TRONG CONTAINER
-            docker compose exec -T backend composer install --no-dev --optimize-autoloader --no-interaction
+            # Đợi 10 giây để container backend khởi động xong entrypoint script (tránh race condition ghi đè cache/config)
+            sleep 10
             
-            docker compose exec -T backend php artisan migrate --force
+            # Tối ưu hóa bộ nhớ đệm (Cache/Config/Route/View) một cách an toàn
+            docker compose exec -T backend php artisan optimize:clear || true
+            docker compose exec -T backend php artisan optimize || true
             
-            docker compose exec -T backend php artisan optimize:clear
-            docker compose exec -T backend php artisan optimize
-            
-            # Restart các dịch vụ nền
+            # Restart các dịch vụ nền (Reverb và Queue sẽ tự động khởi động lại nhờ auto-restart loop trong entrypoint)
             docker compose exec -T backend php artisan queue:restart || true
             docker compose exec -T backend php artisan reverb:restart || true
             docker compose exec -T backend php artisan horizon:terminate || true
