@@ -19,8 +19,9 @@ class CourtBookingPaymentTest extends TestCase
         parent::setUp();
         
         $this->court = Court::create([
-            'name' => 'Sân 1',
-            'type' => 'Standard',
+            'court_name' => 'Sân 1',
+            'court_code' => 'SAN-1',
+            'type' => 'standard',
             'status' => 'active'
         ]);
 
@@ -36,7 +37,14 @@ class CourtBookingPaymentTest extends TestCase
 
     public function test_split_payment_records_deposit_and_full_payment()
     {
-        $admin = Admin::factory()->create();
+        $admin = Admin::create([
+            'full_name' => 'Admin Test',
+            'email' => 'admin_test@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+            'status' => 'active',
+            'phone' => '0901234567',
+        ]);
         $user = User::factory()->create();
         
         $booking = CourtBooking::create([
@@ -65,6 +73,7 @@ class CourtBookingPaymentTest extends TestCase
                         'payment_type' => 'deposit',
                         'amount' => 30000,
                         'transaction_code' => 'VN123',
+                        'status' => 'success',
                     ],
                     [
                         'payment_method' => 'cash',
