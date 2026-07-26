@@ -189,7 +189,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 <div class="hero-overlay"></div>
             </div>
             <div class="container hero-content-wrap">
-                <div class="hero-stat--top-right d-lg-flex">
+                <div class="hero-stat--top-right d-lg-flex mt-5">
                     <div class="hero-stat-item">
                         <span class="hero-stat-num">50K+</span>
                         <span class="hero-stat-label">Khách hàng</span>
