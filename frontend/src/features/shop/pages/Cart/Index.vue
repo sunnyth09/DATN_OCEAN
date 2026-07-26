@@ -23,6 +23,8 @@ const selectAll = ref(true);
 const toast = ref({ show: false, message: '', type: 'success' });
 let cartRequest = null;
 let cartRefreshPending = false;
+const quantityInputTimers = new Map();
+const QUANTITY_INPUT_DEBOUNCE_MS = 600;
 
 // ====== UPSELL & GAMIFICATION ======
 const { state: upsellState, setTotalPrice, fetchUpsellData } = useCartUpsell();
@@ -318,22 +320,40 @@ const normalizeQuantity = (rawValue) => {
     return quantity;
 };
 
-const sanitizeQuantityInput = (event) => {
-    event.target.value = String(event.target.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+const getQuantityTimerKey = (item) => item.cart_item_id || item.variant_id;
+
+const clearQuantityInputTimer = (item) => {
+    const key = getQuantityTimerKey(item);
+    const timer = quantityInputTimers.get(key);
+    if (timer) {
+        clearTimeout(timer);
+        quantityInputTimers.delete(key);
+    }
 };
 
-const commitQuantityInput = async (item, event) => {
+const scheduleQuantityInputUpdate = (item, event) => {
     const oldQuantity = Number(item.quantity) || 1;
-    const nextQuantity = normalizeQuantity(event.target.value);
+    const sanitized = String(event.target.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+    event.target.value = sanitized;
 
-    if (nextQuantity === null) {
-        event.target.value = oldQuantity;
-        showToast('Vui lòng nhập số lượng hợp lệ.', 'error');
-        return;
-    }
+    clearQuantityInputTimer(item);
 
-    const updated = await updateQuantity(item, nextQuantity);
-    event.target.value = updated ? item.quantity : oldQuantity;
+    const timer = setTimeout(async () => {
+        const nextQuantity = normalizeQuantity(sanitized);
+
+        if (nextQuantity === null) {
+            event.target.value = oldQuantity;
+            showToast('Vui lòng nhập số lượng hợp lệ.', 'error');
+            quantityInputTimers.delete(getQuantityTimerKey(item));
+            return;
+        }
+
+        const updated = await updateQuantity(item, nextQuantity);
+        event.target.value = updated ? item.quantity : oldQuantity;
+        quantityInputTimers.delete(getQuantityTimerKey(item));
+    }, QUANTITY_INPUT_DEBOUNCE_MS);
+
+    quantityInputTimers.set(getQuantityTimerKey(item), timer);
 };
 
 // Cập nhật số lượng
@@ -534,6 +554,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
     window.removeEventListener('cart-updated', handleCartUpdated);
+    quantityInputTimers.forEach((timer) => clearTimeout(timer));
+    quantityInputTimers.clear();
 });
 </script>
 
@@ -690,9 +712,8 @@ onUnmounted(() => {
                                 autocomplete="off"
                                 :value="item.quantity"
                                 :disabled="updating[item.cart_item_id]"
-                                @input="sanitizeQuantityInput($event)"
-                                @blur="commitQuantityInput(item, $event)"
-                                @keydown.enter.prevent="$event.target.blur()"
+                                @input="scheduleQuantityInputUpdate(item, $event)"
+                                @keydown.enter.prevent="scheduleQuantityInputUpdate(item, $event)"
                             />
                             <button class="qty-btn" @click="updateQuantity(item, item.quantity + 1)"
                                 :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id]">
