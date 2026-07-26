@@ -308,12 +308,55 @@ const toggleSelect = async (item) => {
     }
 };
 
+const normalizeQuantity = (rawValue) => {
+    const digitsOnly = String(rawValue ?? '').replace(/[^0-9]/g, '').slice(0, 6);
+    if (!digitsOnly) return null;
+
+    const quantity = Number.parseInt(digitsOnly, 10);
+    if (!Number.isSafeInteger(quantity)) return null;
+
+    return quantity;
+};
+
+const sanitizeQuantityInput = (event) => {
+    event.target.value = String(event.target.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+};
+
+const commitQuantityInput = async (item, event) => {
+    const oldQuantity = Number(item.quantity) || 1;
+    const nextQuantity = normalizeQuantity(event.target.value);
+
+    if (nextQuantity === null) {
+        event.target.value = oldQuantity;
+        showToast('Vui lòng nhập số lượng hợp lệ.', 'error');
+        return;
+    }
+
+    const updated = await updateQuantity(item, nextQuantity);
+    event.target.value = updated ? item.quantity : oldQuantity;
+};
+
 // Cập nhật số lượng
-const updateQuantity = async (item, newQuantity) => {
-    if (newQuantity < 1) return;
+const updateQuantity = async (item, rawQuantity) => {
+    const newQuantity = normalizeQuantity(rawQuantity);
+
+    if (newQuantity === null || newQuantity < 1) {
+        showToast('Số lượng tối thiểu là 1.', 'error');
+        return false;
+    }
+
+    if (newQuantity > 999) {
+        showToast('Số lượng tối đa là 999.', 'error');
+        return false;
+    }
+
     if (!item.variant || newQuantity > item.variant.stock) {
         showToast(`Chỉ còn ${item.variant?.stock || 0} sản phẩm trong kho.`, 'error');
-        return;
+        return false;
+    }
+
+    if (newQuantity === item.quantity) {
+        return true;
     }
 
     const oldQuantity = item.quantity;
@@ -330,12 +373,13 @@ const updateQuantity = async (item, newQuantity) => {
             localStorage.setItem('cart_items', JSON.stringify(localItems));
         }
         window.dispatchEvent(new Event('cart-updated'));
-        return;
+        return true;
     }
 
     updating.value[item.cart_item_id] = true;
     try {
         await api.put(`/cart/items/${item.cart_item_id}`, { quantity: newQuantity });
+        return true;
     } catch (error) {
         item.quantity = oldQuantity;
         if (item.variant) {
@@ -343,6 +387,7 @@ const updateQuantity = async (item, newQuantity) => {
         }
         const msg = error.response?.data?.message || 'Không thể cập nhật số lượng.';
         showToast(msg, 'error');
+        return false;
     } finally {
         updating.value[item.cart_item_id] = false;
     }
@@ -637,8 +682,18 @@ onUnmounted(() => {
                                 :disabled="item.quantity <= 1 || updating[item.cart_item_id]">
                                 -
                             </button>
-                            <span class="qty-display" :class="{ 'qty-updating': updating[item.cart_item_id] }">{{
-                                item.quantity }}</span>
+                            <input
+                                class="qty-display qty-input"
+                                :class="{ 'qty-updating': updating[item.cart_item_id] }"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                :value="item.quantity"
+                                :disabled="updating[item.cart_item_id]"
+                                @input="sanitizeQuantityInput($event)"
+                                @blur="commitQuantityInput(item, $event)"
+                                @keydown.enter.prevent="$event.target.blur()"
+                            />
                             <button class="qty-btn" @click="updateQuantity(item, item.quantity + 1)"
                                 :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id]">
                                 +
@@ -1168,22 +1223,28 @@ onUnmounted(() => {
 }
 
 .qty-display {
-    width: 38px;
+    width: 48px;
+    height: 34px;
     text-align: center;
     font-size: 0.9rem;
     font-weight: 700;
     color: #102a43;
+    border: 0;
     border-left: 1px solid #e8ecf1;
     border-right: 1px solid #e8ecf1;
     line-height: 34px;
+    outline: none;
+    background: #fff;
+}
+
+.qty-input:focus {
+    background: #fff5f8;
+    box-shadow: inset 0 0 0 1px #E63B6F;
 }
 
 .qty-updating {
     color: #a0aec0;
-}
-
-.qty-updating {
-    color: #a0aec0;
+    background: #f8fafc;
 }
 
 /* Remove Button */
