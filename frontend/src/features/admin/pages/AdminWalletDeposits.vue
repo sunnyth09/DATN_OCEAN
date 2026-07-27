@@ -171,7 +171,8 @@ onMounted(() => fetchDeposits());
 
     <!-- Table -->
     <div v-else class="table-card">
-      <table class="data-table">
+      <div class="table-responsive">
+        <table class="data-table">
         <thead>
           <tr>
             <th>Mã nạp</th>
@@ -221,7 +222,8 @@ onMounted(() => fetchDeposits());
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <!-- Pagination -->
       <div v-if="pagination && pagination.last_page > 1" class="pagination-controls">

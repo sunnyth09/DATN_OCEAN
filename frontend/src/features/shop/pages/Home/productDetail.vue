@@ -2051,11 +2051,19 @@ onBeforeUnmount(() => {
     flex-direction: row;
     width: 100%;
     overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  .pd-thumbs::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
   }
 
   .pd-thumb {
     width: 60px;
     height: 60px;
+    flex-shrink: 0;
+    scroll-snap-align: center;
   }
 
   .pd-tab {
@@ -2063,8 +2071,33 @@ onBeforeUnmount(() => {
     font-size: 0.85rem;
   }
 
+  .pd-var-options {
+    flex-wrap: wrap;
+  }
+
   .pd-cta {
-    flex-direction: column;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px;
+    background: #fff;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+    z-index: 1000;
+    flex-direction: row;
+    gap: 8px;
+    margin: 0;
+  }
+  
+  .pd-cta button {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 12px 0;
+  }
+
+  /* Để nội dung không bị che bởi sticky bottom bar */
+  .pd-wrapper {
+    padding-bottom: 80px;
   }
 
   .pd-perks {
