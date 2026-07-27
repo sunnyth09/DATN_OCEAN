@@ -3,17 +3,20 @@
 namespace App\Services;
 
 use App\Enums\OrderStatus;
-use App\Models\Order;
+use App\Exceptions\OrderException;
 use App\Models\AffiliateConversion;
-use App\Repositories\AffiliateRepository;
+use App\Models\AffiliateWithdrawal;
+use App\Models\Order;
+use App\Models\User;
+use App\Models\Wallet;
+use App\Models\WalletTransaction;
 use App\Repositories\AffiliateClickRepository;
 use App\Repositories\AffiliateConversionRepository;
+use App\Repositories\AffiliateRepository;
 use App\Repositories\AffiliateWithdrawalRepository;
-use App\Services\WalletService;
-use App\Services\LoyaltyService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class AffiliateService
@@ -38,7 +41,7 @@ class AffiliateService
     {
         $profile = $this->affiliateRepo->getAffiliateProfile($userId);
 
-        if (!$profile) {
+        if (! $profile) {
             return $this->error('Không tìm thấy người dùng!', 404);
         }
 
@@ -63,7 +66,7 @@ class AffiliateService
     {
         $profile = $this->affiliateRepo->getAffiliateProfile($userId);
 
-        if (!$profile) {
+        if (! $profile) {
             return $this->error('Không tìm thấy người dùng!', 404);
         }
 
@@ -94,13 +97,13 @@ class AffiliateService
     {
         $referralCode = $data['referral_code'] ?? null;
 
-        if (!$referralCode) {
+        if (! $referralCode) {
             return $this->error('Thiếu mã giới thiệu!', 422);
         }
 
         $referrer = $this->affiliateRepo->findByReferralCode($referralCode);
 
-        if (!$referrer) {
+        if (! $referrer) {
             return $this->error('Mã giới thiệu không hợp lệ!', 404);
         }
 
@@ -112,7 +115,7 @@ class AffiliateService
 
         // Chống spam click: mỗi IP chỉ được ghi nhận 1 lần / referral_code trong 24h
         $ipAddress = $data['ip_address'] ?? 'unknown';
-        $dedupKey  = 'affiliate_click:' . md5($ipAddress . ':' . $referralCode);
+        $dedupKey = 'affiliate_click:'.md5($ipAddress.':'.$referralCode);
 
         if (Cache::has($dedupKey)) {
             // Trả success để không lộ logic chống spam, nhưng không insert DB
@@ -120,12 +123,12 @@ class AffiliateService
         }
 
         $this->clickRepo->create([
-            'referrer_id'   => $referrer->user_id,
-            'user_id'       => $currentUserId,
-            'product_id'    => $data['product_id'] ?? null,
+            'referrer_id' => $referrer->user_id,
+            'user_id' => $currentUserId,
+            'product_id' => $data['product_id'] ?? null,
             'referral_code' => $referralCode,
-            'ip_address'    => $ipAddress,
-            'user_agent'    => Str::limit((string) ($data['user_agent'] ?? ''), (int) config('affiliate.spam_protection.track_click.user_agent_max_length', 500), ''),
+            'ip_address' => $ipAddress,
+            'user_agent' => Str::limit((string) ($data['user_agent'] ?? ''), (int) config('affiliate.spam_protection.track_click.user_agent_max_length', 500), ''),
         ]);
 
         // Đánh dấu IP này đã click code này, TTL cấu hình được để dễ tinh chỉnh theo traffic thực tế.
@@ -140,7 +143,7 @@ class AffiliateService
      */
     public function getStatistics(int $userId, string $type = 'month'): array
     {
-        if (!in_array($type, ['day', 'month', 'year'])) {
+        if (! in_array($type, ['day', 'month', 'year'])) {
             $type = 'month';
         }
 
@@ -169,7 +172,7 @@ class AffiliateService
     {
         // Kiểm tra user là affiliate
         $profile = $this->affiliateRepo->getAffiliateProfile($userId);
-        if (!$profile || !$profile->is_affiliate) {
+        if (! $profile || ! $profile->is_affiliate) {
             return $this->error('Bạn chưa đăng ký affiliate!', 403);
         }
 
@@ -182,7 +185,7 @@ class AffiliateService
         $minAmount = config('affiliate.min_withdraw_amount', 100000);
 
         if ($amount < $minAmount) {
-            return $this->error("Số tiền rút tối thiểu là " . number_format($minAmount) . " VND!", 422);
+            return $this->error('Số tiền rút tối thiểu là '.number_format($minAmount).' VND!', 422);
         }
 
         try {
@@ -190,38 +193,39 @@ class AffiliateService
             // dòng ví để chống race: 2 request đồng thời không thể cùng vượt số dư khả dụng.
             $withdrawal = DB::transaction(function () use ($userId, $amount, $data) {
                 // Khóa dòng ví trước khi đọc số dư hoa hồng.
-                $wallet = \App\Models\Wallet::where('user_id', $userId)->lockForUpdate()->firstOrFail();
+                $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->firstOrFail();
 
                 // Số dư khả dụng = hoa hồng hiện có − (đã rút/đang chờ rút).
                 $pendingOrWithdrawn = $this->withdrawalRepo->getTotalWithdrawnOrPending($userId);
-                $availableBalance   = (float) $wallet->commission_balance - $pendingOrWithdrawn;
+                $availableBalance = (float) $wallet->commission_balance - $pendingOrWithdrawn;
 
                 if ($amount > $availableBalance) {
-                    throw new \App\Exceptions\OrderException(
-                        'Số dư hoa hồng khả dụng không đủ để rút (' . number_format(max(0, $availableBalance)) . ' VND)!'
+                    throw new OrderException(
+                        'Số dư hoa hồng khả dụng không đủ để rút ('.number_format(max(0, $availableBalance)).' VND)!'
                     );
                 }
 
                 // Kiểm tra pending BÊN TRONG lock để chống tạo trùng yêu cầu.
                 if ($this->withdrawalRepo->hasPendingWithdrawal($userId)) {
-                    throw new \App\Exceptions\OrderException('Bạn đang có yêu cầu rút tiền chưa được xử lý. Vui lòng chờ duyệt!');
+                    throw new OrderException('Bạn đang có yêu cầu rút tiền chưa được xử lý. Vui lòng chờ duyệt!');
                 }
 
                 return $this->withdrawalRepo->create([
-                    'user_id'             => $userId,
-                    'amount'              => $amount,
-                    'bank_name'           => $data['bank_name'] ?? 'VNPay Payout',
-                    'bank_account_name'   => $data['bank_account_name'] ?? '',
+                    'user_id' => $userId,
+                    'amount' => $amount,
+                    'bank_name' => $data['bank_name'] ?? 'VNPay Payout',
+                    'bank_account_name' => $data['bank_account_name'] ?? '',
                     'bank_account_number' => $data['bank_account_number'] ?? '',
-                    'status'              => 'pending',
+                    'status' => 'pending',
                 ]);
             });
 
             return $this->success('Gửi yêu cầu rút tiền thành công! Vui lòng chờ duyệt.', $withdrawal);
-        } catch (\App\Exceptions\OrderException $e) {
+        } catch (OrderException $e) {
             return $this->error($e->getMessage(), 422);
         } catch (\Exception $e) {
-            Log::error('Affiliate withdrawal error: ' . $e->getMessage());
+            Log::error('Affiliate withdrawal error: '.$e->getMessage());
+
             return $this->error('Lỗi khi gửi yêu cầu rút tiền!', 500);
         }
     }
@@ -246,14 +250,14 @@ class AffiliateService
      */
     public function createConversionFromOrder(Order $order, ?string $referralCode): void
     {
-        if (!$referralCode || !$order->user_id) {
+        if (! $referralCode || ! $order->user_id) {
             return;
         }
 
         try {
             $referrer = $this->affiliateRepo->findByReferralCode($referralCode);
 
-            if (!$referrer) {
+            if (! $referrer) {
                 return; // Mã không tồn tại, bỏ qua
             }
 
@@ -281,7 +285,7 @@ class AffiliateService
             ]);
         } catch (\Exception $e) {
             // Không throw — affiliate lỗi không ảnh hưởng order flow
-            Log::error('Affiliate conversion creation failed: ' . $e->getMessage());
+            Log::error('Affiliate conversion creation failed: '.$e->getMessage());
         }
     }
 
@@ -294,7 +298,7 @@ class AffiliateService
         try {
             $conversion = $this->conversionRepo->findByOrderId($order->order_id);
 
-            if (!$conversion) {
+            if (! $conversion) {
                 return;
             }
 
@@ -324,7 +328,7 @@ class AffiliateService
                 $clawback = $this->conversionRepo->markCancelledFromApproved($order->order_id);
 
                 // Với các status khác (pending) chỉ cần đánh dấu cancelled, không clawback.
-                if (!$clawback && $oldStatus !== 'approved') {
+                if (! $clawback && $oldStatus !== 'approved') {
                     $this->conversionRepo->updateStatusByOrderId($order->order_id, 'cancelled');
                 }
 
@@ -339,12 +343,12 @@ class AffiliateService
                             AffiliateConversion::class
                         );
                     } catch (\Exception $e) {
-                        Log::error("Failed to revoke commission for order #{$order->order_id}: " . $e->getMessage());
+                        Log::error("Failed to revoke commission for order #{$order->order_id}: ".$e->getMessage());
                     }
                 }
             }
         } catch (\Exception $e) {
-            Log::error('Affiliate conversion status update failed: ' . $e->getMessage());
+            Log::error('Affiliate conversion status update failed: '.$e->getMessage());
         }
     }
 
@@ -360,7 +364,7 @@ class AffiliateService
     public function adminApproveConversion(int $id): array
     {
         $conversion = AffiliateConversion::find($id);
-        if (!$conversion || $conversion->status !== 'pending') {
+        if (! $conversion || $conversion->status !== 'pending') {
             return $this->error('Conversion không hợp lệ hoặc đã duyệt!', 422);
         }
 
@@ -373,15 +377,16 @@ class AffiliateService
                     $this->depositCommissionToWallet($conversion->order);
 
                     // Tích điểm giới thiệu cho referrer
-                    $referrer = \App\Models\User::find($conversion->referrer_id);
+                    $referrer = User::find($conversion->referrer_id);
                     if ($referrer) {
                         $this->loyaltyService->earnFromReferral($referrer, $conversion->order);
                     }
                 }
             } catch (\Exception $e) {
-                Log::error("Failed to deposit commission on admin approve: " . $e->getMessage());
+                Log::error('Failed to deposit commission on admin approve: '.$e->getMessage());
             }
         }
+
         return $updated
             ? $this->success('Đã duyệt hoa hồng!')
             : $this->error('Không tìm thấy conversion!', 404);
@@ -390,7 +395,7 @@ class AffiliateService
     public function adminCancelConversion(int $id): array
     {
         $conversion = AffiliateConversion::find($id);
-        if (!$conversion) {
+        if (! $conversion) {
             return $this->error('Không tìm thấy conversion!', 404);
         }
         $oldStatus = $conversion->status;
@@ -401,14 +406,15 @@ class AffiliateService
                 $this->walletService->debitCommission(
                     $conversion->referrer_id,
                     (float) $conversion->commission_amount,
-                    "Thu hồi hoa hồng #" . $conversion->id . " bởi Admin",
+                    'Thu hồi hoa hồng #'.$conversion->id.' bởi Admin',
                     $conversion->id,
                     AffiliateConversion::class
                 );
             } catch (\Exception $e) {
-                Log::error("Failed to revoke commission on admin cancel: " . $e->getMessage());
+                Log::error('Failed to revoke commission on admin cancel: '.$e->getMessage());
             }
         }
+
         return $updated
             ? $this->success('Đã hủy hoa hồng!')
             : $this->error('Không tìm thấy conversion!', 404);
@@ -422,7 +428,7 @@ class AffiliateService
     public function adminApproveWithdrawal(int $id): array
     {
         $withdrawal = $this->withdrawalRepo->findById($id);
-        if (!$withdrawal || $withdrawal->status !== 'pending') {
+        if (! $withdrawal || $withdrawal->status !== 'pending') {
             return $this->error('Yêu cầu rút tiền không hợp lệ hoặc đã được xử lý!', 422);
         }
 
@@ -438,12 +444,12 @@ class AffiliateService
         try {
             return DB::transaction(function () use ($id, $note) {
                 // Lock dòng withdrawal, re-check trạng thái để chống double-refund.
-                $withdrawal = \App\Models\AffiliateWithdrawal::whereKey($id)->lockForUpdate()->first();
-                if (!$withdrawal || !in_array($withdrawal->status, ['pending', 'approved'], true)) {
+                $withdrawal = AffiliateWithdrawal::whereKey($id)->lockForUpdate()->first();
+                if (! $withdrawal || ! in_array($withdrawal->status, ['pending', 'approved'], true)) {
                     return $this->error('Yêu cầu rút tiền không hợp lệ hoặc đã được xử lý!', 422);
                 }
 
-                $affected = \App\Models\AffiliateWithdrawal::whereKey($id)
+                $affected = AffiliateWithdrawal::whereKey($id)
                     ->whereIn('status', ['pending', 'approved'])
                     ->update(['status' => 'rejected', 'note' => $note]);
 
@@ -459,7 +465,8 @@ class AffiliateService
                 return $this->success('Đã từ chối yêu cầu rút tiền và hoàn lại số dư!');
             });
         } catch (\Exception $e) {
-            Log::error('Affiliate reject withdrawal failed: ' . $e->getMessage());
+            Log::error('Affiliate reject withdrawal failed: '.$e->getMessage());
+
             return $this->error('Từ chối yêu cầu rút tiền thất bại.', 500);
         }
     }
@@ -467,7 +474,7 @@ class AffiliateService
     public function adminMarkPaidWithdrawal(int $id): array
     {
         $withdrawal = $this->withdrawalRepo->findById($id);
-        if (!$withdrawal || $withdrawal->status !== 'approved') {
+        if (! $withdrawal || $withdrawal->status !== 'approved') {
             return $this->error('Chỉ có thể đánh dấu đã thanh toán cho yêu cầu đã duyệt!', 422);
         }
 
@@ -489,20 +496,20 @@ class AffiliateService
         try {
             $conversion = $this->conversionRepo->findByOrderId($order->order_id);
 
-            if (!$conversion) {
+            if (! $conversion) {
                 return;
             }
 
-            \Illuminate\Support\Facades\DB::transaction(function () use ($order, $conversion) {
+            DB::transaction(function () use ($order, $conversion) {
                 // Khóa row ví người nhận TRƯỚC để serialize các lần deposit đồng thời
                 // cùng conversion (admin double-click, DELIVERED + COMPLETED race).
                 // credit() mở nested transaction re-lock cùng row → reentrant, an toàn.
                 $this->walletService->getOrCreateWallet($conversion->referrer_id);
-                \App\Models\Wallet::where('user_id', $conversion->referrer_id)->lockForUpdate()->first();
+                Wallet::where('user_id', $conversion->referrer_id)->lockForUpdate()->first();
 
                 // Re-check chống duplicate BÊN TRONG khóa: request thứ 2 chờ request 1
                 // commit rồi mới thấy transaction commission đã tồn tại → thoát.
-                $alreadyDeposited = \App\Models\WalletTransaction::where('reference_type', AffiliateConversion::class)
+                $alreadyDeposited = WalletTransaction::where('reference_type', AffiliateConversion::class)
                     ->where('reference_id', $conversion->id)
                     ->where('type', 'commission')
                     ->exists();
@@ -510,8 +517,9 @@ class AffiliateService
                 if ($alreadyDeposited) {
                     Log::info('Affiliate commission already deposited to wallet', [
                         'conversion_id' => $conversion->id,
-                        'order_id'      => $order->order_id,
+                        'order_id' => $order->order_id,
                     ]);
+
                     return;
                 }
 
@@ -521,27 +529,27 @@ class AffiliateService
                     type: 'commission',  // → chảy vào commission_balance
                     opts: [
                         'reference_type' => AffiliateConversion::class,
-                        'reference_id'   => $conversion->id,
-                        'description'    => "Hoa hồng affiliate đơn #{$order->order_code}",
-                        'metadata'       => [
-                            'order_id'        => $order->order_id,
-                            'order_code'      => $order->order_code,
-                            'total_amount'    => $conversion->total_amount,
+                        'reference_id' => $conversion->id,
+                        'description' => "Hoa hồng affiliate đơn #{$order->order_code}",
+                        'metadata' => [
+                            'order_id' => $order->order_id,
+                            'order_code' => $order->order_code,
+                            'total_amount' => $conversion->total_amount,
                             'commission_rate' => $conversion->commission_rate,
                         ],
                     ]
                 );
 
                 Log::info('Affiliate commission deposited to wallet', [
-                    'referrer_id'       => $conversion->referrer_id,
+                    'referrer_id' => $conversion->referrer_id,
                     'commission_amount' => $conversion->commission_amount,
-                    'order_code'        => $order->order_code,
+                    'order_code' => $order->order_code,
                 ]);
             });
 
         } catch (\Exception $e) {
             // Không throw — wallet lỗi không ảnh hưởng affiliate status flow
-            Log::error('Affiliate commission wallet deposit failed: ' . $e->getMessage(), [
+            Log::error('Affiliate commission wallet deposit failed: '.$e->getMessage(), [
                 'order_id' => $order->order_id,
             ]);
         }
@@ -559,15 +567,15 @@ class AffiliateService
         $maxAttempts = 10;
 
         for ($i = 0; $i < $maxAttempts; $i++) {
-            $code = strtoupper(Str::random(3)) . '-' . strtoupper(Str::random(3)) . '-' . strtoupper(Str::random(3));
+            $code = strtoupper(Str::random(3)).'-'.strtoupper(Str::random(3)).'-'.strtoupper(Str::random(3));
 
-            if (!$this->affiliateRepo->referralCodeExists($code)) {
+            if (! $this->affiliateRepo->referralCodeExists($code)) {
                 return $code;
             }
         }
 
         // Fallback: thêm timestamp nếu bị trùng quá nhiều lần
-        return strtoupper(Str::random(3)) . '-' . strtoupper(Str::random(3)) . '-' . substr(time(), -3);
+        return strtoupper(Str::random(3)).'-'.strtoupper(Str::random(3)).'-'.substr(time(), -3);
     }
 
     private function success(string $message, $data = null): array

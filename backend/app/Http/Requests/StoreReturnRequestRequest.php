@@ -12,7 +12,7 @@ class StoreReturnRequestRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth('api')->check() && !auth('admin')->check();
+        return auth('api')->check() && ! auth('admin')->check();
     }
 
     public function rules(): array

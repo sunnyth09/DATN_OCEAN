@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Mail\CourtBookingCancelledMail;
+use App\Mail\CourtBookingConfirmedMail;
 use App\Models\CourtBooking;
 use App\Services\CourtBookingAdminService;
 use App\Services\CourtBookingWorkflowService;
-use App\Mail\CourtBookingConfirmedMail;
-use App\Mail\CourtBookingCancelledMail;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -55,7 +55,7 @@ class CourtBookingAdminController extends Controller
 
         $result = $this->adminService->createWalkIn($validated, $this->adminId(), $request);
 
-        if (!$result['ok']) {
+        if (! $result['ok']) {
             return response()->json(['status' => 'error', 'message' => $result['message']], $result['code']);
         }
 
@@ -74,12 +74,12 @@ class CourtBookingAdminController extends Controller
         $booking = CourtBooking::with([
             'user', 'court', 'staff',
             'services.service', 'payments.processedBy',
-            'statusHistories', 'extensions'
+            'statusHistories', 'extensions',
         ])->findOrFail($id);
 
         return response()->json([
             'status' => 'success',
-            'data' => $booking
+            'data' => $booking,
         ]);
     }
 
@@ -93,7 +93,7 @@ class CourtBookingAdminController extends Controller
         if ($booking->status !== 'pending') {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Chỉ có thể xác nhận booking ở trạng thái "Chờ duyệt".'
+                'message' => 'Chỉ có thể xác nhận booking ở trạng thái "Chờ duyệt".',
             ], 400);
         }
 
@@ -115,15 +115,15 @@ class CourtBookingAdminController extends Controller
             } catch (\Exception $e) {
                 Log::warning('Failed to queue booking confirmed mail', [
                     'booking_id' => $booking->booking_id,
-                    'error'      => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Xác nhận booking thành công.',
-            'data'    => $booking,
+            'data' => $booking,
         ]);
     }
 
@@ -137,7 +137,7 @@ class CourtBookingAdminController extends Controller
         if ($booking->status !== 'confirmed') {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Booking phải ở trạng thái "Chờ duyệt" hoặc "Đã xác nhận" để check-in.'
+                'message' => 'Booking phải ở trạng thái "Chờ duyệt" hoặc "Đã xác nhận" để check-in.',
             ], 400);
         }
 
@@ -160,7 +160,7 @@ class CourtBookingAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Check-in thành công.',
-            'data' => $booking
+            'data' => $booking,
         ]);
     }
 
@@ -177,18 +177,19 @@ class CourtBookingAdminController extends Controller
 
         $result = $this->adminService->checkOut((int) $id, $validated, $this->adminId(), $request);
 
-        if (!$result['ok']) {
+        if (! $result['ok']) {
             $payload = ['status' => 'error', 'message' => $result['message']];
             if (isset($result['amount_due'])) {
                 $payload['amount_due'] = $result['amount_due'];
             }
+
             return response()->json($payload, $result['code']);
         }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Check-out thành công.',
-            'data'    => $result['data'],
+            'data' => $result['data'],
         ]);
     }
 
@@ -200,7 +201,7 @@ class CourtBookingAdminController extends Controller
         $validated = $request->validate([
             'service_id' => 'required|exists:court_services,service_id',
             'quantity' => 'required|integer|min:1',
-            'note' => 'nullable|string'
+            'note' => 'nullable|string',
         ]);
 
         $result = $this->adminService->addService((int) $id, $validated, $this->adminId(), $request);
@@ -223,7 +224,7 @@ class CourtBookingAdminController extends Controller
 
         $result = $this->adminService->extend((int) $id, $validated, $this->adminId(), $request);
 
-        if (!$result['ok']) {
+        if (! $result['ok']) {
             return response()->json(['status' => 'error', 'message' => $result['message']], $result['code']);
         }
 
@@ -245,7 +246,7 @@ class CourtBookingAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật thành công.',
-            'data' => $booking
+            'data' => $booking,
         ]);
     }
 
@@ -259,7 +260,7 @@ class CourtBookingAdminController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã xóa booking.'
+            'message' => 'Đã xóa booking.',
         ]);
     }
 
@@ -282,8 +283,8 @@ class CourtBookingAdminController extends Controller
                 $validated['reason'] ?? 'Admin cancelled booking',
                 [
                     'cancel_reason_type' => 'other',
-                    'cancel_reason'      => $validated['reason'] ?? 'Admin cancelled booking',
-                    'cancelled_at'       => now(),
+                    'cancel_reason' => $validated['reason'] ?? 'Admin cancelled booking',
+                    'cancelled_at' => now(),
                 ],
                 $request
             );
@@ -299,15 +300,15 @@ class CourtBookingAdminController extends Controller
             } catch (\Exception $e) {
                 Log::warning('Failed to queue booking cancelled mail (admin)', [
                     'booking_id' => $booking->booking_id,
-                    'error'      => $e->getMessage(),
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Booking cancelled successfully.',
-            'data'    => $booking,
+            'data' => $booking,
         ]);
     }
 
@@ -428,7 +429,7 @@ class CourtBookingAdminController extends Controller
 
         $result = $this->adminService->splitPayment((int) $id, $validated, $this->adminId(), $request);
 
-        if (!$result['ok']) {
+        if (! $result['ok']) {
             return response()->json(['status' => 'error', 'message' => $result['message']], $result['code']);
         }
 

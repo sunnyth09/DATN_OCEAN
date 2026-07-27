@@ -7,10 +7,11 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\ProductVariant;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
@@ -35,11 +36,11 @@ class OrderProcessingJob implements ShouldQueue
     public int $timeout = 60;
 
     public function __construct(
-        public readonly int    $flashSaleId,
-        public readonly int    $productId,
-        public readonly int    $userId,
-        public readonly int    $quantity,
-        public readonly ?int   $addressId,
+        public readonly int $flashSaleId,
+        public readonly int $productId,
+        public readonly int $userId,
+        public readonly int $quantity,
+        public readonly ?int $addressId,
         public readonly string $recipientName,
         public readonly string $recipientPhone,
         public readonly string $shippingAddress,
@@ -58,9 +59,10 @@ class OrderProcessingJob implements ShouldQueue
             ->where('product_id', $this->productId)
             ->first();
 
-        if (!$flashSaleItem) {
+        if (! $flashSaleItem) {
             Log::error("[OrderProcessingJob] FlashSaleItem (FlashSale #{$this->flashSaleId}, Product #{$this->productId}) không tồn tại.");
             $this->rollbackRedisStock();
+
             return;
         }
 
@@ -74,47 +76,47 @@ class OrderProcessingJob implements ShouldQueue
                     ->lockForUpdate()
                     ->first();
 
-                if (!$variant) {
+                if (! $variant) {
                     throw new \RuntimeException("Không đủ tồn kho thực cho sản phẩm #{$this->productId} (cần {$this->quantity}).");
                 }
 
-                $unitPrice  = $flashSaleItem->campaign_price;
-                $subtotal   = $unitPrice * $this->quantity;
+                $unitPrice = $flashSaleItem->campaign_price;
+                $subtotal = $unitPrice * $this->quantity;
                 $shippingFee = 0; // Flash sale: freeship
                 $grandTotal = $subtotal;
 
                 // 1. Tạo đơn hàng
                 $order = Order::create([
-                    'order_code'       => $this->orderCode,
-                    'user_id'          => $this->userId,
-                    'address_id'       => $this->addressId,
-                    'recipient_name'   => $this->recipientName,
-                    'recipient_phone'  => $this->recipientPhone,
+                    'order_code' => $this->orderCode,
+                    'user_id' => $this->userId,
+                    'address_id' => $this->addressId,
+                    'recipient_name' => $this->recipientName,
+                    'recipient_phone' => $this->recipientPhone,
                     'shipping_address' => $this->shippingAddress,
-                    'note'             => "Flash Sale #{$this->flashSaleId}",
-                    'payment_method'   => $this->paymentMethod,
-                    'payment_status'   => 'unpaid',
+                    'note' => "Flash Sale #{$this->flashSaleId}",
+                    'payment_method' => $this->paymentMethod,
+                    'payment_status' => 'unpaid',
                     'fulfillment_status' => 'pending',
-                    'subtotal'         => $subtotal,
-                    'discount_amount'  => 0,
-                    'shipping_fee'     => $shippingFee,
-                    'grand_total'      => $grandTotal,
-                    'email_sent'       => false,
+                    'subtotal' => $subtotal,
+                    'discount_amount' => 0,
+                    'shipping_fee' => $shippingFee,
+                    'grand_total' => $grandTotal,
+                    'email_sent' => false,
                 ]);
 
                 // 2. Tạo order item từ flash sale
                 OrderItem::create([
-                    'order_id'     => $order->order_id,
-                    'product_id'   => $this->productId,
-                    'variant_id'   => $variant->variant_id,
+                    'order_id' => $order->order_id,
+                    'product_id' => $this->productId,
+                    'variant_id' => $variant->variant_id,
                     'product_name' => $flashSaleItem->product->name,
                     'variant_name' => $variant->variant_name,
-                    'sku'          => $variant->sku,
-                    'color'        => $variant->color,
-                    'size'         => $variant->size,
-                    'quantity'     => $this->quantity,
-                    'unit_price'   => $unitPrice,
-                    'line_total'   => $subtotal,
+                    'sku' => $variant->sku,
+                    'color' => $variant->color,
+                    'size' => $variant->size,
+                    'quantity' => $this->quantity,
+                    'unit_price' => $unitPrice,
+                    'line_total' => $subtotal,
                 ]);
 
                 // 3. Cập nhật sold_count trong flash_sale_items
@@ -131,7 +133,7 @@ class OrderProcessingJob implements ShouldQueue
             throw $e;
         }
 
-        \Illuminate\Support\Facades\Cache::flush();
+        Cache::flush();
     }
 
     /**

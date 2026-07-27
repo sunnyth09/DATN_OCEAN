@@ -3,14 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Notifications\Notifiable;
+use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 
 class Admin extends Authenticatable implements JWTSubject
 {
     use Notifiable;
 
     protected $table = 'admins';
+
     protected $primaryKey = 'admin_id';
 
     protected $fillable = [
@@ -32,7 +33,7 @@ class Admin extends Authenticatable implements JWTSubject
     protected function casts(): array
     {
         return [
-            'password'      => 'hashed',
+            'password' => 'hashed',
             'date_of_birth' => 'date', // FIX M4: Cast date_of_birth
         ];
     }

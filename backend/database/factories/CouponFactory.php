@@ -21,7 +21,7 @@ class CouponFactory extends Factory
 
         // Tạo code đẹp kiểu SALE30K, GIAM15P, SHIP20K,...
         $prefixes = ['SALE', 'GIAM', 'DEAL', 'HOT', 'MEGA', 'SUPER', 'VIP', 'OCEAN', 'COOL', 'LUCKY', 'SAVE', 'BOOM', 'TOP', 'MAX', 'PRO'];
-        $code = $this->faker->randomElement($prefixes) . $this->faker->unique()->numerify('##') . $this->faker->randomElement(['K', 'VN', '', 'X']);
+        $code = $this->faker->randomElement($prefixes).$this->faker->unique()->numerify('##').$this->faker->randomElement(['K', 'VN', '', 'X']);
 
         $value = match ($type) {
             'percent' => $this->faker->randomElement([5, 10, 15, 20, 25, 30, 40, 50]),

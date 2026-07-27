@@ -20,7 +20,7 @@ class FaceEncoding extends Model
     protected function casts(): array
     {
         return [
-            'encoding'  => 'array', // JSON array 128-dim vector
+            'encoding' => 'array', // JSON array 128-dim vector
             'is_active' => 'boolean',
         ];
     }
@@ -31,7 +31,7 @@ class FaceEncoding extends Model
     public function scopeOfUser($query, int $userId, string $userType)
     {
         return $query->where('user_id', $userId)
-                     ->where('user_type', $userType)
-                     ->where('is_active', true);
+            ->where('user_type', $userType)
+            ->where('is_active', true);
     }
 }

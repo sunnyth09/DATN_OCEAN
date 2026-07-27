@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\RefundStatus;
 use App\Enums\ReturnRequestStatus;
+use App\Exceptions\OrderException;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\ReturnRequest;
@@ -29,7 +30,7 @@ class ReturnRequestService
     {
         $order = $this->orderRepository->findUserOrder($userId, $orderId);
 
-        if (!$order) {
+        if (! $order) {
             return $this->error('Không tìm thấy đơn hàng hoặc đơn hàng không thuộc về bạn.', 404);
         }
 
@@ -63,7 +64,7 @@ class ReturnRequestService
                 'order_id' => $order->order_id,
                 'old_status' => $oldStatus,
                 'new_status' => OrderStatus::RETURN_REQUESTED->value,
-                'note' => 'Khách hàng gửi yêu cầu hoàn hàng: ' . $returnRequest->reason,
+                'note' => 'Khách hàng gửi yêu cầu hoàn hàng: '.$returnRequest->reason,
                 'changed_by' => $userId,
             ]);
         });
@@ -80,7 +81,7 @@ class ReturnRequestService
     {
         $returnRequest = $this->returnRequestRepository->findUserRequest($userId, $id);
 
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -96,7 +97,7 @@ class ReturnRequestService
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
 
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -107,7 +108,7 @@ class ReturnRequestService
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
 
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -153,7 +154,7 @@ class ReturnRequestService
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
 
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -182,7 +183,7 @@ class ReturnRequestService
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
 
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -214,7 +215,7 @@ class ReturnRequestService
         // Kiểm tra sơ bộ ngoài transaction để trả message thân thiện (fail nhanh).
         $preCheck = $this->returnRequestRepository->findForAdmin($id);
 
-        if (!$preCheck) {
+        if (! $preCheck) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -225,11 +226,11 @@ class ReturnRequestService
 
                 // Re-check trạng thái BÊN TRONG lock — đây mới là guard có hiệu lực.
                 if ($returnRequest->status !== ReturnRequestStatus::RECEIVED->value) {
-                    throw new \App\Exceptions\OrderException('Chỉ có thể hoàn tiền sau khi đã nhận hàng hoàn.');
+                    throw new OrderException('Chỉ có thể hoàn tiền sau khi đã nhận hàng hoàn.');
                 }
 
                 if ($returnRequest->refund_status === RefundStatus::SUCCESS->value) {
-                    throw new \App\Exceptions\OrderException('Yêu cầu này đã được hoàn tiền trước đó.');
+                    throw new OrderException('Yêu cầu này đã được hoàn tiền trước đó.');
                 }
 
                 // Lock đơn hàng để tính tổng đã hoàn một cách nhất quán.
@@ -237,7 +238,7 @@ class ReturnRequestService
                 $refundAmount = (float) $data['refund_amount'];
 
                 if ($refundAmount <= 0) {
-                    throw new \App\Exceptions\OrderException('Số tiền hoàn phải lớn hơn 0.');
+                    throw new OrderException('Số tiền hoàn phải lớn hơn 0.');
                 }
 
                 // Chống hoàn vượt tổng đơn khi có nhiều yêu cầu trả hàng (cộng dồn).
@@ -248,19 +249,19 @@ class ReturnRequestService
                 $remaining = (float) $order->grand_total - $alreadyRefunded;
 
                 if ($refundAmount > $remaining) {
-                    throw new \App\Exceptions\OrderException(
-                        'Số tiền hoàn vượt quá phần còn lại có thể hoàn (' . number_format($remaining) . 'đ).'
+                    throw new OrderException(
+                        'Số tiền hoàn vượt quá phần còn lại có thể hoàn ('.number_format($remaining).'đ).'
                     );
                 }
 
-                if (!in_array($order->payment_status, PaymentStatus::refundableValues(), true)) {
-                    throw new \App\Exceptions\OrderException('Đơn hàng hiện không ở trạng thái có thể hoàn tiền.');
+                if (! in_array($order->payment_status, PaymentStatus::refundableValues(), true)) {
+                    throw new OrderException('Đơn hàng hiện không ở trạng thái có thể hoàn tiền.');
                 }
 
                 // Credit ví NẰM TRONG transaction → nếu bất kỳ bước sau lỗi, tiền được rollback.
                 $refundResult = $this->refundService->processManualRefund($order, $data);
-                if (!$refundResult['success']) {
-                    throw new \App\Exceptions\OrderException($refundResult['message']);
+                if (! $refundResult['success']) {
+                    throw new OrderException($refundResult['message']);
                 }
 
                 $returnRequest->update([
@@ -281,7 +282,7 @@ class ReturnRequestService
                 $this->updatePaymentStatus(
                     $order,
                     PaymentStatus::REFUNDED->value,
-                    '[Thanh toán] Đã hoàn tiền thủ công qua ' . $data['refund_method'] . '.'
+                    '[Thanh toán] Đã hoàn tiền thủ công qua '.$data['refund_method'].'.'
                 );
 
                 $payment = Payment::where('order_id', $order->order_id)
@@ -298,7 +299,7 @@ class ReturnRequestService
                     ]);
                 }
             });
-        } catch (\App\Exceptions\OrderException $e) {
+        } catch (OrderException $e) {
             return $this->error($e->getMessage(), 422);
         }
 
@@ -322,7 +323,7 @@ class ReturnRequestService
 
     private function validateReturnEligibility(Order $order): ?string
     {
-        if (!in_array($order->fulfillment_status, OrderStatus::returnEligibleValues(), true)) {
+        if (! in_array($order->fulfillment_status, OrderStatus::returnEligibleValues(), true)) {
             return 'Chỉ có thể gửi yêu cầu hoàn hàng cho đơn đã hoàn thành hoặc đã giao.';
         }
 
@@ -352,7 +353,7 @@ class ReturnRequestService
     {
         $paths = [];
 
-        if (!$request->hasFile('images')) {
+        if (! $request->hasFile('images')) {
             return $paths;
         }
 

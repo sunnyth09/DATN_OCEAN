@@ -4,8 +4,8 @@ namespace App\Imports;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Concerns\WithLimit;
+use Maatwebsite\Excel\Concerns\WithStartRow;
 
 /**
  * Đọc một đoạn rows từ file Excel theo offset và limit.
@@ -13,16 +13,18 @@ use Maatwebsite\Excel\Concerns\WithLimit;
  * Dùng WithStartRow + WithLimit để PHReadExcel chỉ đọc đúng số dòng cần thiết từ disk,
  * KHÔNG tải toàn bộ file vào RAM — an toàn tuyệt đối với file 10.000+ dòng.
  */
-class ProductsRowImport implements ToCollection, WithStartRow, WithLimit
+class ProductsRowImport implements ToCollection, WithLimit, WithStartRow
 {
     protected int $startRowNum;
+
     protected int $limitNum;
+
     protected array $rows = [];
 
     public function __construct(int $startRowNum, int $limitNum)
     {
         $this->startRowNum = $startRowNum;
-        $this->limitNum    = $limitNum;
+        $this->limitNum = $limitNum;
     }
 
     /**

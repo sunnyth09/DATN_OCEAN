@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Requests\ChangePasswordRequest;
+use App\Http\Requests\UpdateProfileRequest;
 use App\Http\Resources\UserProfileResource;
-use Illuminate\Support\Facades\Storage;
+use App\Models\Admin;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ProfileController extends Controller
@@ -24,9 +26,9 @@ class ProfileController extends Controller
      */
     public function update(UpdateProfileRequest $request)
     {
-        /** @var \App\Models\User|\App\Models\Admin $user */
+        /** @var User|Admin $user */
         $user = $this->currentUser();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
@@ -45,7 +47,7 @@ class ProfileController extends Controller
         // FIX C9: Xử lý upload ảnh — reprocess bằng GD để loại bỏ metadata/mã độc
         if ($request->hasFile('avatar')) {
             // Xoá ảnh cũ nếu là ảnh nội bộ (không phải URL Google/bên ngoài)
-            if ($user->avatar_url && !str_starts_with($user->avatar_url, 'http')) {
+            if ($user->avatar_url && ! str_starts_with($user->avatar_url, 'http')) {
                 $oldPath = ltrim(str_replace('/storage', '', $user->avatar_url), '/');
                 Storage::disk('public')->delete($oldPath);
             }
@@ -54,50 +56,50 @@ class ProfileController extends Controller
 
             // Reprocess ảnh bằng GD — strip metadata, loại bỏ embedded content
             $gdImage = @imagecreatefromstring(file_get_contents($file->getRealPath()));
-            if (!$gdImage) {
+            if (! $gdImage) {
                 return response()->json([
-                    'status'  => 'error',
+                    'status' => 'error',
                     'message' => 'File ảnh không hợp lệ hoặc bị hỏng.',
-                    'errors'  => ['avatar' => ['File ảnh không hợp lệ hoặc bị hỏng.']],
+                    'errors' => ['avatar' => ['File ảnh không hợp lệ hoặc bị hỏng.']],
                 ], 422);
             }
 
             // Tạo tên file unique (UUID) để tránh đoán tên
             $extension = $file->getClientOriginalExtension() ?: 'jpg';
-            $uniqueName = 'avatars/' . Str::uuid() . '.' . $extension;
-            $savePath = storage_path('app/public/' . $uniqueName);
+            $uniqueName = 'avatars/'.Str::uuid().'.'.$extension;
+            $savePath = storage_path('app/public/'.$uniqueName);
 
             // Đảm bảo thư mục tồn tại
             $dir = dirname($savePath);
-            if (!is_dir($dir)) {
+            if (! is_dir($dir)) {
                 mkdir($dir, 0755, true);
             }
 
             // Lưu ảnh đã được reprocess (loại bỏ EXIF metadata)
             $saved = match (strtolower($extension)) {
-                'png'  => imagepng($gdImage, $savePath),
-                'gif'  => imagegif($gdImage, $savePath),
+                'png' => imagepng($gdImage, $savePath),
+                'gif' => imagegif($gdImage, $savePath),
                 default => imagejpeg($gdImage, $savePath, 90),
             };
             imagedestroy($gdImage);
 
-            if (!$saved) {
+            if (! $saved) {
                 return response()->json([
-                    'status'  => 'error',
+                    'status' => 'error',
                     'message' => 'Không thể lưu ảnh đại diện.',
                 ], 500);
             }
 
-            $user->avatar_url = '/storage/' . $uniqueName;
+            $user->avatar_url = '/storage/'.$uniqueName;
         }
 
         $user->saveQuietly();
 
         // FIX C1: Dùng UserProfileResource để lọc data nhạy cảm
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Cập nhật tài khoản thành công.',
-            'data'    => new UserProfileResource($user->fresh()),
+            'data' => new UserProfileResource($user->fresh()),
         ], 200);
     }
 
@@ -110,9 +112,9 @@ class ProfileController extends Controller
      */
     public function changePassword(ChangePasswordRequest $request)
     {
-        /** @var \App\Models\User|\App\Models\Admin $user */
+        /** @var User|Admin $user */
         $user = $this->currentUser();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
@@ -120,9 +122,9 @@ class ProfileController extends Controller
 
         // Vì cast 'hashed', $user->password vẫn lưu đúng dạng bcrypt hash
         // nên Hash::check() vẫn hoạt động bình thường
-        if (!Hash::check($validated['current_password'], $user->password)) {
+        if (! Hash::check($validated['current_password'], $user->password)) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Mật khẩu hiện tại không đúng.',
             ], 400);
         }
@@ -132,7 +134,7 @@ class ProfileController extends Controller
         $user->forceFill(['password' => Hash::make($validated['new_password'])])->saveQuietly();
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đổi mật khẩu thành công.',
         ], 200);
     }

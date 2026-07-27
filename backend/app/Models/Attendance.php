@@ -41,21 +41,21 @@ class Attendance extends Model
     protected function casts(): array
     {
         return [
-            'work_date'                => 'date',
-            'check_in_at'              => 'datetime',
-            'check_out_at'             => 'datetime',
-            'latitude'                 => 'float',
-            'longitude'                => 'float',
-            'check_in_accuracy'        => 'float',
+            'work_date' => 'date',
+            'check_in_at' => 'datetime',
+            'check_out_at' => 'datetime',
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'check_in_accuracy' => 'float',
             'check_in_distance_meters' => 'float',
-            'check_out_latitude'       => 'float',
-            'check_out_longitude'      => 'float',
-            'check_out_accuracy'       => 'float',
+            'check_out_latitude' => 'float',
+            'check_out_longitude' => 'float',
+            'check_out_accuracy' => 'float',
             'check_out_distance_meters' => 'float',
-            'face_verified'            => 'boolean',
-            'face_confidence'          => 'float',
-            'face_distance'            => 'float',
-            'is_flagged'               => 'boolean',
+            'face_verified' => 'boolean',
+            'face_confidence' => 'float',
+            'face_distance' => 'float',
+            'is_flagged' => 'boolean',
         ];
     }
 

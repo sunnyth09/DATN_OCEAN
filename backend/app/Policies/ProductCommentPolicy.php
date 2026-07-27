@@ -22,7 +22,7 @@ class ProductCommentPolicy
     /**
      * Gate trước: Admin/Staff có quyền moderate.
      */
-    public function before(mixed $user, string $ability): bool|null
+    public function before(mixed $user, string $ability): ?bool
     {
         // Chỉ shortcircuit với admin/seller abilities (moderate)
         if (in_array($ability, ['moderate', 'delete'], true)) {
@@ -49,13 +49,14 @@ class ProductCommentPolicy
         }
 
         // Đơn phải hoàn thành
-        if (!in_array($orderItem->order->fulfillment_status, ['completed', 'delivered'], true)) {
+        if (! in_array($orderItem->order->fulfillment_status, ['completed', 'delivered'], true)) {
             return false;
         }
 
         // Chưa review item này
         $alreadyReviewed = ProductComment::where('order_item_id', $orderItem->order_item_id)->exists();
-        return !$alreadyReviewed;
+
+        return ! $alreadyReviewed;
     }
 
     /**

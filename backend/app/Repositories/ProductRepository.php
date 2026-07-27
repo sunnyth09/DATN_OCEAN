@@ -2,11 +2,11 @@
 
 namespace App\Repositories;
 
-use App\Models\Product;
-use App\Models\ProductVariant;
-use App\Models\ProductImage;
 use App\Models\CartItem;
-use Illuminate\Support\Facades\DB;
+use App\Models\Product;
+use App\Models\ProductImage;
+use App\Models\ProductVariant;
+use Carbon\Carbon;
 
 class ProductRepository
 {
@@ -37,10 +37,8 @@ class ProductRepository
     /**
      * Admin: danh sách sản phẩm (phân trang, tìm kiếm, lọc)
      *
-     * @param array $matchedIds  Mảng ID từ Meilisearch (null nếu không search)
-     * @param array $filters     [status, category_id, price_range, sort_by]
-     * @param int   $page
-     * @param int   $limit
+     * @param  array  $matchedIds  Mảng ID từ Meilisearch (null nếu không search)
+     * @param  array  $filters  [status, category_id, price_range, sort_by]
      */
     public function getAdminProducts(?array $matchedIds, array $filters, int $page, int $limit): array
     {
@@ -52,16 +50,16 @@ class ProductRepository
         // Search — đã được xử lý ở Service: truyền matchedIds hoặc LIKE
         if ($matchedIds !== null) {
             $query->whereIn('product_id', $matchedIds);
-        } elseif (!empty($filters['search_like'])) {
+        } elseif (! empty($filters['search_like'])) {
             $search = $filters['search_like'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('slug', 'like', "%{$search}%");
+                    ->orWhere('slug', 'like', "%{$search}%");
             });
         }
 
         // Status
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             if ($filters['status'] === 'deleted') {
                 $query->onlyTrashed();
             } elseif (in_array($filters['status'], ['draft', 'active', 'inactive', 'out_of_stock'])) {
@@ -70,17 +68,17 @@ class ProductRepository
         }
 
         // Category (bao gồm cả danh mục con)
-        if (!empty($filters['category_ids'])) {
+        if (! empty($filters['category_ids'])) {
             $query->whereIn('category_id', $filters['category_ids']);
         }
 
         // Price range
-        if (!empty($filters['price_range'])) {
+        if (! empty($filters['price_range'])) {
             match ($filters['price_range']) {
                 'under-500k' => $query->where('min_price', '<', 500000),
-                '500k-1m'    => $query->whereBetween('min_price', [500000, 1000000]),
-                'above-1m'   => $query->where('min_price', '>', 1000000),
-                default      => null,
+                '500k-1m' => $query->whereBetween('min_price', [500000, 1000000]),
+                'above-1m' => $query->where('min_price', '>', 1000000),
+                default => null,
             };
         }
 
@@ -90,7 +88,7 @@ class ProductRepository
         }
 
         // Brand ids
-        if (!empty($filters['brand_ids'])) {
+        if (! empty($filters['brand_ids'])) {
             $brandIds = explode(',', $filters['brand_ids']);
             $query->whereIn('brand_id', $brandIds);
         }
@@ -100,21 +98,21 @@ class ProductRepository
 
         // Sort
         match ($filters['sort_by'] ?? null) {
-            'oldest'     => $query->orderBy('created_at', 'asc'),
-            'price-asc'  => $query->orderBy('min_price', 'asc'),
+            'oldest' => $query->orderBy('created_at', 'asc'),
+            'price-asc' => $query->orderBy('min_price', 'asc'),
             'price-desc' => $query->orderBy('min_price', 'desc'),
-            default      => $query->orderBy('product_id', 'desc'),
+            default => $query->orderBy('product_id', 'desc'),
         };
 
         $total = $query->count();
         $products = $query->offset($offset)->limit($limit)->get();
 
         return [
-            'data'        => $products,
-            'total'       => $total,
+            'data' => $products,
+            'total' => $total,
             'total_pages' => ceil($total / $limit),
-            'page'        => $page,
-            'limit'       => $limit,
+            'page' => $page,
+            'limit' => $limit,
         ];
     }
 
@@ -285,10 +283,12 @@ class ProductRepository
 
         if ($product->trashed()) {
             $product->forceDelete();
+
             return 'Xóa vĩnh viễn sản phẩm thành công.';
         }
 
         $product->delete();
+
         return 'Xóa sản phẩm thành công.';
     }
 
@@ -315,7 +315,7 @@ class ProductRepository
      */
     public function deleteCartItemsByVariants(array $variantIds): void
     {
-        if (!empty($variantIds)) {
+        if (! empty($variantIds)) {
             CartItem::whereIn('variant_id', $variantIds)->delete();
         }
     }
@@ -393,12 +393,12 @@ class ProductRepository
         foreach ($variants as $variant) {
             // Lấy giá cơ bản
             $effectivePrice = $variant->price;
-            
+
             // Nếu có sale_price hợp lệ và đang trong thời gian sale thì lấy sale_price
             if ($variant->sale_price !== null && $variant->sale_price > 0) {
-                $start = $variant->sale_starts_at ? \Carbon\Carbon::parse($variant->sale_starts_at) : null;
-                $end = $variant->sale_ends_at ? \Carbon\Carbon::parse($variant->sale_ends_at) : null;
-                
+                $start = $variant->sale_starts_at ? Carbon::parse($variant->sale_starts_at) : null;
+                $end = $variant->sale_ends_at ? Carbon::parse($variant->sale_ends_at) : null;
+
                 $isActiveSale = true;
                 if ($start && $now->lt($start)) {
                     $isActiveSale = false;
@@ -406,7 +406,7 @@ class ProductRepository
                 if ($end && $now->gt($end)) {
                     $isActiveSale = false;
                 }
-                
+
                 if ($isActiveSale) {
                     $effectivePrice = $variant->sale_price;
                 }

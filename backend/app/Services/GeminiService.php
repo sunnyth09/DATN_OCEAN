@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class GeminiService
 {
     private array $apiKeys = [];
+
     private string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash';
 
     /**
@@ -97,7 +99,7 @@ PROMPT;
     {
         // Load nhiều API keys để rotate khi bị rate limit
         $keys = config('services.gemini.keys', []);
-        $this->apiKeys = !empty($keys) ? $keys : [''];
+        $this->apiKeys = ! empty($keys) ? $keys : [''];
     }
 
     /**
@@ -106,6 +108,7 @@ PROMPT;
     private function getApiKey(int $attempt = 0): string
     {
         $index = ($attempt + crc32(date('YmdHi'))) % count($this->apiKeys);
+
         return $this->apiKeys[$index];
     }
 
@@ -197,7 +200,7 @@ PROMPT;
                 'description' => 'Lấy danh sách địa chỉ giao hàng của khách hàng đã đăng nhập để chọn khi chuẩn bị đặt hàng.',
                 'parameters' => [
                     'type' => 'object',
-                    'properties' => new \stdClass(),
+                    'properties' => new \stdClass,
                 ],
             ],
             [
@@ -267,7 +270,7 @@ PROMPT;
                 'description' => 'Lấy danh sách mã giảm giá đang có hiệu lực. Dùng khi khách hỏi về voucher, mã giảm giá, khuyến mãi.',
                 'parameters' => [
                     'type' => 'object',
-                    'properties' => new \stdClass(),
+                    'properties' => new \stdClass,
                 ],
             ],
             [
@@ -275,7 +278,7 @@ PROMPT;
                 'description' => 'Lấy danh sách tất cả danh mục sản phẩm của shop',
                 'parameters' => [
                     'type' => 'object',
-                    'properties' => new \stdClass(),
+                    'properties' => new \stdClass,
                 ],
             ],
             [
@@ -363,7 +366,7 @@ PROMPT;
         $payload = [
             'system_instruction' => [
                 'parts' => [[
-                    'text' => 'Bạn chỉ trích xuất filter tìm kiếm sản phẩm cho Quyền Sport. Chỉ trả JSON hợp lệ, không markdown, không giải thích. Schema: {"is_product_search": boolean, "keyword": string|null, "category": string|null, "categories": string[], "color": string|null, "size": string|null, "min_price": number|null, "max_price": number|null, "quantity": number|null}. Giá VNĐ: 500k=500000, 1tr=1000000, 2tr=2000000, 10tr=10000000. keyword phải là TÊN SẢN PHẨM SẠCH (chỉ tên loại hàng, không gồm các từ như "đặt cho tôi", "mua", "order", "1 cái"). Ví dụ: "đặt cho tôi 1 vợt cầu lông đen" → keyword="vợt cầu lông", color="đen", quantity=1. Không tự tạo product_id/variant_id. Không trả limit. Nếu câu không phải tìm/mua sản phẩm thì is_product_search=false.'
+                    'text' => 'Bạn chỉ trích xuất filter tìm kiếm sản phẩm cho Quyền Sport. Chỉ trả JSON hợp lệ, không markdown, không giải thích. Schema: {"is_product_search": boolean, "keyword": string|null, "category": string|null, "categories": string[], "color": string|null, "size": string|null, "min_price": number|null, "max_price": number|null, "quantity": number|null}. Giá VNĐ: 500k=500000, 1tr=1000000, 2tr=2000000, 10tr=10000000. keyword phải là TÊN SẢN PHẨM SẠCH (chỉ tên loại hàng, không gồm các từ như "đặt cho tôi", "mua", "order", "1 cái"). Ví dụ: "đặt cho tôi 1 vợt cầu lông đen" → keyword="vợt cầu lông", color="đen", quantity=1. Không tự tạo product_id/variant_id. Không trả limit. Nếu câu không phải tìm/mua sản phẩm thì is_product_search=false.',
                 ]],
             ],
             'contents' => [[
@@ -380,10 +383,11 @@ PROMPT;
 
         try {
             $response = Http::timeout(20)->post($url, $payload);
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::warning('Gemini product filter extraction failed', [
                     'status' => $response->status(),
                 ]);
+
                 return ['error' => true];
             }
 
@@ -395,13 +399,14 @@ PROMPT;
             $text = trim(preg_replace('/^```json|```$/m', '', $text));
             $filters = json_decode($text, true);
 
-            if (!is_array($filters)) {
+            if (! is_array($filters)) {
                 return ['error' => true];
             }
 
             return $filters;
         } catch (\Throwable $e) {
             Log::warning('Gemini product filter extraction exception', ['error' => $e->getMessage()]);
+
             return ['error' => true];
         }
     }
@@ -409,143 +414,145 @@ PROMPT;
     /**
      * Gửi tin nhắn đến Gemini API với function calling
      *
-     * @param array $conversationHistory  Lịch sử hội thoại [{role, parts}]
-     * @param bool  $isAuthenticated      User đã đăng nhập chưa
-     * @return array  Response từ Gemini
+     * @param  array  $conversationHistory  Lịch sử hội thoại [{role, parts}]
+     * @param  bool  $isAuthenticated  User đã đăng nhập chưa
+     * @return array Response từ Gemini
      */
     public function sendMessage(array $conversationHistory, bool $isAuthenticated = false): array
     {
-        $cacheKey = 'gemini_resp_' . md5(json_encode($conversationHistory) . '_' . ($isAuthenticated ? '1' : '0'));
-        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 3600, function () use ($conversationHistory, $isAuthenticated) {
+        $cacheKey = 'gemini_resp_'.md5(json_encode($conversationHistory).'_'.($isAuthenticated ? '1' : '0'));
+
+        return Cache::remember($cacheKey, 3600, function () use ($conversationHistory, $isAuthenticated) {
             $apiKey = $this->getApiKey();
             $url = "{$this->baseUrl}:generateContent?key={$apiKey}";
 
-        // Thêm thông tin auth vào system prompt
-        $authContext = $isAuthenticated
-            ? "\n\nUSER STATUS: Đã đăng nhập (is_authenticated = true). Có thể tra cứu đơn hàng trực tiếp."
-            : "\n\nUSER STATUS: Chưa đăng nhập (is_authenticated = false). Nếu muốn tra đơn hàng, cần yêu cầu mã đơn + email/SĐT.";
+            // Thêm thông tin auth vào system prompt
+            $authContext = $isAuthenticated
+                ? "\n\nUSER STATUS: Đã đăng nhập (is_authenticated = true). Có thể tra cứu đơn hàng trực tiếp."
+                : "\n\nUSER STATUS: Chưa đăng nhập (is_authenticated = false). Nếu muốn tra đơn hàng, cần yêu cầu mã đơn + email/SĐT.";
 
-        $payload = [
-            'system_instruction' => [
-                'parts' => [['text' => $this->systemPrompt . $authContext]],
-            ],
-            'contents' => $conversationHistory,
-            'tools' => [
-                [
-                    'function_declarations' => $this->getFunctionDeclarations(),
+            $payload = [
+                'system_instruction' => [
+                    'parts' => [['text' => $this->systemPrompt.$authContext]],
                 ],
-            ],
-            'tool_config' => [
-                'function_calling_config' => [
-                    'mode' => 'AUTO',
+                'contents' => $conversationHistory,
+                'tools' => [
+                    [
+                        'function_declarations' => $this->getFunctionDeclarations(),
+                    ],
                 ],
-            ],
-            'generation_config' => [
-                'temperature' => 0.7,
-                'top_p' => 0.95,
-                'max_output_tokens' => 1024,
-                'thinking_config' => [
-                    'thinking_budget' => 0,
+                'tool_config' => [
+                    'function_calling_config' => [
+                        'mode' => 'AUTO',
+                    ],
                 ],
-            ],
-        ];
+                'generation_config' => [
+                    'temperature' => 0.7,
+                    'top_p' => 0.95,
+                    'max_output_tokens' => 1024,
+                    'thinking_config' => [
+                        'thinking_budget' => 0,
+                    ],
+                ],
+            ];
 
-        try {
-            $maxRetries = 3;
-            $response = null;
+            try {
+                $maxRetries = 3;
+                $response = null;
 
-            for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
-                // Rotate key khi retry
-                if ($attempt > 0) {
-                    $apiKey = $this->getApiKey($attempt);
-                    $url = "{$this->baseUrl}:generateContent?key={$apiKey}";
+                for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
+                    // Rotate key khi retry
+                    if ($attempt > 0) {
+                        $apiKey = $this->getApiKey($attempt);
+                        $url = "{$this->baseUrl}:generateContent?key={$apiKey}";
+                    }
+                    $response = Http::timeout(60)->post($url, $payload);
+
+                    if ($response->status() === 429 && $attempt < $maxRetries) {
+                        // Rate limit — exponential backoff
+                        $wait = 2 + $attempt * 2; // 2s, 4s, 6s
+                        Log::warning('Gemini rate limit hit, retry attempt '.($attempt + 1)." after {$wait}s");
+                        sleep($wait);
+
+                        continue;
+                    }
+                    break;
                 }
-                $response = Http::timeout(60)->post($url, $payload);
 
-                if ($response->status() === 429 && $attempt < $maxRetries) {
-                    // Rate limit — exponential backoff
-                    $wait = 2 + $attempt * 2; // 2s, 4s, 6s
-                    Log::warning("Gemini rate limit hit, retry attempt " . ($attempt + 1) . " after {$wait}s");
-                    sleep($wait);
-                    continue;
-                }
-                break;
-            }
+                if (! $response->successful()) {
+                    Log::error('Gemini API error', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
 
-            if (!$response->successful()) {
-                Log::error('Gemini API error', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
+                    if ($response->status() === 429) {
+                        return [
+                            'error' => true,
+                            'message' => 'Quyền Sport AI đang bận, vui lòng thử lại sau vài giây!',
+                        ];
+                    }
 
-                if ($response->status() === 429) {
                     return [
                         'error' => true,
-                        'message' => 'Quyền Sport AI đang bận, vui lòng thử lại sau vài giây!',
+                        'message' => 'Quyền Sport AI đang gặp lỗi kết nối AI. Bạn có thể dùng các nút gợi ý nhanh hoặc nhập rõ hơn như: sản phẩm bán chạy, mã giảm giá, chính sách đổi trả, xem đơn hàng.',
                     ];
                 }
 
-                return [
-                    'error' => true,
-                    'message' => 'Quyền Sport AI đang gặp lỗi kết nối AI. Bạn có thể dùng các nút gợi ý nhanh hoặc nhập rõ hơn như: sản phẩm bán chạy, mã giảm giá, chính sách đổi trả, xem đơn hàng.',
-                ];
-            }
+                $data = $response->json();
+                $candidate = $data['candidates'][0] ?? null;
 
-            $data = $response->json();
-            $candidate = $data['candidates'][0] ?? null;
-
-            if (!$candidate) {
-                return [
-                    'error' => true,
-                    'message' => 'Không nhận được phản hồi từ AI.',
-                ];
-            }
-
-            $content = $candidate['content'] ?? [];
-            $parts = $content['parts'] ?? [];
-
-            // Check nếu Gemini muốn gọi function
-            foreach ($parts as $part) {
-                if (isset($part['functionCall'])) {
+                if (! $candidate) {
                     return [
-                        'type' => 'function_call',
-                        'function_name' => $part['functionCall']['name'],
-                        'arguments' => $part['functionCall']['args'] ?? [],
+                        'error' => true,
+                        'message' => 'Không nhận được phản hồi từ AI.',
                     ];
                 }
-            }
 
-            // Trả về text response thông thường
-            $text = '';
-            foreach ($parts as $part) {
-                if (isset($part['text'])) {
-                    $text .= $part['text'];
+                $content = $candidate['content'] ?? [];
+                $parts = $content['parts'] ?? [];
+
+                // Check nếu Gemini muốn gọi function
+                foreach ($parts as $part) {
+                    if (isset($part['functionCall'])) {
+                        return [
+                            'type' => 'function_call',
+                            'function_name' => $part['functionCall']['name'],
+                            'arguments' => $part['functionCall']['args'] ?? [],
+                        ];
+                    }
                 }
+
+                // Trả về text response thông thường
+                $text = '';
+                foreach ($parts as $part) {
+                    if (isset($part['text'])) {
+                        $text .= $part['text'];
+                    }
+                }
+
+                return [
+                    'type' => 'text',
+                    'message' => $text,
+                ];
+
+            } catch (\Exception $e) {
+                Log::error('Gemini API exception', ['error' => $e->getMessage()]);
+
+                return [
+                    'error' => true,
+                    'message' => 'Kết nối đến AI bị gián đoạn. Vui lòng thử lại!',
+                ];
             }
-
-            return [
-                'type' => 'text',
-                'message' => $text,
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('Gemini API exception', ['error' => $e->getMessage()]);
-            return [
-                'error' => true,
-                'message' => 'Kết nối đến AI bị gián đoạn. Vui lòng thử lại!',
-            ];
-        }
         });
     }
 
     /**
      * Gửi kết quả function call về Gemini để nhận response cuối cùng
      *
-     * @param array  $conversationHistory  Lịch sử hội thoại
-     * @param string $functionName         Tên function đã gọi
-     * @param array  $functionResult       Kết quả trả về từ function
-     * @param bool   $isAuthenticated      User đã đăng nhập chưa
-     * @return array
+     * @param  array  $conversationHistory  Lịch sử hội thoại
+     * @param  string  $functionName  Tên function đã gọi
+     * @param  array  $functionResult  Kết quả trả về từ function
+     * @param  bool  $isAuthenticated  User đã đăng nhập chưa
      */
     public function sendFunctionResult(
         array $conversationHistory,
@@ -568,7 +575,7 @@ PROMPT;
                 [
                     'functionCall' => [
                         'name' => $functionName,
-                        'args' => !empty($functionArgs) ? $functionArgs : new \stdClass(),
+                        'args' => ! empty($functionArgs) ? $functionArgs : new \stdClass,
                     ],
                 ],
             ],
@@ -589,7 +596,7 @@ PROMPT;
 
         $payload = [
             'system_instruction' => [
-                'parts' => [['text' => $this->systemPrompt . $authContext]],
+                'parts' => [['text' => $this->systemPrompt.$authContext]],
             ],
             'contents' => $conversationHistory,
             'tools' => [
@@ -619,18 +626,20 @@ PROMPT;
                 $response = Http::timeout(60)->post($url, $payload);
 
                 if ($response->status() === 429 && $attempt < $maxRetries) {
-                    Log::warning("Gemini function result rate limit, retry attempt " . ($attempt + 1));
+                    Log::warning('Gemini function result rate limit, retry attempt '.($attempt + 1));
                     sleep(2 + $attempt * 2); // 2s, 4s backoff
+
                     continue;
                 }
                 break;
             }
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('Gemini function result error', [
                     'status' => $response->status(),
                     'body' => $response->body(),
                 ]);
+
                 return [
                     'error' => true,
                     'type' => 'text',
@@ -656,6 +665,7 @@ PROMPT;
 
         } catch (\Exception $e) {
             Log::error('Gemini function result exception', ['error' => $e->getMessage()]);
+
             return [
                 'error' => true,
                 'type' => 'text',

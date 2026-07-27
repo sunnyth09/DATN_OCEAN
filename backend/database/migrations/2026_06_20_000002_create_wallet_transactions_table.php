@@ -48,8 +48,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('wallet_id')
-                  ->references('wallet_id')->on('wallets')
-                  ->onDelete('cascade');
+                ->references('wallet_id')->on('wallets')
+                ->onDelete('cascade');
 
             $table->index(['wallet_id', 'type'], 'wtx_wallet_type_idx');
             $table->index(['wallet_id', 'created_at'], 'wtx_wallet_date_idx');

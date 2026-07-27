@@ -13,6 +13,4 @@ use Exception;
  * (QueryException, lỗi hệ thống) trả về 500 với message chung chung
  * để tránh lộ thông tin nội bộ.
  */
-class OrderException extends Exception
-{
-}
+class OrderException extends Exception {}

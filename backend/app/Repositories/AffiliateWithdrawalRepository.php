@@ -3,7 +3,6 @@
 namespace App\Repositories;
 
 use App\Models\AffiliateWithdrawal;
-use Illuminate\Support\Facades\DB;
 
 class AffiliateWithdrawalRepository
 {
@@ -49,6 +48,7 @@ class AffiliateWithdrawalRepository
         if ($note !== null) {
             $data['note'] = $note;
         }
+
         return AffiliateWithdrawal::where('id', $id)->update($data) > 0;
     }
 

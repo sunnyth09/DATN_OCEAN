@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class CleanProductSeeder extends Seeder
 {
@@ -35,7 +35,10 @@ class CleanProductSeeder extends Seeder
         DB::table('product_comments')->truncate();
 
         // Clear flash sale items if table exists
-        try { DB::table('flash_sale_items')->truncate(); } catch (\Throwable $e) {}
+        try {
+            DB::table('flash_sale_items')->truncate();
+        } catch (\Throwable $e) {
+        }
 
         // Core product tables
         DB::table('product_images')->truncate();
@@ -64,7 +67,7 @@ class CleanProductSeeder extends Seeder
 
         foreach ($brands as $b) {
             DB::table('brands')->insert(array_merge($b, [
-                'is_active'  => 1,
+                'is_active' => 1,
                 'created_at' => $this->now,
                 'updated_at' => $this->now,
             ]));
@@ -78,45 +81,45 @@ class CleanProductSeeder extends Seeder
             'Thời trang Nam' => [
                 'desc' => 'Bộ sưu tập thời trang nam phong cách, lịch lãm',
                 'children' => [
-                    'Áo thun nam'    => 'Áo thun nam đa dạng kiểu dáng',
-                    'Áo sơ mi nam'   => 'Áo sơ mi nam thanh lịch, công sở',
-                    'Áo polo nam'    => 'Áo polo nam thể thao, lịch sự',
-                    'Áo khoác nam'   => 'Áo khoác nam giữ ấm, phong cách',
+                    'Áo thun nam' => 'Áo thun nam đa dạng kiểu dáng',
+                    'Áo sơ mi nam' => 'Áo sơ mi nam thanh lịch, công sở',
+                    'Áo polo nam' => 'Áo polo nam thể thao, lịch sự',
+                    'Áo khoác nam' => 'Áo khoác nam giữ ấm, phong cách',
                     'Quần jeans nam' => 'Quần jeans nam form đẹp, bền bỉ',
-                    'Quần tây nam'   => 'Quần tây nam công sở chuẩn form',
+                    'Quần tây nam' => 'Quần tây nam công sở chuẩn form',
                     'Quần short nam' => 'Quần short nam thoáng mát năng động',
                 ],
             ],
             'Thời trang Nữ' => [
                 'desc' => 'Thời trang nữ nổi bật, thanh lịch và quyến rũ',
                 'children' => [
-                    'Áo thun nữ'    => 'Áo thun nữ trẻ trung, phong cách',
-                    'Áo kiểu nữ'    => 'Áo kiểu nữ thanh lịch, nữ tính',
-                    'Đầm & Váy'     => 'Đầm váy nữ đa phong cách',
+                    'Áo thun nữ' => 'Áo thun nữ trẻ trung, phong cách',
+                    'Áo kiểu nữ' => 'Áo kiểu nữ thanh lịch, nữ tính',
+                    'Đầm & Váy' => 'Đầm váy nữ đa phong cách',
                     'Quần jeans nữ' => 'Quần jeans nữ tôn dáng',
-                    'Quần tây nữ'   => 'Quần tây nữ công sở thanh lịch',
+                    'Quần tây nữ' => 'Quần tây nữ công sở thanh lịch',
                 ],
             ],
             'Giày dép' => [
                 'desc' => 'Giày dép đa dạng phong cách, chất lượng cao',
                 'children' => [
-                    'Giày sneaker'    => 'Giày sneaker thể thao thời thượng',
+                    'Giày sneaker' => 'Giày sneaker thể thao thời thượng',
                     'Giày tây & lười' => 'Giày tây, giày lười nam lịch lãm',
-                    'Dép & Sandal'    => 'Dép sandal thoải mái, mùa hè',
+                    'Dép & Sandal' => 'Dép sandal thoải mái, mùa hè',
                 ],
             ],
             'Phụ kiện' => [
                 'desc' => 'Phụ kiện thời trang hoàn thiện outfit',
                 'children' => [
                     'Túi xách & Balo' => 'Túi xách, balo thời trang tiện dụng',
-                    'Thắt lưng'       => 'Thắt lưng da cao cấp các kiểu',
-                    'Ví & Bóp'        => 'Ví da nam nữ đẳng cấp',
+                    'Thắt lưng' => 'Thắt lưng da cao cấp các kiểu',
+                    'Ví & Bóp' => 'Ví da nam nữ đẳng cấp',
                 ],
             ],
             'Trang sức & Đồng hồ' => [
                 'desc' => 'Đồng hồ, mắt kính nâng tầm phong cách',
                 'children' => [
-                    'Đồng hồ'  => 'Đồng hồ thời trang nam nữ',
+                    'Đồng hồ' => 'Đồng hồ thời trang nam nữ',
                     'Mắt kính' => 'Kính mát thời trang chống UV',
                 ],
             ],
@@ -124,26 +127,26 @@ class CleanProductSeeder extends Seeder
 
         // Category → first product image mapping for category thumbnails
         $catImageMap = [
-            'ao-thun-nam'     => 'products/unique/p001_thun_nam_trang.png',
-            'ao-so-mi-nam'    => 'products/unique/p007_somi_trang_slim.jpg',
-            'ao-polo-nam'     => 'products/unique/p012_polo_den_classic.jpg',
-            'ao-khoac-nam'    => 'products/unique/p016_khoac_bomber_xanhreu.jpg',
-            'quan-jeans-nam'  => 'products/unique/p021_jeans_nam_slim_xanhden.jpg',
-            'quan-tay-nam'    => 'products/unique/p026_quantay_den_slim.png',
-            'quan-short-nam'  => 'products/unique/p030_short_kaki_be.png',
-            'ao-thun-nu'      => 'products/unique/p034_thun_nu_croptop.png',
-            'ao-kieu-nu'      => 'products/unique/p040_kieu_nu_tayphong.jpg',
-            'dam-vay'         => 'products/unique/p045_dam_midi_hoa.jpg',
-            'quan-jeans-nu'   => 'products/unique/p051_jeans_nu_ongrong.jpg',
-            'quan-tay-nu'     => 'products/unique/p055_quantay_nu_suong.jpg',
-            'giay-sneaker'    => 'products/unique/p060_sneaker_trang_air.jpg',
-            'giay-tay-luoi'   => 'products/unique/p068_giay_luoi_da_nau.jpg',
-            'dep-sandal'      => 'products/unique/p073_dep_quaingang_den.jpg',
-            'tui-xach-balo'   => 'products/unique/p078_balo_laptop_den.jpg',
-            'that-lung'       => 'products/unique/p084_thatlang_da_den_auto.jpg',
-            'vi-bop'          => 'products/unique/p088_vi_nam_da_nau.jpg',
-            'dong-ho'         => 'products/unique/p092_dongho_nam_thep_bac.jpg',
-            'mat-kinh'        => 'products/unique/p097_kinh_aviator_xanh.jpg',
+            'ao-thun-nam' => 'products/unique/p001_thun_nam_trang.png',
+            'ao-so-mi-nam' => 'products/unique/p007_somi_trang_slim.jpg',
+            'ao-polo-nam' => 'products/unique/p012_polo_den_classic.jpg',
+            'ao-khoac-nam' => 'products/unique/p016_khoac_bomber_xanhreu.jpg',
+            'quan-jeans-nam' => 'products/unique/p021_jeans_nam_slim_xanhden.jpg',
+            'quan-tay-nam' => 'products/unique/p026_quantay_den_slim.png',
+            'quan-short-nam' => 'products/unique/p030_short_kaki_be.png',
+            'ao-thun-nu' => 'products/unique/p034_thun_nu_croptop.png',
+            'ao-kieu-nu' => 'products/unique/p040_kieu_nu_tayphong.jpg',
+            'dam-vay' => 'products/unique/p045_dam_midi_hoa.jpg',
+            'quan-jeans-nu' => 'products/unique/p051_jeans_nu_ongrong.jpg',
+            'quan-tay-nu' => 'products/unique/p055_quantay_nu_suong.jpg',
+            'giay-sneaker' => 'products/unique/p060_sneaker_trang_air.jpg',
+            'giay-tay-luoi' => 'products/unique/p068_giay_luoi_da_nau.jpg',
+            'dep-sandal' => 'products/unique/p073_dep_quaingang_den.jpg',
+            'tui-xach-balo' => 'products/unique/p078_balo_laptop_den.jpg',
+            'that-lung' => 'products/unique/p084_thatlang_da_den_auto.jpg',
+            'vi-bop' => 'products/unique/p088_vi_nam_da_nau.jpg',
+            'dong-ho' => 'products/unique/p092_dongho_nam_thep_bac.jpg',
+            'mat-kinh' => 'products/unique/p097_kinh_aviator_xanh.jpg',
         ];
 
         $catMap = []; // slug => category_id
@@ -152,29 +155,29 @@ class CleanProductSeeder extends Seeder
         foreach ($tree as $parentName => $info) {
             $parentSlug = Str::slug($parentName);
             $parentId = DB::table('categories')->insertGetId([
-                'parent_id'   => null,
-                'name'        => $parentName,
-                'slug'        => $parentSlug,
-                'image'       => null,
+                'parent_id' => null,
+                'name' => $parentName,
+                'slug' => $parentSlug,
+                'image' => null,
                 'description' => $info['desc'],
-                'sort_order'  => $sort++,
-                'is_active'   => 1,
-                'created_at'  => $this->now,
-                'updated_at'  => $this->now,
+                'sort_order' => $sort++,
+                'is_active' => 1,
+                'created_at' => $this->now,
+                'updated_at' => $this->now,
             ]);
 
             foreach ($info['children'] as $childName => $childDesc) {
                 $childSlug = Str::slug($childName);
                 $childId = DB::table('categories')->insertGetId([
-                    'parent_id'   => $parentId,
-                    'name'        => $childName,
-                    'slug'        => $childSlug,
-                    'image'       => $catImageMap[$childSlug] ?? null,
+                    'parent_id' => $parentId,
+                    'name' => $childName,
+                    'slug' => $childSlug,
+                    'image' => $catImageMap[$childSlug] ?? null,
                     'description' => $childDesc,
-                    'sort_order'  => $sort++,
-                    'is_active'   => 1,
-                    'created_at'  => $this->now,
-                    'updated_at'  => $this->now,
+                    'sort_order' => $sort++,
+                    'is_active' => 1,
+                    'created_at' => $this->now,
+                    'updated_at' => $this->now,
                 ]);
                 $catMap[$childSlug] = $childId;
             }
@@ -191,8 +194,9 @@ class CleanProductSeeder extends Seeder
 
         foreach ($allProducts as $catSlug => $products) {
             $categoryId = $catMap[$catSlug] ?? null;
-            if (!$categoryId) {
+            if (! $categoryId) {
                 echo "⚠️ Category not found: {$catSlug}\n";
+
                 continue;
             }
 
@@ -203,32 +207,32 @@ class CleanProductSeeder extends Seeder
 
                 // Ensure unique slug
                 if (DB::table('products')->where('slug', $slug)->exists()) {
-                    $slug .= '-' . Str::random(4);
+                    $slug .= '-'.Str::random(4);
                 }
 
                 $imagePath = $p[5] ?? null;
 
                 $productId = DB::table('products')->insertGetId([
-                    'category_id'       => $categoryId,
-                    'brand_id'          => $p[2],
-                    'seller_id'         => null,
-                    'name'              => $p[0],
-                    'slug'              => $slug,
+                    'category_id' => $categoryId,
+                    'brand_id' => $p[2],
+                    'seller_id' => null,
+                    'name' => $p[0],
+                    'slug' => $slug,
                     'short_description' => $p[3],
-                    'description'       => $this->buildDescription($p[0], $catSlug),
-                    'thumbnail_url'     => $imagePath,
-                    'product_type'      => 'variant',
-                    'status'            => 'active',
-                    'is_featured'       => $p[4] ?? false,
-                    'min_price'         => $p[1],
-                    'max_price'         => $p[1],
-                    'rating_avg'        => round(mt_rand(35, 50) / 10, 1),
-                    'rating_count'      => mt_rand(10, 500),
-                    'view_count'        => mt_rand(100, 8000),
-                    'sold_count'        => mt_rand(5, 600),
-                    'published_at'      => $this->now,
-                    'created_at'        => $this->now,
-                    'updated_at'        => $this->now,
+                    'description' => $this->buildDescription($p[0], $catSlug),
+                    'thumbnail_url' => $imagePath,
+                    'product_type' => 'variant',
+                    'status' => 'active',
+                    'is_featured' => $p[4] ?? false,
+                    'min_price' => $p[1],
+                    'max_price' => $p[1],
+                    'rating_avg' => round(mt_rand(35, 50) / 10, 1),
+                    'rating_count' => mt_rand(10, 500),
+                    'view_count' => mt_rand(100, 8000),
+                    'sold_count' => mt_rand(5, 600),
+                    'published_at' => $this->now,
+                    'created_at' => $this->now,
+                    'updated_at' => $this->now,
                 ]);
 
                 // ── Variants ──
@@ -236,10 +240,10 @@ class CleanProductSeeder extends Seeder
 
                 // Update min/max price
                 $prices = array_column($variants, 'price');
-                if (!empty($prices)) {
+                if (! empty($prices)) {
                     DB::table('products')->where('product_id', $productId)->update([
-                        'min_price'    => min($prices),
-                        'max_price'    => max($prices),
+                        'min_price' => min($prices),
+                        'max_price' => max($prices),
                         'product_type' => count($variants) > 1 ? 'variant' : 'simple',
                     ]);
                 }
@@ -266,39 +270,45 @@ class CleanProductSeeder extends Seeder
                 $price = max($basePrice + $variance, 100000);
 
                 $skuParts = [$slug];
-                if ($color) $skuParts[] = Str::slug($color);
-                if ($size) $skuParts[] = Str::slug($size);
+                if ($color) {
+                    $skuParts[] = Str::slug($color);
+                }
+                if ($size) {
+                    $skuParts[] = Str::slug($size);
+                }
                 $sku = implode('-', $skuParts);
 
                 // Ensure unique SKU
                 $attempt = 0;
                 $originalSku = $sku;
                 while (DB::table('product_variants')->where('sku', $sku)->exists()) {
-                    $sku = $originalSku . '-' . Str::random(3);
-                    if (++$attempt > 5) break;
+                    $sku = $originalSku.'-'.Str::random(3);
+                    if (++$attempt > 5) {
+                        break;
+                    }
                 }
 
-                $barcode = 'OCN' . strtoupper(Str::random(10)) . mt_rand(10, 99);
+                $barcode = 'OCN'.strtoupper(Str::random(10)).mt_rand(10, 99);
 
                 DB::table('product_variants')->insert([
-                    'product_id'       => $productId,
-                    'sku'              => $sku,
-                    'barcode'          => $barcode,
-                    'variant_name'     => trim(($color ?? '') . ' - ' . ($size ?? ''), ' -'),
-                    'color'            => $color,
-                    'size'             => $size,
-                    'material'         => $config['material'] ?? null,
-                    'weight_gram'      => $config['weight'] ?? null,
-                    'cost_price'       => round($price * 0.55),
-                    'price'            => $price,
+                    'product_id' => $productId,
+                    'sku' => $sku,
+                    'barcode' => $barcode,
+                    'variant_name' => trim(($color ?? '').' - '.($size ?? ''), ' -'),
+                    'color' => $color,
+                    'size' => $size,
+                    'material' => $config['material'] ?? null,
+                    'weight_gram' => $config['weight'] ?? null,
+                    'cost_price' => round($price * 0.55),
+                    'price' => $price,
                     'compare_at_price' => round($price * 1.3),
-                    'stock'            => mt_rand(8, 80),
-                    'reserved_stock'   => 0,
-                    'safety_stock'     => 3,
-                    'image_url'        => null,
-                    'status'           => 'active',
-                    'created_at'       => $this->now,
-                    'updated_at'       => $this->now,
+                    'stock' => mt_rand(8, 80),
+                    'reserved_stock' => 0,
+                    'safety_stock' => 3,
+                    'image_url' => null,
+                    'status' => 'active',
+                    'created_at' => $this->now,
+                    'updated_at' => $this->now,
                 ]);
 
                 $variants[] = ['price' => $price];
@@ -314,39 +324,42 @@ class CleanProductSeeder extends Seeder
     private function getVariantConfig(string $catSlug): array
     {
         $clothColors = ['Trắng', 'Đen', 'Xám', 'Navy', 'Be'];
-        $clothSizes  = ['S', 'M', 'L', 'XL'];
-        $shoeSizes   = ['39', '40', '41', '42', '43'];
+        $clothSizes = ['S', 'M', 'L', 'XL'];
+        $shoeSizes = ['39', '40', '41', '42', '43'];
 
         // Áo, quần, đầm váy → 2 màu × 2 size
         if (Str::contains($catSlug, ['ao-', 'quan-', 'dam-'])) {
             shuffle($clothColors);
             shuffle($clothSizes);
+
             return [
-                'colors'   => array_slice($clothColors, 0, 2),
-                'sizes'    => array_slice($clothSizes, 0, 2),
+                'colors' => array_slice($clothColors, 0, 2),
+                'sizes' => array_slice($clothSizes, 0, 2),
                 'material' => collect(['Cotton', 'Cotton Pha', 'Polyester', 'Linen', 'Kaki'])->random(),
-                'weight'   => mt_rand(150, 400),
+                'weight' => mt_rand(150, 400),
             ];
         }
 
         // Giày, dép → 1 màu × 3 size
         if (Str::contains($catSlug, ['giay-', 'dep-'])) {
             shuffle($shoeSizes);
+
             return [
-                'colors'   => [null],
-                'sizes'    => array_slice($shoeSizes, 0, 3),
+                'colors' => [null],
+                'sizes' => array_slice($shoeSizes, 0, 3),
                 'material' => 'Da tổng hợp',
-                'weight'   => mt_rand(300, 700),
+                'weight' => mt_rand(300, 700),
             ];
         }
 
         // Phụ kiện → 2 màu, không size
         shuffle($clothColors);
+
         return [
-            'colors'   => array_slice($clothColors, 0, 2),
-            'sizes'    => [null],
+            'colors' => array_slice($clothColors, 0, 2),
+            'sizes' => [null],
             'material' => Str::contains($catSlug, ['vi-', 'that-']) ? 'Da bò' : null,
-            'weight'   => mt_rand(50, 300),
+            'weight' => mt_rand(50, 300),
         ];
     }
 
@@ -355,15 +368,17 @@ class CleanProductSeeder extends Seeder
      */
     private function createImages(int $productId, string $name, ?string $imagePath): void
     {
-        if (!$imagePath) return;
+        if (! $imagePath) {
+            return;
+        }
 
         // Main image
         DB::table('product_images')->insert([
             'product_id' => $productId,
             'variant_id' => null,
-            'image_url'  => $imagePath,
-            'alt_text'   => $name,
-            'is_main'    => 1,
+            'image_url' => $imagePath,
+            'alt_text' => $name,
+            'is_main' => 1,
             'sort_order' => 0,
             'created_at' => $this->now,
         ]);
@@ -375,29 +390,29 @@ class CleanProductSeeder extends Seeder
     private function buildDescription(string $name, string $catSlug): string
     {
         $careGuide = '<h3>Hướng dẫn bảo quản</h3><ul>'
-            . '<li>Giặt máy ở nhiệt độ thường (30°C)</li>'
-            . '<li>Không sử dụng chất tẩy mạnh</li>'
-            . '<li>Phơi trong bóng râm, tránh ánh nắng trực tiếp</li>'
-            . '<li>Ủi ở nhiệt độ thấp nếu cần</li></ul>';
+            .'<li>Giặt máy ở nhiệt độ thường (30°C)</li>'
+            .'<li>Không sử dụng chất tẩy mạnh</li>'
+            .'<li>Phơi trong bóng râm, tránh ánh nắng trực tiếp</li>'
+            .'<li>Ủi ở nhiệt độ thấp nếu cần</li></ul>';
 
         if (Str::contains($catSlug, ['giay-', 'dep-'])) {
             $careGuide = '<h3>Hướng dẫn bảo quản</h3><ul>'
-                . '<li>Lau sạch bằng khăn ẩm sau mỗi lần sử dụng</li>'
-                . '<li>Bảo quản nơi khô ráo, thoáng mát</li>'
-                . '<li>Sử dụng túi chống ẩm khi cất giữ lâu ngày</li></ul>';
+                .'<li>Lau sạch bằng khăn ẩm sau mỗi lần sử dụng</li>'
+                .'<li>Bảo quản nơi khô ráo, thoáng mát</li>'
+                .'<li>Sử dụng túi chống ẩm khi cất giữ lâu ngày</li></ul>';
         }
 
         return '<div class="product-description">'
-            . '<h3>Mô tả sản phẩm</h3>'
-            . '<p>' . $name . ' – sản phẩm chính hãng tại Ocean Shop. '
-            . 'Thiết kế hiện đại, chất liệu cao cấp, phù hợp nhiều phong cách.</p>'
-            . '<h3>Đặc điểm nổi bật</h3><ul>'
-            . '<li>Chất liệu cao cấp, bền đẹp theo thời gian</li>'
-            . '<li>Thiết kế hiện đại, dễ phối đồ</li>'
-            . '<li>Form dáng chuẩn, tôn dáng người mặc</li>'
-            . '<li>Phù hợp nhiều dịp: công sở, đi chơi, dạo phố</li></ul>'
-            . $careGuide
-            . '</div>';
+            .'<h3>Mô tả sản phẩm</h3>'
+            .'<p>'.$name.' – sản phẩm chính hãng tại Ocean Shop. '
+            .'Thiết kế hiện đại, chất liệu cao cấp, phù hợp nhiều phong cách.</p>'
+            .'<h3>Đặc điểm nổi bật</h3><ul>'
+            .'<li>Chất liệu cao cấp, bền đẹp theo thời gian</li>'
+            .'<li>Thiết kế hiện đại, dễ phối đồ</li>'
+            .'<li>Form dáng chuẩn, tôn dáng người mặc</li>'
+            .'<li>Phù hợp nhiều dịp: công sở, đi chơi, dạo phố</li></ul>'
+            .$careGuide
+            .'</div>';
     }
 
     /* ════════════════════════════════════════════════════════════════

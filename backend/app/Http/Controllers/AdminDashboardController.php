@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class AdminDashboardController extends Controller
 {
@@ -27,25 +27,26 @@ class AdminDashboardController extends Controller
             $shortLabel = $this->getShortDayLabel($label);
 
             $dayRevenue = Order::whereDate('created_at', $date)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->where('payment_status', 'paid')
-                      ->orWhere('fulfillment_status', 'completed');
+                        ->orWhere('fulfillment_status', 'completed');
                 })->sum('grand_total');
 
             $last7Days->push([
                 'label' => $shortLabel,
                 'valRaw' => $dayRevenue,
-                'date' => $date
+                'date' => $date,
             ]);
         }
 
         $maxRevenue = $last7Days->max('valRaw') ?: 1;
         $revenueChart = $last7Days->map(function ($item) use ($maxRevenue) {
             $h = ($item['valRaw'] / $maxRevenue) * 100;
+
             return [
                 'label' => $item['label'],
-                'val' => number_format($item['valRaw'], 0) . ' đ',
-                'h' => $item['valRaw'] > 0 ? max($h, 5) : 0
+                'val' => number_format($item['valRaw'], 0).' đ',
+                'h' => $item['valRaw'] > 0 ? max($h, 5) : 0,
             ];
         });
 
@@ -60,19 +61,19 @@ class AdminDashboardController extends Controller
                     $productName = $order->items->first()->product->name;
                     $itemCount = $order->items->count();
                     if ($itemCount > 1) {
-                        $productName .= ' + ' . ($itemCount - 1) . ' items';
+                        $productName .= ' + '.($itemCount - 1).' items';
                     }
                 }
 
                 // Determine user label
                 $userName = $order->user ? $order->user->full_name : $order->recipient_name;
-                if (!$userName) {
+                if (! $userName) {
                     $userName = 'Khách lẻ';
                 }
-                
+
                 $initials = 'NA';
                 $parts = explode(' ', trim($userName));
-                if (count($parts) > 0 && !empty($parts[0])) {
+                if (count($parts) > 0 && ! empty($parts[0])) {
                     $initials = mb_strtoupper(mb_substr($parts[0], 0, 1));
                     if (count($parts) > 1) {
                         $initials .= mb_strtoupper(mb_substr(end($parts), 0, 1));
@@ -96,11 +97,11 @@ class AdminDashboardController extends Controller
                     'id' => $order->order_id,
                     'name' => $userName,
                     'product' => $productName,
-                    'amount' => number_format($order->grand_total, 0) . ' đ',
+                    'amount' => number_format($order->grand_total, 0).' đ',
                     'status' => $statusClass,
                     'statusText' => $statusText,
                     'init' => $initials,
-                    'bg' => $this->getRandomColor($initials)
+                    'bg' => $this->getRandomColor($initials),
                 ];
             });
 
@@ -108,27 +109,28 @@ class AdminDashboardController extends Controller
         $lastMonths = collect();
         for ($i = 5; $i >= 0; $i--) {
             $monthDate = Carbon::now()->startOfMonth()->subMonths($i);
-            $monthLabel = 'T' . $monthDate->format('n');
-            
+            $monthLabel = 'T'.$monthDate->format('n');
+
             $monthRevenue = Order::whereYear('created_at', $monthDate->year)
                 ->whereMonth('created_at', $monthDate->month)
-                ->where(function($q) {
+                ->where(function ($q) {
                     $q->where('payment_status', 'paid')
-                      ->orWhere('fulfillment_status', 'completed');
+                        ->orWhere('fulfillment_status', 'completed');
                 })->sum('grand_total');
 
             $lastMonths->push([
                 'label' => $monthLabel,
-                'valRaw' => $monthRevenue
+                'valRaw' => $monthRevenue,
             ]);
         }
         $maxMonthRevenue = $lastMonths->max('valRaw') ?: 1;
         $revenueChartMonth = $lastMonths->map(function ($item) use ($maxMonthRevenue) {
             $h = ($item['valRaw'] / $maxMonthRevenue) * 100;
+
             return [
                 'label' => $item['label'],
-                'val' => number_format($item['valRaw'], 0) . ' đ',
-                'h' => $item['valRaw'] > 0 ? max($h, 5) : 0
+                'val' => number_format($item['valRaw'], 0).' đ',
+                'h' => $item['valRaw'] > 0 ? max($h, 5) : 0,
             ];
         });
 
@@ -136,15 +138,15 @@ class AdminDashboardController extends Controller
             'status' => 'success',
             'data' => [
                 'stats' => [
-                    'revenue' => number_format($totalRevenue, 0) . ' đ',
+                    'revenue' => number_format($totalRevenue, 0).' đ',
                     'orders' => number_format($totalOrders, 0),
                     'products' => number_format($totalProducts, 0),
-                    'customers' => number_format($totalCustomers, 0)
+                    'customers' => number_format($totalCustomers, 0),
                 ],
                 'revenue_chart' => $revenueChart,
                 'revenue_chart_month' => $revenueChartMonth,
-                'recent_orders' => $recentOrders
-            ]
+                'recent_orders' => $recentOrders,
+            ],
         ]);
     }
 
@@ -159,6 +161,7 @@ class AdminDashboardController extends Controller
             'Saturday' => 'T7',
             'Sunday' => 'CN',
         ];
+
         return $map[$englishDay] ?? 'T2';
     }
 
@@ -166,9 +169,10 @@ class AdminDashboardController extends Controller
     {
         $colors = ['#0288d1', '#26a69a', '#ffa726', '#7e57c2', '#ef5350', '#66bb6a', '#ec407a'];
         $sum = 0;
-        for($i=0; $i<strlen($string); $i++) {
+        for ($i = 0; $i < strlen($string); $i++) {
             $sum += ord($string[$i]);
         }
+
         return $colors[$sum % count($colors)];
     }
 }

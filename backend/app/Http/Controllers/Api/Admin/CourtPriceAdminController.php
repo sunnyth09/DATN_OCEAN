@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\CourtPrice;
+use Illuminate\Http\Request;
 
 class CourtPriceAdminController extends Controller
 {
     public function index(Request $request)
     {
         $prices = CourtPrice::with('court')->get();
+
         return response()->json([
             'status' => 'success',
-            'data' => $prices
+            'data' => $prices,
         ]);
     }
 
@@ -36,16 +37,17 @@ class CourtPriceAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Price created successfully.',
-            'data' => $price
+            'data' => $price,
         ]);
     }
 
     public function show($id)
     {
         $price = CourtPrice::with('court')->findOrFail($id);
+
         return response()->json([
             'status' => 'success',
-            'data' => $price
+            'data' => $price,
         ]);
     }
 
@@ -69,7 +71,7 @@ class CourtPriceAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Price updated successfully.',
-            'data' => $price
+            'data' => $price,
         ]);
     }
 
@@ -80,7 +82,7 @@ class CourtPriceAdminController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Price deleted successfully.'
+            'message' => 'Price deleted successfully.',
         ]);
     }
 }

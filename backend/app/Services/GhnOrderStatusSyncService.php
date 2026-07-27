@@ -47,7 +47,7 @@ class GhnOrderStatusSyncService
         $location = $this->extractLocation($ghnDetail);
         $description = $this->extractDescription($ghnDetail, $ghnStatus);
 
-        if (!$ghnStatus || !$mappedStatus) {
+        if (! $ghnStatus || ! $mappedStatus) {
             return [
                 'changed' => false,
                 'history_created' => false,
@@ -73,7 +73,7 @@ class GhnOrderStatusSyncService
         $location = $this->extractLocation($payload);
         $description = $this->extractDescription($payload, $ghnStatus);
 
-        if (!$ghnStatus || !$mappedStatus) {
+        if (! $ghnStatus || ! $mappedStatus) {
             return [
                 'changed' => false,
                 'history_created' => false,
@@ -108,7 +108,7 @@ class GhnOrderStatusSyncService
                 ->orderByDesc('happened_at')
                 ->orderByDesc('history_id')
                 ->first();
-                
+
             $historyExists = $lastHistory && $lastHistory->ghn_status === $ghnStatus;
 
             if ($shouldUpdateOrder) {
@@ -132,7 +132,7 @@ class GhnOrderStatusSyncService
             }
 
             $historyCreated = false;
-            if (!$historyExists) {
+            if (! $historyExists) {
                 OrderStatusHistory::create([
                     'order_id' => $order->order_id,
                     'old_status' => $oldStatus,
@@ -189,7 +189,7 @@ class GhnOrderStatusSyncService
             }
         }
 
-        if (in_array($currentStatus, self::TERMINAL_STATUSES, true) && !in_array($mappedStatus, self::TERMINAL_STATUSES, true)) {
+        if (in_array($currentStatus, self::TERMINAL_STATUSES, true) && ! in_array($mappedStatus, self::TERMINAL_STATUSES, true)) {
             return false;
         }
 

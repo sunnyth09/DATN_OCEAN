@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('recently_viewed_products')) {
+        if (! Schema::hasTable('recently_viewed_products')) {
             Schema::create('recently_viewed_products', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('user_id')->nullable();

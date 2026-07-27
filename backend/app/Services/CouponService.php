@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\OrderException;
 use App\Models\Coupon;
 use App\Models\UserCoupon;
 use App\Repositories\CouponRepository;
@@ -53,12 +54,12 @@ class CouponService
     /**
      * Admin: cập nhật coupon + sync lại categories.
      *
-     * @return Coupon|null  null nếu không tìm thấy.
+     * @return Coupon|null null nếu không tìm thấy.
      */
     public function adminUpdate($id, array $data): ?Coupon
     {
         $coupon = Coupon::find($id);
-        if (!$coupon) {
+        if (! $coupon) {
             return null;
         }
 
@@ -79,7 +80,7 @@ class CouponService
     public function adminDelete($id): bool
     {
         $coupon = Coupon::find($id);
-        if (!$coupon) {
+        if (! $coupon) {
             return false;
         }
 
@@ -92,12 +93,12 @@ class CouponService
     /**
      * Admin: danh sách user đã lưu/dùng 1 coupon + thống kê.
      *
-     * @return array|null  null nếu không tìm thấy coupon.
+     * @return array|null null nếu không tìm thấy coupon.
      */
     public function adminUsages($id): ?array
     {
         $coupon = Coupon::find($id);
-        if (!$coupon) {
+        if (! $coupon) {
             return null;
         }
 
@@ -106,26 +107,26 @@ class CouponService
             ->orderByDesc('used_count')
             ->get()
             ->map(fn ($uc) => [
-                'user_id'    => $uc->user_id,
-                'full_name'  => $uc->user->full_name ?? 'N/A',
-                'email'      => $uc->user->email ?? '',
-                'phone'      => $uc->user->phone ?? '',
+                'user_id' => $uc->user_id,
+                'full_name' => $uc->user->full_name ?? 'N/A',
+                'email' => $uc->user->email ?? '',
+                'phone' => $uc->user->phone ?? '',
                 'avatar_url' => $uc->user->avatar_url ?? null,
                 'used_count' => $uc->used_count,
-                'is_saved'   => $uc->is_saved,
-                'saved_at'   => $uc->created_at,
+                'is_saved' => $uc->is_saved,
+                'saved_at' => $uc->created_at,
             ]);
 
         return [
             'coupon' => [
-                'id'          => $coupon->id,
-                'code'        => $coupon->code,
-                'used_count'  => $coupon->used_count,
+                'id' => $coupon->id,
+                'code' => $coupon->code,
+                'used_count' => $coupon->used_count,
                 'usage_limit' => $coupon->usage_limit,
             ],
-            'usages'      => $usages,
+            'usages' => $usages,
             'total_saved' => $usages->count(),
-            'total_used'  => $usages->filter(fn ($u) => $u['used_count'] > 0)->count(),
+            'total_used' => $usages->filter(fn ($u) => $u['used_count'] > 0)->count(),
         ];
     }
 
@@ -138,6 +139,7 @@ class CouponService
     {
         return Cache::remember('coupons:public_active', 1800, function () {
             $now = now();
+
             return Coupon::where('is_public', true)
                 ->where('is_active', true)
                 ->where(function ($query) use ($now) {
@@ -155,19 +157,19 @@ class CouponService
      * Khách lưu coupon. Trả mã kết quả để controller map response shape.
      *
      * @return array{state: string, message: string}
-     *   state: saved | already_saved | not_found
+     *                                               state: saved | already_saved | not_found
      */
     public function saveForUser(int $userId, $couponId): array
     {
         $coupon = $this->findSaveableCoupon((int) $couponId);
-        if (!$coupon) {
+        if (! $coupon) {
             return ['state' => 'not_found', 'message' => 'Mã giảm giá không tồn tại hoặc đã hết hạn!'];
         }
 
         $inserted = UserCoupon::insertOrIgnore([
-            'user_id'    => $userId,
-            'coupon_id'  => $coupon->id,
-            'is_saved'   => true,
+            'user_id' => $userId,
+            'coupon_id' => $coupon->id,
+            'is_saved' => true,
             'used_count' => 0,
             'created_at' => now(),
             'updated_at' => now(),
@@ -191,10 +193,13 @@ class CouponService
             ->get()
             ->filter(function ($userCoupon) {
                 $coupon = $userCoupon->coupon;
-                if (!$coupon || !$this->isCouponSaveable($coupon)) return false;
+                if (! $coupon || ! $this->isCouponSaveable($coupon)) {
+                    return false;
+                }
                 if ($coupon->user_usage_limit && $userCoupon->used_count >= $coupon->user_usage_limit) {
                     return false;
                 }
+
                 return true;
             })
             ->values()
@@ -212,7 +217,7 @@ class CouponService
     {
         $now = now();
 
-        if (!$coupon->is_active || !$coupon->is_public) {
+        if (! $coupon->is_active || ! $coupon->is_public) {
             return false;
         }
 
@@ -233,7 +238,7 @@ class CouponService
 
     public function applyCoupon(int $userId, ?string $couponCode, float $subtotal): array
     {
-        if (!$couponCode) {
+        if (! $couponCode) {
             return [
                 'success' => true,
                 'coupon' => null,
@@ -243,7 +248,7 @@ class CouponService
 
         $coupon = $this->couponRepository->findActiveByCode($couponCode);
 
-        if (!$coupon) {
+        if (! $coupon) {
             return [
                 'success' => true,
                 'coupon' => null,
@@ -253,7 +258,7 @@ class CouponService
 
         $validateResult = $this->validateCoupon($userId, $coupon, $subtotal);
 
-        if (!$validateResult['success']) {
+        if (! $validateResult['success']) {
             return $validateResult;
         }
 
@@ -339,12 +344,12 @@ class CouponService
      */
     public function consumeCoupon(int $userId, $coupon): void
     {
-        if (!$this->couponRepository->tryConsumeGlobal($coupon->id)) {
-            throw new \App\Exceptions\OrderException('Mã giảm giá đã hết lượt sử dụng!');
+        if (! $this->couponRepository->tryConsumeGlobal($coupon->id)) {
+            throw new OrderException('Mã giảm giá đã hết lượt sử dụng!');
         }
 
-        if (!$this->couponRepository->tryConsumePerUser($userId, $coupon->id, $coupon->user_usage_limit)) {
-            throw new \App\Exceptions\OrderException('Bạn đã hết lượt sử dụng mã này!');
+        if (! $this->couponRepository->tryConsumePerUser($userId, $coupon->id, $coupon->user_usage_limit)) {
+            throw new OrderException('Bạn đã hết lượt sử dụng mã này!');
         }
     }
 

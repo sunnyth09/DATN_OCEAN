@@ -12,19 +12,23 @@ class SystemNotification extends Notification implements ShouldQueue
     use Queueable;
 
     protected $title;
+
     protected $message;
+
     protected $urlRedirect;
+
     protected $icon;
+
     protected $extraData;
 
     /**
      * Khởi tạo Notification.
      *
-     * @param string $title Tiêu đề thông báo
-     * @param string $message Nội dung thông báo
-     * @param string|null $urlRedirect Link khi click vào (Tùy chọn)
-     * @param string|null $icon Icon hiển thị (Tùy chọn)
-     * @param array $extraData Dữ liệu bổ sung (Tùy chọn)
+     * @param  string  $title  Tiêu đề thông báo
+     * @param  string  $message  Nội dung thông báo
+     * @param  string|null  $urlRedirect  Link khi click vào (Tùy chọn)
+     * @param  string|null  $icon  Icon hiển thị (Tùy chọn)
+     * @param  array  $extraData  Dữ liệu bổ sung (Tùy chọn)
      */
     public function __construct(string $title, string $message, ?string $urlRedirect = null, ?string $icon = 'bell', array $extraData = [])
     {
@@ -70,7 +74,7 @@ class SystemNotification extends Notification implements ShouldQueue
             'icon' => $this->icon,
         ], $this->extraData));
     }
-    
+
     /**
      * Đổi tên sự kiện broadcast để frontend dễ listen
      */

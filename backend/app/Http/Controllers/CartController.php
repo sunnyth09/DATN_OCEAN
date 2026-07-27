@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ProductVariant;
 use App\Services\CartService;
 use Illuminate\Http\Request;
 
@@ -18,10 +19,10 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bạn cần đăng nhập để xem giỏ hàng!'
+                'message' => 'Bạn cần đăng nhập để xem giỏ hàng!',
             ], 401);
         }
 
@@ -35,20 +36,20 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['status' => 'error', 'message' => 'Bạn cần đăng nhập để thêm vào giỏ hàng!'], 401);
         }
 
         $request->validate([
             'variant_id' => 'required|integer|exists:product_variants,variant_id',
-            'quantity'   => 'required|integer|min:1|max:999',
+            'quantity' => 'required|integer|min:1|max:999',
         ], [
             'variant_id.required' => 'Vui lòng chọn phiên bản sản phẩm.',
-            'variant_id.exists'   => 'Phiên bản sản phẩm không tồn tại.',
-            'quantity.required'   => 'Vui lòng nhập số lượng.',
-            'quantity.integer'    => 'Số lượng phải là số nguyên.',
-            'quantity.min'        => 'Số lượng tối thiểu là 1.',
-            'quantity.max'        => 'Số lượng tối đa là 999.',
+            'variant_id.exists' => 'Phiên bản sản phẩm không tồn tại.',
+            'quantity.required' => 'Vui lòng nhập số lượng.',
+            'quantity.integer' => 'Số lượng phải là số nguyên.',
+            'quantity.min' => 'Số lượng tối thiểu là 1.',
+            'quantity.max' => 'Số lượng tối đa là 999.',
         ]);
 
         $result = $this->cartService->addItem($userId, $request->only(['variant_id', 'quantity']));
@@ -65,7 +66,7 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['status' => 'error', 'message' => 'Bạn cần đăng nhập!'], 401);
         }
 
@@ -74,8 +75,8 @@ class CartController extends Controller
             'selected' => 'sometimes|boolean',
         ], [
             'quantity.integer' => 'Số lượng phải là số nguyên.',
-            'quantity.min'     => 'Số lượng tối thiểu là 1.',
-            'quantity.max'     => 'Số lượng tối đa là 999.',
+            'quantity.min' => 'Số lượng tối thiểu là 1.',
+            'quantity.max' => 'Số lượng tối đa là 999.',
         ]);
 
         $result = $this->cartService->updateItem($userId, $id, $request->only(['quantity', 'selected']));
@@ -92,7 +93,7 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['status' => 'error', 'message' => 'Bạn cần đăng nhập!'], 401);
         }
 
@@ -110,7 +111,7 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['status' => 'error', 'message' => 'Bạn cần đăng nhập!'], 401);
         }
 
@@ -124,7 +125,7 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['status' => 'error', 'message' => 'Bạn cần đăng nhập!'], 401);
         }
 
@@ -145,6 +146,7 @@ class CartController extends Controller
     public function getCount()
     {
         $userId = $this->cartService->getUserId();
+
         return response()->json(['count' => $this->cartService->getCartCount($userId)]);
     }
 
@@ -155,10 +157,10 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bạn cần đăng nhập để thực hiện thao tác này.'
+                'message' => 'Bạn cần đăng nhập để thực hiện thao tác này.',
             ], 401);
         }
 
@@ -176,7 +178,7 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['status' => 'error', 'message' => 'Bạn cần đăng nhập!'], 401);
         }
 
@@ -190,7 +192,7 @@ class CartController extends Controller
     {
         $userId = $this->cartService->getUserId();
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['status' => 'error', 'message' => 'Bạn cần đăng nhập!'], 401);
         }
 
@@ -219,7 +221,7 @@ class CartController extends Controller
         $items = collect($request->items);
         $variantIds = $items->pluck('variant_id')->all();
 
-        $variants = \App\Models\ProductVariant::whereIn('variant_id', $variantIds)
+        $variants = ProductVariant::whereIn('variant_id', $variantIds)
             ->with(['product.images' => function ($query) {
                 $query->where('is_main', 1);
             }])
@@ -234,26 +236,26 @@ class CartController extends Controller
 
             return [
                 'cart_item_id' => $variantId, // Dùng variant_id làm cart_item_id cho guest
-                'variant_id'   => $variantId,
-                'quantity'     => $item['quantity'],
-                'selected'     => isset($item['selected']) ? (bool)$item['selected'] : true,
-                'variant'      => $variant ? [
-                    'variant_id'       => $variant->variant_id,
-                    'variant_name'     => $variant->variant_name,
-                    'color'            => $variant->color,
-                    'size'             => $variant->size,
-                    'price'            => $variant->price,
+                'variant_id' => $variantId,
+                'quantity' => $item['quantity'],
+                'selected' => isset($item['selected']) ? (bool) $item['selected'] : true,
+                'variant' => $variant ? [
+                    'variant_id' => $variant->variant_id,
+                    'variant_name' => $variant->variant_name,
+                    'color' => $variant->color,
+                    'size' => $variant->size,
+                    'price' => $variant->price,
                     'compare_at_price' => $variant->compare_at_price,
-                    'stock'            => $variant->stock,
-                    'image_url'        => $variant->image_url,
-                    'status'           => $variant->status,
+                    'stock' => $variant->stock,
+                    'image_url' => $variant->image_url,
+                    'status' => $variant->status,
                 ] : null,
                 'product' => $product ? [
-                    'product_id'    => $product->product_id,
-                    'name'          => $product->name,
-                    'slug'          => $product->slug,
+                    'product_id' => $product->product_id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
                     'thumbnail_url' => $product->thumbnail_url,
-                    'main_image'    => $mainImage ? $mainImage->image_url : null,
+                    'main_image' => $mainImage ? $mainImage->image_url : null,
                 ] : null,
                 'line_total' => $variant ? $variant->price * $item['quantity'] : 0,
             ];
@@ -264,15 +266,14 @@ class CartController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
-                'cart_id'              => null,
-                'items'                => $resultItems,
-                'total_items'          => $resultItems->sum('quantity'),
+                'cart_id' => null,
+                'items' => $resultItems,
+                'total_items' => $resultItems->sum('quantity'),
                 'total_selected_items' => $resultItems->where('selected', true)->sum('quantity'),
-                'total_price'          => $resultItems->where('selected', true)->sum('line_total'),
-                'freeship_threshold'   => (int) config('shop.freeship_threshold', 500000),
+                'total_price' => $resultItems->where('selected', true)->sum('line_total'),
+                'freeship_threshold' => (int) config('shop.freeship_threshold', 500000),
             ],
         ]);
 
     }
 }
-

@@ -21,7 +21,7 @@ class FlashSaleController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data'   => $this->flashSaleService->getPublicList(),
+            'data' => $this->flashSaleService->getPublicList(),
         ]);
     }
 
@@ -50,10 +50,10 @@ class FlashSaleController extends Controller
     // ─────────────────────────────────────────────────────────────────────────
     public function buy(BuyFlashSaleRequest $request): JsonResponse
     {
-        $user   = auth('api')->user() ?? auth('admin')->user();
+        $user = auth('api')->user() ?? auth('admin')->user();
         $userId = $user ? ($user->user_id ?? $user->getKey()) : null;
 
-        if (!$userId || !$user) {
+        if (! $userId || ! $user) {
             return response()->json(['message' => 'Vui lòng đăng nhập để tiếp tục.'], 401);
         }
 
@@ -64,16 +64,16 @@ class FlashSaleController extends Controller
             (int) $request->product_id,
             (int) ($request->quantity ?? 1),
             [
-                'recipient_name'   => $request->recipient_name,
-                'recipient_phone'  => $request->recipient_phone,
+                'recipient_name' => $request->recipient_name,
+                'recipient_phone' => $request->recipient_phone,
                 'shipping_address' => $request->shipping_address,
-                'payment_method'   => $request->payment_method,
+                'payment_method' => $request->payment_method,
             ]
         );
 
         if ($result['state'] === 'sold_out') {
             return response()->json([
-                'message'  => $result['message'],
+                'message' => $result['message'],
                 'sold_out' => true,
             ], 400);
         }
@@ -83,10 +83,10 @@ class FlashSaleController extends Controller
         }
 
         return response()->json([
-            'status'     => 'success',
-            'message'    => '🎉 Đặt hàng thành công!',
+            'status' => 'success',
+            'message' => '🎉 Đặt hàng thành công!',
             'order_code' => $result['order_code'],
-            'remaining'  => $result['remaining'],
+            'remaining' => $result['remaining'],
         ], 200);
     }
 }

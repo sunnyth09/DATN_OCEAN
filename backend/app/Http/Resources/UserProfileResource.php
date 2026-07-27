@@ -21,16 +21,16 @@ class UserProfileResource extends JsonResource
     {
         return [
             // Primary key — hỗ trợ cả User (user_id) và Admin (admin_id)
-            'user_id'       => $this->user_id ?? $this->admin_id ?? $this->getKey(),
-            'full_name'     => $this->full_name,
-            'email'         => $this->email,
-            'phone'         => $this->phone,
-            'avatar_url'    => $this->avatar_url,
+            'user_id' => $this->user_id ?? $this->admin_id ?? $this->getKey(),
+            'full_name' => $this->full_name,
+            'email' => $this->email,
+            'phone' => $this->phone,
+            'avatar_url' => $this->avatar_url,
             'date_of_birth' => $this->date_of_birth,
-            'status'        => $this->status ?? 'active',
-            'role'          => $this->role ?? 'customer',
-            'created_at'    => $this->created_at,
-            'updated_at'    => $this->updated_at,
+            'status' => $this->status ?? 'active',
+            'role' => $this->role ?? 'customer',
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 }

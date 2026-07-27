@@ -2,14 +2,13 @@
 
 namespace App\Events;
 
+use App\Models\Order;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Order;
 
 class OrderCreatedAdmin implements ShouldBroadcastNow
 {
@@ -28,7 +27,7 @@ class OrderCreatedAdmin implements ShouldBroadcastNow
     /**
      * Get the channels the event should broadcast on.
      *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
+     * @return array<int, Channel>
      */
     public function broadcastOn(): array
     {
@@ -36,7 +35,7 @@ class OrderCreatedAdmin implements ShouldBroadcastNow
             new PrivateChannel('admin-notifications'),
         ];
     }
-    
+
     /**
      * The event's broadcast name.
      */
@@ -44,7 +43,7 @@ class OrderCreatedAdmin implements ShouldBroadcastNow
     {
         return 'OrderCreatedAdmin';
     }
-    
+
     /**
      * Get the data to broadcast.
      */
@@ -57,7 +56,7 @@ class OrderCreatedAdmin implements ShouldBroadcastNow
             'grand_total' => $this->order->grand_total,
             'fulfillment_status' => $this->order->fulfillment_status,
             'payment_status' => $this->order->payment_status,
-            'created_at' => (string) $this->order->created_at
+            'created_at' => (string) $this->order->created_at,
         ];
     }
 }

@@ -11,7 +11,7 @@ return new class extends Migration
         // Xóa để clean DB (đảm bảo không bị đụng độ schema cũ từ file migration trước)
         Schema::dropIfExists('flash_sale_items');
         Schema::dropIfExists('flash_sales');
-        
+
         Schema::create('flash_sales', function (Blueprint $table) {
             $table->id();
             $table->string('name')->default('Flash Sale');

@@ -21,8 +21,8 @@ class FlashSaleItem extends Model
     protected $casts = [
         'campaign_price' => 'float',
         'campaign_stock' => 'integer',
-        'sold'           => 'integer',
-        'min_qty'        => 'integer',
+        'sold' => 'integer',
+        'min_qty' => 'integer',
     ];
 
     public function flashSale(): BelongsTo
@@ -32,6 +32,6 @@ class FlashSaleItem extends Model
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class, 'product_id', 'product_id'); 
+        return $this->belongsTo(Product::class, 'product_id', 'product_id');
     }
 }

@@ -2,8 +2,8 @@
 
 namespace App\Services\Crawler\Parser;
 
-use Symfony\Component\DomCrawler\Crawler;
 use Illuminate\Support\Str;
+use Symfony\Component\DomCrawler\Crawler;
 
 class VariantParser
 {
@@ -14,26 +14,30 @@ class VariantParser
     {
         $crawler = new Crawler($html);
         $variants = [];
-        
+
         $colors = [];
         $sizes = [];
 
         try {
             $crawler->filter('.swatch-element.color label, .color-swatch label, select[name="color"] option, .swatch-color label')->each(function (Crawler $node) use (&$colors) {
                 $color = trim($node->text());
-                if (!empty($color)) $colors[] = $color;
+                if (! empty($color)) {
+                    $colors[] = $color;
+                }
             });
-            
+
             $crawler->filter('.swatch-element.size label, .size-swatch label, select[name="size"] option, .swatch-size label')->each(function (Crawler $node) use (&$sizes) {
                 $size = trim($node->text());
-                if (!empty($size)) $sizes[] = $size;
+                if (! empty($size)) {
+                    $sizes[] = $size;
+                }
             });
         } catch (\Exception $e) {
         }
-        
+
         $colors = array_unique($colors);
         $sizes = array_unique($sizes);
-        
+
         if (empty($colors) && empty($sizes)) {
             $variants[] = [
                 'variant_name' => 'Mặc định',
@@ -44,14 +48,15 @@ class VariantParser
                 'sale_price' => $baseData['sale_price'],
                 'stock' => 10,
             ];
+
             return $variants;
         }
 
-        if (!empty($colors) && empty($sizes)) {
+        if (! empty($colors) && empty($sizes)) {
             foreach ($colors as $color) {
                 $variants[] = $this->makeVariantData($baseData, $color, null);
             }
-        } elseif (empty($colors) && !empty($sizes)) {
+        } elseif (empty($colors) && ! empty($sizes)) {
             foreach ($sizes as $size) {
                 $variants[] = $this->makeVariantData($baseData, null, $size);
             }
@@ -65,13 +70,14 @@ class VariantParser
 
         return $variants;
     }
-    
+
     private function makeVariantData(array $baseData, ?string $color, ?string $size): array
     {
         $nameParts = array_filter([$color, $size]);
+
         return [
             'variant_name' => implode(' - ', $nameParts),
-            'sku' => ($baseData['sku'] ?? '') . '-' . Str::slug(implode('-', $nameParts)),
+            'sku' => ($baseData['sku'] ?? '').'-'.Str::slug(implode('-', $nameParts)),
             'color' => $color,
             'size' => $size,
             'price' => $baseData['original_price'],

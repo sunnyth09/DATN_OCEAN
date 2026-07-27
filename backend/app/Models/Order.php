@@ -44,19 +44,19 @@ class Order extends Model
     ];
 
     protected $casts = [
-        'subtotal'                   => 'decimal:2',
-        'discount_amount'            => 'decimal:2',
-        'wallet_deposit_discount'    => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'wallet_deposit_discount' => 'decimal:2',
         'wallet_commission_discount' => 'decimal:2',
-        'shipping_fee'               => 'decimal:2',
-        'grand_total'                => 'decimal:2',
-        'combo_discount'             => 'decimal:2',
-        'email_sent'                 => 'boolean',
-        'confirmed_at'               => 'datetime',
-        'shipped_at'                 => 'datetime',
-        'delivered_at'               => 'datetime',
-        'completed_at'               => 'datetime',
-        'cancelled_at'               => 'datetime',
+        'shipping_fee' => 'decimal:2',
+        'grand_total' => 'decimal:2',
+        'combo_discount' => 'decimal:2',
+        'email_sent' => 'boolean',
+        'confirmed_at' => 'datetime',
+        'shipped_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     public function user()
@@ -92,6 +92,7 @@ class Order extends Model
     public function getOrderId($order_code)
     {
         $order = $this->where('order_code', $order_code)->first();
+
         return $order->order_id;
     }
 

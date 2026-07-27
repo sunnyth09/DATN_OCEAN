@@ -3,8 +3,8 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Notifications\Notification;
 
 /**
  * AbandonedCartNotification — Thông báo nhắc nhở giỏ hàng bỏ quên
@@ -22,13 +22,14 @@ class AbandonedCartNotification extends Notification
     use Queueable;
 
     protected int $itemCount;
+
     protected int $pointsAwarded;
 
     /**
      * Constructor
      *
-     * @param int $itemCount     Số sản phẩm trong giỏ hàng
-     * @param int $pointsAwarded Số điểm thưởng đã tặng
+     * @param  int  $itemCount  Số sản phẩm trong giỏ hàng
+     * @param  int  $pointsAwarded  Số điểm thưởng đã tặng
      */
     public function __construct(int $itemCount, int $pointsAwarded)
     {
@@ -58,7 +59,7 @@ class AbandonedCartNotification extends Notification
             ->subject('🛒 Giỏ hàng của bạn đang chờ - Ocean Shop')
             ->greeting("Xin chào {$notifiable->full_name}! 👋")
             ->line("Bạn có **{$this->itemCount} sản phẩm** đang nằm trong giỏ hàng, có vẻ bạn đã bận quên mất rồi nhỉ? 😊")
-            ->line("Đừng lo, chúng tôi đã giữ giỏ hàng cho bạn!")
+            ->line('Đừng lo, chúng tôi đã giữ giỏ hàng cho bạn!')
             ->line("🎁 Ngoài ra, Ocean Shop tặng bạn **{$this->pointsAwarded} điểm thưởng** vào tài khoản để bạn đổi quà sau này nhé!")
             ->action('🛒 Xem giỏ hàng', url('/cart'))
             ->line('Nếu bạn cần hỗ trợ, đừng ngần ngại liên hệ chúng tôi nhé! 💙');
@@ -72,10 +73,10 @@ class AbandonedCartNotification extends Notification
     public function toArray(mixed $notifiable): array
     {
         return [
-            'type'           => 'abandoned_cart',
-            'title'          => '🛒 Giỏ hàng đang chờ bạn!',
-            'message'        => "Bạn có {$this->itemCount} sản phẩm trong giỏ hàng. Chúng tôi đã tặng bạn {$this->pointsAwarded} điểm thưởng!",
-            'item_count'     => $this->itemCount,
+            'type' => 'abandoned_cart',
+            'title' => '🛒 Giỏ hàng đang chờ bạn!',
+            'message' => "Bạn có {$this->itemCount} sản phẩm trong giỏ hàng. Chúng tôi đã tặng bạn {$this->pointsAwarded} điểm thưởng!",
+            'item_count' => $this->itemCount,
             'points_awarded' => $this->pointsAwarded,
         ];
     }

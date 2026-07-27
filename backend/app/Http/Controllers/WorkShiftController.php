@@ -24,7 +24,7 @@ class WorkShiftController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $shifts,
+            'data' => $shifts,
         ]);
     }
 
@@ -35,23 +35,23 @@ class WorkShiftController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'                 => 'required|string|max:100',
-            'start_time'           => 'required|date_format:H:i',
-            'end_time'             => 'required|date_format:H:i',
+            'name' => 'required|string|max:100',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i',
             'early_buffer_minutes' => 'nullable|integer|min:0|max:120',
-            'is_active'            => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
         ], [
-            'name.required'       => 'Tên ca không được để trống.',
+            'name.required' => 'Tên ca không được để trống.',
             'start_time.required' => 'Giờ bắt đầu không được để trống.',
-            'end_time.required'   => 'Giờ kết thúc không được để trống.',
+            'end_time.required' => 'Giờ kết thúc không được để trống.',
         ]);
 
         $shift = WorkShift::create($validated);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Tạo ca làm việc thành công!',
-            'data'    => $shift,
+            'data' => $shift,
         ], 201);
     }
 
@@ -62,24 +62,24 @@ class WorkShiftController extends Controller
     public function update(Request $request, $id): JsonResponse
     {
         $shift = WorkShift::find($id);
-        if (!$shift) {
+        if (! $shift) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy ca.'], 404);
         }
 
         $validated = $request->validate([
-            'name'                 => 'sometimes|required|string|max:100',
-            'start_time'           => 'sometimes|required|date_format:H:i',
-            'end_time'             => 'sometimes|required|date_format:H:i',
+            'name' => 'sometimes|required|string|max:100',
+            'start_time' => 'sometimes|required|date_format:H:i',
+            'end_time' => 'sometimes|required|date_format:H:i',
             'early_buffer_minutes' => 'nullable|integer|min:0|max:120',
-            'is_active'            => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
         ]);
 
         $shift->update($validated);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Cập nhật ca thành công!',
-            'data'    => $shift->fresh(),
+            'data' => $shift->fresh(),
         ]);
     }
 
@@ -90,14 +90,14 @@ class WorkShiftController extends Controller
     public function destroy($id): JsonResponse
     {
         $shift = WorkShift::find($id);
-        if (!$shift) {
+        if (! $shift) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy ca.'], 404);
         }
 
         $shift->update(['is_active' => false]);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã vô hiệu hóa ca.',
         ]);
     }
@@ -132,13 +132,13 @@ class WorkShiftController extends Controller
         $assignmentMap = [];
         foreach ($assignments as $a) {
             $key = $a->user_id;
-            if (!isset($assignmentMap[$key])) {
+            if (! isset($assignmentMap[$key])) {
                 $assignmentMap[$key] = [];
             }
             $assignmentMap[$key][] = [
-                'id'            => $a->id,
+                'id' => $a->id,
                 'work_shift_id' => $a->work_shift_id,
-                'day_of_week'   => $a->day_of_week,
+                'day_of_week' => $a->day_of_week,
             ];
         }
 
@@ -146,20 +146,20 @@ class WorkShiftController extends Controller
         $result = [];
         foreach ($staff as $s) {
             $result[] = [
-                'user_id'     => $s->admin_id,
-                'user_type'   => 'admin',
-                'full_name'   => $s->full_name,
-                'email'       => $s->email,
-                'role'        => $s->role,
-                'avatar_url'  => $s->avatar_url,
+                'user_id' => $s->admin_id,
+                'user_type' => 'admin',
+                'full_name' => $s->full_name,
+                'email' => $s->email,
+                'role' => $s->role,
+                'avatar_url' => $s->avatar_url,
                 'assignments' => $assignmentMap[$s->admin_id] ?? [],
             ];
         }
 
         return response()->json([
             'status' => 'success',
-            'data'   => [
-                'staff'  => $result,
+            'data' => [
+                'staff' => $result,
                 'shifts' => $shifts,
             ],
         ]);
@@ -184,18 +184,18 @@ class WorkShiftController extends Controller
     public function saveAssignments(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'user_id'                       => 'required|integer',
-            'user_type'                     => 'required|string|in:admin,user',
-            'assignments'                   => 'present|array',
-            'assignments.*.work_shift_id'   => 'required|integer|exists:work_shifts,id',
-            'assignments.*.day_of_week'     => 'required|integer|between:0,6',
+            'user_id' => 'required|integer',
+            'user_type' => 'required|string|in:admin,user',
+            'assignments' => 'present|array',
+            'assignments.*.work_shift_id' => 'required|integer|exists:work_shifts,id',
+            'assignments.*.day_of_week' => 'required|integer|between:0,6',
         ], [
             'user_id.required' => 'Chưa chọn nhân viên.',
             'assignments.*.work_shift_id.exists' => 'Ca làm việc không hợp lệ.',
-            'assignments.*.day_of_week.between'  => 'Ngày trong tuần không hợp lệ (0-6).',
+            'assignments.*.day_of_week.between' => 'Ngày trong tuần không hợp lệ (0-6).',
         ]);
 
-        $userId   = $validated['user_id'];
+        $userId = $validated['user_id'];
         $userType = $validated['user_type'];
 
         // Xóa tất cả phân ca cũ của user
@@ -206,16 +206,16 @@ class WorkShiftController extends Controller
         // Tạo mới
         foreach ($validated['assignments'] as $a) {
             ShiftAssignment::create([
-                'user_id'       => $userId,
-                'user_type'     => $userType,
+                'user_id' => $userId,
+                'user_type' => $userType,
                 'work_shift_id' => $a['work_shift_id'],
-                'day_of_week'   => $a['day_of_week'],
-                'is_active'     => true,
+                'day_of_week' => $a['day_of_week'],
+                'is_active' => true,
             ]);
         }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Lưu phân ca thành công!',
         ]);
     }

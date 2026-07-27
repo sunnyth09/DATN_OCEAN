@@ -16,7 +16,7 @@ class ChatController extends Controller
     public function initSession(Request $request)
     {
         $sessionToken = $request->input('session_token');
-        
+
         $session = null;
         if ($sessionToken) {
             $session = ChatSession::where('session_token', $sessionToken)->first();
@@ -30,20 +30,20 @@ class ChatController extends Controller
         // Lấy thông tin user nếu có gửi Bearer token
         $user = auth('api')->user();
 
-        if (!$session) {
+        if (! $session) {
             $session = ChatSession::create([
                 'session_token' => $sessionToken ?: (string) Str::uuid(),
                 'user_id' => $user ? $user->user_id : null,
-                'status' => 'open'
+                'status' => 'open',
             ]);
-        } else if ($user && !$session->user_id) {
+        } elseif ($user && ! $session->user_id) {
             // Update user_id nếu khách vừa đăng nhập
             $session->update(['user_id' => $user->user_id]);
         }
-        
+
         return response()->json([
             'session' => $session,
-            'messages' => $session->messages()->orderBy('created_at', 'asc')->get()
+            'messages' => $session->messages()->orderBy('created_at', 'asc')->get(),
         ]);
     }
 
@@ -64,7 +64,7 @@ class ChatController extends Controller
             return response()->json([
                 'success' => false,
                 'is_closed' => true,
-                'message' => 'Hội thoại đã kết thúc. Vui lòng kết nối lại nhân viên hỗ trợ nếu cần.'
+                'message' => 'Hội thoại đã kết thúc. Vui lòng kết nối lại nhân viên hỗ trợ nếu cần.',
             ]);
         }
 
@@ -72,7 +72,7 @@ class ChatController extends Controller
             'chat_session_id' => $session->id,
             'sender_type' => 'user',
             'message' => $request->input('message'),
-            'is_read' => false
+            'is_read' => false,
         ]);
 
         $session->update(['last_message_at' => now()]);
@@ -81,7 +81,7 @@ class ChatController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $message
+            'message' => $message,
         ]);
     }
 }

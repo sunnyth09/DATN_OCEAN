@@ -56,7 +56,7 @@ class AffiliateController extends Controller
     public function statistics(Request $request): JsonResponse
     {
         $userId = auth('api')->id();
-        $type   = $request->query('type', 'month');
+        $type = $request->query('type', 'month');
         $result = $this->affiliateService->getStatistics($userId, $type);
 
         return response()->json($result['body'], $result['status_code']);
@@ -81,9 +81,9 @@ class AffiliateController extends Controller
     public function requestWithdrawal(Request $request): JsonResponse
     {
         $request->validate([
-            'amount'              => 'required|numeric|min:1',
-            'bank_name'           => 'required|string|max:100',
-            'bank_account_name'   => 'required|string|max:255',
+            'amount' => 'required|numeric|min:1',
+            'bank_name' => 'required|string|max:100',
+            'bank_account_name' => 'required|string|max:255',
             'bank_account_number' => 'required|string|max:50',
         ]);
 
@@ -119,7 +119,7 @@ class AffiliateController extends Controller
 
         $request->validate([
             'referral_code' => 'required|string|max:20',
-            'product_id'    => 'nullable|integer',
+            'product_id' => 'nullable|integer',
         ]);
 
         if ($rateLimited = $this->checkTrackClickRateLimits($request)) {
@@ -130,10 +130,10 @@ class AffiliateController extends Controller
 
         $result = $this->affiliateService->trackClick([
             'referral_code' => $request->referral_code,
-            'user_id'       => $userId,
-            'product_id'    => $request->product_id,
-            'ip_address'    => $request->ip(),
-            'user_agent'    => $request->userAgent(),
+            'user_id' => $userId,
+            'product_id' => $request->product_id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
 
         return response()->json($result['body'], $result['status_code']);
@@ -148,25 +148,25 @@ class AffiliateController extends Controller
         $checks = [
             [
                 'name' => 'ip_per_minute',
-                'key' => 'affiliate:track-click:ip:minute:' . $ip,
+                'key' => 'affiliate:track-click:ip:minute:'.$ip,
                 'max' => (int) ($limits['ip_per_minute'] ?? 30),
                 'decay' => 60,
             ],
             [
                 'name' => 'ip_per_hour',
-                'key' => 'affiliate:track-click:ip:hour:' . $ip,
+                'key' => 'affiliate:track-click:ip:hour:'.$ip,
                 'max' => (int) ($limits['ip_per_hour'] ?? 300),
                 'decay' => 3600,
             ],
             [
                 'name' => 'code_per_minute',
-                'key' => 'affiliate:track-click:code:minute:' . $codeHash,
+                'key' => 'affiliate:track-click:code:minute:'.$codeHash,
                 'max' => (int) ($limits['code_per_minute'] ?? 120),
                 'decay' => 60,
             ],
             [
                 'name' => 'code_per_hour',
-                'key' => 'affiliate:track-click:code:hour:' . $codeHash,
+                'key' => 'affiliate:track-click:code:hour:'.$codeHash,
                 'max' => (int) ($limits['code_per_hour'] ?? 1000),
                 'decay' => 3600,
             ],

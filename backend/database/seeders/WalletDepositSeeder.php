@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class WalletDepositSeeder extends Seeder
 {
@@ -20,6 +20,7 @@ class WalletDepositSeeder extends Seeder
 
         if (empty($users)) {
             $this->command->info('No users found. Please seed users first.');
+
             return;
         }
 
@@ -36,11 +37,11 @@ class WalletDepositSeeder extends Seeder
 
             $deposits[] = [
                 'user_id' => $users[array_rand($users)],
-                'deposit_code' => 'DEP-' . strtoupper(Str::random(10)),
+                'deposit_code' => 'DEP-'.strtoupper(Str::random(10)),
                 'amount' => $amount,
                 'method' => $methods[array_rand($methods)],
                 'status' => $status,
-                'gateway_transaction_id' => $isCompleted ? 'GTW-' . strtoupper(Str::random(8)) : null,
+                'gateway_transaction_id' => $isCompleted ? 'GTW-'.strtoupper(Str::random(8)) : null,
                 'gateway_response' => json_encode(['msg' => 'Test data']),
                 'completed_at' => $isCompleted ? Carbon::now()->subDays(rand(1, 30)) : null,
                 'created_at' => Carbon::now()->subDays(rand(1, 30)),
@@ -49,7 +50,7 @@ class WalletDepositSeeder extends Seeder
         }
 
         DB::table('wallet_deposits')->insert($deposits);
-        
+
         $this->command->info('Wallet deposits seeded successfully.');
     }
 }

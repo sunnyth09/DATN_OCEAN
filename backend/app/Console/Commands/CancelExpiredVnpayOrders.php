@@ -4,10 +4,12 @@ namespace App\Console\Commands;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
 use App\Models\ProductVariant;
+use App\Models\UserCoupon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -34,6 +36,7 @@ class CancelExpiredVnpayOrders extends Command
 
         if ($expiredOrders->isEmpty()) {
             $this->info('Không có đơn hàng nào cần hủy.');
+
             return self::SUCCESS;
         }
 
@@ -57,11 +60,12 @@ class CancelExpiredVnpayOrders extends Command
                         'fulfillment_status' => OrderStatus::CANCELLED->value,
                         'payment_status' => PaymentStatus::FAILED->value,
                         'cancelled_at' => now(),
-                        'cancel_reason' => 'Hệ thống tự động hủy: quá thời hạn thanh toán (' . $minutes . ' phút)',
+                        'cancel_reason' => 'Hệ thống tự động hủy: quá thời hạn thanh toán ('.$minutes.' phút)',
                     ]);
 
                 if ($affected === 0) {
                     DB::rollBack();
+
                     continue;
                 }
 
@@ -70,7 +74,7 @@ class CancelExpiredVnpayOrders extends Command
                     'order_id' => $order->order_id,
                     'old_status' => OrderStatus::PENDING->value,
                     'new_status' => OrderStatus::CANCELLED->value,
-                    'note' => 'Hệ thống tự động hủy: chưa thanh toán sau ' . $minutes . ' phút.',
+                    'note' => 'Hệ thống tự động hủy: chưa thanh toán sau '.$minutes.' phút.',
                 ]);
 
                 // Hoàn trả tồn kho
@@ -82,8 +86,8 @@ class CancelExpiredVnpayOrders extends Command
 
                 // Hoàn coupon nếu có
                 if ($order->promotion_id) {
-                    \App\Models\Coupon::where('id', $order->promotion_id)->decrement('used_count');
-                    \App\Models\UserCoupon::where('user_id', $order->user_id)
+                    Coupon::where('id', $order->promotion_id)->decrement('used_count');
+                    UserCoupon::where('user_id', $order->user_id)
                         ->where('coupon_id', $order->promotion_id)
                         ->where('used_count', '>', 0)
                         ->decrement('used_count');
@@ -111,6 +115,7 @@ class CancelExpiredVnpayOrders extends Command
         }
 
         $this->info("Hoàn tất: {$cancelled} đơn đã hủy, {$errors} lỗi.");
+
         return $errors > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

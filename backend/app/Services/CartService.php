@@ -4,10 +4,10 @@ namespace App\Services;
 
 use App\Models\Cart;
 use App\Models\CartItem;
-use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Repositories\CartRepository;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +25,9 @@ class CartService
     public function getUserId(): ?int
     {
         $user = auth('api')->user();
-        if ($user) return $user->user_id;
+        if ($user) {
+            return $user->user_id;
+        }
 
         if (auth('admin')->check()) {
             abort(403, 'Tài khoản nhân viên/quản trị không thể sử dụng giỏ hàng của khách hàng. Vui lòng đăng nhập bằng tài khoản khách hàng.');
@@ -45,12 +47,12 @@ class CartService
             ->where('status', 'active')
             ->first();
 
-        if (!$cart) {
+        if (! $cart) {
             return [
                 'status' => 'success',
                 'data' => [
-                    'cart_id'     => null,
-                    'items'       => [],
+                    'cart_id' => null,
+                    'items' => [],
                     'total_items' => 0,
                     'total_price' => 0,
                 ],
@@ -68,26 +70,26 @@ class CartService
 
             return [
                 'cart_item_id' => $item->cart_item_id,
-                'variant_id'   => $item->variant_id,
-                'quantity'     => $item->quantity,
-                'selected'     => $item->selected,
-                'variant'      => $variant ? [
-                    'variant_id'       => $variant->variant_id,
-                    'variant_name'     => $variant->variant_name,
-                    'color'            => $variant->color,
-                    'size'             => $variant->size,
-                    'price'            => $variant->price,
+                'variant_id' => $item->variant_id,
+                'quantity' => $item->quantity,
+                'selected' => $item->selected,
+                'variant' => $variant ? [
+                    'variant_id' => $variant->variant_id,
+                    'variant_name' => $variant->variant_name,
+                    'color' => $variant->color,
+                    'size' => $variant->size,
+                    'price' => $variant->price,
                     'compare_at_price' => $variant->compare_at_price,
-                    'stock'            => $variant->stock,
-                    'image_url'        => $variant->image_url,
-                    'status'           => $variant->status,
+                    'stock' => $variant->stock,
+                    'image_url' => $variant->image_url,
+                    'status' => $variant->status,
                 ] : null,
                 'product' => $product ? [
-                    'product_id'    => $product->product_id,
-                    'name'          => $product->name,
-                    'slug'          => $product->slug,
+                    'product_id' => $product->product_id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
                     'thumbnail_url' => $product->thumbnail_url,
-                    'main_image'    => $mainImage ? $mainImage->image_url : null,
+                    'main_image' => $mainImage ? $mainImage->image_url : null,
                 ] : null,
                 'line_total' => $variant ? $variant->price * $item->quantity : 0,
             ];
@@ -98,11 +100,11 @@ class CartService
         return [
             'status' => 'success',
             'data' => [
-                'cart_id'              => $cart->cart_id,
-                'items'                => $items->values(),
-                'total_items'          => $items->sum('quantity'),
+                'cart_id' => $cart->cart_id,
+                'items' => $items->values(),
+                'total_items' => $items->sum('quantity'),
                 'total_selected_items' => $selectedItems->sum('quantity'),
-                'total_price'          => $selectedItems->sum('line_total'),
+                'total_price' => $selectedItems->sum('line_total'),
             ],
         ];
     }
@@ -116,7 +118,7 @@ class CartService
     {
         $variant = ProductVariant::find($data['variant_id']);
 
-        if (!$variant || $variant->status !== 'active') {
+        if (! $variant || $variant->status !== 'active') {
             return ['_status' => 422, 'status' => 'error', 'message' => 'Sản phẩm này hiện không khả dụng.'];
         }
 
@@ -133,9 +135,9 @@ class CartService
 
             if ($newQuantity > $variant->stock) {
                 return [
-                    '_status'         => 422,
-                    'status'          => 'error',
-                    'message'         => "Số lượng vượt quá tồn kho. Chỉ còn {$variant->stock} sản phẩm.",
+                    '_status' => 422,
+                    'status' => 'error',
+                    'message' => "Số lượng vượt quá tồn kho. Chỉ còn {$variant->stock} sản phẩm.",
                     'available_stock' => $variant->stock,
                 ];
             }
@@ -145,10 +147,10 @@ class CartService
                 $message = 'Đã cập nhật số lượng trong giỏ hàng!';
             } else {
                 CartItem::create([
-                    'cart_id'    => $cart->cart_id,
+                    'cart_id' => $cart->cart_id,
                     'variant_id' => $data['variant_id'],
-                    'quantity'   => $data['quantity'],
-                    'selected'   => true,
+                    'quantity' => $data['quantity'],
+                    'selected' => true,
                 ]);
                 $message = 'Đã thêm sản phẩm vào giỏ hàng!';
             }
@@ -156,9 +158,9 @@ class CartService
             $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
 
             return [
-                '_status'     => 200,
-                'status'      => 'success',
-                'message'     => $message,
+                '_status' => 200,
+                'status' => 'success',
+                'message' => $message,
                 'total_items' => $totalItems,
             ];
         });
@@ -173,7 +175,7 @@ class CartService
     {
         $cartItem = $this->findOwnedCartItem($userId, $itemId);
 
-        if (!$cartItem) {
+        if (! $cartItem) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy sản phẩm trong giỏ hàng.'];
         }
 
@@ -181,17 +183,21 @@ class CartService
             $variant = ProductVariant::find($cartItem->variant_id);
             if ($variant && $data['quantity'] > $variant->stock) {
                 return [
-                    '_status'         => 422,
-                    'status'          => 'error',
-                    'message'         => "Số lượng vượt quá tồn kho. Chỉ còn {$variant->stock} sản phẩm.",
+                    '_status' => 422,
+                    'status' => 'error',
+                    'message' => "Số lượng vượt quá tồn kho. Chỉ còn {$variant->stock} sản phẩm.",
                     'available_stock' => $variant->stock,
                 ];
             }
         }
 
         $updateData = [];
-        if (isset($data['quantity'])) $updateData['quantity'] = $data['quantity'];
-        if (isset($data['selected'])) $updateData['selected'] = $data['selected'];
+        if (isset($data['quantity'])) {
+            $updateData['quantity'] = $data['quantity'];
+        }
+        if (isset($data['selected'])) {
+            $updateData['selected'] = $data['selected'];
+        }
 
         $cartItem->update($updateData);
 
@@ -207,7 +213,7 @@ class CartService
     {
         $cartItem = $this->findOwnedCartItem($userId, $itemId);
 
-        if (!$cartItem) {
+        if (! $cartItem) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy sản phẩm trong giỏ hàng.'];
         }
 
@@ -235,7 +241,7 @@ class CartService
 
             foreach ($items as $item) {
                 $variant = $variants->get($item['variant_id']);
-                if (!$variant || $variant->status !== 'active') {
+                if (! $variant || $variant->status !== 'active') {
                     continue;
                 }
 
@@ -245,12 +251,12 @@ class CartService
                 $targetQty = $currentQty + $item['quantity'];
 
                 if ($variant->stock <= 0) {
-                    if (!$existingItem) {
+                    if (! $existingItem) {
                         $created = CartItem::create([
-                            'cart_id'    => $cart->cart_id,
+                            'cart_id' => $cart->cart_id,
                             'variant_id' => $item['variant_id'],
-                            'quantity'   => 1,
-                            'selected'   => false,
+                            'quantity' => 1,
+                            'selected' => false,
                         ]);
                         // Ghi lại vào collection để item trùng variant_id sau trong payload thấy được.
                         $existingItems->put($item['variant_id'], $created);
@@ -261,10 +267,10 @@ class CartService
                         $existingItem->update(['quantity' => $finalQty]);
                     } else {
                         $created = CartItem::create([
-                            'cart_id'    => $cart->cart_id,
+                            'cart_id' => $cart->cart_id,
                             'variant_id' => $item['variant_id'],
-                            'quantity'   => $finalQty,
-                            'selected'   => true,
+                            'quantity' => $finalQty,
+                            'selected' => true,
                         ]);
                         $existingItems->put($item['variant_id'], $created);
                     }
@@ -272,9 +278,9 @@ class CartService
             }
 
             return [
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Đồng bộ giỏ hàng thành công!',
-                'count'   => $this->getCartCount($userId)
+                'count' => $this->getCartCount($userId),
             ];
         });
     }
@@ -305,7 +311,7 @@ class CartService
     public function changeVariant(int $userId, int $itemId, int $newVariantId): array
     {
         $newVariant = ProductVariant::find($newVariantId);
-        if (!$newVariant || $newVariant->status !== 'active') {
+        if (! $newVariant || $newVariant->status !== 'active') {
             return ['_status' => 422, 'status' => 'error', 'message' => 'Biến thể sản phẩm không khả dụng.'];
         }
 
@@ -313,13 +319,13 @@ class CartService
             $this->lockActiveCart($userId);
 
             $cartItem = $this->findOwnedCartItem($userId, $itemId);
-            if (!$cartItem) {
+            if (! $cartItem) {
                 return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy sản phẩm trong giỏ hàng.'];
             }
 
             // Kiểm tra variant mới thuộc cùng sản phẩm
             $oldVariant = ProductVariant::find($cartItem->variant_id);
-            if (!$oldVariant || $oldVariant->product_id !== $newVariant->product_id) {
+            if (! $oldVariant || $oldVariant->product_id !== $newVariant->product_id) {
                 return ['_status' => 422, 'status' => 'error', 'message' => 'Biến thể không hợp lệ.'];
             }
 
@@ -331,9 +337,9 @@ class CartService
             // Kiểm tra tồn kho
             if ($cartItem->quantity > $newVariant->stock) {
                 return [
-                    '_status'         => 422,
-                    'status'          => 'error',
-                    'message'         => "Số lượng vượt quá tồn kho. Chỉ còn {$newVariant->stock} sản phẩm.",
+                    '_status' => 422,
+                    'status' => 'error',
+                    'message' => "Số lượng vượt quá tồn kho. Chỉ còn {$newVariant->stock} sản phẩm.",
                     'available_stock' => $newVariant->stock,
                 ];
             }
@@ -366,7 +372,9 @@ class CartService
      */
     public function getCartCount(?int $userId): int
     {
-        if (!$userId) return 0;
+        if (! $userId) {
+            return 0;
+        }
 
         $cart = Cart::where('user_id', $userId)
             ->where('status', 'active')
@@ -384,7 +392,7 @@ class CartService
     {
         $order = Order::where('user_id', $userId)->where('order_id', $orderId)->first();
 
-        if (!$order) {
+        if (! $order) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng.'];
         }
 
@@ -406,12 +414,13 @@ class CartService
 
             foreach ($orderItems as $orderItem) {
                 $variant = $variants->get($orderItem->variant_id);
-                if (!$variant || $variant->status !== 'active') {
+                if (! $variant || $variant->status !== 'active') {
                     $name = $orderItem->product_name;
                     if ($orderItem->variant_name) {
-                        $name .= ' (' . $orderItem->variant_name . ')';
+                        $name .= ' ('.$orderItem->variant_name.')';
                     }
-                    $errorMessages[] = "Sản phẩm " . $name . " hiện không còn bán.";
+                    $errorMessages[] = 'Sản phẩm '.$name.' hiện không còn bán.';
+
                     continue;
                 }
 
@@ -424,9 +433,10 @@ class CartService
                 if ($newQuantity > $variant->stock) {
                     $name = $orderItem->product_name;
                     if ($orderItem->variant_name) {
-                        $name .= ' (' . $orderItem->variant_name . ')';
+                        $name .= ' ('.$orderItem->variant_name.')';
                     }
-                    $errorMessages[] = "Số lượng vượt quá tồn kho cho sản phẩm " . $name . ".";
+                    $errorMessages[] = 'Số lượng vượt quá tồn kho cho sản phẩm '.$name.'.';
+
                     continue;
                 }
 
@@ -434,10 +444,10 @@ class CartService
                     $existingItem->update(['quantity' => $newQuantity]);
                 } else {
                     $created = CartItem::create([
-                        'cart_id'    => $cart->cart_id,
+                        'cart_id' => $cart->cart_id,
                         'variant_id' => $variant->variant_id,
-                        'quantity'   => $orderItem->quantity,
-                        'selected'   => true,
+                        'quantity' => $orderItem->quantity,
+                        'selected' => true,
                     ]);
                     // Cập nhật collection để item trùng variant sau đó cộng dồn đúng.
                     $existingItems->put($variant->variant_id, $created);
@@ -450,16 +460,16 @@ class CartService
             if ($totalAdded === 0 && count($errorMessages) > 0) {
                 return [
                     '_status' => 422,
-                    'status'  => 'error',
+                    'status' => 'error',
                     'message' => implode(' ', $errorMessages),
                 ];
             }
 
             return [
-                '_status'     => 200,
-                'status'      => 'success',
-                'message'     => 'Đã thêm ' . $totalAdded . ' sản phẩm vào giỏ hàng!',
-                'errors'      => $errorMessages,
+                '_status' => 200,
+                'status' => 'success',
+                'message' => 'Đã thêm '.$totalAdded.' sản phẩm vào giỏ hàng!',
+                'errors' => $errorMessages,
                 'total_items' => $totalItems,
             ];
         });
@@ -478,42 +488,44 @@ class CartService
             ->where('status', 'active')
             ->first();
 
-        if (!$cart || $cart->items()->count() === 0) {
+        if (! $cart || $cart->items()->count() === 0) {
             return [
                 'status' => 'success',
-                'data'   => [
+                'data' => [
                     'freeship_threshold' => $freeshipThreshold,
-                    'suggestions'        => [],
+                    'suggestions' => [],
                 ],
             ];
         }
 
         $cartItems = $cart->items()->with('variant.product')->get();
 
-        $topProduct  = null;
+        $topProduct = null;
         $topMaxPrice = 0;
         $cartProductIds = [];
 
         foreach ($cartItems as $item) {
             $product = $item->variant?->product;
-            if (!$product) continue;
+            if (! $product) {
+                continue;
+            }
 
             $cartProductIds[] = $product->product_id;
             $price = (float) ($product->max_price ?? $product->min_price ?? 0);
             if ($price > $topMaxPrice) {
                 $topMaxPrice = $price;
-                $topProduct  = $product;
+                $topProduct = $product;
             }
         }
 
         $cartProductIds = array_unique($cartProductIds);
 
-        if (!$topProduct || !$topProduct->category_id) {
+        if (! $topProduct || ! $topProduct->category_id) {
             return [
                 'status' => 'success',
-                'data'   => [
+                'data' => [
                     'freeship_threshold' => $freeshipThreshold,
-                    'suggestions'        => [],
+                    'suggestions' => [],
                 ],
             ];
         }
@@ -542,9 +554,11 @@ class CartService
 
         $result = $suggestions->map(function ($product) {
             $variant = $product->variants->first();
-            if (!$variant) return null;
+            if (! $variant) {
+                return null;
+            }
 
-            $originalPrice   = (float) $variant->price;
+            $originalPrice = (float) $variant->price;
             $discountedPrice = round($originalPrice * 0.9);
 
             $thumbnail = $product->mainImage?->image_url
@@ -552,22 +566,22 @@ class CartService
                 ?? null;
 
             return [
-                'product_id'       => $product->product_id,
-                'name'             => $product->name,
-                'slug'             => $product->slug,
-                'thumbnail_url'    => $thumbnail,
-                'original_price'   => $originalPrice,
+                'product_id' => $product->product_id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'thumbnail_url' => $thumbnail,
+                'original_price' => $originalPrice,
                 'discounted_price' => $discountedPrice,
-                'variant_id'       => $variant->variant_id,
-                'stock'            => $variant->stock,
+                'variant_id' => $variant->variant_id,
+                'stock' => $variant->stock,
             ];
         })->filter()->values();
 
         return [
             'status' => 'success',
-            'data'   => [
+            'data' => [
                 'freeship_threshold' => $freeshipThreshold,
-                'suggestions'        => $result,
+                'suggestions' => $result,
             ],
         ];
     }

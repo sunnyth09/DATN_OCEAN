@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
-use Carbon\Carbon;
 
 class FlashSale extends Model
 {
@@ -22,8 +22,8 @@ class FlashSale extends Model
 
     protected $casts = [
         'start_time' => 'datetime',
-        'end_time'   => 'datetime',
-        'is_combo'   => 'boolean',
+        'end_time' => 'datetime',
+        'is_combo' => 'boolean',
     ];
 
     public function items(): HasMany
@@ -39,9 +39,10 @@ class FlashSale extends Model
     public function scopeActive(Builder $query): Builder
     {
         $now = Carbon::now();
+
         return $query->where('status', 'active')
-                     ->where('start_time', '<=', $now)
-                     ->where('end_time', '>=', $now);
+            ->where('start_time', '<=', $now)
+            ->where('end_time', '>=', $now);
     }
 
     /**
@@ -61,8 +62,11 @@ class FlashSale extends Model
 
     public function isActive(): bool
     {
-        if ($this->status !== 'active') return false;
+        if ($this->status !== 'active') {
+            return false;
+        }
         $now = Carbon::now();
+
         return $now->gte($this->start_time) && $now->lte($this->end_time);
     }
 }

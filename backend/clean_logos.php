@@ -2,9 +2,10 @@
 
 require __DIR__.'/vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
-$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+$kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -29,7 +30,7 @@ foreach ($svgImages as $svg) {
 
     // Cập nhật lại thumbnail và is_main cho sản phẩm này
     $productId = $svg->product_id;
-    
+
     // Lấy hình ảnh tiếp theo của sản phẩm (sắp xếp theo sort_order)
     $nextImages = DB::table('product_images')
         ->where('product_id', $productId)
@@ -38,11 +39,11 @@ foreach ($svgImages as $svg) {
 
     if ($nextImages->count() > 0) {
         $firstImage = $nextImages->first();
-        
+
         // Đặt ảnh này thành main
         DB::table('product_images')->where('image_id', $firstImage->image_id)->update([
             'is_main' => 1,
-            'sort_order' => 0
+            'sort_order' => 0,
         ]);
 
         // Cập nhật lại sort_order cho các ảnh còn lại
@@ -50,7 +51,7 @@ foreach ($svgImages as $svg) {
         foreach ($nextImages as $img) {
             if ($img->image_id !== $firstImage->image_id) {
                 DB::table('product_images')->where('image_id', $img->image_id)->update([
-                    'sort_order' => $order
+                    'sort_order' => $order,
                 ]);
                 $order++;
             }
@@ -58,14 +59,14 @@ foreach ($svgImages as $svg) {
 
         // Cập nhật thumbnail_url cho product
         DB::table('products')->where('product_id', $productId)->update([
-            'thumbnail_url' => $firstImage->image_url
+            'thumbnail_url' => $firstImage->image_url,
         ]);
-        
+
         $updatedProducts++;
     } else {
         // Nếu không còn ảnh nào, set null
         DB::table('products')->where('product_id', $productId)->update([
-            'thumbnail_url' => null
+            'thumbnail_url' => null,
         ]);
     }
 }

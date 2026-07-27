@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Log;
 use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification;
-use Illuminate\Support\Facades\Log;
 
 class FcmService
 {
@@ -33,9 +33,11 @@ class FcmService
 
         try {
             $this->messaging->send($message);
+
             return true;
         } catch (\Exception $e) {
-            Log::error('Lỗi gửi FCM: ' . $e->getMessage());
+            Log::error('Lỗi gửi FCM: '.$e->getMessage());
+
             return false;
         }
     }

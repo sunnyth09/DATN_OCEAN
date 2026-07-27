@@ -28,9 +28,9 @@ class AttendanceController extends Controller
     {
         $user = $this->attendanceService->resolveUser();
 
-        if (!$user['user_id']) {
+        if (! $user['user_id']) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không xác định được người dùng.',
             ], 401);
         }
@@ -42,9 +42,9 @@ class AttendanceController extends Controller
         );
 
         return response()->json([
-            'status'  => $result['success'] ? 'success' : 'error',
+            'status' => $result['success'] ? 'success' : 'error',
             'message' => $result['message'],
-            'data'    => $result['data'],
+            'data' => $result['data'],
         ], $result['status_code']);
     }
 
@@ -59,9 +59,9 @@ class AttendanceController extends Controller
     {
         $user = $this->attendanceService->resolveUser();
 
-        if (!$user['user_id']) {
+        if (! $user['user_id']) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không xác định được người dùng.',
             ], 401);
         }
@@ -73,9 +73,9 @@ class AttendanceController extends Controller
         );
 
         return response()->json([
-            'status'  => $result['success'] ? 'success' : 'error',
+            'status' => $result['success'] ? 'success' : 'error',
             'message' => $result['message'],
-            'data'    => $result['data'],
+            'data' => $result['data'],
         ], $result['status_code']);
     }
 
@@ -89,9 +89,9 @@ class AttendanceController extends Controller
     {
         $user = $this->attendanceService->resolveUser();
 
-        if (!$user['user_id']) {
+        if (! $user['user_id']) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không xác định được người dùng.',
             ], 401);
         }
@@ -103,7 +103,7 @@ class AttendanceController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $result,
+            'data' => $result,
         ]);
     }
 
@@ -117,9 +117,9 @@ class AttendanceController extends Controller
     {
         $user = $this->attendanceService->resolveUser();
 
-        if (!$user['user_id']) {
+        if (! $user['user_id']) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không xác định được người dùng.',
             ], 401);
         }
@@ -134,7 +134,7 @@ class AttendanceController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $attendances,
+            'data' => $attendances,
         ]);
     }
 
@@ -152,7 +152,7 @@ class AttendanceController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $attendances,
+            'data' => $attendances,
         ]);
     }
 
@@ -166,7 +166,7 @@ class AttendanceController extends Controller
     {
         $validated = $request->validate([
             'is_flagged' => 'required|boolean',
-            'flag_note'  => 'nullable|string|max:500',
+            'flag_note' => 'nullable|string|max:500',
         ]);
 
         $result = $this->attendanceService->flagAttendance(
@@ -176,7 +176,7 @@ class AttendanceController extends Controller
         );
 
         return response()->json([
-            'status'  => $result['success'] ? 'success' : 'error',
+            'status' => $result['success'] ? 'success' : 'error',
             'message' => $result['message'],
         ], $result['status_code']);
     }

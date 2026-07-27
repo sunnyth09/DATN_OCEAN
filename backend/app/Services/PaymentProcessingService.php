@@ -2,22 +2,31 @@
 
 namespace App\Services;
 
+use App\Events\OrderCreatedAdmin;
+use App\Events\UserNotificationEvent;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Symfony\Component\Mailer\Mailer;
+use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
+use Symfony\Component\Mime\Email;
 
 class PaymentProcessingService
 {
     private const CALLBACK_SOURCE_RETURN = 'return';
+
     private const CALLBACK_SOURCE_IPN = 'ipn';
 
     private const POST_PAYMENT_STATUS_PROCESSING = 'processing';
+
     private const POST_PAYMENT_STATUS_COMPLETED = 'completed';
+
     private const POST_PAYMENT_STATUS_FAILED = 'failed';
 
     private const POST_PAYMENT_LOCK_TIMEOUT_SECONDS = 300;
@@ -52,7 +61,7 @@ class PaymentProcessingService
     {
         $result = VNPayService::verifyReturn($queryParams);
 
-        if (!$result['isValid']) {
+        if (! $result['isValid']) {
             Log::warning('VNPay Return: Invalid secure hash', ['params' => $queryParams, 'ip' => $ip]);
 
             return [
@@ -71,7 +80,7 @@ class PaymentProcessingService
         $outcome = DB::transaction(function () use ($result, $queryParams, $ip) {
             $order = Order::where('order_code', $result['txnRef'])->lockForUpdate()->first();
 
-            if (!$order) {
+            if (! $order) {
                 return ['type' => 'order_not_found'];
             }
 
@@ -104,7 +113,7 @@ class PaymentProcessingService
 
             $isConfirmed = $this->isPaymentConfirmed($order, $payment);
 
-            if ($callbackStatus === 'failed' && !$isConfirmed) {
+            if ($callbackStatus === 'failed' && ! $isConfirmed) {
                 Log::info('VNPay Return: Payment failed before confirmation', [
                     'order_code' => $order->order_code,
                     'response_code' => $result['responseCode'],
@@ -224,7 +233,7 @@ class PaymentProcessingService
 
         $result = VNPayService::verifyReturn($queryParams);
 
-        if (!$result['isValid']) {
+        if (! $result['isValid']) {
             Log::warning('VNPay IPN: Invalid checksum', ['ip' => $ip]);
 
             return ['RspCode' => '97', 'Message' => 'Invalid Checksum'];
@@ -238,7 +247,7 @@ class PaymentProcessingService
         $outcome = DB::transaction(function () use ($result, $queryParams, $ip) {
             $order = Order::where('order_code', $result['txnRef'])->lockForUpdate()->first();
 
-            if (!$order) {
+            if (! $order) {
                 return ['type' => 'order_not_found'];
             }
 
@@ -312,7 +321,7 @@ class PaymentProcessingService
         if ($outcome['should_run_side_effects']) {
             $order = Order::with(['items', 'user'])->find($outcome['order_id']);
 
-            if (!$order) {
+            if (! $order) {
                 $this->markPostPaymentFailed($outcome['payment_id'], 'Order missing after payment confirmation.');
 
                 return ['RspCode' => '99', 'Message' => 'Post-payment actions failed'];
@@ -345,12 +354,12 @@ class PaymentProcessingService
     {
         $payment = $this->getPaymentForOrder($order);
 
-        if (!$payment) {
+        if (! $payment) {
             throw new \RuntimeException('Missing payment row for post-payment actions.');
         }
 
         try {
-            if ($order->user_id && !$this->hasCompletedPostPaymentStep($payment, 'cart_cleanup')) {
+            if ($order->user_id && ! $this->hasCompletedPostPaymentStep($payment, 'cart_cleanup')) {
                 $cart = Cart::where('user_id', $order->user_id)
                     ->where('status', 'active')
                     ->first();
@@ -383,8 +392,8 @@ class PaymentProcessingService
         }
 
         try {
-            if (!$this->hasCompletedPostPaymentStep($payment, 'admin_event')) {
-                event(new \App\Events\OrderCreatedAdmin($order));
+            if (! $this->hasCompletedPostPaymentStep($payment, 'admin_event')) {
+                event(new OrderCreatedAdmin($order));
                 $this->markPostPaymentStepCompleted($payment, 'admin_event');
             }
         } catch (\Exception $e) {
@@ -397,7 +406,7 @@ class PaymentProcessingService
         }
 
         try {
-            if (!$this->hasCompletedPostPaymentStep($payment, 'customer_email')) {
+            if (! $this->hasCompletedPostPaymentStep($payment, 'customer_email')) {
                 $this->sendPaymentConfirmationEmail($order);
                 $this->markPostPaymentStepCompleted($payment, 'customer_email');
             }
@@ -409,11 +418,11 @@ class PaymentProcessingService
                 $methodLabel = 'Ví MoMo';
             }
 
-            if ($order->user_id && !$this->hasCompletedPostPaymentStep($payment, 'user_notification')) {
+            if ($order->user_id && ! $this->hasCompletedPostPaymentStep($payment, 'user_notification')) {
                 $paymentEventKey = $this->makePostPaymentKey($order->order_code, $this->resolveTransactionCode($order));
                 $notificationData = [
                     'title' => 'Thanh toán thành công',
-                    'message' => 'Đơn hàng ' . $order->order_code . ' đã được thanh toán thành công qua ' . $methodLabel . '.',
+                    'message' => 'Đơn hàng '.$order->order_code.' đã được thanh toán thành công qua '.$methodLabel.'.',
                     'order_code' => $order->order_code,
                     'grand_total' => $order->grand_total,
                     'type' => 'payment_success',
@@ -424,7 +433,7 @@ class PaymentProcessingService
                     ['id' => $this->makeNotificationId($paymentEventKey)],
                     [
                         'type' => 'App\\Notifications\\OrderPaidNotification',
-                        'notifiable_type' => \App\Models\User::class,
+                        'notifiable_type' => User::class,
                         'notifiable_id' => $order->user_id,
                         'data' => json_encode($notificationData),
                         'read_at' => null,
@@ -433,7 +442,7 @@ class PaymentProcessingService
                     ]
                 );
 
-                event(new \App\Events\UserNotificationEvent($order->user_id, $notificationData));
+                event(new UserNotificationEvent($order->user_id, $notificationData));
                 $this->markPostPaymentStepCompleted($payment, 'user_notification');
             }
         } catch (\Exception $e) {
@@ -466,28 +475,29 @@ class PaymentProcessingService
         $emailUser = config('mail.mailers.smtp.username');
         $emailPass = config('mail.mailers.smtp.password');
 
-        if (!$emailUser) {
+        if (! $emailUser) {
             $emailUser = config('services.email.username');
             $emailPass = config('services.email.password');
         }
 
-        if (!$emailUser || !$emailPass) {
+        if (! $emailUser || ! $emailPass) {
             Log::warning('Skip sending payment confirmation email: mail credentials missing.');
+
             return false;
         }
 
-        $transport = new \Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport('smtp.gmail.com', 587, false);
+        $transport = new EsmtpTransport('smtp.gmail.com', 587, false);
         $transport->setUsername($emailUser);
         $transport->setPassword($emailPass);
-        $mailer = new \Symfony\Component\Mailer\Mailer($transport);
+        $mailer = new Mailer($transport);
 
         $itemsHtml = '';
         foreach ($order->items as $item) {
-            $variantInfo = $item->variant_name ? '(' . $item->color . '/' . $item->size . ')' : '';
+            $variantInfo = $item->variant_name ? '('.$item->color.'/'.$item->size.')' : '';
             $itemsHtml .= '
             <tr>
-                <td style="padding: 10px; border-bottom: 1px solid #eee;">' . htmlspecialchars($item->product_name) . ' ' . $variantInfo . ' x' . $item->quantity . '</td>
-                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">' . number_format($item->line_total, 0, ',', '.') . 'đ</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee;">'.htmlspecialchars($item->product_name).' '.$variantInfo.' x'.$item->quantity.'</td>
+                <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">'.number_format($item->line_total, 0, ',', '.').'đ</td>
             </tr>';
         }
 
@@ -502,39 +512,39 @@ class PaymentProcessingService
             <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                 <div style="background: #16a34a; padding: 20px; text-align: center; color: white;">
                     <h2 style="margin: 0;">Thanh toán thành công!</h2>
-                    <p style="margin: 5px 0 0;">Đơn hàng ' . $order->order_code . ' đã được xác nhận thanh toán qua ' . $methodLabel . '</p>
+                    <p style="margin: 5px 0 0;">Đơn hàng '.$order->order_code.' đã được xác nhận thanh toán qua '.$methodLabel.'</p>
                 </div>
                 <div style="padding: 20px;">
-                    <p>Xin chào <strong>' . htmlspecialchars($order->recipient_name) . '</strong>,</p>
-                    <p>Chúng tôi xác nhận đơn hàng <strong>' . $order->order_code . '</strong> đã được thanh toán thành công vào lúc ' . now()->format('H:i d/m/Y') . '.</p>
+                    <p>Xin chào <strong>'.htmlspecialchars($order->recipient_name).'</strong>,</p>
+                    <p>Chúng tôi xác nhận đơn hàng <strong>'.$order->order_code.'</strong> đã được thanh toán thành công vào lúc '.now()->format('H:i d/m/Y').'.</p>
 
                     <h3 style="border-bottom: 2px solid #16a34a; padding-bottom: 5px; color: #333;">Chi tiết đơn hàng</h3>
                     <table width="100%" cellspacing="0" cellpadding="0" style="margin-bottom: 20px;">
-                        ' . $itemsHtml . '
+                        '.$itemsHtml.'
                         <tr>
                             <td style="padding: 10px; text-align: right;">Tạm tính:</td>
-                            <td style="padding: 10px; text-align: right;">' . number_format($order->subtotal, 0, ',', '.') . 'đ</td>
+                            <td style="padding: 10px; text-align: right;">'.number_format($order->subtotal, 0, ',', '.').'đ</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px; text-align: right;">Phí vận chuyển:</td>
-                            <td style="padding: 10px; text-align: right;">' . number_format($order->shipping_fee, 0, ',', '.') . 'đ</td>
+                            <td style="padding: 10px; text-align: right;">'.number_format($order->shipping_fee, 0, ',', '.').'đ</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px; text-align: right;">Khuyến mãi:</td>
-                            <td style="padding: 10px; text-align: right; color: green;">-' . number_format($order->discount_amount, 0, ',', '.') . 'đ</td>
+                            <td style="padding: 10px; text-align: right; color: green;">-'.number_format($order->discount_amount, 0, ',', '.').'đ</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px; text-align: right; font-weight: bold; font-size: 16px;">TỔNG CỘNG:</td>
-                            <td style="padding: 10px; text-align: right; font-weight: bold; font-size: 16px; color: #e53e3e;">' . number_format($order->grand_total, 0, ',', '.') . 'đ</td>
+                            <td style="padding: 10px; text-align: right; font-weight: bold; font-size: 16px; color: #e53e3e;">'.number_format($order->grand_total, 0, ',', '.').'đ</td>
                         </tr>
                     </table>
 
                     <div style="background: #dcfce7; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px;">
-                        <p style="margin: 0; color: #166534;"><strong>Phương thức thanh toán:</strong> ' . $methodLabel . ' (Đã thanh toán)</p>
+                        <p style="margin: 0; color: #166534;"><strong>Phương thức thanh toán:</strong> '.$methodLabel.' (Đã thanh toán)</p>
                     </div>
 
                     <div style="text-align: center; margin-top: 30px;">
-                        <a href="' . htmlspecialchars($actionUrl, ENT_QUOTES, 'UTF-8') . '" style="background: #0288d1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">' . htmlspecialchars($actionLabel, ENT_QUOTES, 'UTF-8') . '</a>
+                        <a href="'.htmlspecialchars($actionUrl, ENT_QUOTES, 'UTF-8').'" style="background: #0288d1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">'.htmlspecialchars($actionLabel, ENT_QUOTES, 'UTF-8').'</a>
                     </div>
                 </div>
             </div>
@@ -542,10 +552,10 @@ class PaymentProcessingService
         </html>
         ';
 
-        $emailMessage = (new \Symfony\Component\Mime\Email())
+        $emailMessage = (new Email)
             ->from($emailUser)
             ->to($recipientEmail)
-            ->subject('Thanh toán thành công — Đơn hàng ' . $order->order_code)
+            ->subject('Thanh toán thành công — Đơn hàng '.$order->order_code)
             ->html($htmlBody);
 
         $mailer->send($emailMessage);
@@ -563,11 +573,12 @@ class PaymentProcessingService
         $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
 
         if ($order->user_id) {
-            return $frontendUrl . '/profile/orders';
+            return $frontendUrl.'/profile/orders';
         }
 
         $token = $this->ensureTrackingToken($order);
-        return $token ? $frontendUrl . '/tracking/' . $token : $frontendUrl . '/tracking';
+
+        return $token ? $frontendUrl.'/tracking/'.$token : $frontendUrl.'/tracking';
     }
 
     private function ensureTrackingToken(Order $order): ?string
@@ -576,7 +587,7 @@ class PaymentProcessingService
             return $order->tracking_token;
         }
 
-        $order->tracking_token = hash('sha256', $order->order_code . Str::random(40) . microtime(true));
+        $order->tracking_token = hash('sha256', $order->order_code.Str::random(40).microtime(true));
         $order->save();
 
         return $order->tracking_token;
@@ -687,7 +698,7 @@ class PaymentProcessingService
 
         if (
             $payment->post_payment_status === self::POST_PAYMENT_STATUS_PROCESSING
-            && !$this->isPostPaymentProcessingStale($payment)
+            && ! $this->isPostPaymentProcessingStale($payment)
         ) {
             return false;
         }
@@ -706,7 +717,7 @@ class PaymentProcessingService
 
     private function isPostPaymentProcessingStale(Payment $payment): bool
     {
-        if (!$payment->post_payment_started_at) {
+        if (! $payment->post_payment_started_at) {
             return true;
         }
 
@@ -739,7 +750,7 @@ class PaymentProcessingService
 
     private function makePostPaymentKey(string $orderCode, ?string $transactionCode): string
     {
-        return $orderCode . ':' . ($transactionCode ?: 'no-transaction');
+        return $orderCode.':'.($transactionCode ?: 'no-transaction');
     }
 
     private function resolveTransactionCode(Order $order): ?string
@@ -760,7 +771,7 @@ class PaymentProcessingService
     {
         $steps = $payment->gateway_response['post_payment_steps'] ?? [];
 
-        return !empty($steps[$step]['completed_at']);
+        return ! empty($steps[$step]['completed_at']);
     }
 
     private function markPostPaymentStepCompleted(Payment $payment, string $step): void
@@ -781,12 +792,12 @@ class PaymentProcessingService
 
     private function makeNotificationId(string $paymentEventKey): string
     {
-        return substr(hash('sha256', 'payment-success:' . $paymentEventKey), 0, 36);
+        return substr(hash('sha256', 'payment-success:'.$paymentEventKey), 0, 36);
     }
 
     private function getResponseMessage(string $code): string
     {
-        return self::VNPAY_RESPONSE_MESSAGES[$code] ?? 'Giao dịch không thành công. Mã lỗi: ' . $code;
+        return self::VNPAY_RESPONSE_MESSAGES[$code] ?? 'Giao dịch không thành công. Mã lỗi: '.$code;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -799,30 +810,30 @@ class PaymentProcessingService
     private function handleWalletDepositReturn(array $result): array
     {
         $depositCode = $result['txnRef'];
-        $isSuccess   = $result['responseCode'] === '00';
+        $isSuccess = $result['responseCode'] === '00';
 
-        if (!$isSuccess) {
+        if (! $isSuccess) {
             return [
                 '_status' => 200,
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => $this->getResponseMessage($result['responseCode']),
                 'payment_status' => 'failed',
                 'data' => [
                     'deposit_code' => $depositCode,
-                    'type'         => 'wallet_deposit',
+                    'type' => 'wallet_deposit',
                 ],
             ];
         }
 
         return [
             '_status' => 200,
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Nạp tiền vào ví thành công!',
             'payment_status' => 'paid',
             'data' => [
                 'deposit_code' => $depositCode,
-                'amount'       => $result['amount'],
-                'type'         => 'wallet_deposit',
+                'amount' => $result['amount'],
+                'type' => 'wallet_deposit',
             ],
         ];
     }
@@ -836,7 +847,7 @@ class PaymentProcessingService
 
         if ($result['responseCode'] !== '00') {
             Log::info('VNPay IPN: Wallet deposit payment failed', [
-                'deposit_code'  => $depositCode,
+                'deposit_code' => $depositCode,
                 'response_code' => $result['responseCode'],
             ]);
 
@@ -855,8 +866,9 @@ class PaymentProcessingService
                     ->lockForUpdate()
                     ->first();
 
-                if (!$deposit) {
+                if (! $deposit) {
                     Log::warning('VNPay IPN Wallet: Deposit code not found', ['code' => $depositCode]);
+
                     return;
                 }
 
@@ -871,9 +883,10 @@ class PaymentProcessingService
                 if (abs($result['amount'] - (float) $deposit->amount) > 1) {
                     Log::error('VNPay IPN Wallet: Amount mismatch', [
                         'deposit_code' => $depositCode,
-                        'expected'     => $deposit->amount,
-                        'received'     => $result['amount'],
+                        'expected' => $deposit->amount,
+                        'received' => $result['amount'],
                     ]);
+
                     return;
                 }
 
@@ -884,11 +897,11 @@ class PaymentProcessingService
                     type: 'deposit',
                     opts: [
                         'description' => 'Nạp ví qua VNPay',
-                        'metadata'    => [
-                            'deposit_code'   => $depositCode,
+                        'metadata' => [
+                            'deposit_code' => $depositCode,
                             'transaction_no' => $result['transactionNo'],
-                            'bank_code'      => $result['bankCode'],
-                            'method'         => 'vnpay',
+                            'bank_code' => $result['bankCode'],
+                            'method' => 'vnpay',
                         ],
                     ]
                 );
@@ -897,16 +910,16 @@ class PaymentProcessingService
                 DB::table('wallet_deposits')
                     ->where('deposit_code', $depositCode)
                     ->update([
-                        'status'                 => 'completed',
+                        'status' => 'completed',
                         'gateway_transaction_id' => $result['transactionNo'],
-                        'completed_at'           => now(),
-                        'updated_at'             => now(),
+                        'completed_at' => now(),
+                        'updated_at' => now(),
                     ]);
 
                 Log::info('VNPay IPN Wallet: Deposit completed', [
-                    'user_id'      => $deposit->user_id,
+                    'user_id' => $deposit->user_id,
                     'deposit_code' => $depositCode,
-                    'amount'       => $deposit->amount,
+                    'amount' => $deposit->amount,
                 ]);
             });
 
@@ -915,7 +928,7 @@ class PaymentProcessingService
         } catch (\Exception $e) {
             Log::error('VNPay IPN Wallet: Deposit processing error', [
                 'deposit_code' => $depositCode,
-                'error'        => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
 
             return ['RspCode' => '99', 'Message' => 'Unknown error'];

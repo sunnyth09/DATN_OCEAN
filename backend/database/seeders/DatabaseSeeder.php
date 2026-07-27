@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Carbon\Carbon;
 
 class DatabaseSeeder extends Seeder
 {
@@ -17,11 +17,11 @@ class DatabaseSeeder extends Seeder
         $now = Carbon::now()->toDateTimeString();
 
         // Kiểm tra super admin đã tồn tại chưa
-        $exists = DB::select("SELECT * FROM users WHERE email = ?", ['admin123@gmail.com']);
+        $exists = DB::select('SELECT * FROM users WHERE email = ?', ['admin123@gmail.com']);
 
         if (count($exists) === 0) {
             DB::insert(
-                "INSERT INTO users (full_name, email, password, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                'INSERT INTO users (full_name, email, password, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
                 ['Super Admin', 'admin123@gmail.com', Hash::make('123456'), 'admin', 'active', $now, $now]
             );
 
@@ -31,11 +31,11 @@ class DatabaseSeeder extends Seeder
         }
 
         // Kiểm tra user bình thường đã tồn tại chưa
-        $userExists = DB::select("SELECT * FROM users WHERE email = ?", ['user123@gmail.com']);
+        $userExists = DB::select('SELECT * FROM users WHERE email = ?', ['user123@gmail.com']);
 
         if (count($userExists) === 0) {
             DB::insert(
-                "INSERT INTO users (full_name, email, password, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                'INSERT INTO users (full_name, email, password, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
                 ['Normal User', 'user123@gmail.com', Hash::make('123456'), 'customer', 'active', $now, $now]
             );
 

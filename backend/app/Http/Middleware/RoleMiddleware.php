@@ -16,17 +16,17 @@ class RoleMiddleware
     {
         $user = auth('admin')->user() ?? auth('api')->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bạn chưa đăng nhập!'
+                'message' => 'Bạn chưa đăng nhập!',
             ], 401);
         }
 
-        if (!in_array($user->role, $roles)) {
+        if (! in_array($user->role, $roles)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bạn không có quyền truy cập chức năng này!'
+                'message' => 'Bạn không có quyền truy cập chức năng này!',
             ], 403);
         }
 

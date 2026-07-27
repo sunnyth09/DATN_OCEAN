@@ -2,9 +2,9 @@
 
 namespace App\Policies;
 
+use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\User;
-use App\Enums\OrderStatus;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
@@ -27,11 +27,12 @@ class OrderPolicy
      * Gate trước: Admin/Staff được phép làm mọi thứ trên Order.
      * Trả null để tiếp tục xét các rules bên dưới cho customer.
      */
-    public function before(mixed $user, string $ability): bool|null
+    public function before(mixed $user, string $ability): ?bool
     {
         // Admin model dùng 'admin' guard — check role thuộc admin/staff
         if (auth('admin')->check()) {
             $adminUser = auth('admin')->user();
+
             return in_array($adminUser->role, ['admin', 'staff'], true);
         }
 

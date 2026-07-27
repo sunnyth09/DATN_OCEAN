@@ -12,7 +12,7 @@ class DeviceTokenController extends Controller
         // Validate dữ liệu từ Flutter gửi lên
         $request->validate([
             'fcm_token' => 'required|string',
-            'device_type' => 'nullable|string' // android hoặc ios
+            'device_type' => 'nullable|string', // android hoặc ios
         ]);
 
         // Lấy user đang đăng nhập (nhờ middleware auth:sanctum)
@@ -26,7 +26,7 @@ class DeviceTokenController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Lưu Device Token thành công!'
+            'message' => 'Lưu Device Token thành công!',
         ]);
     }
 }

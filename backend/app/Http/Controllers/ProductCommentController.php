@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProductComment;
+use App\Models\Admin;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductComment;
+use App\Models\Ticket;
 use App\Services\LoyaltyService;
+use Exception;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
-use Exception;
-
-use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ProductCommentController extends Controller
 {
@@ -20,7 +20,8 @@ class ProductCommentController extends Controller
 
     public function __construct(
         protected LoyaltyService $loyaltyService
-    ) {}  
+    ) {}
+
     /**
      * Store a newly created comment.
      */
@@ -33,7 +34,7 @@ class ProductCommentController extends Controller
             'order_item_id' => 'required|exists:order_items,order_item_id',
             'images' => 'nullable|array|max:5',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-        ],[
+        ], [
             'rating.required' => 'Vui lòng nhập đánh giá',
             'rating.integer' => 'Đánh giá phải là số nguyên',
             'rating.min' => 'Đánh giá phải từ 1 đến 5 sao',
@@ -50,25 +51,25 @@ class ProductCommentController extends Controller
         ]);
 
         $userId = auth('api')->user()?->user_id;
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
         // Verify order item
         $orderItem = OrderItem::with('order')->find($request->order_item_id);
 
-        if (!$orderItem) {
+        if (! $orderItem) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy OrderItem trong DB.'], 404);
         }
 
         // Policy kiểm tra: ownership + order completed + chưa review
         // Array syntax: [ModelClass, $argument] → Laravel resolve sang ProductCommentPolicy::create($user, $orderItem)
-        $this->authorize('create', [\App\Models\ProductComment::class, $orderItem]);
+        $this->authorize('create', [ProductComment::class, $orderItem]);
 
         // Double-check DB: kiểm tra order_item thuộc về user hiện tại (tránh review hộ người khác)
         if ($orderItem->order->user_id !== $userId) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Bạn không có quyền đánh giá sản phẩm này.',
             ], 403);
         }
@@ -80,7 +81,7 @@ class ProductCommentController extends Controller
 
         if ($alreadyReviewed) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Bạn đã đánh giá sản phẩm này rồi.',
             ], 409);
         }
@@ -88,8 +89,8 @@ class ProductCommentController extends Controller
         // Verify product matches item
         if ($orderItem->product_id != $request->product_id) {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Sản phẩm không khớp với đơn hàng. Tham số truyền lên: ' . $request->product_id . ', trong DB: ' . $orderItem->product_id,
+                'status' => 'error',
+                'message' => 'Sản phẩm không khớp với đơn hàng. Tham số truyền lên: '.$request->product_id.', trong DB: '.$orderItem->product_id,
             ], 400);
         }
 
@@ -107,25 +108,25 @@ class ProductCommentController extends Controller
             }
 
             $comment = ProductComment::create([
-                'product_id'     => $request->product_id,
-                'user_id'        => $userId,
+                'product_id' => $request->product_id,
+                'user_id' => $userId,
                 'commenter_type' => 'user',
-                'order_item_id'  => $request->order_item_id,
-                'rating'         => $request->rating,
-                'content'        => $request->content,
-                'is_approved'    => $request->rating >= 3 ? 1 : 0,
-                'images'         => !empty($imagePaths) ? json_encode($imagePaths) : null,
+                'order_item_id' => $request->order_item_id,
+                'rating' => $request->rating,
+                'content' => $request->content,
+                'is_approved' => $request->rating >= 3 ? 1 : 0,
+                'images' => ! empty($imagePaths) ? json_encode($imagePaths) : null,
             ]);
 
             // Nếu rating <= 3, tự động tạo Ticket (Khiếu nại) cho admin
             if ($request->rating <= 3) {
-                \App\Models\Ticket::create([
-                    'user_id'     => $userId,
-                    'order_id'    => $orderItem->order_id,
-                    'product_id'  => $request->product_id,
-                    'reason'      => 'Phản hồi đánh giá thấp (' . $request->rating . ' sao)',
+                Ticket::create([
+                    'user_id' => $userId,
+                    'order_id' => $orderItem->order_id,
+                    'product_id' => $request->product_id,
+                    'reason' => 'Phản hồi đánh giá thấp ('.$request->rating.' sao)',
                     'description' => $request->content ?? 'Khách hàng đánh giá chất lượng sản phẩm thấp.',
-                    'status'      => 'pending',
+                    'status' => 'pending',
                 ]);
             }
 
@@ -133,11 +134,11 @@ class ProductCommentController extends Controller
             $user = auth('api')->user();
             if ($user) {
                 // +20 điểm khi viết nhận xét có nội dung
-                if (!empty(trim($request->content ?? ''))) {
+                if (! empty(trim($request->content ?? ''))) {
                     $this->loyaltyService->earnFromReview($user, $comment->comment_id);
                 }
                 // +50 điểm bonus khi đính kèm hình ảnh
-                if (!empty($imagePaths)) {
+                if (! empty($imagePaths)) {
                     $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
                 }
             }
@@ -151,11 +152,12 @@ class ProductCommentController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Đánh giá sản phẩm thành công.',
-                'data' => $comment->load('user:user_id,full_name,avatar_url')
+                'data' => $comment->load('user:user_id,full_name,avatar_url'),
             ], 201);
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Product comment store failed', ['error' => $e->getMessage()]);
+
             return response()->json(['status' => 'error', 'message' => 'Đã xảy ra lỗi, vui lòng thử lại sau.'], 500);
         }
     }
@@ -166,15 +168,15 @@ class ProductCommentController extends Controller
     public function getByProduct($productId)
     {
         $comments = ProductComment::with('user:user_id,full_name,avatar_url')
-                        ->where('product_id', $productId)
-                        ->where('is_approved', 1)
-                        ->orderBy('created_at', 'desc')
-                        ->paginate(10);
+            ->where('product_id', $productId)
+            ->where('is_approved', 1)
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
 
         // Append commenter_info từ đúng bảng
         $comments->getCollection()->transform(function ($comment) {
             if ($comment->commenter_type === 'admin') {
-                $admin = \App\Models\Admin::find($comment->user_id);
+                $admin = Admin::find($comment->user_id);
                 $comment->commenter_info = $admin ? [
                     'full_name' => $admin->full_name,
                     'avatar_url' => $admin->avatar_url,
@@ -185,12 +187,13 @@ class ProductCommentController extends Controller
                     'avatar_url' => $comment->user->avatar_url,
                 ] : null;
             }
+
             return $comment;
         });
-                        
+
         return response()->json([
             'status' => 'success',
-            'data' => $comments
+            'data' => $comments,
         ]);
     }
 
@@ -201,7 +204,7 @@ class ProductCommentController extends Controller
     {
         $query = ProductComment::with([
             'user:user_id,full_name,email,avatar_url',
-            'product:product_id,name,thumbnail_url'
+            'product:product_id,name,thumbnail_url',
         ]);
 
         // Filter by approval status
@@ -216,10 +219,10 @@ class ProductCommentController extends Controller
 
         // Search by product name or user name
         if ($request->filled('search')) {
-            $search = '%' . $request->search . '%';
+            $search = '%'.$request->search.'%';
             $query->where(function ($q) use ($search) {
-                $q->whereHas('product', fn($p) => $p->where('name', 'like', $search))
-                  ->orWhereHas('user', fn($u) => $u->where('full_name', 'like', $search));
+                $q->whereHas('product', fn ($p) => $p->where('name', 'like', $search))
+                    ->orWhereHas('user', fn ($u) => $u->where('full_name', 'like', $search));
             });
         }
 
@@ -228,7 +231,7 @@ class ProductCommentController extends Controller
         // Append commenter_info từ đúng bảng (users hoặc admins)
         $comments->getCollection()->transform(function ($comment) {
             if ($comment->commenter_type === 'admin') {
-                $admin = \App\Models\Admin::find($comment->user_id);
+                $admin = Admin::find($comment->user_id);
                 $comment->commenter_info = $admin ? [
                     'full_name' => $admin->full_name,
                     'email' => $admin->email,
@@ -241,12 +244,13 @@ class ProductCommentController extends Controller
                     'avatar_url' => $comment->user->avatar_url,
                 ] : null;
             }
+
             return $comment;
         });
 
         return response()->json([
             'status' => 'success',
-            'data' => $comments
+            'data' => $comments,
         ]);
     }
 
@@ -304,12 +308,14 @@ class ProductCommentController extends Controller
     private function recalculateProductRating($productId)
     {
         $product = Product::find($productId);
-        if (!$product) return;
+        if (! $product) {
+            return;
+        }
 
         $avgRating = ProductComment::where('product_id', $productId)
-                        ->where('is_approved', 1)->avg('rating');
+            ->where('is_approved', 1)->avg('rating');
         $countRating = ProductComment::where('product_id', $productId)
-                        ->where('is_approved', 1)->count();
+            ->where('is_approved', 1)->count();
 
         $product->rating_avg = round($avgRating ?? 0, 1);
         $product->rating_count = $countRating;

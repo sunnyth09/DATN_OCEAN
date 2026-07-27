@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\Order;
-use App\Services\GHNService;
 use App\Services\GhnOrderStatusSyncService;
+use App\Services\GHNService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -33,12 +33,13 @@ class SyncGhnOrderStatus extends Command
                 $detail = GHNService::getOrderDetail($order->ghn_order_code);
                 if (empty($detail)) {
                     $this->warn("Order #{$order->order_id}: GHN không trả dữ liệu.");
+
                     continue;
                 }
 
                 $result = $statusSyncService->syncFromDetail($order, $detail, 'ghn_api');
                 $synced++;
-                $this->info("Order #{$order->order_id}: {$result['ghn_status']} -> {$result['new_status']}" . ($result['changed'] ? ' (changed)' : ''));
+                $this->info("Order #{$order->order_id}: {$result['ghn_status']} -> {$result['new_status']}".($result['changed'] ? ' (changed)' : ''));
             } catch (\Throwable $e) {
                 $failed++;
                 Log::error('GHN status sync command error', [

@@ -15,10 +15,10 @@ class BuyFlashSaleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'flash_sale_id'   => 'required|integer|exists:flash_sales,id',
-            'product_id'      => 'required|integer|exists:products,product_id',
-            'quantity'        => 'integer|min:1|max:5',
-            'recipient_name'  => 'required|string|max:100',
+            'flash_sale_id' => 'required|integer|exists:flash_sales,id',
+            'product_id' => 'required|integer|exists:products,product_id',
+            'quantity' => 'integer|min:1|max:5',
+            'recipient_name' => 'required|string|max:100',
             'recipient_phone' => 'required|string|max:20',
         ];
     }
