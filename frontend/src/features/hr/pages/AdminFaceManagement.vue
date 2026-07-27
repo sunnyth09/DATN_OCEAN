@@ -38,6 +38,29 @@ const filteredList = computed(() => {
   return staffList.value;
 });
 
+// --- PAGINATION ---
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+
+const totalPages = computed(() => Math.ceil(filteredList.value.length / itemsPerPage.value));
+
+const paginatedList = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value;
+  const end = start + itemsPerPage.value;
+  return filteredList.value.slice(start, end);
+});
+
+const changePage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+  }
+};
+
+import { watch } from 'vue';
+watch([filter, search], () => {
+  currentPage.value = 1;
+});
+
 // --- SEARCH (debounced) ---
 let searchTimer = null;
 const onSearch = () => {
@@ -158,7 +181,7 @@ onMounted(() => fetchData());
 
     <!-- Staff List -->
     <div v-else-if="filteredList.length > 0" class="staff-list">
-      <div v-for="staff in filteredList" :key="staff.admin_id" class="staff-card card shadow-sm border-0 mb-3">
+      <div v-for="staff in paginatedList" :key="staff.admin_id" class="staff-card card shadow-sm border-0 mb-3">
         <div class="card-body p-3">
           <div class="staff-row" @click="toggleExpand(staff.admin_id)">
             <!-- Avatar -->
@@ -220,6 +243,27 @@ onMounted(() => fetchData());
             </div>
           </Transition>
         </div>
+      </div>
+      
+      <!-- Pagination Controls -->
+      <div v-if="totalPages > 1" class="pagination-controls">
+          <button :disabled="currentPage === 1" @click="changePage(currentPage - 1)" class="btn-page">
+              <i class="bi bi-chevron-left"></i> Trước
+          </button>
+          <div class="page-numbers">
+              <button 
+                  v-for="page in totalPages" 
+                  :key="page" 
+                  @click="changePage(page)" 
+                  class="btn-page-number" 
+                  :class="{'active': currentPage === page}"
+              >
+                  {{ page }}
+              </button>
+          </div>
+          <button :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)" class="btn-page">
+              Sau <i class="bi bi-chevron-right"></i>
+          </button>
       </div>
     </div>
 
@@ -310,4 +354,30 @@ onMounted(() => fetchData());
 .slide-fade-enter-active { transition: all 0.3s ease-out; }
 .slide-fade-leave-active { transition: all 0.2s ease; }
 .slide-fade-enter-from, .slide-fade-leave-to { opacity: 0; transform: translateY(-8px); }
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-top: 1px solid var(--border-color, #e2e8f0);
+    margin-top: 10px;
+}
+.btn-page {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--card-bg, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-page:hover:not(:disabled) { background: var(--hover-bg, #f4f6f8); border-color: var(--primary, #1d4ed8); color: var(--primary, #1d4ed8); }
+.btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+.page-numbers { display: flex; gap: 6px; }
+.btn-page-number {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--card-bg, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+}
+.btn-page-number:hover:not(.active) { background: var(--hover-bg, #f4f6f8); }
+.btn-page-number.active {
+    background: var(--primary, #1d4ed8); color: white; border-color: var(--primary, #1d4ed8);
+}
 </style>

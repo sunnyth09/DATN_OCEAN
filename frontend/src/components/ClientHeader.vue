@@ -34,6 +34,15 @@ const notificationsList = ref([]);
 const showNotificationPopup = ref(false);
 const isMobileMenuOpen = ref(false);
 const headerRewardPoints = ref(0);
+const isScrolled = ref(false);
+
+const handleScroll = () => {
+    isScrolled.value = window.scrollY > 50;
+};
+
+const notifPage = ref(1);
+const notifTotalPages = ref(1);
+const isFetchingNotif = ref(false);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
@@ -79,15 +88,22 @@ const toggleNotifMenu = async () => {
     }
 };
 
-const fetchNotificationsList = async () => {
+const fetchNotificationsList = async (page = 1) => {
     const token = sessionStorage.getItem("auth_token");
     if (!token) return;
+    isFetchingNotif.value = true;
     try {
-        const response = await api.get("/profile/notifications?limit=5");
+        const response = await api.get(`/profile/notifications?limit=5&page=${page}`);
         if (response.data && response.data.data) {
             // Check if it's a paginator object (Laravel default)
             if (response.data.data.data && Array.isArray(response.data.data.data)) {
-                notificationsList.value = response.data.data.data;
+                if (page === 1) {
+                    notificationsList.value = response.data.data.data;
+                } else {
+                    notificationsList.value = [...notificationsList.value, ...response.data.data.data];
+                }
+                notifPage.value = response.data.data.current_page || 1;
+                notifTotalPages.value = response.data.data.last_page || 1;
             } else {
                 notificationsList.value = response.data.data;
             }
@@ -96,19 +112,31 @@ const fetchNotificationsList = async () => {
         }
     } catch (e) {
         console.error("Failed to fetch notifications list", e);
+    } finally {
+        isFetchingNotif.value = false;
     }
 };
 
-const markAsRead = async (id, url) => {
-    try {
-        await api.post(`/profile/notifications/${id}/read`);
-        fetchUnreadNotificationCount();
-        if (url) {
-             router.push(url);
+const loadMoreNotifications = async () => {
+    if (notifPage.value < notifTotalPages.value && !isFetchingNotif.value) {
+        await fetchNotificationsList(notifPage.value + 1);
+    }
+};
+
+const markAsRead = async (notif) => {
+    if (!notif.read_at) {
+        try {
+            notif.read_at = new Date().toISOString();
+            authStore.decrementUnreadNotificationCount();
+            await api.post(`/profile/notifications/${notif.id}/read`);
+        } catch (e) {
+            console.error(e);
         }
-        showNotifDropdown.value = false;
-    } catch (e) {
-        console.error(e);
+    }
+    
+    if (notif.data?.url_redirect) {
+         router.push(notif.data.url_redirect);
+         showNotifDropdown.value = false;
     }
 };
 
@@ -379,8 +407,8 @@ const handleLogout = async () => {
 
 /* DRAGGABLE FLASH SALE LOGIC */
 const flashSalePos = ref({
-    x: window.innerWidth - 100,
-    y: window.innerHeight - 150,
+    x: window.innerWidth - 120, // Move a bit left to avoid edge
+    y: window.innerHeight - 180 // Move higher to avoid overlapping with Chatbot
 });
 let isDragging = false;
 let hasMoved = false;
@@ -444,17 +472,19 @@ onMounted(() => {
     window.addEventListener("user-updated", checkAuth);
     window.addEventListener("resize", handleViewportResize);
     document.addEventListener("click", handleDocumentClick);
+    window.addEventListener("scroll", handleScroll);
 
     // adjust initial position for small screens
     if (window.innerWidth < 768) {
-        flashSalePos.value.x = window.innerWidth - 80;
-        flashSalePos.value.y = window.innerHeight - 100;
+        flashSalePos.value.x = window.innerWidth - 120;
+        flashSalePos.value.y = window.innerHeight - 180;
     }
 });
 onUnmounted(() => {
     window.removeEventListener("user-updated", checkAuth);
     window.removeEventListener("resize", handleViewportResize);
     document.removeEventListener("click", handleDocumentClick);
+    window.removeEventListener("scroll", handleScroll);
     leaveNotificationChannel();
 });
 watch(
@@ -468,7 +498,7 @@ watch(
 </script>
 
 <template>
-    <header class="site-header">
+    <header class="site-header" :class="{ 'is-scrolled': isScrolled }">
         <div class="header-inner">
             <!-- Wrapper Logo and Nav to stick them together -->
             <div class="header-left">
@@ -507,7 +537,7 @@ watch(
             </div>
 
             <div class="header-actions">
-                <!-- <button
+                <button
                     type="button"
                     class="icon-btn mobile-nav-toggle"
                     :aria-expanded="isMobileMenuOpen"
@@ -515,7 +545,7 @@ watch(
                     @click.stop="toggleMobileMenu"
                 >
                     <AppIcon name="menu" stroke-width="2.2" />
-                </button> -->
+                </button>
 
                 <!-- Search -->
                 <!-- Inline Expandable Search -->
@@ -638,7 +668,7 @@ watch(
                                 <div v-for="notif in notificationsList" :key="notif.id" 
                                      class="notif-item" 
                                      :class="{ unread: !notif.read_at }"
-                                     @click="markAsRead(notif.id, notif.data?.url_redirect)">
+                                     @click="markAsRead(notif)">
                                     <div class="notif-icon-circle">
                                         <AppIcon name="bell" size="18" />
                                     </div>
@@ -651,6 +681,11 @@ watch(
                             </div>
                             <div class="notif-empty" v-else>
                                 Không có thông báo nào.
+                            </div>
+                            <div class="notif-footer" v-if="notifPage < notifTotalPages">
+                                <button class="btn-notif-loadmore" @click.stop="loadMoreNotifications" :disabled="isFetchingNotif">
+                                    {{ isFetchingNotif ? 'Đang tải...' : 'Tải thêm' }}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -707,14 +742,7 @@ watch(
                                 <!-- Điểm thưởng mini trong header dropdown -->
                                 <router-link v-if="headerRewardPoints >= 0" to="/profile/loyalty" class="header-loyalty-row" @click="closeAccountMenu">
                                     <span class="header-loyalty-icon">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f59e0b;">
-                                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
-                                            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
-                                            <path d="M4 22h16"/>
-                                            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
-                                            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
-                                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
-                                        </svg>
+                                        <AppIcon name="trophy" size="16" style="color: #f59e0b;" />
                                     </span>
                                     <span class="header-loyalty-label">Số điểm:</span>
                                     <span class="header-loyalty-pts">{{ new Intl.NumberFormat('vi-VN').format(headerRewardPoints) }} điểm</span>
@@ -828,10 +856,11 @@ watch(
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #F8F9FA;
-    /* position: sticky; */
+    position: sticky;
     top: 0;
     z-index: 1030;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .header-inner {
@@ -842,6 +871,17 @@ watch(
     display: flex;
     align-items: center;
     justify-content: space-between;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Scrolled Header Changes */
+.site-header.is-scrolled {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.98);
+}
+
+.site-header.is-scrolled .header-inner {
+    height: 54px;
 }
 
 /* LAYOUT */
@@ -856,6 +896,17 @@ watch(
 /* LOGO */
 .logo {
     text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.logo-img {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    height: auto;
+}
+
+.site-header.is-scrolled .logo-img {
+    width: 50px !important;
 }
 
 /* NAVIGATION */
@@ -917,7 +968,15 @@ watch(
     justify-content: center;
     padding: 8px;
     border-radius: 50%;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.site-header.is-scrolled .icon-btn {
+    transform: scale(0.9);
+}
+
+.site-header.is-scrolled .search-icon-btn {
+    transform: translateY(-50%) scale(0.9);
 }
 
 .icon-btn:hover {
@@ -945,6 +1004,7 @@ watch(
 }
 .search-container.is-expanded {
     width: 300px;
+    max-width: calc(100vw - 120px);
     background: #f1f5f9;
     padding-left: 16px;
 }
@@ -1310,6 +1370,8 @@ watch(
     display: flex;
     align-items: center;
     gap: 8px;
+    text-decoration: none !important;
+    padding: 10px 12px;
 }
 .header-loyalty-icon {
     font-size: 1rem;
@@ -1601,13 +1663,19 @@ watch(
     transform: translateY(-10px);
 }
 
+@media (max-width: 1024px) {
+    .main-nav {
+        gap: 20px;
+    }
+}
+
 @media (max-width: 768px) {
     .header-inner {
-        padding: 0 20px;
+        padding: 0 16px;
     }
 
     .header-left {
-        gap: 16px;
+        gap: 12px;
     }
 
     .main-nav {
@@ -1616,6 +1684,7 @@ watch(
 
     .mobile-nav-toggle {
         display: inline-flex;
+        order: 99; /* Đưa nút menu sang góc phải tận cùng */
     }
 
     .account-dropdown {
@@ -1623,7 +1692,7 @@ watch(
     }
 
     .header-actions {
-        gap: 10px;
+        gap: 8px;
     }
 
     .flash-sale-badge {
@@ -1636,4 +1705,30 @@ watch(
         height: 18px;
     }
 }
+.notif-footer {
+    padding: 10px;
+    text-align: center;
+    border-top: 1px solid #f1f5f9;
+}
+
+.btn-notif-loadmore {
+    background: transparent;
+    border: none;
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.btn-notif-loadmore:hover:not(:disabled) {
+    color: #c4305d;
+    text-decoration: underline;
+}
+
+.btn-notif-loadmore:disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
 </style>

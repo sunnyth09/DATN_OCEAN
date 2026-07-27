@@ -34,7 +34,7 @@ const renderTurnstile = () => {
   if (!container || !window.turnstile) return;
   container.innerHTML = '';
   turnstileWidgetId = window.turnstile.render('#turnstile-login', {
-    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADfskJpxs4bqJtS_',
+    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
     callback: (token) => { turnstileToken.value = token; },
     'expired-callback': () => { turnstileToken.value = ''; },
     'error-callback': () => { turnstileToken.value = ''; },
@@ -298,7 +298,7 @@ const login = async () => {
 .auth-page {
   flex: 1;
   width: 100%;
-  background: #f1f5f9;
+
   /* Classic soft background */
   padding: 60px 0;
   font-family: var(--font-inter, 'Inter', sans-serif);

@@ -91,42 +91,6 @@ class LoyaltyController extends Controller
     }
 
     /**
-     * POST /api/loyalty/social-share
-     * Earn điểm khi chia sẻ sản phẩm lên mạng xã hội (+30 điểm).
-     *
-     * Body: { product_id: int }
-     */
-    public function socialShare(Request $request): JsonResponse
-    {
-        $user = auth('api')->user();
-        if (!$user) return response()->json(['message' => 'Unauthenticated'], 401);
-
-        $request->validate([
-            'product_id' => 'required|integer|exists:products,product_id',
-        ]);
-
-        $tx = $this->loyaltyService->earnFromSocialShare($user, (int) $request->product_id);
-
-        if (!$tx) {
-            return response()->json([
-                'status'  => 'info',
-                'message' => 'Bạn đã nhận điểm chia sẻ cho sản phẩm này hôm nay.',
-                'data'    => ['already_earned' => true],
-            ]);
-        }
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => "+{$tx->points} điểm! Cảm ơn bạn đã chia sẻ.",
-            'data'    => [
-                'points_earned'   => $tx->points,
-                'new_balance'     => $tx->balance_after,
-                'already_earned'  => false,
-            ],
-        ]);
-    }
-
-    /**
      * POST /api/loyalty/preview-burn
      * Preview số tiền giảm nếu dùng X điểm khi checkout.
      *

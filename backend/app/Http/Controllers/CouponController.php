@@ -128,7 +128,11 @@ class CouponController extends Controller
             ], 401);
         }
 
-        $result = $this->couponService->saveForUser($userId, $request->input('coupon_id'));
+        $validated = $request->validate([
+            'coupon_id' => 'required|integer',
+        ]);
+
+        $result = $this->couponService->saveForUser($userId, (int) $validated['coupon_id']);
 
         if ($result['state'] === 'not_found') {
             return response()->json(['status' => 'error', 'message' => $result['message']], 404);

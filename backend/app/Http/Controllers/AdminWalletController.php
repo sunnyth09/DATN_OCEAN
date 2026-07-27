@@ -338,33 +338,53 @@ class AdminWalletController extends Controller
      */
     public function completeWithdrawal(int $id): JsonResponse
     {
-        $withdrawal = DB::table('wallet_withdrawals')->where('id', $id)->first();
+        try {
+            $withdrawal = DB::transaction(function () use ($id) {
+                // Lock dòng withdrawal và re-check trạng thái BÊN TRONG transaction để chống
+                // race với thao tác reject/complete từ request khác.
+                $withdrawal = DB::table('wallet_withdrawals')->where('id', $id)->lockForUpdate()->first();
 
-        if (!$withdrawal) {
-            return response()->json(['status' => 'error', 'message' => 'Không tìm thấy yêu cầu rút tiền'], 404);
+                if (!$withdrawal) {
+                    throw new \App\Exceptions\OrderException('Không tìm thấy yêu cầu rút tiền', 404);
+                }
+
+                if ($withdrawal->status !== 'processing') {
+                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                }
+
+                $affected = DB::table('wallet_withdrawals')
+                    ->where('id', $withdrawal->id)
+                    ->where('status', 'processing')
+                    ->update([
+                        'status'       => 'completed',
+                        'completed_at' => now(),
+                        'updated_at'   => now(),
+                    ]);
+
+                if ($affected === 0) {
+                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                }
+
+                return $withdrawal;
+            });
+
+            Log::info('Admin completed wallet withdrawal', [
+                'withdrawal_id' => $id,
+                'user_id'       => $withdrawal->user_id,
+                'amount'        => $withdrawal->amount,
+                'admin_id'      => auth('admin')->id(),
+            ]);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Đã đánh dấu chuyển khoản thành công.',
+            ]);
+        } catch (\App\Exceptions\OrderException $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], $e->getCode() ?: 422);
+        } catch (\Exception $e) {
+            Log::error('Admin complete withdrawal failed', ['error' => $e->getMessage()]);
+            return response()->json(['status' => 'error', 'message' => 'Duyệt rút tiền thất bại.'], 500);
         }
-
-        if ($withdrawal->status !== 'processing') {
-            return response()->json(['status' => 'error', 'message' => 'Yêu cầu đã được xử lý trước đó'], 422);
-        }
-
-        DB::table('wallet_withdrawals')->where('id', $id)->update([
-            'status'       => 'completed',
-            'completed_at' => now(),
-            'updated_at'   => now(),
-        ]);
-
-        Log::info('Admin completed wallet withdrawal', [
-            'withdrawal_id' => $id,
-            'user_id'       => $withdrawal->user_id,
-            'amount'        => $withdrawal->amount,
-            'admin_id'      => auth('admin')->id(),
-        ]);
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Đã đánh dấu chuyển khoản thành công.',
-        ]);
     }
 
     /**
@@ -394,9 +414,10 @@ class AdminWalletController extends Controller
                     ->where('id', $withdrawal->id)
                     ->where('status', 'processing')
                     ->update([
-                        'status'     => 'failed',
-                        'note'       => $note,
-                        'updated_at' => now(),
+                        'status'       => 'failed',
+                        'note'         => $note,
+                        'completed_at' => now(),
+                        'updated_at'   => now(),
                     ]);
 
                 if ($affected === 0) {

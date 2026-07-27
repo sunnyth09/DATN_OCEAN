@@ -25,11 +25,15 @@
         <div class="avatar-section">
           <div class="avatar-wrapper">
             <img
-              :src="previewAvatar || avatarUrl"
+              v-if="previewAvatar || userAvatar"
+              :src="previewAvatar || userAvatar"
               :alt="user.full_name"
               class="avatar-img"
               @error="onAvatarError"
             />
+            <div v-else class="avatar-img-fallback">
+              {{ (user.full_name || user.email || "?")[0].toUpperCase() }}
+            </div>
             <label for="avatar-input" class="avatar-upload-btn" title="Đổi ảnh đại diện">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </label>
@@ -179,17 +183,7 @@ const globalSuccess = ref('');
 const loading = ref(false);
 const isEditing = ref(false);
 const originalData = ref({ full_name: '', phone: '', date_of_birth: '' });
-
-// Tính toán avatar URL đúng (xử lý Google URL, local URL, và fallback)
-const avatarUrl = computed(() => {
-  const path = user.value.avatar_url;
-  if (!path) {
-    const name = encodeURIComponent(user.value.full_name || 'User');
-    return `https://ui-avatars.com/api/?name=${name}&background=4f46e5&color=fff&size=128`;
-  }
-  if (path.startsWith('http')) return path;
-  return `${BASE_URL}${path}`;
-});
+const userAvatar = ref(null);
 
 const isChanged = computed(() => {
   if (avatarFile.value) return true;
@@ -281,6 +275,16 @@ const syncUser = (data) => {
   form.value.date_of_birth = dob;
   
   originalData.value   = { full_name: data.full_name || '', phone: data.phone || '', date_of_birth: dob };
+
+  // Sync avatar_url with BASE_URL logic (same as ClientHeader.vue)
+  const path = data.avatar_url;
+  if (path) {
+    userAvatar.value = path.startsWith("http")
+        ? path
+        : `${BASE_URL}${path}`;
+  } else {
+    userAvatar.value = null;
+  }
 };
 
 // FIX M1: Client-side validation trước khi submit
@@ -488,6 +492,20 @@ onUnmounted(() => {
   object-fit: cover;
   border: 3px solid #e5e7eb;
   background: #f3f4f6;
+}
+.avatar-img-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid #e5e7eb;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 .avatar-upload-btn {
   position: absolute;

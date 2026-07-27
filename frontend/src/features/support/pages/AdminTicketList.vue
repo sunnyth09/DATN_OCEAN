@@ -6,7 +6,7 @@
         <p class="page-desc">Theo dõi và xử lý khiếu nại từ khách hàng</p>
       </div>
       <div class="header-right">
-        <span class="ticket-count">{{ tickets.length }} khiếu nại</span>
+        <span class="ticket-count">{{ pagination ? pagination.total : 0 }} khiếu nại</span>
       </div>
     </div>
 
@@ -77,6 +77,29 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="pagination && pagination.last_page > 1" class="pagination-controls">
+          <button :disabled="currentPage === 1" @click="changePage(currentPage - 1)" class="btn-page">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+              Trước
+          </button>
+          <div class="page-numbers">
+              <button 
+                  v-for="page in pagination.last_page" 
+                  :key="page" 
+                  @click="changePage(page)" 
+                  class="btn-page-number" 
+                  :class="{'active': currentPage === page}"
+              >
+                  {{ page }}
+              </button>
+          </div>
+          <button :disabled="currentPage === pagination.last_page" @click="changePage(currentPage + 1)" class="btn-page">
+              Sau
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+      </div>
       
       <!-- Empty State -->
       <div v-else-if="!loading && tickets.length === 0" class="empty-state">
@@ -184,6 +207,8 @@ const loading = ref(false);
 const actionLoading = ref(false);
 const searchQuery = ref('');
 const statusFilter = ref('all');
+const currentPage = ref(1);
+const pagination = ref(null);
 
 const showModal = ref(false);
 const selectedTicket = ref(null);
@@ -196,11 +221,18 @@ const fetchTickets = async () => {
     const res = await api.get('/admin/tickets', {
       params: {
         search: searchQuery.value,
-        status: statusFilter.value
+        status: statusFilter.value,
+        page: currentPage.value,
+        per_page: 5
       }
     });
     if (res.data.status === 'success') {
       tickets.value = res.data.data.data || [];
+      pagination.value = {
+        current_page: res.data.data.current_page,
+        last_page: res.data.data.last_page,
+        total: res.data.data.total
+      };
     }
   } catch (error) {
     console.error("Lỗi lấy danh sách khiếu nại:", error);
@@ -208,6 +240,12 @@ const fetchTickets = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+const changePage = (page) => {
+  if (page < 1 || (pagination.value && page > pagination.value.last_page)) return;
+  currentPage.value = page;
+  fetchTickets();
 };
 
 const getStatusText = (status) => {
@@ -404,6 +442,31 @@ onMounted(() => {
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
   font-size: 0.95rem;
+}
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 24px; border-top: 1px solid var(--border-color, #e2e8f0);
+}
+.btn-page {
+    display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+    border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--card-bg, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-page:hover:not(:disabled) { background: var(--hover-bg, #f4f6f8); border-color: var(--ocean-blue, #1d4ed8); color: var(--ocean-blue, #1d4ed8); }
+.btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+.page-numbers { display: flex; gap: 6px; }
+.btn-page-number {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border-color, #e2e8f0);
+    background: var(--card-bg, #fff); color: var(--text-main, #333);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+}
+.btn-page-number:hover:not(.active) { background: var(--hover-bg, #f4f6f8); }
+.btn-page-number.active {
+    background: var(--ocean-blue, #1d4ed8); color: white; border-color: var(--ocean-blue, #1d4ed8);
 }
 
 .user-info { display: flex; flex-direction: column; }
