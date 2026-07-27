@@ -184,7 +184,8 @@ onMounted(() => fetchWithdrawals());
 
     <!-- Table -->
     <div v-else class="table-card">
-      <table class="data-table">
+      <div class="table-responsive">
+        <table class="data-table">
         <thead>
           <tr>
             <th>Mã rút</th>
@@ -246,7 +247,8 @@ onMounted(() => fetchWithdrawals());
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
 
       <!-- Pagination -->
       <div v-if="pagination && pagination.last_page > 1" class="pagination-controls">

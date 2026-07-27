@@ -17,6 +17,9 @@ const isSearching = ref(true);
 const totalProducts = ref(0);
 
 // ── Filter state ──
+const isMobileFilterOpen = ref(false);
+const isCategoryOpen = ref(true);
+const isBrandOpen = ref(true);
 const selectedCategories = ref([]);     // checkbox array
 const selectedBrands = ref([]);         // checkbox array
 const priceMin = ref(0);
@@ -306,54 +309,75 @@ onUnmounted(() => {
             </div>
 
             <div class="product-layout">
+                <!-- Mobile Filter Toggle -->
+                <button class="mobile-filter-toggle d-md-none" @click="isMobileFilterOpen = true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    Bộ lọc sản phẩm
+                </button>
+
                 <!-- ══ LEFT SIDEBAR ══ -->
-                <aside class="product-sidebar">
+                <div class="filter-overlay" v-if="isMobileFilterOpen" @click="isMobileFilterOpen = false"></div>
+                <aside class="product-sidebar" :class="{ 'is-open': isMobileFilterOpen }">
+                    <div class="sidebar-header d-md-none">
+                        <h3>Bộ Lọc</h3>
+                        <button class="close-filter-btn" @click="isMobileFilterOpen = false">&times;</button>
+                    </div>
                     <!-- Danh mục -->
                     <div class="filter-group">
-                        <h3 class="filter-title">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
-                            DANH MỤC
-                        </h3>
-                        <template v-for="cat in Categories" :key="cat.category_id">
-                            <!-- Danh mục cha -->
-                            <label
-                                class="filter-checkbox"
-                                :class="{ checked: selectedCategories.includes(cat.category_id) }"
-                            >
-                                <input type="checkbox" :value="cat.category_id" :checked="selectedCategories.includes(cat.category_id)" @change="toggleCategoryFilter(cat.category_id)" />
-                                <span class="cb-custom"></span>
-                                <span class="cb-label">{{ cat.name }}</span>
-                            </label>
-
-                            <!-- Danh mục con -->
-                            <div v-if="cat.children && cat.children.length > 0" class="sub-categories">
-                                <label
-                                    v-for="child in cat.children"
-                                    :key="child.category_id"
-                                    class="filter-checkbox sub-category"
-                                    :class="{ checked: selectedCategories.includes(child.category_id) }"
-                                >
-                                    <input type="checkbox" :value="child.category_id" :checked="selectedCategories.includes(child.category_id)" @change="toggleCategoryFilter(child.category_id)" />
-                                    <span class="cb-custom"></span>
-                                    <span class="cb-label">{{ child.name }}</span>
-                                </label>
+                        <h3 class="filter-title collapsible" @click="isCategoryOpen = !isCategoryOpen">
+                            <div class="title-left">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>
+                                DANH MỤC
                             </div>
-                        </template>
+                            <svg class="collapse-icon" :class="{ 'is-open': isCategoryOpen }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </h3>
+                        <div v-show="isCategoryOpen" class="filter-content">
+                            <template v-for="cat in Categories" :key="cat.category_id">
+                                <!-- Danh mục cha -->
+                                <label
+                                    class="filter-checkbox"
+                                    :class="{ checked: selectedCategories.includes(cat.category_id) }"
+                                >
+                                    <input type="checkbox" :value="cat.category_id" :checked="selectedCategories.includes(cat.category_id)" @change="toggleCategoryFilter(cat.category_id)" />
+                                    <span class="cb-custom"></span>
+                                    <span class="cb-label">{{ cat.name }}</span>
+                                </label>
+
+                                <!-- Danh mục con -->
+                                <div v-if="cat.children && cat.children.length > 0" class="sub-categories">
+                                    <label
+                                        v-for="child in cat.children"
+                                        :key="child.category_id"
+                                        class="filter-checkbox sub-category"
+                                        :class="{ checked: selectedCategories.includes(child.category_id) }"
+                                    >
+                                        <input type="checkbox" :value="child.category_id" :checked="selectedCategories.includes(child.category_id)" @change="toggleCategoryFilter(child.category_id)" />
+                                        <span class="cb-custom"></span>
+                                        <span class="cb-label">{{ child.name }}</span>
+                                    </label>
+                                </div>
+                            </template>
+                        </div>
                     </div>
 
                     <!-- Thương hiệu -->
                     <div class="filter-group" v-if="Brands.length > 0">
-                        <h3 class="filter-title">THƯƠNG HIỆU</h3>
-                        <label
-                            v-for="brand in Brands"
-                            :key="brand.id || brand.brand_id"
-                            class="filter-checkbox"
-                            :class="{ checked: selectedBrands.includes(brand.id || brand.brand_id) }"
-                        >
-                            <input type="checkbox" :value="brand.id || brand.brand_id" :checked="selectedBrands.includes(brand.id || brand.brand_id)" @change="toggleBrandFilter(brand.id || brand.brand_id)" />
-                            <span class="cb-custom"></span>
-                            <span class="cb-label">{{ brand.name }}</span>
-                        </label>
+                        <h3 class="filter-title collapsible" @click="isBrandOpen = !isBrandOpen">
+                            <div class="title-left">THƯƠNG HIỆU</div>
+                            <svg class="collapse-icon" :class="{ 'is-open': isBrandOpen }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </h3>
+                        <div v-show="isBrandOpen" class="filter-content">
+                            <label
+                                v-for="brand in Brands"
+                                :key="brand.id || brand.brand_id"
+                                class="filter-checkbox"
+                                :class="{ checked: selectedBrands.includes(brand.id || brand.brand_id) }"
+                            >
+                                <input type="checkbox" :value="brand.id || brand.brand_id" :checked="selectedBrands.includes(brand.id || brand.brand_id)" @change="toggleBrandFilter(brand.id || brand.brand_id)" />
+                                <span class="cb-custom"></span>
+                                <span class="cb-label">{{ brand.name }}</span>
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Khoảng giá -->
@@ -564,6 +588,24 @@ onUnmounted(() => {
     margin: 0 0 14px;
     padding-bottom: 10px;
     border-bottom: 1.5px solid #2D3436;
+}
+
+.filter-title.collapsible {
+    cursor: pointer;
+    justify-content: space-between;
+    user-select: none;
+}
+.filter-title .title-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.filter-title .collapse-icon {
+    transition: transform 0.3s ease;
+    color: #636E72;
+}
+.filter-title .collapse-icon.is-open {
+    transform: rotate(180deg);
 }
 
 /* Checkbox filter */
@@ -780,7 +822,71 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
     .product-layout { flex-direction: column; }
-    .product-sidebar { width: 100%; position: static; display: flex; flex-wrap: wrap; gap: 24px; }
+    
+    .mobile-filter-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 12px;
+        background: var(--card-bg);
+        border: 1px solid #E9ECEF;
+        border-radius: 8px;
+        font-weight: 700;
+        color: var(--text-main);
+        justify-content: center;
+        margin-bottom: 16px;
+    }
+
+    .filter-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1040;
+    }
+
+    .product-sidebar { 
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 300px;
+        max-width: 85vw;
+        height: 100vh;
+        background: #fff;
+        z-index: 1050;
+        padding: 24px;
+        overflow-y: auto;
+        transition: left 0.3s ease;
+        display: block;
+    }
+
+    .product-sidebar.is-open {
+        left: 0;
+    }
+
+    .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #eee;
+    }
+
+    .sidebar-header h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 800;
+    }
+
+    .close-filter-btn {
+        background: none;
+        border: none;
+        font-size: 2rem;
+        line-height: 1;
+        padding: 0;
+    }
+    
     .filter-group { flex: 1; min-width: 200px; }
     .product-toolbar { flex-direction: column; align-items: flex-start; gap: 12px; }
     .page-hero { padding: 24px; }
