@@ -12,7 +12,6 @@ import AppIcon from '@/icons/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
-import { loyaltyService } from '@/services/loyaltyService';
 import QRCode from 'qrcode';
 import Swal from 'sweetalert2';
 import { affiliateService } from '@/services/affiliateService';
@@ -589,42 +588,6 @@ const handleUpgrade = (premiumVariant) => {
   showToast(`Đã nâng cấp lên phiên bản ${premiumVariant.color || ''} ${premiumVariant.size || ''}`.trim(), 'success');
 };
 
-const isSharing = ref(false);
-const shareToFacebook = async () => {
-    if (!product.value) return;
-    
-    // Tạo URL chia sẻ (giả lập sử dụng URL hiện tại)
-    const shareUrl = window.location.href;
-    const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-    
-    // Mở popup chia sẻ
-    const popup = window.open(fbShareUrl, 'facebook-share-dialog', 'width=800,height=600');
-    
-    if (authStore.isAuthenticated) {
-        isSharing.value = true;
-        const checkPopup = setInterval(async () => {
-            if (!popup || popup.closed || popup.closed === undefined) {
-                clearInterval(checkPopup);
-                try {
-                    const res = await loyaltyService.socialShare(product.value.product_id);
-                    if (res.data?.status === 'success') {
-                        showToast(res.data.message || 'Bạn đã nhận được 10 điểm thưởng từ việc chia sẻ!', 'success');
-                    } else if (res.data?.status === 'info') {
-                        showToast(res.data.message || 'Bạn đã nhận điểm chia sẻ cho sản phẩm này hôm nay.', 'warning');
-                    }
-                } catch (error) {
-                    const msg = error.response?.data?.message;
-                    if (msg) showToast(msg, 'warning');
-                } finally {
-                    isSharing.value = false;
-                }
-            }
-        }, 1000);
-    } else {
-        showToast('Vui lòng đăng nhập để nhận 10 điểm thưởng khi chia sẻ!', 'warning');
-    }
-};
-
 const showProductQr = async () => {
     if (!product.value) return;
 
@@ -880,11 +843,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Social Share for Loyalty Points -->
-        <button class="pd-btn-share" @click="shareToFacebook" :disabled="isSharing">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-          Chia sẻ Facebook nhận +10 điểm
-        </button>
 
         <!-- Product QR Code -->
         <button class="pd-btn-share" @click="showProductQr" style="margin-top: 10px; background-color: #f8f9fa; color: #212529; border-color: #dee2e6;">

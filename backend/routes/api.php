@@ -500,7 +500,6 @@ Route::middleware('auth:api')->prefix('loyalty')->group(function () {
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
     Route::middleware('throttle:20,1')->post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
-    Route::middleware('throttle:5,1')->post('/social-share', [LoyaltyController::class, 'socialShare']); // Chia sẻ MXH +30đ (chống spam)
 });
 
 // ==========================================
