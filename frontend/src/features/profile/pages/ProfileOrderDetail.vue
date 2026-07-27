@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue';
+import { ref, nextTick, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
 import { orderService } from '@/services/orderService';
@@ -28,7 +28,7 @@ const showToast = (message, type = 'success') => {
 
 const route = useRoute();
 const router = useRouter();
-const orderId = route.params.id;
+const orderId = computed(() => route.params.id);
 
 const order = ref(null);
 const tracking = ref(null);
@@ -84,9 +84,10 @@ const getStatusIcon = (status) => {
 };
 
 const fetchOrderTracking = async () => {
+  if (!orderId.value) return;
   trackingLoading.value = true;
   try {
-    const res = await orderService.getOrderTracking(orderId);
+    const res = await orderService.getOrderTracking(orderId.value);
     if (res.data.status === 'success') {
       tracking.value = res.data.data;
     }
@@ -99,9 +100,10 @@ const fetchOrderTracking = async () => {
 };
 
 const fetchOrderDetail = async () => {
+  if (!orderId.value) return;
   loading.value = true;
   try {
-    const res = await orderService.getProfileOrderDetail(orderId);
+    const res = await orderService.getProfileOrderDetail(orderId.value);
     if (res.data.status === 'success') {
       order.value = res.data.data;
       await fetchOrderTracking();
@@ -311,6 +313,12 @@ const submitTicket = async () => {
 
 onMounted(() => {
   fetchOrderDetail();
+});
+
+watch(orderId, (newId) => {
+  if (newId) {
+    fetchOrderDetail();
+  }
 });
 </script>
 

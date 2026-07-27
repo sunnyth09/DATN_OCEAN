@@ -15,6 +15,7 @@ class SystemNotification extends Notification implements ShouldQueue
     protected $message;
     protected $urlRedirect;
     protected $icon;
+    protected $extraData;
 
     /**
      * Khởi tạo Notification.
@@ -23,13 +24,15 @@ class SystemNotification extends Notification implements ShouldQueue
      * @param string $message Nội dung thông báo
      * @param string|null $urlRedirect Link khi click vào (Tùy chọn)
      * @param string|null $icon Icon hiển thị (Tùy chọn)
+     * @param array $extraData Dữ liệu bổ sung (Tùy chọn)
      */
-    public function __construct(string $title, string $message, ?string $urlRedirect = null, ?string $icon = 'bell')
+    public function __construct(string $title, string $message, ?string $urlRedirect = null, ?string $icon = 'bell', array $extraData = [])
     {
         $this->title = $title;
         $this->message = $message;
         $this->urlRedirect = $urlRedirect;
         $this->icon = $icon;
+        $this->extraData = $extraData;
     }
 
     /**
@@ -45,12 +48,12 @@ class SystemNotification extends Notification implements ShouldQueue
      */
     public function toDatabase($notifiable): array
     {
-        return [
+        return array_merge([
             'title' => $this->title,
             'message' => $this->message,
             'url_redirect' => $this->urlRedirect,
             'icon' => $this->icon,
-        ];
+        ], $this->extraData);
     }
 
     /**
@@ -60,12 +63,12 @@ class SystemNotification extends Notification implements ShouldQueue
      */
     public function toBroadcast($notifiable): BroadcastMessage
     {
-        return new BroadcastMessage([
+        return new BroadcastMessage(array_merge([
             'title' => $this->title,
             'message' => $this->message,
             'url_redirect' => $this->urlRedirect,
             'icon' => $this->icon,
-        ]);
+        ], $this->extraData));
     }
     
     /**
