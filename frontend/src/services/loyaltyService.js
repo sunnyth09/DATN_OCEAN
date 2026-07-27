@@ -32,14 +32,6 @@ export const loyaltyService = {
   },
 
   /**
-   * Earn +30 điểm khi chia sẻ sản phẩm lên mạng xã hội
-   * @param {number} productId
-   */
-  socialShare(productId) {
-    return api.post('/loyalty/social-share', { product_id: productId });
-  },
-
-  /**
    * Lấy danh sách quà tặng (Rewards)
    */
   getRewards() {
