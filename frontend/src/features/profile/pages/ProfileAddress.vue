@@ -18,7 +18,7 @@
     </div>
 
     <!-- Address List -->
-    <div v-else-if="addresses.length > 0" class="address-list">
+    <div v-else-if="hasAddresses" class="address-list">
       <div
         v-for="address in addresses"
         :key="address.address_id"
@@ -65,6 +65,17 @@
           </p>
         </div>
       </div>
+
+      <PaginationControls
+        :current-page="currentPage"
+        :last-page="pagination?.last_page || 1"
+        :total="pagination?.total || 0"
+        :from="pagination?.from"
+        :to="pagination?.to"
+        :per-page="perPage"
+        :disabled="loading"
+        @change="fetchAddresses"
+      />
     </div>
 
     <!-- Empty State -->
@@ -173,13 +184,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import Swal from 'sweetalert2';
 import AddressSelector from '@/components/AddressSelector.vue';
+import PaginationControls from '@/components/PaginationControls.vue';
 import { addressService } from '@/services/addressService';
+import { sanitizeAddressPayload, validateAddressPayload } from '@/utils/addressValidation';
 
 const addresses = ref([]);
 const loading = ref(true);
+const currentPage = ref(1);
+const perPage = 5;
+const pagination = ref(null);
 const showForm = ref(false);
 const isEditing = ref(false);
 const editingId = ref(null);
@@ -205,6 +221,8 @@ const form = ref({
   is_default: false,
 });
 
+const hasAddresses = computed(() => (pagination.value?.total ?? addresses.value.length) > 0);
+
 // --- GHN API Functions ---
 async function updateShippingFee(districtCode, wardCode) {
   if (!districtCode || !wardCode) {
@@ -227,11 +245,14 @@ async function updateShippingFee(districtCode, wardCode) {
 }
 
 // Fetch addresses
-async function fetchAddresses() {
+async function fetchAddresses(page = 1) {
   loading.value = true;
   try {
-    const res = await addressService.listProfileAddresses();
-    addresses.value = res.data?.data || [];
+    const res = await addressService.listProfileAddresses({ page, per_page: perPage });
+    const pageData = res.data?.data || {};
+    addresses.value = pageData.data || [];
+    pagination.value = pageData;
+    currentPage.value = pageData.current_page || page;
   } catch (e) {
     console.error('Lỗi tải địa chỉ:', e);
   } finally {
@@ -319,48 +340,30 @@ const closeForm = () => {
   showForm.value = false;
   formError.value = '';
 }
-const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
-
 // Submit form
 const handleSubmit = async() => {
-  // Validate
-  if (!form.value.recipient_name.trim()) {
-    formError.value = 'Vui lòng nhập họ tên người nhận';
-    return;
-  }
-  if (!form.value.phone.trim()) {
-    formError.value = 'Vui lòng nhập số điện thoại';
-    return;
-  } else if (!phoneRegex.test(form.value.phone.trim())) {
-    formError.value = 'Số điện thoại không hợp lệ';
-    return;
-  }
-  if (!form.value.province) {
-    formError.value = 'Vui lòng chọn Tỉnh/Thành phố';
-    return;
-  }
-  if (!form.value.district) {
-    formError.value = 'Vui lòng chọn Quận/Huyện';
-    return;
-  }
-  if (!form.value.ward) {
-    formError.value = 'Vui lòng chọn Phường/Xã';
+  const validation = validateAddressPayload(form.value);
+  if (!validation.valid) {
+    formError.value = validation.firstError;
     return;
   }
 
   submitting.value = true;
   formError.value = '';
+  const payload = sanitizeAddressPayload(form.value);
 
   try {
     if (isEditing.value) {
-      await addressService.updateProfileAddress(editingId.value, form.value);
+      await addressService.updateProfileAddress(editingId.value, payload);
+      await fetchAddresses(currentPage.value);
     } else {
-      await addressService.createProfileAddress(form.value);
+      await addressService.createProfileAddress(payload);
+      await fetchAddresses(1);
     }
     closeForm();
-    await fetchAddresses();
   } catch (e) {
-    formError.value = e.response?.data?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.';
+    const errors = e.response?.data?.errors;
+    formError.value = errors ? Object.values(errors).flat()[0] : (e.response?.data?.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
   } finally {
     submitting.value = false;
   }
@@ -382,7 +385,8 @@ const deleteAddress = async(id) => {
   
   try {
     await addressService.deleteProfileAddress(id);
-    await fetchAddresses();
+    const nextPage = addresses.value.length === 1 && currentPage.value > 1 ? currentPage.value - 1 : currentPage.value;
+    await fetchAddresses(nextPage);
     Swal.fire('Thành công', 'Đã xóa địa chỉ!', 'success');
   } catch (e) {
     Swal.fire('Thất bại', 'Xóa địa chỉ thất bại!', 'error');
@@ -393,7 +397,7 @@ const deleteAddress = async(id) => {
 const setDefault = async(id) => {
   try {
     await addressService.setDefaultProfileAddress(id);
-    await fetchAddresses();
+    await fetchAddresses(1);
   } catch (e) {
     Swal.fire('Thất bại', 'Đặt mặc định thất bại!', 'error');
   }
