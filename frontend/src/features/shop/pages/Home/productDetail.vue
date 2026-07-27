@@ -256,7 +256,6 @@ const findVariantForSelection = (color = selectedColor.value, size = selectedSiz
   return null;
 };
 
-// Khi chọn màu: giữ lại size nếu size đó vẫn tồn tại và còn hàng cho màu mới.
 watch(selectedColor, (newColor) => {
   activeImageIndex.value = 0;
 
@@ -279,12 +278,25 @@ watch(selectedColor, (newColor) => {
   if (colorVariants.length === 1) {
     selectedSize.value = colorVariants[0].size;
     selectedVariant.value = colorVariants[0];
+  } else if (colorVariants.length > 1 && availableSizes.value.length === 0) {
+    // If there are multiple variants with the same color but NO sizes available,
+    // we should still select one so the user can purchase.
+    const active = colorVariants.find(v => isVariantPurchasable(v));
+    selectedVariant.value = active || colorVariants[0];
+  } else if (colorVariants.length > 1) {
+    // There are sizes to choose from, clear the selected variant until size is chosen
+    selectedVariant.value = null;
   }
 });
 
 // Khi chọn size → tìm variant đúng theo màu hiện tại, không làm mất lựa chọn màu.
 watch(selectedSize, (newSize) => {
-  selectedVariant.value = newSize ? findVariantForSelection(selectedColor.value, newSize) : null;
+  if (newSize) {
+    selectedVariant.value = findVariantForSelection(selectedColor.value, newSize);
+  } else {
+    // If size is cleared but color is selected, try to find the color variant
+    selectedVariant.value = findVariantForSelection(selectedColor.value, null);
+  }
 });
 const mainImageUrl = computed(() => {
   const imgs = allImages.value;

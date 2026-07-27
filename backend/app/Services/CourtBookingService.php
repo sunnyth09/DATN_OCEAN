@@ -51,7 +51,16 @@ class CourtBookingService
                 throw new Exception('Sân đã được đặt trong khung giờ này.');
             }
 
-            // 2. Check existing active lock
+            // 1.5 Xóa các lock cũ của CHÍNH user này trên cùng sân, cùng ngày
+            // Việc này giúp frontend không cần gọi API release-lock thủ công, giảm 50% API calls
+            // và bảo toàn lock cũ nếu API bị lỗi (VD: 429 Rate Limit) vì transaction sẽ rollback/không chạy.
+            DB::table('court_booking_locks')
+                ->where('user_id', $userId)
+                ->where('court_id', $courtId)
+                ->where('booking_date', $date)
+                ->delete();
+
+            // 2. Check existing active lock (của người khác)
             $lockConflict = DB::table('court_booking_locks')
                 ->where('court_id', $courtId)
                 ->where('booking_date', $date)

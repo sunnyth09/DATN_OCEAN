@@ -1500,11 +1500,11 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-small-img {
     position: absolute;
-    right: -10px;
+    right: 10px;
     top: 50%;
     transform: translateY(-50%);
-    width: 50%;
-    height: 130%;
+    width: 45%;
+    height: 85%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1521,7 +1521,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .equip-small-card:hover .equip-small-img img {
-    transform: scale(1.15) translateX(-10px);
+    transform: scale(1.1);
 }
 
 .equip-small-info {

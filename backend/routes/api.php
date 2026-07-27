@@ -190,7 +190,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // ── Affiliate (Hoa hồng giới thiệu) ──
     Route::middleware('customer.only')->group(function () {
-        Route::middleware('throttle:3,60')->post('/affiliate/register', [AffiliateController::class, 'register']);
+        Route::middleware('throttle:10,1')->post('/affiliate/register', [AffiliateController::class, 'register']);
         Route::middleware('throttle:60,1')->get('/affiliate/profile', [AffiliateController::class, 'profile']);
         Route::middleware('throttle:60,1')->get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
         Route::middleware('throttle:60,1')->get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
@@ -315,6 +315,7 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::delete('/flash-sale/{id}', [\App\Http\Controllers\Admin\FlashSaleController::class, 'destroy']);
     Route::post('/flash-sale/{id}/initialize', [\App\Http\Controllers\Admin\FlashSaleController::class, 'initialize']);
     // ── Affiliate Management (Admin) ──
+    Route::get('/affiliate/users', [AdminAffiliateController::class, 'affiliates']);
     Route::get('/affiliate/conversions', [AdminAffiliateController::class, 'conversions']);
     Route::put('/affiliate/conversions/{id}/approve', [AdminAffiliateController::class, 'approveConversion']);
     Route::put('/affiliate/conversions/{id}/cancel', [AdminAffiliateController::class, 'cancelConversion']);

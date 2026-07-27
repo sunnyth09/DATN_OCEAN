@@ -514,7 +514,7 @@ watch(
                         class="nav-link" :class="{ active: isCategoryActive(cat) }">
                         {{ cat.name }}
                     </router-link>
-                    <router-link to="/courts" class="nav-link" :class="{ active: isRouteActive('courts') }">
+                    <router-link to="/courts" class="nav-link" :class="{ active: route.path.startsWith('/courts') }">
                         Sân thể thao
                     </router-link>
                     <router-link to="/contact" class="nav-link" :class="{ active: isRouteActive('contact') }">
@@ -757,10 +757,84 @@ watch(
                     </button>
                 </div>
 
-                <button type="button" class="mobile-search-btn" @click="openSearch">
-                    <AppIcon name="search" size="18" />
-                    <span>Tìm kiếm sản phẩm</span>
-                </button>
+                <div class="search-wrapper mobile-search-wrapper">
+                    <div class="search-container" :class="{ 'is-expanded': isSearchExpanded }">
+                        <input id="mobile-site-search" name="search" type="text" class="search-input" v-model="searchQuery"
+                            @keyup.enter="executeSearch" @blur="handleSearchBlur"
+                            @focus="handleSearchFocus" placeholder="Tìm kiếm sản phẩm..."
+                            aria-label="Tìm kiếm sản phẩm" />
+                        <button class="icon-btn search-icon-btn" @click="toggleSearch">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Search dropdown results -->
+                    <div class="search-dropdown-box" v-if="isSearchExpanded && showDropdownResult">
+                        <div v-if="isSearching" class="search-msg">Đang tìm kiếm...</div>
+
+                        <!-- Lịch sử tìm kiếm & Gợi ý (khi chưa gõ) -->
+                        <div v-else-if="!searchQuery" class="search-suggestions">
+                            <div class="search-history-section" v-if="searchHistory.length">
+                                <div class="suggestion-header"
+                                    style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF; display:flex; justify-content: space-between">
+                                    <span>Lịch sử tìm kiếm</span>
+                                </div>
+                                <ul class="search-list">
+                                    <li v-for="(history, i) in searchHistory" :key="'hm-' + i" class="search-item"
+                                        @click.stop="executeSearch(history.keyword)">
+                                        <AppIcon name="search" size="14" style="margin-right: 8px; color: #636E72" />
+                                        <div class="search-item-info">
+                                            <div class="search-item-name" style="font-weight: 500;">{{ history.keyword }}</div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div class="recently-viewed-section" v-if="recentlyViewed.length">
+                                <div class="suggestion-header"
+                                    style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF;">
+                                    <span>Sản phẩm vừa xem</span>
+                                </div>
+                                <ul class="search-list">
+                                    <li v-for="item in recentlyViewed" :key="'rm-' + item.product_id" class="search-item"
+                                        @click.stop="goToProduct(item.product.slug)">
+                                        <img :src="getImageUrl(item.product)" class="search-item-img" />
+                                        <div class="search-item-info">
+                                            <div class="search-item-name">{{ item.product.name }}</div>
+                                            <div class="search-item-price">{{ formatPrice(item.product.min_price) }}</div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div v-if="!searchHistory.length && !recentlyViewed.length" class="search-msg">
+                                Nhập từ khóa để tìm kiếm...
+                            </div>
+                        </div>
+
+                        <!-- Kết quả tìm kiếm -->
+                        <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản phẩm phù hợp.</div>
+                        <template v-else>
+                            <ul class="search-list">
+                                <li v-for="item in searchResults" :key="'ms-' + item.product_id" class="search-item"
+                                    @click.stop="goToProduct(item.slug)">
+                                    <img :src="getImageUrl(item)" class="search-item-img" />
+                                    <div class="search-item-info">
+                                        <div class="search-item-name">{{ item.name }}</div>
+                                        <div class="search-item-price">{{ formatPrice(item.min_price) }}</div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <div v-if="searchResults.length > 0" class="search-view-all" @click.stop="executeSearch()">
+                                Xem tất cả kết quả
+                            </div>
+                        </template>
+                    </div>
+                </div>
 
                 <nav class="mobile-nav-links">
                     <router-link v-for="cat in topCategories" :key="`mobile-${getCategoryId(cat)}`"
@@ -916,6 +990,11 @@ watch(
     height: 2px;
     background-color: var(--primary);
     border-radius: 2px;
+    transition: opacity 0.2s;
+}
+
+.site-header.is-scrolled .nav-link.active::after {
+    opacity: 0;
 }
 
 /* HEADER ACTIONS */
@@ -1662,6 +1741,10 @@ watch(
     transform: translateY(-10px);
 }
 
+.mobile-nav-toggle {
+    display: none;
+}
+
 @media (max-width: 1024px) {
     .main-nav {
         gap: 20px;
@@ -1692,6 +1775,35 @@ watch(
 
     .header-actions {
         gap: 8px;
+    }
+
+    .header-actions .search-wrapper {
+        display: none; /* Ẩn search bar ở header trên mobile */
+    }
+
+    .mobile-search-wrapper {
+        display: block;
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 100;
+    }
+    .mobile-search-wrapper .search-container {
+        width: 100%;
+        max-width: 100%;
+        background: #f1f5f9;
+        padding-left: 16px;
+    }
+    .mobile-search-wrapper .search-input {
+        width: 100%;
+        opacity: 1;
+        padding-right: 40px;
+    }
+    .mobile-search-wrapper .search-dropdown-box {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        z-index: 1001;
     }
 
     .flash-sale-badge {

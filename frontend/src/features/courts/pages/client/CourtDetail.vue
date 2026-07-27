@@ -266,28 +266,48 @@ const ensureAuthenticated = () => {
     return false;
 };
 
+let isLocking = false;
+let needsRelock = false;
+
 const lockSelectedSlots = async () => {
-    if (!ensureAuthenticated()) return;
-    await releaseActiveLock();
-    if (selectedSlots.value.length === 0 || !hasContinuousSlots()) return;
-    const startTime = formatTime(selectedSlots.value[0].start_time);
-    const endTime = formatTime(selectedSlots.value[selectedSlots.value.length - 1].end_time);
-    const res = await store.lockSlot({
-        court_id: parseInt(courtId),
-        booking_date: selectedDate.value,
-        start_time: startTime,
-        end_time: endTime
-    });
-    activeLock.value = res?.data || null;
-    if (activeLock.value?.expires_at) startLockTimer(activeLock.value.expires_at);
+    if (isLocking) {
+        needsRelock = true;
+        return;
+    }
+    isLocking = true;
+    needsRelock = false;
+
+    try {
+        if (!ensureAuthenticated()) return;
+        if (selectedSlots.value.length === 0 || !hasContinuousSlots()) return;
+        const startTime = formatTime(selectedSlots.value[0].start_time);
+        const endTime = formatTime(selectedSlots.value[selectedSlots.value.length - 1].end_time);
+        const res = await store.lockSlot({
+            court_id: parseInt(courtId),
+            booking_date: selectedDate.value,
+            start_time: startTime,
+            end_time: endTime
+        });
+        activeLock.value = res?.data || null;
+        if (activeLock.value?.expires_at) startLockTimer(activeLock.value.expires_at);
+    } finally {
+        isLocking = false;
+        if (needsRelock) {
+            await lockSelectedSlots();
+        }
+    }
 };
 
-const toggleSlot = async (slot) => {
+let lockTimeout = null;
+
+const toggleSlot = (slot) => {
     if (slot.status !== 'available' && !slot.is_my_lock) return;
     if (!ensureAuthenticated()) return;
 
     const index = selectedSlots.value.findIndex(s => s.start_time === slot.start_time);
-    if (index === -1) {
+    const wasAdded = index === -1;
+    
+    if (wasAdded) {
         selectedSlots.value.push(slot);
     } else {
         selectedSlots.value.splice(index, 1);
@@ -295,13 +315,40 @@ const toggleSlot = async (slot) => {
 
     // Sắp xếp lại theo thời gian
     selectedSlots.value.sort((a, b) => a.start_time.localeCompare(b.start_time));
-    try {
-        await lockSelectedSlots();
-    } catch (e) {
-        toast.error(e?.response?.data?.message || 'Khong the giu cho khung gio nay.');
-        selectedSlots.value = selectedSlots.value.filter(s => s.start_time !== slot.start_time);
-        await fetchAvailableSlots();
+    
+    // 1. Kiểm tra tính liền kề ngay lập tức
+    if (selectedSlots.value.length > 1 && !hasContinuousSlots()) {
+        toast.warning("Vui lòng chọn các khung giờ liền kề nhau!");
+        // Revert thao tác vừa rồi
+        if (wasAdded) {
+            selectedSlots.value = selectedSlots.value.filter(s => s.start_time !== slot.start_time);
+        } else {
+            selectedSlots.value.push(slot);
+            selectedSlots.value.sort((a, b) => a.start_time.localeCompare(b.start_time));
+        }
+        return; // Không cho phép chọn nên không cần gọi API
     }
+    
+    // 2. Sử dụng debounce để tránh gọi API liên tục gây lag UI
+    if (lockTimeout) clearTimeout(lockTimeout);
+    
+    lockTimeout = setTimeout(async () => {
+        try {
+            await lockSelectedSlots();
+        } catch (e) {
+            const status = e?.response?.status;
+            if (status === 429) {
+                toast.warning('Hệ thống đang quá tải yêu cầu. Vui lòng giữ nguyên lựa chọn và thử lại sau ít phút.');
+            } else {
+                toast.error(e?.response?.data?.message || 'Không thể giữ chỗ khung giờ này.');
+                // Lỗi xảy ra có nghĩa là đã mất lock trên server -> Phải clear UI để đồng bộ
+                selectedSlots.value = [];
+                activeLock.value = null;
+                clearLockTimer();
+                await fetchAvailableSlots();
+            }
+        }
+    }, 300);
 };
 
 const isSlotSelected = (slot) => {
