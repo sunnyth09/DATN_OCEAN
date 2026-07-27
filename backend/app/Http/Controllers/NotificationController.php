@@ -50,10 +50,12 @@ class NotificationController extends Controller
               ->orWhere('data->url_redirect', 'not like', '/admin/%');
         });
 
+        $limit = request('limit', 10);
+        
         // Lấy notifications phân trang, mới nhất lên đầu
         $notifications = $query->clone()
             ->latest()
-            ->paginate(20);
+            ->paginate($limit);
 
         // Đếm số notification chưa đọc
         $unreadCount = $query->clone()->whereNull('read_at')->count();

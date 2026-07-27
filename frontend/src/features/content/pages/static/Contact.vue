@@ -184,7 +184,7 @@ const renderTurnstile = () => {
   if (!container || !window.turnstile) return;
   container.innerHTML = '';
   turnstileWidgetId = window.turnstile.render('#turnstile-contact', {
-    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADXLObm9kcqVpVUc',
     callback: (token) => { turnstileToken.value = token; },
     'expired-callback': () => { turnstileToken.value = ''; },
     'error-callback': () => { turnstileToken.value = ''; },

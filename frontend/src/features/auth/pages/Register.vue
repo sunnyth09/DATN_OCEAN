@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, computed, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { Modal } from 'bootstrap';
@@ -85,7 +85,7 @@ const renderTurnstile = () => {
   if (!container || !window.turnstile) return;
   container.innerHTML = '';
   turnstileWidgetId = window.turnstile.render('#turnstile-register', {
-    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADXLObm9kcqVpVUc',
     callback: (token) => { turnstileToken.value = token; },
     'expired-callback': () => { turnstileToken.value = ''; },
     'error-callback': () => { turnstileToken.value = ''; },

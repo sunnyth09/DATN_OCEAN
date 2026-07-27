@@ -822,7 +822,11 @@ class OrderService
                 'Đơn hàng mới',
                 'Khách hàng vừa đặt đơn hàng ' . $order->order_code,
                 '/admin/order/' . $order->order_id,
-                'order'
+                'order',
+                [
+                    'payment_status' => $order->payment_status,
+                    'fulfillment_status' => $order->fulfillment_status
+                ]
             ));
         } catch (\Exception $e) {
             Log::error('Realtime event dispatch failed: ' . $e->getMessage());

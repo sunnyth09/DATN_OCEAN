@@ -34,7 +34,7 @@ const renderTurnstile = () => {
   const container = document.getElementById('turnstile-login');
   if (!container || !window.turnstile) return;
   turnstileWidgetId = window.turnstile.render('#turnstile-login', {
-    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADXLObm9kcqVpVUc',
     callback: (token) => { turnstileToken.value = token; },
     'expired-callback': () => { turnstileToken.value = ''; },
     'error-callback': () => { turnstileToken.value = ''; },

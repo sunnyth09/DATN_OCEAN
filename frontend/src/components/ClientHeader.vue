@@ -35,6 +35,10 @@ const showNotificationPopup = ref(false);
 const isMobileMenuOpen = ref(false);
 const headerRewardPoints = ref(0);
 
+const notifPage = ref(1);
+const notifTotalPages = ref(1);
+const isFetchingNotif = ref(false);
+
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
     return categories.value.slice(0, 4);
@@ -79,15 +83,22 @@ const toggleNotifMenu = async () => {
     }
 };
 
-const fetchNotificationsList = async () => {
+const fetchNotificationsList = async (page = 1) => {
     const token = sessionStorage.getItem("auth_token");
     if (!token) return;
+    isFetchingNotif.value = true;
     try {
-        const response = await api.get("/profile/notifications?limit=5");
+        const response = await api.get(`/profile/notifications?limit=5&page=${page}`);
         if (response.data && response.data.data) {
             // Check if it's a paginator object (Laravel default)
             if (response.data.data.data && Array.isArray(response.data.data.data)) {
-                notificationsList.value = response.data.data.data;
+                if (page === 1) {
+                    notificationsList.value = response.data.data.data;
+                } else {
+                    notificationsList.value = [...notificationsList.value, ...response.data.data.data];
+                }
+                notifPage.value = response.data.data.current_page || 1;
+                notifTotalPages.value = response.data.data.last_page || 1;
             } else {
                 notificationsList.value = response.data.data;
             }
@@ -96,19 +107,31 @@ const fetchNotificationsList = async () => {
         }
     } catch (e) {
         console.error("Failed to fetch notifications list", e);
+    } finally {
+        isFetchingNotif.value = false;
     }
 };
 
-const markAsRead = async (id, url) => {
-    try {
-        await api.post(`/profile/notifications/${id}/read`);
-        fetchUnreadNotificationCount();
-        if (url) {
-             router.push(url);
+const loadMoreNotifications = async () => {
+    if (notifPage.value < notifTotalPages.value && !isFetchingNotif.value) {
+        await fetchNotificationsList(notifPage.value + 1);
+    }
+};
+
+const markAsRead = async (notif) => {
+    if (!notif.read_at) {
+        try {
+            notif.read_at = new Date().toISOString();
+            authStore.decrementUnreadNotificationCount();
+            await api.post(`/profile/notifications/${notif.id}/read`);
+        } catch (e) {
+            console.error(e);
         }
-        showNotifDropdown.value = false;
-    } catch (e) {
-        console.error(e);
+    }
+    
+    if (notif.data?.url_redirect) {
+         router.push(notif.data.url_redirect);
+         showNotifDropdown.value = false;
     }
 };
 
@@ -637,7 +660,7 @@ watch(
                                 <div v-for="notif in notificationsList" :key="notif.id" 
                                      class="notif-item" 
                                      :class="{ unread: !notif.read_at }"
-                                     @click="markAsRead(notif.id, notif.data?.url_redirect)">
+                                     @click="markAsRead(notif)">
                                     <div class="notif-icon-circle">
                                         <AppIcon name="bell" size="18" />
                                     </div>
@@ -650,6 +673,11 @@ watch(
                             </div>
                             <div class="notif-empty" v-else>
                                 Không có thông báo nào.
+                            </div>
+                            <div class="notif-footer" v-if="notifPage < notifTotalPages">
+                                <button class="btn-notif-loadmore" @click.stop="loadMoreNotifications" :disabled="isFetchingNotif">
+                                    {{ isFetchingNotif ? 'Đang tải...' : 'Tải thêm' }}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1635,4 +1663,30 @@ watch(
         height: 18px;
     }
 }
+.notif-footer {
+    padding: 10px;
+    text-align: center;
+    border-top: 1px solid #f1f5f9;
+}
+
+.btn-notif-loadmore {
+    background: transparent;
+    border: none;
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.btn-notif-loadmore:hover:not(:disabled) {
+    color: #c4305d;
+    text-decoration: underline;
+}
+
+.btn-notif-loadmore:disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
 </style>
