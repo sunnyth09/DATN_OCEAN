@@ -55,12 +55,24 @@ export const useUiStore = defineStore('ui', () => {
     isAdminStaffMenuOpen.value = !isAdminStaffMenuOpen.value;
   };
 
+  const adminUnreadNotificationCount = ref(0);
+  const setAdminUnreadNotificationCount = (count) => {
+    adminUnreadNotificationCount.value = count;
+  };
+  const decrementAdminUnreadNotificationCount = (amount = 1) => {
+    adminUnreadNotificationCount.value = Math.max(0, adminUnreadNotificationCount.value - amount);
+  };
+  const incrementAdminUnreadNotificationCount = (amount = 1) => {
+    adminUnreadNotificationCount.value += amount;
+  };
+
   return {
     isSearchModalOpen,
     isBackofficeDarkMode,
     isBackofficeSidebarOpen,
     isAdminStoreMenuOpen,
     isAdminStaffMenuOpen,
+    adminUnreadNotificationCount,
     setSearchModalOpen,
     toggleSearchModal,
     setBackofficeDarkMode,
@@ -72,5 +84,9 @@ export const useUiStore = defineStore('ui', () => {
     toggleAdminStoreMenu,
     setAdminStaffMenuOpen,
     toggleAdminStaffMenu,
+    setAdminUnreadNotificationCount,
+    decrementAdminUnreadNotificationCount,
+    incrementAdminUnreadNotificationCount,
   };
 });
+

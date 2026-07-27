@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, reactive, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, reactive, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { Modal } from 'bootstrap';
 import AuthLayout from '@/layouts/AuthLayout.vue';
