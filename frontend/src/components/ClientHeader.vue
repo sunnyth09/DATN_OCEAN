@@ -407,8 +407,8 @@ const handleLogout = async () => {
 
 /* DRAGGABLE FLASH SALE LOGIC */
 const flashSalePos = ref({
-    x: window.innerWidth - 100,
-    y: window.innerHeight - 150,
+    x: window.innerWidth - 120, // Move a bit left to avoid edge
+    y: window.innerHeight - 180 // Move higher to avoid overlapping with Chatbot
 });
 let isDragging = false;
 let hasMoved = false;
@@ -476,8 +476,8 @@ onMounted(() => {
 
     // adjust initial position for small screens
     if (window.innerWidth < 768) {
-        flashSalePos.value.x = window.innerWidth - 80;
-        flashSalePos.value.y = window.innerHeight - 100;
+        flashSalePos.value.x = window.innerWidth - 120;
+        flashSalePos.value.y = window.innerHeight - 180;
     }
 });
 onUnmounted(() => {
@@ -524,7 +524,7 @@ watch(
             </div>
 
             <div class="header-actions">
-                <!-- <button
+                <button
                     type="button"
                     class="icon-btn mobile-nav-toggle"
                     :aria-expanded="isMobileMenuOpen"
@@ -532,7 +532,7 @@ watch(
                     @click.stop="toggleMobileMenu"
                 >
                     <AppIcon name="menu" stroke-width="2.2" />
-                </button> -->
+                </button>
 
                 <!-- Search -->
                 <!-- Inline Expandable Search -->
@@ -978,6 +978,7 @@ watch(
 
 .search-container.is-expanded {
     width: 300px;
+    max-width: calc(100vw - 120px);
     background: #f1f5f9;
     padding-left: 16px;
 }
@@ -1661,13 +1662,19 @@ watch(
     transform: translateY(-10px);
 }
 
+@media (max-width: 1024px) {
+    .main-nav {
+        gap: 20px;
+    }
+}
+
 @media (max-width: 768px) {
     .header-inner {
-        padding: 0 20px;
+        padding: 0 16px;
     }
 
     .header-left {
-        gap: 16px;
+        gap: 12px;
     }
 
     .main-nav {
@@ -1676,6 +1683,7 @@ watch(
 
     .mobile-nav-toggle {
         display: inline-flex;
+        order: 99; /* Đưa nút menu sang góc phải tận cùng */
     }
 
     .account-dropdown {
@@ -1683,7 +1691,7 @@ watch(
     }
 
     .header-actions {
-        gap: 10px;
+        gap: 8px;
     }
 
     .flash-sale-badge {

@@ -12,7 +12,6 @@ import AppIcon from '@/icons/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
-import { loyaltyService } from '@/services/loyaltyService';
 import QRCode from 'qrcode';
 import Swal from 'sweetalert2';
 import { affiliateService } from '@/services/affiliateService';
@@ -125,11 +124,11 @@ const fetchProduct = async (currentSlug) => {
     if (product.value.variants && product.value.variants.length > 0) {
       const purchasable = product.value.variants.filter(v => v.status === 'active' && v.stock > 0);
       const candidates = purchasable.length > 0 ? purchasable : product.value.variants;
-      
-      const lowestVariant = candidates.reduce((min, v) => 
+
+      const lowestVariant = candidates.reduce((min, v) =>
         ((v.effective_price || v.price) < (min.effective_price || min.price) ? v : min), candidates[0]
       );
-      
+
       if (lowestVariant.color) selectedColor.value = lowestVariant.color;
       if (lowestVariant.size) selectedSize.value = lowestVariant.size;
       selectedVariant.value = lowestVariant;
@@ -590,42 +589,6 @@ const handleUpgrade = (premiumVariant) => {
   showToast(`Đã nâng cấp lên phiên bản ${premiumVariant.color || ''} ${premiumVariant.size || ''}`.trim(), 'success');
 };
 
-const isSharing = ref(false);
-const shareToFacebook = async () => {
-    if (!product.value) return;
-    
-    // Tạo URL chia sẻ (giả lập sử dụng URL hiện tại)
-    const shareUrl = window.location.href;
-    const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-    
-    // Mở popup chia sẻ
-    const popup = window.open(fbShareUrl, 'facebook-share-dialog', 'width=800,height=600');
-    
-    if (authStore.isAuthenticated) {
-        isSharing.value = true;
-        const checkPopup = setInterval(async () => {
-            if (!popup || popup.closed || popup.closed === undefined) {
-                clearInterval(checkPopup);
-                try {
-                    const res = await loyaltyService.socialShare(product.value.product_id);
-                    if (res.data?.status === 'success') {
-                        showToast(res.data.message || 'Bạn đã nhận được 10 điểm thưởng từ việc chia sẻ!', 'success');
-                    } else if (res.data?.status === 'info') {
-                        showToast(res.data.message || 'Bạn đã nhận điểm chia sẻ cho sản phẩm này hôm nay.', 'warning');
-                    }
-                } catch (error) {
-                    const msg = error.response?.data?.message;
-                    if (msg) showToast(msg, 'warning');
-                } finally {
-                    isSharing.value = false;
-                }
-            }
-        }, 1000);
-    } else {
-        showToast('Vui lòng đăng nhập để nhận 10 điểm thưởng khi chia sẻ!', 'warning');
-    }
-};
-
 const showProductQr = async () => {
     if (!product.value) return;
 
@@ -756,7 +719,7 @@ onBeforeUnmount(() => {
         <div class="pd-main-img" :class="{ 'is-out-of-stock': productTotalStock <= 0 }"
           @mousemove="handleZoom" @mouseleave="resetZoom">
           <img ref="productImageRef" :src="mainImageUrl" :alt="product.name" :key="activeImageIndex" :style="zoomStyle" />
-          
+
           <button v-if="allImages.length > 1" class="pd-gallery-nav prev" @click.stop="prevImage">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
@@ -881,22 +844,17 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Social Share & QR Group -->
-        <div class="pd-share-group">
-          <button class="pd-btn-share" @click="shareToFacebook" :disabled="isSharing" title="Chia sẻ Facebook nhận +10 điểm">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-            <span>Chia sẻ +10 điểm</span>
-          </button>
-          <button class="pd-btn-share qr" @click="showProductQr" title="Mã QR giới thiệu / chia sẻ">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="6" height="6" rx="1"></rect>
-              <rect x="15" y="3" width="6" height="6" rx="1"></rect>
-              <rect x="3" y="15" width="6" height="6" rx="1"></rect>
-              <rect x="15" y="15" width="6" height="6" rx="1"></rect>
-            </svg>
-            <span>Mã QR giới thiệu</span>
-          </button>
-        </div>
+
+        <!-- Product QR Code -->
+        <button class="pd-btn-share" @click="showProductQr" style="margin-top: 10px; background-color: #f8f9fa; color: #212529; border-color: #dee2e6;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+            <rect x="15" y="3" width="6" height="6" rx="1"></rect>
+            <rect x="3" y="15" width="6" height="6" rx="1"></rect>
+            <rect x="15" y="15" width="6" height="6" rx="1"></rect>
+          </svg>
+          Mã QR giới thiệu / chia sẻ
+        </button>
         <PremiumUpgrade :current-variant="selectedVariant" :all-variants="sortedVariants" @upgrade="handleUpgrade" />
       </div>
     </section>
@@ -2146,11 +2104,19 @@ onBeforeUnmount(() => {
     flex-direction: row;
     width: 100%;
     overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  .pd-thumbs::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
   }
 
   .pd-thumb {
     width: 60px;
     height: 60px;
+    flex-shrink: 0;
+    scroll-snap-align: center;
   }
 
   .pd-tab {
@@ -2158,14 +2124,33 @@ onBeforeUnmount(() => {
     font-size: 0.85rem;
   }
 
-  .pd-cta {
-    flex-direction: row;
-    gap: 8px;
+  .pd-var-options {
+    flex-wrap: wrap;
   }
 
-  .pd-btn-cart, .pd-btn-buy {
-    padding: 12px 8px;
-    font-size: 0.88rem;
+  .pd-cta {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px;
+    background: #fff;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+    z-index: 1000;
+    flex-direction: row;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .pd-cta button {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 12px 0;
+  }
+
+  /* Để nội dung không bị che bởi sticky bottom bar */
+  .pd-wrapper {
+    padding-bottom: 80px;
   }
 
   .pd-perks {

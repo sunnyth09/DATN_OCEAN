@@ -189,7 +189,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 <div class="hero-overlay"></div>
             </div>
             <div class="container hero-content-wrap">
-                <div class="hero-stat--top-right d-lg-flex mt-5">
+                <div class="hero-stat--top-right d-none d-lg-flex mt-5">
                     <div class="hero-stat-item">
                         <span class="hero-stat-num">50K+</span>
                         <span class="hero-stat-label">Khách hàng</span>
@@ -337,12 +337,12 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 <!-- Products grid Bootstrap row -->
                 <div class="row g-4">
                     <template v-if="isLoadingFeatured">
-                        <div v-for="i in 4" :key="i" class="col-6 col-lg-3">
+                        <div v-for="i in 4" :key="i" class="col-6 col-md-4 col-lg-3">
                             <div class="skeleton-pulse" style="min-height:320px;border-radius:12px;"></div>
                         </div>
                     </template>
                     <template v-else-if="flashSaleProducts.length > 0">
-                        <div v-for="product in flashSaleProducts" :key="'flash-' + product.id" class="col-6 col-lg-3">
+                        <div v-for="product in flashSaleProducts" :key="'flash-' + product.id" class="col-6 col-md-4 col-lg-3">
                             <ProductCard :product="product" />
                         </div>
                     </template>
@@ -2075,7 +2075,9 @@ a.promo-banner-btn {
 
 @media (max-width: 768px) {
     .hero-section {
-        height: 460px;
+        min-height: 460px;
+        height: auto;
+        padding-bottom: 40px;
     }
 
     .hero-title {
@@ -2106,7 +2108,9 @@ a.promo-banner-btn {
 
 @media (max-width: 576px) {
     .hero-section {
-        height: 400px;
+        min-height: 480px;
+        height: auto;
+        padding-bottom: 60px;
     }
 
     .hero-title {

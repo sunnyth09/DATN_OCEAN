@@ -24,7 +24,7 @@ class AdminStaffController extends Controller
             });
         }
 
-        $admins = $query->orderBy('created_at', 'DESC')->get();
+        $admins = $query->orderBy('created_at', 'DESC')->paginate($request->input('per_page', 10));
 
         return response()->json([
             'status' => 'success',
