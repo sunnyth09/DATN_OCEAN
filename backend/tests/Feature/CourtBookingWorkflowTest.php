@@ -143,6 +143,7 @@ class CourtBookingWorkflowTest extends TestCase
 
     private function createBookingSchema(): void
     {
+        Schema::disableForeignKeyConstraints();
         foreach ([
             'court_booking_payments',
             'court_activity_logs',
@@ -158,6 +159,7 @@ class CourtBookingWorkflowTest extends TestCase
         ] as $table) {
             Schema::dropIfExists($table);
         }
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function ($table) {
             $table->id('user_id');

@@ -422,6 +422,7 @@ class CourtBookingAdminController extends Controller
             'payments.*.payment_type' => 'required|in:deposit,full,additional',
             'payments.*.amount' => 'required|integer|min:1000',
             'payments.*.transaction_code' => 'nullable|string|max:120',
+            'payments.*.status' => 'nullable|in:pending,success,failed',
             'payments.*.note' => 'nullable|string|max:255',
         ]);
 

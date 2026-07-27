@@ -10,6 +10,7 @@ on:
       - 'mysql/**'
       - 'nginx/**'
       - 'docker-compose.yml'
+      - '.github/workflows/**'
   pull_request:
     branches: [ "main", "production", "release/*" ]
     paths:
@@ -19,10 +20,24 @@ on:
       - 'mysql/**'
       - 'nginx/**'
       - 'docker-compose.yml'
+      - '.github/workflows/**'
 
 jobs:
   backend-test:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+      db:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ocean_db
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping -proot" --health-interval=10s --health-timeout=5s --health-retries=3
     defaults:
       run:
         working-directory: ./backend
@@ -34,10 +49,24 @@ jobs:
       with:
         php-version: '8.2'
         tools: composer, phpunit
-        extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, dom, filter, gd, iconv, json, mbstring, pdo
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, pdo_mysql, dom, filter, gd, json, pdo, redis
         
-    - name: Copy .env
-      run: cp ../.env.example .env
+    - name: Setup CI Environment
+      run: |
+        if [ -f .env.testing ]; then
+          cp .env.testing .env
+        else
+          cp ../.env.example .env
+          sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+          sed -i 's/DB_DATABASE=.*/DB_DATABASE=:memory:/' .env
+          sed -i 's/BROADCAST_CONNECTION=.*/BROADCAST_CONNECTION=log/' .env
+          sed -i 's/BROADCAST_DRIVER=.*/BROADCAST_DRIVER=log/' .env
+          sed -i 's/CACHE_DRIVER=.*/CACHE_DRIVER=array/' .env
+          sed -i 's/QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+          sed -i 's/SESSION_DRIVER=.*/SESSION_DRIVER=array/' .env
+          sed -i 's/JWT_SECRET=.*/JWT_SECRET="testing-jwt-secret-key-for-ci-only"/' .env
+          sed -i 's/TURNSTILE_SECRET_KEY=.*/TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"/' .env
+        fi
       
     - name: Install Dependencies
       run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
@@ -51,4 +80,3 @@ jobs:
       
     - name: Run PHPUnit
       run: php artisan test --env=testing
-

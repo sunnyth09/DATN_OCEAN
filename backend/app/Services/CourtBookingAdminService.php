@@ -435,7 +435,7 @@ class CourtBookingAdminService
                         $booking->deposit_amount += $paymentData['amount'];
                     }
                 }
-                $booking->save();
+                CourtBooking::whereKey($booking->getKey())->update(['deposit_amount' => $booking->deposit_amount]);
             });
 
             return ['ok' => true, 'code' => 200, 'data' => $recordedPayments];

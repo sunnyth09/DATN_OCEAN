@@ -352,6 +352,11 @@ class AffiliateService
     // ADMIN METHODS
     // =====================================================================
 
+    public function adminGetAffiliates(): array
+    {
+        return $this->success('Danh sách cộng tác viên', $this->affiliateRepo->adminListAffiliates());
+    }
+
     public function adminGetConversions(): array
     {
         return $this->success('Danh sách conversions', $this->conversionRepo->adminList());

@@ -24,7 +24,7 @@ import ProfileAside from '@/features/profile/components/ProfileAside.vue';
   display: flex;
   gap: 32px;
   align-items: flex-start;
-  max-width: 1100px;
+  width: 100%;
   margin: 0 auto;
 }
 

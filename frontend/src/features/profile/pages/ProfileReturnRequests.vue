@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
+import AppIcon from '@/icons/AppIcon.vue';
 import { useReturnRequestStore } from '@/stores/returnRequestStore';
 import {
   RETURN_REQUEST_ADMIN_STATUS_OPTIONS,
@@ -73,8 +74,11 @@ onMounted(() => {
     </div>
 
     <div v-else-if="myRequests.length === 0" class="empty-state">
-      <h3>Chưa có yêu cầu hoàn hàng nào</h3>
-      <p>Khi bạn gửi yêu cầu hoàn hàng, thông tin sẽ hiển thị ở đây.</p>
+      <div class="empty-icon-wrapper">
+        <AppIcon name="archive" size="56" stroke-width="1.2" class="empty-icon" />
+      </div>
+      <h3 class="empty-title">Chưa có yêu cầu hoàn hàng nào</h3>
+      <p class="empty-desc">Khi bạn gửi yêu cầu hoàn hàng, thông tin sẽ hiển thị ở đây.</p>
     </div>
 
     <div v-else class="request-list">
@@ -94,7 +98,7 @@ onMounted(() => {
           </span>
         </div>
 
-        <p class="request-desc">{{ item.description || 'Không có mô tả bổ sung.' }}</p>
+        <div class="request-desc" v-html="item.description || 'Không có mô tả bổ sung.'"></div>
 
         <div class="request-meta">
           <span>Gửi lúc: {{ formatDate(item.requested_at || item.created_at) }}</span>
@@ -249,6 +253,34 @@ onMounted(() => {
   text-align: center;
   padding: 56px 20px;
   color: #64748b;
+}
+
+.empty-icon-wrapper {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 96px;
+  height: 96px;
+  background: rgba(230, 59, 111, 0.06);
+  border-radius: 50%;
+  margin-bottom: 20px;
+}
+
+.empty-icon {
+  color: var(--primary);
+}
+
+.empty-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px;
+}
+
+.empty-desc {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0;
 }
 
 .spinner {

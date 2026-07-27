@@ -268,13 +268,38 @@ onMounted(async () => {
 }
 .bar-fill:hover { background: var(--ocean-bright); }
 .bar-tip {
-  position: absolute; top: -28px; left: 50%; transform: translateX(-50%) scale(0);
-  background: var(--text-main); border-radius: 6px; padding: 4px 8px;
-  font-size: 0.7rem; font-weight: 700; color: white;
-  white-space: nowrap; transition: transform 0.15s; pointer-events: none;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  position: absolute; 
+  bottom: 100%; 
+  margin-bottom: 8px;
+  left: 50%; 
+  transform: translateX(-50%) scale(0.8);
+  background: var(--text-main); 
+  border-radius: 6px; 
+  padding: 5px 10px;
+  font-size: 0.75rem; 
+  font-weight: 700; 
+  color: white;
+  white-space: nowrap; 
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s; 
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 10;
+  opacity: 0;
 }
-.bar-fill:hover .bar-tip { transform: translateX(-50%) scale(1); }
+.bar-tip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: var(--text-main) transparent transparent transparent;
+}
+.bar-fill:hover .bar-tip { 
+  transform: translateX(-50%) scale(1); 
+  opacity: 1;
+}
 .bar-lbl { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); }
 
 /* Orders */

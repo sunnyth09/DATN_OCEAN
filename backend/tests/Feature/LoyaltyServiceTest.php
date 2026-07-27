@@ -21,9 +21,11 @@ class LoyaltyServiceTest extends TestCase
 
         $this->service = new LoyaltyService();
 
+        Schema::disableForeignKeyConstraints();
         foreach (['loyalty_transactions', 'loyalty_rules', 'orders', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');

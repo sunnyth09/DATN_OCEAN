@@ -24,7 +24,7 @@ class AuthService
     public function verifyTurnstile(?string $token): bool
     {
         // Tắt CAPTCHA khi đang ở môi trường local/dev
-        if (app()->environment('local', 'testing')) {
+        if (app()->environment('local')) {
             return true;
         }
 

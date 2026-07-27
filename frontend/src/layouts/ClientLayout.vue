@@ -29,7 +29,6 @@ import ChatbotWidget from '../components/ChatbotWidget.vue';
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   color: var(--text-main);
   background: var(--card-bg);
-  overflow-x: clip;
 }
 
 /* site-main không cần max-width riêng —
@@ -37,5 +36,6 @@ import ChatbotWidget from '../components/ChatbotWidget.vue';
 .site-main {
   flex: 1;
   width: 100%;
+  overflow-x: clip;
 }
 </style>

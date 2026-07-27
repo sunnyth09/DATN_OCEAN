@@ -30,4 +30,11 @@ class CourtBookingLock extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
+
+    public function setBookingDateAttribute($value)
+    {
+        $this->attributes['booking_date'] = $value instanceof \DateTimeInterface
+            ? $value->format('Y-m-d')
+            : substr((string) $value, 0, 10);
+    }
 }
