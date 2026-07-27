@@ -23,6 +23,29 @@
     <div class="backoffice-main">
       <header class="backoffice-header">
         <div class="backoffice-header__leading">
+          <button
+            type="button"
+            class="shell-icon-btn shell-icon-btn--menu"
+            :aria-expanded="isSidebarOpen"
+            title="Mở/đóng menu điều hướng"
+            @click="toggleSidebar"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          </button>
+
           <div class="backoffice-header__meta">
             <p v-if="sectionLabel" class="backoffice-header__eyebrow">
               {{ sectionLabel }}
@@ -403,6 +426,10 @@ onUnmounted(() => {
   padding: 24px;
 }
 
+.shell-icon-btn--menu {
+  display: none;
+}
+
 .backoffice-content__inner {
   max-width: var(--layout-max-width);
   margin: 0 auto;
@@ -413,6 +440,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 1024px) {
+  .shell-icon-btn--menu {
+    display: inline-flex;
+  }
+
   .backoffice-header {
     padding: 0 20px;
   }

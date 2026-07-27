@@ -8,6 +8,7 @@ import AppIcon from '@/icons/AppIcon.vue';
 import { getApiBaseUrl, getAppBaseUrl } from '@/utils/url';
 import QRCode from 'qrcode';
 import { sanitizeHtml } from '@/utils/sanitize';
+import BaseSelect from '@/components/base/BaseSelect.vue';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastMsg = (message, type = 'success') => {
@@ -18,13 +19,57 @@ const showToastMsg = (message, type = 'success') => {
   });
 };
 
-const products = ref([]);
-const isLoading = ref(true);
 const route = useRoute();
 const router = useRouter();
 
+const products = ref([]);
+const isLoading = ref(true);
 const searchQuery = ref(route.query.search || '');
 const statusFilter = ref(route.query.status || '');
+const categoryFilter = ref(route.query.category_id || '');
+const brandFilter = ref(route.query.brand_ids || '');
+const sortByFilter = ref(route.query.sort_by || '');
+const priceFilter = ref(route.query.price_range || '');
+
+const categories = ref([]);
+const brands = ref([]);
+
+const fetchCategories = async () => {
+    try {
+        const res = await api.get('/categories');
+        categories.value = res.data.data || res.data;
+    } catch(e) {}
+};
+
+const fetchBrands = async () => {
+    try {
+        const res = await api.get('/brands');
+        brands.value = res.data.data || res.data;
+    } catch(e) {}
+};
+
+const categoryOptions = computed(() => {
+    return categories.value.map(cat => ({ value: cat.category_id, label: cat.name }));
+});
+
+const brandOptions = computed(() => {
+    return brands.value.map(b => ({ value: b.brand_id, label: b.name }));
+});
+
+const priceOptions = [
+    { value: '0-500000', label: 'Dưới 500.000₫' },
+    { value: '500000-1000000', label: '500.000₫ - 1.000.000₫' },
+    { value: '1000000-3000000', label: '1.000.000₫ - 3.000.000₫' },
+    { value: '3000000-5000000', label: '3.000.000₫ - 5.000.000₫' },
+    { value: '5000000-', label: 'Trên 5.000.000₫' }
+];
+
+const sortOptions = [
+    { value: 'latest', label: 'Mới nhất' },
+    { value: 'oldest', label: 'Cũ nhất' },
+    { value: 'price_asc', label: 'Giá tăng dần' },
+    { value: 'price_desc', label: 'Giá giảm dần' }
+];
 const currentPage = ref(parseInt(route.query.page) || 1);
 const totalProducts = ref(0);
 const limit = 10;
@@ -52,6 +97,10 @@ const fetchProducts = async () => {
         });
         if (searchQuery.value) params.append('search', searchQuery.value);
         if (statusFilter.value) params.append('status', statusFilter.value);
+        if (categoryFilter.value) params.append('category_id', categoryFilter.value);
+        if (brandFilter.value) params.append('brand_ids', brandFilter.value);
+        if (sortByFilter.value) params.append('sort_by', sortByFilter.value);
+        if (priceFilter.value) params.append('price_range', priceFilter.value);
 
         const response = await api.get(`/products?${params.toString()}`);
         products.value = response.data.data || response.data;
@@ -61,25 +110,22 @@ const fetchProducts = async () => {
     } finally {
         isLoading.value = false;
     }
-    
-    // Update route query
-    const query = {};
-    if (currentPage.value > 1) query.page = currentPage.value;
-    if (searchQuery.value) query.search = searchQuery.value;
-    if (statusFilter.value) query.status = statusFilter.value;
-    router.replace({ query }).catch(() => {});
 };
 
 onMounted(async () => {
+    fetchCategories();
+    fetchBrands();
     await fetchProducts();
     if (route.query.edited_id) {
         nextTick(() => {
-            const row = document.getElementById(`product-row-${route.query.edited_id}`);
-            if (row) {
-                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                row.classList.add('highlight-row');
-                setTimeout(() => row.classList.remove('highlight-row'), 3000);
-            }
+            setTimeout(() => {
+                const el = document.getElementById(`product-${route.query.edited_id}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('highlight-edited');
+                    setTimeout(() => el.classList.remove('highlight-edited'), 3000);
+                }
+            }, 300);
         });
     }
 });
@@ -136,9 +182,35 @@ const getImageUrl = (product) => {
     return null;
 };
 
+const updateRouteAndFetch = () => {
+    const query = { ...route.query };
+    
+    if (currentPage.value > 1) query.page = currentPage.value;
+    else delete query.page;
+    
+    if (searchQuery.value) query.search = searchQuery.value;
+    else delete query.search;
+    
+    if (statusFilter.value) query.status = statusFilter.value;
+    else delete query.status;
+    
+    if (categoryFilter.value) query.category_id = categoryFilter.value; else delete query.category_id;
+    if (brandFilter.value) query.brand_ids = brandFilter.value; else delete query.brand_ids;
+    if (sortByFilter.value) query.sort_by = sortByFilter.value; else delete query.sort_by;
+    if (priceFilter.value) query.price_range = priceFilter.value; else delete query.price_range;
+    
+    router.replace({ query }).catch(() => {});
+    fetchProducts();
+};
+
 const handleSearch = () => {
     currentPage.value = 1;
-    fetchProducts();
+    updateRouteAndFetch();
+};
+
+const handleAdvancedFilter = () => {
+    currentPage.value = 1;
+    updateRouteAndFetch();
 };
 
 const handleFilterStatus = (status) => {
@@ -148,7 +220,7 @@ const handleFilterStatus = (status) => {
     if (status === 'deleted') {
         statusFilter.value = 'deleted';
     }
-    fetchProducts();
+    updateRouteAndFetch();
 };
 
 const handleDelete = async (productId, isDeleted) => {
@@ -330,7 +402,7 @@ const handleRestore = async (productId) => {
 const goToPage = (page) => {
     if (page >= 1 && page <= totalPages.value) {
         currentPage.value = page;
-        fetchProducts();
+        updateRouteAndFetch();
     }
 };
 
@@ -551,7 +623,8 @@ const formatDate = (dateString) => {
 
         <!-- Filters & Search -->
         <div class="filters-bar ocean-card animate-in" style="animation-delay: 0.1s">
-            <div class="search-box">
+            <div class="filters-top" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%;">
+                <div class="search-box">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="11" cy="11" r="8"/>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -571,6 +644,37 @@ const formatDate = (dateString) => {
                 <button class="filter-btn" :class="{ active: statusFilter === 'inactive' }" @click="handleFilterStatus('inactive')">Tạm ẩn</button>
                 <button class="filter-btn" :class="{ active: statusFilter === 'out_of_stock' }" @click="handleFilterStatus('out_of_stock')">Hết hàng</button>
                 <button class="filter-btn btn-danger" :class="{ active: statusFilter === 'deleted' }" @click="handleFilterStatus('deleted')">Đã xóa</button>
+            </div>
+            </div>
+            <div class="advanced-filters" style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap; padding-top: 15px; border-top: 1px dashed var(--border-color, #e2e8f0);">
+                <BaseSelect 
+                    v-model="categoryFilter" 
+                    @change="handleAdvancedFilter" 
+                    :options="categoryOptions"
+                    placeholder="-- Danh mục --"
+                    style="min-width: 150px; flex: 1;"
+                />
+                <BaseSelect 
+                    v-model="brandFilter" 
+                    @change="handleAdvancedFilter" 
+                    :options="brandOptions"
+                    placeholder="-- Thương hiệu --"
+                    style="min-width: 150px; flex: 1;"
+                />
+                <BaseSelect 
+                    v-model="priceFilter" 
+                    @change="handleAdvancedFilter" 
+                    :options="priceOptions"
+                    placeholder="-- Khoảng giá --"
+                    style="min-width: 150px; flex: 1;"
+                />
+                <BaseSelect 
+                    v-model="sortByFilter" 
+                    @change="handleAdvancedFilter" 
+                    :options="sortOptions"
+                    placeholder="-- Sắp xếp --"
+                    style="min-width: 150px; flex: 1;"
+                />
             </div>
         </div>
 
@@ -602,7 +706,7 @@ const formatDate = (dateString) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in products" :key="p.product_id" :id="'product-row-' + p.product_id">
+                        <tr v-for="p in products" :key="p.product_id" :id="`product-${p.product_id}`">
                             <td><span class="badge-id">#{{ p.product_id }}</span></td>
                             <td>
                                 <div class="prod-thumb">
@@ -854,7 +958,7 @@ const formatDate = (dateString) => {
 
                         <!-- Footer Actions -->
                         <div class="qv-footer">
-                            <router-link :to="`/admin/product/edit/${quickViewProduct.product_id}`" class="btn-primary" @click="closeQuickView">
+                            <router-link :to="{ path: `/admin/product/edit/${quickViewProduct.product_id}`, query: route.query }" class="btn-primary" @click="closeQuickView">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 Chỉnh Sửa Sản Phẩm
                             </router-link>
@@ -1037,8 +1141,8 @@ const formatDate = (dateString) => {
 
 /* Filters */
 .filters-bar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
+    display: flex; flex-direction: column;
+    padding: 16px 20px; margin-bottom: 24px;
 }
 .search-box {
     display: flex; align-items: center; gap: 10px;
@@ -1398,8 +1502,17 @@ const formatDate = (dateString) => {
     .import-modal { width: 96%; }
 }
 
-.highlight-row {
-    background-color: #fff3cd !important;
-    transition: background-color 3s ease-out;
+.highlight-edited {
+    background-color: rgba(38, 166, 154, 0.15) !important;
+    transition: background-color 2s ease-out;
+}
+
+.badge-type, .badge-status, .badge-stock, .val-price {
+    white-space: nowrap;
+}
+
+.data-table th, .data-table td {
+    padding: 12px 16px;
+    vertical-align: middle;
 }
 </style>

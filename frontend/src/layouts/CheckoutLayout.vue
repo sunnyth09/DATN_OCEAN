@@ -5,7 +5,6 @@
       <div class="container py-3 d-flex align-items-center justify-content-between">
         <router-link to="/" class="checkout-logo">
           <img :src="BASE_URL + '/storage/logo/LOGO_QS.png'" alt="Logo" class="logo-img" width="70" height="auto" />
-          <span class="logo-text ms-2">Ocean</span>
         </router-link>
         <div class="header-right d-flex align-items-center gap-4">
           <div v-if="!authStore.isAuthenticated" class="auth-links">

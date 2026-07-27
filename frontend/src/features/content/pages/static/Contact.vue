@@ -224,7 +224,7 @@ const submitContact = async () => {
 
   isSubmitting.value = true;
   try {
-    const res = await api.post('/SubmitContact', { ...form, turnstile_token: turnstileToken.value });
+    const res = await api.post('/submitcontact', { ...form, turnstile_token: turnstileToken.value });
     successMsg.value = res.data.message;
     // Reset form
     form.name = '';

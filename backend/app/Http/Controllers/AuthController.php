@@ -29,6 +29,10 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        // VÔ HIỆU HOÁ CAPTRA TRÁNH BỊ LỖI KHI ĐĂNG NHẬP
+        // Lý do:
+        // - KEY CAPTCHA CỦA CLAUDFLRE CHƯA ĐƯỢC CẤU HÌNH ĐÚNG
+
         // Verify Cloudflare Turnstile
         $turnstileToken = $request->input('turnstile_token');
         if (!$this->verifyTurnstile($turnstileToken)) {

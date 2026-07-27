@@ -26,7 +26,7 @@ Thumbs.db
 
 /backend/vendor
 /frontend/node_modules
-/backend/public/build
+/backend/public/buildgian
 /backend/public/hot
 /backend/storage/*.key
 /backend/storage/pail

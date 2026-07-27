@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Exceptions\OrderException;
+use App\Models\Address;
 use App\Models\OrderStatusHistory;
 use App\Models\Order;
 use App\Repositories\OrderRepository;
@@ -700,7 +701,7 @@ class OrderService
             return $address;
         }
 
-        return $this->addressRepository->create([
+        $addressData = [
             'user_id' => $userId,
             'recipient_name' => $data['recipient_name'],
             'phone' => $data['phone'],
@@ -712,7 +713,13 @@ class OrderService
             'district_code' => $data['district_code'] ?? null,
             'ward_code' => $data['ward_code'] ?? null,
             'is_default' => false,
-        ]);
+        ];
+
+        if (Address::where('user_id', $userId)->count() >= Address::MAX_PER_USER) {
+            return (object) array_merge(['address_id' => null], $addressData);
+        }
+
+        return $this->addressRepository->create($addressData);
     }
 
     /**

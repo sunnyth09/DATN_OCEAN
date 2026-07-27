@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { catalogService, extractCollection } from '@/services/catalogService';
@@ -167,7 +167,7 @@ const clickTip = (kw) => {
                                     class="hit-item" @click="goToProduct(item.slug)">
                                     <div class="hit-img-wrap">
                                         <img
-                                            :src="getImageUrl(item.thumbnail_url || item.mainImage?.image_url)"
+                                            :src="getImageUrl(item.thumbnail_url || item.main_image?.image_url)"
                                             :alt="item.name"
                                             class="hit-img"
                                             loading="lazy"
@@ -180,7 +180,7 @@ const clickTip = (kw) => {
                                             {{ item.category.name }}
                                         </div>
                                         <div class="hit-price">
-                                            {{ formatPrice(item.min_price || item.lowestPriceVariant?.price) }}
+                                            {{ formatPrice(item.min_price || item.lowest_price_variant?.price) }}
                                             <span v-if="item.is_featured" class="hit-badge">Hot</span>
                                         </div>
                                     </div>

@@ -24,10 +24,9 @@ class ProductCommentPolicy
      */
     public function before(mixed $user, string $ability): bool|null
     {
-        // Chỉ shortcircuit với admin abilities (moderate, delete)
+        // Chỉ shortcircuit với admin/seller abilities (moderate)
         if (in_array($ability, ['moderate', 'delete'], true)) {
-            $role = $user->role ?? null;
-            if (in_array($role, ['admin', 'staff', 'seller'], true)) {
+            if (isset($user->role) && in_array($user->role, ['admin', 'staff', 'seller'], true)) {
                 return true;
             }
         }
@@ -42,10 +41,10 @@ class ProductCommentPolicy
      *   2. Đơn hàng đã completed/delivered.
      *   3. Chưa review item này.
      */
-    public function create(User $user, OrderItem $orderItem): bool
+    public function create(mixed $user, OrderItem $orderItem): bool
     {
         // Phải là item trong đơn của user
-        if ($orderItem->order->user_id !== $user->user_id) {
+        if ($orderItem->order->user_id !== ($user->user_id ?? null)) {
             return false;
         }
 
@@ -62,16 +61,16 @@ class ProductCommentPolicy
     /**
      * Customer cập nhật review của chính mình.
      */
-    public function update(User $user, ProductComment $comment): bool
+    public function update(mixed $user, ProductComment $comment): bool
     {
-        return $user->user_id === $comment->user_id;
+        return ($user->user_id ?? null) === $comment->user_id;
     }
 
     /**
      * Admin/Staff moderate (approve/reject/delete).
      * Đã xử lý trong before() — method này chỉ là fallback.
      */
-    public function moderate(User $user): bool
+    public function moderate(mixed $user): bool
     {
         return false; // Customer không được moderate
     }
@@ -79,7 +78,7 @@ class ProductCommentPolicy
     /**
      * Xóa comment — Customer chỉ xóa của mình; Admin qua before().
      */
-    public function delete(User $user, ProductComment $comment): bool
+    public function delete(mixed $user, ProductComment $comment): bool
     {
         return $user->user_id === $comment->user_id;
     }

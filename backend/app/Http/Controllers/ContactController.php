@@ -5,18 +5,31 @@ namespace App\Http\Controllers;
 use App\Models\Contact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
 
 class ContactController extends Controller
 {
 
-    public function SubmitContactEmail (Request $request){
+    public function SubmitContactEmail(Request $request)
+    {
+        // Rate limit: tối đa 3 lần đăng ký / giờ / IP
+        $key = 'newsletter:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($key, maxAttempts: 3)) {
+            $seconds = RateLimiter::availableIn($key);
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Bạn đăng ký quá nhiều lần. Vui lòng thử lại sau {$seconds} giây.",
+            ], 429)->header('Retry-After', $seconds);
+        }
+        RateLimiter::hit($key, decay: 3600);
+
         $validator = Validator::make($request->all(), [
-            'email'   => 'required|email|max:255',
+            'email' => 'required|email|max:255',
         ], [
             'email.required' => 'Vui lòng nhập email.',
-            'email.email' => 'Email không hợp lệ.',
+            'email.email'    => 'Email không hợp lệ.',
         ]);
 
         if ($validator->fails()) {
@@ -26,7 +39,7 @@ class ContactController extends Controller
             ], 422);
         }
 
-        $contact = Contact::create([
+        Contact::create([
             'name'    => 'Newsletter Subscriber',
             'email'   => $request->email,
             'subject' => 'Đăng ký nhận bản tin',
@@ -34,10 +47,9 @@ class ContactController extends Controller
         ]);
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'Đăng ký nhận tin thành công!',
         ], 201);
-            
     }
     private function verifyTurnstile(?string $token): bool
     {
@@ -65,11 +77,21 @@ class ContactController extends Controller
      */
     public function SubmitContact(Request $request)
     {
+        // Rate limit theo IP: tối đa 5 lần gửi / giờ
+        $ipKey = 'contact:ip:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($ipKey, maxAttempts: 5)) {
+            $seconds = RateLimiter::availableIn($ipKey);
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Bạn gửi yêu cầu quá nhiều lần. Vui lòng thử lại sau {$seconds} giây.",
+            ], 429)->header('Retry-After', $seconds);
+        }
+
         $turnstileToken = $request->input('turnstile_token');
         if (!$this->verifyTurnstile($turnstileToken)) {
             return response()->json([
-                'status' => 'error',
-                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'
+                'status'  => 'error',
+                'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.',
             ], 422);
         }
 
@@ -92,6 +114,20 @@ class ContactController extends Controller
                 'errors' => $validator->errors(),
             ], 422);
         }
+
+        // Rate limit theo email: tối đa 3 lần / giờ (chặn spam qua nhiều IP)
+        $emailKey = 'contact:email:' . md5(strtolower($request->email));
+        if (RateLimiter::tooManyAttempts($emailKey, maxAttempts: 3)) {
+            $seconds = RateLimiter::availableIn($emailKey);
+            return response()->json([
+                'status'  => 'error',
+                'message' => "Email này đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau {$seconds} giây.",
+            ], 429)->header('Retry-After', $seconds);
+        }
+
+        // Ghi hit sau khi vượt qua cả 2 check
+        RateLimiter::hit($ipKey,    decay: 3600);
+        RateLimiter::hit($emailKey, decay: 3600);
 
         Contact::create([
             'name'    => $request->name,

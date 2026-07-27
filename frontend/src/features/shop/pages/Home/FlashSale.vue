@@ -129,7 +129,7 @@ onMounted(async () => {
   margin: 0 0 8px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 10px;
 }
 
@@ -151,7 +151,7 @@ onMounted(async () => {
   color: rgba(255,255,255,0.85);
   font-size: 0.95rem;
   max-width: 500px;
-  margin: 0;
+  margin: 0 auto;
   line-height: 1.6;
 }
 

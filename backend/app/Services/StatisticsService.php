@@ -21,7 +21,7 @@ class StatisticsService
         $endDate   = $request->input('end_date');
         $preset    = $request->input('preset');
 
-        if ($preset) {
+        if ($preset && $preset !== 'custom') {
             return match ($preset) {
                 'today' => [Carbon::today()->startOfDay(), Carbon::today()->endOfDay()],
                 '7days' => [Carbon::now()->subDays(6)->startOfDay(), Carbon::now()->endOfDay()],
@@ -180,7 +180,7 @@ class StatisticsService
                 'id'      => $item->product_id,
                 'name'    => $item->product_name,
                 'image'   => $item->product && $item->product->thumbnail_url
-                    ? url('storage/' . $item->product->thumbnail_url) : null,
+                    ? $item->product->thumbnail_url : null,
                 'sold'    => (int) $item->total_sold,
                 'revenue' => (float) $item->total_revenue,
                 'stock'   => $item->product ? $item->product->variants->sum('stock') : 0,

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
@@ -24,14 +24,17 @@ const userEmail = ref('');
 const userAvatar = ref('');
 const userRole = ref('Manager');
 const userRoleRaw = ref('');
-const isBusinessMenuOpen = ref(false);
-const isStoreMenuOpen = ref(true);
-const isCourtMenuOpen = ref(false);
-const isMarketingMenuOpen = ref(false);
-const isFinanceMenuOpen = ref(false);
-const isContentMenuOpen = ref(false);
-const isCrmMenuOpen = ref(false);
-const isHrMenuOpen = ref(false);
+
+const openMenus = reactive({
+  business: false,
+  inventory: false,
+  court: false,
+  marketing: false,
+  finance: false,
+  care: false,
+  content: false,
+  staff: false
+});
 
 const userInitial = computed(() => (userName.value?.[0] || 'A').toUpperCase());
 
@@ -42,26 +45,9 @@ const toggleSidebar = () => {
 const handleSubmenuClick = (menu) => {
   if (props.collapsed) {
     uiStore.toggleBackofficeSidebar();
-  }
-
-  const menus = {
-    business: isBusinessMenuOpen,
-    store: isStoreMenuOpen,
-    court: isCourtMenuOpen,
-    marketing: isMarketingMenuOpen,
-    finance: isFinanceMenuOpen,
-    content: isContentMenuOpen,
-    crm: isCrmMenuOpen,
-    hr: isHrMenuOpen
-  };
-
-  if (menus[menu]) {
-    menus[menu].value = !menus[menu].value;
-
-    // Auto-open submenu when clicking a menu from collapsed state
-    if (props.collapsed) {
-       menus[menu].value = true;
-    }
+    openMenus[menu] = true;
+  } else {
+    openMenus[menu] = !openMenus[menu];
   }
 };
 
@@ -123,28 +109,26 @@ const handleLogout = async () => {
 
     <!-- Nav -->
     <nav class="sidebar-nav">
-      <!-- 1. Tổng quan -->
+      <!-- Dashboard -->
       <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin" class="nav-item" exact-active-class="nav-item--active">
-        <div class="nav-icon">
-          <AppIcon name="dashboard" />
-        </div>
+        <div class="nav-icon"><AppIcon name="dashboard" /></div>
         <span>Dashboard</span>
       </router-link>
 
-      <!-- 2. Kinh doanh & Bán hàng -->
-      <div v-if="['admin', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('business')" :class="{ 'nav-item--open': isBusinessMenuOpen }">
+      <!-- Kinh doanh -->
+      <div v-if="['admin', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('business')" :class="{ 'nav-item--open': openMenus.business }">
         <div class="nav-icon">
-          <AppIcon name="pos" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
         </div>
         <span>Kinh doanh</span>
-        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': isBusinessMenuOpen }" size="14" />
+        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.business }" size="14" />
       </div>
       <transition name="slide-fade">
-        <div v-if="isBusinessMenuOpen" class="nav-submenu">
-          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/pos" class="submenu-item" active-class="submenu-item--active">
+        <div v-if="openMenus.business && ['admin', 'seller'].includes(userRoleRaw)" class="nav-submenu">
+          <router-link to="/admin/pos" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Bán hàng (POS)</span>
           </router-link>
-          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/order" class="submenu-item" active-class="submenu-item--active">
+          <router-link to="/admin/order" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Đơn hàng</span>
           </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/return-requests" class="submenu-item" active-class="submenu-item--active">
@@ -153,49 +137,40 @@ const handleLogout = async () => {
         </div>
       </transition>
 
-      <!-- 3. Kho & Sản phẩm -->
-      <div v-if="['admin', 'staff'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('store')" :class="{ 'nav-item--open': isStoreMenuOpen }">
-        <div class="nav-icon">
-          <AppIcon name="store" />
-        </div>
+      <!-- Kho & Sản phẩm -->
+      <div v-if="['admin', 'staff', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('inventory')" :class="{ 'nav-item--open': openMenus.inventory }">
+        <div class="nav-icon"><AppIcon name="store" /></div>
         <span>Kho & Sản phẩm</span>
-        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': isStoreMenuOpen }" size="14" />
+        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.inventory }" size="14" />
       </div>
       <transition name="slide-fade">
-        <div v-if="isStoreMenuOpen" class="nav-submenu">
+        <div v-if="openMenus.inventory" class="nav-submenu">
           <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/product" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Danh sách Sản phẩm</span>
+            <span class="submenu-dot"></span><span>Sản phẩm</span>
           </router-link>
           <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/category" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Danh mục</span>
           </router-link>
-          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Thống kê bán hàng</span>
-          </router-link>
         </div>
       </transition>
 
-      <!-- 4. Sân Cầu Lông -->
-      <div v-if="['admin', 'staff', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('court')" :class="{ 'nav-item--open': isCourtMenuOpen }">
+      <!-- Sân Cầu Lông -->
+      <div v-if="['admin', 'staff', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('court')" :class="{ 'nav-item--open': openMenus.court }">
         <div class="nav-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <path d="M12 3v18"></path>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="12" x2="21" y2="12"></line><path d="M12 3v18"></path></svg>
         </div>
         <span>Sân Cầu Lông</span>
-        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': isCourtMenuOpen }" size="14" />
+        <svg class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.court }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
       <transition name="slide-fade">
-        <div v-if="isCourtMenuOpen" class="nav-submenu">
-          <router-link v-if="['admin', 'seller', 'staff'].includes(userRoleRaw)" to="/admin/court-dashboard" class="submenu-item" active-class="submenu-item--active">
+        <div v-if="openMenus.court" class="nav-submenu">
+          <router-link to="/admin/court-dashboard" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Dashboard Lễ Tân</span>
           </router-link>
           <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/courts" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Hệ thống sân</span>
           </router-link>
-          <router-link v-if="['admin', 'seller', 'staff'].includes(userRoleRaw)" to="/admin/court-bookings" class="submenu-item" active-class="submenu-item--active">
+          <router-link to="/admin/court-bookings" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Quản lý Đặt Sân</span>
           </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/court-reports" class="submenu-item" active-class="submenu-item--active">
@@ -204,27 +179,18 @@ const handleLogout = async () => {
         </div>
       </transition>
 
-      <!-- 5. Marketing & Khuyến mãi -->
-      <div v-if="['admin', 'staff'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('marketing')" :class="{ 'nav-item--open': isMarketingMenuOpen }">
+      <!-- Marketing -->
+      <div v-if="['admin', 'staff', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('marketing')" :class="{ 'nav-item--open': openMenus.marketing }">
         <div class="nav-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-            <line x1="7" y1="7" x2="7.01" y2="7"></line>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
         </div>
         <span>Marketing</span>
-        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': isMarketingMenuOpen }" size="14" />
+        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.marketing }" size="14" />
       </div>
       <transition name="slide-fade">
-        <div v-if="isMarketingMenuOpen" class="nav-submenu">
-          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/flash-sale" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Flash Sale</span>
-          </router-link>
+        <div v-if="openMenus.marketing" class="nav-submenu">
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/coupon" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Mã giảm giá</span>
-          </router-link>
-          <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/rewards" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Quà tặng Loyalty</span>
           </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/post" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
@@ -234,10 +200,6 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span>
             <span>Danh mục bài viết</span>
           </router-link>
-          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/review" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span>
-            <span>Đánh giá & Khiếu nại</span>
-          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Thống kê</span>
@@ -245,22 +207,22 @@ const handleLogout = async () => {
           <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/user-rewards" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Lịch sử đổi quà</span>
           </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/flash-sale" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Flash Sale</span>
+          </router-link>
         </div>
       </transition>
 
-      <!-- 6. Tài chính & Ví -->
-      <div v-if="['admin'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('finance')" :class="{ 'nav-item--open': isFinanceMenuOpen }">
+      <!-- Tài chính -->
+      <div v-if="['admin'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('finance')" :class="{ 'nav-item--open': openMenus.finance }">
         <div class="nav-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="1" x2="12" y2="23"></line>
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
         </div>
         <span>Tài chính</span>
-        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': isFinanceMenuOpen }" size="14" />
+        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.finance }" size="14" />
       </div>
       <transition name="slide-fade">
-        <div v-if="isFinanceMenuOpen" class="nav-submenu">
+        <div v-if="openMenus.finance" class="nav-submenu">
           <router-link to="/admin/wallet-deposits" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Duyệt nạp tiền</span>
           </router-link>
@@ -270,50 +232,36 @@ const handleLogout = async () => {
         </div>
       </transition>
 
-      <!-- 7. CRM & CSKH -->
-      <div v-if="['admin', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('crm')" :class="{ 'nav-item--open': isCrmMenuOpen }">
-        <div class="nav-icon">
-          <AppIcon name="contact" />
-        </div>
+      <!-- Chăm sóc Khách hàng -->
+      <div v-if="['admin', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('care')" :class="{ 'nav-item--open': openMenus.care }">
+        <div class="nav-icon"><AppIcon name="chat" /></div>
         <span>Chăm sóc Khách hàng</span>
-        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': isCrmMenuOpen }" size="14" />
+        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.care }" size="14" />
       </div>
       <transition name="slide-fade">
-        <div v-if="isCrmMenuOpen" class="nav-submenu">
-          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/users" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Danh sách Khách hàng</span>
+        <div v-if="openMenus.care" class="nav-submenu">
+          <router-link to="/admin/users" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Khách hàng</span>
           </router-link>
-          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/chat" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Tin nhắn (Chat)</span>
+          <router-link to="/admin/review" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Đánh giá & Khiếu nại</span>
           </router-link>
-          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/contact" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Liên hệ</span>
-          </router-link>
-          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/review" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Đánh giá</span>
-          </router-link>
-          <router-link v-if="['admin', 'seller'].includes(userRoleRaw)" to="/admin/tickets" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Khiếu nại</span>
+          <router-link to="/admin/chat" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Chat</span>
           </router-link>
         </div>
       </transition>
 
-      <!-- 8. Nội dung & Blog -->
-      <div v-if="['admin'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('content')" :class="{ 'nav-item--open': isContentMenuOpen }">
+      <!-- Nội dung -->
+      <div v-if="['admin'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('content')" :class="{ 'nav-item--open': openMenus.content }">
         <div class="nav-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
         </div>
         <span>Nội dung</span>
-        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': isContentMenuOpen }" size="14" />
+        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.content }" size="14" />
       </div>
       <transition name="slide-fade">
-        <div v-if="isContentMenuOpen" class="nav-submenu">
+        <div v-if="openMenus.content" class="nav-submenu">
           <router-link to="/admin/post" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Bài viết</span>
           </router-link>
@@ -323,36 +271,34 @@ const handleLogout = async () => {
         </div>
       </transition>
 
-      <!-- 9. Nhân sự & Chấm công -->
-      <div v-if="['admin', 'seller', 'staff'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('hr')" :class="{ 'nav-item--open': isHrMenuOpen }">
-        <div class="nav-icon">
-          <AppIcon name="users" />
-        </div>
+      <!-- Nhân sự -->
+      <div v-if="['admin', 'seller', 'staff'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('staff')" :class="{ 'nav-item--open': openMenus.staff }">
+        <div class="nav-icon"><AppIcon name="users" /></div>
         <span>Nhân sự</span>
-        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': isHrMenuOpen }" size="14" />
+        <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.staff }" size="14" />
       </div>
       <transition name="slide-fade">
-        <div v-if="isHrMenuOpen" class="nav-submenu">
+        <div v-if="openMenus.staff" class="nav-submenu">
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/staff" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Danh sách nhân sự</span>
+          </router-link>
+          <router-link to="/admin/attendance" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Chấm công</span>
+          </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/attendance-list" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Lịch sử chấm công</span>
+          </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/work-locations" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Chi nhánh</span>
           </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/work-shifts" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Ca làm việc & Phân ca</span>
           </router-link>
-          <router-link v-if="['admin', 'seller', 'staff'].includes(userRoleRaw)" to="/admin/attendance" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Chấm công (Cá nhân)</span>
-          </router-link>
-          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/attendance-list" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Lịch sử chấm công (Admin)</span>
-          </router-link>
-          <router-link v-if="['admin', 'seller', 'staff'].includes(userRoleRaw)" to="/admin/face-register" class="submenu-item" active-class="submenu-item--active">
+          <router-link to="/admin/face-register" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Đăng ký khuôn mặt</span>
           </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/face-management" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Quản lý khuôn mặt (Admin)</span>
-          </router-link>
-          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/work-locations" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Chi nhánh</span>
+            <span class="submenu-dot"></span><span>Quản lý khuôn mặt</span>
           </router-link>
         </div>
       </transition>

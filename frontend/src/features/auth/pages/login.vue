@@ -25,7 +25,6 @@ const loadTurnstile = () => {
   const script = document.createElement('script');
   script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad';
   script.async = true;
-  script.defer = true;
   window.onTurnstileLoad = () => renderTurnstile();
   document.head.appendChild(script);
 };
@@ -33,22 +32,19 @@ const loadTurnstile = () => {
 const renderTurnstile = () => {
   const container = document.getElementById('turnstile-login');
   if (!container || !window.turnstile) return;
+  container.innerHTML = '';
   turnstileWidgetId = window.turnstile.render('#turnstile-login', {
     sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADXLObm9kcqVpVUc',
     callback: (token) => { turnstileToken.value = token; },
     'expired-callback': () => { turnstileToken.value = ''; },
     'error-callback': () => { turnstileToken.value = ''; },
+    theme: 'light',
   });
 };
 
-onMounted(() => {
-  loadTurnstile();
-});
-
+onMounted(() => { loadTurnstile(); });
 onBeforeUnmount(() => {
-  if (turnstileWidgetId !== null && window.turnstile) {
-    window.turnstile.remove(turnstileWidgetId);
-  }
+  if (turnstileWidgetId !== null && window.turnstile) window.turnstile.remove(turnstileWidgetId);
 });
 
 const resolveRedirectTarget = (user) => {
@@ -119,9 +115,9 @@ const login = async () => {
   validateField('password');
 
   if (fieldErrors.email || fieldErrors.password) return;
-  
+
   if (!turnstileToken.value) {
-    showToast('Vui lòng xác thực CAPTCHA', 'danger');
+    showToast('Vui lòng xác nhận bạn không phải là robot', 'danger');
     return;
   }
 
@@ -144,15 +140,15 @@ const login = async () => {
       router.push(resolveRedirectTarget(response.data.user));
     }
   } catch (error) {
-    if (window.turnstile && turnstileWidgetId !== null) {
-      window.turnstile.reset(turnstileWidgetId);
-      turnstileToken.value = '';
-    }
     let msg = error.response?.data?.message || 'Đăng nhập thất bại!';
     if (error.response?.status === 429) {
       msg = 'Bạn đã thử quá nhiều lần! Vui lòng đợi 1 phút rồi thử lại.';
     }
     showToast(msg, 'danger');
+    if (window.turnstile && turnstileWidgetId !== null) {
+      window.turnstile.reset(turnstileWidgetId);
+      turnstileToken.value = '';
+    }
   } finally {
     isSubmitting.value = false;
   }
@@ -302,7 +298,8 @@ const login = async () => {
 .auth-page {
   flex: 1;
   width: 100%;
-  background: linear-gradient(135deg, #FFF0F3 0%, #FFF 100%);
+
+  /* Classic soft background */
   padding: 60px 0;
   font-family: var(--font-inter, 'Inter', sans-serif);
   display: flex;
@@ -314,10 +311,12 @@ const login = async () => {
   width: 100%;
   max-width: 1000px;
   background: var(--card-bg);
-  border-radius: 24px;
-  box-shadow: 0 20px 40px rgba(230, 59, 111, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  /* Clean boxed shadow */
   display: flex;
   overflow: hidden;
+  /* This makes the image cleanly cropped inside the box */
 }
 
 /* LEFT COLUMN - Editorial Form Area */
@@ -402,10 +401,10 @@ const login = async () => {
 .input-modern-wrapper {
   display: flex;
   align-items: center;
-  background: var(--surface);
+  background: #f8fafc;
   border-radius: 10px;
   padding: 0 14px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid #e2e8f0;
   transition: all 0.3s ease;
   height: 48px;
   width: 100%;
@@ -413,7 +412,7 @@ const login = async () => {
 
 .input-modern-wrapper:focus-within {
   background: var(--card-bg);
-  border-color: var(--primary-fixed-dim);
+  border-color: #ffd9de;
   box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
 }
 
@@ -435,12 +434,12 @@ const login = async () => {
 }
 
 .input-modern-wrapper input::placeholder {
-  color: var(--text-light);
+  color: #94a3b8;
   font-weight: 400;
 }
 
 .input-modern-wrapper .icon {
-  color: var(--text-muted);
+  color: #94a3b8;
   display: flex;
   margin-right: 12px;
   align-items: center;
@@ -459,7 +458,7 @@ const login = async () => {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-muted);
+  color: #64748b;
   font-size: 0.8rem;
   display: flex;
   align-items: center;
@@ -493,7 +492,7 @@ const login = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--text-secondary);
+  color: #475569;
   cursor: pointer;
   position: relative;
   font-weight: 500;
@@ -508,13 +507,13 @@ const login = async () => {
 .remember-me .checkmark {
   height: 16px;
   width: 16px;
-  background-color: var(--surface);
+  background-color: #f8fafc;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  border: 1px solid var(--border-color);
+  border: 1px solid #cbd5e1;
 }
 
 .remember-me:hover input~.checkmark {
@@ -551,7 +550,7 @@ const login = async () => {
 .turnstile-wrapper {
   display: flex;
   justify-content: center;
-  margin: 8px 0;
+  margin: 12px 0;
 }
 
 .captcha-box {
@@ -627,14 +626,14 @@ const login = async () => {
 .divider::after {
   content: "";
   flex: 1;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .divider span {
   padding: 0 16px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  font-weight: 500;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 600;
 }
 
 .social-login-grid {
@@ -649,25 +648,25 @@ const login = async () => {
   justify-content: center;
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   background: var(--card-bg);
-  color: var(--text-main);
+  color: #334155;
 }
 
 .btn-social:hover {
-  border-color: var(--primary-fixed-dim);
-  background: var(--surface);
+  border-color: #cbd5e1;
+  background: #f8fafc;
 }
 
 .register-hint {
   text-align: center;
   font-size: 0.9rem;
-  color: var(--text-secondary);
+  color: #64748b;
   margin-top: 4px;
   font-weight: 500;
 }
