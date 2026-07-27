@@ -305,6 +305,7 @@ const prevImage = () => {
 
 const zoomStyle = ref({});
 const handleZoom = (e) => {
+  if (window.innerWidth <= 768 || ('ontouchstart' in window && window.innerWidth <= 1024)) return;
   const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
   const x = ((e.clientX - left) / width) * 100;
   const y = ((e.clientY - top) / height) * 100;
@@ -880,22 +881,22 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Social Share for Loyalty Points -->
-        <button class="pd-btn-share" @click="shareToFacebook" :disabled="isSharing">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-          Chia sẻ Facebook nhận +10 điểm
-        </button>
-
-        <!-- Product QR Code -->
-        <button class="pd-btn-share" @click="showProductQr" style="margin-top: 10px; background-color: #f8f9fa; color: #212529; border-color: #dee2e6;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="6" height="6" rx="1"></rect>
-            <rect x="15" y="3" width="6" height="6" rx="1"></rect>
-            <rect x="3" y="15" width="6" height="6" rx="1"></rect>
-            <rect x="15" y="15" width="6" height="6" rx="1"></rect>
-          </svg>
-          Mã QR giới thiệu / chia sẻ
-        </button>
+        <!-- Social Share & QR Group -->
+        <div class="pd-share-group">
+          <button class="pd-btn-share" @click="shareToFacebook" :disabled="isSharing" title="Chia sẻ Facebook nhận +10 điểm">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
+            <span>Chia sẻ +10 điểm</span>
+          </button>
+          <button class="pd-btn-share qr" @click="showProductQr" title="Mã QR giới thiệu / chia sẻ">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="6" height="6" rx="1"></rect>
+              <rect x="15" y="3" width="6" height="6" rx="1"></rect>
+              <rect x="3" y="15" width="6" height="6" rx="1"></rect>
+              <rect x="15" y="15" width="6" height="6" rx="1"></rect>
+            </svg>
+            <span>Mã QR giới thiệu</span>
+          </button>
+        </div>
         <PremiumUpgrade :current-variant="selectedVariant" :all-variants="sortedVariants" @upgrade="handleUpgrade" />
       </div>
     </section>
@@ -1161,14 +1162,19 @@ onBeforeUnmount(() => {
 
 /* Breadcrumb */
 .pd-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   font-size: 0.85rem;
   color: #636E72;
   padding: 16px 0;
+  line-height: 1.5;
 }
 
 .pd-breadcrumb a {
   color: #636E72;
   text-decoration: none;
+  transition: color 0.2s;
 }
 
 .pd-breadcrumb a:hover {
@@ -1592,27 +1598,46 @@ onBeforeUnmount(() => {
 .pd-perks { display: flex; gap: 24px; padding: 16px 0; border-top: 1px solid #E9ECEF; margin-bottom: 16px; }
 .pd-perk { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #636E72; font-weight: 500; }
 
-/* Share Button */
+/* Share & QR Group */
+.pd-share-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
 .pd-btn-share {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 6px;
+  padding: 10px 12px;
   background: #1877F2;
   color: #fff;
   border: none;
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  margin-bottom: 20px;
+  margin: 0 !important;
   font-family: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .pd-btn-share:hover { background: #166FE5; }
 .pd-btn-share:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.pd-btn-share.qr {
+  background-color: #f8f9fa !important;
+  color: #212529 !important;
+  border: 1px solid #dee2e6 !important;
+}
+.pd-btn-share.qr:hover {
+  background-color: #e9ecef !important;
+}
 
 /* ── TABS ── */
 .pd-tabs-section {
@@ -2085,6 +2110,34 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  .pd-breadcrumb {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 12px 0 14px;
+    font-size: 0.8rem;
+  }
+
+  .pd-breadcrumb a,
+  .pd-breadcrumb .sep {
+    flex-shrink: 0;
+  }
+
+  .pd-breadcrumb .current {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+
+  .pd-main-img {
+    cursor: default !important;
+  }
+
+  .pd-main-img img {
+    transform: none !important;
+  }
+
   .pd-gallery {
     flex-direction: column-reverse;
   }
@@ -2106,12 +2159,23 @@ onBeforeUnmount(() => {
   }
 
   .pd-cta {
-    flex-direction: column;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .pd-btn-cart, .pd-btn-buy {
+    padding: 12px 8px;
+    font-size: 0.88rem;
   }
 
   .pd-perks {
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    justify-content: space-around;
+    background: #f8f9fa;
+    padding: 10px 8px;
+    border-radius: 8px;
+    border: none;
+    margin-bottom: 16px;
   }
 }
 
