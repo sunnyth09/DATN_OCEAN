@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed } from "vue";
 import { storeToRefs } from "pinia";
 import ProductCard from "@/components/ProductCard.vue";
 import ProductSkeleton from "@/components/ProductSkeleton.vue";
+import AppIcon from "@/components/AppIcon.vue";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
 import { getAppBaseUrl, getStorageUrl } from '@/utils/url';
@@ -182,34 +183,28 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 <template>
     <main class="home-main">
-
-        <!-- ══════════════════════════════════════════
-             1. HERO BANNER — Full Width
-        ══════════════════════════════════════════ -->
         <section class="hero-section">
             <div class="hero-bg">
                 <img :src="BASE_URL + '/storage/banners/banner_1.jpg'" alt="hero" class="hero-bg-img" />
                 <div class="hero-overlay"></div>
             </div>
-            <!-- Floating stats badge (desktop only) -->
-            <div class="hero-stat--top-right d-none d-lg-flex">
-                <div class="hero-stat-item">
-                    <span class="hero-stat-num">50K+</span>
-                    <span class="hero-stat-label">Khách hàng</span>
-                </div>
-                <div class="hero-stat-divider"></div>
-                <div class="hero-stat-item">
-                    <span class="hero-stat-num">1000+</span>
-                    <span class="hero-stat-label">Sản phẩm</span>
-                </div>
-                <div class="hero-stat-divider"></div>
-                <div class="hero-stat-item">
-                    <span class="hero-stat-num">100%</span>
-                    <span class="hero-stat-label">Chính hãng</span>
-                </div>
-            </div>
-            <!-- Hero content inside Bootstrap container -->
             <div class="container hero-content-wrap">
+                <div class="hero-stat--top-right d-none d-lg-flex mt-5">
+                    <div class="hero-stat-item">
+                        <span class="hero-stat-num">50K+</span>
+                        <span class="hero-stat-label">Khách hàng</span>
+                    </div>
+                    <div class="hero-stat-divider"></div>
+                    <div class="hero-stat-item">
+                        <span class="hero-stat-num">1000+</span>
+                        <span class="hero-stat-label">Sản phẩm</span>
+                    </div>
+                    <div class="hero-stat-divider"></div>
+                    <div class="hero-stat-item">
+                        <span class="hero-stat-num">100%</span>
+                        <span class="hero-stat-label">Chính hãng</span>
+                    </div>
+                </div>
                 <div class="hero-content">
                     <span class="hero-tag">BỘ SƯU TẬP MỚI 2026</span>
                     <h1 class="hero-title">
@@ -241,73 +236,48 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              2. BENEFITS BAR — Full Width
         ══════════════════════════════════════════ -->
-        <section class="benefits-bar mt-5">
+        <section class="benefits-bar">
             <div class="container">
                 <div class="benefits-inner">
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="1" y="3" width="15" height="13" rx="2" />
-                                <path d="M16 8h4l3 4v4h-7V8z" />
-                                <circle cx="5.5" cy="18.5" r="2.5" />
-                                <circle cx="18.5" cy="18.5" r="2.5" />
-                            </svg>
+                            <AppIcon name="shipping" />
                         </div>
                         <div class="benefit-text">
                             <span class="benefit-title">Miễn phí vận chuyển</span>
                             <span class="benefit-sub">Đơn hàng từ 500K</span>
                         </div>
                     </div>
-                    <div class="benefit-divider d-none d-md-block"></div>
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="1 4 1 10 7 10" />
-                                <path d="M3.51 15a9 9 0 102.13-9.36L1 10" />
-                            </svg>
+                            <AppIcon name="return" />
                         </div>
                         <div class="benefit-text">
                             <span class="benefit-title">Đổi trả 30 ngày</span>
                             <span class="benefit-sub">Không cần lý do</span>
                         </div>
                     </div>
-                    <div class="benefit-divider d-none d-md-block"></div>
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                <path d="M7 11V7a5 5 0 0110 0v4" />
-                            </svg>
+                            <AppIcon name="payment" />
                         </div>
                         <div class="benefit-text">
                             <span class="benefit-title">Thanh toán bảo mật</span>
                             <span class="benefit-sub">SSL 256-bit</span>
                         </div>
                     </div>
-                    <div class="benefit-divider d-none d-md-block"></div>
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                            </svg>
+                            <AppIcon name="shield" />
                         </div>
                         <div class="benefit-text">
                             <span class="benefit-title">Hàng chính hãng 100%</span>
                             <span class="benefit-sub">Cam kết đảm bảo</span>
                         </div>
                     </div>
-                    <div class="benefit-divider d-none d-md-block"></div>
                     <div class="benefit-item">
                         <div class="benefit-icon">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                <path
-                                    d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-                            </svg>
+                            <AppIcon name="heart" />
                         </div>
                         <div class="benefit-text">
                             <span class="benefit-title">Hỗ trợ 24/7</span>
@@ -367,12 +337,12 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 <!-- Products grid Bootstrap row -->
                 <div class="row g-4">
                     <template v-if="isLoadingFeatured">
-                        <div v-for="i in 4" :key="i" class="col-6 col-lg-3">
+                        <div v-for="i in 4" :key="i" class="col-6 col-md-4 col-lg-3">
                             <div class="skeleton-pulse" style="min-height:320px;border-radius:12px;"></div>
                         </div>
                     </template>
                     <template v-else-if="flashSaleProducts.length > 0">
-                        <div v-for="product in flashSaleProducts" :key="'flash-' + product.id" class="col-6 col-lg-3">
+                        <div v-for="product in flashSaleProducts" :key="'flash-' + product.id" class="col-6 col-md-4 col-lg-3">
                             <ProductCard :product="product" />
                         </div>
                     </template>
@@ -624,7 +594,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                 <p class="promo-banner-desc">Đăng ký tài khoản ngay hôm nay để nhận mã giảm giá 20% cho
                                     đơn hàng
                                     đầu tiên.</p>
-                                <router-link to="/register" class="promo-banner-btn">
+                                <router-link to="/client/register" class="promo-banner-btn">
                                     Đăng ký ngay
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2.5">
@@ -782,7 +752,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                     Cập nhật sản phẩm mới nhất trước mọi người.
                                 </li>
                             </ul>
-                            <router-link to="/register" class="btn-community">
+                            <router-link to="/client/register" class="btn-community">
                                 Đăng ký tham gia ngay
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2.5">
@@ -895,7 +865,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .hero-stat--top-right {
     position: absolute;
     top: 40px;
-    right: 40px;
+    right: 12px;
     z-index: 3;
     align-items: center;
     gap: 24px;
@@ -1101,65 +1071,102 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    2. BENEFITS BAR
 ============================================ */
 .benefits-bar {
-    background: var(--card-bg);
-    border-top: 1px solid #f0f0f0;
-    border-bottom: 1px solid #f0f0f0;
-    box-shadow: 0 2px 16px rgba(0, 0, 0, .04);
+    background: #ffffff;
+    padding: 35px 0;
+    position: relative;
+    z-index: 10;
 }
 
 .benefits-inner {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 20px;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
+    border: 1px solid rgba(0, 0, 0, 0.035);
 }
 
 .benefit-item {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 22px 16px;
-    flex: 1;
-    transition: background .2s;
+    gap: 16px;
+    padding: 20px 24px;
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: transparent;
+    cursor: pointer;
 }
 
 .benefit-item:hover {
-    background: #fef5f8;
+    background: #fff5f7;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px rgba(230, 59, 111, 0.06);
 }
 
 .benefit-item:hover .benefit-icon {
-    transform: translateY(-3px);
+    transform: scale(1.1) rotate(5deg);
     color: var(--primary);
+    background: #ffe5ed;
 }
 
 .benefit-icon {
-    color: var(--primary);
-    flex-shrink: 0;
-    transition: transform .3s, color .2s;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border-radius: 12px;
+    color: #64748b;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .benefit-text {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
 }
 
 .benefit-title {
-    font-size: .85rem;
+    font-size: 0.88rem;
     font-weight: 700;
-    color: var(--text-main);
+    color: #1e293b;
     white-space: nowrap;
+    transition: color 0.3s;
+}
+
+.benefit-item:hover .benefit-title {
+    color: var(--primary);
 }
 
 .benefit-sub {
-    font-size: .75rem;
-    color: #636E72;
+    font-size: 0.78rem;
+    color: #64748b;
 }
 
-.benefit-divider {
-    width: 1px;
-    height: 40px;
-    background: #e5e7eb;
-    flex-shrink: 0;
+@media (max-width: 1200px) {
+    .benefits-inner {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .benefits-inner {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        padding: 8px;
+    }
+    .benefit-item {
+        padding: 14px 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .benefits-inner {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ============================================
@@ -1493,11 +1500,11 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-small-img {
     position: absolute;
-    right: -10px;
+    right: 10px;
     top: 50%;
     transform: translateY(-50%);
-    width: 50%;
-    height: 130%;
+    width: 45%;
+    height: 85%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1514,7 +1521,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .equip-small-card:hover .equip-small-img img {
-    transform: scale(1.15) translateX(-10px);
+    transform: scale(1.1);
 }
 
 .equip-small-info {
@@ -2068,7 +2075,9 @@ a.promo-banner-btn {
 
 @media (max-width: 768px) {
     .hero-section {
-        height: 460px;
+        min-height: 460px;
+        height: auto;
+        padding-bottom: 40px;
     }
 
     .hero-title {
@@ -2099,7 +2108,9 @@ a.promo-banner-btn {
 
 @media (max-width: 576px) {
     .hero-section {
-        height: 400px;
+        min-height: 480px;
+        height: auto;
+        padding-bottom: 60px;
     }
 
     .hero-title {

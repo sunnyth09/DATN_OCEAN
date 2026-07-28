@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue';
+import { ref, nextTick, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
 import { orderService } from '@/services/orderService';
@@ -28,7 +28,7 @@ const showToast = (message, type = 'success') => {
 
 const route = useRoute();
 const router = useRouter();
-const orderId = route.params.id;
+const orderId = computed(() => route.params.id);
 
 const order = ref(null);
 const tracking = ref(null);
@@ -66,12 +66,15 @@ const formatDate = (dateString) => {
 const getStatusText = (status) => getOrderStatusDescription(status);
 const getStatusClass = (status) => getOrderStatusTone(status);
 const getStatusBadgeClass = (status) => {
+  if (status === 'unpaid') return 'badge-warning';
+  if (status === 'paid' || status === 'refunded') return 'badge-success';
+
   const tone = getOrderStatusTone(status);
-  if (tone === 'success') return 'badge-success';
-  if (tone === 'danger') return 'badge-danger';
-  if (tone === 'warning') return 'badge-warning';
-  if (tone === 'info') return 'badge-info';
-  if (tone === 'primary') return 'badge-primary';
+  if (tone === 'status-success') return 'badge-success';
+  if (tone === 'status-danger') return 'badge-danger';
+  if (tone === 'status-warning') return 'badge-warning';
+  if (tone === 'status-info') return 'badge-info';
+  if (tone === 'status-primary') return 'badge-primary';
   return 'badge-secondary';
 };
 
@@ -84,9 +87,10 @@ const getStatusIcon = (status) => {
 };
 
 const fetchOrderTracking = async () => {
+  if (!orderId.value) return;
   trackingLoading.value = true;
   try {
-    const res = await orderService.getOrderTracking(orderId);
+    const res = await orderService.getOrderTracking(orderId.value);
     if (res.data.status === 'success') {
       tracking.value = res.data.data;
     }
@@ -99,9 +103,10 @@ const fetchOrderTracking = async () => {
 };
 
 const fetchOrderDetail = async () => {
+  if (!orderId.value) return;
   loading.value = true;
   try {
-    const res = await orderService.getProfileOrderDetail(orderId);
+    const res = await orderService.getProfileOrderDetail(orderId.value);
     if (res.data.status === 'success') {
       order.value = res.data.data;
       await fetchOrderTracking();
@@ -312,6 +317,12 @@ const submitTicket = async () => {
 onMounted(() => {
   fetchOrderDetail();
 });
+
+watch(orderId, (newId) => {
+  if (newId) {
+    fetchOrderDetail();
+  }
+});
 </script>
 
 <template>
@@ -338,7 +349,7 @@ onMounted(() => {
       <div class="status-section">
         <div class="status-info">
           <div class="status-badge" :class="getStatusClass(order.fulfillment_status)">
-            <span class="status-icon" v-html="getStatusIcon(order.fulfillment_status)"></span>
+            <span class="status-icon"><AppIcon :name="getStatusIcon(order.fulfillment_status)" /></span>
             {{ getStatusText(order.fulfillment_status) }}
           </div>
           <span class="order-date">Đặt lúc: {{ formatDate(order.created_at) }}</span>

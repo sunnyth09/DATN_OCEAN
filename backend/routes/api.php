@@ -151,20 +151,24 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::post('/', [ProfileController::class, 'update']);
     Route::put('/password', [ProfileController::class, 'changePassword']);
 
-    Route::get('/addresses', [AddressController::class, 'index']);
-    Route::post('/addresses', [AddressController::class, 'store']);
-    Route::put('/addresses/{id}', [AddressController::class, 'update']);
-    Route::delete('/addresses/{id}', [AddressController::class, 'destroy']);
-    Route::put('/addresses/{id}/default', [AddressController::class, 'setDefault']);
+    Route::middleware('customer.only')->group(function () {
+        Route::middleware('throttle:60,1')->get('/addresses', [AddressController::class, 'index']);
+        Route::middleware('throttle:5,1')->post('/addresses', [AddressController::class, 'store']);
+        Route::middleware('throttle:10,1')->put('/addresses/{id}', [AddressController::class, 'update']);
+        Route::middleware('throttle:10,1')->delete('/addresses/{id}', [AddressController::class, 'destroy']);
+        Route::middleware('throttle:10,1')->put('/addresses/{id}/default', [AddressController::class, 'setDefault']);
+    });
 
 
     // Coupons (Lưu và xem mã giảm giá của tôi)
-    Route::get('/coupons', [CouponController::class, 'getUserCoupons']);
-    Route::post('/coupons/save', [CouponController::class, 'saveCoupon']);
+    Route::middleware('customer.only')->group(function () {
+        Route::middleware('throttle:60,1')->get('/coupons', [CouponController::class, 'getUserCoupons']);
+        Route::middleware('throttle:10,1')->post('/coupons/save', [CouponController::class, 'saveCoupon']);
+    });
 
     // Đơn hàng của tôi
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::middleware('throttle:30,1')->post('/orders', [OrderController::class, 'store']);
+    Route::middleware('throttle:5,1')->post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
     Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
@@ -186,12 +190,12 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // ── Affiliate (Hoa hồng giới thiệu) ──
     Route::middleware('customer.only')->group(function () {
-        Route::post('/affiliate/register', [AffiliateController::class, 'register']);
-        Route::get('/affiliate/profile', [AffiliateController::class, 'profile']);
-        Route::get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
-        Route::get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
-        Route::post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
-        Route::get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
+        Route::middleware('throttle:10,1')->post('/affiliate/register', [AffiliateController::class, 'register']);
+        Route::middleware('throttle:60,1')->get('/affiliate/profile', [AffiliateController::class, 'profile']);
+        Route::middleware('throttle:60,1')->get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
+        Route::middleware('throttle:60,1')->get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
+        Route::middleware('throttle:3,60')->post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
+        Route::middleware('throttle:60,1')->get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
     });
     // Khiếu nại của tôi
     Route::get('/tickets', [TicketController::class, 'clientIndex']);
@@ -220,7 +224,7 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 });
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
-Route::middleware('throttle:30,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:3,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
 Route::middleware('throttle:30,1')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
 Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
@@ -311,6 +315,7 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::delete('/flash-sale/{id}', [\App\Http\Controllers\Admin\FlashSaleController::class, 'destroy']);
     Route::post('/flash-sale/{id}/initialize', [\App\Http\Controllers\Admin\FlashSaleController::class, 'initialize']);
     // ── Affiliate Management (Admin) ──
+    Route::get('/affiliate/users', [AdminAffiliateController::class, 'affiliates']);
     Route::get('/affiliate/conversions', [AdminAffiliateController::class, 'conversions']);
     Route::put('/affiliate/conversions/{id}/approve', [AdminAffiliateController::class, 'approveConversion']);
     Route::put('/affiliate/conversions/{id}/cancel', [AdminAffiliateController::class, 'cancelConversion']);

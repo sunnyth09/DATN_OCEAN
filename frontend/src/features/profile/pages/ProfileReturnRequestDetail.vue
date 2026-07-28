@@ -80,7 +80,7 @@ const goBack = () => {
 
           <div class="detail-block">
             <h3>Mô tả chi tiết</h3>
-            <p>{{ detail.description || 'Không có mô tả bổ sung.' }}</p>
+            <div class="description-content" v-html="detail.description || 'Không có mô tả bổ sung.'"></div>
           </div>
 
           <div v-if="detail.images?.length" class="detail-block">
@@ -209,6 +209,7 @@ const goBack = () => {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
   gap: 20px;
+  align-items: start;
 }
 
 .detail-card {
@@ -246,15 +247,16 @@ const goBack = () => {
 
 .detail-block h3 {
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-main);
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
 }
 
-.detail-block p {
-  margin: 10px 0 0;
-  color: #475569;
+.detail-block p, .description-content {
+  margin: 8px 0 0;
+  color: #334155;
   line-height: 1.6;
+  font-size: 0.95rem;
 }
 
 .admin-note {
@@ -265,14 +267,13 @@ const goBack = () => {
 .evidence-grid {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
 }
 
 .evidence-grid img {
   width: 100%;
-  height: 120px;
-  object-fit: cover;
+  height: auto;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
 }
@@ -281,8 +282,20 @@ const goBack = () => {
   display: flex;
   justify-content: space-between;
   margin-bottom: 12px;
-  color: #475569;
+  align-items: center;
 }
+
+.info-row span {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.info-row strong {
+  color: #1e293b;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .info-row:last-of-type {
   margin-bottom: 0;
 }

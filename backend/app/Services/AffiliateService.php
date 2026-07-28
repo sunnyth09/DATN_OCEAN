@@ -125,11 +125,12 @@ class AffiliateService
             'product_id'    => $data['product_id'] ?? null,
             'referral_code' => $referralCode,
             'ip_address'    => $ipAddress,
-            'user_agent'    => $data['user_agent'] ?? null,
+            'user_agent'    => Str::limit((string) ($data['user_agent'] ?? ''), (int) config('affiliate.spam_protection.track_click.user_agent_max_length', 500), ''),
         ]);
 
-        // Đánh dấu IP này đã click code này, hết hiệu lực sau 24h
-        Cache::put($dedupKey, true, now()->addHours(24));
+        // Đánh dấu IP này đã click code này, TTL cấu hình được để dễ tinh chỉnh theo traffic thực tế.
+        $dedupHours = (int) config('affiliate.spam_protection.click_dedup_hours', 24);
+        Cache::put($dedupKey, true, now()->addHours(max(1, $dedupHours)));
 
         return $this->success('Đã ghi nhận lượt click!');
     }
@@ -350,6 +351,11 @@ class AffiliateService
     // =====================================================================
     // ADMIN METHODS
     // =====================================================================
+
+    public function adminGetAffiliates(): array
+    {
+        return $this->success('Danh sách cộng tác viên', $this->affiliateRepo->adminListAffiliates());
+    }
 
     public function adminGetConversions(): array
     {

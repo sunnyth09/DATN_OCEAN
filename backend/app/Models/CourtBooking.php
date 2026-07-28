@@ -74,4 +74,11 @@ class CourtBooking extends Model
     {
         return $this->hasMany(CourtBookingExtension::class, 'booking_id', 'booking_id');
     }
+
+    public function setBookingDateAttribute($value)
+    {
+        $this->attributes['booking_date'] = $value instanceof \DateTimeInterface
+            ? $value->format('Y-m-d')
+            : substr((string) $value, 0, 10);
+    }
 }

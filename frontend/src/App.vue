@@ -15,9 +15,8 @@ onMounted(() => {
 </script>
 
 <style>
-/* Ngăn chặn thanh cuộn ngang gây ra bởi các thẻ full width (100vw) trên Windows/Linux */
+/* Đã loại bỏ overflow-x: clip trên html, body để không làm mất thuộc tính sticky của header và window.scrollY */
 html, body {
-  overflow-x: clip;
   max-width: 100%;
 }
 </style>

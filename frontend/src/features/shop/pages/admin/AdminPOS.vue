@@ -1745,4 +1745,27 @@ onUnmounted(() => {
   background-color: var(--primary, #e63b6f);
   color: white;
 }
+
+/* RESPONSIVE POS LAYOUT */
+@media (max-width: 991.98px) {
+  .pos-container {
+    height: auto;
+    min-height: calc(100vh - 70px);
+    overflow: visible;
+  }
+  .pos-left {
+    height: 60vh;
+    min-height: 450px;
+    padding-bottom: 24px;
+  }
+  .pos-right {
+    height: auto;
+    min-height: 400px;
+    border-left: none;
+    border-top: 4px solid var(--border-color);
+  }
+  .customer-row {
+    flex-direction: column;
+  }
+}
 </style>

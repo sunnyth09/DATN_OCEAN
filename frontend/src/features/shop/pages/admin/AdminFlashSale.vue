@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
 import api from '@/axios.js';
 import { getStorageUrl } from '@/utils/url';
 import Swal from 'sweetalert2';
@@ -227,7 +227,7 @@ onMounted(fetchFlashSales);
             <th>Tên Campaign</th>
             <th>Thời gian bắt đầu</th>
             <th>Thời gian kết thúc</th>
-            <th class="text-center">Số lượng SP</th>
+            <th class="text-center">Sản phẩm / Số lượng</th>
             <th class="status-th">Trạng thái</th>
             <th class="actions-th">Thao tác</th>
           </tr>
@@ -250,10 +250,13 @@ onMounted(fetchFlashSales);
             </td>
             <td><span class="time-badge time-start">{{ new Date(fs.start_time).toLocaleString('vi-VN') }}</span></td>
             <td><span class="time-badge time-end">{{ new Date(fs.end_time).toLocaleString('vi-VN') }}</span></td>
-            <td class="text-center fw-bold" style="color: var(--text-muted)">{{ fs.items?.length || 0 }} SP</td>
+            <td class="text-center" style="color: var(--text-muted)">
+                <div class="fw-bold text-dark" style="font-size: 0.9rem;">{{ fs.items?.length || 0 }} mẫu SP</div>
+                <small style="font-size: 0.75rem;">(Tổng cấp: {{ fs.items?.reduce((sum, item) => sum + Number(item.campaign_stock), 0) || 0 }})</small>
+            </td>
             <td class="status-cell">
-              <span class="ws-status-badge" :class="fs.status === 'active' ? 'status-active' : (fs.status === 'ended' ? 'status-ended' : 'status-inactive')">
-                {{ STATUS_LABELS[fs.status]?.text || fs.status }}
+              <span class="ws-status-badge" :class="(new Date(fs.end_time) < new Date()) || fs.status === 'ended' ? 'status-ended' : (fs.status === 'active' ? 'status-active' : 'status-inactive')">
+                {{ (new Date(fs.end_time) < new Date()) ? 'Đã kết thúc' : (STATUS_LABELS[fs.status]?.text || fs.status) }}
               </span>
             </td>
             <td class="actions-cell">
@@ -282,27 +285,27 @@ onMounted(fetchFlashSales);
           </div>
           <div class="ws-modal-body" style="max-height: 80vh; overflow-y: auto; padding: 24px;">
             <!-- General Settings -->
-            <div class="row g-3 mb-4">
-                <div class="col-md-6 ws-form-group">
+            <div class="ws-form-grid mb-4">
+                <div class="ws-form-group">
                     <label>Tên Campaign <span class="ws-required">*</span></label>
                     <input v-model="form.name" type="text" class="ws-form-control" placeholder="Ví dụ: Siêu Sale Giữa Tháng" />
                     <small class="text-danger mt-1 d-block">{{ errors.name?.[0] }}</small>
                 </div>
-                <div class="col-md-6 ws-form-group">
+                <div class="ws-form-group">
                     <label>Trạng thái</label>
                     <select v-model="form.status" class="ws-form-control ws-form-select">
                         <option value="draft">Bản nháp</option>
-                        <option value="active">Active (Set lên Redis)</option>
-                        <option value="ended">Ended (Thu hồi Redis)</option>
+                        <option value="active">Đang diễn ra</option>
+                        <option value="ended">Đã kết thúc</option>
                     </select>
                     <small class="text-danger mt-1 d-block">{{ errors.status?.[0] }}</small>
                 </div>
-                <div class="col-md-6 ws-form-group">
+                <div class="ws-form-group">
                     <label>Thời gian bắt đầu <span class="ws-required">*</span></label>
                     <input v-model="form.start_time" type="datetime-local" class="ws-form-control" />
                     <small class="text-danger mt-1 d-block">{{ errors.start_time?.[0] }}</small>
                 </div>
-                <div class="col-md-6 ws-form-group">
+                <div class="ws-form-group">
                     <label>Thời gian kết thúc <span class="ws-required">*</span></label>
                     <input v-model="form.end_time" type="datetime-local" class="ws-form-control" />
                     <small class="text-danger mt-1 d-block">{{ errors.end_time?.[0] }}</small>
@@ -318,7 +321,7 @@ onMounted(fetchFlashSales);
             
             <div class="position-relative mb-3" style="z-index: 1055;">
                 <input v-model="productSearchTerm" @input="searchProducts" type="text" 
-                       class="ws-form-control" placeholder="🔍 Gõ tên để thêm sản phẩm vào sự kiện..." style="padding-left: 14px;" />
+                       class="ws-form-control w-100" placeholder="🔍 Gõ tên để thêm sản phẩm vào sự kiện..." style="padding-left: 14px; width: 100%;" />
                 
                 <ul v-if="searchedProducts && searchedProducts.length > 0" class="list-group position-absolute w-100 mt-1 shadow-lg border-0" style="z-index: 9999; max-height: 250px; overflow-y: auto; border-radius: 8px;">
                     <li v-for="prod in searchedProducts" :key="prod.product_id" 
@@ -333,16 +336,16 @@ onMounted(fetchFlashSales);
                 </ul>
             </div>
 
-            <div class="table-responsive rounded border" style="max-height: 400px; overflow-y: auto; border-color: var(--border-color) !important;">
-                <table class="table align-middle mb-0" style="font-size: 0.85rem;">
+            <div class="table-responsive" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color, #d9e8f0); border-radius: 8px;">
+                <table class="ws-table align-middle mb-0" style="font-size: 0.85rem; width: 100%;">
                     <thead class="position-sticky top-0" style="background: var(--ocean-deepest, #f0f7fa); z-index: 10;">
                         <tr>
-                            <th class="py-3 px-3 text-uppercase text-muted" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Tên sản phẩm</th>
-                            <th class="py-3 px-3 text-uppercase text-muted" width="120" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Giảm giá (%)</th>
-                            <th class="py-3 px-3 text-uppercase text-muted" width="160" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Giá Sale (VNĐ)</th>
-                            <th class="py-3 px-3 text-uppercase text-muted" width="130" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">SL cấp FB</th>
-                            <th class="py-3 px-3 text-uppercase text-muted" width="90" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Đã bán</th>
-                            <th class="py-3 px-3 text-uppercase text-muted text-center" width="70" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Xóa</th>
+                            <th class="py-3 px-3 text-uppercase" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Tên sản phẩm</th>
+                            <th class="py-3 px-3 text-uppercase text-center" width="120" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Giảm giá (%)</th>
+                            <th class="py-3 px-3 text-uppercase text-center" width="160" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Giá Sale (VNĐ)</th>
+                            <th class="py-3 px-3 text-uppercase text-center" width="130" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">SL cấp FS</th>
+                            <th class="py-3 px-3 text-uppercase text-center" width="90" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Đã bán</th>
+                            <th class="py-3 px-3 text-uppercase text-center" width="70" style="font-size: 0.75rem; font-weight: 700; border-bottom: 1px solid var(--border-color);">Xóa</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -384,7 +387,7 @@ onMounted(fetchFlashSales);
             <small class="text-danger mt-2 d-block">{{ errors.items?.[0] }}</small>
 
           </div>
-          <div class="ws-modal-footer p-4 border-top" style="background: var(--card-bg);">
+          <div class="ws-modal-footer p-4 border-top d-flex justify-content-end gap-3" style="background: var(--card-bg, #f8fafc); border-top: 1px solid var(--border-color); border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; display: flex; justify-content: flex-end; gap: 12px;">
             <button type="button" @click="isModalOpen = false" class="ws-btn-outline">Hủy bỏ</button>
             <button type="button" @click="handleSubmit" class="ws-btn-primary">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -477,11 +480,61 @@ onMounted(fetchFlashSales);
 /* Empty state */
 .empty-cell { text-align: center; padding: 40px !important; color: var(--text-light, #9fb3c8); }
 
-/* Custom Modal Sizing overrides */
-.fs-modal-box {
-    max-width: 900px !important;
-    width: 95% !important;
+/* Custom Modal & Form Sizing */
+.ws-modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5); z-index: 1050;
+    display: flex; align-items: center; justify-content: center;
 }
+.ws-modal-box {
+    background: #ffffff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    display: flex; flex-direction: column; overflow: hidden;
+}
+.fs-modal-box { max-width: 900px !important; width: 95% !important; }
+.ws-modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; border-bottom: 1px solid var(--border-color);
+}
+.ws-modal-head h3 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
+.ws-btn-close {
+    background: none; border: none; cursor: pointer; color: var(--text-muted);
+    transition: color 0.2s;
+}
+.ws-btn-close:hover { color: var(--text-main); }
+.ws-form-group { display: flex; flex-direction: column; gap: 6px; }
+.ws-form-group label { font-weight: 600; font-size: 0.9rem; color: var(--text-main); }
+.ws-required { color: #dc2626; }
+.ws-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+@media (max-width: 768px) { .ws-form-grid { grid-template-columns: 1fr; } }
+.ws-form-control {
+    padding: 10px 14px; border: 1.5px solid var(--border-color);
+    border-radius: 8px; font-size: 0.95rem; font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s; outline: none;
+}
+.ws-form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.ws-btn-outline {
+    padding: 10px 20px; border: 1.5px solid var(--border-color);
+    border-radius: 8px; background: white; font-weight: 600; cursor: pointer;
+    transition: all 0.2s;
+}
+.ws-btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; }
+.ws-btn-primary {
+    padding: 10px 20px; border: none; border-radius: 8px;
+    background: var(--primary); color: white; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: all 0.2s;
+}
+.ws-btn-primary:hover { background: #d82f65; }
+
+/* Modal Transitions */
+.ws-modal-enter-active, .ws-modal-leave-active { transition: opacity 0.3s ease; }
+.ws-modal-enter-from, .ws-modal-leave-to { opacity: 0; }
+.ws-modal-enter-active .ws-modal-box { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.ws-modal-enter-from .ws-modal-box, .ws-modal-leave-to .ws-modal-box { transform: scale(0.9) translateY(-30px); }
 
 .cursor-pointer { cursor: pointer; }
 ::-webkit-scrollbar { width: 8px; }

@@ -25,12 +25,15 @@ const formatDate = (dateString) => {
 
 const getStatusText = (status) => getOrderStatusDescription(status || 'pending');
 const getStatusBadgeClass = (status) => {
+  if (status === 'unpaid') return 'badge-warning';
+  if (status === 'paid' || status === 'refunded') return 'badge-success';
+
   const tone = getOrderStatusTone(status || 'pending');
-  if (tone === 'success') return 'badge-success';
-  if (tone === 'danger') return 'badge-danger';
-  if (tone === 'warning') return 'badge-warning';
-  if (tone === 'info') return 'badge-info';
-  if (tone === 'primary') return 'badge-primary';
+  if (tone === 'status-success') return 'badge-success';
+  if (tone === 'status-danger') return 'badge-danger';
+  if (tone === 'status-warning') return 'badge-warning';
+  if (tone === 'status-info') return 'badge-info';
+  if (tone === 'status-primary') return 'badge-primary';
   return 'badge-secondary';
 };
 

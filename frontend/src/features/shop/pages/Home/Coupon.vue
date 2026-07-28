@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
 
 const coupons = ref([]);
+const savedCoupons = ref([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
 const router = useRouter();
@@ -19,12 +20,22 @@ const showToast = (message, type = 'success') => {
   });
 };
 
+const isSaved = (couponId) => {
+  return savedCoupons.value.some(c => c.id === couponId);
+};
+
 const fetchPublicCoupons = async () => {
   try {
     isLoading.value = true;
     const response = await api.get('/coupons/public');
     if (response.data.status === 'success') {
       coupons.value = response.data.data;
+    }
+    if (sessionStorage.getItem('user') !== null) {
+      const savedResponse = await api.get('/profile/coupons');
+      if (savedResponse.data.status === 'success') {
+        savedCoupons.value = savedResponse.data.data;
+      }
     }
   } catch (error) {
     console.error('Error fetching coupons:', error);
@@ -82,10 +93,12 @@ const saveCoupon = async (couponId) => {
   }
   try {
     const response = await api.post('/profile/coupons/save', { coupon_id: couponId });
-    if (response.data.status === 'success') {
-      showToast(response.data.message, 'success');
-    } else if (response.data.status === 'info') {
-      showToast(response.data.message, 'info');
+    if (response.data.status === 'success' || response.data.status === 'info') {
+      showToast(response.data.message, response.data.status);
+      const coupon = coupons.value.find(c => c.id === couponId);
+      if (coupon && !isSaved(couponId)) {
+        savedCoupons.value.push(coupon);
+      }
     }
   } catch (error) {
     const msg = error.response?.data?.message || 'Không thể lưu mã giảm giá!';
@@ -220,10 +233,10 @@ onMounted(fetchPublicCoupons);
               <div class="d-grid gap-2">
                 <button 
                   class="btn btn-save-coupon fw-bold text-white shadow-sm"
-                  :disabled="!coupon.is_active || isExpired(coupon.end_date)"
+                  :disabled="!coupon.is_active || isExpired(coupon.end_date) || isSaved(coupon.id)"
                   @click="saveCoupon(coupon.id)"
                 >
-                  Lưu mã
+                  {{ isSaved(coupon.id) ? 'Đã lưu mã' : 'Lưu mã' }}
                 </button>
                 <button 
                   class="btn btn-copy-coupon fw-bold"
@@ -239,7 +252,7 @@ onMounted(fetchPublicCoupons);
     </div>
 
     <!-- Toast UI -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 2000">
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000; margin-top: 80px;">
       <div 
         class="toast align-items-center border-0 shadow-sm rounded-3" 
         :class="{

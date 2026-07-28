@@ -24,37 +24,41 @@ return new class extends Migration
             }
         });
 
-        DB::statement("
-            ALTER TABLE court_bookings
-            MODIFY status ENUM(
-                'pending',
-                'confirmed',
-                'checked_in',
-                'playing',
-                'completed',
-                'cancelled',
-                'no_show',
-                'extended',
-                'expired'
-            ) NOT NULL DEFAULT 'pending'
-        ");
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement("
+                ALTER TABLE court_bookings
+                MODIFY status ENUM(
+                    'pending',
+                    'confirmed',
+                    'checked_in',
+                    'playing',
+                    'completed',
+                    'cancelled',
+                    'no_show',
+                    'extended',
+                    'expired'
+                ) NOT NULL DEFAULT 'pending'
+            ");
+        }
     }
 
     public function down(): void
     {
-        DB::statement("
-            ALTER TABLE court_bookings
-            MODIFY status ENUM(
-                'pending',
-                'confirmed',
-                'checked_in',
-                'playing',
-                'completed',
-                'cancelled',
-                'no_show',
-                'extended'
-            ) NOT NULL DEFAULT 'pending'
-        ");
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement("
+                ALTER TABLE court_bookings
+                MODIFY status ENUM(
+                    'pending',
+                    'confirmed',
+                    'checked_in',
+                    'playing',
+                    'completed',
+                    'cancelled',
+                    'no_show',
+                    'extended'
+                ) NOT NULL DEFAULT 'pending'
+            ");
+        }
 
         Schema::table('court_bookings', function (Blueprint $table) {
             if (Schema::hasColumn('court_bookings', 'customer_phone')) {

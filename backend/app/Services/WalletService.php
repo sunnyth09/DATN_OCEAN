@@ -664,6 +664,26 @@ class WalletService
     private const WITHDRAWAL_MIN = 10000;
 
     /**
+     * Số tiền rút tối đa mỗi lần.
+     */
+    private const WITHDRAWAL_MAX = 50000000;
+
+    /**
+     * Thời gian chờ giữa 2 yêu cầu rút tiền.
+     */
+    private const WITHDRAWAL_COOLDOWN_MINUTES = 60;
+
+    /**
+     * Số lần rút tối đa mỗi ngày.
+     */
+    private const WITHDRAWAL_DAILY_LIMIT = 3;
+
+    /**
+     * Tổng số tiền rút tối đa mỗi ngày.
+     */
+    private const WITHDRAWAL_DAILY_AMOUNT_LIMIT = 50000000;
+
+    /**
      * Rút tiền từ deposit_balance.
      *
      * - Trừ ngay (amount + phí 1,000₫) từ deposit_balance
@@ -678,6 +698,14 @@ class WalletService
             throw new \InvalidArgumentException('Số tiền rút tối thiểu ' . number_format(self::WITHDRAWAL_MIN) . '₫');
         }
 
+        if ($amount > self::WITHDRAWAL_MAX) {
+            throw new \InvalidArgumentException('Số tiền rút tối đa ' . number_format(self::WITHDRAWAL_MAX) . '₫');
+        }
+
+        if (floor($amount) != $amount) {
+            throw new \InvalidArgumentException('Số tiền rút phải là số nguyên.');
+        }
+
         $fee           = self::WITHDRAWAL_FEE;
         $totalDeducted = $amount + $fee;
 
@@ -688,6 +716,8 @@ class WalletService
             if (!$wallet->isActive()) {
                 throw new \Exception('Ví đã bị đóng băng hoặc đóng.');
             }
+
+            $this->assertWithdrawalAllowed($userId, $amount);
 
             if ((float) $wallet->deposit_balance < $totalDeducted) {
                 throw new \Exception('Số dư nạp không đủ. Cần tối thiểu ' . number_format($totalDeducted) . '₫ (bao gồm phí ' . number_format($fee) . '₫).');
@@ -754,6 +784,45 @@ class WalletService
                 'new_balance'     => (float) $wallet->deposit_balance,
             ];
         });
+    }
+
+    /**
+     * Kiểm tra các giới hạn chống spam trước khi tạo yêu cầu rút tiền.
+     */
+    private function assertWithdrawalAllowed(int $userId, float $amount): void
+    {
+        $hasProcessingWithdrawal = DB::table('wallet_withdrawals')
+            ->where('user_id', $userId)
+            ->where('status', 'processing')
+            ->exists();
+
+        if ($hasProcessingWithdrawal) {
+            throw new \Exception('Bạn đang có yêu cầu rút tiền đang xử lý. Vui lòng chờ hoàn tất trước khi tạo yêu cầu mới.');
+        }
+
+        $latestWithdrawal = DB::table('wallet_withdrawals')
+            ->where('user_id', $userId)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($latestWithdrawal && now()->diffInMinutes($latestWithdrawal->created_at) < self::WITHDRAWAL_COOLDOWN_MINUTES) {
+            $remainingMinutes = self::WITHDRAWAL_COOLDOWN_MINUTES - now()->diffInMinutes($latestWithdrawal->created_at);
+            throw new \Exception('Vui lòng chờ thêm ' . max(1, $remainingMinutes) . ' phút trước khi tạo yêu cầu rút tiền mới.');
+        }
+
+        $todayWithdrawals = DB::table('wallet_withdrawals')
+            ->where('user_id', $userId)
+            ->whereIn('status', ['processing', 'completed'])
+            ->whereDate('created_at', today());
+
+        if ((clone $todayWithdrawals)->count() >= self::WITHDRAWAL_DAILY_LIMIT) {
+            throw new \Exception('Bạn đã đạt giới hạn ' . self::WITHDRAWAL_DAILY_LIMIT . ' lần rút tiền trong ngày.');
+        }
+
+        $todayAmount = (float) (clone $todayWithdrawals)->sum('amount');
+        if (($todayAmount + $amount) > self::WITHDRAWAL_DAILY_AMOUNT_LIMIT) {
+            throw new \Exception('Tổng số tiền rút trong ngày không được vượt quá ' . number_format(self::WITHDRAWAL_DAILY_AMOUNT_LIMIT) . '₫.');
+        }
     }
 
     /**

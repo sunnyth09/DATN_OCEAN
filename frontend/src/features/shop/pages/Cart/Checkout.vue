@@ -5,11 +5,13 @@ import api from '@/axios';
 import { useCartUpsell } from '@/composables/useCartUpsell';
 import { useToast } from '@/composables/useToast';
 import AddressSelector from '@/components/AddressSelector.vue';
+import CheckoutAddressModal from '@/features/shop/components/CheckoutAddressModal.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
 import { walletService } from '@/services/walletService';
 import { loyaltyService } from '@/services/loyaltyService';
 import { useAuthStore } from '@/stores/auth';
+import { sanitizeAddressPayload, validateAddressPayload } from '@/utils/addressValidation';
 import AppIcon from '@/icons/AppIcon.vue';
 
 const router = useRouter();
@@ -35,6 +37,7 @@ const APP_URL = import.meta.env.VITE_BASE_URL;
 const addresses = ref([]);
 const selectedAddressId = ref(null);
 const showAddAddressForm = ref(false);
+const showAddressModal = ref(false);
 const addressSelectorKey = ref(0);
 const formAddress = ref({
     recipient_name: '',
@@ -78,6 +81,24 @@ const loadingCoupons = ref(false);
 const useWallet = ref(false);
 const walletPreview = ref(null); // { deposit_available, commission_available, max_commission, total_available }
 const walletLoading = ref(false);
+
+// Format tiền VND
+const selectedSavedAddress = computed(() => addresses.value.find((address) => address.address_id === selectedAddressId.value));
+
+const inlineSavedAddresses = computed(() => {
+    const firstThree = addresses.value.slice(0, 3);
+    const selected = selectedSavedAddress.value;
+
+    if (!selected || firstThree.some((address) => address.address_id === selected.address_id)) {
+        return firstThree;
+    }
+
+    return [selected, ...firstThree.filter((address) => address.address_id !== selected.address_id).slice(0, 2)];
+});
+
+const hasMoreSavedAddresses = computed(() => addresses.value.length > 3);
+
+const remainingAddressCount = computed(() => Math.max(addresses.value.length - 3, 0));
 
 // Format tiền VND
 const formatPrice = (price) => {
@@ -206,7 +227,8 @@ const fetchAddresses = async () => {
     }
     try {
         const res = await addressService.listProfileAddresses();
-        addresses.value = res.data?.data || [];
+        const payload = res.data?.data;
+        addresses.value = Array.isArray(payload) ? payload : (payload?.data || []);
         if (addresses.value.length === 0) {
             selectedAddressId.value = null;
             showAddAddressForm.value = true;
@@ -295,6 +317,20 @@ const useSavedAddresses = () => {
     if (savedAddress?.district_code && savedAddress?.ward_code) {
         getShippingFee(savedAddress.district_code, savedAddress.ward_code);
     }
+};
+
+const openAddressModal = () => {
+    showAddressModal.value = true;
+};
+
+const closeAddressModal = () => {
+    showAddressModal.value = false;
+};
+
+const confirmAddressSelection = (addressId) => {
+    selectedAddressId.value = addressId;
+    showAddressModal.value = false;
+    showAddAddressForm.value = false;
 };
 
 // --- Xử lý tính toán hóa đơn ---
@@ -547,30 +583,21 @@ const placeOrder = async () => {
     payload.email = email.value.trim();
 
     if (showAddAddressForm.value) {
-        const phoneRegex = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
-        if (!formAddress.value.recipient_name.trim()) return showToast('Vui lòng nhập họ tên người nhận', 'error');
-        if (!formAddress.value.phone.trim()) {
-            showToast('Vui lòng nhập số điện thoại', 'error');
-            return;
+        const validation = validateAddressPayload(formAddress.value);
+        if (!validation.valid) {
+            return showToast(validation.firstError, 'error');
         }
-        if (!formAddress.value.phone.match(phoneRegex)) {
-            showToast('Vui lòng nhập số điện thoại hợp lệ', 'error');
-            return;
-        }
-        if (!formAddress.value.province) return showToast('Vui lòng chọn Tỉnh/Thành phố', 'error');
-        if (!formAddress.value.district) return showToast('Vui lòng chọn Quận/Huyện', 'error');
-        if (!formAddress.value.ward) return showToast('Vui lòng chọn Phường/Xã', 'error');
-        if (!formAddress.value.address_line.trim()) return showToast('Vui lòng nhập địa chỉ chi tiết', 'error');
 
-        payload.recipient_name = formAddress.value.recipient_name;
-        payload.phone = formAddress.value.phone;
-        payload.province = formAddress.value.province;
-        payload.district = formAddress.value.district;
-        payload.ward = formAddress.value.ward;
-        payload.address_line = formAddress.value.address_line;
-        payload.province_code = formAddress.value.province_code;
-        payload.district_code = formAddress.value.district_code;
-        payload.ward_code = formAddress.value.ward_code;
+        const addressPayload = sanitizeAddressPayload(formAddress.value);
+        payload.recipient_name = addressPayload.recipient_name;
+        payload.phone = addressPayload.phone;
+        payload.province = addressPayload.province;
+        payload.district = addressPayload.district;
+        payload.ward = addressPayload.ward;
+        payload.address_line = addressPayload.address_line;
+        payload.province_code = addressPayload.province_code;
+        payload.district_code = addressPayload.district_code;
+        payload.ward_code = addressPayload.ward_code;
     } else {
         if (!selectedAddressId.value) {
             return showToast('Vui lòng chọn hoặc thêm địa chỉ giao nhận hàng', 'error');
@@ -884,7 +911,7 @@ onMounted(async () => {
                                     <button class="btn-outline-brown" @click="openAddAddressForm">Tạo sổ địa chỉ
                                         ngay</button>
                                 </div>
-                                <label v-for="addr in addresses" :key="addr.address_id" class="address-card"
+                                <label v-for="addr in inlineSavedAddresses" :key="addr.address_id" class="address-card"
                                     :class="{ 'is-selected': selectedAddressId === addr.address_id }">
                                     <input type="radio" v-model="selectedAddressId" :value="addr.address_id"
                                         class="hidden-radio" />
@@ -914,7 +941,18 @@ onMounted(async () => {
                                         </div>
                                     </div>
                                 </label>
+                                <button v-if="hasMoreSavedAddresses" type="button" class="btn-show-more-addresses" @click="openAddressModal">
+                                    Xem thêm {{ remainingAddressCount }} địa chỉ
+                                </button>
                             </div>
+
+                            <CheckoutAddressModal
+                                :show="showAddressModal"
+                                :addresses="addresses"
+                                :selected-address-id="selectedAddressId"
+                                @close="closeAddressModal"
+                                @confirm="confirmAddressSelection"
+                            />
 
                             <div class="checkout-divider"></div>
 
@@ -1770,6 +1808,23 @@ textarea.note-input {
     border-color: var(--primary);
     background: #f4faff;
     box-shadow: 0 4px 15px rgba(230, 59, 111, 0.08);
+}
+
+.btn-show-more-addresses {
+    width: 100%;
+    padding: 13px 16px;
+    border: 1px dashed var(--primary);
+    border-radius: 12px;
+    background: #fff5f8;
+    color: var(--primary);
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-show-more-addresses:hover {
+    background: #ffe8f0;
+    transform: translateY(-1px);
 }
 
 .radio-indicator {
