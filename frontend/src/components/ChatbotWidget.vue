@@ -724,7 +724,20 @@ async function sendMessage() {
     0 0 0 0 rgba(230, 59, 111, 0.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  animation: bubble-pulse 2s ease-in-out infinite;
+  z-index: 1;
+}
+
+.chatbot-bubble::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: rgba(230, 59, 111, 0.6);
+  z-index: -1;
+  animation: sonar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 .chatbot-bubble:hover {
@@ -738,9 +751,19 @@ async function sendMessage() {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
-@keyframes bubble-pulse {
-  0%, 100% { box-shadow: 0 4px 20px rgba(230, 59, 111, 0.4), 0 0 0 0 rgba(230, 59, 111, 0.3); }
-  50% { box-shadow: 0 4px 20px rgba(230, 59, 111, 0.4), 0 0 0 12px rgba(230, 59, 111, 0); }
+.chatbot-bubble.is-open::before {
+  display: none;
+}
+
+@keyframes sonar-ping {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
 }
 
 .unread-dot {

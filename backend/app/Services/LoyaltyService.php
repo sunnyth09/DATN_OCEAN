@@ -278,44 +278,6 @@ class LoyaltyService
         );
     }
 
-    /**
-     * Earn điểm khi chia sẻ sản phẩm lên mạng xã hội.
-     * Mỗi sản phẩm chỉ được earn 1 lần / ngày.
-     *
-     * @param User $user
-     * @param int  $productId
-     */
-    public function earnFromSocialShare(User $user, int $productId): ?LoyaltyTransaction
-    {
-        $rule = LoyaltyRule::findByKey('SOCIAL_SHARE');
-        if (!$rule) return null;
-
-        // Giới hạn 1 lần / sản phẩm / ngày
-        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
-            ->where('reference_type', 'social_share')
-            ->where('reference_id', $productId)
-            ->whereDate('created_at', today())
-            ->exists();
-
-        if ($alreadyEarned) return null;
-
-        // Rate limit: tối đa 30 sản phẩm được share tích điểm / ngày
-        if ($this->isRateLimited($user->user_id, 'social_share', maxCount: 30, window: 'day')) {
-            Log::info('LoyaltyRateLimit: earnFromSocialShare bị chặn (global cap)', ['user_id' => $user->user_id, 'product_id' => $productId]);
-            return null;
-        }
-
-        $points = (int) $rule->points_per_unit;
-
-        return $this->recordEarn(
-            user: $user,
-            points: $points,
-            rule: $rule,
-            referenceType: 'social_share',
-            referenceId: $productId,
-            description: 'Chia sẻ sản phẩm lên mạng xã hội',
-        );
-    }
 
     // ─── BURN METHODS ───────────────────────────────────────────────────
 

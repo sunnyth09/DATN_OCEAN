@@ -21,6 +21,7 @@ class FavoriteController extends Controller
         $favorites = Favorite::with(['product' => function ($query) {
             $query->with(['mainImage', 'lowestPriceVariant']); 
         }])
+        ->whereHas('product')
         ->where('user_id', $user->getKey())
         ->orderBy('created_at', 'desc')
         ->get();
@@ -43,6 +44,7 @@ class FavoriteController extends Controller
         }
 
         $ids = Favorite::where('user_id', $user->getKey())
+            ->whereHas('product')
             ->pluck('product_id');
 
         return response()->json([

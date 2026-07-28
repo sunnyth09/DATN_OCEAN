@@ -223,6 +223,10 @@ const BASE_URL = getAppBaseUrl();
   color: #9ca3af;
 }
 
+@media (max-width: 1024px) {
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: 40px; }
+}
+
 @media (max-width: 768px) {
   .footer-grid { grid-template-columns: 1fr; gap: 32px; }
 }

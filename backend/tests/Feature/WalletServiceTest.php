@@ -20,9 +20,11 @@ class WalletServiceTest extends TestCase
 
         $this->service = new WalletService();
 
+        Schema::disableForeignKeyConstraints();
         foreach (['wallet_withdrawals', 'wallet_transactions', 'wallets', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');

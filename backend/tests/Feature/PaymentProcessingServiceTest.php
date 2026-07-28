@@ -18,9 +18,11 @@ class PaymentProcessingServiceTest extends TestCase
 
         config(['vnpay.hash_secret' => 'payment-test-secret']);
 
+        Schema::disableForeignKeyConstraints();
         foreach (['payments', 'order_items', 'orders', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');
@@ -228,25 +230,27 @@ class PaymentProcessingServiceTest extends TestCase
         return $payload;
     }
 
-    private function fakeService(bool $shouldFailDispatch = false): PaymentProcessingService
+    private function fakeService(bool $shouldFailDispatch = false): FakePaymentProcessingService
     {
-        return new class ($shouldFailDispatch) extends PaymentProcessingService {
-            public int $dispatchAttempts = 0;
-            public bool $shouldFailDispatch;
+        return new FakePaymentProcessingService($shouldFailDispatch);
+    }
+}
 
-            public function __construct(bool $shouldFailDispatch)
-            {
-                $this->shouldFailDispatch = $shouldFailDispatch;
-            }
+class FakePaymentProcessingService extends PaymentProcessingService
+{
+    public int $dispatchAttempts = 0;
 
-            public function dispatchPostPaymentActions(Order $order): void
-            {
-                $this->dispatchAttempts++;
+    public function __construct(public bool $shouldFailDispatch = false)
+    {
+        parent::__construct();
+    }
 
-                if ($this->shouldFailDispatch) {
-                    throw new \RuntimeException('Simulated post-payment failure');
-                }
-            }
-        };
+    public function dispatchPostPaymentActions(Order $order): void
+    {
+        $this->dispatchAttempts++;
+
+        if ($this->shouldFailDispatch) {
+            throw new \RuntimeException('Simulated post-payment failure');
+        }
     }
 }

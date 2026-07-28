@@ -232,8 +232,10 @@ const handleLogout = async () => {
             active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Mã giảm giá</span>
           </router-link>
-          <router-link v-if="hasRole('admin')" to="/admin/post" class="submenu-item"
-            active-class="submenu-item--active">
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/affiliate" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Quản lý Affiliate</span>
+          </router-link>
+          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/post" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Bài viết</span>
           </router-link>
@@ -302,6 +304,9 @@ const handleLogout = async () => {
           </router-link>
           <router-link to="/admin/chat" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Chat</span>
+          </router-link>
+          <router-link to="/admin/contact" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Liên hệ</span>
           </router-link>
         </div>
       </transition>

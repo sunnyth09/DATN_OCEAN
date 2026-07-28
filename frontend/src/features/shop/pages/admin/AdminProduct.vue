@@ -1189,7 +1189,7 @@ const formatDate = (dateString) => {
 .table-count { font-size: 0.85rem; color: var(--text-muted); font-weight: 500;}
 .table-count strong { color: var(--text-main); font-weight: 800;}
 .table-wrapper { overflow-x: auto; }
-.data-table { width: 100%; border-collapse: collapse; text-align: left; }
+.data-table { width: 100%; min-width: 900px; border-collapse: collapse; text-align: left; }
 .data-table th {
     padding: 14px 24px; font-size: 0.72rem; font-weight: 700;
     color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
@@ -1215,7 +1215,10 @@ const formatDate = (dateString) => {
     overflow: hidden; color: var(--text-light);
 }
 .prod-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.prod-name { font-size: 0.9rem; font-weight: 700; color: var(--text-main); }
+.prod-name { 
+    font-size: 0.9rem; font-weight: 700; color: var(--text-main); 
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
 .prod-slug { font-size: 0.75rem; color: var(--text-light); }
 .val-price { font-size: 0.85rem; font-weight: 800; color: var(--seafoam); }
 

@@ -12,7 +12,6 @@ import AppIcon from '@/icons/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
-import { loyaltyService } from '@/services/loyaltyService';
 import QRCode from 'qrcode';
 import Swal from 'sweetalert2';
 import { affiliateService } from '@/services/affiliateService';
@@ -125,11 +124,11 @@ const fetchProduct = async (currentSlug) => {
     if (product.value.variants && product.value.variants.length > 0) {
       const purchasable = product.value.variants.filter(v => v.status === 'active' && v.stock > 0);
       const candidates = purchasable.length > 0 ? purchasable : product.value.variants;
-      
-      const lowestVariant = candidates.reduce((min, v) => 
+
+      const lowestVariant = candidates.reduce((min, v) =>
         ((v.effective_price || v.price) < (min.effective_price || min.price) ? v : min), candidates[0]
       );
-      
+
       if (lowestVariant.color) selectedColor.value = lowestVariant.color;
       if (lowestVariant.size) selectedSize.value = lowestVariant.size;
       selectedVariant.value = lowestVariant;
@@ -257,7 +256,6 @@ const findVariantForSelection = (color = selectedColor.value, size = selectedSiz
   return null;
 };
 
-// Khi chọn màu: giữ lại size nếu size đó vẫn tồn tại và còn hàng cho màu mới.
 watch(selectedColor, (newColor) => {
   activeImageIndex.value = 0;
 
@@ -280,12 +278,25 @@ watch(selectedColor, (newColor) => {
   if (colorVariants.length === 1) {
     selectedSize.value = colorVariants[0].size;
     selectedVariant.value = colorVariants[0];
+  } else if (colorVariants.length > 1 && availableSizes.value.length === 0) {
+    // If there are multiple variants with the same color but NO sizes available,
+    // we should still select one so the user can purchase.
+    const active = colorVariants.find(v => isVariantPurchasable(v));
+    selectedVariant.value = active || colorVariants[0];
+  } else if (colorVariants.length > 1) {
+    // There are sizes to choose from, clear the selected variant until size is chosen
+    selectedVariant.value = null;
   }
 });
 
 // Khi chọn size → tìm variant đúng theo màu hiện tại, không làm mất lựa chọn màu.
 watch(selectedSize, (newSize) => {
-  selectedVariant.value = newSize ? findVariantForSelection(selectedColor.value, newSize) : null;
+  if (newSize) {
+    selectedVariant.value = findVariantForSelection(selectedColor.value, newSize);
+  } else {
+    // If size is cleared but color is selected, try to find the color variant
+    selectedVariant.value = findVariantForSelection(selectedColor.value, null);
+  }
 });
 const mainImageUrl = computed(() => {
   const imgs = allImages.value;
@@ -305,6 +316,7 @@ const prevImage = () => {
 
 const zoomStyle = ref({});
 const handleZoom = (e) => {
+  if (window.innerWidth <= 768 || ('ontouchstart' in window && window.innerWidth <= 1024)) return;
   const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
   const x = ((e.clientX - left) / width) * 100;
   const y = ((e.clientY - top) / height) * 100;
@@ -589,42 +601,6 @@ const handleUpgrade = (premiumVariant) => {
   showToast(`Đã nâng cấp lên phiên bản ${premiumVariant.color || ''} ${premiumVariant.size || ''}`.trim(), 'success');
 };
 
-const isSharing = ref(false);
-const shareToFacebook = async () => {
-    if (!product.value) return;
-    
-    // Tạo URL chia sẻ (giả lập sử dụng URL hiện tại)
-    const shareUrl = window.location.href;
-    const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-    
-    // Mở popup chia sẻ
-    const popup = window.open(fbShareUrl, 'facebook-share-dialog', 'width=800,height=600');
-    
-    if (authStore.isAuthenticated) {
-        isSharing.value = true;
-        const checkPopup = setInterval(async () => {
-            if (!popup || popup.closed || popup.closed === undefined) {
-                clearInterval(checkPopup);
-                try {
-                    const res = await loyaltyService.socialShare(product.value.product_id);
-                    if (res.data?.status === 'success') {
-                        showToast(res.data.message || 'Bạn đã nhận được 10 điểm thưởng từ việc chia sẻ!', 'success');
-                    } else if (res.data?.status === 'info') {
-                        showToast(res.data.message || 'Bạn đã nhận điểm chia sẻ cho sản phẩm này hôm nay.', 'warning');
-                    }
-                } catch (error) {
-                    const msg = error.response?.data?.message;
-                    if (msg) showToast(msg, 'warning');
-                } finally {
-                    isSharing.value = false;
-                }
-            }
-        }, 1000);
-    } else {
-        showToast('Vui lòng đăng nhập để nhận 10 điểm thưởng khi chia sẻ!', 'warning');
-    }
-};
-
 const showProductQr = async () => {
     if (!product.value) return;
 
@@ -755,7 +731,7 @@ onBeforeUnmount(() => {
         <div class="pd-main-img" :class="{ 'is-out-of-stock': productTotalStock <= 0 }"
           @mousemove="handleZoom" @mouseleave="resetZoom">
           <img ref="productImageRef" :src="mainImageUrl" :alt="product.name" :key="activeImageIndex" :style="zoomStyle" />
-          
+
           <button v-if="allImages.length > 1" class="pd-gallery-nav prev" @click.stop="prevImage">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
@@ -880,11 +856,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Social Share for Loyalty Points -->
-        <button class="pd-btn-share" @click="shareToFacebook" :disabled="isSharing">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>
-          Chia sẻ Facebook nhận +10 điểm
-        </button>
 
         <!-- Product QR Code -->
         <button class="pd-btn-share" @click="showProductQr" style="margin-top: 10px; background-color: #f8f9fa; color: #212529; border-color: #dee2e6;">
@@ -1161,14 +1132,19 @@ onBeforeUnmount(() => {
 
 /* Breadcrumb */
 .pd-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   font-size: 0.85rem;
   color: #636E72;
   padding: 16px 0;
+  line-height: 1.5;
 }
 
 .pd-breadcrumb a {
   color: #636E72;
   text-decoration: none;
+  transition: color 0.2s;
 }
 
 .pd-breadcrumb a:hover {
@@ -1592,27 +1568,46 @@ onBeforeUnmount(() => {
 .pd-perks { display: flex; gap: 24px; padding: 16px 0; border-top: 1px solid #E9ECEF; margin-bottom: 16px; }
 .pd-perk { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #636E72; font-weight: 500; }
 
-/* Share Button */
+/* Share & QR Group */
+.pd-share-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
 .pd-btn-share {
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 6px;
+  padding: 10px 12px;
   background: #1877F2;
   color: #fff;
   border: none;
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  margin-bottom: 20px;
+  margin: 0 !important;
   font-family: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .pd-btn-share:hover { background: #166FE5; }
 .pd-btn-share:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.pd-btn-share.qr {
+  background-color: #f8f9fa !important;
+  color: #212529 !important;
+  border: 1px solid #dee2e6 !important;
+}
+.pd-btn-share.qr:hover {
+  background-color: #e9ecef !important;
+}
 
 /* ── TABS ── */
 .pd-tabs-section {
@@ -2085,6 +2080,34 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  .pd-breadcrumb {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    overflow: hidden;
+    padding: 12px 0 14px;
+    font-size: 0.8rem;
+  }
+
+  .pd-breadcrumb a,
+  .pd-breadcrumb .sep {
+    flex-shrink: 0;
+  }
+
+  .pd-breadcrumb .current {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+
+  .pd-main-img {
+    cursor: default !important;
+  }
+
+  .pd-main-img img {
+    transform: none !important;
+  }
+
   .pd-gallery {
     flex-direction: column-reverse;
   }
@@ -2093,11 +2116,19 @@ onBeforeUnmount(() => {
     flex-direction: row;
     width: 100%;
     overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  .pd-thumbs::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
   }
 
   .pd-thumb {
     width: 60px;
     height: 60px;
+    flex-shrink: 0;
+    scroll-snap-align: center;
   }
 
   .pd-tab {
@@ -2105,13 +2136,43 @@ onBeforeUnmount(() => {
     font-size: 0.85rem;
   }
 
+  .pd-var-options {
+    flex-wrap: wrap;
+  }
+
   .pd-cta {
-    flex-direction: column;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px;
+    background: #fff;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+    z-index: 1000;
+    flex-direction: row;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .pd-cta button {
+    flex: 1;
+    font-size: 0.85rem;
+    padding: 12px 0;
+  }
+
+  /* Để nội dung không bị che bởi sticky bottom bar */
+  .pd-wrapper {
+    padding-bottom: 80px;
   }
 
   .pd-perks {
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    justify-content: space-around;
+    background: #f8f9fa;
+    padding: 10px 8px;
+    border-radius: 8px;
+    border: none;
+    margin-bottom: 16px;
   }
 }
 

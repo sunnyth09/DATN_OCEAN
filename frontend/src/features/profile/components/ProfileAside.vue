@@ -25,7 +25,15 @@
     </div>
 
     <!-- Nav Menu -->
-    <nav class="aside-nav">
+    <!-- Nút toggle chỉ hiển thị trên mobile -->
+    <button class="aside-nav-toggle" @click="isMobileNavOpen = !isMobileNavOpen">
+      <span>{{ currentMenuTitle }}</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :style="{ transform: isMobileNavOpen ? 'rotate(180deg)' : 'rotate(0)' }" style="transition: transform 0.3s">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+
+    <nav class="aside-nav" :class="{ 'aside-nav--open': isMobileNavOpen }">
       <router-link
         to="/profile"
         class="aside-nav-item"
@@ -217,7 +225,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { loyaltyService } from '@/services/loyaltyService';
@@ -226,6 +234,31 @@ import Swal from 'sweetalert2';
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+
+const isMobileNavOpen = ref(false);
+
+const menuLabels = {
+  '/profile': 'Thông tin tài khoản',
+  '/profile/addresses': 'Sổ địa chỉ',
+  '/profile/orders': 'Đơn hàng của tôi',
+  '/profile/return-requests': 'Yêu cầu hoàn hàng',
+  '/profile/wishlist': 'Sản phẩm yêu thích',
+  '/profile/coupons': 'Mã giảm giá của tôi',
+  '/profile/affiliate': 'Affiliate',
+  '/profile/wallet': 'Ví tiền',
+  '/profile/rewards': 'Điểm thưởng',
+  '/profile/change-password': 'Đổi mật khẩu',
+  '/profile/notifications': 'Thông báo',
+  '/profile/bookings': 'Lịch đặt sân'
+};
+
+const currentMenuTitle = computed(() => {
+  return menuLabels[route.path] || route.meta?.title || 'Quản lý tài khoản';
+});
+
+watch(() => route.path, () => {
+  isMobileNavOpen.value = false;
+});
 
 // FIX L3: Dùng auth store thay vì đọc sessionStorage trực tiếp
 const userName = computed(() => authStore.displayName);
@@ -372,6 +405,11 @@ const handleLogout = async () => {
 }
 
 /* Nav */
+
+.aside-nav-toggle {
+  display: none; /* Ẩn trên Desktop */
+}
+
 .aside-nav {
   padding: 12px;
 }
@@ -466,17 +504,35 @@ const handleLogout = async () => {
     width: 100%;
   }
 
-  .aside-nav {
+  /* --- MOBILE STYLES --- */
+  .aside-nav-toggle {
     display: flex;
-    overflow-x: auto;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 16px 20px;
+    background: #fff;
+    border: none;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+  }
+  
+  .aside-nav {
+    display: none; /* Ẩn đi mặc định trên mobile */
+    padding: 12px;
     gap: 4px;
-    padding: 8px;
+  }
+  
+  .aside-nav.aside-nav--open {
+    display: block;
   }
 
   .aside-nav-item {
-    white-space: nowrap;
-    padding: 10px 14px;
-    font-size: 0.85rem;
+    padding: 12px 16px;
+    font-size: 0.9rem;
   }
 
   .aside-nav-divider {

@@ -50,4 +50,17 @@ class AffiliateRepository
             ->select('user_id', 'full_name', 'email', 'referral_code', 'is_affiliate', 'affiliate_registered_at')
             ->first();
     }
+
+    /**
+     * Danh sách tất cả affiliate cho Admin
+     */
+    public function adminListAffiliates(int $perPage = 10)
+    {
+        return User::where('is_affiliate', true)
+            ->with(['wallet'])
+            ->withCount(['affiliateConversions as total_conversions'])
+            ->withSum('affiliateConversions as total_commission', 'commission_amount')
+            ->orderBy('affiliate_registered_at', 'desc')
+            ->paginate($perPage);
+    }
 }

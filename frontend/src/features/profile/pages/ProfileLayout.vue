@@ -15,14 +15,17 @@ import ProfileAside from '@/features/profile/components/ProfileAside.vue';
 
 <style scoped>
 .profile-page {
-  padding: 32px 0;
+  padding-top: 32px;
+  padding-bottom: 32px;
   min-height: 70vh;
 }
 
 .profile-container {
   display: flex;
-  gap: 24px;
+  gap: 32px;
   align-items: flex-start;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .profile-content {
@@ -33,6 +36,10 @@ import ProfileAside from '@/features/profile/components/ProfileAside.vue';
 @media (max-width: 768px) {
   .profile-container {
     flex-direction: column;
+    align-items: stretch;
+  }
+  .profile-content {
+    width: 100%;
   }
 }
 </style>

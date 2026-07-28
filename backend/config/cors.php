@@ -23,6 +23,9 @@ return [
     'allowed_origins' => array_filter([
         env('URL_CORS', 'http://127.0.0.1:3302'),
         env('URL_CORS_LOCAL', 'http://localhost:3302'),
+        env('FRONTEND_URL', 'https://oceansport.bcbdev.id.vn'),
+        'https://oceansport.bcbdev.id.vn',
+        'http://oceansport.bcbdev.id.vn',
     ]),
 
     // KHÔNG dùng pattern '*' — nó match mọi origin, vô hiệu hoá whitelist ở trên

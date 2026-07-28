@@ -73,10 +73,10 @@ if [ -z "$APP_KEY" ] || [ "$APP_KEY" = "base64:CHANGE_ME" ]; then
     php artisan key:generate --force
 fi
 
-php artisan package:discover --ansi
+php artisan package:discover --ansi || true
 php artisan storage:link --force || true
-php artisan config:clear
-php artisan cache:clear
+php artisan config:clear || true
+php artisan cache:clear || true
 
 # -----------------------------------------------
 # 6. Run migrations
@@ -106,7 +106,7 @@ echo " WebSocket (Reverb) READY on port 8383"
 echo " Cron (Laravel Scheduler) RUNNING"
 echo "======================================="
 
-nohup php artisan reverb:start --host="0.0.0.0" --port=8383 > /var/www/storage/logs/reverb.log 2>&1 &
-nohup php artisan queue:work --sleep=3 --tries=3 > /var/www/storage/logs/queue.log 2>&1 &
+(while true; do php artisan reverb:start --host="0.0.0.0" --port=8383 >> /var/www/storage/logs/reverb.log 2>&1; sleep 2; done) &
+(while true; do php artisan queue:work --sleep=3 --tries=3 >> /var/www/storage/logs/queue.log 2>&1; sleep 2; done) &
 
 exec php-fpm
