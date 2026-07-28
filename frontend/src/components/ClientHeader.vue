@@ -9,6 +9,7 @@ import AppIcon from "@/icons/AppIcon.vue";
 import { useCartStore } from "@/stores/cart";
 import { useCatalogStore } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";
+import { useLoyaltyStore } from "@/stores/loyalty";
 import { catalogService, extractCollection } from "@/services/catalogService";
 import { getAppBaseUrl } from "@/utils/url";
 import { loyaltyService } from "@/services/loyaltyService";
@@ -19,6 +20,7 @@ const router = useRouter();
 const cartStore = useCartStore();
 const catalogStore = useCatalogStore();
 const authStore = useAuthStore();
+const loyaltyStore = useLoyaltyStore();
 const { count: cartCount } = storeToRefs(cartStore);
 const { categories } = storeToRefs(catalogStore);
 const { unreadNotificationCount } = storeToRefs(authStore);
@@ -33,7 +35,6 @@ const showNotifDropdown = ref(false);
 const notificationsList = ref([]);
 const showNotificationPopup = ref(false);
 const isMobileMenuOpen = ref(false);
-const headerRewardPoints = ref(0);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
@@ -296,13 +297,8 @@ const fetchUnreadNotificationCount = () => authStore.fetchUnreadNotificationCoun
 
 const fetchHeaderRewardPoints = async () => {
     const token = sessionStorage.getItem("auth_token");
-    if (!token) { headerRewardPoints.value = 0; return; }
-    try {
-        const res = await loyaltyService.getSummary();
-        headerRewardPoints.value = res.data?.data?.current_balance ?? 0;
-    } catch (e) {
-        headerRewardPoints.value = 0;
-    }
+    if (!token) { loyaltyStore.setBalance(0); return; }
+    await loyaltyStore.fetchBalance();
 };
 
 let notificationUserId = null;
@@ -351,7 +347,7 @@ watch(isLoggedIn, (val) => {
         }
     } else {
         authStore.resetUnreadNotificationCount();
-        headerRewardPoints.value = 0;
+        loyaltyStore.setBalance(0);
         leaveNotificationChannel();
     }
 }, { immediate: true });
@@ -705,7 +701,7 @@ watch(
                                     </div>
                                 </div>
                                 <!-- Điểm thưởng mini trong header dropdown -->
-                                <router-link v-if="headerRewardPoints >= 0" to="/profile/loyalty" class="header-loyalty-row" @click="closeAccountMenu">
+                                <router-link v-if="loyaltyStore.currentBalance >= 0" to="/profile/loyalty" class="header-loyalty-row" @click="closeAccountMenu">
                                     <span class="header-loyalty-icon">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f59e0b;">
                                             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
@@ -717,7 +713,7 @@ watch(
                                         </svg>
                                     </span>
                                     <span class="header-loyalty-label">Số điểm:</span>
-                                    <span class="header-loyalty-pts">{{ new Intl.NumberFormat('vi-VN').format(headerRewardPoints) }} điểm</span>
+                                    <span class="header-loyalty-pts">{{ new Intl.NumberFormat('vi-VN').format(loyaltyStore.currentBalance) }} điểm</span>
                                     <span class="header-loyalty-arrow">›</span>
                                 </router-link>
                                 <div class="dropdown-divider"></div>
@@ -1310,6 +1306,7 @@ watch(
     display: flex;
     align-items: center;
     gap: 8px;
+    text-decoration: none;
 }
 .header-loyalty-icon {
     font-size: 1rem;
