@@ -699,14 +699,18 @@ html.dark .swal2-popup {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
   border: 1px solid var(--border-color) !important;
   background: var(--card-bg) !important;
-  width: auto !important;
-  max-width: 400px !important;
-  display: flex !important;
+  width: 360px !important;
+  max-width: 90vw !important;
+  display: grid !important;
+  grid-template-columns: auto 1fr !important;
+  grid-template-rows: auto auto !important;
+  gap: 2px 12px !important;
   align-items: center !important;
-  gap: 12px !important;
 }
 
 .swal2-popup.swal2-toast .swal2-icon {
+  grid-column: 1 !important;
+  grid-row: 1 / span 2 !important;
   margin: 0 !important;
   width: 28px !important;
   height: 28px !important;
@@ -750,14 +754,25 @@ html.dark .swal2-popup {
 }
 
 .swal2-popup.swal2-toast .swal2-title {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
   margin: 0 !important;
   font-size: 0.95rem !important;
   font-weight: 600 !important;
   color: var(--text-main) !important;
   line-height: 1.4 !important;
-  flex: 1 !important;
   text-align: left !important;
   word-break: break-word !important;
+}
+
+.swal2-popup.swal2-toast .swal2-html-container {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  margin: 0 !important;
+  font-size: 0.85rem !important;
+  color: var(--text-muted) !important;
+  line-height: 1.4 !important;
+  text-align: left !important;
 }
 
 .swal2-icon.swal2-warning {
