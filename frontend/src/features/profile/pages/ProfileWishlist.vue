@@ -7,9 +7,7 @@
 
     <!-- Loading State -->
     <div v-if="loading" class="wishlist-grid">
-      <div class="container">
-        <ProductSkeleton v-for="n in 4" :key="n" />
-      </div>
+      <ProductSkeleton v-for="n in 4" :key="n" />
     </div>
 
     <!-- Empty State -->
@@ -26,12 +24,8 @@
     </div>
 
     <!-- List State -->
-    <div v-else class="wishlist-grid container">
-      <div class="row">
-        <div class="col-md-4 mt-4" v-for="item in favorites" :key="item.favorite_id">
-          <ProductCard :product="formatProduct(item.product)" @unfavorite="fetchFavorites" />
-        </div>
-      </div>
+    <div v-else class="wishlist-grid">
+      <ProductCard v-for="item in favorites" :key="item.favorite_id" :product="formatProduct(item.product)" @unfavorite="fetchFavorites" />
     </div>
   </div>
 </template>
@@ -193,7 +187,27 @@ onMounted(() => {
   background: var(--primary-dark);
 }
 
-@media (max-width: 640px) {
+.wishlist-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 16px;
+}
+
+@media (max-width: 1024px) {
+  .wishlist-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .wishlist-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
   .wishlist-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;

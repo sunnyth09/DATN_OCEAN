@@ -779,10 +779,77 @@ watch(
                     </button>
                 </div>
 
-                <button type="button" class="mobile-search-btn" @click="openSearch">
-                    <AppIcon name="search" size="18" />
-                    <span>Tìm kiếm sản phẩm</span>
-                </button>
+                <div class="mobile-search-wrapper" style="position: relative; margin-bottom: 24px;">
+                    <form class="mobile-search-box" @submit.prevent="executeSearch(); closeMobileMenu()">
+                        <AppIcon name="search" size="18" class="mobile-search-icon" />
+                        <input 
+                            type="search" 
+                            class="mobile-search-input" 
+                            placeholder="Tìm kiếm sản phẩm..."
+                            v-model="searchQuery"
+                            @focus="handleSearchFocus"
+                            @blur="handleSearchBlur"
+                        />
+                    </form>
+
+                    <!-- Search dropdown results for Mobile -->
+                    <div class="search-dropdown-box mobile-dropdown" v-if="showDropdownResult" style="position: absolute; top: calc(100% + 8px); right: auto; left: 0; width: 100%; z-index: 1000;">
+                        <div v-if="isSearching" class="search-msg">Đang tìm kiếm...</div>
+                        
+                        <!-- Lịch sử tìm kiếm & Gợi ý (khi chưa gõ) -->
+                        <div v-else-if="!searchQuery" class="search-suggestions">
+                            <div class="search-history-section" v-if="searchHistory.length">
+                                <div class="suggestion-header" style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF; display:flex; justify-content: space-between">
+                                    <span>Lịch sử tìm kiếm</span>
+                                </div>
+                                <ul class="search-list">
+                                    <li v-for="(history, i) in searchHistory" :key="'hm-'+i" class="search-item" @click.stop="executeSearch(history.keyword); closeMobileMenu()">
+                                        <AppIcon name="search" size="14" style="margin-right: 8px; color: #636E72" />
+                                        <div class="search-item-info">
+                                            <div class="search-item-name" style="font-weight: 500;">{{ history.keyword }}</div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div class="recently-viewed-section" v-if="recentlyViewed.length">
+                                <div class="suggestion-header" style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF;">
+                                    <span>Sản phẩm vừa xem</span>
+                                </div>
+                                <ul class="search-list">
+                                    <li v-for="item in recentlyViewed" :key="'rm-'+item.product_id" class="search-item" @click.stop="goToProduct(item.product.slug); closeMobileMenu()">
+                                        <img :src="getImageUrl(item.product)" class="search-item-img" />
+                                        <div class="search-item-info">
+                                            <div class="search-item-name">{{ item.product.name }}</div>
+                                            <div class="search-item-price">{{ formatPrice(item.product.min_price) }}</div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <div v-if="!searchHistory.length && !recentlyViewed.length" class="search-msg">
+                                Nhập từ khóa để tìm kiếm...
+                            </div>
+                        </div>
+
+                        <!-- Kết quả tìm kiếm -->
+                        <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản phẩm phù hợp.</div>
+                        <template v-else>
+                            <ul class="search-list">
+                                <li v-for="item in searchResults" :key="'sm-'+item.product_id" class="search-item" @click.stop="goToProduct(item.slug); closeMobileMenu()">
+                                    <img :src="getImageUrl(item)" class="search-item-img" />
+                                    <div class="search-item-info">
+                                        <div class="search-item-name">{{ item.name }}</div>
+                                        <div class="search-item-price">{{ formatPrice(item.min_price) }}</div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <div v-if="searchResults.length > 0" class="search-view-all" @click.stop="executeSearch(); closeMobileMenu()">
+                                Xem tất cả kết quả
+                            </div>
+                        </template>
+                    </div>
+                </div>
 
                 <nav class="mobile-nav-links">
                     <router-link
@@ -841,8 +908,7 @@ watch(
         </div>
     </Transition>
 
-    <div class="floating-flash-sale" :style="{ left: flashSalePos.x + 'px', top: flashSalePos.y + 'px' }"
-        @mousedown="startDrag" @touchstart="startDrag" @click="handleFlashSaleClick">
+    <div class="floating-flash-sale" @click="handleFlashSaleClick">
         <div class="flash-sale-badge">
             <AppIcon name="zap" class="flash-sale-icon" size="24" />
             <span>FLASH SALE</span>
@@ -955,7 +1021,7 @@ watch(
 }
 
 .mobile-nav-toggle {
-    display: none;
+    display: none !important;
 }
 
 .icon-btn {
@@ -1472,7 +1538,7 @@ watch(
     flex-shrink: 0;
 }
 
-.mobile-search-btn,
+.mobile-search-box,
 .mobile-account-link {
     width: 100%;
     border: 1px solid #e2e8f0;
@@ -1489,10 +1555,31 @@ watch(
     transition: all 0.2s ease;
 }
 
-.mobile-search-btn:hover,
+.mobile-search-box:focus-within,
 .mobile-account-link:hover {
     border-color: rgba(230, 59, 111, 0.28);
     background: #fff7f9;
+}
+
+.mobile-search-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: inherit;
+    padding: 0;
+}
+
+.mobile-search-input::placeholder {
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.mobile-search-icon {
+    color: #64748b;
 }
 
 .mobile-nav-links,
@@ -1566,53 +1653,68 @@ watch(
     opacity: 0;
 }
 
-/* DRAGGABLE FLOATING FLASH SALE */
+/* FLOATING FLASH SALE (FIXED) */
 .floating-flash-sale {
     position: fixed;
     z-index: 9999;
-    cursor: grab;
+    bottom: 120px; /* Nằm cách chatbox một khoảng an toàn để không bị lẹm hiệu ứng */
+    right: 20px;
+    cursor: pointer;
     user-select: none;
-    touch-action: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.floating-flash-sale:hover {
+    transform: scale(1.05);
 }
 
 .floating-flash-sale:active {
-    cursor: grabbing;
+    transform: scale(0.95);
 }
 
 .flash-sale-badge {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: linear-gradient(135deg, var(--primary), #d82f65);
+    background: linear-gradient(135deg, #f43f5e, #e11d48);
     color: #fff;
-    padding: 10px 16px;
+    padding: 10px 18px;
     border-radius: 30px;
-    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
+    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
     font-weight: 800;
     font-size: 0.85rem;
     letter-spacing: 0.5px;
-    animation: flash-pulse 2s infinite;
+    position: relative;
+    z-index: 1;
+}
+
+/* Vòng tròn sóng lan tỏa (Sonar Ping) */
+.flash-sale-badge::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 30px;
+    background: rgba(225, 29, 72, 0.6);
+    z-index: -1;
+    animation: sonar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
 .flash-sale-badge svg {
     color: #fff;
-    fill: rgba(255, 255, 255, 0.2);
+    fill: #fff;
 }
 
-@keyframes flash-pulse {
+@keyframes sonar-ping {
     0% {
         transform: scale(1);
-        box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
+        opacity: 1;
     }
-
-    50% {
-        transform: scale(1.05);
-        box-shadow: 0 8px 20px rgba(230, 59, 111, 0.5);
-    }
-
     100% {
-        transform: scale(1);
-        box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
+        transform: scale(1.35, 1.6);
+        opacity: 0;
     }
 }
 
@@ -1669,7 +1771,7 @@ watch(
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 991px) {
     .header-inner {
         padding: 0 16px;
     }
@@ -1682,8 +1784,12 @@ watch(
         display: none;
     }
 
+    .search-wrapper {
+        display: none !important;
+    }
+
     .mobile-nav-toggle {
-        display: inline-flex;
+        display: inline-flex !important;
         order: 99; /* Đưa nút menu sang góc phải tận cùng */
     }
 

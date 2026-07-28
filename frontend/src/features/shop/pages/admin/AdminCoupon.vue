@@ -767,7 +767,7 @@ const selectedCategoryNames = computed(() => {
 .table-count strong { color: var(--text-main); font-weight: 800; }
 
 .table-wrapper { overflow-x: auto; }
-.data-table { width: 100%; border-collapse: collapse; text-align: left; }
+.data-table { width: 100%; min-width: 900px; border-collapse: collapse; text-align: left; }
 .data-table th {
     padding: 14px 24px; font-size: 0.72rem; font-weight: 700;
     color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
@@ -1025,5 +1025,18 @@ const selectedCategoryNames = computed(() => {
 .email-option-wrap {
     padding: 8px 12px; margin: 4px 0 4px 28px;
     background: #eef2ff; border-radius: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .page-header button { width: 100%; justify-content: center; }
+    
+    .filters-bar { flex-direction: column; gap: 12px; align-items: stretch; }
+    .search-box { max-width: 100%; }
+    .filter-stats { flex-wrap: wrap; }
+    
+    .modal-box { width: 96%; }
+    .form-row { grid-template-columns: 1fr; gap: 8px; }
 }
 </style>

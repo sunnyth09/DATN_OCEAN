@@ -994,3 +994,23 @@ html.dark .bulk-select {
   color: var(--text-main) !important;
   border-color: var(--border-color) !important;
 }
+
+/* =======================================================
+   GLOBAL SELECT RESPONSIVE FIX
+   Ngăn chặn các ô dropdown (select) bị tràn ngang trên mobile
+======================================================= */
+select, select.form-control, select.form-select, select.filter-select {
+  max-width: 100% !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+/* Giới hạn chiều rộng của các lựa chọn bên trong select để popup không bị tràn */
+option {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
