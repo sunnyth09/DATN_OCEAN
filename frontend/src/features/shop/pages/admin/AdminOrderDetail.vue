@@ -51,21 +51,20 @@ statuses.push(
 );
 
 const statusTransitions = {
-  'pending':   ['pending', 'confirmed', 'cancelled'],
-  'confirmed': ['confirmed', 'packing', 'cancelled'],
-  'packing':   ['packing', 'shipping', 'cancelled'],
-  'shipping':  ['shipping', 'delivered'],
-  'delivered': ['delivered', 'completed'],
-  'completed': ['completed'],
+  'pending': ['pending', 'confirmed', 'cancelled'],
+  'confirmed': ['confirmed', 'processing', 'packing', 'cancelled'],
+  'processing': ['processing', 'packing', 'shipping', 'cancelled'],
+  'packing': ['packing', 'shipping', 'cancelled'],
+  'shipping': ['shipping', 'delivered', 'cancelled', 'return_requested'],
+  'delivered': ['delivered', 'completed', 'return_requested'],
+  'completed': ['completed', 'return_requested'],
   'cancelled': ['cancelled'],
+  'return_requested': ['return_requested', 'return_approved', 'return_rejected'],
+  'return_approved': ['return_approved', 'returned', 'refunded'],
+  'return_rejected': ['return_rejected'],
+  'returned': ['returned', 'refunded'],
+  'refunded': ['refunded']
 };
-statusTransitions.confirmed = ['confirmed', 'processing', 'packing', 'cancelled'];
-statusTransitions.processing = ['processing', 'packing', 'shipping', 'cancelled'];
-statusTransitions.return_requested = ['return_requested'];
-statusTransitions.return_approved = ['return_approved'];
-statusTransitions.return_rejected = ['return_rejected'];
-statusTransitions.returned = ['returned'];
-statusTransitions.refunded = ['refunded'];
 
 const isLockedFulfillmentStatus = (status) => {
   return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returned', 'refunded'].includes(status);
@@ -79,6 +78,11 @@ const statusActionDefinitions = {
   delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
   completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
   cancelled: { icon: 'x', label: 'Hủy đơn', success: 'Đã hủy đơn hàng thành công!' },
+  return_requested: { icon: 'rotate-ccw', label: 'Yêu cầu hoàn trả', success: 'Đã chuyển sang yêu cầu hoàn trả!' },
+  return_approved: { icon: 'check', label: 'Duyệt hoàn trả', success: 'Đã duyệt yêu cầu hoàn trả!' },
+  return_rejected: { icon: 'x', label: 'Từ chối hoàn trả', success: 'Đã từ chối yêu cầu hoàn trả!' },
+  returned: { icon: 'package-check', label: 'Đã nhận hàng hoàn', success: 'Đã xác nhận nhận hàng hoàn!' },
+  refunded: { icon: 'corner-down-left', label: 'Đã hoàn tiền', success: 'Đã hoàn tiền thành công!' },
 };
 
 const getCurrentOrderStatusActions = () => {

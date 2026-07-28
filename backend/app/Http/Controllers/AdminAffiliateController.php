@@ -13,6 +13,16 @@ class AdminAffiliateController extends Controller
     ) {}
 
     /**
+     * Danh sách tất cả affiliate users
+     * GET /admin/affiliate/users
+     */
+    public function affiliates(): JsonResponse
+    {
+        $result = $this->affiliateService->adminGetAffiliates();
+        return response()->json($result['body'], $result['status_code']);
+    }
+
+    /**
      * Danh sách tất cả conversions
      * GET /admin/affiliate/conversions
      */

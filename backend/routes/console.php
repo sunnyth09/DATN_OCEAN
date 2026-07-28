@@ -101,6 +101,11 @@ Schedule::command('court-bookings:expire-pending --minutes=15')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
 
+Schedule::command('app:expire-flash-sales')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
+
 Schedule::command('court-bookings:mark-no-shows --grace=15')
     ->everyFiveMinutes()
     ->withoutOverlapping()

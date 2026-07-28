@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import ProductCard from "@/components/ProductCard.vue";
 import ProductSkeleton from "@/components/ProductSkeleton.vue";
@@ -256,6 +256,7 @@ onMounted(async () => {
         }
     }
 
+    await nextTick();
     isInitializing = false;
     await fetchProducts();
 

@@ -63,6 +63,11 @@ return new class extends Migration
 
     private function hasIndex(string $tableName, string $indexName): bool
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return collect(DB::select("PRAGMA index_list('$tableName')"))
+                ->contains(fn($idx) => $idx->name === $indexName);
+        }
+
         return DB::selectOne(
             'select 1 from information_schema.statistics where table_schema = database() and table_name = ? and index_name = ? limit 1',
             [$tableName, $indexName]

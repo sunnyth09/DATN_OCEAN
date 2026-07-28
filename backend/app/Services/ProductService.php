@@ -638,7 +638,7 @@ class ProductService
 
         if ($request->hasFile('thumbnail')) {
             if ($thumbnailPath && is_string($thumbnailPath) && $thumbnailPath !== '0') {
-                Storage::disk('public')->delete($thumbnailPath);
+                $this->deletePhysicalImage($thumbnailPath);
             }
             $thumbnailPath = $request->file('thumbnail')->store('products/thumbnails', 'public');
             if (!$thumbnailPath || $thumbnailPath === false) {
@@ -648,6 +648,10 @@ class ProductService
             }
 
             // Update main image
+            $oldMainImages = \App\Models\ProductImage::where('product_id', $product->product_id)->where('is_main', true)->get();
+            foreach ($oldMainImages as $oldMain) {
+                $this->deletePhysicalImage($oldMain->image_url);
+            }
             $this->productRepository->deleteMainImage($product->product_id);
             $this->productRepository->createImage([
                 'product_id' => $product->product_id,
@@ -696,7 +700,7 @@ class ProductService
             $productId
         );
         foreach ($imagesToDelete as $img) {
-            Storage::disk('public')->delete($img->image_url);
+            $this->deletePhysicalImage($img->image_url);
             $img->delete();
         }
     }
@@ -897,7 +901,7 @@ class ProductService
         if (!empty($deletedImageIds)) {
             $imagesToDelete = $this->productRepository->deleteImagesByIds($deletedImageIds, $product->product_id);
             foreach ($imagesToDelete as $img) {
-                Storage::disk('public')->delete($img->image_url);
+                $this->deletePhysicalImage($img->image_url);
                 $img->delete();
             }
         }
@@ -1032,5 +1036,24 @@ class ProductService
         unset($spreadsheet, $reader, $filter);
 
         return max(0, $highestRow - 1);
+    }
+
+    /**
+     * Xóa file ảnh vật lý trong disk public, tự động chuẩn hóa đường dẫn để tránh lỗi do tiền tố /storage/ hoặc URL đầy đủ.
+     */
+    private function deletePhysicalImage(?string $imageUrl): void
+    {
+        if (empty($imageUrl) || $imageUrl === '0' || $imageUrl === 0) {
+            return;
+        }
+
+        // Loại bỏ domain/host nếu có (vd: http://127.0.0.1:8000 hoặc https://domain.com)
+        $path = preg_replace('/^https?:\/\/[^\/]+/i', '', (string)$imageUrl);
+        // Loại bỏ tiền tố /storage/ hoặc storage/ bị thừa
+        $path = preg_replace('/^\/?storage\//i', '', ltrim($path, '/'));
+
+        if (!empty($path)) {
+            Storage::disk('public')->delete($path);
+        }
     }
 }

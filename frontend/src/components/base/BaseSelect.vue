@@ -38,7 +38,7 @@ const onChange = (event) => {
         class="base-select__field"
         v-bind="attrs"
       >
-        <option value="" disabled>{{ placeholder }}</option>
+        <option value="">{{ placeholder }}</option>
         <option 
           v-for="(opt, i) in options" 
           :key="i" 

@@ -113,7 +113,7 @@ class FlashSaleController extends Controller
             $flashSale->load('items'); // Load lại relationship
 
             // Xử lý Redis trạng thái state machine
-            if ($oldStatus === 'draft' && $flashSale->status === 'active') {
+            if (in_array($oldStatus, ['draft', 'ended']) && $flashSale->status === 'active') {
                 $this->service->syncStockToRedis($flashSale);
             } elseif ($oldStatus === 'active' && $flashSale->status === 'ended') {
                 $this->service->revertStockFromRedis($flashSale);
