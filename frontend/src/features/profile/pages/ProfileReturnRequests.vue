@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useReturnRequestStore } from '@/stores/returnRequestStore';
 import {
-  RETURN_REQUEST_ADMIN_STATUS_OPTIONS,
+  RETURN_REQUEST_CUSTOMER_STATUS_OPTIONS,
   getReturnRequestStatusLabel,
   getReturnRequestStatusTone,
   getReturnRefundStatusLabel,
@@ -13,7 +13,7 @@ const store = useReturnRequestStore();
 const { myRequests, myPagination, myLoading } = storeToRefs(store);
 const currentFilter = ref('all');
 
-const filterTabs = computed(() => RETURN_REQUEST_ADMIN_STATUS_OPTIONS);
+const filterTabs = computed(() => RETURN_REQUEST_CUSTOMER_STATUS_OPTIONS);
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -86,8 +86,9 @@ onMounted(() => {
       >
         <div class="request-card__top">
           <div>
-            <p class="request-code">#{{ item.order?.order_code || item.order_id }}</p>
+            <p class="request-code">{{ item.return_code || `#${item.order?.order_code || item.order_id}` }}</p>
             <h3 class="request-reason">{{ item.reason }}</h3>
+            <small class="request-order-code">Đơn hàng #{{ item.order?.order_code || item.order_id }}</small>
           </div>
           <span class="status-badge" :class="getReturnRequestStatusTone(item.status)">
             {{ getReturnRequestStatusLabel(item.status) }}
@@ -98,6 +99,7 @@ onMounted(() => {
 
         <div class="request-meta">
           <span>Gửi lúc: {{ formatDate(item.requested_at || item.created_at) }}</span>
+          <span>{{ item.items?.length || 0 }} sản phẩm</span>
           <span>Hoàn tiền: {{ getReturnRefundStatusLabel(item.refund_status) }}</span>
           <span v-if="Number(item.refund_amount || 0) > 0">Số tiền: {{ formatPrice(item.refund_amount) }}</span>
         </div>
@@ -211,6 +213,13 @@ onMounted(() => {
   margin: 0;
   font-size: 1rem;
   color: var(--text-main);
+}
+
+.request-order-code {
+  display: inline-block;
+  margin-top: 4px;
+  color: #64748b;
+  font-weight: 600;
 }
 
 .request-desc {

@@ -347,7 +347,9 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::get('/return-requests/{id}', [ReturnRequestController::class, 'adminShow']);
     Route::patch('/return-requests/{id}/approve', [ReturnRequestController::class, 'approve']);
     Route::patch('/return-requests/{id}/reject', [ReturnRequestController::class, 'reject']);
+    Route::patch('/return-requests/{id}/returning', [ReturnRequestController::class, 'returning']);
     Route::patch('/return-requests/{id}/received', [ReturnRequestController::class, 'received']);
+    Route::patch('/return-requests/{id}/inspect', [ReturnRequestController::class, 'inspect']);
     Route::patch('/return-requests/{id}/refund', [ReturnRequestController::class, 'refund']);
 });
 

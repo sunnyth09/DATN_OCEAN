@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useReturnRequestStore } from '@/stores/returnRequestStore';
 import { useToast } from '@/composables/useToast';
+import MediaPreviewModal from '@/components/MediaPreviewModal.vue';
 import {
   RETURN_REQUEST_REFUND_METHOD_OPTIONS,
   getOrderStatusLabel,
@@ -11,6 +12,8 @@ import {
   getReturnRefundStatusLabel,
   getReturnRequestStatusLabel,
   getReturnRequestStatusTone,
+  getRefundMethodLabel,
+  getReturnShippingMethodLabel,
 } from '@/utils/orderStatus';
 
 const route = useRoute();
@@ -18,7 +21,6 @@ const router = useRouter();
 const store = useReturnRequestStore();
 const { showToast } = useToast();
 const { currentRequest, detailLoading } = storeToRefs(store);
-const APP_URL = import.meta.env.VITE_BASE_URL || window.location.origin;
 
 const actionLoading = ref(false);
 const adminNote = ref('');
@@ -27,8 +29,52 @@ const refundForm = reactive({
   refund_method: 'bank_transfer',
   admin_note: '',
 });
+const logisticsForm = reactive({
+  return_tracking_code: '',
+  return_carrier: '',
+});
+const receivedItems = ref({});
+const inspectionItems = ref({});
+
+const previewShow = ref(false);
+const previewUrl = ref('');
+const previewType = ref('image');
+
+const openPreview = (url, type = 'image') => {
+  previewUrl.value = url;
+  previewType.value = type;
+  previewShow.value = true;
+};
+
+const closePreview = () => {
+  previewShow.value = false;
+  previewUrl.value = '';
+};
+
+const refundAmountDisplay = ref('');
+
+const formatNumberVND = (val) => {
+  if (!val && val !== 0) return '';
+  const clean = String(val).replace(/\D/g, '');
+  if (!clean) return '';
+  return new Intl.NumberFormat('vi-VN').format(Number(clean));
+};
+
+const parseNumberVND = (val) => {
+  if (!val) return 0;
+  return Number(String(val).replace(/\D/g, ''));
+};
+
+const handleRefundAmountInput = (e) => {
+  const cleanVal = e.target.value.replace(/\D/g, '');
+  const rawValue = cleanVal ? parseInt(cleanVal, 10) : 0;
+  refundForm.refund_amount = rawValue;
+  refundAmountDisplay.value = formatNumberVND(rawValue);
+  e.target.value = refundAmountDisplay.value;
+};
 
 const detail = computed(() => currentRequest.value);
+const refundAmountLabel = computed(() => detail.value?.refund_status === 'success' ? 'Đã hoàn:' : 'Dự kiến hoàn:');
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -46,7 +92,26 @@ const formatPrice = (value) => new Intl.NumberFormat('vi-VN', {
   currency: 'VND',
 }).format(Number(value || 0));
 
-const imageUrl = (path) => `${APP_URL}/storage/${path}`;
+const storageBaseUrl = () => {
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl && /^https?:\/\//i.test(apiUrl)) {
+    return apiUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+  }
+
+  return `${window.location.protocol}//${window.location.hostname}:8383`;
+};
+
+const imageUrl = (path) => {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+
+  const normalizedPath = String(path)
+    .replace(/^\/+/, '')
+    .replace(/^storage\/+/, '');
+
+  return `${storageBaseUrl()}/storage/${normalizedPath}`;
+};
+const isStatus = (...statuses) => statuses.includes(detail.value?.status);
 
 const refreshDetail = async () => {
   await store.fetchAdminReturnRequestDetail(route.params.id);
@@ -54,8 +119,17 @@ const refreshDetail = async () => {
   if (detail.value) {
     adminNote.value = detail.value.admin_note || '';
     refundForm.refund_amount = detail.value.refund_amount || detail.value.order?.grand_total || '';
+    refundAmountDisplay.value = formatNumberVND(refundForm.refund_amount);
     refundForm.refund_method = detail.value.refund_method || 'bank_transfer';
     refundForm.admin_note = detail.value.admin_note || '';
+    logisticsForm.return_tracking_code = detail.value.return_tracking_code || '';
+    logisticsForm.return_carrier = detail.value.return_carrier || '';
+    receivedItems.value = Object.fromEntries((detail.value.items || []).map((item) => [item.id, item.received_quantity || item.requested_quantity || 0]));
+    inspectionItems.value = Object.fromEntries((detail.value.items || []).map((item) => [item.id, {
+      qc_pass_quantity: item.qc_pass_quantity || item.received_quantity || 0,
+      qc_fail_quantity: item.qc_fail_quantity || 0,
+      qc_note: item.qc_note || '',
+    }]));
   }
 };
 
@@ -74,6 +148,30 @@ const runAction = async (handler) => {
   }
 };
 
+const normalizeQuantity = (value, max) => {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  const parsed = Number(digits || 0);
+  return Math.max(0, Math.min(parsed, Number(max || 0)));
+};
+
+const updateReceivedQuantity = (item, value) => {
+  receivedItems.value = {
+    ...receivedItems.value,
+    [item.id]: normalizeQuantity(value, item.requested_quantity),
+  };
+};
+
+const updateInspectionQuantity = (item, field, value) => {
+  const current = inspectionItems.value[item.id] || {};
+  inspectionItems.value = {
+    ...inspectionItems.value,
+    [item.id]: {
+      ...current,
+      [field]: normalizeQuantity(value, item.received_quantity),
+    },
+  };
+};
+
 const approve = () => runAction(() => store.approveReturnRequest(route.params.id, {
   admin_note: adminNote.value || null,
 }));
@@ -89,8 +187,28 @@ const reject = () => {
   }));
 };
 
+const markReturning = () => runAction(() => store.markReturnReturning(route.params.id, {
+  admin_note: adminNote.value || null,
+  return_tracking_code: logisticsForm.return_tracking_code || null,
+  return_carrier: logisticsForm.return_carrier || null,
+}));
+
 const markReceived = () => runAction(() => store.markReturnReceived(route.params.id, {
   admin_note: adminNote.value || null,
+  items: (detail.value?.items || []).map((item) => ({
+    return_request_item_id: item.id,
+    received_quantity: Number(receivedItems.value[item.id] ?? item.requested_quantity ?? 0),
+  })),
+}));
+
+const inspect = () => runAction(() => store.inspectReturnRequest(route.params.id, {
+  inspection_note: adminNote.value || null,
+  items: (detail.value?.items || []).map((item) => ({
+    return_request_item_id: item.id,
+    qc_pass_quantity: Number(inspectionItems.value[item.id]?.qc_pass_quantity ?? 0),
+    qc_fail_quantity: Number(inspectionItems.value[item.id]?.qc_fail_quantity ?? 0),
+    qc_note: inspectionItems.value[item.id]?.qc_note || null,
+  })),
 }));
 
 const refund = () => {
@@ -136,7 +254,7 @@ onMounted(() => {
             </div>
             <div>
               <p class="eyebrow">Yêu cầu hoàn hàng</p>
-              <h1 class="page-title">Mã đơn <span class="order-code">#{{ detail.order?.order_code || detail.order_id }}</span></h1>
+              <h1 class="page-title">Yêu cầu <span class="order-code">{{ detail.return_code || `#${detail.order?.order_code || detail.order_id}` }}</span></h1>
             </div>
           </div>
           <span class="status-badge" :class="getReturnRequestStatusTone(detail.status)">
@@ -159,10 +277,89 @@ onMounted(() => {
           <p>{{ detail.description || 'Không có mô tả bổ sung.' }}</p>
         </div>
 
-        <div v-if="detail.images?.length" class="detail-block">
-          <h3>Ảnh minh chứng</h3>
-          <div class="evidence-grid">
-            <img v-for="image in detail.images" :key="image" :src="imageUrl(image)" alt="Ảnh minh chứng" />
+        <div v-if="detail.images?.length || detail.videos?.length" class="detail-block">
+          <h3>Minh chứng</h3>
+          <div v-if="detail.images?.length" class="evidence-grid">
+            <img
+              v-for="image in detail.images"
+              :key="image"
+              :src="imageUrl(image)"
+              alt="Ảnh minh chứng"
+              class="clickable-evidence"
+              @click="openPreview(imageUrl(image), 'image')"
+            />
+          </div>
+          <div v-if="detail.videos?.length" class="evidence-grid evidence-grid--video">
+            <div
+              v-for="video in detail.videos"
+              :key="video"
+              class="video-thumbnail-container"
+              @click="openPreview(imageUrl(video), 'video')"
+            >
+              <video :src="imageUrl(video)" preload="metadata" />
+              <div class="play-overlay">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-block">
+          <h3>Cách gửi hàng hoàn</h3>
+          <p><strong>{{ getReturnShippingMethodLabel(detail.return_shipping_method) }}</strong></p>
+          <template v-if="detail.return_shipping_method === 'pickup_original_address'">
+            <p>Địa chỉ lấy hàng: {{ detail.return_pickup_name || detail.order?.recipient_name }} · {{ detail.return_pickup_phone || detail.order?.recipient_phone }}</p>
+            <p>{{ detail.return_pickup_address || detail.order?.shipping_address }}</p>
+          </template>
+          <p v-else-if="detail.return_shipping_method === 'dropoff_post_office'">
+            Khách chọn tự gửi/mang hàng lên bưu cục sau khi yêu cầu được duyệt.
+          </p>
+          <p v-if="detail.return_carrier || detail.return_tracking_code">
+            Vận chuyển: <strong>{{ detail.return_carrier || '—' }}</strong> · Mã vận đơn: <strong>{{ detail.return_tracking_code || '—' }}</strong>
+          </p>
+          <p v-else-if="detail.status === 'return_approved' && detail.return_shipping_method === 'pickup_original_address'" class="warning-text">
+            Chưa có mã vận đơn hoàn. Có thể GHN chưa tạo được vận đơn, vui lòng xử lý thủ công nếu cần.
+          </p>
+        </div>
+
+        <div v-if="detail.refund_method === 'vnpay' && detail.refund_status === 'pending'" class="detail-block warning-text">
+          <h3>Hoàn tiền VNPay</h3>
+          <p>Yêu cầu hoàn tiền VNPay đang chờ xử lý/đối soát, chưa tự đánh dấu hoàn tiền thành công.</p>
+        </div>
+
+        <div v-if="detail.items?.length" class="detail-block">
+          <h3>Sản phẩm hoàn hàng</h3>
+          <div class="return-items-table">
+            <div class="return-items-head">
+              <span>Sản phẩm</span>
+              <span>Yêu cầu</span>
+              <span>Kho nhận</span>
+              <span>QC đạt</span>
+              <span>QC lỗi</span>
+              <span>Tiền hoàn</span>
+            </div>
+            <div v-for="item in detail.items" :key="item.id" class="return-items-row">
+              <span class="return-product">
+                <strong>{{ item.order_item?.product_name || item.product?.name || 'Sản phẩm' }}</strong>
+                <small>{{ item.order_item?.variant_name || item.variant?.variant_name || 'Không phân loại' }}</small>
+              </span>
+              <span>{{ item.requested_quantity }}</span>
+              <span>{{ item.received_quantity }}</span>
+              <span>{{ item.qc_pass_quantity }}</span>
+              <span>{{ item.qc_fail_quantity }}</span>
+              <span>{{ formatPrice(item.refundable_amount) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="detail.refund_transactions?.length" class="detail-block">
+          <h3>Lịch sử hoàn tiền</h3>
+          <div class="refund-history-row" v-for="tx in detail.refund_transactions" :key="tx.id">
+            <span>{{ getRefundMethodLabel(tx.method) }}</span>
+            <strong>{{ formatPrice(tx.amount) }}</strong>
+            <em>{{ tx.status }}</em>
           </div>
         </div>
 
@@ -179,20 +376,97 @@ onMounted(() => {
         <label class="field-label">Ghi chú admin</label>
         <textarea v-model="adminNote" class="field-textarea" placeholder="Nhập ghi chú xử lý..."></textarea>
 
-        <div v-if="detail.status === 'pending'" class="action-group">
+        <div v-if="isStatus('pending', 'return_pending')" class="action-group">
+          <div class="status-note">
+            <p><strong>Cách gửi:</strong> {{ getReturnShippingMethodLabel(detail.return_shipping_method) }}</p>
+            <p v-if="detail.return_shipping_method === 'pickup_original_address'">Khi duyệt, hệ thống sẽ tự tạo vận đơn lấy hàng hoàn tại địa chỉ đơn cũ nếu GHN khả dụng.</p>
+            <p v-else>Khách sẽ tự gửi hàng lên bưu cục/điểm gửi sau khi yêu cầu được duyệt.</p>
+          </div>
           <button class="action-btn action-btn--approve" :disabled="actionLoading" @click="approve">Duyệt yêu cầu</button>
           <button class="action-btn action-btn--reject" :disabled="actionLoading" @click="reject">Từ chối yêu cầu</button>
         </div>
 
-        <div v-else-if="detail.status === 'approved'" class="action-group">
+        <div v-else-if="isStatus('approved', 'return_approved')" class="action-group">
+          <div class="status-note">
+            <p><strong>Cách gửi:</strong> {{ getReturnShippingMethodLabel(detail.return_shipping_method) }}</p>
+            <p v-if="detail.return_tracking_code">Mã vận đơn hoàn: <strong>{{ detail.return_tracking_code }}</strong></p>
+            <p v-else-if="detail.return_shipping_method === 'pickup_original_address'">GHN chưa tạo được mã vận đơn tự động. Bạn vẫn có thể xác nhận kho nhận hàng khi hàng được gửi về.</p>
+            <p v-else>Khách tự gửi hàng tại bưu cục/điểm gửi.</p>
+          </div>
           <button class="action-btn action-btn--received" :disabled="actionLoading" @click="markReceived">
-            Xác nhận đã nhận hàng hoàn
+            Xác nhận kho đã nhận hàng
           </button>
         </div>
 
-        <div v-else-if="detail.status === 'received'" class="action-group">
+        <div v-else-if="isStatus('returning')" class="action-group">
+          <div v-for="item in detail.items" :key="item.id" class="process-item-row">
+            <span>{{ item.order_item?.product_name || item.product?.name }}</span>
+            <input
+              :value="receivedItems[item.id]"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              class="field-input quantity-input"
+              placeholder="0"
+              @input="updateReceivedQuantity(item, $event.target.value)"
+              @blur="updateReceivedQuantity(item, $event.target.value)"
+            />
+          </div>
+          <button class="action-btn action-btn--received" :disabled="actionLoading" @click="markReceived">
+            Xác nhận kho đã nhận hàng
+          </button>
+        </div>
+
+        <div v-else-if="isStatus('warehouse_received', 'received')" class="action-group">
+          <div v-for="item in detail.items" :key="item.id" class="process-qc-card">
+            <strong class="qc-product-title">{{ item.order_item?.product_name || item.product?.name }}</strong>
+            <div class="qc-inputs-grid">
+              <div class="qc-input-group">
+                <label>QC đạt</label>
+                <input
+                  :value="inspectionItems[item.id].qc_pass_quantity"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  class="field-input quantity-input text-center"
+                  placeholder="0"
+                  @input="updateInspectionQuantity(item, 'qc_pass_quantity', $event.target.value)"
+                  @blur="updateInspectionQuantity(item, 'qc_pass_quantity', $event.target.value)"
+                />
+              </div>
+              <div class="qc-input-group">
+                <label>QC lỗi</label>
+                <input
+                  :value="inspectionItems[item.id].qc_fail_quantity"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]*"
+                  class="field-input quantity-input text-center"
+                  placeholder="0"
+                  @input="updateInspectionQuantity(item, 'qc_fail_quantity', $event.target.value)"
+                  @blur="updateInspectionQuantity(item, 'qc_fail_quantity', $event.target.value)"
+                />
+              </div>
+            </div>
+            <input v-model="inspectionItems[item.id].qc_note" class="field-input qc-note-input" placeholder="Ghi chú QC..." />
+          </div>
+          <button class="action-btn action-btn--approve" :disabled="actionLoading" @click="inspect">
+            Lưu kết quả QC
+          </button>
+        </div>
+
+        <div v-else-if="isStatus('inspected_ok', 'refund_pending', 'refund_failed')" class="action-group">
           <label class="field-label">Số tiền hoàn</label>
-          <input v-model="refundForm.refund_amount" type="number" min="0" class="field-input" />
+          <div class="currency-input-wrapper">
+            <input
+              :value="refundAmountDisplay"
+              type="text"
+              class="field-input refund-amount-input"
+              placeholder="0"
+              @input="handleRefundAmountInput"
+            />
+            <span class="currency-unit">VND</span>
+          </div>
 
           <label class="field-label">Phương thức hoàn tiền</label>
           <select v-model="refundForm.refund_method" class="field-input">
@@ -205,21 +479,29 @@ onMounted(() => {
           <textarea v-model="refundForm.admin_note" class="field-textarea" placeholder="Nhập thông tin hoàn tiền..."></textarea>
 
           <button class="action-btn action-btn--refund" :disabled="actionLoading" @click="refund">
-            Xác nhận hoàn tiền
+            {{ isStatus('refund_failed', 'refund_pending') ? 'Thử hoàn tiền lại' : 'Xác nhận hoàn tiền' }}
           </button>
         </div>
 
         <div v-else class="status-note">
-          <p>Yêu cầu này đã được xử lý xong. Bạn có thể xem lại thông tin ở cột trạng thái và hoàn tiền.</p>
+          <p>Yêu cầu này không còn thao tác xử lý tiếp theo hoặc đã hoàn tất.</p>
         </div>
 
         <div class="summary-box">
           <p><strong>Số tiền đơn hàng:</strong> {{ formatPrice(detail.order?.grand_total) }}</p>
-          <p v-if="Number(detail.refund_amount || 0) > 0"><strong>Đã hoàn:</strong> {{ formatPrice(detail.refund_amount) }}</p>
-          <p v-if="detail.refund_method"><strong>Phương thức:</strong> {{ detail.refund_method }}</p>
+          <p v-if="Number(detail.refund_amount || 0) > 0"><strong>{{ refundAmountLabel }}</strong> {{ formatPrice(detail.refund_amount) }}</p>
+          <p v-if="detail.refund_method"><strong>Phương thức:</strong> {{ getRefundMethodLabel(detail.refund_method) }}</p>
         </div>
       </aside>
     </div>
+
+    <!-- Image & Video Media Preview Lightbox -->
+    <MediaPreviewModal
+      :show="previewShow"
+      :media-url="previewUrl"
+      :media-type="previewType"
+      @close="closePreview"
+    />
   </div>
 </template>
 
@@ -367,6 +649,11 @@ onMounted(() => {
   line-height: 1.6;
 }
 
+.warning-text,
+.warning-text p {
+  color: #d97706 !important;
+}
+
 .evidence-grid {
   margin-top: 12px;
   display: grid;
@@ -374,12 +661,85 @@ onMounted(() => {
   gap: 12px;
 }
 
-.evidence-grid img {
+.evidence-grid img,
+.evidence-grid video {
   width: 100%;
   height: 120px;
   border-radius: 12px;
   object-fit: cover;
   border: 1px solid #e2e8f0;
+}
+
+.return-items-table {
+  margin-top: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.return-items-head,
+.return-items-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.4fr) repeat(5, minmax(70px, 0.7fr));
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+}
+
+.return-items-head {
+  background: var(--surface-container-low);
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.return-items-row {
+  border-top: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.return-product {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.return-product small {
+  color: var(--text-muted);
+}
+
+.refund-history-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  color: var(--text-main);
+}
+
+.refund-history-row + .refund-history-row {
+  border-top: 1px dashed var(--border-color);
+}
+
+.process-item-row,
+.process-qc-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-container-low);
+}
+
+.process-item-row {
+  grid-template-columns: minmax(0, 1fr) 100px;
+  align-items: center;
+}
+
+.process-qc-row label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
 .field-label {
@@ -539,5 +899,138 @@ onMounted(() => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Clickable evidence images */
+.clickable-evidence {
+  cursor: zoom-in;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.clickable-evidence:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+/* Video Thumbnail Container for Lightbox Preview */
+.video-thumbnail-container {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  cursor: zoom-in;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-thumbnail-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.85;
+  pointer-events: none; /* Let clicks pass to the container */
+}
+
+.play-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.video-thumbnail-container:hover .play-overlay {
+  background: rgba(15, 23, 42, 0.2);
+  transform: scale(1.05);
+}
+
+/* VND Currency Input styling */
+.currency-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.refund-amount-input {
+  padding-right: 60px !important;
+  font-weight: 700 !important;
+  color: var(--primary) !important;
+  font-size: 1.1rem !important;
+}
+
+.currency-unit {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-weight: 700;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* QC Card Styling */
+.process-qc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-container-low);
+  margin-bottom: 12px;
+}
+
+.qc-product-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.qc-inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.qc-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.qc-input-group label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.qc-input-group .quantity-input {
+  text-align: center;
+  font-weight: 700;
+}
+
+.qc-note-input {
+  font-size: 0.82rem;
+  padding: 8px 12px !important;
+}
+
+.text-center {
+  text-align: center;
 }
 </style>

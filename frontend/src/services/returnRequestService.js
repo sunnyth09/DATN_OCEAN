@@ -33,8 +33,16 @@ export const returnRequestService = {
     return api.patch(`/admin/return-requests/${id}/reject`, payload);
   },
 
+  markReturnReturning(id, payload = {}) {
+    return api.patch(`/admin/return-requests/${id}/returning`, payload);
+  },
+
   markReturnReceived(id, payload = {}) {
     return api.patch(`/admin/return-requests/${id}/received`, payload);
+  },
+
+  inspectReturnRequest(id, payload) {
+    return api.patch(`/admin/return-requests/${id}/inspect`, payload);
   },
 
   refundReturnRequest(id, payload) {

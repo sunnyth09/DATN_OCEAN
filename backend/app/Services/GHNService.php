@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\ReturnRequest;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -196,6 +197,90 @@ class GHNService
         } catch (\Exception $e) {
             Log::error('GHN create order exception', [
                 'order_id' => $order->order_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    public static function createReturnOrder(ReturnRequest $returnRequest): array
+    {
+        self::ensureConfigured();
+
+        $returnRequest->loadMissing(['items.orderItem.product', 'items.product', 'order']);
+
+        $fromDistrictId = $returnRequest->return_pickup_district_code ?: $returnRequest->order?->district_code;
+        $fromWardCode = $returnRequest->return_pickup_ward_code ?: $returnRequest->order?->ward_code;
+        $fromAddress = $returnRequest->return_pickup_address ?: $returnRequest->order?->shipping_address;
+        $fromName = $returnRequest->return_pickup_name ?: ($returnRequest->order?->recipient_name ?? 'Khách Hàng');
+        $fromPhone = $returnRequest->return_pickup_phone ?: ($returnRequest->order?->recipient_phone ?? '');
+
+        if (!$fromDistrictId || !$fromWardCode || !$fromAddress || !$fromPhone) {
+            throw new \Exception('Địa chỉ lấy hàng hoàn chưa đủ thông tin GHN.');
+        }
+
+        $sender = config('ghn.sender');
+        if (empty($sender['phone']) || empty($sender['address']) || empty($sender['ward_code']) || empty($sender['district_id'])) {
+            throw new \Exception('Chưa cấu hình đầy đủ địa chỉ kho nhận hàng hoàn GHN');
+        }
+
+        $items = [];
+        $totalWeight = 0;
+        $defaultWeight = (int) config('ghn.default_weight', 500);
+        $minWeight = (int) config('ghn.min_weight', 10);
+
+        foreach ($returnRequest->items as $item) {
+            $orderItem = $item->orderItem;
+            $product = $item->product ?: $orderItem?->product;
+            $weight = max((int) ($product?->weight ?? $defaultWeight), $minWeight);
+            $quantity = max((int) $item->requested_quantity, 1);
+            $totalWeight += $weight * $quantity;
+
+            $items[] = [
+                'name' => trim(($orderItem?->product_name ?? $product?->name ?? 'Sản phẩm hoàn') . ($orderItem?->variant_name ? ' - ' . $orderItem->variant_name : '')),
+                'quantity' => $quantity,
+                'price' => (int) ($item->unit_price ?? $orderItem?->unit_price ?? 0),
+                'weight' => $weight,
+            ];
+        }
+
+        $payload = [
+            'payment_type_id' => 1,
+            'service_type_id' => (int) config('ghn.service_type_id', 2),
+            'required_note' => (string) config('ghn.required_note', 'KHONGCHOXEMHANG'),
+            'from_name' => $fromName,
+            'from_phone' => $fromPhone,
+            'from_address' => $fromAddress,
+            'from_ward_code' => (string) $fromWardCode,
+            'from_district_id' => (int) $fromDistrictId,
+            'to_name' => (string) ($sender['name'] ?? 'Kho OCEAN'),
+            'to_phone' => (string) $sender['phone'],
+            'to_address' => (string) $sender['address'],
+            'to_ward_code' => (string) $sender['ward_code'],
+            'to_district_id' => (int) $sender['district_id'],
+            'weight' => max($totalWeight, $minWeight),
+            'length' => 1,
+            'width' => 19,
+            'height' => 10,
+            'items' => $items,
+        ];
+
+        try {
+            $response = self::client()->post(self::url('/shiip/public-api/v2/shipping-order/create'), $payload);
+
+            if ($response->successful()) {
+                return $response->json() ?? [];
+            }
+
+            Log::error('GHN create return order failed', [
+                'return_request_id' => $returnRequest->id,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            throw new \Exception('Lỗi từ GHN khi tạo vận đơn hoàn: ' . $response->body());
+        } catch (\Exception $e) {
+            Log::error('GHN create return order exception', [
+                'return_request_id' => $returnRequest->id,
                 'error' => $e->getMessage(),
             ]);
             throw $e;

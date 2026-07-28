@@ -84,9 +84,10 @@ onMounted(() => {
       <table class="data-table">
         <thead>
           <tr>
-            <th>Mã đơn</th>
+            <th>Mã yêu cầu</th>
             <th>Khách hàng</th>
             <th>Lý do</th>
+            <th>Sản phẩm</th>
             <th>Trạng thái</th>
             <th>Hoàn tiền</th>
             <th>Gửi lúc</th>
@@ -95,10 +96,15 @@ onMounted(() => {
         </thead>
         <tbody>
           <tr v-if="adminRequests.length === 0">
-            <td colspan="7" class="empty-cell">Không có yêu cầu hoàn hàng phù hợp.</td>
+            <td colspan="8" class="empty-cell">Không có yêu cầu hoàn hàng phù hợp.</td>
           </tr>
           <tr v-for="item in adminRequests" :key="item.id">
-            <td class="strong">#{{ item.order?.order_code || item.order_id }}</td>
+            <td>
+              <div class="cell-stack">
+                <strong class="strong">{{ item.return_code || `#${item.id}` }}</strong>
+                <span>Đơn #{{ item.order?.order_code || item.order_id }}</span>
+              </div>
+            </td>
             <td>
               <div class="cell-stack">
                 <strong>{{ item.user?.full_name || item.order?.recipient_name || 'Khách hàng' }}</strong>
@@ -106,6 +112,12 @@ onMounted(() => {
               </div>
             </td>
             <td>{{ item.reason }}</td>
+            <td>
+              <div class="cell-stack">
+                <strong>{{ item.items?.length || 0 }} dòng</strong>
+                <span>{{ (item.items || []).reduce((sum, row) => sum + Number(row.requested_quantity || 0), 0) }} sản phẩm</span>
+              </div>
+            </td>
             <td>
               <span class="status-badge" :class="getReturnRequestStatusTone(item.status)">
                 {{ getReturnRequestStatusLabel(item.status) }}

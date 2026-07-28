@@ -97,9 +97,23 @@ class ReturnRequestController extends Controller
         return response()->json($result['body'], $result['status_code']);
     }
 
+    public function returning(UpdateReturnRequestStatusRequest $request, int $id)
+    {
+        $result = $this->returnRequestService->markReturning($id, $request->validated());
+
+        return response()->json($result['body'], $result['status_code']);
+    }
+
     public function received(UpdateReturnRequestStatusRequest $request, int $id)
     {
         $result = $this->returnRequestService->markReceived($id, $request->validated());
+
+        return response()->json($result['body'], $result['status_code']);
+    }
+
+    public function inspect(UpdateReturnRequestStatusRequest $request, int $id)
+    {
+        $result = $this->returnRequestService->inspect($id, $request->validated());
 
         return response()->json($result['body'], $result['status_code']);
     }

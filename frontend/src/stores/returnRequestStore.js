@@ -83,8 +83,18 @@ export const useReturnRequestStore = defineStore('returnRequests', {
       return response.data;
     },
 
+    async markReturnReturning(id, payload = {}) {
+      const response = await returnRequestService.markReturnReturning(id, payload);
+      return response.data;
+    },
+
     async markReturnReceived(id, payload = {}) {
       const response = await returnRequestService.markReturnReceived(id, payload);
+      return response.data;
+    },
+
+    async inspectReturnRequest(id, payload) {
+      const response = await returnRequestService.inspectReturnRequest(id, payload);
       return response.data;
     },
 

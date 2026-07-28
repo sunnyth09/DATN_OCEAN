@@ -13,7 +13,7 @@ class ReturnRequestRepository
 
     public function getUserRequests(int $userId, array $filters = [], int $perPage = 10)
     {
-        $query = ReturnRequest::with(['order', 'order.items', 'order.items.variant'])
+        $query = ReturnRequest::with(['order', 'items', 'items.orderItem', 'items.variant', 'refundTransactions'])
             ->where('user_id', $userId)
             ->latest('requested_at')
             ->latest();
@@ -32,6 +32,11 @@ class ReturnRequestRepository
             'order.items',
             'order.items.variant',
             'order.items.product',
+            'items',
+            'items.orderItem',
+            'items.product',
+            'items.variant',
+            'refundTransactions',
             'user',
         ])
             ->where('user_id', $userId)
@@ -40,7 +45,7 @@ class ReturnRequestRepository
 
     public function getAdminRequests(array $filters = [], int $perPage = 15)
     {
-        $query = ReturnRequest::with(['order', 'user'])
+        $query = ReturnRequest::with(['order', 'user', 'items', 'refundTransactions'])
             ->latest('requested_at')
             ->latest();
 
@@ -80,6 +85,11 @@ class ReturnRequestRepository
             'order.items.variant',
             'order.items.product',
             'order.statusHistories',
+            'items',
+            'items.orderItem',
+            'items.product',
+            'items.variant',
+            'refundTransactions',
             'user',
         ])->find($id);
     }
