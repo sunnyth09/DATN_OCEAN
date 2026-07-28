@@ -445,6 +445,8 @@ const handleLogout = async () => {
   font-weight: 500;
   transition: all 0.2s ease;
   margin-bottom: 4px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .nav-icon {
@@ -512,6 +514,8 @@ const handleLogout = async () => {
   font-weight: 500;
   transition: all 0.2s;
   border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .submenu-dot {
