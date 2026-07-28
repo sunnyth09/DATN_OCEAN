@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\PaymentGatewayRefundInterface;
 use App\Models\Order;
+use App\Models\RefundTransaction;
 
 class ManualRefundService implements PaymentGatewayRefundInterface
 {
@@ -23,10 +24,11 @@ class ManualRefundService implements PaymentGatewayRefundInterface
                 'refund',
                 [
                     'description' => "Hoàn tiền trả hàng cho đơn {$order->order_code}",
-                    'reference_type' => Order::class,
-                    'reference_id' => $order->order_id,
+                    'reference_type' => RefundTransaction::class,
+                    'reference_id' => $payload['refund_transaction_id'] ?? null,
                     'metadata' => [
                         'order_code' => $order->order_code,
+                        'return_request_id' => $payload['return_request_id'] ?? null,
                     ]
                 ]
             );

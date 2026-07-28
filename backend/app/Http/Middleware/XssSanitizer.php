@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Mews\Purifier\Facades\Purifier;
 
 class XssSanitizer
 {
@@ -34,7 +33,7 @@ class XssSanitizer
 
         array_walk_recursive($input, function (&$value, $key) use (&$touched) {
             if (is_string($value) && in_array($key, self::HTML_FIELDS, true)) {
-                $value = Purifier::clean($value);
+                $value = $this->sanitizeHtml($value);
                 $touched = true;
             }
         });
@@ -44,5 +43,14 @@ class XssSanitizer
         }
 
         return $next($request);
+    }
+
+    private function sanitizeHtml(string $value): string
+    {
+        if (class_exists(\Mews\Purifier\Facades\Purifier::class)) {
+            return \Mews\Purifier\Facades\Purifier::clean($value);
+        }
+
+        return strip_tags($value);
     }
 }

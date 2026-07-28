@@ -9,6 +9,8 @@ import {
   getReturnRefundStatusLabel,
   getPaymentStatusLabel,
   getOrderStatusLabel,
+  getRefundMethodLabel,
+  getReturnShippingMethodLabel,
 } from '@/utils/orderStatus';
 
 const route = useRoute();
@@ -56,7 +58,7 @@ const goBack = () => {
         <h2 class="page-title">Chi tiết yêu cầu hoàn hàng</h2>
       </div>
       <div v-if="detail" class="header-right">
-        <span class="order-code">#{{ detail.order?.order_code || detail.order_id }}</span>
+        <span class="order-code">{{ detail.return_code || `#${detail.order?.order_code || detail.order_id}` }}</span>
       </div>
     </div>
     <div v-if="detailLoading" class="loading-state">
@@ -83,21 +85,70 @@ const goBack = () => {
             <div class="description-content" v-html="detail.description || 'Không có mô tả bổ sung.'"></div>
           </div>
 
-          <div v-if="detail.images?.length" class="detail-block">
-            <h3>Ảnh minh chứng</h3>
-            <div class="evidence-grid">
-              <img
-                v-for="image in detail.images"
-                :key="image"
-                :src="imageUrl(image)"
-                alt="Ảnh minh chứng hoàn hàng"
-              />
+          <div v-if="detail.images?.length || detail.videos?.length" class="detail-block">
+            <h3>Minh chứng</h3>
+            <div v-if="detail.images?.length" class="evidence-grid">
+              <img v-for="image in detail.images" :key="image" :src="imageUrl(image)" alt="Ảnh minh chứng hoàn hàng" />
+            </div>
+            <div v-if="detail.videos?.length" class="evidence-grid evidence-grid--video">
+              <video v-for="video in detail.videos" :key="video" :src="imageUrl(video)" controls />
             </div>
           </div>
 
-          <div class="detail-block" v-if="detail.admin_note">
-            <h3>Ghi chú từ admin</h3>
-            <p class="admin-note">{{ detail.admin_note }}</p>
+          <div class="detail-block">
+            <h3>Cách gửi hàng hoàn</h3>
+            <p><strong>{{ getReturnShippingMethodLabel(detail.return_shipping_method) }}</strong></p>
+            <template v-if="detail.return_shipping_method === 'pickup_original_address'">
+              <p>Đơn vị vận chuyển sẽ đến lấy hàng tại địa chỉ:</p>
+              <p>{{ detail.return_pickup_name || detail.order?.recipient_name }} · {{ detail.return_pickup_phone || detail.order?.recipient_phone }}</p>
+              <p>{{ detail.return_pickup_address || detail.order?.shipping_address }}</p>
+            </template>
+            <p v-else-if="detail.return_shipping_method === 'dropoff_post_office'">
+              Sau khi yêu cầu được duyệt, bạn vui lòng tự mang hàng đến bưu cục/điểm gửi theo hướng dẫn của shop.
+            </p>
+          </div>
+
+          <div v-if="detail.refund_method === 'vnpay' && detail.refund_status === 'pending'" class="detail-block refund-pending-note">
+            <h3>Hoàn tiền VNPay</h3>
+            <p>Hoàn tiền VNPay đang chờ xử lý/đối soát. Shop sẽ cập nhật sau khi hoàn tất.</p>
+          </div>
+
+          <div v-if="detail.items?.length" class="detail-block">
+            <h3>Sản phẩm hoàn hàng</h3>
+            <div class="return-items-table">
+              <div class="return-items-head">
+                <span>Sản phẩm</span>
+                <span>Yêu cầu</span>
+                <span>Kho nhận</span>
+                <span>QC đạt</span>
+                <span>QC lỗi</span>
+                <span>Tiền hoàn</span>
+              </div>
+              <div v-for="item in detail.items" :key="item.id" class="return-items-row">
+                <span class="return-product">
+                  <strong>{{ item.order_item?.product_name || item.product?.name || 'Sản phẩm' }}</strong>
+                  <small>{{ item.order_item?.variant_name || item.variant?.variant_name || 'Không phân loại' }}</small>
+                </span>
+                <span>{{ item.requested_quantity }}</span>
+                <span>{{ item.received_quantity }}</span>
+                <span>{{ item.qc_pass_quantity }}</span>
+                <span>{{ item.qc_fail_quantity }}</span>
+                <span>{{ formatPrice(item.refundable_amount) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="detail.return_tracking_code || detail.return_carrier" class="detail-block">
+            <h3>Thông tin gửi hàng hoàn</h3>
+            <p v-if="detail.return_carrier">Đơn vị vận chuyển: <strong>{{ detail.return_carrier }}</strong></p>
+            <p v-if="detail.return_tracking_code">Mã vận đơn hoàn: <strong>{{ detail.return_tracking_code }}</strong></p>
+          </div>
+
+          <div class="detail-block" v-if="detail.admin_note || detail.reject_reason || detail.inspection_note">
+            <h3>Ghi chú xử lý</h3>
+            <p v-if="detail.admin_note" class="admin-note">{{ detail.admin_note }}</p>
+            <p v-if="detail.reject_reason" class="admin-note">Lý do từ chối: {{ detail.reject_reason }}</p>
+            <p v-if="detail.inspection_note">QC: {{ detail.inspection_note }}</p>
           </div>
         </div>
       </section>
@@ -121,7 +172,23 @@ const goBack = () => {
         </div>
         <div class="info-row" v-if="detail.refund_method">
           <span>Phương thức</span>
-          <strong>{{ detail.refund_method }}</strong>
+          <strong>{{ getRefundMethodLabel(detail.refund_method) }}</strong>
+        </div>
+        <div class="info-row" v-if="detail.approved_at">
+          <span>Duyệt lúc</span>
+          <strong>{{ formatDate(detail.approved_at) }}</strong>
+        </div>
+        <div class="info-row" v-if="detail.warehouse_received_at || detail.received_at">
+          <span>Kho nhận lúc</span>
+          <strong>{{ formatDate(detail.warehouse_received_at || detail.received_at) }}</strong>
+        </div>
+        <div class="info-row" v-if="detail.inspected_at">
+          <span>QC lúc</span>
+          <strong>{{ formatDate(detail.inspected_at) }}</strong>
+        </div>
+        <div class="info-row" v-if="detail.completed_at || detail.refunded_at">
+          <span>Hoàn tất lúc</span>
+          <strong>{{ formatDate(detail.completed_at || detail.refunded_at) }}</strong>
         </div>
         <div class="info-row">
           <span>Đơn hàng</span>
@@ -131,6 +198,15 @@ const goBack = () => {
           <span>Thanh toán</span>
           <strong>{{ getPaymentStatusLabel(detail.order?.payment_status) }}</strong>
         </div>
+
+          <div v-if="detail.refund_transactions?.length" class="refund-history">
+            <h4>Lịch sử hoàn tiền</h4>
+            <div v-for="tx in detail.refund_transactions" :key="tx.id" class="refund-history-row">
+              <span>{{ getRefundMethodLabel(tx.method) }}</span>
+              <strong>{{ formatPrice(tx.amount) }}</strong>
+              <em>{{ tx.status }}</em>
+            </div>
+          </div>
 
           <router-link
             v-if="detail.order"
@@ -271,11 +347,81 @@ const goBack = () => {
   gap: 12px;
 }
 
-.evidence-grid img {
+.evidence-grid img,
+.evidence-grid video {
   width: 100%;
   height: auto;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+}
+
+.return-items-table {
+  margin-top: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.return-items-head,
+.return-items-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.4fr) repeat(5, minmax(70px, 0.7fr));
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+}
+
+.return-items-head {
+  background: #f8fafc;
+  font-weight: 800;
+  color: #334155;
+}
+
+.return-items-row {
+  border-top: 1px solid #f1f5f9;
+  color: #475569;
+}
+
+.return-product {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.return-product strong {
+  color: var(--text-main);
+}
+
+.return-product small {
+  color: #64748b;
+}
+
+.refund-history {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.refund-history h4 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.refund-history-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  color: #475569;
+  font-size: 0.86rem;
+}
+
+.refund-history-row + .refund-history-row {
+  border-top: 1px dashed #e2e8f0;
 }
 
 .info-row {

@@ -7,6 +7,8 @@ import { returnRequestService } from '@/services/returnRequestService';
 import AppIcon from '@/icons/AppIcon.vue';
 import {
   RETURN_REASON_OPTIONS,
+  RETURN_REQUEST_REFUND_METHOD_OPTIONS,
+  RETURN_SHIPPING_METHOD_OPTIONS,
   getOrderStatusDescription,
   getOrderStatusTone,
   getPaymentStatusLabel,
@@ -138,7 +140,48 @@ const submittingReturnRequest = ref(false);
 const returnReason = ref('');
 const returnDescription = ref('');
 const returnImages = ref([]);
+const returnVideos = ref([]);
 const returnValidationError = ref('');
+const returnRefundMethod = ref('wallet');
+const returnShippingMethod = ref('pickup_original_address');
+const returnSelectedItems = ref({});
+
+const getReturnableQuantity = (item) => Math.max(0, Number(item.quantity || 0) - Number(item.returned_quantity || 0));
+
+const toggleReturnItem = (item, checked) => {
+  const next = { ...returnSelectedItems.value };
+  if (checked) {
+    next[item.order_item_id] = Math.min(1, getReturnableQuantity(item));
+  } else {
+    delete next[item.order_item_id];
+  }
+  returnSelectedItems.value = next;
+};
+
+const normalizeReturnQuantity = (item, value) => {
+  const max = getReturnableQuantity(item);
+  const digits = String(value ?? '').replace(/\D/g, '');
+  const parsed = Number(digits || 1);
+  return Math.max(1, Math.min(parsed, max));
+};
+
+const updateReturnItemQuantity = (item, value) => {
+  const qty = normalizeReturnQuantity(item, value);
+  returnSelectedItems.value = {
+    ...returnSelectedItems.value,
+    [item.order_item_id]: qty,
+  };
+  returnValidationError.value = '';
+};
+
+const adjustReturnItemQuantity = (item, delta) => {
+  const current = Number(returnSelectedItems.value[item.order_item_id] || 1);
+  updateReturnItemQuantity(item, current + delta);
+};
+
+const getSelectedReturnItems = () => Object.entries(returnSelectedItems.value)
+  .map(([orderItemId, quantity]) => ({ order_item_id: Number(orderItemId), quantity: Number(quantity) }))
+  .filter((item) => item.quantity > 0);
 
 // Cancel modal state
 const showCancelModal = ref(false);
@@ -161,6 +204,10 @@ const openReturnModal = () => {
   returnReason.value = '';
   returnDescription.value = '';
   returnImages.value = [];
+  returnVideos.value = [];
+  returnRefundMethod.value = 'wallet';
+  returnShippingMethod.value = 'pickup_original_address';
+  returnSelectedItems.value = {};
   returnValidationError.value = '';
   showReturnModal.value = true;
 };
@@ -170,7 +217,26 @@ const dismissReturnModal = () => {
 };
 
 const onReturnImagesChange = (event) => {
-  returnImages.value = Array.from(event.target.files || []);
+  const files = Array.from(event.target.files || []);
+  if (files.length > 5) {
+    returnValidationError.value = 'Chỉ được chọn tối đa 5 ảnh minh chứng';
+    event.target.value = '';
+    returnImages.value = [];
+    return;
+  }
+  returnImages.value = files;
+  returnValidationError.value = '';
+};
+
+const onReturnVideosChange = (event) => {
+  const files = Array.from(event.target.files || []);
+  if (files.length > 1) {
+    returnValidationError.value = 'Chỉ được chọn tối đa 1 video minh chứng';
+    event.target.value = '';
+    returnVideos.value = [];
+    return;
+  }
+  returnVideos.value = files;
   returnValidationError.value = '';
 };
 
@@ -180,12 +246,26 @@ const submitReturnRequest = async () => {
     return;
   }
 
+  const selectedItems = getSelectedReturnItems();
+  if (!selectedItems.length) {
+    returnValidationError.value = 'Vui lòng chọn ít nhất một sản phẩm cần hoàn';
+    return;
+  }
+
   const payload = new FormData();
   payload.append('reason', returnReason.value);
+  payload.append('refund_method', returnRefundMethod.value);
+  payload.append('return_shipping_method', returnShippingMethod.value);
+  payload.append('idempotency_key', `return-${order.value.order_id}-${Date.now()}`);
   if (returnDescription.value.trim()) {
     payload.append('description', returnDescription.value.trim());
   }
+  selectedItems.forEach((item, index) => {
+    payload.append(`items[${index}][order_item_id]`, item.order_item_id);
+    payload.append(`items[${index}][quantity]`, item.quantity);
+  });
   returnImages.value.forEach((file) => payload.append('images[]', file));
+  returnVideos.value.forEach((file) => payload.append('videos[]', file));
 
   submittingReturnRequest.value = true;
   try {
@@ -542,27 +622,112 @@ watch(orderId, (newId) => {
 
     <Transition name="modal">
       <div v-if="showReturnModal" class="cancel-modal-overlay" @click.self="dismissReturnModal">
-        <div class="cancel-modal-box">
-          <div class="cancel-modal-header">
-            <h5>Yêu cầu hoàn hàng</h5>
+        <div class="cancel-modal-box return-modal-box">
+          <div class="cancel-modal-header return-modal-header">
+            <div>
+              <span class="return-modal-eyebrow">Hoàn hàng</span>
+              <h5>Yêu cầu hoàn hàng</h5>
+              <p>Chọn sản phẩm, lý do và cách gửi hàng. Shop sẽ phản hồi sau khi kiểm tra yêu cầu.</p>
+            </div>
             <button class="cancel-modal-close" @click="dismissReturnModal">×</button>
           </div>
-          <div class="cancel-modal-body">
-            <p class="cancel-modal-desc">Chọn lý do và cung cấp thêm thông tin nếu cần để admin xử lý nhanh hơn.</p>
+          <div class="cancel-modal-body return-modal-body">
+
+            <div class="return-section-title">Sản phẩm cần hoàn</div>
+            <div class="return-item-list">
+              <label
+                v-for="item in order.items"
+                :key="item.order_item_id"
+                class="return-item-option"
+                :class="{ selected: returnSelectedItems[item.order_item_id], disabled: getReturnableQuantity(item) <= 0 }"
+              >
+                <input
+                  type="checkbox"
+                  :disabled="getReturnableQuantity(item) <= 0"
+                  :checked="Boolean(returnSelectedItems[item.order_item_id])"
+                  @change="toggleReturnItem(item, $event.target.checked); returnValidationError = ''"
+                />
+                <img :src="getProductImage(item)" :alt="item.product_name" @error="$event.target.src='/placeholder.png'" />
+                <span class="return-item-info">
+                  <strong>{{ item.product_name }}</strong>
+                  <small>{{ item.variant_name || 'Không phân loại' }}</small>
+                  <small>Đã mua: {{ item.quantity }} · Đã hoàn: {{ item.returned_quantity || 0 }} · Còn: {{ getReturnableQuantity(item) }}</small>
+                </span>
+                <div v-if="returnSelectedItems[item.order_item_id]" class="return-qty-control" @click.stop>
+                  <button
+                    v-if="getReturnableQuantity(item) > 1"
+                    type="button"
+                    class="return-qty-btn"
+                    :disabled="Number(returnSelectedItems[item.order_item_id]) <= 1"
+                    @click="adjustReturnItemQuantity(item, -1)"
+                  >−</button>
+                  <input
+                    class="return-qty-input"
+                    type="text"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    :value="returnSelectedItems[item.order_item_id]"
+                    @input="updateReturnItemQuantity(item, $event.target.value)"
+                    @blur="updateReturnItemQuantity(item, $event.target.value)"
+                  />
+                  <button
+                    v-if="getReturnableQuantity(item) > 1"
+                    type="button"
+                    class="return-qty-btn"
+                    :disabled="Number(returnSelectedItems[item.order_item_id]) >= getReturnableQuantity(item)"
+                    @click="adjustReturnItemQuantity(item, 1)"
+                  >+</button>
+                </div>
+              </label>
+            </div>
+
+            <div class="return-section-title">Lý do hoàn hàng</div>
             <div class="cancel-reason-list">
               <label v-for="reason in returnReasons" :key="reason" class="cancel-reason-item" :class="{ selected: returnReason === reason }">
                 <input type="radio" v-model="returnReason" :value="reason" @change="returnValidationError = ''" />
                 <span>{{ reason }}</span>
               </label>
             </div>
+
+            <div class="return-section-title">Cách gửi hàng hoàn</div>
+            <div class="cancel-reason-list">
+              <label
+                v-for="method in RETURN_SHIPPING_METHOD_OPTIONS"
+                :key="method.value"
+                class="cancel-reason-item"
+                :class="{ selected: returnShippingMethod === method.value }"
+              >
+                <input type="radio" v-model="returnShippingMethod" :value="method.value" @change="returnValidationError = ''" />
+                <span>{{ method.label }}</span>
+              </label>
+            </div>
+            <p v-if="returnShippingMethod === 'pickup_original_address'" class="return-help-text">
+              Đơn vị vận chuyển sẽ đến lấy hàng tại địa chỉ nhận hàng ban đầu: <strong>{{ order.shipping_address }}</strong>
+            </p>
+            <p v-else class="return-help-text">
+              Sau khi yêu cầu được duyệt, bạn có thể tự mang hàng đến bưu cục/điểm gửi theo hướng dẫn của shop.
+            </p>
+
+            <div class="return-section-title">Phương thức hoàn tiền</div>
+            <select v-model="returnRefundMethod" class="return-method-select" @change="returnValidationError = ''">
+              <option v-for="method in RETURN_REQUEST_REFUND_METHOD_OPTIONS" :key="method.value" :value="method.value">
+                {{ method.label }}
+              </option>
+            </select>
+
             <textarea
               v-model="returnDescription"
               placeholder="Mô tả thêm tình trạng sản phẩm, lý do hoàn hàng hoặc thông tin cần hỗ trợ..."
               class="cancel-custom-input"
               @input="returnValidationError = ''"
             ></textarea>
-            <input class="return-file-input" type="file" accept="image/*" multiple @change="onReturnImagesChange" />
+            <div class="return-section-title">Ảnh minh chứng (tối đa 5)</div>
+            <input class="return-file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple @change="onReturnImagesChange" />
             <p v-if="returnImages.length" class="return-file-count">Đã chọn {{ returnImages.length }} ảnh minh chứng</p>
+
+            <div class="return-section-title">Video minh chứng (tối đa 1)</div>
+            <input class="return-file-input" type="file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo" @change="onReturnVideosChange" />
+            <p v-if="returnVideos.length" class="return-file-count">Đã chọn {{ returnVideos.length }} video minh chứng</p>
             <p v-if="returnValidationError" class="cancel-validation-error">{{ returnValidationError }}</p>
           </div>
           <div class="cancel-modal-footer">
@@ -991,21 +1156,150 @@ watch(orderId, (newId) => {
 }
 
 /* Cancel Modal */
-.cancel-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1050; }
+.cancel-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1050; padding: 18px; box-sizing: border-box; }
 .cancel-modal-box { background: var(--card-bg); border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); overflow: hidden; }
+.return-modal-box { max-width: 760px; max-height: calc(100vh - 36px); display: flex; flex-direction: column; }
 .cancel-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid #e2e8f0; }
 .cancel-modal-header h5 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-main); }
+.return-modal-header { align-items: flex-start; gap: 16px; background: linear-gradient(135deg, rgba(230,59,111,0.08), rgba(14,165,233,0.06)); }
+.return-modal-header h5 { margin-top: 2px; font-size: 1.25rem; font-weight: 800; }
+.return-modal-header p { margin: 6px 0 0; color: #64748b; font-size: 0.88rem; line-height: 1.5; }
+.return-modal-eyebrow { text-transform: uppercase; letter-spacing: 0.08em; color: var(--primary); font-weight: 800; font-size: 0.72rem; }
 .cancel-modal-close { background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.5rem; line-height: 1; padding: 4px 8px; border-radius: 6px; transition: all 0.2s; }
 .cancel-modal-close:hover { background: #f1f5f9; color: #dc2626; }
 .cancel-modal-body { padding: 20px 24px; }
+.return-modal-body { flex: 1; overflow-y: auto; padding: 18px 24px 22px; background: #f8fafc; }
 .cancel-modal-desc { color: #64748b; font-size: 0.88rem; margin: 0 0 14px; }
 .cancel-reason-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.return-modal-body .cancel-reason-list { max-height: none; overflow: visible; }
 .cancel-reason-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; background: var(--card-bg); transition: all 0.15s; font-size: 0.88rem; color: #334155; }
 .cancel-reason-item:hover { border-color: var(--primary); background: #f0f9ff; }
 .cancel-reason-item.selected { border-color: var(--primary); background: #f0f9ff; }
 .cancel-reason-item input[type="radio"] { accent-color: var(--primary); width: 16px; height: 16px; flex-shrink: 0; }
 .cancel-custom-input { width: 100%; margin-top: 12px; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 0.88rem; min-height: 80px; resize: vertical; outline: none; font-family: inherit; box-sizing: border-box; }
 .cancel-custom-input:focus { border-color: var(--primary); }
+.return-section-title {
+  margin: 18px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #334155;
+}
+.return-modal-body .return-section-title:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.return-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.return-modal-body .cancel-reason-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+.return-item-option {
+  display: grid;
+  grid-template-columns: auto 48px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.return-item-option:hover,
+.return-item-option.selected {
+  border-color: var(--primary);
+  background: #f0f9ff;
+}
+.return-item-option.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.return-item-option img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+}
+.return-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.return-item-info strong {
+  font-size: 0.88rem;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+.return-item-info small {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+.return-qty-control {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+.return-qty-input {
+  width: 48px;
+  padding: 8px 6px;
+  border: 0;
+  outline: none;
+  text-align: center;
+  font-weight: 700;
+}
+.return-qty-btn {
+  width: 32px;
+  height: 36px;
+  border: 0;
+  background: #f8fafc;
+  color: var(--primary);
+  font-weight: 900;
+  cursor: pointer;
+}
+.return-qty-btn:disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+.return-qty-btn:not(:disabled):hover {
+  background: rgba(230, 59, 111, 0.1);
+}
+.return-method-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font: inherit;
+  color: var(--text-main);
+  outline: none;
+}
+.return-method-select:focus,
+.return-qty-input:focus {
+  border-color: var(--primary);
+}
+.return-help-text {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
 .return-file-input {
   width: 100%;
   margin-top: 12px;
@@ -1017,7 +1311,8 @@ watch(orderId, (newId) => {
   color: #475569;
 }
 .cancel-validation-error { color: #dc2626; font-size: 0.82rem; font-weight: 600; margin: 10px 0 0; }
-.cancel-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #e2e8f0; }
+.cancel-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #e2e8f0; background: var(--card-bg); }
+.return-modal-box .cancel-modal-footer { flex-shrink: 0; box-shadow: 0 -8px 24px rgba(15,23,42,0.06); }
 .btn-cancel-dismiss { padding: 8px 20px; border-radius: 8px; border: 1px solid #e2e8f0; background: var(--card-bg); color: #64748b; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }
 .btn-cancel-dismiss:hover { background: #f1f5f9; }
 .btn-cancel-confirm { padding: 8px 20px; border-radius: 8px; border: none; background: #dc2626; color: white; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; transition: all 0.15s; }

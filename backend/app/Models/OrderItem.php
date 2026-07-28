@@ -20,6 +20,7 @@ class OrderItem extends Model
         'color',
         'size',
         'quantity',
+        'returned_quantity',
         'unit_price',
         'discount_amount',
         'line_total',
@@ -28,6 +29,7 @@ class OrderItem extends Model
 
     protected $casts = [
         'quantity'        => 'integer',
+        'returned_quantity' => 'integer',
         'unit_price'      => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'line_total'      => 'decimal:2',
@@ -51,5 +53,10 @@ class OrderItem extends Model
     public function comment()
     {
         return $this->hasOne(ProductComment::class, 'order_item_id', 'order_item_id');
+    }
+
+    public function returnRequestItems()
+    {
+        return $this->hasMany(ReturnRequestItem::class, 'order_item_id', 'order_item_id');
     }
 }

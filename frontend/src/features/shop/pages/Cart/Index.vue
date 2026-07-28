@@ -331,60 +331,69 @@ const clearQuantityInputTimer = (item) => {
     }
 };
 
-const scheduleQuantityInputUpdate = (item, event) => {
-    const oldQuantity = Number(item.quantity) || 1;
-    const sanitized = String(event.target.value || '').replace(/[^0-9]/g, '').slice(0, 6);
-    event.target.value = sanitized;
+const originalQuantities = new Map();
 
-    clearQuantityInputTimer(item);
-
-    const timer = setTimeout(async () => {
-        const nextQuantity = normalizeQuantity(sanitized);
-
-        if (nextQuantity === null) {
-            event.target.value = oldQuantity;
-            showToast('Vui lòng nhập số lượng hợp lệ.', 'error');
-            quantityInputTimers.delete(getQuantityTimerKey(item));
-            return;
+// Hàm gọi API thực tế (được trì hoãn)
+const submitQuantityUpdate = async (item, targetQuantity) => {
+    if (!authStore.isAuthenticated) return;
+    
+    const key = getQuantityTimerKey(item);
+    updating.value[item.cart_item_id] = true;
+    try {
+        await api.put(`/cart/items/${item.cart_item_id}`, { quantity: targetQuantity });
+        originalQuantities.delete(key);
+    } catch (error) {
+        // Rollback nếu API lỗi
+        const fallbackQty = originalQuantities.get(key) ?? item.quantity;
+        item.quantity = fallbackQty;
+        if (item.variant) {
+            item.line_total = item.variant.price * fallbackQty;
         }
-
-        const updated = await updateQuantity(item, nextQuantity);
-        event.target.value = updated ? item.quantity : oldQuantity;
-        quantityInputTimers.delete(getQuantityTimerKey(item));
-    }, QUANTITY_INPUT_DEBOUNCE_MS);
-
-    quantityInputTimers.set(getQuantityTimerKey(item), timer);
+        const msg = error.response?.data?.message || 'Không thể cập nhật số lượng.';
+        showToast(msg, 'error');
+        originalQuantities.delete(key);
+    } finally {
+        updating.value[item.cart_item_id] = false;
+    }
 };
 
-// Cập nhật số lượng
-const updateQuantity = async (item, rawQuantity) => {
+// Cập nhật số lượng tại giao diện lập tức và lên lịch gửi API sau 600ms
+const changeQuantity = (item, rawQuantity) => {
     const newQuantity = normalizeQuantity(rawQuantity);
 
     if (newQuantity === null || newQuantity < 1) {
         showToast('Số lượng tối thiểu là 1.', 'error');
-        return false;
+        return;
     }
 
     if (newQuantity > 999) {
         showToast('Số lượng tối đa là 999.', 'error');
-        return false;
+        return;
     }
 
     if (!item.variant || newQuantity > item.variant.stock) {
         showToast(`Chỉ còn ${item.variant?.stock || 0} sản phẩm trong kho.`, 'error');
-        return false;
+        return;
     }
 
     if (newQuantity === item.quantity) {
-        return true;
+        return;
     }
 
-    const oldQuantity = item.quantity;
+    const key = getQuantityTimerKey(item);
+    
+    // Lưu lại số lượng gốc ban đầu trước khi bắt đầu chuỗi thao tác bấm liên tục
+    if (!originalQuantities.has(key)) {
+        originalQuantities.set(key, item.quantity);
+    }
+
+    // Cập nhật UI lập tức
     item.quantity = newQuantity;
     if (item.variant) {
         item.line_total = item.variant.price * newQuantity;
     }
 
+    // Nếu là khách vãng lai
     if (!authStore.isAuthenticated) {
         let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
         const idx = localItems.findIndex(i => i.variant_id === item.variant_id);
@@ -393,23 +402,36 @@ const updateQuantity = async (item, rawQuantity) => {
             localStorage.setItem('cart_items', JSON.stringify(localItems));
         }
         window.dispatchEvent(new Event('cart-updated'));
-        return true;
+        originalQuantities.delete(key);
+        return;
     }
 
-    updating.value[item.cart_item_id] = true;
-    try {
-        await api.put(`/cart/items/${item.cart_item_id}`, { quantity: newQuantity });
-        return true;
-    } catch (error) {
-        item.quantity = oldQuantity;
-        if (item.variant) {
-            item.line_total = item.variant.price * oldQuantity;
-        }
-        const msg = error.response?.data?.message || 'Không thể cập nhật số lượng.';
-        showToast(msg, 'error');
-        return false;
-    } finally {
-        updating.value[item.cart_item_id] = false;
+    // Debounce API call
+    clearQuantityInputTimer(item);
+    const timer = setTimeout(() => {
+        submitQuantityUpdate(item, newQuantity);
+        quantityInputTimers.delete(key);
+    }, QUANTITY_INPUT_DEBOUNCE_MS);
+
+    quantityInputTimers.set(key, timer);
+};
+
+const scheduleQuantityInputUpdate = (item, event) => {
+    const sanitized = String(event.target.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+    event.target.value = sanitized;
+
+    const nextQuantity = normalizeQuantity(sanitized);
+    if (nextQuantity !== null && nextQuantity >= 1) {
+        changeQuantity(item, nextQuantity);
+    }
+};
+
+const handleQuantityInputBlur = (item, event) => {
+    const sanitized = String(event.target.value || '').replace(/[^0-9]/g, '').slice(0, 6);
+    const nextQuantity = normalizeQuantity(sanitized);
+    if (nextQuantity === null || nextQuantity < 1) {
+        event.target.value = item.quantity;
+        showToast('Vui lòng nhập số lượng hợp lệ.', 'error');
     }
 };
 
@@ -700,7 +722,7 @@ onUnmounted(() => {
 
                         <!-- Quantity -->
                         <div class="quantity-control">
-                            <button class="qty-btn" @click="updateQuantity(item, item.quantity - 1)"
+                            <button class="qty-btn" @click="changeQuantity(item, item.quantity - 1)"
                                 :disabled="item.quantity <= 1 || updating[item.cart_item_id]">
                                 -
                             </button>
@@ -714,8 +736,9 @@ onUnmounted(() => {
                                 :disabled="updating[item.cart_item_id]"
                                 @input="scheduleQuantityInputUpdate(item, $event)"
                                 @keydown.enter.prevent="scheduleQuantityInputUpdate(item, $event)"
+                                @blur="handleQuantityInputBlur(item, $event)"
                             />
-                            <button class="qty-btn" @click="updateQuantity(item, item.quantity + 1)"
+                            <button class="qty-btn" @click="changeQuantity(item, item.quantity + 1)"
                                 :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id]">
                                 +
                             </button>

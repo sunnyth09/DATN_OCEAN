@@ -37,7 +37,12 @@ const headerRewardPoints = ref(0);
 const isScrolled = ref(false);
 
 const handleScroll = () => {
-    isScrolled.value = window.scrollY > 50;
+    const scrollTop = window.scrollY;
+    if (scrollTop > 50) {
+        isScrolled.value = true;
+    } else if (scrollTop < 30) {
+        isScrolled.value = false;
+    }
 };
 
 const notifPage = ref(1);

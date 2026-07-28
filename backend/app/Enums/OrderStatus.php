@@ -15,6 +15,10 @@ enum OrderStatus: string
     case RETURN_REQUESTED = 'return_requested';
     case RETURN_APPROVED = 'return_approved';
     case RETURN_REJECTED = 'return_rejected';
+    case RETURNING = 'returning';
+    case WAREHOUSE_RECEIVED = 'warehouse_received';
+    case INSPECTION_FAILED = 'inspection_failed';
+    case INSPECTED_OK = 'inspected_ok';
     case RETURNED = 'returned';
     case REFUNDED = 'refunded';
 
@@ -32,6 +36,10 @@ enum OrderStatus: string
             self::RETURN_REQUESTED => 'Yêu cầu hoàn hàng',
             self::RETURN_APPROVED => 'Đã duyệt hoàn hàng',
             self::RETURN_REJECTED => 'Từ chối hoàn hàng',
+            self::RETURNING => 'Khách đang gửi hàng hoàn',
+            self::WAREHOUSE_RECEIVED => 'Kho đã nhận hàng hoàn',
+            self::INSPECTION_FAILED => 'Hoàn hàng không đạt kiểm tra',
+            self::INSPECTED_OK => 'Hoàn hàng đạt kiểm tra',
             self::RETURNED => 'Đã nhận hàng hoàn',
             self::REFUNDED => 'Đã hoàn tiền',
         };
@@ -60,6 +68,10 @@ enum OrderStatus: string
         return [
             self::CANCELLED->value,
             self::RETURN_APPROVED->value,
+            self::RETURNING->value,
+            self::WAREHOUSE_RECEIVED->value,
+            self::INSPECTION_FAILED->value,
+            self::INSPECTED_OK->value,
             self::RETURNED->value,
             self::REFUNDED->value,
         ];
