@@ -26,8 +26,6 @@ const earnEvents = [
   { icon: 'cart',    label: 'Mua hàng thành công',          points: '+1 điểm / 10.000đ', color: '#10b981' },
   { icon: 'star',    label: 'Đánh giá sản phẩm có nội dung', points: '+20 điểm',           color: '#f59e0b' },
   { icon: 'camera',  label: 'Đánh giá kèm hình ảnh',         points: '+50 điểm',           color: '#8b5cf6' },
-  { icon: 'cake',    label: 'Sinh nhật khách hàng',          points: '+100 điểm',          color: '#ec4899' },
-  { icon: 'users',   label: 'Giới thiệu bạn bè thành công',  points: '+200 điểm',          color: '#3b82f6' },
   { icon: 'bag',     label: 'Hoàn tất đơn bỏ quên giỏ',     points: '+30 điểm',           color: '#f97316' },
 ];
 

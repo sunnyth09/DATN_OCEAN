@@ -43,22 +43,6 @@ Artisan::command('inspire', function () {
 // ██ SCHEDULED TASKS — CÁC TÁC VỤ TỰ ĐỘNG
 // =====================================================================
 
-/**
- * ── 1. Chúc mừng sinh nhật ──
- *
- * Chạy lúc 00:00 (nửa đêm) mỗi ngày
- * Quét bảng users, tìm user có sinh nhật hôm nay
- * → Tạo mã giảm giá + gửi email + notification inbox
- *
- * ->dailyAt('00:00')       → chạy 1 lần/ngày lúc 0h
- * ->withoutOverlapping()   → nếu lần trước chưa chạy xong thì không chạy lại
- * ->appendOutputTo(...)    → ghi log output ra file để debug
- */
-Schedule::command('app:send-birthday-wishes')
-    ->dailyAt('00:00')
-    ->withoutOverlapping()
-    ->onOneServer()
-    ->appendOutputTo(storage_path('logs/scheduler.log'));
 
 /**
  * ── 2. Nhắc nhở giỏ hàng bỏ quên ──

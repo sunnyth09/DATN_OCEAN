@@ -579,14 +579,7 @@ Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
         }
     });
 
-    Route::get('/run-birthday', function () {
-        try {
-            \Illuminate\Support\Facades\Artisan::call('app:send-birthday-wishes');
-            return response()->json(['status' => 'success', 'output' => \Illuminate\Support\Facades\Artisan::output()]);
-        } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-        }
-    });
+
 
     Route::get('/cart-status', function () {
         $carts = \App\Models\Cart::where('status', 'active')

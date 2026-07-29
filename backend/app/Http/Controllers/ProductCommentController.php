@@ -95,6 +95,12 @@ class ProductCommentController extends Controller
 
         DB::beginTransaction();
         try {
+            // Validate request
+            $request->validate([
+                'images' => 'nullable|array|max:5',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:5120'
+            ]);
+
             // Lưu ảnh nếu có
             $imagePaths = [];
             if ($request->hasFile('images')) {
@@ -113,8 +119,8 @@ class ProductCommentController extends Controller
                 'order_item_id'  => $request->order_item_id,
                 'rating'         => $request->rating,
                 'content'        => $request->content,
-                'is_approved'    => $request->rating >= 3 ? 1 : 0,
-                'images'         => !empty($imagePaths) ? json_encode($imagePaths) : null,
+                'is_approved'    => ($request->rating >= 3 && empty($imagePaths)) ? 1 : 0,
+                'images'         => !empty($imagePaths) ? $imagePaths : null,
             ]);
 
             // Nếu rating <= 3, tự động tạo Ticket (Khiếu nại) cho admin

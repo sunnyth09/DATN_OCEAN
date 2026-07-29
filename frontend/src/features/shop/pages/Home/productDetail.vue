@@ -12,9 +12,7 @@ import AppIcon from '@/icons/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
-import QRCode from 'qrcode';
 import Swal from 'sweetalert2';
-import { affiliateService } from '@/services/affiliateService';
 import { sanitizeHtml } from '@/utils/sanitize';
 
 const route = useRoute();
@@ -601,67 +599,50 @@ const handleUpgrade = (premiumVariant) => {
   showToast(`Đã nâng cấp lên phiên bản ${premiumVariant.color || ''} ${premiumVariant.size || ''}`.trim(), 'success');
 };
 
-const showProductQr = async () => {
-    if (!product.value) return;
-
-    try {
-        let productUrl = window.location.href;
-        let shareMessage = 'Quét mã này để xem hoặc lưu thông tin sản phẩm';
-
-        // Tích hợp Affiliate: Nếu user đã đăng nhập và là affiliate, thêm mã giới thiệu vào link
-        if (authStore.isAuthenticated) {
-            try {
-                const res = await affiliateService.getProfile();
-                if (res.data?.status && res.data?.data?.is_affiliate && res.data?.data?.referral_code) {
-                    const urlObj = new URL(productUrl);
-                    urlObj.searchParams.set('ref', res.data.data.referral_code);
-                    productUrl = urlObj.toString();
-                    shareMessage = 'Quét mã này để mua hàng (Bạn sẽ nhận được hoa hồng giới thiệu!)';
-                }
-            } catch (err) {
-                // Bỏ qua nếu chưa đăng ký affiliate
-            }
-        }
-
-        // Chuyển mã QR thành định dạng URL chuẩn để camera điện thoại có thể quét và mở thẳng link
-        const qrImgUrl = await QRCode.toDataURL(productUrl, { width: 220, margin: 2, color: { dark: '#1a1a2e', light: '#ffffff' } });
-
-        await Swal.fire({
-            title: 'Mã QR Sản Phẩm',
-            html: `
-                <div style="text-align:center;padding:12px 0">
-                    <img
-                        id="product-qr-img"
-                        src="${qrImgUrl}"
-                        alt="QR Code"
-                        style="width:220px;height:220px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);border:2px solid #e9ecef;margin-bottom:10px;"
-                        onerror="this.onerror=null;this.src='';this.parentElement.innerHTML='<div style=\\'color:#dc3545;font-size:13px\\'>Không tải được QR, vui lòng thử lại</div>'"
-                    />
-                    <div style="margin-top:10px;font-size:16px;color:#333;font-weight:bold;line-height:1.4;">
-                        ${product.value.name}
-                    </div>
-                    <div style="color:#E63B6F;font-weight:bold;margin-top:5px;font-size:18px;">
-                        ${formatPrice(displayPriceInfo.value.current)}
-                    </div>
-                    <p style="margin-top:10px;font-size:13px;color:#10b981;font-weight:600;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                        ${shareMessage}
-                    </p>
-                    <a href="${qrImgUrl}" download="QR_${product.value.slug}.png" style="display:inline-block;margin-top:15px;background:#E63B6F;color:#fff;text-decoration:none;padding:8px 20px;border-radius:8px;font-size:14px;font-weight:bold;transition:0.2s;">
-                        ⬇️ Tải mã QR xuống
-                    </a>
-                </div>
-            `,
-            showConfirmButton: true,
-            confirmButtonText: 'Đóng',
-            confirmButtonColor: '#6c757d',
-            width: 380,
-        });
-    } catch (e) {
-        console.error('QR error:', e);
-        showToast('Không tạo được mã QR', 'error');
-    }
+const openImage = (img) => {
+  if (!img) return;
+  const url = getImageUrl(img);
+  window.open(url, '_blank');
 };
+
+const parseReviewImages = (images) => {
+  if (!images) return [];
+  
+  let parsed = images;
+  
+  // Keep parsing if it's a string that looks like JSON
+  while (typeof parsed === 'string') {
+    try {
+      let temp = JSON.parse(parsed);
+      if (temp === parsed) break;
+      parsed = temp;
+    } catch (e) {
+      parsed = parsed.replace(/[\[\]"]/g, '').split(',').map(s => s.trim());
+      break;
+    }
+  }
+
+  // At this point, parsed should be an array
+  if (Array.isArray(parsed)) {
+    return parsed.map(s => {
+      let cleaned = String(s).trim();
+      
+      // Replace all backslashes with forward slashes FIRST! (Important for Windows paths)
+      cleaned = cleaned.replace(/\\/g, '/');
+      
+      // Remove any leftover double quotes or single quotes from double-encoding artifacts
+      cleaned = cleaned.replace(/["']/g, '');
+      
+      // Deduplicate forward slashes
+      cleaned = cleaned.replace(/\/+/g, '/');
+      
+      return cleaned;
+    }).filter(s => s);
+  }
+  
+  return [];
+};
+
 
 // Watch route slug để reload dữ liệu khi điều hướng sang SP khác
 watch(slug, (newSlug, oldSlug) => {
@@ -856,17 +837,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-
-        <!-- Product QR Code -->
-        <button class="pd-btn-share" @click="showProductQr" style="margin-top: 10px; background-color: #f8f9fa; color: #212529; border-color: #dee2e6;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="6" height="6" rx="1"></rect>
-            <rect x="15" y="3" width="6" height="6" rx="1"></rect>
-            <rect x="3" y="15" width="6" height="6" rx="1"></rect>
-            <rect x="15" y="15" width="6" height="6" rx="1"></rect>
-          </svg>
-          Mã QR giới thiệu / chia sẻ
-        </button>
         <PremiumUpgrade :current-variant="selectedVariant" :all-variants="sortedVariants" @upgrade="handleUpgrade" />
       </div>
     </section>
@@ -984,7 +954,10 @@ onBeforeUnmount(() => {
               </div>
               <span class="pd-review-date">{{ formatDate(review.created_at) }}</span>
             </div>
-            <p class="pd-review-text">{{ review.content }}</p>
+            <div class="pd-review-text" v-html="sanitizeHtml(review.content)"></div>
+            <div class="pd-review-images" v-if="parseReviewImages(review.images).length > 0">
+              <img v-for="(img, idx) in parseReviewImages(review.images)" :key="idx" :src="getImageUrl(img)" alt="Review image" @click="openImage(img)" style="cursor: pointer;" title="Nhấn để xem ảnh lớn" />
+            </div>
           </div>
         </div>
       </div>
@@ -1717,6 +1690,23 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   padding: 24px;
 }
+
+.pd-reviews-panel { padding-top: 10px; }
+.pd-no-reviews { text-align: center; color: #64748b; padding: 40px 0; }
+.pd-review {
+  padding: 24px 0; border-bottom: 1px solid #f1f5f9;
+}
+.pd-review-head {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+}
+.pd-review-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+.pd-review-meta { display: flex; flex-direction: column; gap: 4px; }
+.pd-review-meta strong { font-size: 0.95rem; color: var(--text-main); }
+.pd-review-date { margin-left: auto; font-size: 0.85rem; color: #94a3b8; }
+.pd-review-text { font-size: 0.95rem; line-height: 1.6; color: #475569; margin-bottom: 12px; }
+.pd-review-images { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.pd-review-images img { width: 80px; height: 80px; border-radius: 6px; object-fit: cover; cursor: pointer; border: 1px solid #e2e8f0; transition: transform 0.2s; }
+.pd-review-images img:hover { transform: scale(1.05); }
 
 .pd-specs-title {
   font-size: 1.1rem;
