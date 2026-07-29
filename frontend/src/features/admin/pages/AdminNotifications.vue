@@ -33,7 +33,7 @@
                         <div>
                             <h6 class="mb-1 fw-bold d-flex align-items-center gap-2" :class="{'text-dark': !noti.read_at, 'text-muted': noti.read_at}">
                                 {{ noti.data.title }}
-                                <span v-if="noti.data.title && noti.data.title.includes('Flash Sale')" class="badge bg-warning text-dark" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">⚡ Flash Sale</span>
+                                <span v-if="noti.data.is_flash_sale || (noti.data.title && noti.data.title.includes('Flash Sale'))" class="badge bg-warning text-dark" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">⚡ Flash Sale</span>
                             </h6>
                             <p class="mb-1 text-secondary" style="font-size: 0.9rem;">{{ noti.data.message }}</p>
                             

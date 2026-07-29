@@ -140,10 +140,11 @@ class OrderProcessingJob implements ShouldQueue
                     // Notify Customer
                     if ($order->user) {
                         \Illuminate\Support\Facades\Notification::sendNow($order->user, new \App\Notifications\SystemNotification(
-                            'Đặt hàng Flash Sale thành công',
+                            'Đặt hàng thành công',
                             'Đơn hàng ' . $order->order_code . ' của bạn đã được đặt thành công.',
                             '/profile/orders/' . $order->order_id,
-                            'order'
+                            'order',
+                            ['is_flash_sale' => true]
                         ));
                     }
 
@@ -151,13 +152,14 @@ class OrderProcessingJob implements ShouldQueue
                     $admins = \App\Models\User::whereIn('role', ['admin', 'seller'])->get();
                     if ($admins->count() > 0) {
                         \Illuminate\Support\Facades\Notification::sendNow($admins, new \App\Notifications\SystemNotification(
-                            'Đơn hàng Flash Sale mới',
-                            'Khách hàng vừa đặt đơn hàng Flash Sale ' . $order->order_code,
+                            'Đơn hàng mới',
+                            'Khách hàng vừa đặt đơn hàng ' . $order->order_code,
                             '/admin/order/' . $order->order_id,
                             'order',
                             [
                                 'payment_status' => $order->payment_status,
-                                'fulfillment_status' => $order->fulfillment_status
+                                'fulfillment_status' => $order->fulfillment_status,
+                                'is_flash_sale' => true
                             ]
                         ));
                     }
