@@ -3,10 +3,12 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
 
 /**
  * ProductsTemplateExport — File Excel mẫu chuẩn 16 cột
@@ -14,7 +16,7 @@ use Maatwebsite\Excel\Concerns\WithColumnWidths;
  * Hỗ trợ cả sản phẩm đơn (simple) và sản phẩm có biến thể (variant).
  * Dữ liệu mẫu bao gồm 1 SP variant (3 biến thể) + 1 SP simple.
  */
-class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, WithColumnWidths
+class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeadings, WithStyles
 {
     /**
      * Header row — 16 cột
@@ -125,7 +127,7 @@ class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, Wit
         // SP1 (Áo khoác): rows 2-4 → nền xanh nhạt
         $sheet->getStyle('A2:P4')->applyFromArray([
             'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'E3F2FD'],
             ],
         ]);
@@ -133,7 +135,7 @@ class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, Wit
         // SP2 (Giày): row 5 → nền cam nhạt
         $sheet->getStyle('A5:P5')->applyFromArray([
             'fill' => [
-                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'FFF3E0'],
             ],
         ]);
@@ -153,12 +155,12 @@ class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, Wit
                     'size' => 11,
                 ],
                 'fill' => [
-                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'fillType' => Fill::FILL_SOLID,
                     'startColor' => ['rgb' => '0277BD'], // Ocean Blue đậm
                 ],
                 'alignment' => [
-                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
-                    'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER,
                 ],
             ],
         ];

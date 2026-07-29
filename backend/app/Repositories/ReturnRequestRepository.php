@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Enums\ReturnRequestStatus;
 use App\Models\ReturnRequest;
 
 class ReturnRequestRepository
@@ -18,7 +19,7 @@ class ReturnRequestRepository
             ->latest('requested_at')
             ->latest();
 
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
@@ -49,15 +50,15 @@ class ReturnRequestRepository
             ->latest('requested_at')
             ->latest();
 
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['refund_status']) && $filters['refund_status'] !== 'all') {
+        if (! empty($filters['refund_status']) && $filters['refund_status'] !== 'all') {
             $query->where('refund_status', $filters['refund_status']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
 
             $query->where(function ($builder) use ($search) {
@@ -97,7 +98,7 @@ class ReturnRequestRepository
     public function findActiveByOrderId(int $orderId): ?ReturnRequest
     {
         return ReturnRequest::where('order_id', $orderId)
-            ->whereIn('status', \App\Enums\ReturnRequestStatus::activeValues())
+            ->whereIn('status', ReturnRequestStatus::activeValues())
             ->latest('requested_at')
             ->first();
     }

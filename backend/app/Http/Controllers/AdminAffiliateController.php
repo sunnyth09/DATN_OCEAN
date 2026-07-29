@@ -29,6 +29,7 @@ class AdminAffiliateController extends Controller
     public function conversions(): JsonResponse
     {
         $result = $this->affiliateService->adminGetConversions();
+
         return response()->json($result['body'], $result['status_code']);
     }
 
@@ -39,6 +40,7 @@ class AdminAffiliateController extends Controller
     public function approveConversion(int $id): JsonResponse
     {
         $result = $this->affiliateService->adminApproveConversion($id);
+
         return response()->json($result['body'], $result['status_code']);
     }
 
@@ -49,6 +51,7 @@ class AdminAffiliateController extends Controller
     public function cancelConversion(int $id): JsonResponse
     {
         $result = $this->affiliateService->adminCancelConversion($id);
+
         return response()->json($result['body'], $result['status_code']);
     }
 
@@ -59,6 +62,7 @@ class AdminAffiliateController extends Controller
     public function withdrawals(): JsonResponse
     {
         $result = $this->affiliateService->adminGetWithdrawals();
+
         return response()->json($result['body'], $result['status_code']);
     }
 
@@ -69,6 +73,7 @@ class AdminAffiliateController extends Controller
     public function approveWithdrawal(int $id): JsonResponse
     {
         $result = $this->affiliateService->adminApproveWithdrawal($id);
+
         return response()->json($result['body'], $result['status_code']);
     }
 
@@ -79,6 +84,7 @@ class AdminAffiliateController extends Controller
     public function rejectWithdrawal(Request $request, int $id): JsonResponse
     {
         $result = $this->affiliateService->adminRejectWithdrawal($id, $request->note);
+
         return response()->json($result['body'], $result['status_code']);
     }
 
@@ -89,6 +95,7 @@ class AdminAffiliateController extends Controller
     public function markPaidWithdrawal(int $id): JsonResponse
     {
         $result = $this->affiliateService->adminMarkPaidWithdrawal($id);
+
         return response()->json($result['body'], $result['status_code']);
     }
 }

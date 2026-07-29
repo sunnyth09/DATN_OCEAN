@@ -8,22 +8,22 @@ return new class extends Migration
 {
     /**
      * Thêm unique index cho order_code trên bảng orders.
-     * 
+     *
      * Lý do: VNPay dùng order_code làm vnp_TxnRef — nếu trùng sẽ conflict giao dịch.
      * Unique index đảm bảo DB level constraint, không chỉ dựa vào application logic.
      */
     public function up(): void
     {
-        if (\DB::connection()->getDriverName() === 'sqlite') {
-            $indexExists = collect(\DB::select("PRAGMA index_list('orders')"))
-                ->contains(fn($idx) => $idx->name === 'orders_order_code_unique');
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $indexExists = collect(DB::select("PRAGMA index_list('orders')"))
+                ->contains(fn ($idx) => $idx->name === 'orders_order_code_unique');
         } else {
             $indexExists = collect(
-                \DB::select("SHOW INDEX FROM orders WHERE Key_name = 'orders_order_code_unique'")
+                DB::select("SHOW INDEX FROM orders WHERE Key_name = 'orders_order_code_unique'")
             )->isNotEmpty();
         }
 
-        if (!$indexExists) {
+        if (! $indexExists) {
             Schema::table('orders', function (Blueprint $table) {
                 $table->unique('order_code');
             });

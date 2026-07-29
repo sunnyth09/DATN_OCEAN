@@ -1,10 +1,10 @@
 <?php
+
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-
-class StoreOrderRequest  extends FormRequest
+class StoreOrderRequest extends FormRequest
 {
     /**
      * Chỉ customer (api guard) mới được tạo đơn hàng.
@@ -12,7 +12,7 @@ class StoreOrderRequest  extends FormRequest
      */
     public function authorize(): bool
     {
-        return auth('api')->check() && !auth('admin')->check();
+        return auth('api')->check() && ! auth('admin')->check();
     }
 
     public function rules(): array
@@ -45,14 +45,14 @@ class StoreOrderRequest  extends FormRequest
             'referral_code' => 'nullable|string|max:20',
 
             // Wallet discount
-            'use_wallet'    => 'nullable|boolean',
+            'use_wallet' => 'nullable|boolean',
             'wallet_amount' => 'nullable|numeric|min:0',
 
             // Loyalty points
             'reward_points_used' => 'nullable|integer|min:0',
         ];
     }
-    
+
     public function messages(): array
     {
         return [

@@ -25,8 +25,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('user_id')
-                  ->references('user_id')->on('users')
-                  ->onDelete('cascade');
+                ->references('user_id')->on('users')
+                ->onDelete('cascade');
 
             $table->index(['user_id', 'status']);
             $table->index('deposit_code');

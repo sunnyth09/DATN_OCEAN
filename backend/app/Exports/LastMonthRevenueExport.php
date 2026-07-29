@@ -7,13 +7,13 @@ use App\Enums\PaymentStatus;
 use App\Models\Order;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class LastMonthRevenueExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithStyles
+class LastMonthRevenueExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
     public function collection()
     {
@@ -25,7 +25,7 @@ class LastMonthRevenueExport implements FromCollection, WithHeadings, WithMappin
             ->whereBetween('created_at', [$startDate, $endDate])
             ->where(function ($q) {
                 $q->where('payment_status', PaymentStatus::PAID->value)
-                  ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
+                    ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
             })
             ->orderBy('created_at', 'ASC')
             ->get();

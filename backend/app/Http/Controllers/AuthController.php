@@ -55,10 +55,10 @@ class AuthController extends Controller
     {
         $code = $request->input('code');
 
-        if (!$code) {
+        if (! $code) {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Thiếu mã xác thực từ Google!'
+                'status' => 'error',
+                'message' => 'Thiếu mã xác thực từ Google!',
             ], 422);
         }
 
@@ -76,10 +76,10 @@ class AuthController extends Controller
     {
         $code = $request->input('code');
 
-        if (!$code) {
+        if (! $code) {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Thiếu mã xác thực từ Facebook!'
+                'status' => 'error',
+                'message' => 'Thiếu mã xác thực từ Facebook!',
             ], 422);
         }
 
@@ -90,4 +90,3 @@ class AuthController extends Controller
         return response()->json($result, $status);
     }
 }
-

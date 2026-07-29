@@ -24,12 +24,13 @@ class VNPayController extends Controller
 
             return response()->json($result, $status);
         } catch (\Exception $e) {
-            Log::error('VNPay return error: ' . $e->getMessage(), [
+            Log::error('VNPay return error: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
-                'status'         => 'error',
-                'message'        => 'Đã xảy ra lỗi khi xử lý thanh toán.',
+                'status' => 'error',
+                'message' => 'Đã xảy ra lỗi khi xử lý thanh toán.',
                 'payment_status' => 'failed',
             ], 500);
         }
@@ -45,9 +46,10 @@ class VNPayController extends Controller
                 $this->paymentService->handleVnpayIpn($request->all(), $request->ip())
             );
         } catch (\Exception $e) {
-            Log::error('VNPay IPN error: ' . $e->getMessage(), [
+            Log::error('VNPay IPN error: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'RspCode' => '99',
                 'Message' => 'Unknown error',

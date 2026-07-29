@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->foreign('user_id')
-                  ->references('user_id')->on('users')
-                  ->onDelete('cascade');
+                ->references('user_id')->on('users')
+                ->onDelete('cascade');
             $table->string('fcm_token')->unique();
             $table->string('device_type')->nullable(); // ios hoặc android
             $table->timestamps();

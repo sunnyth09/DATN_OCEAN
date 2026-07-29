@@ -6,7 +6,6 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\Product;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +19,7 @@ class StatisticsRepository
     {
         return Order::where(function ($q) {
             $q->where('payment_status', PaymentStatus::PAID->value)
-              ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
+                ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
         })->whereBetween('created_at', [$startDate, $endDate])->sum('grand_total');
     }
 
@@ -50,7 +49,7 @@ class StatisticsRepository
         $todayRevenue = Order::whereDate('created_at', Carbon::today())
             ->where(function ($q) {
                 $q->where('payment_status', PaymentStatus::PAID->value)
-                  ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
+                    ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
             })->sum('grand_total');
 
         $todayOrders = Order::whereDate('created_at', Carbon::today())->count();
@@ -83,7 +82,7 @@ class StatisticsRepository
         )
             ->where(function ($q) {
                 $q->where('payment_status', PaymentStatus::PAID->value)
-                  ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
+                    ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
             })
             ->whereBetween('created_at', [$startDate, $endDate])
             ->groupBy('date')
@@ -103,7 +102,7 @@ class StatisticsRepository
         )
             ->where(function ($q) {
                 $q->where('payment_status', PaymentStatus::PAID->value)
-                  ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
+                    ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
             })
             ->whereBetween('created_at', [$startDate, $endDate])
             ->groupBy('month')
@@ -136,7 +135,7 @@ class StatisticsRepository
         )
             ->whereHas('order', function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('created_at', [$startDate, $endDate])
-                  ->whereNotIn('fulfillment_status', OrderStatus::revenueExcludedValues());
+                    ->whereNotIn('fulfillment_status', OrderStatus::revenueExcludedValues());
             })
             ->groupBy('product_id', 'product_name')
             ->orderByDesc('total_sold')

@@ -5,12 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Notifications\AbandonedCartNotification;
-use Illuminate\Notifications\Notifiable;
-use App\Models\CourtBookingStatusHistory;
-use App\Models\CourtBookingService;
-use App\Models\CourtBookingPayment;
-use App\Models\CourtBookingExtension;
 
 class CourtBooking extends Model
 {
@@ -19,7 +13,8 @@ class CourtBooking extends Model
     protected $primaryKey = 'booking_id';
 
     const BLOCKING_STATUSES = ['pending', 'confirmed', 'checked_in', 'playing', 'extended'];
-    const FREE_STATUSES     = ['cancelled', 'completed', 'no_show', 'expired'];
+
+    const FREE_STATUSES = ['cancelled', 'completed', 'no_show', 'expired'];
 
     protected $fillable = [
         'booking_code', 'user_id', 'staff_id', 'court_id',

@@ -14,10 +14,10 @@ class GeoHelper
     /**
      * Tính khoảng cách giữa 2 điểm GPS bằng Haversine Formula.
      *
-     * @param float $lat1 Vĩ độ điểm 1
-     * @param float $lon1 Kinh độ điểm 1
-     * @param float $lat2 Vĩ độ điểm 2
-     * @param float $lon2 Kinh độ điểm 2
+     * @param  float  $lat1  Vĩ độ điểm 1
+     * @param  float  $lon1  Kinh độ điểm 1
+     * @param  float  $lat2  Vĩ độ điểm 2
+     * @param  float  $lon2  Kinh độ điểm 2
      * @return float Khoảng cách tính bằng mét
      */
     public static function haversineDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
@@ -37,11 +37,11 @@ class GeoHelper
     /**
      * Kiểm tra điểm GPS có nằm trong bán kính cho phép không.
      *
-     * @param float $lat        Vĩ độ điểm cần kiểm tra
-     * @param float $lon        Kinh độ điểm cần kiểm tra
-     * @param float $centerLat  Vĩ độ tâm (vị trí làm việc)
-     * @param float $centerLon  Kinh độ tâm (vị trí làm việc)
-     * @param float $radiusMeters Bán kính cho phép (mét)
+     * @param  float  $lat  Vĩ độ điểm cần kiểm tra
+     * @param  float  $lon  Kinh độ điểm cần kiểm tra
+     * @param  float  $centerLat  Vĩ độ tâm (vị trí làm việc)
+     * @param  float  $centerLon  Kinh độ tâm (vị trí làm việc)
+     * @param  float  $radiusMeters  Bán kính cho phép (mét)
      * @return array ['is_valid' => bool, 'distance_meters' => float]
      */
     public static function isWithinRadius(
@@ -52,7 +52,7 @@ class GeoHelper
         $distance = self::haversineDistance($lat, $lon, $centerLat, $centerLon);
 
         return [
-            'is_valid'        => $distance <= $radiusMeters,
+            'is_valid' => $distance <= $radiusMeters,
             'distance_meters' => round($distance, 2),
         ];
     }
@@ -61,9 +61,9 @@ class GeoHelper
      * Tìm work_location gần nhất mà user đang nằm trong bán kính cho phép.
      * Duyệt qua tất cả locations, tìm location valid có khoảng cách nhỏ nhất.
      *
-     * @param float      $lat       Vĩ độ user
-     * @param float      $lon       Kinh độ user
-     * @param Collection $locations Collection các WorkLocation (phải có latitude, longitude, radius_meters)
+     * @param  float  $lat  Vĩ độ user
+     * @param  float  $lon  Kinh độ user
+     * @param  Collection  $locations  Collection các WorkLocation (phải có latitude, longitude, radius_meters)
      * @return array|null ['location' => WorkLocation, 'distance_meters' => float] hoặc null nếu không tìm thấy
      */
     public static function findNearestValidLocation(float $lat, float $lon, Collection $locations): ?array
@@ -82,7 +82,7 @@ class GeoHelper
             if ($result['is_valid'] && $result['distance_meters'] < $minDistance) {
                 $minDistance = $result['distance_meters'];
                 $nearest = [
-                    'location'        => $location,
+                    'location' => $location,
                     'distance_meters' => $result['distance_meters'],
                 ];
             }
@@ -95,9 +95,9 @@ class GeoHelper
      * Tìm work_location gần nhất (bất kể có nằm trong bán kính hay không).
      * Dùng để trả về thông tin khi user check-in ngoài phạm vi.
      *
-     * @param float      $lat       Vĩ độ user
-     * @param float      $lon       Kinh độ user
-     * @param Collection $locations Collection các WorkLocation
+     * @param  float  $lat  Vĩ độ user
+     * @param  float  $lon  Kinh độ user
+     * @param  Collection  $locations  Collection các WorkLocation
      * @return array|null ['location' => WorkLocation, 'distance_meters' => float]
      */
     public static function findNearestLocation(float $lat, float $lon, Collection $locations): ?array
@@ -115,7 +115,7 @@ class GeoHelper
             if ($distance < $minDistance) {
                 $minDistance = $distance;
                 $nearest = [
-                    'location'        => $location,
+                    'location' => $location,
                     'distance_meters' => round($distance, 2),
                 ];
             }

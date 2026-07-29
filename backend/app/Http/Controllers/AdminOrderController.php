@@ -40,7 +40,7 @@ class AdminOrderController extends Controller
     {
         $request->validate([
             'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,shipping,delivered,completed,cancelled,return_requested,return_approved,return_rejected,returned,refunded',
-            'note'               => 'nullable|string|max:500',
+            'note' => 'nullable|string|max:500',
         ]);
 
         $result = $this->adminOrderService->updateStatus($id, $request->only(['fulfillment_status', 'note']));
@@ -56,10 +56,10 @@ class AdminOrderController extends Controller
     public function bulkUpdateStatus(Request $request)
     {
         $request->validate([
-            'order_ids'          => 'required|array',
-            'order_ids.*'        => 'integer',
+            'order_ids' => 'required|array',
+            'order_ids.*' => 'integer',
             'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,shipping,delivered,completed,cancelled,return_requested,return_approved,return_rejected,returned,refunded',
-            'note'               => 'nullable|string|max:500',
+            'note' => 'nullable|string|max:500',
         ]);
 
         $result = $this->adminOrderService->bulkUpdateStatus(

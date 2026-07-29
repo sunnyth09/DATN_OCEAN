@@ -17,7 +17,7 @@ class OrderTrackingController extends Controller
     public function show(int $id): JsonResponse
     {
         $userId = auth('api')->id();
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -34,7 +34,7 @@ class OrderTrackingController extends Controller
 
     public function trackByToken(string $token): JsonResponse
     {
-        if (!preg_match('/^[a-f0-9]{64}$/', $token)) {
+        if (! preg_match('/^[a-f0-9]{64}$/', $token)) {
             return $this->notFoundResponse();
         }
 
@@ -42,7 +42,7 @@ class OrderTrackingController extends Controller
             ->where('tracking_token', $token)
             ->first();
 
-        if (!$order) {
+        if (! $order) {
             return $this->notFoundResponse();
         }
 
@@ -59,9 +59,10 @@ class OrderTrackingController extends Controller
             'phone' => ['required', 'string', 'regex:/^[0-9]{10,11}$/'],
         ]);
 
-        $key = 'guest_tracking:' . $request->ip();
+        $key = 'guest_tracking:'.$request->ip();
         if (RateLimiter::tooManyAttempts($key, 10)) {
             $seconds = RateLimiter::availableIn($key);
+
             return response()->json([
                 'status' => 'error',
                 'message' => "Quá nhiều lần thử. Vui lòng thử lại sau {$seconds} giây.",
@@ -79,7 +80,7 @@ class OrderTrackingController extends Controller
             })
             ->first();
 
-        if (!$order) {
+        if (! $order) {
             return $this->notFoundResponse();
         }
 

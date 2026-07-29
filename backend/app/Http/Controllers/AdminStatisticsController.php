@@ -18,7 +18,7 @@ class AdminStatisticsController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data'   => $this->statisticsService->getOverview($request),
+            'data' => $this->statisticsService->getOverview($request),
         ]);
     }
 
@@ -29,7 +29,7 @@ class AdminStatisticsController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data'   => $this->statisticsService->getRevenueChart($request),
+            'data' => $this->statisticsService->getRevenueChart($request),
         ]);
     }
 
@@ -40,7 +40,7 @@ class AdminStatisticsController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data'   => $this->statisticsService->getOrderStatusChart($request),
+            'data' => $this->statisticsService->getOrderStatusChart($request),
         ]);
     }
 
@@ -51,7 +51,7 @@ class AdminStatisticsController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data'   => $this->statisticsService->getTopProducts($request),
+            'data' => $this->statisticsService->getTopProducts($request),
         ]);
     }
 
@@ -62,7 +62,7 @@ class AdminStatisticsController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data'   => $this->statisticsService->getTopCustomers($request),
+            'data' => $this->statisticsService->getTopCustomers($request),
         ]);
     }
 
@@ -73,7 +73,7 @@ class AdminStatisticsController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data'   => $this->statisticsService->getRevenueReport($request),
+            'data' => $this->statisticsService->getRevenueReport($request),
         ]);
     }
 
@@ -92,7 +92,7 @@ class AdminStatisticsController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data'   => $this->statisticsService->getStaffSales($request),
+            'data' => $this->statisticsService->getStaffSales($request),
         ]);
     }
 }

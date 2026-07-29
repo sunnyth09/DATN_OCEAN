@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class CategoryProductSeeder extends Seeder
 {
@@ -318,6 +318,6 @@ class CategoryProductSeeder extends Seeder
             }
         }
 
-        echo "✅ Seeded: " . count($products) . " sản phẩm + danh mục con cho Vợt, Quần áo, Phụ kiện\n";
+        echo '✅ Seeded: '.count($products)." sản phẩm + danh mục con cho Vợt, Quần áo, Phụ kiện\n";
     }
 }

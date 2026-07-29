@@ -16,14 +16,13 @@ class CourtBookingRealtimeEvent implements ShouldBroadcastNow
     public function __construct(
         private string $eventName,
         private array $payload
-    ) {
-    }
+    ) {}
 
     public function broadcastOn(): array
     {
-        $date    = $this->payload['booking_date'] ?? now()->toDateString();
+        $date = $this->payload['booking_date'] ?? now()->toDateString();
         $courtId = $this->payload['court_id'] ?? 'all';
-        $userId  = $this->payload['user_id'] ?? null;
+        $userId = $this->payload['user_id'] ?? null;
 
         $channels = [
             new Channel("court-booking.{$date}"),

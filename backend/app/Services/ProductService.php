@@ -2,21 +2,26 @@
 
 namespace App\Services;
 
-use App\Repositories\ProductRepository;
-use App\Models\Product;
-use App\Models\Category;
+use App\Exports\ProductsTemplateExport;
 use App\Imports\ProductsImport;
+use App\Imports\ProductsRowImport;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\ProductImage;
+use App\Models\ProductVariant;
+use App\Repositories\ProductRepository;
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Writer\PngWriter;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Endroid\QrCode\Builder\Builder;
-use Endroid\QrCode\Writer\PngWriter;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\ProductsTemplateExport;
-use App\Models\ProductVariant;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 
 class ProductService
 {
@@ -34,8 +39,9 @@ class ProductService
     public function generateUniqueBarcode(): string
     {
         do {
-            $barcode = 'OCN' . strtoupper(Str::random(10)) . rand(10, 99);
+            $barcode = 'OCN'.strtoupper(Str::random(10)).rand(10, 99);
         } while (ProductVariant::where('barcode', $barcode)->exists());
+
         return $barcode;
     }
 
@@ -45,14 +51,14 @@ class ProductService
     public function generateQrCodeImage(string $barcode): string
     {
         $storageDisk = Storage::disk('public');
-        if (!$storageDisk->exists('products/qrcodes')) {
+        if (! $storageDisk->exists('products/qrcodes')) {
             $storageDisk->makeDirectory('products/qrcodes');
         }
 
-        $builder = new Builder(writer: new PngWriter());
+        $builder = new Builder(writer: new PngWriter);
         $result = $builder->build(data: $barcode, size: 400, margin: 15);
 
-        $filePath = 'products/qrcodes/' . $barcode . '.png';
+        $filePath = 'products/qrcodes/'.$barcode.'.png';
         $storageDisk->put($filePath, $result->getString());
 
         return $filePath;
@@ -67,19 +73,19 @@ class ProductService
      */
     public function listAdminProducts(Request $request): array
     {
-        $page   = (int) $request->query('page', 1);
-        $limit  = (int) $request->query('limit', 12);
+        $page = (int) $request->query('page', 1);
+        $limit = (int) $request->query('limit', 12);
         $search = $request->query('search', '');
         $status = $request->query('status', '');
 
         // Search qua Meilisearch
         $matchedIds = null;
         $filters = [
-            'status'     => $status,
+            'status' => $status,
             'price_range' => $request->query('price_range'),
-            'max_price'  => $request->query('max_price'),
-            'brand_ids'  => $request->query('brand_ids'),
-            'sort_by'    => $request->query('sort_by'),
+            'max_price' => $request->query('max_price'),
+            'brand_ids' => $request->query('brand_ids'),
+            'sort_by' => $request->query('sort_by'),
         ];
 
         if ($search) {
@@ -89,9 +95,9 @@ class ProductService
 
         // Category filter (bao gồm con)
         $categoryInput = $request->query('category_ids') ?? $request->query('category_id');
-        if (!empty($categoryInput) && $categoryInput !== 'All') {
+        if (! empty($categoryInput) && $categoryInput !== 'All') {
             $categoryIds = is_array($categoryInput) ? $categoryInput : explode(',', $categoryInput);
-            
+
             $childIds = Category::whereIn('parent_id', $categoryIds)->pluck('category_id')->toArray();
             $filters['category_ids'] = array_merge($categoryIds, $childIds);
         }
@@ -108,8 +114,8 @@ class ProductService
      */
     public function listPublicProducts(Request $request): array
     {
-        $page   = (int) $request->query('page', 1);
-        $limit  = (int) $request->query('limit', 12);
+        $page = (int) $request->query('page', 1);
+        $limit = (int) $request->query('limit', 12);
         $offset = ($page - 1) * $limit;
 
         $cacheKey = "products:all:page:{$page}:limit:{$limit}";
@@ -120,7 +126,7 @@ class ProductService
 
         return [
             'status' => 'success',
-            'data'   => $products,
+            'data' => $products,
         ];
     }
 
@@ -147,7 +153,7 @@ class ProductService
 
         return [
             'status' => 'success',
-            'data'   => $products,
+            'data' => $products,
         ];
     }
 
@@ -160,7 +166,7 @@ class ProductService
             return $this->productRepository->findByIdentifier($identifier);
         });
 
-        if (!$product) {
+        if (! $product) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Product not found'];
         }
 
@@ -176,7 +182,7 @@ class ProductService
             return $this->productRepository->findByIdentifierBasic($slug);
         });
 
-        if (!$product) {
+        if (! $product) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Product not found'];
         }
 
@@ -187,10 +193,10 @@ class ProductService
                 $product->category_id
             )->map(function ($p) {
                 return [
-                    'product_id'    => $p->product_id,
-                    'name'          => $p->name,
-                    'slug'          => $p->slug,
-                    'min_price'     => $p->min_price,
+                    'product_id' => $p->product_id,
+                    'name' => $p->name,
+                    'slug' => $p->slug,
+                    'min_price' => $p->min_price,
                     'thumbnail_url' => $p->mainImage?->image_url ?? $p->thumbnail_url,
                 ];
             });
@@ -198,8 +204,8 @@ class ProductService
 
         return [
             '_status' => 200,
-            'status'  => 'success',
-            'data'    => $related,
+            'status' => 'success',
+            'data' => $related,
         ];
     }
 
@@ -210,28 +216,28 @@ class ProductService
     {
         $product = $this->productRepository->getActiveVariants($id);
 
-        if (!$product) {
+        if (! $product) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Sản phẩm không tồn tại.'];
         }
 
         $variants = $product->variants->map(function ($v) {
             return [
-                'variant_id'       => $v->variant_id,
-                'color'            => $v->color,
-                'size'             => $v->size,
-                'variant_name'     => $v->variant_name,
-                'price'            => $v->price,
+                'variant_id' => $v->variant_id,
+                'color' => $v->color,
+                'size' => $v->size,
+                'variant_name' => $v->variant_name,
+                'price' => $v->price,
                 'compare_at_price' => $v->compare_at_price,
-                'stock'            => $v->stock,
-                'status'           => $v->status,
-                'image_url'        => $v->image_url,
+                'stock' => $v->stock,
+                'status' => $v->status,
+                'image_url' => $v->image_url,
             ];
         });
 
         return [
             '_status' => 200,
-            'status'  => 'success',
-            'data'    => $variants,
+            'status' => 'success',
+            'data' => $variants,
         ];
     }
 
@@ -256,7 +262,7 @@ class ProductService
         $variantsData = [];
         if ($request->filled('variants')) {
             $variantsData = json_decode($request->variants, true);
-            if (!is_array($variantsData)) {
+            if (! is_array($variantsData)) {
                 return ['_status' => 422, 'message' => 'Dữ liệu variants không hợp lệ.'];
             }
             // Validate giá biến thể >= 100.000đ
@@ -278,29 +284,29 @@ class ProductService
             $thumbnailPath = $this->uploadThumbnail($request);
 
             // Tạo sản phẩm
-            $slug = Str::slug($request->name) . '-' . Str::random(5);
+            $slug = Str::slug($request->name).'-'.Str::random(5);
             $product = $this->productRepository->create([
-                'category_id'       => $request->category_id,
-                'brand_id'          => $request->brand_id ?: null,
-                'seller_id'         => $request->seller_id ?: null,
-                'name'              => $request->name,
-                'slug'              => $slug,
+                'category_id' => $request->category_id,
+                'brand_id' => $request->brand_id ?: null,
+                'seller_id' => $request->seller_id ?: null,
+                'name' => $request->name,
+                'slug' => $slug,
                 'short_description' => $request->short_description,
-                'description'       => $request->description,
-                'thumbnail_url'     => $thumbnailPath,
-                'product_type'      => $request->product_type,
-                'status'            => $request->status,
-                'is_featured'       => $request->boolean('is_featured'),
-                'min_price'         => 0,
-                'max_price'         => 0,
+                'description' => $request->description,
+                'thumbnail_url' => $thumbnailPath,
+                'product_type' => $request->product_type,
+                'status' => $request->status,
+                'is_featured' => $request->boolean('is_featured'),
+                'min_price' => 0,
+                'max_price' => 0,
             ]);
 
             // Main image → product_images
             if ($thumbnailPath) {
                 $this->productRepository->createImage([
                     'product_id' => $product->product_id,
-                    'image_url'  => $thumbnailPath,
-                    'is_main'    => true,
+                    'image_url' => $thumbnailPath,
+                    'is_main' => true,
                     'sort_order' => 0,
                 ]);
             }
@@ -321,16 +327,17 @@ class ProductService
                 '_status' => 201,
                 'success' => true,
                 'message' => 'Thêm sản phẩm thành công.',
-                'data'    => $product->load('variants', 'images'),
+                'data' => $product->load('variants', 'images'),
             ];
         } catch (\Throwable $e) {
             DB::rollBack();
-            $isDbError = $e instanceof \Illuminate\Database\QueryException || $e instanceof \PDOException;
+            $isDbError = $e instanceof QueryException || $e instanceof \PDOException;
             $errorMsg = $isDbError ? 'Lỗi hệ thống.' : $e->getMessage();
+
             return [
                 '_status' => 500,
                 'success' => false,
-                'message' => 'Thêm sản phẩm thất bại: ' . $errorMsg,
+                'message' => 'Thêm sản phẩm thất bại: '.$errorMsg,
             ];
         }
     }
@@ -350,7 +357,7 @@ class ProductService
         $variantsData = [];
         if ($request->filled('variants')) {
             $variantsData = json_decode($request->variants, true);
-            if (!is_array($variantsData)) {
+            if (! is_array($variantsData)) {
                 return ['_status' => 422, 'message' => 'Dữ liệu variants không hợp lệ.'];
             }
             foreach ($variantsData as $vIdx => $vItem) {
@@ -372,17 +379,17 @@ class ProductService
 
             // Update product info
             $this->productRepository->update($product, [
-                'category_id'       => $request->category_id,
-                'brand_id'          => $request->brand_id ?: null,
-                'seller_id'         => $request->seller_id ?: null,
-                'name'              => $request->name,
-                'slug'              => $request->slug ?: Str::slug($request->name),
+                'category_id' => $request->category_id,
+                'brand_id' => $request->brand_id ?: null,
+                'seller_id' => $request->seller_id ?: null,
+                'name' => $request->name,
+                'slug' => $request->slug ?: Str::slug($request->name),
                 'short_description' => $request->short_description,
-                'description'       => $request->description,
-                'thumbnail_url'     => $thumbnailPath,
-                'product_type'      => $request->product_type,
-                'status'            => $request->status,
-                'is_featured'       => $request->boolean('is_featured'),
+                'description' => $request->description,
+                'thumbnail_url' => $thumbnailPath,
+                'product_type' => $request->product_type,
+                'status' => $request->status,
+                'is_featured' => $request->boolean('is_featured'),
             ]);
 
             // Xóa gallery cũ
@@ -404,16 +411,17 @@ class ProductService
                 '_status' => 200,
                 'success' => true,
                 'message' => 'Cập nhật sản phẩm thành công.',
-                'data'    => $product->load('variants', 'images'),
+                'data' => $product->load('variants', 'images'),
             ];
         } catch (\Throwable $e) {
             DB::rollBack();
-            $isDbError = $e instanceof \Illuminate\Database\QueryException || $e instanceof \PDOException;
+            $isDbError = $e instanceof QueryException || $e instanceof \PDOException;
             $errorMsg = $isDbError ? 'Lỗi hệ thống.' : $e->getMessage();
+
             return [
                 '_status' => 500,
                 'success' => false,
-                'message' => 'Cập nhật thất bại: ' . $errorMsg,
+                'message' => 'Cập nhật thất bại: '.$errorMsg,
             ];
         }
     }
@@ -427,11 +435,13 @@ class ProductService
         try {
             $msg = $this->productRepository->softDelete($id);
             Cache::flush();
+
             return ['_status' => 200, 'status' => 'success', 'message' => $msg];
         } catch (\Exception $e) {
-            $isDbError = $e instanceof \Illuminate\Database\QueryException || $e instanceof \PDOException;
+            $isDbError = $e instanceof QueryException || $e instanceof \PDOException;
             $errorMsg = $isDbError ? 'Lỗi hệ thống.' : $e->getMessage();
-            return ['_status' => 500, 'status' => 'error', 'message' => 'Lỗi khi xóa: ' . $errorMsg];
+
+            return ['_status' => 500, 'status' => 'error', 'message' => 'Lỗi khi xóa: '.$errorMsg];
         }
     }
 
@@ -440,6 +450,7 @@ class ProductService
         try {
             $this->productRepository->restore($id);
             Cache::flush();
+
             return ['_status' => 200, 'status' => 'success', 'message' => 'Khôi phục sản phẩm thành công.'];
         } catch (\Exception $e) {
             return ['_status' => 500, 'status' => 'error', 'message' => 'Không thể khôi phục sản phẩm.'];
@@ -458,10 +469,10 @@ class ProductService
         try {
             $rowsPerChunk = 50;
 
-            $file        = $request->file('excel_file');
-            $sessionId   = Str::random(30);
-            $ext         = $file->getClientOriginalExtension();
-            $storagePath = 'imports/' . $sessionId . '.' . $ext;
+            $file = $request->file('excel_file');
+            $sessionId = Str::random(30);
+            $ext = $file->getClientOriginalExtension();
+            $storagePath = 'imports/'.$sessionId.'.'.$ext;
             Storage::disk('local')->put($storagePath, file_get_contents($file->getRealPath()));
             $filePath = Storage::disk('local')->path($storagePath);
 
@@ -470,34 +481,36 @@ class ProductService
 
             if ($totalDataRows === 0) {
                 Storage::disk('local')->delete($storagePath);
+
                 return ['_status' => 400, 'success' => false, 'message' => 'File không có dữ liệu hợp lệ.'];
             }
 
             $totalChunks = (int) ceil($totalDataRows / $rowsPerChunk);
 
-            Cache::put('import_meta_' . $sessionId, [
-                'storage_path'   => $storagePath,
+            Cache::put('import_meta_'.$sessionId, [
+                'storage_path' => $storagePath,
                 'rows_per_chunk' => $rowsPerChunk,
-                'total_chunks'   => $totalChunks,
-                'total_rows'     => $totalDataRows,
+                'total_chunks' => $totalChunks,
+                'total_rows' => $totalDataRows,
             ], 7200);
 
             return [
-                '_status'      => 200,
-                'success'      => true,
-                'session_id'   => $sessionId,
+                '_status' => 200,
+                'success' => true,
+                'session_id' => $sessionId,
                 'total_chunks' => $totalChunks,
-                'total_rows'   => $totalDataRows,
+                'total_rows' => $totalDataRows,
             ];
         } catch (\Throwable $e) {
-            Log::error('[ProductImportExcel] ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            Log::error('[ProductImportExcel] '.$e->getMessage()."\n".$e->getTraceAsString());
             if (isset($storagePath)) {
                 Storage::disk('local')->delete($storagePath);
             }
+
             return [
                 '_status' => 500,
                 'success' => false,
-                'message' => 'Lỗi khi đọc file: ' . $e->getMessage(),
+                'message' => 'Lỗi khi đọc file: '.$e->getMessage(),
             ];
         }
     }
@@ -507,21 +520,21 @@ class ProductService
      */
     public function processImportChunk(Request $request): array
     {
-        $sessionId  = $request->session_id;
+        $sessionId = $request->session_id;
         $chunkIndex = (int) $request->chunk_index;
 
-        $meta = Cache::get('import_meta_' . $sessionId);
-        if (!$meta) {
+        $meta = Cache::get('import_meta_'.$sessionId);
+        if (! $meta) {
             return ['_status' => 400, 'success' => false, 'error' => 'Session đã hết hạn. Vui lòng upload lại file.'];
         }
 
-        $storagePath  = $meta['storage_path'];
+        $storagePath = $meta['storage_path'];
         $rowsPerChunk = $meta['rows_per_chunk'];
-        $totalChunks  = $meta['total_chunks'];
+        $totalChunks = $meta['total_chunks'];
         $chunkStartRow = 2 + ($chunkIndex * $rowsPerChunk);
         $filePath = Storage::disk('local')->path($storagePath);
 
-        if (!file_exists($filePath)) {
+        if (! file_exists($filePath)) {
             return ['_status' => 400, 'success' => false, 'error' => 'File không tồn tại trên server.'];
         }
 
@@ -529,7 +542,7 @@ class ProductService
             ini_set('memory_limit', '512M');
             set_time_limit(120);
 
-            $rowImport = new \App\Imports\ProductsRowImport($chunkStartRow, $rowsPerChunk);
+            $rowImport = new ProductsRowImport($chunkStartRow, $rowsPerChunk);
             Excel::import($rowImport, $filePath);
             $rawRows = $rowImport->getRows();
             unset($rowImport);
@@ -543,20 +556,22 @@ class ProductService
             $groupOrder = [];
             foreach ($rawRows as $idx => $row) {
                 $name = trim((string) ($row[0] ?? ''));
-                if (empty($name)) continue;
+                if (empty($name)) {
+                    continue;
+                }
                 $key = mb_strtolower($name);
-                if (!isset($groups[$key])) {
+                if (! isset($groups[$key])) {
                     $groups[$key] = [];
                     $groupOrder[] = $key;
                 }
                 $groups[$key][] = [
-                    'row'      => array_values((array) $row),
+                    'row' => array_values((array) $row),
                     'excelRow' => $chunkStartRow + $idx,
                 ];
             }
             unset($rawRows);
 
-            $import = new ProductsImport();
+            $import = new ProductsImport;
             foreach ($groupOrder as $key) {
                 $import->processProductGroup($groups[$key]);
             }
@@ -566,22 +581,23 @@ class ProductService
             $isLastChunk = ($chunkIndex >= $totalChunks - 1);
             if ($isLastChunk) {
                 Storage::disk('local')->delete($storagePath);
-                Cache::forget('import_meta_' . $sessionId);
+                Cache::forget('import_meta_'.$sessionId);
                 Cache::flush();
             }
 
             return [
-                '_status'       => 200,
-                'success'       => true,
+                '_status' => 200,
+                'success' => true,
                 'success_count' => $import->getSuccessCount(),
-                'errors'        => $import->getErrors(),
+                'errors' => $import->getErrors(),
             ];
         } catch (\Throwable $e) {
-            Log::error('[ProductImportChunk] chunk=' . $chunkIndex . ' ' . $e->getMessage());
+            Log::error('[ProductImportChunk] chunk='.$chunkIndex.' '.$e->getMessage());
+
             return [
                 '_status' => 500,
                 'success' => false,
-                'error'   => 'Lỗi chunk ' . $chunkIndex . ': ' . $e->getMessage(),
+                'error' => 'Lỗi chunk '.$chunkIndex.': '.$e->getMessage(),
             ];
         }
     }
@@ -591,7 +607,7 @@ class ProductService
      */
     public function downloadTemplate()
     {
-        return Excel::download(new ProductsTemplateExport(), 'mau_import_san_pham.xlsx');
+        return Excel::download(new ProductsTemplateExport, 'mau_import_san_pham.xlsx');
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -602,7 +618,7 @@ class ProductService
     {
         $storageDisk = Storage::disk('public');
         foreach (['products/thumbnails', 'products/gallery', 'products/variants'] as $dir) {
-            if (!$storageDisk->exists($dir)) {
+            if (! $storageDisk->exists($dir)) {
                 $storageDisk->makeDirectory($dir);
             }
         }
@@ -610,23 +626,23 @@ class ProductService
 
     private function uploadThumbnail(Request $request): ?string
     {
-        if (!$request->hasFile('thumbnail')) {
+        if (! $request->hasFile('thumbnail')) {
             return null;
         }
 
         $file = $request->file('thumbnail');
         Log::info('[ProductStore] thumbnail file info', [
             'original_name' => $file->getClientOriginalName(),
-            'mime'          => $file->getClientMimeType(),
-            'size'          => $file->getSize(),
+            'mime' => $file->getClientMimeType(),
+            'size' => $file->getSize(),
         ]);
 
         $thumbnailPath = $file->store('products/thumbnails', 'public');
-        Log::info('[ProductStore] store() returned: ' . var_export($thumbnailPath, true));
+        Log::info('[ProductStore] store() returned: '.var_export($thumbnailPath, true));
 
-        if (!$thumbnailPath || $thumbnailPath === false) {
-            $reason = !$file->isValid() ? $file->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
-            throw new \Exception('Lỗi lưu thumbnail: ' . $reason);
+        if (! $thumbnailPath || $thumbnailPath === false) {
+            $reason = ! $file->isValid() ? $file->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
+            throw new \Exception('Lỗi lưu thumbnail: '.$reason);
         }
 
         return $thumbnailPath;
@@ -641,22 +657,22 @@ class ProductService
                 $this->deletePhysicalImage($thumbnailPath);
             }
             $thumbnailPath = $request->file('thumbnail')->store('products/thumbnails', 'public');
-            if (!$thumbnailPath || $thumbnailPath === false) {
+            if (! $thumbnailPath || $thumbnailPath === false) {
                 $file = $request->file('thumbnail');
-                $reason = !$file->isValid() ? $file->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
-                throw new \Exception('Lỗi lưu thumbnail: ' . $reason);
+                $reason = ! $file->isValid() ? $file->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
+                throw new \Exception('Lỗi lưu thumbnail: '.$reason);
             }
 
             // Update main image
-            $oldMainImages = \App\Models\ProductImage::where('product_id', $product->product_id)->where('is_main', true)->get();
+            $oldMainImages = ProductImage::where('product_id', $product->product_id)->where('is_main', true)->get();
             foreach ($oldMainImages as $oldMain) {
                 $this->deletePhysicalImage($oldMain->image_url);
             }
             $this->productRepository->deleteMainImage($product->product_id);
             $this->productRepository->createImage([
                 'product_id' => $product->product_id,
-                'image_url'  => $thumbnailPath,
-                'is_main'    => true,
+                'image_url' => $thumbnailPath,
+                'is_main' => true,
                 'sort_order' => 0,
             ]);
         } else {
@@ -670,20 +686,20 @@ class ProductService
 
     private function uploadGalleryImages(Request $request, int $productId): void
     {
-        if (!$request->hasFile('gallery')) {
+        if (! $request->hasFile('gallery')) {
             return;
         }
 
         foreach ($request->file('gallery') as $i => $file) {
             $path = $file->store('products/gallery', 'public');
-            if (!$path || $path === false) {
-                $reason = !$file->isValid() ? $file->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
-                throw new \Exception('Lỗi lưu ảnh gallery: ' . $reason);
+            if (! $path || $path === false) {
+                $reason = ! $file->isValid() ? $file->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
+                throw new \Exception('Lỗi lưu ảnh gallery: '.$reason);
             }
             $this->productRepository->createImage([
                 'product_id' => $productId,
-                'image_url'  => $path,
-                'is_main'    => false,
+                'image_url' => $path,
+                'is_main' => false,
                 'sort_order' => $i + 1,
             ]);
         }
@@ -691,7 +707,7 @@ class ProductService
 
     private function deleteGalleryImages(Request $request, int $productId): void
     {
-        if (!$request->filled('deleted_gallery_ids')) {
+        if (! $request->filled('deleted_gallery_ids')) {
             return;
         }
 
@@ -707,21 +723,21 @@ class ProductService
 
     private function addNewGalleryImages(Request $request, int $productId): void
     {
-        if (!$request->hasFile('gallery')) {
+        if (! $request->hasFile('gallery')) {
             return;
         }
 
         $maxSort = $this->productRepository->getMaxImageSortOrder($productId);
         foreach ($request->file('gallery') as $i => $file) {
             $path = $file->store('products/gallery', 'public');
-            if (!$path || $path === false) {
-                $reason = !$file->isValid() ? $file->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
-                throw new \Exception('Lỗi lưu ảnh gallery: ' . $reason);
+            if (! $path || $path === false) {
+                $reason = ! $file->isValid() ? $file->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
+                throw new \Exception('Lỗi lưu ảnh gallery: '.$reason);
             }
             $this->productRepository->createImage([
                 'product_id' => $productId,
-                'image_url'  => $path,
-                'is_main'    => false,
+                'image_url' => $path,
+                'is_main' => false,
                 'sort_order' => $maxSort + $i + 1,
             ]);
         }
@@ -739,16 +755,16 @@ class ProductService
             $allPrices[] = $price;
             $barcode = $this->generateUniqueBarcode();
             $this->productRepository->createVariant([
-                'product_id'       => $product->product_id,
-                'sku'              => substr($slug, 0, 50) . '-default',
-                'barcode'          => $barcode,
-                'price'            => $price,
+                'product_id' => $product->product_id,
+                'sku' => substr($slug, 0, 50).'-default',
+                'barcode' => $barcode,
+                'price' => $price,
                 'compare_at_price' => $request->compare_at_price,
-                'stock'            => $request->stock ?? 0,
-                'sale_price'       => $request->sale_price ?: null,
-                'sale_starts_at'   => $request->sale_starts_at ?: null,
-                'sale_ends_at'     => $request->sale_ends_at ?: null,
-                'status'           => 'active',
+                'stock' => $request->stock ?? 0,
+                'sale_price' => $request->sale_price ?: null,
+                'sale_starts_at' => $request->sale_starts_at ?: null,
+                'sale_ends_at' => $request->sale_ends_at ?: null,
+                'status' => 'active',
             ]);
             $this->generateQrCodeImage($barcode);
         } else {
@@ -763,7 +779,7 @@ class ProductService
      */
     private function createColorSizeVariants(Request $request, $product, string $slug, array $variantsData): array
     {
-        $allPrices    = [];
+        $allPrices = [];
         $combinations = [];
 
         foreach ($variantsData as $vIndex => $vData) {
@@ -775,7 +791,7 @@ class ProductService
 
             foreach ($sizes as $sData) {
                 $size = $sData['size'] ?? null;
-                $combo = strtolower(trim($color ?? '')) . '|' . strtolower(trim($size ?? ''));
+                $combo = strtolower(trim($color ?? '')).'|'.strtolower(trim($size ?? ''));
 
                 if (in_array($combo, $combinations)) {
                     throw new \Exception("Biến thể trùng lặp: Màu [{$color}] - Size [{$size}]");
@@ -787,18 +803,18 @@ class ProductService
 
                 $barcode = $this->generateUniqueBarcode();
                 $variant = $this->productRepository->createVariant([
-                    'product_id'     => $product->product_id,
-                    'sku'            => substr($slug, 0, 50) . '-' . Str::slug(substr($color ?? 'def', 0, 20)) . '-' . Str::slug(substr($size ?? 'def', 0, 20)) . '-' . Str::random(4),
-                    'barcode'        => $barcode,
-                    'color'          => $color,
-                    'size'           => $size,
-                    'price'          => $vPrice,
-                    'stock'          => $sData['stock'] ?? 0,
-                    'sale_price'     => !empty($sData['sale_price']) ? $sData['sale_price'] : null,
-                    'sale_starts_at' => !empty($sData['sale_starts_at']) ? $sData['sale_starts_at'] : null,
-                    'sale_ends_at'   => !empty($sData['sale_ends_at']) ? $sData['sale_ends_at'] : null,
-                    'image_url'      => $variantImagePaths[0] ?? null,
-                    'status'         => 'active',
+                    'product_id' => $product->product_id,
+                    'sku' => substr($slug, 0, 50).'-'.Str::slug(substr($color ?? 'def', 0, 20)).'-'.Str::slug(substr($size ?? 'def', 0, 20)).'-'.Str::random(4),
+                    'barcode' => $barcode,
+                    'color' => $color,
+                    'size' => $size,
+                    'price' => $vPrice,
+                    'stock' => $sData['stock'] ?? 0,
+                    'sale_price' => ! empty($sData['sale_price']) ? $sData['sale_price'] : null,
+                    'sale_starts_at' => ! empty($sData['sale_starts_at']) ? $sData['sale_starts_at'] : null,
+                    'sale_ends_at' => ! empty($sData['sale_ends_at']) ? $sData['sale_ends_at'] : null,
+                    'image_url' => $variantImagePaths[0] ?? null,
+                    'status' => 'active',
                 ]);
                 $this->generateQrCodeImage($barcode);
 
@@ -807,8 +823,8 @@ class ProductService
                     $this->productRepository->createImage([
                         'product_id' => $product->product_id,
                         'variant_id' => $variant->variant_id,
-                        'image_url'  => $imgPath,
-                        'is_main'    => false,
+                        'image_url' => $imgPath,
+                        'is_main' => false,
                         'sort_order' => $imgIndex + 1,
                     ]);
                 }
@@ -824,13 +840,14 @@ class ProductService
         if ($request->hasFile("variant_images.{$vIndex}")) {
             foreach ($request->file("variant_images.{$vIndex}") as $imgFile) {
                 $imgPath = $imgFile->store('products/variants', 'public');
-                if (!$imgPath || $imgPath === false) {
-                    $reason = !$imgFile->isValid() ? $imgFile->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
-                    throw new \Exception('Lỗi lưu ảnh biến thể: ' . $reason);
+                if (! $imgPath || $imgPath === false) {
+                    $reason = ! $imgFile->isValid() ? $imgFile->getErrorMessage() : 'Kiểm tra quyền ghi thư mục storage.';
+                    throw new \Exception('Lỗi lưu ảnh biến thể: '.$reason);
                 }
                 $variantImagePaths[] = $imgPath;
             }
         }
+
         return $variantImagePaths;
     }
 
@@ -849,12 +866,12 @@ class ProductService
             $defaultVariant = $this->productRepository->getFirstVariant($product->product_id);
             if ($defaultVariant) {
                 $updateData = [
-                    'price'            => $price,
+                    'price' => $price,
                     'compare_at_price' => $request->compare_at_price,
-                    'stock'            => $stock,
-                    'sale_price'       => $request->sale_price ?: null,
-                    'sale_starts_at'   => $request->sale_starts_at ?: null,
-                    'sale_ends_at'     => $request->sale_ends_at ?: null,
+                    'stock' => $stock,
+                    'sale_price' => $request->sale_price ?: null,
+                    'sale_starts_at' => $request->sale_starts_at ?: null,
+                    'sale_ends_at' => $request->sale_ends_at ?: null,
                 ];
                 if (empty($defaultVariant->barcode)) {
                     $newBarcode = $this->generateUniqueBarcode();
@@ -865,16 +882,16 @@ class ProductService
             } else {
                 $barcode = $this->generateUniqueBarcode();
                 $this->productRepository->createVariant([
-                    'product_id'       => $product->product_id,
-                    'sku'              => substr(Str::slug($product->name), 0, 50) . '-default',
-                    'barcode'          => $barcode,
-                    'price'            => $price,
+                    'product_id' => $product->product_id,
+                    'sku' => substr(Str::slug($product->name), 0, 50).'-default',
+                    'barcode' => $barcode,
+                    'price' => $price,
                     'compare_at_price' => $request->compare_at_price,
-                    'stock'            => $stock,
-                    'sale_price'       => $request->sale_price ?: null,
-                    'sale_starts_at'   => $request->sale_starts_at ?: null,
-                    'sale_ends_at'     => $request->sale_ends_at ?: null,
-                    'status'           => 'active',
+                    'stock' => $stock,
+                    'sale_price' => $request->sale_price ?: null,
+                    'sale_starts_at' => $request->sale_starts_at ?: null,
+                    'sale_ends_at' => $request->sale_ends_at ?: null,
+                    'status' => 'active',
                 ]);
                 $this->generateQrCodeImage($barcode);
             }
@@ -898,7 +915,7 @@ class ProductService
 
         // Xóa ảnh biến thể mà user đã ấn nút xóa
         $deletedImageIds = $request->input('deleted_variant_image_ids', []);
-        if (!empty($deletedImageIds)) {
+        if (! empty($deletedImageIds)) {
             $imagesToDelete = $this->productRepository->deleteImagesByIds($deletedImageIds, $product->product_id);
             foreach ($imagesToDelete as $img) {
                 $this->deletePhysicalImage($img->image_url);
@@ -910,7 +927,7 @@ class ProductService
         $oldVariantImagesMap = [];
         foreach ($product->variants as $oldVariant) {
             $color = $oldVariant->color ?? 'default';
-            if (!isset($oldVariantImagesMap[$color])) {
+            if (! isset($oldVariantImagesMap[$color])) {
                 $oldVariantImagesMap[$color] = [];
             }
             $variantOldImages = $this->productRepository->getVariantImages($product->product_id, $oldVariant->variant_id);
@@ -938,9 +955,9 @@ class ProductService
 
             // image_url cho variant
             $mainImageUrl = null;
-            if (!empty($existingColorImages)) {
+            if (! empty($existingColorImages)) {
                 $mainImageUrl = $existingColorImages[0]->image_url;
-            } elseif (!empty($variantImagePaths)) {
+            } elseif (! empty($variantImagePaths)) {
                 $mainImageUrl = $variantImagePaths[0];
             }
 
@@ -948,7 +965,7 @@ class ProductService
 
             foreach ($sizes as $sData) {
                 $size = $sData['size'] ?? null;
-                $combo = strtolower(trim($color ?? '')) . '|' . strtolower(trim($size ?? ''));
+                $combo = strtolower(trim($color ?? '')).'|'.strtolower(trim($size ?? ''));
 
                 if (in_array($combo, $combinations)) {
                     throw new \Exception("Biến thể trùng lặp: Màu [{$color}] - Size [{$size}]");
@@ -960,22 +977,22 @@ class ProductService
 
                 $barcode = $this->generateUniqueBarcode();
                 $variant = $this->productRepository->createVariant([
-                    'product_id'     => $product->product_id,
-                    'sku'            => substr(Str::slug($product->name), 0, 50) . '-' . Str::slug(substr($color ?? 'def', 0, 20)) . '-' . Str::slug(substr($size ?? 'def', 0, 20)) . '-' . Str::random(4),
-                    'barcode'        => $barcode,
-                    'color'          => $color,
-                    'size'           => $size,
-                    'price'          => $vPrice,
-                    'stock'          => $sData['stock'] ?? 0,
-                    'sale_price'     => !empty($sData['sale_price']) ? $sData['sale_price'] : null,
-                    'sale_starts_at' => !empty($sData['sale_starts_at']) ? $sData['sale_starts_at'] : null,
-                    'sale_ends_at'   => !empty($sData['sale_ends_at']) ? $sData['sale_ends_at'] : null,
-                    'image_url'      => $mainImageUrl,
-                    'status'         => 'active',
+                    'product_id' => $product->product_id,
+                    'sku' => substr(Str::slug($product->name), 0, 50).'-'.Str::slug(substr($color ?? 'def', 0, 20)).'-'.Str::slug(substr($size ?? 'def', 0, 20)).'-'.Str::random(4),
+                    'barcode' => $barcode,
+                    'color' => $color,
+                    'size' => $size,
+                    'price' => $vPrice,
+                    'stock' => $sData['stock'] ?? 0,
+                    'sale_price' => ! empty($sData['sale_price']) ? $sData['sale_price'] : null,
+                    'sale_starts_at' => ! empty($sData['sale_starts_at']) ? $sData['sale_starts_at'] : null,
+                    'sale_ends_at' => ! empty($sData['sale_ends_at']) ? $sData['sale_ends_at'] : null,
+                    'image_url' => $mainImageUrl,
+                    'status' => 'active',
                 ]);
                 $this->generateQrCodeImage($barcode);
 
-                if (!$firstVariantForColor) {
+                if (! $firstVariantForColor) {
                     $firstVariantForColor = $variant;
                 }
             }
@@ -989,8 +1006,8 @@ class ProductService
                     $this->productRepository->createImage([
                         'product_id' => $product->product_id,
                         'variant_id' => $firstVariantForColor->variant_id,
-                        'image_url'  => $imgPath,
-                        'is_main'    => false,
+                        'image_url' => $imgPath,
+                        'is_main' => false,
                         'sort_order' => count($existingColorImages) + $imgIndex + 1,
                     ]);
                 }
@@ -1008,30 +1025,34 @@ class ProductService
         $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 
         if ($ext === 'xlsx') {
-            $zip = new \ZipArchive();
+            $zip = new \ZipArchive;
             if ($zip->open($filePath) === true) {
                 $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
                 $zip->close();
                 if ($sheetXml !== false) {
                     $rowCount = preg_match_all('/<row\s/', $sheetXml);
                     unset($sheetXml);
+
                     return max(0, $rowCount - 1);
                 }
             }
+
             return 0;
         }
 
         // .xls: dùng PhpSpreadsheet chỉ đọc cột A
-        $filter = new class implements \PhpOffice\PhpSpreadsheet\Reader\IReadFilter {
-            public function readCell($columnAddress, $row, $worksheetName = '') {
+        $filter = new class implements IReadFilter
+        {
+            public function readCell($columnAddress, $row, $worksheetName = '')
+            {
                 return $columnAddress === 'A';
             }
         };
-        $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($filePath);
+        $reader = IOFactory::createReaderForFile($filePath);
         $reader->setReadDataOnly(true);
         $reader->setReadFilter($filter);
-        $spreadsheet   = $reader->load($filePath);
-        $highestRow    = $spreadsheet->getActiveSheet()->getHighestDataRow('A');
+        $spreadsheet = $reader->load($filePath);
+        $highestRow = $spreadsheet->getActiveSheet()->getHighestDataRow('A');
         $spreadsheet->disconnectWorksheets();
         unset($spreadsheet, $reader, $filter);
 
@@ -1048,11 +1069,11 @@ class ProductService
         }
 
         // Loại bỏ domain/host nếu có (vd: http://127.0.0.1:8000 hoặc https://domain.com)
-        $path = preg_replace('/^https?:\/\/[^\/]+/i', '', (string)$imageUrl);
+        $path = preg_replace('/^https?:\/\/[^\/]+/i', '', (string) $imageUrl);
         // Loại bỏ tiền tố /storage/ hoặc storage/ bị thừa
         $path = preg_replace('/^\/?storage\//i', '', ltrim($path, '/'));
 
-        if (!empty($path)) {
+        if (! empty($path)) {
             Storage::disk('public')->delete($path);
         }
     }

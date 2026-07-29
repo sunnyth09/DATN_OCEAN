@@ -21,16 +21,19 @@ class PostCategoryController extends Controller
                 $tree[] = $category;
             }
         }
+
         return $tree;
     }
+
     public function index()
     {
         $postCategories = PostCategory::all();
         $categoryTree = $this->buildCategoryTree($postCategories);
+
         return response()->json([
             'status' => 'success',
             'message' => 'Post categories retrieved successfully',
-            'data' => $categoryTree
+            'data' => $categoryTree,
         ]);
     }
 
@@ -46,7 +49,7 @@ class PostCategoryController extends Controller
             'sort_order' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);
-        
+
         $request->merge(['slug' => Str::slug($request->name)]);
 
         $postCategory = PostCategory::create($request->all());
@@ -61,18 +64,12 @@ class PostCategoryController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
-        
-    }
+    public function store(Request $request) {}
 
     /**
      * Display the specified resource.
      */
-    public function show(PostCategory $postCategory)
-    {
-        
-    }
+    public function show(PostCategory $postCategory) {}
 
     /**
      * Show the form for editing the specified resource.
@@ -80,7 +77,7 @@ class PostCategoryController extends Controller
     public function edit(Request $request, $id)
     {
         $postCategory = PostCategory::findOrFail($id);
-        if($postCategory->post_category_id == $request->parent_id){
+        if ($postCategory->post_category_id == $request->parent_id) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Danh mục cha không được là chính nó',
@@ -93,7 +90,7 @@ class PostCategoryController extends Controller
             'sort_order' => 'nullable|integer',
             'is_active' => 'nullable|boolean',
         ]);
-        
+
         $request->merge(['slug' => Str::slug($request->name)]);
 
         $postCategory->update($request->all());
@@ -104,6 +101,7 @@ class PostCategoryController extends Controller
             'data' => $postCategory,
         ]);
     }
+
     /**
      * Update the specified resource in storage.
      */

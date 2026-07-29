@@ -2,24 +2,25 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
 
 /**
  * LoyaltyTransaction — Giao dịch điểm của user
  *
- * @property int    $id
- * @property int    $user_id
- * @property string $type          earn|burn|expire|adjust|refund
- * @property int    $points        số điểm (luôn dương)
- * @property int    $balance_before
- * @property int    $balance_after
+ * @property int $id
+ * @property int $user_id
+ * @property string $type earn|burn|expire|adjust|refund
+ * @property int $points số điểm (luôn dương)
+ * @property int $balance_before
+ * @property int $balance_after
  * @property string|null $reference_type
- * @property int|null    $reference_id
+ * @property int|null $reference_id
  * @property string|null $description
- * @property \Carbon\Carbon|null $expires_at
- * @property \Carbon\Carbon|null $expired_at
+ * @property Carbon|null $expires_at
+ * @property Carbon|null $expired_at
  */
 class LoyaltyTransaction extends Model
 {
@@ -39,11 +40,11 @@ class LoyaltyTransaction extends Model
     ];
 
     protected $casts = [
-        'points'         => 'integer',
+        'points' => 'integer',
         'balance_before' => 'integer',
-        'balance_after'  => 'integer',
-        'expires_at'     => 'datetime',
-        'expired_at'     => 'datetime',
+        'balance_after' => 'integer',
+        'expires_at' => 'datetime',
+        'expired_at' => 'datetime',
     ];
 
     // ─── Relationships ──────────────────────────────────────────────────
@@ -79,20 +80,20 @@ class LoyaltyTransaction extends Model
     public function scopeActiveEarns(Builder $query): Builder
     {
         return $query->where('type', 'earn')
-                     ->whereNull('expired_at')
-                     ->where(function ($q) {
-                         $q->whereNull('expires_at')
-                           ->orWhere('expires_at', '>', now());
-                     });
+            ->whereNull('expired_at')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            });
     }
 
     /** Điểm earn đã quá hạn nhưng chưa được job expire */
     public function scopePendingExpiry(Builder $query): Builder
     {
         return $query->where('type', 'earn')
-                     ->whereNull('expired_at')
-                     ->whereNotNull('expires_at')
-                     ->where('expires_at', '<=', now());
+            ->whereNull('expired_at')
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', now());
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────
@@ -105,12 +106,12 @@ class LoyaltyTransaction extends Model
     public function typeLabel(): string
     {
         return match ($this->type) {
-            'earn'   => 'Tích điểm',
-            'burn'   => 'Đổi điểm',
+            'earn' => 'Tích điểm',
+            'burn' => 'Đổi điểm',
             'expire' => 'Hết hạn',
             'adjust' => 'Điều chỉnh',
             'refund' => 'Hoàn điểm',
-            default  => $this->type,
+            default => $this->type,
         };
     }
 }

@@ -8,14 +8,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * UserBankAccount — Tài khoản ngân hàng đã liên kết của user.
  *
- * @property int    $id
- * @property int    $user_id
+ * @property int $id
+ * @property int $user_id
  * @property string $bank_name
  * @property string|null $bank_short_name
  * @property string|null $bank_bin
  * @property string $account_name
  * @property string $account_number
- * @property bool   $is_default
+ * @property bool $is_default
  */
 class UserBankAccount extends Model
 {

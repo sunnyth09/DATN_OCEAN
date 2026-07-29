@@ -68,9 +68,9 @@ return [
     ],
 
     'bank' => [
-        'bin'            => env('BANK_BIN'),
+        'bin' => env('BANK_BIN'),
         'account_number' => env('BANK_ACCOUNT_NUMBER'),
-        'account_name'   => env('BANK_ACCOUNT_NAME'),
+        'account_name' => env('BANK_ACCOUNT_NAME'),
     ],
 
     // Gemini API keys — nhiều key để rotate khi bị rate limit
@@ -85,7 +85,7 @@ return [
 
     // Face Verification Microservice (internal Docker network)
     'face' => [
-        'url'     => env('FACE_SERVICE_URL', 'http://face-service:8001'),
+        'url' => env('FACE_SERVICE_URL', 'http://face-service:8001'),
         'timeout' => env('FACE_SERVICE_TIMEOUT', 15),
     ],
 

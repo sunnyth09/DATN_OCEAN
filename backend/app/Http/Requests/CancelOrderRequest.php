@@ -2,9 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Order;
 use Illuminate\Foundation\Http\FormRequest;
 
-class CancelOrderRequest  extends FormRequest
+class CancelOrderRequest extends FormRequest
 {
     /**
      * Chỉ owner của đơn hàng mới được hủy.
@@ -13,12 +14,17 @@ class CancelOrderRequest  extends FormRequest
     public function authorize(): bool
     {
         $user = auth('api')->user();
-        if (!$user) return false;
+        if (! $user) {
+            return false;
+        }
 
         $orderId = $this->route('id');
-        if (!$orderId) return false;
+        if (! $orderId) {
+            return false;
+        }
 
-        $order = \App\Models\Order::find($orderId);
+        $order = Order::find($orderId);
+
         return $order && $user->user_id === $order->user_id;
     }
 
@@ -28,7 +34,7 @@ class CancelOrderRequest  extends FormRequest
             'cancel_reason' => 'required|string|max:500',
         ];
     }
-    
+
     public function messages(): array
     {
         return [

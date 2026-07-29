@@ -35,7 +35,7 @@ class UserBankAccountController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $accounts,
+            'data' => $accounts,
         ]);
     }
 
@@ -50,21 +50,21 @@ class UserBankAccountController extends Controller
         $count = UserBankAccount::where('user_id', $user->user_id)->count();
         if ($count >= 3) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Bạn chỉ được liên kết tối đa 3 tài khoản ngân hàng.',
             ], 422);
         }
 
         $request->validate([
-            'bank_name'       => 'required|string|max:100',
+            'bank_name' => 'required|string|max:100',
             'bank_short_name' => 'nullable|string|max:50',
-            'bank_bin'        => 'nullable|string|max:10',
-            'account_name'    => 'required|string|max:255',
-            'account_number'  => 'required|string|max:50',
-            'is_default'      => 'boolean',
+            'bank_bin' => 'nullable|string|max:10',
+            'account_name' => 'required|string|max:255',
+            'account_number' => 'required|string|max:50',
+            'is_default' => 'boolean',
         ], [
-            'bank_name.required'      => 'Vui lòng nhập tên ngân hàng.',
-            'account_name.required'   => 'Vui lòng nhập tên chủ tài khoản.',
+            'bank_name.required' => 'Vui lòng nhập tên ngân hàng.',
+            'account_name.required' => 'Vui lòng nhập tên chủ tài khoản.',
             'account_number.required' => 'Vui lòng nhập số tài khoản.',
         ]);
 
@@ -76,7 +76,7 @@ class UserBankAccountController extends Controller
 
         if ($exists) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Tài khoản này đã được liên kết.',
             ], 422);
         }
@@ -91,18 +91,18 @@ class UserBankAccountController extends Controller
             }
 
             UserBankAccount::create([
-                'user_id'         => $user->user_id,
-                'bank_name'       => $request->bank_name,
+                'user_id' => $user->user_id,
+                'bank_name' => $request->bank_name,
                 'bank_short_name' => $request->bank_short_name,
-                'bank_bin'        => $request->bank_bin,
-                'account_name'    => strtoupper(trim($request->account_name)),
-                'account_number'  => trim($request->account_number),
-                'is_default'      => $isDefault,
+                'bank_bin' => $request->bank_bin,
+                'account_name' => strtoupper(trim($request->account_name)),
+                'account_number' => trim($request->account_number),
+                'is_default' => $isDefault,
             ]);
         });
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã liên kết tài khoản ngân hàng.',
         ], 201);
     }
@@ -112,31 +112,31 @@ class UserBankAccountController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        $user    = auth('api')->user();
+        $user = auth('api')->user();
         $account = UserBankAccount::where('user_id', $user->user_id)->where('id', $id)->first();
 
-        if (!$account) {
+        if (! $account) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy tài khoản'], 404);
         }
 
         $request->validate([
-            'bank_name'       => 'required|string|max:100',
+            'bank_name' => 'required|string|max:100',
             'bank_short_name' => 'nullable|string|max:50',
-            'bank_bin'        => 'nullable|string|max:10',
-            'account_name'    => 'required|string|max:255',
-            'account_number'  => 'required|string|max:50',
+            'bank_bin' => 'nullable|string|max:10',
+            'account_name' => 'required|string|max:255',
+            'account_number' => 'required|string|max:50',
         ]);
 
         $account->update([
-            'bank_name'       => $request->bank_name,
+            'bank_name' => $request->bank_name,
             'bank_short_name' => $request->bank_short_name,
-            'bank_bin'        => $request->bank_bin,
-            'account_name'    => strtoupper(trim($request->account_name)),
-            'account_number'  => trim($request->account_number),
+            'bank_bin' => $request->bank_bin,
+            'account_name' => strtoupper(trim($request->account_name)),
+            'account_number' => trim($request->account_number),
         ]);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã cập nhật tài khoản ngân hàng.',
         ]);
     }
@@ -146,10 +146,10 @@ class UserBankAccountController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        $user    = auth('api')->user();
+        $user = auth('api')->user();
         $account = UserBankAccount::where('user_id', $user->user_id)->where('id', $id)->first();
 
-        if (!$account) {
+        if (! $account) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy tài khoản'], 404);
         }
 
@@ -165,7 +165,7 @@ class UserBankAccountController extends Controller
         }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã xóa tài khoản ngân hàng.',
         ]);
     }
@@ -175,10 +175,10 @@ class UserBankAccountController extends Controller
      */
     public function setDefault(int $id): JsonResponse
     {
-        $user    = auth('api')->user();
+        $user = auth('api')->user();
         $account = UserBankAccount::where('user_id', $user->user_id)->where('id', $id)->first();
 
-        if (!$account) {
+        if (! $account) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy tài khoản'], 404);
         }
 
@@ -189,7 +189,7 @@ class UserBankAccountController extends Controller
         });
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã đặt tài khoản mặc định.',
         ]);
     }

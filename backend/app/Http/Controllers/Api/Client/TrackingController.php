@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api\Client;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\RecentlyViewedProduct;
 use App\Models\SearchHistory;
+use Illuminate\Http\Request;
 
 class TrackingController extends Controller
 {
@@ -13,18 +13,18 @@ class TrackingController extends Controller
     {
         $request->validate([
             'product_id' => 'required|exists:products,product_id',
-            'session_id' => 'nullable|string'
+            'session_id' => 'nullable|string',
         ]);
 
         $userId = auth('api')->id();
         $sessionId = $request->session_id;
 
-        if (!$userId && !$sessionId) {
+        if (! $userId && ! $sessionId) {
             return response()->json(['message' => 'No tracking ID provided'], 400);
         }
 
         $query = RecentlyViewedProduct::where('product_id', $request->product_id);
-        
+
         if ($userId) {
             $query->where('user_id', $userId);
         } else {
@@ -51,11 +51,11 @@ class TrackingController extends Controller
         $userId = auth('api')->id();
         $sessionId = $request->query('session_id');
 
-        if (!$userId && !$sessionId) {
+        if (! $userId && ! $sessionId) {
             return response()->json(['data' => []]);
         }
 
-        $query = RecentlyViewedProduct::with(['product' => function($q) {
+        $query = RecentlyViewedProduct::with(['product' => function ($q) {
             // Load necessary relations for product mapping on frontend
             $q->with(['mainImage', 'images', 'category', 'lowestPriceVariant']);
         }]);
@@ -67,7 +67,7 @@ class TrackingController extends Controller
         }
 
         $records = $query->orderBy('viewed_at', 'desc')->take(10)->get();
-        
+
         // Exclude products that are deleted or missing
         $products = $records->pluck('product')->filter();
 
@@ -79,7 +79,7 @@ class TrackingController extends Controller
         $userId = auth('api')->id();
         $sessionId = $request->query('session_id');
 
-        if (!$userId && !$sessionId) {
+        if (! $userId && ! $sessionId) {
             return response()->json(['data' => []]);
         }
 

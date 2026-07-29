@@ -29,7 +29,7 @@ class WalletController extends Controller
     public function index(): JsonResponse
     {
         $user = auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
@@ -37,7 +37,7 @@ class WalletController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $summary,
+            'data' => $summary,
         ]);
     }
 
@@ -48,12 +48,12 @@ class WalletController extends Controller
     public function history(Request $request): JsonResponse
     {
         $user = auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        $perPage     = min((int) ($request->per_page ?? 20), 100);
-        $type        = $request->type;
+        $perPage = min((int) ($request->per_page ?? 20), 100);
+        $type = $request->type;
         $balanceType = $request->balance_type;
 
         $history = $this->walletService->getHistory(
@@ -65,7 +65,7 @@ class WalletController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $history,
+            'data' => $history,
         ]);
     }
 
@@ -76,7 +76,7 @@ class WalletController extends Controller
     public function previewDiscount(Request $request): JsonResponse
     {
         $user = auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
@@ -91,7 +91,7 @@ class WalletController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $preview,
+            'data' => $preview,
         ]);
     }
 
@@ -102,29 +102,29 @@ class WalletController extends Controller
     public function withdraw(Request $request): JsonResponse
     {
         $user = auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
         $validated = $request->validate([
-            'amount'              => 'required|integer|min:10000|max:50000000',
-            'bank_name'           => 'required|string|max:100',
-            'bank_account_name'   => 'required|string|max:255',
+            'amount' => 'required|integer|min:10000|max:50000000',
+            'bank_name' => 'required|string|max:100',
+            'bank_account_name' => 'required|string|max:255',
             'bank_account_number' => 'required|string|max:50|regex:/^[0-9\s-]+$/',
         ], [
-            'amount.required'                  => 'Vui lòng nhập số tiền rút.',
-            'amount.integer'                   => 'Số tiền rút phải là số nguyên.',
-            'amount.min'                       => 'Số tiền rút tối thiểu 10,000₫.',
-            'amount.max'                       => 'Số tiền rút tối đa 50,000,000₫.',
-            'bank_name.required'               => 'Vui lòng nhập tên ngân hàng.',
-            'bank_account_name.required'       => 'Vui lòng nhập tên chủ tài khoản.',
-            'bank_account_number.required'     => 'Vui lòng nhập số tài khoản.',
-            'bank_account_number.regex'        => 'Số tài khoản chỉ được chứa số, khoảng trắng hoặc dấu gạch ngang.',
+            'amount.required' => 'Vui lòng nhập số tiền rút.',
+            'amount.integer' => 'Số tiền rút phải là số nguyên.',
+            'amount.min' => 'Số tiền rút tối thiểu 10,000₫.',
+            'amount.max' => 'Số tiền rút tối đa 50,000,000₫.',
+            'bank_name.required' => 'Vui lòng nhập tên ngân hàng.',
+            'bank_account_name.required' => 'Vui lòng nhập tên chủ tài khoản.',
+            'bank_account_number.required' => 'Vui lòng nhập số tài khoản.',
+            'bank_account_number.regex' => 'Số tài khoản chỉ được chứa số, khoảng trắng hoặc dấu gạch ngang.',
         ]);
 
         $bankInfo = [
-            'bank_name'           => preg_replace('/\s+/', ' ', trim($validated['bank_name'])),
-            'bank_account_name'   => preg_replace('/\s+/', ' ', trim($validated['bank_account_name'])),
+            'bank_name' => preg_replace('/\s+/', ' ', trim($validated['bank_name'])),
+            'bank_account_name' => preg_replace('/\s+/', ' ', trim($validated['bank_account_name'])),
             'bank_account_number' => preg_replace('/[\s-]+/', '', trim($validated['bank_account_number'])),
         ];
 
@@ -136,13 +136,13 @@ class WalletController extends Controller
             );
 
             return response()->json([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Yêu cầu rút tiền đã được xử lý. Số dư đã được trừ.',
-                'data'    => $result,
+                'data' => $result,
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => $e->getMessage(),
             ], 422);
         }
@@ -155,7 +155,7 @@ class WalletController extends Controller
     public function withdrawals(Request $request): JsonResponse
     {
         $user = auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
@@ -166,7 +166,7 @@ class WalletController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $withdrawals,
+            'data' => $withdrawals,
         ]);
     }
 }

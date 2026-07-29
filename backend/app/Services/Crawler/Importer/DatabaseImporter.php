@@ -3,8 +3,8 @@
 namespace App\Services\Crawler\Importer;
 
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\ProductImage;
+use App\Models\ProductVariant;
 use Illuminate\Support\Str;
 
 class DatabaseImporter
@@ -35,7 +35,7 @@ class DatabaseImporter
         foreach ($variantsData as $v) {
             ProductVariant::create([
                 'product_id' => $product->product_id,
-                'sku' => empty($v['sku']) ? 'SKU-' . strtoupper(Str::random(8)) : $v['sku'],
+                'sku' => empty($v['sku']) ? 'SKU-'.strtoupper(Str::random(8)) : $v['sku'],
                 'variant_name' => $v['variant_name'],
                 'color' => $v['color'],
                 'size' => $v['size'],
@@ -55,8 +55,8 @@ class DatabaseImporter
                 'is_main' => $index === 0 ? 1 : 0,
             ]);
         }
-        
-        if (!empty($imagesData)) {
+
+        if (! empty($imagesData)) {
             $product->update(['thumbnail_url' => $imagesData[0]]);
         }
 

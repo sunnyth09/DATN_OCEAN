@@ -15,7 +15,7 @@ class AdminOrderRepository
     {
         $query = Order::with(['items', 'user', 'returnRequests'])->orderBy('created_at', 'desc');
 
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             if ($filters['status'] === 'processing') {
                 $query->whereIn('fulfillment_status', ['processing', 'packing']);
             } else {
@@ -23,24 +23,24 @@ class AdminOrderRepository
             }
         }
 
-        if (!empty($filters['payment_status']) && $filters['payment_status'] !== 'all') {
+        if (! empty($filters['payment_status']) && $filters['payment_status'] !== 'all') {
             $query->where('payment_status', $filters['payment_status']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $searchTerm = $filters['search'];
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_code', 'like', "%{$searchTerm}%")
-                  ->orWhere('recipient_name', 'like', "%{$searchTerm}%")
-                  ->orWhere('recipient_phone', 'like', "%{$searchTerm}%");
+                    ->orWhere('recipient_name', 'like', "%{$searchTerm}%")
+                    ->orWhere('recipient_phone', 'like', "%{$searchTerm}%");
             });
         }
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
 
@@ -92,17 +92,19 @@ class AdminOrderRepository
 
         foreach ($items as $item) {
             $variantId = $item->variant_id ?? $item['variant_id'] ?? null;
-            $quantity  = $item->quantity ?? $item['quantity'] ?? 0;
+            $quantity = $item->quantity ?? $item['quantity'] ?? 0;
 
-            if (!$variantId) continue;
+            if (! $variantId) {
+                continue;
+            }
 
-            $cases[]     = "WHEN ? THEN stock + ?";
-            $bindings[]  = $variantId;
-            $bindings[]  = $quantity;
+            $cases[] = 'WHEN ? THEN stock + ?';
+            $bindings[] = $variantId;
+            $bindings[] = $quantity;
             $variantIds[] = $variantId;
         }
 
-        if (!empty($variantIds)) {
+        if (! empty($variantIds)) {
             $ids = implode(',', array_fill(0, count($variantIds), '?'));
             $casesSql = implode(' ', $cases);
             $bindings = array_merge($bindings, $variantIds);

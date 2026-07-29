@@ -5,11 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\CourtBooking;
-use App\Models\CourtBookingStatusHistory;
-use App\Models\CourtBookingService;
-use App\Models\CourtBookingPayment;
-use App\Models\CourtBookingExtension;
 
 class Court extends Model
 {
@@ -23,7 +18,7 @@ class Court extends Model
     ];
 
     protected $casts = [
-        'sort_order'  => 'integer',
+        'sort_order' => 'integer',
         'max_players' => 'integer',
     ];
 
@@ -57,14 +52,14 @@ class Court extends Model
         return $query->active()
             ->whereDoesntHave('bookings', function ($q) use ($date, $startTime, $endTime) {
                 $q->where('booking_date', $date)
-                  ->whereIn('status', CourtBooking::BLOCKING_STATUSES)
-                  ->where('start_time', '<', $endTime)
-                  ->where('end_time', '>', $startTime);
+                    ->whereIn('status', CourtBooking::BLOCKING_STATUSES)
+                    ->where('start_time', '<', $endTime)
+                    ->where('end_time', '>', $startTime);
             })
             ->whereDoesntHave('maintenances', function ($q) use ($date, $startTime, $endTime) {
                 $q->whereIn('status', ['scheduled', 'in_progress'])
-                  ->where('start_datetime', '<', "$date $endTime")
-                  ->where('end_datetime', '>', "$date $startTime");
+                    ->where('start_datetime', '<', "$date $endTime")
+                    ->where('end_datetime', '>', "$date $startTime");
             });
     }
 }

@@ -25,14 +25,14 @@ class Promotion extends Model
     ];
 
     protected $casts = [
-        'discount_value'      => 'decimal:2',
-        'min_order_amount'    => 'decimal:2',
+        'discount_value' => 'decimal:2',
+        'min_order_amount' => 'decimal:2',
         'max_discount_amount' => 'decimal:2',
-        'usage_limit'         => 'integer',
+        'usage_limit' => 'integer',
         'usage_limit_per_user' => 'integer',
-        'used_count'          => 'integer',
-        'is_active'           => 'boolean',
-        'start_at'            => 'datetime',
-        'end_at'              => 'datetime',
+        'used_count' => 'integer',
+        'is_active' => 'boolean',
+        'start_at' => 'datetime',
+        'end_at' => 'datetime',
     ];
 }

@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\CourtSchedule;
+use Illuminate\Http\Request;
 
 class CourtScheduleAdminController extends Controller
 {
     public function index(Request $request)
     {
         $schedules = CourtSchedule::with('court')->get();
+
         return response()->json([
             'status' => 'success',
-            'data' => $schedules
+            'data' => $schedules,
         ]);
     }
 
@@ -32,16 +33,17 @@ class CourtScheduleAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Schedule created successfully.',
-            'data' => $schedule
+            'data' => $schedule,
         ]);
     }
 
     public function show($id)
     {
         $schedule = CourtSchedule::with('court')->findOrFail($id);
+
         return response()->json([
             'status' => 'success',
-            'data' => $schedule
+            'data' => $schedule,
         ]);
     }
 
@@ -61,7 +63,7 @@ class CourtScheduleAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Schedule updated successfully.',
-            'data' => $schedule
+            'data' => $schedule,
         ]);
     }
 
@@ -72,7 +74,7 @@ class CourtScheduleAdminController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Schedule deleted successfully.'
+            'message' => 'Schedule deleted successfully.',
         ]);
     }
 }

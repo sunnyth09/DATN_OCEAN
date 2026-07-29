@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * @mixin \Illuminate\Database\Eloquent\Builder
+ * @mixin Builder
  */
 class UserCoupon extends Model
 {
@@ -20,7 +21,7 @@ class UserCoupon extends Model
         'user_id',
         'coupon_id',
         'used_count',
-        'is_saved'
+        'is_saved',
     ];
 
     /**

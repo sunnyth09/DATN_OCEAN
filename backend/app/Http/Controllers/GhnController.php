@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
-use App\Services\GHNService;
 use App\Services\GhnOrderStatusSyncService;
+use App\Services\GHNService;
 use Illuminate\Http\Request;
 
 class GhnController extends Controller
@@ -58,7 +58,7 @@ class GhnController extends Controller
 
         $order = Order::where('ghn_order_code', $data['order_code'])->first();
         $syncResult = null;
-        if ($order && !empty($data['sync'])) {
+        if ($order && ! empty($data['sync'])) {
             $syncResult = $this->statusSyncService->syncFromDetail($order, $detail);
             $order->refresh();
         }

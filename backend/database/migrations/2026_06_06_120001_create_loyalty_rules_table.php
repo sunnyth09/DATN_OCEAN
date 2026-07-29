@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('loyalty_rules')) {
+        if (! Schema::hasTable('loyalty_rules')) {
             Schema::create('loyalty_rules', function (Blueprint $table) {
                 $table->id();
 

@@ -28,7 +28,7 @@ class ProductVariantRepository
         $variantIds = [];
 
         foreach ($orderItems as $item) {
-            $cases[] = "WHEN ? THEN stock + ?";
+            $cases[] = 'WHEN ? THEN stock + ?';
             $bindings[] = $item->variant_id;
             $bindings[] = $item->quantity;
             $variantIds[] = $item->variant_id;

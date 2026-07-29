@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Hash;
  */
 class AdminUserService
 {
-    private const ALLOWED_ROLES    = ['customer', 'seller', 'staff', 'admin'];
+    private const ALLOWED_ROLES = ['customer', 'seller', 'staff', 'admin'];
+
     private const ALLOWED_STATUSES = ['active', 'inactive', 'banned'];
 
     /**
@@ -28,8 +29,8 @@ class AdminUserService
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%")
-                  ->orWhere('phone', 'LIKE', "%{$search}%");
+                    ->orWhere('email', 'LIKE', "%{$search}%")
+                    ->orWhere('phone', 'LIKE', "%{$search}%");
             });
         }
 
@@ -44,7 +45,7 @@ class AdminUserService
     public function getDetail($id): ?array
     {
         $user = User::withTrashed()->find($id);
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -55,8 +56,8 @@ class AdminUserService
             ->get();
 
         return [
-            'user'          => $user,
-            'addresses'     => $user->addresses()->get(),
+            'user' => $user,
+            'addresses' => $user->addresses()->get(),
             'saved_coupons' => $savedCoupons,
         ];
     }
@@ -66,13 +67,13 @@ class AdminUserService
      */
     public function create(array $data): User
     {
-        $user = new User();
+        $user = new User;
         $user->full_name = $data['full_name'];
-        $user->email     = $data['email'];
-        $user->password  = $data['password'];
-        $user->phone     = $data['phone'] ?? null;
+        $user->email = $data['email'];
+        $user->password = $data['password'];
+        $user->phone = $data['phone'] ?? null;
         $user->forceFill([
-            'role'   => $data['role'] ?? 'customer',
+            'role' => $data['role'] ?? 'customer',
             'status' => $data['status'] ?? 'active',
         ]);
         $user->save();
@@ -83,35 +84,35 @@ class AdminUserService
     /**
      * Cập nhật user. Field thường qua fill(); role/status qua forceFill().
      *
-     * @return User|null  null nếu không tìm thấy user.
+     * @return User|null null nếu không tìm thấy user.
      */
     public function update($id, array $data): ?User
     {
         $user = User::find($id);
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
         $fillable = array_filter([
             'full_name' => $data['full_name'] ?? null,
-            'email'     => $data['email'] ?? null,
-            'phone'     => $data['phone'] ?? null,
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
         ], fn ($v) => $v !== null);
 
-        if (!empty($data['password'])) {
+        if (! empty($data['password'])) {
             $fillable['password'] = Hash::make($data['password']);
         }
 
         $user->fill($fillable);
 
         $sensitive = [];
-        if (!empty($data['role'])) {
+        if (! empty($data['role'])) {
             $sensitive['role'] = $data['role'];
         }
-        if (!empty($data['status'])) {
+        if (! empty($data['status'])) {
             $sensitive['status'] = $data['status'];
         }
-        if (!empty($sensitive)) {
+        if (! empty($sensitive)) {
             $user->forceFill($sensitive);
         }
 
@@ -127,7 +128,7 @@ class AdminUserService
      */
     public function updateRole($id, ?string $role, $currentUserId): array
     {
-        if (!in_array($role, self::ALLOWED_ROLES, true)) {
+        if (! in_array($role, self::ALLOWED_ROLES, true)) {
             return ['ok' => false, 'code' => 422, 'message' => 'Role không hợp lệ!'];
         }
 
@@ -150,7 +151,7 @@ class AdminUserService
      */
     public function updateStatus($id, ?string $status, $currentUserId): array
     {
-        if (!in_array($status, self::ALLOWED_STATUSES, true)) {
+        if (! in_array($status, self::ALLOWED_STATUSES, true)) {
             return ['ok' => false, 'code' => 422, 'message' => 'Status không hợp lệ!'];
         }
 
@@ -174,7 +175,7 @@ class AdminUserService
     public function delete($id, $currentUserId): array
     {
         $user = User::find($id);
-        if (!$user) {
+        if (! $user) {
             return ['ok' => false, 'code' => 404, 'message' => 'Không tìm thấy khách hàng!'];
         }
 

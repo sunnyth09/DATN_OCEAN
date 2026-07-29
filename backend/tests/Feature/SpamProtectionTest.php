@@ -2,18 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Order;
-use App\Repositories\AffiliateRepository;
+use App\Models\User;
 use App\Repositories\AffiliateClickRepository;
 use App\Repositories\AffiliateConversionRepository;
+use App\Repositories\AffiliateRepository;
 use App\Repositories\AffiliateWithdrawalRepository;
 use App\Services\AffiliateService;
-use App\Services\WalletService;
 use App\Services\LoyaltyService;
+use App\Services\WalletService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -145,15 +146,16 @@ class SpamProtectionTest extends TestCase
 
     private function createUser(array $attrs = []): User
     {
-        $user = new User();
+        $user = new User;
         $user->forceFill(array_merge([
             'full_name' => 'Test User',
-            'email'     => 'user_' . uniqid() . '@test.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'customer',
-            'status'    => 'active',
+            'email' => 'user_'.uniqid().'@test.com',
+            'password' => bcrypt('password'),
+            'role' => 'customer',
+            'status' => 'active',
         ], $attrs));
         $user->save();
+
         return $user;
     }
 
@@ -161,16 +163,16 @@ class SpamProtectionTest extends TestCase
     {
         return $this->createUser([
             'referral_code' => $code,
-            'is_affiliate'  => true,
+            'is_affiliate' => true,
         ]);
     }
 
     private function createOrder(int $userId, array $attrs = []): Order
     {
         return Order::create(array_merge([
-            'order_code'         => 'ORD-' . uniqid(),
-            'user_id'            => $userId,
-            'grand_total'        => 500000,
+            'order_code' => 'ORD-'.uniqid(),
+            'user_id' => $userId,
+            'grand_total' => 500000,
             'fulfillment_status' => 'completed',
         ], $attrs));
     }
@@ -183,21 +185,21 @@ class SpamProtectionTest extends TestCase
     public function test_affiliate_click_first_time_is_recorded(): void
     {
         $referrer = $this->createAffiliateUser('REF001');
-        $service  = $this->makeAffiliateService();
+        $service = $this->makeAffiliateService();
 
         $result = $service->trackClick([
             'referral_code' => 'REF001',
-            'user_id'       => null,
-            'product_id'    => null,
-            'ip_address'    => '1.2.3.4',
-            'user_agent'    => 'Mozilla/5.0',
+            'user_id' => null,
+            'product_id' => null,
+            'ip_address' => '1.2.3.4',
+            'user_agent' => 'Mozilla/5.0',
         ]);
 
         $this->assertSame(200, $result['status_code']);
         $this->assertDatabaseHas('affiliate_clicks', [
             'referral_code' => 'REF001',
-            'referrer_id'   => $referrer->user_id,
-            'ip_address'    => '1.2.3.4',
+            'referrer_id' => $referrer->user_id,
+            'ip_address' => '1.2.3.4',
         ]);
     }
 
@@ -210,7 +212,7 @@ class SpamProtectionTest extends TestCase
         // Lần 1 — ghi DB
         $service->trackClick([
             'referral_code' => 'REF002',
-            'ip_address'    => '5.5.5.5',
+            'ip_address' => '5.5.5.5',
         ]);
 
         $count1 = DB::table('affiliate_clicks')->where('referral_code', 'REF002')->count();
@@ -219,7 +221,7 @@ class SpamProtectionTest extends TestCase
         // Lần 2 — cùng IP, trong 24h
         $result = $service->trackClick([
             'referral_code' => 'REF002',
-            'ip_address'    => '5.5.5.5',
+            'ip_address' => '5.5.5.5',
         ]);
 
         // Vẫn trả success (không lộ logic chống spam)
@@ -255,7 +257,7 @@ class SpamProtectionTest extends TestCase
         $this->assertSame(1, DB::table('affiliate_clicks')->where('referral_code', 'REF004')->count());
 
         // Giả lập cache hết hạn bằng cách xoá key thủ công
-        $dedupKey = 'affiliate_click:' . md5('7.7.7.7:REF004');
+        $dedupKey = 'affiliate_click:'.md5('7.7.7.7:REF004');
         Cache::forget($dedupKey);
 
         // Lần 2 — sau khi cache hết, ghi lại được
@@ -267,12 +269,12 @@ class SpamProtectionTest extends TestCase
     public function test_affiliate_click_self_referral_is_blocked(): void
     {
         $referrer = $this->createAffiliateUser('REF005');
-        $service  = $this->makeAffiliateService();
+        $service = $this->makeAffiliateService();
 
         $result = $service->trackClick([
             'referral_code' => 'REF005',
-            'user_id'       => $referrer->user_id,
-            'ip_address'    => '8.8.8.8',
+            'user_id' => $referrer->user_id,
+            'ip_address' => '8.8.8.8',
         ]);
 
         $this->assertSame(422, $result['status_code'], 'Tự click giới thiệu mình phải trả 422');
@@ -286,7 +288,7 @@ class SpamProtectionTest extends TestCase
 
         $result = $service->trackClick([
             'referral_code' => 'NOTEXIST',
-            'ip_address'    => '9.9.9.9',
+            'ip_address' => '9.9.9.9',
         ]);
 
         $this->assertSame(404, $result['status_code'], 'Code không tồn tại phải trả 404');
@@ -295,10 +297,10 @@ class SpamProtectionTest extends TestCase
     /** Cache key được tạo đúng format (md5 của ip:code) */
     public function test_affiliate_click_cache_key_format_is_correct(): void
     {
-        $ip   = '192.168.1.1';
+        $ip = '192.168.1.1';
         $code = 'TESTKEY';
 
-        $expectedKey = 'affiliate_click:' . md5($ip . ':' . $code);
+        $expectedKey = 'affiliate_click:'.md5($ip.':'.$code);
 
         // Đặt cache thủ công
         Cache::put($expectedKey, true, now()->addHours(24));
@@ -317,7 +319,7 @@ class SpamProtectionTest extends TestCase
     /** Route user order có throttle:5,1 */
     public function test_user_order_route_has_throttle_5_per_minute(): void
     {
-        $routes = \Illuminate\Support\Facades\Route::getRoutes();
+        $routes = Route::getRoutes();
 
         $route = collect($routes->getRoutes())->first(function ($r) {
             return $r->uri() === 'api/profile/orders'
@@ -326,8 +328,8 @@ class SpamProtectionTest extends TestCase
 
         $this->assertNotNull($route, 'Route POST /api/profile/orders phải tồn tại');
 
-        $middleware  = $route->middleware();
-        $hasThrottle = collect($middleware)->contains(fn($m) => str_starts_with($m, 'throttle:5'));
+        $middleware = $route->middleware();
+        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:5'));
 
         $this->assertTrue($hasThrottle, 'Route POST /api/profile/orders phải có throttle:5,1 (giảm từ 10 xuống 5)');
     }
@@ -335,7 +337,7 @@ class SpamProtectionTest extends TestCase
     /** Route guest order có throttle:3,1 */
     public function test_guest_order_route_has_throttle_3_per_minute(): void
     {
-        $routes = \Illuminate\Support\Facades\Route::getRoutes();
+        $routes = Route::getRoutes();
 
         $route = collect($routes->getRoutes())->first(function ($r) {
             return $r->uri() === 'api/orders/guest'
@@ -344,8 +346,8 @@ class SpamProtectionTest extends TestCase
 
         $this->assertNotNull($route, 'Route POST /api/orders/guest phải tồn tại');
 
-        $middleware  = $route->middleware();
-        $hasThrottle = collect($middleware)->contains(fn($m) => str_starts_with($m, 'throttle:3'));
+        $middleware = $route->middleware();
+        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:3'));
 
         $this->assertTrue($hasThrottle, 'Route guest order phải có throttle:3,1 (chặt hơn user)');
     }
@@ -353,14 +355,16 @@ class SpamProtectionTest extends TestCase
     /** Guest order throttle phải chặt hơn user order */
     public function test_guest_throttle_is_stricter_than_user_throttle(): void
     {
-        $routes = \Illuminate\Support\Facades\Route::getRoutes();
+        $routes = Route::getRoutes();
 
         $getLimit = function (string $uri) use ($routes): int {
             $route = collect($routes->getRoutes())->first(function ($r) use ($uri) {
                 return $r->uri() === $uri && in_array('POST', $r->methods());
             });
 
-            if (!$route) return PHP_INT_MAX;
+            if (! $route) {
+                return PHP_INT_MAX;
+            }
 
             foreach ($route->middleware() as $m) {
                 if (str_starts_with($m, 'throttle:')) {
@@ -371,7 +375,7 @@ class SpamProtectionTest extends TestCase
             return PHP_INT_MAX;
         };
 
-        $userLimit  = $getLimit('api/profile/orders');
+        $userLimit = $getLimit('api/profile/orders');
         $guestLimit = $getLimit('api/orders/guest');
 
         $this->assertLessThan(
@@ -388,15 +392,15 @@ class SpamProtectionTest extends TestCase
     /** Guard: Chưa có review → cho phép */
     public function test_review_no_duplicate_allows_submission(): void
     {
-        $user      = $this->createUser();
-        $order     = $this->createOrder($user->user_id);
+        $user = $this->createUser();
+        $order = $this->createOrder($user->user_id);
         $orderItem = DB::table('order_items')->insertGetId([
-            'order_id'     => $order->order_id,
-            'product_id'   => 1,
+            'order_id' => $order->order_id,
+            'product_id' => 1,
             'product_name' => 'Sản phẩm test',
-            'quantity'     => 1,
-            'unit_price'   => 100000,
-            'line_total'   => 100000,
+            'quantity' => 1,
+            'unit_price' => 100000,
+            'line_total' => 100000,
         ]);
 
         $alreadyReviewed = DB::table('product_comments')
@@ -410,27 +414,27 @@ class SpamProtectionTest extends TestCase
     /** Guard: Đã có review → phát hiện duplicate */
     public function test_review_duplicate_order_item_is_detected(): void
     {
-        $user      = $this->createUser();
-        $order     = $this->createOrder($user->user_id);
+        $user = $this->createUser();
+        $order = $this->createOrder($user->user_id);
         $orderItem = DB::table('order_items')->insertGetId([
-            'order_id'     => $order->order_id,
-            'product_id'   => 1,
+            'order_id' => $order->order_id,
+            'product_id' => 1,
             'product_name' => 'Test',
-            'quantity'     => 1,
-            'unit_price'   => 100000,
-            'line_total'   => 100000,
+            'quantity' => 1,
+            'unit_price' => 100000,
+            'line_total' => 100000,
         ]);
 
         // Review lần 1 tồn tại
         DB::table('product_comments')->insert([
-            'product_id'    => 1,
-            'user_id'       => $user->user_id,
+            'product_id' => 1,
+            'user_id' => $user->user_id,
             'order_item_id' => $orderItem,
-            'rating'        => 5,
-            'content'       => 'Tốt lắm',
-            'is_approved'   => false,
-            'created_at'    => now(),
-            'updated_at'    => now(),
+            'rating' => 5,
+            'content' => 'Tốt lắm',
+            'is_approved' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         // Guard double-check DB phải phát hiện đã tồn tại
@@ -445,21 +449,21 @@ class SpamProtectionTest extends TestCase
     /** Guard: User B không thể review order của user A */
     public function test_review_ownership_check_blocks_other_user(): void
     {
-        $ownerUser    = $this->createUser();
+        $ownerUser = $this->createUser();
         $attackerUser = $this->createUser();
-        $order        = $this->createOrder($ownerUser->user_id);
+        $order = $this->createOrder($ownerUser->user_id);
 
         $orderItem = DB::table('order_items')->insertGetId([
-            'order_id'     => $order->order_id,
-            'product_id'   => 1,
+            'order_id' => $order->order_id,
+            'product_id' => 1,
             'product_name' => 'Test',
-            'quantity'     => 1,
-            'unit_price'   => 100000,
-            'line_total'   => 100000,
+            'quantity' => 1,
+            'unit_price' => 100000,
+            'line_total' => 100000,
         ]);
 
         // Lấy order như controller làm khi check ownership
-        $item      = DB::table('order_items')->where('order_item_id', $orderItem)->first();
+        $item = DB::table('order_items')->where('order_item_id', $orderItem)->first();
         $itemOrder = DB::table('orders')->where('order_id', $item->order_id)->first();
 
         $this->assertNotEquals(
@@ -509,7 +513,7 @@ class SpamProtectionTest extends TestCase
     /** Route review có throttle:5,1 */
     public function test_review_route_has_throttle_5_per_minute(): void
     {
-        $routes = \Illuminate\Support\Facades\Route::getRoutes();
+        $routes = Route::getRoutes();
 
         $route = collect($routes->getRoutes())->first(function ($r) {
             return $r->uri() === 'api/profile/orders/feedback'
@@ -518,8 +522,8 @@ class SpamProtectionTest extends TestCase
 
         $this->assertNotNull($route, 'Route POST /api/profile/orders/feedback phải tồn tại');
 
-        $middleware  = $route->middleware();
-        $hasThrottle = collect($middleware)->contains(fn($m) => str_starts_with($m, 'throttle:5'));
+        $middleware = $route->middleware();
+        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:5'));
 
         $this->assertTrue($hasThrottle, 'Route review phải có throttle:5,1');
     }
@@ -531,9 +535,9 @@ class SpamProtectionTest extends TestCase
     /** Guard 1: order_id thuộc user khác → bị chặn */
     public function test_ticket_foreign_order_is_blocked(): void
     {
-        $ownerUser    = $this->createUser();
+        $ownerUser = $this->createUser();
         $attackerUser = $this->createUser();
-        $order        = $this->createOrder($ownerUser->user_id);
+        $order = $this->createOrder($ownerUser->user_id);
 
         // Attacker cố dùng order của owner
         $found = DB::table('orders')
@@ -547,7 +551,7 @@ class SpamProtectionTest extends TestCase
     /** Guard 1: order_id thuộc đúng user → pass */
     public function test_ticket_own_order_passes_guard(): void
     {
-        $user  = $this->createUser();
+        $user = $this->createUser();
         $order = $this->createOrder($user->user_id);
 
         $found = DB::table('orders')
@@ -561,18 +565,18 @@ class SpamProtectionTest extends TestCase
     /** Guard 2: Đủ 3 ticket pending → lần 4 bị chặn */
     public function test_ticket_limit_3_open_blocks_new(): void
     {
-        $user  = $this->createUser();
+        $user = $this->createUser();
         $order = $this->createOrder($user->user_id);
 
         for ($i = 0; $i < 3; $i++) {
             DB::table('tickets')->insert([
-                'user_id'     => $user->user_id,
-                'order_id'    => $order->order_id,
-                'reason'      => 'Spam ' . $i,
+                'user_id' => $user->user_id,
+                'order_id' => $order->order_id,
+                'reason' => 'Spam '.$i,
                 'description' => 'Mô tả',
-                'status'      => 'pending',
-                'created_at'  => now(),
-                'updated_at'  => now(),
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
@@ -588,18 +592,18 @@ class SpamProtectionTest extends TestCase
     /** Guard 2: 2 ticket pending → vẫn cho thêm */
     public function test_ticket_2_open_allows_new(): void
     {
-        $user  = $this->createUser();
+        $user = $this->createUser();
         $order = $this->createOrder($user->user_id);
 
         for ($i = 0; $i < 2; $i++) {
             DB::table('tickets')->insert([
-                'user_id'     => $user->user_id,
-                'order_id'    => $order->order_id,
-                'reason'      => 'Lý do',
+                'user_id' => $user->user_id,
+                'order_id' => $order->order_id,
+                'reason' => 'Lý do',
                 'description' => 'Mô tả',
-                'status'      => 'pending',
-                'created_at'  => now(),
-                'updated_at'  => now(),
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
@@ -615,7 +619,7 @@ class SpamProtectionTest extends TestCase
     /** Guard 2: Ticket processing cũng tính vào giới hạn */
     public function test_ticket_processing_status_counts_toward_limit(): void
     {
-        $user  = $this->createUser();
+        $user = $this->createUser();
         $order = $this->createOrder($user->user_id);
 
         DB::table('tickets')->insert([
@@ -646,19 +650,19 @@ class SpamProtectionTest extends TestCase
     /** Guard 2: resolved/closed không tính vào giới hạn */
     public function test_ticket_resolved_and_closed_do_not_count(): void
     {
-        $user  = $this->createUser();
+        $user = $this->createUser();
         $order = $this->createOrder($user->user_id);
 
         // 5 ticket đã xử lý xong
         for ($i = 0; $i < 5; $i++) {
             DB::table('tickets')->insert([
-                'user_id'     => $user->user_id,
-                'order_id'    => $order->order_id,
-                'reason'      => 'Cũ',
+                'user_id' => $user->user_id,
+                'order_id' => $order->order_id,
+                'reason' => 'Cũ',
                 'description' => 'Đã xong',
-                'status'      => ($i % 2 === 0) ? 'resolved' : 'closed',
-                'created_at'  => now(),
-                'updated_at'  => now(),
+                'status' => ($i % 2 === 0) ? 'resolved' : 'closed',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
@@ -674,7 +678,7 @@ class SpamProtectionTest extends TestCase
     /** Route ticket có throttle:3,1 */
     public function test_ticket_route_has_throttle_3_per_minute(): void
     {
-        $routes = \Illuminate\Support\Facades\Route::getRoutes();
+        $routes = Route::getRoutes();
 
         $route = collect($routes->getRoutes())->first(function ($r) {
             return $r->uri() === 'api/profile/tickets'
@@ -683,8 +687,8 @@ class SpamProtectionTest extends TestCase
 
         $this->assertNotNull($route, 'Route POST /api/profile/tickets phải tồn tại');
 
-        $middleware  = $route->middleware();
-        $hasThrottle = collect($middleware)->contains(fn($m) => str_starts_with($m, 'throttle:3'));
+        $middleware = $route->middleware();
+        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:3'));
 
         $this->assertTrue($hasThrottle, 'Route ticket phải có throttle:3,1');
     }
@@ -692,7 +696,7 @@ class SpamProtectionTest extends TestCase
     /** Route affiliate/track-click có throttle:30,1 */
     public function test_affiliate_click_route_has_throttle_30_per_minute(): void
     {
-        $routes = \Illuminate\Support\Facades\Route::getRoutes();
+        $routes = Route::getRoutes();
 
         $route = collect($routes->getRoutes())->first(function ($r) {
             return $r->uri() === 'api/affiliate/track-click'
@@ -701,8 +705,8 @@ class SpamProtectionTest extends TestCase
 
         $this->assertNotNull($route, 'Route POST /api/affiliate/track-click phải tồn tại');
 
-        $middleware  = $route->middleware();
-        $hasThrottle = collect($middleware)->contains(fn($m) => str_starts_with($m, 'throttle:30'));
+        $middleware = $route->middleware();
+        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:30'));
 
         $this->assertTrue($hasThrottle, 'Route track-click phải có throttle:30,1');
     }

@@ -24,7 +24,7 @@ class ChatSession extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($model) {
             if (empty($model->session_token)) {
                 $model->session_token = (string) Str::uuid();
