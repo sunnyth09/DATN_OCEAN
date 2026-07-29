@@ -47,7 +47,10 @@
           </div>
           
           <div class="noti-content">
-            <h4 class="noti-title">{{ notification.data.title }}</h4>
+            <h4 class="noti-title" style="display: flex; align-items: center; gap: 8px;">
+                {{ notification.data.title }}
+                <span v-if="notification.data.is_flash_sale || (notification.data.title && notification.data.title.includes('Flash Sale'))" class="badge bg-warning text-dark" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; display: inline-block;">⚡ Flash Sale</span>
+            </h4>
             <div class="noti-message">{{ notification.data.message }}</div>
             <div class="noti-time">{{ formatTime(notification.created_at) }}</div>
           </div>
