@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, watch, nextTick, computed } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
@@ -36,10 +36,45 @@ const initForms = () => {
         unreviewedItems.value.forEach(item => {
             reviewForms.value[item.order_item_id] = {
                 rating: 0,
-                content: ''
+                content: '',
+                images: []
             };
         });
     }
+};
+
+const handleImageUpload = (event, itemId) => {
+    const files = Array.from(event.target.files);
+    if (!reviewForms.value[itemId].images) {
+        reviewForms.value[itemId].images = [];
+    }
+    const currentCount = reviewForms.value[itemId].images.length;
+    if (currentCount + files.length > 5) {
+        showToast('Bạn chỉ được tải lên tối đa 5 ảnh', 'danger');
+        return;
+    }
+    files.forEach(file => {
+        if (!file.type.startsWith('image/')) {
+             showToast('Vui lòng chọn định dạng ảnh', 'danger');
+             return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+             showToast('Kích thước ảnh tối đa 5MB', 'danger');
+             return;
+        }
+        file.preview = URL.createObjectURL(file);
+        reviewForms.value[itemId].images.push(file);
+    });
+    // Reset input value to allow selecting the same file again if removed
+    event.target.value = '';
+};
+
+const removeImage = (itemId, index) => {
+    const file = reviewForms.value[itemId].images[index];
+    if (file && file.preview) {
+        URL.revokeObjectURL(file.preview);
+    }
+    reviewForms.value[itemId].images.splice(index, 1);
 };
 
 watch(() => props.modelValue, (newVal) => {
@@ -69,6 +104,14 @@ const setRating = (itemId, rating) => {
 };
 
 const closeModal = () => {
+    // Revoke Object URLs to free memory
+    Object.values(reviewForms.value).forEach(form => {
+        if (form.images) {
+            form.images.forEach(img => {
+                if (img.preview) URL.revokeObjectURL(img.preview);
+            });
+        }
+    });
     emit('update:modelValue', false);
 };
 
@@ -95,11 +138,21 @@ const submitFeedback = async () => {
             if (!itemOriginal) continue;
 
             try {
-               await api.post('/profile/orders/feedback', {
-                   order_item_id: Number(itemId),
-                   product_id: itemOriginal.product_id,
-                   rating: form.rating,
-                   content: form.content
+               const formData = new FormData();
+               formData.append('order_item_id', Number(itemId));
+               formData.append('product_id', itemOriginal.product_id);
+               formData.append('rating', form.rating);
+               formData.append('content', form.content);
+               if (form.images && form.images.length > 0) {
+                   form.images.forEach((file, index) => {
+                       formData.append(`images[${index}]`, file);
+                   });
+               }
+
+               await api.post('/profile/orders/feedback', formData, {
+                   headers: {
+                       'Content-Type': 'multipart/form-data'
+                   }
                });
                submittedCount++;
             } catch (err) {
@@ -178,6 +231,23 @@ const getImageUrl = (path) => {
                   placeholder="Hãy chia sẻ những điều bạn thích về sản phẩm này nhé."
                   rows="3"
                 ></textarea>
+
+                <div class="image-upload-section">
+                  <div class="upload-btn-wrapper">
+                    <button class="btn-upload-img">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                      Thêm hình ảnh ({{ reviewForms[item.order_item_id]?.images?.length || 0 }}/5)
+                    </button>
+                    <input type="file" multiple accept="image/*" @change="e => handleImageUpload(e, item.order_item_id)" />
+                  </div>
+                  
+                  <div class="image-preview-list" v-if="reviewForms[item.order_item_id]?.images?.length > 0">
+                    <div class="img-preview-item" v-for="(img, idx) in reviewForms[item.order_item_id].images" :key="idx">
+                      <img :src="img.preview" alt="preview" />
+                      <button class="btn-remove-img" @click="removeImage(item.order_item_id, idx)">×</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -254,6 +324,37 @@ const getImageUrl = (path) => {
   font-family: inherit; font-size: 0.95rem; resize: vertical; outline: none; background: var(--card-bg);
 }
 .review-textarea:focus { border-color: var(--primary); }
+
+.image-upload-section { margin-top: 12px; }
+.upload-btn-wrapper {
+  position: relative; overflow: hidden; display: inline-block;
+}
+.btn-upload-img {
+  border: 1px dashed #cbd5e1; background: #fff; border-radius: 8px;
+  padding: 8px 16px; font-size: 0.9rem; color: #475569; font-weight: 500;
+  display: flex; align-items: center; gap: 8px; cursor: pointer; transition: 0.2s;
+}
+.btn-upload-img:hover { border-color: var(--primary); color: var(--primary); background: #f0f9ff; }
+.upload-btn-wrapper input[type=file] {
+  font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer; height: 100%;
+}
+.image-preview-list {
+  display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px;
+}
+.img-preview-item {
+  position: relative; width: 64px; height: 64px; border-radius: 8px;
+  border: 1px solid #e2e8f0; overflow: hidden;
+}
+.img-preview-item img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.btn-remove-img {
+  position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,0.6);
+  color: white; border: none; border-radius: 50%; width: 18px; height: 18px;
+  font-size: 12px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; line-height: 1; padding: 0;
+}
+.btn-remove-img:hover { background: #ef4444; }
 
 .modal-footer {
   padding: 16px 20px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;

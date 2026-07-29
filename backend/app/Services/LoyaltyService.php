@@ -137,35 +137,7 @@ class LoyaltyService
         );
     }
 
-    /**
-     * Earn điểm sinh nhật cho user.
-     * Nên gọi từ Artisan command hàng ngày.
-     */
-    public function earnBirthday(User $user): ?LoyaltyTransaction
-    {
-        $rule = LoyaltyRule::findByKey('BIRTHDAY');
-        if (!$rule) return null;
 
-        // Kiểm tra đã nhận điểm sinh nhật năm nay chưa
-        $alreadyEarned = LoyaltyTransaction::forUser($user->user_id)
-            ->where('type', 'earn')
-            ->where('reference_type', 'birthday')
-            ->whereYear('created_at', now()->year)
-            ->exists();
-
-        if ($alreadyEarned) return null;
-
-        $points = (int) $rule->points_per_unit;
-
-        return $this->recordEarn(
-            user: $user,
-            points: $points,
-            rule: $rule,
-            referenceType: 'birthday',
-            referenceId: null,
-            description: 'Quà sinh nhật tháng ' . now()->month,
-        );
-    }
 
     /**
      * Earn điểm khi viết review sản phẩm.

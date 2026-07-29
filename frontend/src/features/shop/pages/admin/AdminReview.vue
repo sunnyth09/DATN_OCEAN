@@ -5,6 +5,7 @@ import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
 import { getAbsoluteUrl, getStorageUrl } from '@/utils/url';
+import { sanitizeHtml } from '@/utils/sanitize';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -35,6 +36,44 @@ const avatarUrl = (path) => {
 const thumbUrl = (path) => {
   if (!path) return 'https://placehold.co/48x48/f8f9fa/a1a1aa?text=SP';
   return getStorageUrl(path);
+};
+
+const parseReviewImages = (images) => {
+  if (!images) return [];
+  
+  let parsed = images;
+  
+  // Keep parsing if it's a string that looks like JSON
+  while (typeof parsed === 'string') {
+    try {
+      let temp = JSON.parse(parsed);
+      if (temp === parsed) break;
+      parsed = temp;
+    } catch (e) {
+      parsed = parsed.replace(/[\[\]"]/g, '').split(',').map(s => s.trim());
+      break;
+    }
+  }
+
+  // At this point, parsed should be an array
+  if (Array.isArray(parsed)) {
+    return parsed.map(s => {
+      let cleaned = String(s).trim();
+      
+      // Replace all backslashes with forward slashes FIRST! (Important for Windows paths)
+      cleaned = cleaned.replace(/\\/g, '/');
+      
+      // Remove any leftover double quotes or single quotes from double-encoding artifacts
+      cleaned = cleaned.replace(/["']/g, '');
+      
+      // Deduplicate forward slashes
+      cleaned = cleaned.replace(/\/+/g, '/');
+      
+      return cleaned;
+    }).filter(s => s);
+  }
+  
+  return [];
 };
 
 // ─── Review State & Logic ─────────────────────────────────────────────────────────
@@ -123,6 +162,17 @@ const deleteReview = async (review) => {
   } catch (e) {
     toast.error(e.response?.data?.message || 'Xóa thất bại');
   }
+};
+
+const showReviewModal = ref(false);
+const selectedReview = ref(null);
+const openReviewModal = (review) => {
+  selectedReview.value = review;
+  showReviewModal.value = true;
+};
+const closeReviewModal = () => {
+  showReviewModal.value = false;
+  selectedReview.value = null;
 };
 
 // ─── Ticket State & Logic ─────────────────────────────────────────────────────────
@@ -314,6 +364,7 @@ onMounted(() => {
               <th>Sản phẩm</th>
               <th>Khách hàng</th>
               <th>Đánh giá</th>
+              <th>Có ảnh</th>
               <th>Nội dung</th>
               <th>Ngày gửi</th>
               <th>Trạng thái</th>
@@ -322,7 +373,7 @@ onMounted(() => {
           </thead>
           <tbody>
             <tr v-if="reviews.length === 0">
-              <td colspan="7" class="empty-cell">
+              <td colspan="8" class="empty-cell">
                 <div class="empty-state">
                   <p>Không có đánh giá nào phù hợp</p>
                 </div>
@@ -354,9 +405,17 @@ onMounted(() => {
                 </div>
                 <span class="rating-num">{{ r.rating }}/5</span>
               </td>
+              <!-- Có ảnh -->
+              <td class="text-center">
+                <div v-if="parseReviewImages(r.images).length > 0" style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; max-width: 100px;">
+                  <img v-for="(img, idx) in parseReviewImages(r.images).slice(0, 3)" :key="idx" :src="getStorageUrl(img)" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer;" alt="img" @click="openReviewModal(r)" />
+                  <span v-if="parseReviewImages(r.images).length > 3" style="font-size: 11px; color: #64748b; align-self: center;">+{{ parseReviewImages(r.images).length - 3 }}</span>
+                </div>
+                <span v-else class="text-muted">❌</span>
+              </td>
               <!-- Nội dung -->
               <td>
-                <p class="review-content">{{ r.content || '(Không có nội dung)' }}</p>
+                <div class="review-content" style="max-height: 3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;" v-html="sanitizeHtml(r.content || '(Không có nội dung)')"></div>
               </td>
               <!-- Ngày -->
               <td class="date-cell">{{ formatDate(r.created_at) }}</td>
@@ -368,7 +427,10 @@ onMounted(() => {
               </td>
               <!-- Thao tác -->
               <td>
-                <div class="action-btns">
+                <div class="action-btns" style="display: flex; gap: 4px; flex-wrap: wrap;">
+                  <button class="btn-action btn-view" style="background: #e2e8f0; color: #475569;" title="Xem chi tiết" @click="openReviewModal(r)">
+                    Xem
+                  </button>
                   <button class="btn-action" :class="r.is_approved ? 'btn-warn' : 'btn-success'" :title="r.is_approved ? 'Ẩn đánh giá' : 'Duyệt đánh giá'" @click="toggleApprove(r)">
                     {{ r.is_approved ? 'Ẩn' : 'Duyệt' }}
                   </button>
@@ -472,6 +534,59 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Review Detail Modal -->
+    <Transition name="modal">
+      <div v-if="showReviewModal && selectedReview" class="modal-overlay" @click.self="closeReviewModal">
+        <div class="modal-box" style="max-width: 600px;">
+          <div class="modal-header">
+            <h3>Chi tiết Đánh giá #{{ selectedReview.comment_id }}</h3>
+            <button class="btn-close-modal" @click="closeReviewModal">&times;</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="info-grid">
+              <div class="info-group">
+                <label>Khách hàng:</label>
+                <p>{{ (selectedReview.commenter_info || selectedReview.user)?.full_name }}</p>
+              </div>
+              <div class="info-group">
+                <label>Sản phẩm:</label>
+                <p>{{ selectedReview.product?.name }}</p>
+              </div>
+              <div class="info-group">
+                <label>Đánh giá:</label>
+                <p>
+                  <span v-for="s in 5" :key="s" style="color: #F59E0B">{{ s <= selectedReview.rating ? '★' : '☆' }}</span>
+                </p>
+              </div>
+              <div class="info-group">
+                <label>Ngày gửi:</label>
+                <p>{{ formatDate(selectedReview.created_at) }}</p>
+              </div>
+            </div>
+
+            <div class="ticket-content" style="margin-top: 16px;">
+              <h4>Nội dung đánh giá:</h4>
+              <div class="description-box" v-html="sanitizeHtml(selectedReview.content || '(Không có nội dung)')"></div>
+              <div class="image-box" v-if="parseReviewImages(selectedReview.images).length > 0" style="margin-top: 16px;">
+                 <p><strong>Ảnh đính kèm:</strong></p>
+                 <div class="review-images">
+                   <img v-for="(img, idx) in parseReviewImages(selectedReview.images)" :key="idx" :src="getStorageUrl(img)" class="admin-review-img modal-review-img" alt="Review image" @click="window.open(getStorageUrl(img), '_blank')" style="cursor: pointer; width: 80px; height: 80px;" title="Nhấn để xem ảnh lớn" />
+                 </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid #e9ecef; display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn-action" :class="selectedReview.is_approved ? 'btn-warn' : 'btn-success'" @click="toggleApprove(selectedReview); closeReviewModal()">
+              {{ selectedReview.is_approved ? 'Ẩn đánh giá' : 'Duyệt đánh giá' }}
+            </button>
+            <button class="btn-action" style="background: #e2e8f0; color: #475569;" @click="closeReviewModal">Đóng</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- Ticket Detail/Reply Modal -->
     <Transition name="modal">
       <div v-if="showTicketModal && selectedTicket" class="modal-overlay" @click.self="closeTicketModal">
@@ -557,6 +672,20 @@ onMounted(() => {
 .admin-reviews {
   padding: 28px;
   min-height: calc(100vh - 70px);
+}
+
+.review-images {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.admin-review-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
 }
 
 .page-header {
