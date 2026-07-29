@@ -43,6 +43,18 @@ return Application::configure(basePath: dirname(__DIR__))
             return $request->expectsJson();
         });
 
+        // Tùy chỉnh thông báo lỗi 429 Too Many Requests sang tiếng Việt
+        $exceptions->render(function (\Illuminate\Http\Exceptions\ThrottleRequestsException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $retryAfter = $e->getHeaders()['Retry-After'] ?? null;
+                $message = 'Bạn đã thao tác quá nhiều lần. Vui lòng thử lại sau' . ($retryAfter ? " {$retryAfter} giây." : '.');
+                
+                return response()->json([
+                    'message' => $message,
+                ], 429);
+            }
+        });
+
         // Chuẩn hóa lỗi 500 chưa xử lý cho API: log chi tiết, trả generic (tránh leak stack trace / internal message)
         $exceptions->render(function (Throwable $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {

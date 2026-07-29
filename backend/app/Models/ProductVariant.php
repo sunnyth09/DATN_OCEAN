@@ -55,12 +55,25 @@ class ProductVariant extends Model
         if (! $this->sale_price || $this->sale_price <= 0) {
             return false;
         }
-        if (! $this->sale_starts_at || ! $this->sale_ends_at) {
-            return false;
-        }
 
         $now = Carbon::now();
 
+        // Nếu không có thời gian bắt đầu và kết thúc -> Sale vô thời hạn (dài hạn)
+        if (!$this->sale_starts_at && !$this->sale_ends_at) {
+            return true;
+        }
+
+        // Nếu chỉ có thời gian bắt đầu
+        if ($this->sale_starts_at && !$this->sale_ends_at) {
+            return $now->gte($this->sale_starts_at);
+        }
+
+        // Nếu chỉ có thời gian kết thúc
+        if (!$this->sale_starts_at && $this->sale_ends_at) {
+            return $now->lte($this->sale_ends_at);
+        }
+
+        // Nếu có cả hai
         return $now->gte($this->sale_starts_at) && $now->lte($this->sale_ends_at);
     }
 
