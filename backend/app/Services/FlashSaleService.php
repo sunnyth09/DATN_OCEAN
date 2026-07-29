@@ -167,18 +167,33 @@ class FlashSaleService
             ]));
         }
 
-        OrderProcessingJob::dispatch(
-            $flashSaleId,
-            $productId,
-            $userId,
-            $quantity,
-            $addressId,
-            $orderInfo['recipient_name'],
-            $orderInfo['recipient_phone'],
-            $shippingAddress,
-            $orderInfo['payment_method'] ?? 'cod',
-            $orderCode
-        );
+        if (app()->environment('local') || config('queue.default') === 'sync') {
+            \App\Jobs\OrderProcessingJob::dispatchSync(
+                $flashSaleId,
+                $productId,
+                $userId,
+                $quantity,
+                $addressId,
+                $orderInfo['recipient_name'],
+                $orderInfo['recipient_phone'],
+                $shippingAddress,
+                $orderInfo['payment_method'] ?? 'cod',
+                $orderCode
+            );
+        } else {
+            \App\Jobs\OrderProcessingJob::dispatch(
+                $flashSaleId,
+                $productId,
+                $userId,
+                $quantity,
+                $addressId,
+                $orderInfo['recipient_name'],
+                $orderInfo['recipient_phone'],
+                $shippingAddress,
+                $orderInfo['payment_method'] ?? 'cod',
+                $orderCode
+            );
+        }
 
         return [
             'state' => 'ok',

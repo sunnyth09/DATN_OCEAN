@@ -142,9 +142,9 @@ class OrderController extends Controller
      * GET /api/orders/{id} — Chi tiết đơn hàng.
      * OrderPolicy::view() đảm bảo user chỉ xem đơn của mình.
      */
-    public function show(int $id): JsonResponse
+    public function show(string|int $id): JsonResponse
     {
-        $order = Order::find($id);
+        $order = is_numeric($id) ? Order::find($id) : Order::where('order_code', $id)->first();
 
         if (! $order) {
             return response()->json([
@@ -158,7 +158,7 @@ class OrderController extends Controller
         // Load chi tiết đầy đủ
         $detail = $this->orderService->getUserOrderDetail(
             auth('api')->user()->user_id,
-            $id
+            $order->order_id
         );
 
         return response()->json([

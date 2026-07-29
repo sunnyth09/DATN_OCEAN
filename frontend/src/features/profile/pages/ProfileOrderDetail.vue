@@ -105,7 +105,10 @@ const fetchOrderTracking = async () => {
 };
 
 const fetchOrderDetail = async () => {
-  if (!orderId.value) return;
+  if (!orderId.value || orderId.value === 'null' || orderId.value === 'undefined') {
+    router.replace({ name: 'profile-orders' });
+    return;
+  }
   loading.value = true;
   try {
     const res = await orderService.getProfileOrderDetail(orderId.value);
