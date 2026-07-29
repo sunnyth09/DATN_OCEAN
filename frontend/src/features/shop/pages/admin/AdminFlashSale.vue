@@ -490,6 +490,72 @@ onMounted(fetchFlashSales);
 ::-webkit-scrollbar-thumb:hover { background: #888; }
 </style>
 <style>
+/* ===== WS Modal Overlay ===== */
+.ws-modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
+}
+.ws-modal-box {
+  width: 100%; max-width: 520px; padding: 0;
+  background: var(--card-bg, #fff); border: 1px solid var(--border-color, #d9e8f0);
+  border-radius: 16px; overflow: hidden;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+.ws-modal-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 20px 24px; border-bottom: 1px solid var(--border-color, #d9e8f0);
+}
+.ws-modal-head h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main, #102a43); margin: 0; }
+.ws-btn-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted, #627d98); display: flex; align-items: center; justify-content: center;
+  padding: 4px; border-radius: 6px; transition: all 0.2s;
+}
+.ws-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--primary, var(--primary)); }
+
+.ws-modal-body { padding: 24px; }
+.ws-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+/* Form */
+.ws-form-group { margin-bottom: 16px; }
+.ws-form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main, #102a43); margin-bottom: 8px; }
+.ws-required { color: var(--primary, var(--primary)); }
+.ws-form-control {
+  width: 100%; padding: 10px 14px; border-radius: 8px;
+  border: 1px solid var(--border-color, #d9e8f0); background: var(--ocean-deepest, #f0f7fa);
+  color: var(--text-main, #102a43); font-family: var(--font-inter, 'Inter', sans-serif);
+  font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
+}
+.ws-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.ws-form-control::placeholder { color: var(--text-light, #9fb3c8); }
+.ws-form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23627d98' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+
+/* Buttons */
+.ws-btn-outline {
+  padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color, #d9e8f0);
+  background: var(--card-bg); color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; font-family: var(--font-inter, 'Inter', sans-serif);
+}
+.ws-btn-outline:hover { border-color: var(--ocean-mid, #b3e0f2); background: var(--ocean-deepest, #f0f7fa); }
+.ws-btn-primary {
+  padding: 10px 20px; border-radius: 8px; border: none;
+  background: var(--primary); color: #fff; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-inter, 'Inter', sans-serif);
+}
+.ws-btn-primary:hover { background: #d82f65; }
+.ws-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Transitions */
+.ws-modal-enter-active, .ws-modal-leave-active { transition: all 0.25s ease; }
+.ws-modal-enter-from, .ws-modal-leave-to { opacity: 0; }
+.ws-modal-enter-from .ws-modal-box, .ws-modal-leave-to .ws-modal-box { transform: scale(0.95) translateY(10px); }
+
 /* Đảm bảo toast hiển thị mượt mà */
 .ws-toast-enter-active { transition: all 0.3s ease; }
 .ws-toast-leave-active { transition: all 0.2s ease; }

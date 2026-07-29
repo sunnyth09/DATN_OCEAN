@@ -233,7 +233,10 @@ onMounted(() => {
       <div v-for="order in orders" :key="order.order_id" class="order-card">
         <div class="order-header">
           <div class="order-header-left">
-            <span class="order-code">#{{ order.order_code }}</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="order-code">#{{ order.order_code }}</span>
+                <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">⚡ Flash Sale</span>
+            </div>
             <div class="order-meta">
               <span>{{ formatDate(order.created_at) }}</span>
               <span class="dot">•</span>

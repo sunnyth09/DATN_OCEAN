@@ -506,7 +506,10 @@ onUnmounted(() => {
                         </td>
                         <td>
                             <div class="order-code-cell">
-                                <span class="badge-id">#{{ order.order_code }}</span>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="badge-id">#{{ order.order_code }}</span>
+                                    <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">⚡ Flash Sale</span>
+                                </div>
                                 <span class="order-date">{{ formatDate(order.created_at) }}</span>
                             </div>
                         </td>

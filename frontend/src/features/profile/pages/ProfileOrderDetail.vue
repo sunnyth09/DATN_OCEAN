@@ -331,8 +331,9 @@ watch(orderId, (newId) => {
         </button>
         <h2 class="page-title">Chi tiết đơn hàng</h2>
       </div>
-      <div v-if="order" class="header-right">
+      <div v-if="order" class="header-right" style="display: flex; align-items: center; gap: 8px;">
         <span class="order-code">#{{ order.order_code }}</span>
+        <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; font-weight: 700;">⚡ Flash Sale</span>
       </div>
     </div>
 
