@@ -19,7 +19,7 @@ Theo dõi đơn hàng
 Bạn cũng có thể tra cứu trực tiếp trên GHN tại: [{{ $ghnTrackingUrl }}]({{ $ghnTrackingUrl }})
 @endif
 
-Cảm ơn bạn đã mua sắm tại Quyền Sport.
+Cảm ơn bạn đã mua sắm tại Ocean Sport.
 
 Trân trọng,<br>
 {{ config('app.name') }}

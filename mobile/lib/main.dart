@@ -64,7 +64,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
       ],
       child: MaterialApp.router(
-        title: 'Quyền Sport',
+        title: 'Ocean Sport',
         debugShowCheckedModeBanner: false,
         routerConfig: router,
         // Sử dụng theme tập trung đồng bộ với website

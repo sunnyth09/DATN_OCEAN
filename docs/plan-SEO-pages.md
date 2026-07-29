@@ -165,7 +165,7 @@ Disallow: /checkout
 Disallow: /cart
 Allow: /
 
-Sitemap: https://quyensport.com/sitemap.xml
+Sitemap: https://oceansport.com/sitemap.xml
 ```
 - Set thêm `meta robots: noindex` qua `useHead()` cho route admin (phòng trường hợp URL vẫn bị crawl trước khi robots.txt được đọc).
 

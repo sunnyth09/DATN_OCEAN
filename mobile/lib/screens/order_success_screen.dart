@@ -114,7 +114,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 32),
                 child: Text(
-                  'Cảm ơn bạn đã mua sắm tại Quyền Sport. Đơn hàng của bạn đang được xử lý và sẽ sớm được giao.',
+                  'Cảm ơn bạn đã mua sắm tại Ocean Sport. Đơn hàng của bạn đang được xử lý và sẽ sớm được giao.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,

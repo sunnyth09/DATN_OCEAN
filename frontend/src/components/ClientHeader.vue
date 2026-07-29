@@ -509,8 +509,8 @@ watch(
             <div class="header-left">
                 <!-- Logo -->
                 <router-link to="/" class="logo">
-                    <img :src="BASE_URL + '/storage/logo/LOGO_QS.png'" alt="Logo" class="logo-img"
-                        width="70" height="auto" />
+                    <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png'" alt="Logo" class="logo-img"
+                         width="90" height="auto" />
                 </router-link>
 
                 <!-- Navigation Links -->
@@ -776,7 +776,7 @@ watch(
             <div class="mobile-nav-panel" @click.stop>
                 <div class="mobile-nav-header">
                     <div>
-                        <p class="mobile-nav-eyebrow">Quyền Sport</p>
+                        <p class="mobile-nav-eyebrow">Ocean Sport</p>
                         <h2 class="mobile-nav-title">Khám phá nhanh</h2>
                     </div>
                     <button type="button" class="icon-btn mobile-nav-close" @click="closeMobileMenu">
