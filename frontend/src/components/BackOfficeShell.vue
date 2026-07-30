@@ -314,7 +314,8 @@ onUnmounted(() => {
 <style scoped>
 .backoffice-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--ocean-deepest);
   color: var(--text-main);
   font-family: var(--font-primary);

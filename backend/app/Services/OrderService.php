@@ -266,8 +266,8 @@ class OrderService
                         'color' => $cartItem->variant->color,
                         'size' => $cartItem->variant->size,
                         'quantity' => $cartItem->quantity,
-                        'unit_price' => $cartItem->variant->price,
-                        'line_total' => $cartItem->variant->price * $cartItem->quantity,
+                        'unit_price' => $cartItem->variant->effective_price,
+                        'line_total' => $cartItem->variant->effective_price * $cartItem->quantity,
                     ]);
 
                     $this->variantRepository->decrementStock(
@@ -525,8 +525,8 @@ class OrderService
                         'color' => $cartItem->variant->color,
                         'size' => $cartItem->variant->size,
                         'quantity' => $cartItem->quantity,
-                        'unit_price' => $cartItem->variant->price,
-                        'line_total' => $cartItem->variant->price * $cartItem->quantity,
+                        'unit_price' => $cartItem->variant->effective_price,
+                        'line_total' => $cartItem->variant->effective_price * $cartItem->quantity,
                     ]);
 
                     $this->variantRepository->decrementStock(
@@ -764,7 +764,7 @@ class OrderService
                 );
             }
 
-            $subtotal += $item->variant->price * $item->quantity;
+            $subtotal += $item->variant->effective_price * $item->quantity;
         }
 
         return $subtotal;
@@ -787,7 +787,7 @@ class OrderService
                 );
             }
 
-            $actualSubtotal += $lockedVariant->price * $cartItem->quantity;
+            $actualSubtotal += $lockedVariant->effective_price * $cartItem->quantity;
         }
 
         // Re-validate price

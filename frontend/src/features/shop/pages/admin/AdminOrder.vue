@@ -96,9 +96,10 @@ const paymentLabels = {
 paymentLabels.refund_pending = 'Chờ hoàn';
 paymentLabels.refund_failed = 'Hoàn lỗi';
 
-const fetchOrders = async (page = 1) => {
-  loading.value = true;
-  selectedOrders.value = []; // Clear selection when changing page
+const fetchOrders = async (page = 1, showLoading = true) => {
+  if (showLoading) loading.value = true;
+  if (showLoading) selectedOrders.value = []; // Clear selection when changing page
+
   try {
     const res = await api.get('/admin/orders', {
       params: {
@@ -125,7 +126,7 @@ const fetchOrders = async (page = 1) => {
     console.error('Fetch orders failed', error);
     toast.error('Không thể tải danh sách đơn hàng');
   } finally {
-    loading.value = false;
+    if (showLoading) loading.value = false;
   }
 };
 
@@ -259,7 +260,8 @@ const updateOrderStatus = async (order, action) => {
       order._prevFulfillmentStatus = nextStatus;
       if (nextStatus === 'cancelled') order.cancel_reason = payload.note;
       toast.success(action.success || 'Cập nhật trạng thái thành công!');
-      await fetchOrders(pagination.value.current_page);
+      window.dispatchEvent(new Event('admin-order-updated'));
+      await fetchOrders(pagination.value.current_page, false);
     }
   } catch (error) {
     toast.error(error.response?.data?.message || 'Lỗi cập nhật trạng thái');
@@ -358,7 +360,8 @@ const applyBulkStatus = async () => {
             toast.success(res.data.message);
             selectedOrders.value = [];
             bulkFulfillmentStatus.value = '';
-            fetchOrders(pagination.value.current_page);
+            window.dispatchEvent(new Event('admin-order-updated'));
+            fetchOrders(pagination.value.current_page, false);
         }
     } catch (error) {
         toast.error(error.response?.data?.message || 'Có lỗi khi cập nhật hàng loạt');

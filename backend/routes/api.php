@@ -186,7 +186,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // Đơn hàng của tôi
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::middleware('throttle:10,1')->post('/orders', [OrderController::class, 'store']);
+    Route::middleware('throttle:20,1')->post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
     Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
@@ -222,7 +222,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
 // Tracking routes (Public, optional auth logic handled inside controller)
 Route::prefix('tracking')->group(function () {
-    Route::post('/view-product', [TrackingController::class, 'viewProduct']);
+    Route::middleware('throttle:120,1')->post('/view-product', [TrackingController::class, 'viewProduct']);
     Route::get('/recently-viewed', [TrackingController::class, 'getRecentlyViewed']);
     Route::get('/search-history', [TrackingController::class, 'getSearchHistory']);
 });
@@ -232,12 +232,13 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'getCart']);
     Route::get('/count', [CartController::class, 'getCount']);
     Route::get('/upsell-suggestions', [CartController::class, 'upsellSuggestions']);
-    Route::middleware('throttle:30,1')->post('/items', [CartController::class, 'addItem']);
-    Route::put('/items/{id}', [CartController::class, 'updateItem']);
-    Route::put('/items/{id}/variant', [CartController::class, 'changeVariant']);
+    Route::middleware('throttle:60,1')->post('/items', [CartController::class, 'addItem']);
+    Route::middleware('throttle:120,1')->put('/items/{id}', [CartController::class, 'updateItem']);
+    Route::middleware('throttle:120,1')->put('/items/{id}/variant', [CartController::class, 'changeVariant']);
     Route::delete('/items/{id}', [CartController::class, 'removeItem']);
     Route::delete('/', [CartController::class, 'clearCart']);
     Route::post('/buy-again/{orderId}', [CartController::class, 'buyAgain']);
+    Route::middleware('throttle:60,1')->put('/select-all', [CartController::class, 'selectAll']);
     Route::post('/sync', [CartController::class, 'sync']);
 });
 
@@ -443,6 +444,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin'
 
     // Tổng quan (Dashboard)
     Route::get('/dashboard', [AdminDashboardController::class, 'getDashboardData']);
+    Route::middleware('throttle:60,1')->get('/sidebar-badges', [AdminDashboardController::class, 'getSidebarBadges']);
 
     // Admin Statistics (Detailed dashboard)
     Route::get('/statistics/overview', [AdminStatisticsController::class, 'getOverview']);
@@ -518,7 +520,7 @@ Route::get('/loyalty/rules', [LoyaltyController::class, 'rules']);
 Route::middleware('auth:api')->prefix('loyalty')->group(function () {
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
-    Route::middleware('throttle:20,1')->post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
+    Route::middleware('throttle:60,1')->post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
 });
 
 // ==========================================
@@ -764,8 +766,8 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
 Route::middleware('throttle:120,1')->post('/ghn-webhook', [GhnWebhookController::class, 'handle']);
 
 Route::prefix('ghn')->group(function () {
-    Route::middleware('throttle:60,1')->post('/calculate-fee', [GhnController::class, 'calculateFee']);
-    Route::middleware('throttle:60,1')->post('/leadtime', [GhnController::class, 'getLeadtime']);
+    Route::middleware('throttle:120,1')->post('/calculate-fee', [GhnController::class, 'calculateFee']);
+    Route::middleware('throttle:120,1')->post('/leadtime', [GhnController::class, 'getLeadtime']);
 });
 
 Route::middleware('auth:api,admin')->prefix('ghn')->group(function () {

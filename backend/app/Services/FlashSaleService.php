@@ -144,6 +144,14 @@ class FlashSaleService
         }
 
         $stockKey = "flash_sale_{$flashSaleId}_product_{$productId}_stock";
+        
+        // Initialize stock in Redis if it doesn't exist (e.g., Redis restart, expiration, or missing sync)
+        if (!Redis::exists($stockKey)) {
+            $remainingStock = max(0, $item->campaign_stock - $item->sold);
+            Redis::set($stockKey, $remainingStock);
+            Redis::expire($stockKey, $ttl);
+        }
+        
         $remaining = Redis::decrby($stockKey, $quantity);
 
         if ($remaining < 0) {

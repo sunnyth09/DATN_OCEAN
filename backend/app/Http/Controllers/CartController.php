@@ -119,6 +119,29 @@ class CartController extends Controller
     }
 
     /**
+     * PUT /cart/select-all — Chọn / Bỏ chọn tất cả sản phẩm trong 1 request
+     * Thay thế cho việc frontend gửi N request song song (Promise.all) gây vượt rate limit.
+     */
+    public function selectAll(Request $request)
+    {
+        $userId = $this->cartService->getUserId();
+
+        if (! $userId) {
+            return response()->json(['status' => 'error', 'message' => 'Bạn cần đăng nhập!'], 401);
+        }
+
+        $request->validate([
+            'selected' => 'required|boolean',
+        ]);
+
+        $result = $this->cartService->selectAll($userId, (bool) $request->input('selected'));
+        $status = $result['_status'] ?? 200;
+        unset($result['_status']);
+
+        return response()->json($result, $status);
+    }
+
+    /**
      * PUT /cart/items/{id}/variant — Đổi biến thể
      */
     public function changeVariant(Request $request, $id)
@@ -244,7 +267,7 @@ class CartController extends Controller
                     'variant_name' => $variant->variant_name,
                     'color' => $variant->color,
                     'size' => $variant->size,
-                    'price' => $variant->price,
+                    'price' => $variant->effective_price,
                     'compare_at_price' => $variant->compare_at_price,
                     'stock' => $variant->stock,
                     'image_url' => $variant->image_url,
@@ -257,7 +280,7 @@ class CartController extends Controller
                     'thumbnail_url' => $product->thumbnail_url,
                     'main_image' => $mainImage ? $mainImage->image_url : null,
                 ] : null,
-                'line_total' => $variant ? $variant->price * $item['quantity'] : 0,
+                'line_total' => $variant ? $variant->effective_price * $item['quantity'] : 0,
             ];
         })->filter(function ($item) {
             return $item['variant'] !== null;

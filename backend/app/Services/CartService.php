@@ -78,7 +78,7 @@ class CartService
                     'variant_name' => $variant->variant_name,
                     'color' => $variant->color,
                     'size' => $variant->size,
-                    'price' => $variant->price,
+                    'price' => $variant->effective_price,
                     'compare_at_price' => $variant->compare_at_price,
                     'stock' => $variant->stock,
                     'image_url' => $variant->image_url,
@@ -91,7 +91,7 @@ class CartService
                     'thumbnail_url' => $product->thumbnail_url,
                     'main_image' => $mainImage ? $mainImage->image_url : null,
                 ] : null,
-                'line_total' => $variant ? $variant->price * $item->quantity : 0,
+                'line_total' => $variant ? $variant->effective_price * $item->quantity : 0,
             ];
         });
 
@@ -220,6 +220,25 @@ class CartService
         $cartItem->delete();
 
         return ['_status' => 200, 'status' => 'success', 'message' => 'Đã xóa sản phẩm khỏi giỏ hàng!'];
+    }
+
+    // ─── SELECT ALL / DESELECT ALL ─────────────────────────────────────
+
+    /**
+     * Cập nhật trạng thái selected cho tất cả items trong 1 request duy nhất.
+     * Thay thế cho việc gửi N request song song từ frontend (Promise.all).
+     */
+    public function selectAll(int $userId, bool $selected): array
+    {
+        $cart = Cart::where('user_id', $userId)->where('status', 'active')->first();
+
+        if (! $cart) {
+            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy giỏ hàng.'];
+        }
+
+        CartItem::where('cart_id', $cart->cart_id)->update(['selected' => $selected]);
+
+        return ['_status' => 200, 'status' => 'success', 'message' => 'Đã cập nhật trạng thái chọn!'];
     }
 
     /**

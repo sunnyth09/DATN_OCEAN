@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\ChatSession;
 use App\Models\Product;
+use App\Models\ReturnRequest;
+use App\Models\Ticket;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
 {
@@ -174,5 +178,41 @@ class AdminDashboardController extends Controller
         }
 
         return $colors[$sum % count($colors)];
+    }
+
+    /**
+     * GET /admin/sidebar-badges
+     * Trả về các con số badge cho sidebar menu:
+     * đơn hàng chờ xỮd lý, hoàn hàng chờ duyệt, ticket chưa giải quyết, live chat chưa đọc.
+     */
+    public function getSidebarBadges()
+    {
+        // Đơn hàng mới chưa xác nhận (pending)
+        $pendingOrders = Order::where('fulfillment_status', 'pending')->count();
+
+        // Hoàn hàng đang chờ duyệt
+        $pendingReturns = 0;
+        if (class_exists('\App\Models\ReturnRequest')) {
+            $pendingReturns = ReturnRequest::where('status', 'return_pending')->count();
+        }
+
+        // Ticket khiếu nại chưa giải quyết (pending hoặc đang xử lý)
+        $openTickets = 0;
+        if (class_exists('\\App\\Models\\Ticket')) {
+            $openTickets = Ticket::whereIn('status', ['pending', 'processing'])->count();
+        }
+
+        // Live chat session chưa được xử lý (status = open)
+        $unrepliedChats = ChatSession::where('status', 'open')->count();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'pending_orders'   => $pendingOrders,
+                'pending_returns'  => $pendingReturns,
+                'open_tickets'     => $openTickets,
+                'unreplied_chats'  => $unrepliedChats,
+            ],
+        ]);
     }
 }

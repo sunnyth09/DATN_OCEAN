@@ -37,6 +37,8 @@ class AdminOrderService
 
     private const STATUS_FIELD_MAP = [
         'confirmed' => 'confirmed_at',
+        'processing' => 'processing_at',
+        'packing' => 'packing_at',
         'shipping' => 'shipped_at',
         'delivered' => 'delivered_at',
         'completed' => 'completed_at',
@@ -466,6 +468,11 @@ class AdminOrderService
                 if (! $order->tracking_token) {
                     $order->tracking_token = hash('sha256', $order->order_code.Str::random(40).microtime(true));
                 }
+                
+                // Tự động chuyển sang trạng thái shipping
+                $order->fulfillment_status = OrderStatus::SHIPPING->value;
+                $order->shipped_at = now();
+                
                 $order->save();
 
                 $this->sendOrderShippingMail($order->fresh(['address']));
@@ -476,7 +483,7 @@ class AdminOrderService
                     'new_status' => $order->fulfillment_status,
                     'note' => 'Đã đồng bộ đơn hàng sang GHN',
                     'source' => 'system',
-                    'description' => 'Đã đồng bộ đơn hàng sang GHN',
+                    'description' => 'Đã đồng bộ đơn hàng sang GHN và chuyển sang trạng thái Giao hàng',
                     'happened_at' => now(),
                 ]);
             }
@@ -487,8 +494,9 @@ class AdminOrderService
                 'message' => 'Đã tạo đơn hàng trên GHN thành công!',
                 'data' => $result,
             ];
-        } catch (\Exception $e) {
-            return ['_status' => 500, 'status' => 'error', 'message' => $e->getMessage()];
+        } catch (\Throwable $e) {
+            Log::error('Lỗi syncGHN: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return ['_status' => 400, 'status' => 'error', 'message' => $e->getMessage()];
         } finally {
             optional($lock)->release();
         }

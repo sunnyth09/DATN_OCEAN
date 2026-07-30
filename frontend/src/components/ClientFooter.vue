@@ -27,7 +27,7 @@ const BASE_URL = getAppBaseUrl();
         <!-- Col 1: Brand + Newsletter -->
         <div class="footer-brand-col">
           <router-link to="/" class="footer-logo">
-              <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png'" alt="logo-ocean" width="70" height="auto">
+              <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="logo-ocean" width="70" height="auto">
           </router-link>
           <p class="footer-desc">Ocean Sport — Nơi hội tụ các thương hiệu uy tín, mang đến trải nghiệm mua sắm tuyệt vời cho bạn.</p>
 
