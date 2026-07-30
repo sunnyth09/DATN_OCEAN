@@ -9,6 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::disableForeignKeyConstraints();
+
         Schema::table('order_items', function (Blueprint $table) {
             if (!Schema::hasColumn('order_items', 'returned_quantity')) {
                 $table->integer('returned_quantity')->default(0)->after('quantity');

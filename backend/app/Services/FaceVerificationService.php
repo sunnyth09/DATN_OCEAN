@@ -310,7 +310,7 @@ class FaceVerificationService
         $fileName = "face_{$userId}_{$label}_".time().'_'.bin2hex(random_bytes(4)).".{$ext}";
         $path = 'face_registrations/'.$fileName;
 
-        Storage::disk('public')->put($path, $imageData, 'public');
+        Storage::disk('public')->put($path, $imageData);
 
         return '/storage/'.$path;
     }
