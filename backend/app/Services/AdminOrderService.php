@@ -29,7 +29,11 @@ class AdminOrderService
         'completed' => ['return_requested'],
         'cancelled' => [],
         'return_requested' => ['return_approved', 'return_rejected'],
-        'return_approved' => ['returned', 'refunded'],
+        'return_approved' => ['returning'],
+        'returning' => ['warehouse_received'],
+        'warehouse_received' => ['inspected_ok', 'inspection_failed'],
+        'inspected_ok' => ['returned'],
+        'inspection_failed' => ['return_rejected'],
         'return_rejected' => [],
         'returned' => ['refunded'],
         'refunded' => [],
@@ -151,13 +155,16 @@ class AdminOrderService
 
                     if ($order->payment_method === 'wallet' && $order->payment_status === PaymentStatus::PAID->value) {
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
-                        $this->walletService->refund(
-                            $order->user_id,
-                            (float) $order->wallet_spent,
-                            "Hoàn tiền hủy đơn hàng #{$order->order_code}",
-                            $order->order_id,
-                            Order::class
-                        );
+                        $walletSpent = (float) ($order->wallet_spent ?? $order->grand_total ?? 0);
+                        if ($walletSpent > 0) {
+                            $this->walletService->refund(
+                                $order->user_id,
+                                $walletSpent,
+                                "Hoàn tiền hủy đơn hàng #{$order->order_code}",
+                                $order->order_id,
+                                Order::class
+                            );
+                        }
                     }
 
                     // Hoàn ví GIẢM GIÁ (cột độc lập với wallet_spent; áp được cho mọi
