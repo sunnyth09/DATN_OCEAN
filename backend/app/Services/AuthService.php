@@ -24,8 +24,9 @@ class AuthService
      */
     public function verifyTurnstile(?string $token): bool
     {
-        // Tắt CAPTCHA khi đang ở môi trường local/dev
-        if (app()->environment('local')) {
+        \Log::info('verifyTurnstile called', ['env' => app()->environment(), 'token' => $token]);
+        // Tắt CAPTCHA khi đang ở môi trường local/dev, NHƯNG KHÔNG BAO GỒM TESTING
+        if (app()->environment('local') && !class_exists(\PHPUnit\Framework\TestCase::class)) {
             return true;
         }
 
@@ -91,6 +92,7 @@ class AuthService
         }
 
         // Turnstile
+        \Log::info('Register called', ['turnstile' => $data['turnstile_token'] ?? 'NOT_SET', 'is_mobile' => $data['is_mobile'] ?? 'NOT_SET']);
         if (! $this->verifyTurnstile($data['turnstile_token'] ?? null)) {
             return ['_status' => 422, 'status' => 'error', 'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'];
         }

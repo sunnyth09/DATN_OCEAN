@@ -186,7 +186,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // Đơn hàng của tôi
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::middleware('throttle:20,1')->post('/orders', [OrderController::class, 'store']);
+    Route::middleware('throttle:5,1')->post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
     Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
@@ -243,7 +243,7 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 });
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
-Route::middleware('throttle:5,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:3,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
 Route::middleware('throttle:30,1')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
 Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
@@ -665,8 +665,8 @@ Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
             ->map(function ($order) {
                 return [
                     'order_code' => $order->order_code,
-                    'user' => $order->user ? $order->user->full_name.' ('.$order->user->email.')' : 'N/A',
-                    'grand_total' => number_format($order->grand_total, 0, ',', '.').'đ',
+                    'user' => $order->user ? $order->user->full_name . ' (' . $order->user->email . ')' : 'N/A',
+                    'grand_total' => number_format($order->grand_total, 0, ',', '.') . 'đ',
                     'status' => $order->fulfillment_status,
                     'created_at' => $order->created_at->format('H:i:s d/m'),
                     'minutes_ago' => now()->diffInMinutes($order->created_at),
@@ -703,10 +703,10 @@ Route::get('image-proxy', function (Request $request) {
 
     // Resolve absolute path và verify nằm trong storage boundary
     $storagePath = realpath(storage_path('app/public'));
-    $absolutePath = realpath(storage_path('app/public/'.$path));
+    $absolutePath = realpath(storage_path('app/public/' . $path));
 
     // realpath trả false nếu file không tồn tại
-    if (! $absolutePath || ! str_starts_with($absolutePath, $storagePath.DIRECTORY_SEPARATOR)) {
+    if (! $absolutePath || ! str_starts_with($absolutePath, $storagePath . DIRECTORY_SEPARATOR)) {
         abort(404);
     }
 
