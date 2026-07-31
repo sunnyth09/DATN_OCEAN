@@ -84,8 +84,9 @@ jobs:
             git reset --hard origin/production
             
             # 2. Deploy Frontend & Nginx Configs (dùng quyền Docker để không bao giờ cần sudo)
+            # XÓA file cũ trước để dist sạch hoàn toàn — tránh tích lũy JS/CSS hash cũ từ nhiều lần build
             # LƯU Ý: Dùng cp -rn (no clobber) khi copy cấu hình Nginx để KHÔNG ghi đè làm mất block SSL 443 do Certbot đã tạo trên VPS
-            docker run --rm --privileged -v /:/host -v /tmp/frontend_dist_${{ github.run_id }}:/dist -v $(pwd)/nginx/vps:/repo_vps alpine sh -c "mkdir -p /host/var/www/oceansport/dist && cp -rf /dist/* /host/var/www/oceansport/dist/ && chown -R 33:33 /host/var/www/oceansport/dist && cp -rn /repo_vps/* /host/etc/nginx/sites-available/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/apiocean.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/oceansport.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && rm -f /host/etc/nginx/sites-enabled/default"
+            docker run --rm --privileged -v /:/host -v /tmp/frontend_dist_${{ github.run_id }}:/dist -v $(pwd)/nginx/vps:/repo_vps alpine sh -c "mkdir -p /host/var/www/oceansport/dist && rm -rf /host/var/www/oceansport/dist/* && cp -rf /dist/* /host/var/www/oceansport/dist/ && chown -R 33:33 /host/var/www/oceansport/dist && cp -rn /repo_vps/* /host/etc/nginx/sites-available/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/apiocean.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/oceansport.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && rm -f /host/etc/nginx/sites-enabled/default"
             rm -rf /tmp/frontend_dist_${{ github.run_id }}
             
             # 3. Reload VPS Nginx để nhận file mới (dùng quyền Docker để không bao giờ cần sudo)
