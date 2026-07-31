@@ -186,7 +186,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // Đơn hàng của tôi
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::middleware('throttle:5,1')->post('/orders', [OrderController::class, 'store']);
+    Route::middleware('throttle:20,1')->post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
     Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
@@ -243,7 +243,7 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 });
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
-Route::middleware('throttle:3,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:10,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
 Route::middleware('throttle:30,1')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
 Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
@@ -255,8 +255,8 @@ Route::get('flash-sale', [FlashSaleController::class, 'index']);
 // Public — Tồn kho hiện tại (cho Progress Bar, poll mỗi 30s)
 // ⚠️ Đặt TRƯỚC flash-sale/buy để tránh conflict {id} với 'buy'
 Route::get('flash-sale/{id}/stock', [FlashSaleController::class, 'stock']);
-// Protected — Mua Flash Sale (throttle 10 request/phút/user)
-Route::middleware(['auth:api,admin', 'throttle:10,1'])->post('flash-sale/buy', [FlashSaleController::class, 'buy']);
+// Protected — Mua Flash Sale (30 request/phút/user — đủ thoải mái thử lại)
+Route::middleware(['auth:api,admin', 'throttle:30,1'])->post('flash-sale/buy', [FlashSaleController::class, 'buy']);
 
 // ==========================================
 // AFFILIATE — Track Click (Public, không cần auth)
@@ -532,8 +532,8 @@ Route::middleware('auth:api')->prefix('wallet')->group(function () {
     Route::get('/history', [WalletController::class, 'history']);          // Lịch sử giao dịch
     Route::get('/preview-discount', [WalletController::class, 'previewDiscount']); // Preview giảm giá checkout
 
-    // Nạp tiền ví (rate limited: 5 requests/phút)
-    Route::middleware('throttle:5,1')->post('/deposit/init', [WalletDepositController::class, 'initDeposit']);
+    // Nạp tiền ví (15 requests/phút — cho phép retry khi gateway lỗi)
+    Route::middleware('throttle:15,1')->post('/deposit/init', [WalletDepositController::class, 'initDeposit']);
 
     // Rút tiền ví (rate limited: 3 requests/phút)
     Route::middleware('throttle:3,1')->post('/withdraw', [WalletController::class, 'withdraw']);
@@ -560,7 +560,7 @@ Route::get('/posts', [PostController::class, 'index']);
 Route::middleware('throttle:20,1')->post('/chatbot/message', [ChatbotController::class, 'sendMessage']);
 
 // Chatbot transactional actions (Customer only — không cho admin/staff đặt hàng qua AI)
-Route::middleware(['auth:api', 'throttle:10,1'])->prefix('chatbot')->group(function () {
+Route::middleware(['auth:api', 'throttle:30,1'])->prefix('chatbot')->group(function () {
     Route::post('/cart/add', [ChatbotController::class, 'addToCart']);
     Route::get('/addresses', [ChatbotController::class, 'getAddresses']);
     Route::post('/order/prepare', [ChatbotController::class, 'prepareOrder']);
@@ -575,17 +575,17 @@ Route::middleware('throttle:30,1')->group(function () {
     Route::post('/live-chat/message', [ChatController::class, 'sendMessage']);
 });
 
-// VNPay Payment Gateway (Public — VNPay redirect về đây, rate limiting chống brute-force)
-Route::middleware('throttle:30,1')->get('/payment/vnpay-return', [VNPayController::class, 'vnpayReturn']);
-Route::middleware('throttle:30,1')->post('/payment/vnpay-ipn', [VNPayController::class, 'vnpayIpn']);
+// VNPay Payment Gateway (Public — VNPay redirect về đây)
+// IPN là server-to-server từ VNPay — không throttle, return URL tăng lên 60 cho user retry
+Route::middleware('throttle:60,1')->get('/payment/vnpay-return', [VNPayController::class, 'vnpayReturn']);
+Route::post('/payment/vnpay-ipn', [VNPayController::class, 'vnpayIpn']);
 
 // MoMo Payment Gateway
-Route::middleware('throttle:30,1')->get('/payment/momo-return', [MoMoController::class, 'momoReturn']);
+Route::middleware('throttle:60,1')->get('/payment/momo-return', [MoMoController::class, 'momoReturn']);
+Route::post('/payment/momo-ipn', [MoMoController::class, 'momoIpn']);
 
-Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [MoMoController::class, 'momoIpn']);
-
-// SePay Webhook
-Route::middleware('throttle:60,1')->post('/payment/sepay-webhook', [SepayController::class, 'handleWebhook']);
+// SePay Webhook — server-to-server, không throttle
+Route::post('/payment/sepay-webhook', [SepayController::class, 'handleWebhook']);
 // =====================================================================
 // ██ DEBUG ROUTES — Chạy thủ công scheduler commands (XÓA KHI PRODUCTION)
 // =====================================================================

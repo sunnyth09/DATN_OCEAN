@@ -329,12 +329,13 @@ class SpamProtectionTest extends TestCase
         $this->assertNotNull($route, 'Route POST /api/profile/orders phải tồn tại');
 
         $middleware = $route->middleware();
-        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:5'));
+        // Nâng lên 20,1 để tránh 429 khi user retry sau lỗi payment
+        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:20'));
 
-        $this->assertTrue($hasThrottle, 'Route POST /api/profile/orders phải có throttle:5,1 (giảm từ 10 xuống 5)');
+        $this->assertTrue($hasThrottle, 'Route POST /api/profile/orders phải có throttle:20,1');
     }
 
-    /** Route guest order có throttle:3,1 */
+    /** Route guest order có throttle:10,1 */
     public function test_guest_order_route_has_throttle_3_per_minute(): void
     {
         $routes = Route::getRoutes();
@@ -347,9 +348,10 @@ class SpamProtectionTest extends TestCase
         $this->assertNotNull($route, 'Route POST /api/orders/guest phải tồn tại');
 
         $middleware = $route->middleware();
-        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:3'));
+        // Nâng lên 10,1 — vẫn chặt hơn user (20,1) nhưng đủ cho guest retry
+        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:10'));
 
-        $this->assertTrue($hasThrottle, 'Route guest order phải có throttle:3,1 (chặt hơn user)');
+        $this->assertTrue($hasThrottle, 'Route guest order phải có throttle:10,1 (chặt hơn user 20,1)');
     }
 
     /** Guest order throttle phải chặt hơn user order */
