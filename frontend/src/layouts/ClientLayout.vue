@@ -26,9 +26,9 @@ import ChatbotWidget from '../components/ChatbotWidget.vue';
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--text-main);
-  background: var(--card-bg);
+  background: var(--bg-gray);
 }
 
 /* site-main không cần max-width riêng —

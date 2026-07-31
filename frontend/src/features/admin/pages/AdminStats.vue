@@ -78,6 +78,13 @@
           <TopProductsTable :products="topProducts" />
         </div>
       </div>
+
+      <!-- Staff Sales Table -->
+      <div class="row mt-4 mb-5">
+        <div class="col-12">
+          <StaffSalesTable :sales="staffSales" @export="handleExportStaffSales" />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -92,6 +99,7 @@ import OrderStatusChart from './Statistics/OrderStatusChart.vue';
 import TopProductsTable from './Statistics/TopProductsTable.vue';
 import TopCustomersTable from './Statistics/TopCustomersTable.vue';
 import RevenueReportTable from './Statistics/RevenueReportTable.vue';
+import StaffSalesTable from './Statistics/StaffSalesTable.vue';
 
 const filters = ref({
   preset: '30days',
@@ -107,6 +115,7 @@ const orderStatusChartData = ref({});
 const topProducts = ref([]);
 const topCustomers = ref([]);
 const revenueReport = ref([]);
+const staffSales = ref([]);
 
 const fetchData = async () => {
   loading.value = true;
@@ -119,7 +128,8 @@ const fetchData = async () => {
       api.get('/admin/statistics/orders-status', { params }),
       api.get('/admin/statistics/top-products', { params }),
       api.get('/admin/statistics/top-customers', { params }),
-      api.get('/admin/statistics/report', { params })
+      api.get('/admin/statistics/report', { params }),
+      api.get('/admin/statistics/staff-sales', { params })
     ];
 
     const [
@@ -128,7 +138,8 @@ const fetchData = async () => {
       orderStatusChartRes,
       topProductsRes,
       topCustomersRes,
-      reportRes
+      reportRes,
+      staffSalesRes
     ] = await Promise.all(urls);
 
     overviewData.value = overviewRes.data.data;
@@ -137,6 +148,7 @@ const fetchData = async () => {
     topProducts.value = topProductsRes.data.data;
     topCustomers.value = topCustomersRes.data.data;
     revenueReport.value = reportRes.data.data;
+    staffSales.value = staffSalesRes.data.data;
 
   } catch (error) {
     console.error('Lỗi tải dữ liệu thống kê:', error);
@@ -156,7 +168,6 @@ const handleExportExcel = async () => {
     const link = document.createElement('a');
     link.href = url;
 
-    // Tạo tên file an toàn với định dạng tháng trước
     const lastMonth = new Date();
     lastMonth.setMonth(lastMonth.getMonth() - 1);
     const mm = String(lastMonth.getMonth() + 1).padStart(2, '0');
@@ -169,6 +180,27 @@ const handleExportExcel = async () => {
   } catch (error) {
     console.error("Lỗi xuất Excel:", error);
     alert("Không thể xuất file Excel. Vui lòng kiểm tra lại quyền hoặc dữ liệu.");
+  }
+};
+
+const handleExportStaffSales = async () => {
+  try {
+    const params = { ...filters.value };
+    const response = await api.get('/admin/statistics/export-staff-sales', { params, responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, '0')}_${String(now.getDate()).padStart(2, '0')}`;
+
+    link.setAttribute('download', `Doanh_Thu_Nhan_Vien_${dateStr}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+  } catch (error) {
+    console.error("Lỗi xuất Excel:", error);
+    alert("Không thể xuất file Excel báo cáo nhân viên.");
   }
 };
 

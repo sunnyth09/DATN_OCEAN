@@ -138,10 +138,10 @@ const markAsRead = async (notif) => {
             console.error(e);
         }
     }
-    
+
     if (notif.data?.url_redirect) {
-         router.push(notif.data.url_redirect);
-         showNotifDropdown.value = false;
+        router.push(notif.data.url_redirect);
+        showNotifDropdown.value = false;
     }
 };
 
@@ -277,11 +277,11 @@ const handleDocumentClick = (event) => {
     if (!target.closest(".account-dropdown")) {
         closeAccountMenu();
     }
-    
+
     if (!target.closest(".notif-dropdown")) {
         showNotifDropdown.value = false;
     }
-    
+
     if (!target.closest(".search-wrapper")) {
         showDropdownResult.value = false;
         if (!searchQuery.value) {
@@ -510,83 +510,43 @@ watch(
                 <!-- Logo -->
                 <router-link to="/" class="logo">
                     <div class="logo-container">
-                        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Logo" class="logo-img" />
+                        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Logo"
+                            class="logo-img" />
                     </div>
                 </router-link>
 
                 <!-- Navigation Links -->
                 <nav class="main-nav">
-                    <router-link
-                        v-for="cat in topCategories"
-                        :key="getCategoryId(cat)"
-                        :to="getCategoryRoute(cat)"
-                        class="nav-link"
-                        :class="{ active: isCategoryActive(cat) }"
-                    >
+                    <router-link v-for="cat in topCategories" :key="getCategoryId(cat)" :to="getCategoryRoute(cat)"
+                        class="nav-link" :class="{ active: isCategoryActive(cat) }">
                         {{ cat.name }}
                     </router-link>
-                    <router-link
-                        to="/courts"
-                        class="nav-link"
-                        :class="{ active: isRouteActive('courts') }"
-                    >
+                    <router-link to="/courts" class="nav-link" :class="{ active: isRouteActive('courts') }">
                         Sân thể thao
                     </router-link>
-                    <router-link
-                        to="/contact"
-                        class="nav-link"
-                        :class="{ active: isRouteActive('contact') }"
-                    >
+                    <router-link to="/contact" class="nav-link" :class="{ active: isRouteActive('contact') }">
                         Liên hệ
                     </router-link>
                 </nav>
             </div>
 
             <div class="header-actions">
-                <button
-                    type="button"
-                    class="icon-btn mobile-nav-toggle"
-                    :aria-expanded="isMobileMenuOpen"
-                    aria-label="Mở menu điều hướng"
-                    @click.stop="toggleMobileMenu"
-                >
+                <button type="button" class="icon-btn mobile-nav-toggle" :aria-expanded="isMobileMenuOpen"
+                    aria-label="Mở menu điều hướng" @click.stop="toggleMobileMenu">
                     <AppIcon name="menu" stroke-width="2.2" />
                 </button>
 
                 <!-- Search -->
                 <!-- Inline Expandable Search -->
                 <div class="search-wrapper">
-                    <div
-                        class="search-container"
-                        :class="{ 'is-expanded': isSearchExpanded }"
-                    >
-                        <input
-                            id="site-search"
-                            name="search"
-                            type="text"
-                            class="search-input"
-                            v-model="searchQuery"
-                            ref="searchInputRef"
-                            @keyup.enter="executeSearch"
-                            @blur="handleSearchBlur"
-                            @focus="handleSearchFocus"
-                            placeholder="Tìm kiếm sản phẩm..."
-                            aria-label="Tìm kiếm sản phẩm"
-                        />
-                        <button
-                            class="icon-btn search-icon-btn"
-                            @click="toggleSearch"
-                        >
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
+                    <div class="search-container" :class="{ 'is-expanded': isSearchExpanded }">
+                        <input id="site-search" name="search" type="text" class="search-input" v-model="searchQuery"
+                            ref="searchInputRef" @keyup.enter="executeSearch" @blur="handleSearchBlur"
+                            @focus="handleSearchFocus" placeholder="Tìm kiếm sản phẩm..."
+                            aria-label="Tìm kiếm sản phẩm" />
+                        <button class="icon-btn search-icon-btn" @click="toggleSearch">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="11" cy="11" r="8"></circle>
                                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
@@ -596,33 +556,39 @@ watch(
                     <!-- Search dropdown results -->
                     <div class="search-dropdown-box" v-if="isSearchExpanded && showDropdownResult">
                         <div v-if="isSearching" class="search-msg">Đang tìm kiếm...</div>
-                        
+
                         <!-- Lịch sử tìm kiếm & Gợi ý (khi chưa gõ) -->
                         <div v-else-if="!searchQuery" class="search-suggestions">
                             <div class="search-history-section" v-if="searchHistory.length">
-                                <div class="suggestion-header" style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF; display:flex; justify-content: space-between">
+                                <div class="suggestion-header"
+                                    style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF; display:flex; justify-content: space-between">
                                     <span>Lịch sử tìm kiếm</span>
                                 </div>
                                 <ul class="search-list">
-                                    <li v-for="(history, i) in searchHistory" :key="'h-'+i" class="search-item" @click.stop="executeSearch(history.keyword)">
+                                    <li v-for="(history, i) in searchHistory" :key="'h-' + i" class="search-item"
+                                        @click.stop="executeSearch(history.keyword)">
                                         <AppIcon name="search" size="14" style="margin-right: 8px; color: #636E72" />
                                         <div class="search-item-info">
-                                            <div class="search-item-name" style="font-weight: 500;">{{ history.keyword }}</div>
+                                            <div class="search-item-name" style="font-weight: 500;">{{ history.keyword
+                                                }}</div>
                                         </div>
                                     </li>
                                 </ul>
                             </div>
 
                             <div class="recently-viewed-section" v-if="recentlyViewed.length">
-                                <div class="suggestion-header" style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF;">
+                                <div class="suggestion-header"
+                                    style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF;">
                                     <span>Sản phẩm vừa xem</span>
                                 </div>
                                 <ul class="search-list">
-                                    <li v-for="item in recentlyViewed" :key="'r-'+item.product_id" class="search-item" @click.stop="goToProduct(item.product.slug)">
+                                    <li v-for="item in recentlyViewed" :key="'r-' + item.product_id" class="search-item"
+                                        @click.stop="goToProduct(item.product.slug)">
                                         <img :src="getImageUrl(item.product)" class="search-item-img" />
                                         <div class="search-item-info">
                                             <div class="search-item-name">{{ item.product.name }}</div>
-                                            <div class="search-item-price">{{ formatPrice(item.product.min_price) }}</div>
+                                            <div class="search-item-price">{{ formatPrice(item.product.min_price) }}
+                                            </div>
                                         </div>
                                     </li>
                                 </ul>
@@ -634,10 +600,12 @@ watch(
                         </div>
 
                         <!-- Kết quả tìm kiếm -->
-                        <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản phẩm phù hợp.</div>
+                        <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản
+                            phẩm phù hợp.</div>
                         <template v-else>
                             <ul class="search-list">
-                                <li v-for="item in searchResults" :key="item.product_id" class="search-item" @click.stop="goToProduct(item.slug)">
+                                <li v-for="item in searchResults" :key="item.product_id" class="search-item"
+                                    @click.stop="goToProduct(item.slug)">
                                     <img :src="getImageUrl(item)" class="search-item-img" />
                                     <div class="search-item-info">
                                         <div class="search-item-name">{{ item.name }}</div>
@@ -659,7 +627,7 @@ watch(
                             <AppIcon name="bell" />
                             <span v-if="unreadNotificationCount > 0" class="cart-badge">{{
                                 unreadNotificationCount > 99 ? "99+" : unreadNotificationCount
-                            }}</span>
+                                }}</span>
                         </div>
                     </button>
 
@@ -668,20 +636,21 @@ watch(
                         <div class="notif-menu-inner">
                             <div class="notif-header">
                                 <h3>Thông báo mới</h3>
-                                <router-link to="/profile/notifications" @click="showNotifDropdown = false" class="notif-view-all">Xem tất cả</router-link>
+                                <router-link to="/profile/notifications" @click="showNotifDropdown = false"
+                                    class="notif-view-all">Xem
+                                    tất cả</router-link>
                             </div>
                             <div class="notif-list" v-if="notificationsList.length > 0">
-                                <div v-for="notif in notificationsList" :key="notif.id" 
-                                     class="notif-item" 
-                                     :class="{ unread: !notif.read_at }"
-                                     @click="markAsRead(notif)">
+                                <div v-for="notif in notificationsList" :key="notif.id" class="notif-item"
+                                    :class="{ unread: !notif.read_at }" @click="markAsRead(notif)">
                                     <div class="notif-icon-circle">
                                         <AppIcon name="bell" size="18" />
                                     </div>
                                     <div class="notif-content">
                                         <div class="notif-title">{{ notif.data?.title || 'Thông báo mới' }}</div>
                                         <div class="notif-desc">{{ notif.data?.message }}</div>
-                                        <div class="notif-time">{{ new Date(notif.created_at).toLocaleString('vi-VN') }}</div>
+                                        <div class="notif-time">{{ new Date(notif.created_at).toLocaleString('vi-VN') }}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -689,7 +658,8 @@ watch(
                                 Không có thông báo nào.
                             </div>
                             <div class="notif-footer" v-if="notifPage < notifTotalPages">
-                                <button class="btn-notif-loadmore" @click.stop="loadMoreNotifications" :disabled="isFetchingNotif">
+                                <button class="btn-notif-loadmore" @click.stop="loadMoreNotifications"
+                                    :disabled="isFetchingNotif">
                                     {{ isFetchingNotif ? 'Đang tải...' : 'Tải thêm' }}
                                 </button>
                             </div>
@@ -697,7 +667,8 @@ watch(
                     </div>
 
                     <transition name="notif-popup-slide">
-                        <div v-if="showNotificationPopup" class="new-notif-popup" @click="router.push('/profile/notifications'); showNotificationPopup = false">
+                        <div v-if="showNotificationPopup" class="new-notif-popup"
+                            @click="router.push('/profile/notifications'); showNotificationPopup = false">
                             Bạn có thông báo mới
                         </div>
                     </transition>
@@ -709,7 +680,7 @@ watch(
                         <AppIcon name="cart" />
                         <span v-if="cartCount > 0" class="cart-badge">{{
                             cartCount > 99 ? "99+" : cartCount
-                        }}</span>
+                            }}</span>
                     </div>
                 </router-link>
 
@@ -746,12 +717,14 @@ watch(
                                     </div>
                                 </div>
                                 <!-- Điểm thưởng mini trong header dropdown -->
-                                <router-link v-if="headerRewardPoints >= 0" to="/profile/loyalty" class="header-loyalty-row" @click="closeAccountMenu">
+                                <router-link v-if="headerRewardPoints >= 0" to="/profile/loyalty"
+                                    class="header-loyalty-row" @click="closeAccountMenu">
                                     <span class="header-loyalty-icon">
                                         <AppIcon name="trophy" size="16" style="color: #f59e0b;" />
                                     </span>
                                     <span class="header-loyalty-label">Số điểm:</span>
-                                    <span class="header-loyalty-pts">{{ new Intl.NumberFormat('vi-VN').format(headerRewardPoints) }} điểm</span>
+                                    <span class="header-loyalty-pts">{{ new
+                                        Intl.NumberFormat('vi-VN').format(headerRewardPoints) }} điểm</span>
                                     <span class="header-loyalty-arrow">›</span>
                                 </router-link>
                                 <div class="dropdown-divider"></div>
@@ -788,46 +761,48 @@ watch(
                 <div class="mobile-search-wrapper" style="position: relative; margin-bottom: 24px;">
                     <form class="mobile-search-box" @submit.prevent="executeSearch(); closeMobileMenu()">
                         <AppIcon name="search" size="18" class="mobile-search-icon" />
-                        <input 
-                            type="search" 
-                            class="mobile-search-input" 
-                            placeholder="Tìm kiếm sản phẩm..."
-                            v-model="searchQuery"
-                            @focus="handleSearchFocus"
-                            @blur="handleSearchBlur"
-                        />
+                        <input type="search" class="mobile-search-input" placeholder="Tìm kiếm sản phẩm..."
+                            v-model="searchQuery" @focus="handleSearchFocus" @blur="handleSearchBlur" />
                     </form>
 
                     <!-- Search dropdown results for Mobile -->
-                    <div class="search-dropdown-box mobile-dropdown" v-if="showDropdownResult" style="position: absolute; top: calc(100% + 8px); right: auto; left: 0; width: 100%; z-index: 1000;">
+                    <div class="search-dropdown-box mobile-dropdown" v-if="showDropdownResult"
+                        style="position: absolute; top: calc(100% + 8px); right: auto; left: 0; width: 100%; z-index: 1000;">
                         <div v-if="isSearching" class="search-msg">Đang tìm kiếm...</div>
-                        
+
                         <!-- Lịch sử tìm kiếm & Gợi ý (khi chưa gõ) -->
                         <div v-else-if="!searchQuery" class="search-suggestions">
                             <div class="search-history-section" v-if="searchHistory.length">
-                                <div class="suggestion-header" style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF; display:flex; justify-content: space-between">
+                                <div class="suggestion-header"
+                                    style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF; display:flex; justify-content: space-between">
                                     <span>Lịch sử tìm kiếm</span>
                                 </div>
                                 <ul class="search-list">
-                                    <li v-for="(history, i) in searchHistory" :key="'hm-'+i" class="search-item" @click.stop="executeSearch(history.keyword); closeMobileMenu()">
+                                    <li v-for="(history, i) in searchHistory" :key="'hm-' + i" class="search-item"
+                                        @click.stop="executeSearch(history.keyword); closeMobileMenu()">
                                         <AppIcon name="search" size="14" style="margin-right: 8px; color: #636E72" />
                                         <div class="search-item-info">
-                                            <div class="search-item-name" style="font-weight: 500;">{{ history.keyword }}</div>
+                                            <div class="search-item-name" style="font-weight: 500;">{{ history.keyword
+                                                }}
+                                            </div>
                                         </div>
                                     </li>
                                 </ul>
                             </div>
 
                             <div class="recently-viewed-section" v-if="recentlyViewed.length">
-                                <div class="suggestion-header" style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF;">
+                                <div class="suggestion-header"
+                                    style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF;">
                                     <span>Sản phẩm vừa xem</span>
                                 </div>
                                 <ul class="search-list">
-                                    <li v-for="item in recentlyViewed" :key="'rm-'+item.product_id" class="search-item" @click.stop="goToProduct(item.product.slug); closeMobileMenu()">
+                                    <li v-for="item in recentlyViewed" :key="'rm-' + item.product_id" class="search-item"
+                                        @click.stop="goToProduct(item.product.slug); closeMobileMenu()">
                                         <img :src="getImageUrl(item.product)" class="search-item-img" />
                                         <div class="search-item-info">
                                             <div class="search-item-name">{{ item.product.name }}</div>
-                                            <div class="search-item-price">{{ formatPrice(item.product.min_price) }}</div>
+                                            <div class="search-item-price">{{ formatPrice(item.product.min_price) }}
+                                            </div>
                                         </div>
                                     </li>
                                 </ul>
@@ -839,10 +814,12 @@ watch(
                         </div>
 
                         <!-- Kết quả tìm kiếm -->
-                        <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản phẩm phù hợp.</div>
+                        <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản
+                            phẩm phù hợp.</div>
                         <template v-else>
                             <ul class="search-list">
-                                <li v-for="item in searchResults" :key="'sm-'+item.product_id" class="search-item" @click.stop="goToProduct(item.slug); closeMobileMenu()">
+                                <li v-for="item in searchResults" :key="'sm-' + item.product_id" class="search-item"
+                                    @click.stop="goToProduct(item.slug); closeMobileMenu()">
                                     <img :src="getImageUrl(item)" class="search-item-img" />
                                     <div class="search-item-info">
                                         <div class="search-item-name">{{ item.name }}</div>
@@ -850,7 +827,8 @@ watch(
                                     </div>
                                 </li>
                             </ul>
-                            <div v-if="searchResults.length > 0" class="search-view-all" @click.stop="executeSearch(); closeMobileMenu()">
+                            <div v-if="searchResults.length > 0" class="search-view-all"
+                                @click.stop="executeSearch(); closeMobileMenu()">
                                 Xem tất cả kết quả
                             </div>
                         </template>
@@ -858,30 +836,17 @@ watch(
                 </div>
 
                 <nav class="mobile-nav-links">
-                    <router-link
-                        v-for="cat in topCategories"
-                        :key="`mobile-${getCategoryId(cat)}`"
-                        :to="getCategoryRoute(cat)"
-                        class="mobile-nav-link"
-                        :class="{ active: isCategoryActive(cat) }"
-                        @click="closeMobileMenu"
-                    >
+                    <router-link v-for="cat in topCategories" :key="`mobile-${getCategoryId(cat)}`"
+                        :to="getCategoryRoute(cat)" class="mobile-nav-link" :class="{ active: isCategoryActive(cat) }"
+                        @click="closeMobileMenu">
                         {{ cat.name }}
                     </router-link>
-                    <router-link
-                        to="/contact"
-                        class="mobile-nav-link"
-                        :class="{ active: isRouteActive('contact') }"
-                        @click="closeMobileMenu"
-                    >
+                    <router-link to="/contact" class="mobile-nav-link" :class="{ active: isRouteActive('contact') }"
+                        @click="closeMobileMenu">
                         Liên hệ
                     </router-link>
-                    <router-link
-                        to="/coupon"
-                        class="mobile-nav-link"
-                        :class="{ active: isRouteActive('coupon') }"
-                        @click="closeMobileMenu"
-                    >
+                    <router-link to="/coupon" class="mobile-nav-link" :class="{ active: isRouteActive('coupon') }"
+                        @click="closeMobileMenu">
                         Săn voucher
                     </router-link>
                 </nav>
@@ -898,16 +863,22 @@ watch(
                                 <span>{{ userEmail }}</span>
                             </div>
                         </div>
-                        <router-link to="/profile" class="mobile-account-link" @click="closeMobileMenu">Tài khoản của tôi</router-link>
-                        <router-link v-if="isAdmin" to="/admin" class="mobile-account-link" @click="closeMobileMenu">Quản trị</router-link>
-                        <router-link to="/profile/notifications" class="mobile-account-link" @click="closeMobileMenu">Thông báo</router-link>
-                        <button type="button" class="mobile-account-link mobile-account-link--danger" @click="handleLogout">
+                        <router-link to="/profile" class="mobile-account-link" @click="closeMobileMenu">Tài khoản của
+                            tôi</router-link>
+                        <router-link v-if="isAdmin" to="/admin" class="mobile-account-link"
+                            @click="closeMobileMenu">Quản trị</router-link>
+                        <router-link to="/profile/notifications" class="mobile-account-link"
+                            @click="closeMobileMenu">Thông báo</router-link>
+                        <button type="button" class="mobile-account-link mobile-account-link--danger"
+                            @click="handleLogout">
                             Đăng xuất
                         </button>
                     </template>
                     <template v-else>
-                        <router-link to="/client/login" class="mobile-account-link" @click="closeMobileMenu">Đăng nhập</router-link>
-                        <router-link to="/client/register" class="mobile-account-link" @click="closeMobileMenu">Đăng ký</router-link>
+                        <router-link to="/client/login" class="mobile-account-link" @click="closeMobileMenu">Đăng
+                            nhập</router-link>
+                        <router-link to="/client/register" class="mobile-account-link" @click="closeMobileMenu">Đăng
+                            ký</router-link>
                     </template>
                 </div>
             </div>
@@ -974,7 +945,8 @@ watch(
 
 .logo-container {
     width: 60px;
-    height: 50px; /* Adjust height to crop the text at the bottom */
+    height: 50px;
+    /* Adjust height to crop the text at the bottom */
     overflow: hidden;
     display: flex;
     justify-content: center;
@@ -1034,6 +1006,10 @@ watch(
     border-radius: 2px;
 }
 
+.site-header.is-scrolled .nav-link.active::after {
+    display: none;
+}
+
 /* HEADER ACTIONS */
 .header-actions {
     display: flex;
@@ -1078,27 +1054,33 @@ watch(
     display: flex;
     align-items: center;
 }
+
 .search-container {
     display: flex;
     align-items: center;
     position: relative;
-    width: 40px; /* matched to new height */
+    width: 40px;
+    /* matched to new height */
     height: 40px;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s, box-shadow 0.3s;
     overflow: hidden;
     border-radius: 20px;
     background: transparent;
 }
+
 .search-container.is-expanded {
     width: 300px;
     max-width: calc(100vw - 120px);
     background: #f1f5f9;
     padding-left: 16px;
 }
+
 .search-container.is-expanded:focus-within {
     background: var(--card-bg);
-    box-shadow: 0 0 0 1.5px var(--primary); /* focus ring */
+    box-shadow: 0 0 0 1.5px var(--primary);
+    /* focus ring */
 }
+
 .search-input {
     border: none;
     background: transparent;
@@ -1111,12 +1093,15 @@ watch(
     font-size: 0.95rem;
     color: var(--text-main);
 }
+
 .search-container.is-expanded .search-input {
     width: 100%;
     flex: 1;
     opacity: 1;
-    padding-right: 40px; /* prevent overlap with absolute icon */
+    padding-right: 40px;
+    /* prevent overlap with absolute icon */
 }
+
 .search-icon-btn {
     position: absolute;
     right: 0;
@@ -1133,6 +1118,7 @@ watch(
     cursor: pointer;
     transition: color 0.2s;
 }
+
 .search-icon-btn:hover {
     color: var(--primary);
 }
@@ -1150,12 +1136,14 @@ watch(
     overflow: hidden;
     z-index: 300;
 }
+
 .search-msg {
     padding: 24px;
     text-align: center;
     color: #64748b;
     font-size: 0.95rem;
 }
+
 .search-list {
     list-style: none;
     margin: 0;
@@ -1163,6 +1151,7 @@ watch(
     max-height: 400px;
     overflow-y: auto;
 }
+
 .search-item {
     display: flex;
     align-items: center;
@@ -1172,12 +1161,15 @@ watch(
     cursor: pointer;
     transition: background 0.2s;
 }
+
 .search-item:last-child {
     border-bottom: none;
 }
+
 .search-item:hover {
     background: #f8fafc;
 }
+
 .search-item-img {
     width: 54px;
     height: 54px;
@@ -1186,10 +1178,12 @@ watch(
     background: #e2e8f0;
     flex-shrink: 0;
 }
+
 .search-item-info {
     flex: 1;
     overflow: hidden;
 }
+
 .search-item-name {
     font-size: 0.95rem;
     font-weight: 600;
@@ -1201,11 +1195,14 @@ watch(
     margin-bottom: 4px;
     line-height: 1.3;
 }
+
 .search-item-price {
     font-size: 0.9rem;
     font-weight: 700;
-    color: var(--primary); /* Ocean blue theme */
+    color: var(--primary);
+    /* Ocean blue theme */
 }
+
 .search-view-all {
     padding: 14px;
     text-align: center;
@@ -1217,6 +1214,7 @@ watch(
     transition: background 0.2s;
     border-top: 1px solid #e2e8f0;
 }
+
 .search-view-all:hover {
     background: #e2e8f0;
 }
@@ -1453,6 +1451,7 @@ watch(
     border: 1px solid #fed7aa;
     padding: 10px 12px;
 }
+
 .header-loyalty-row {
     display: flex;
     align-items: center;
@@ -1460,21 +1459,25 @@ watch(
     text-decoration: none !important;
     padding: 10px 12px;
 }
+
 .header-loyalty-icon {
     font-size: 1rem;
     flex-shrink: 0;
 }
+
 .header-loyalty-label {
     font-size: 0.78rem;
     color: #92400e;
     font-weight: 500;
 }
+
 .header-loyalty-pts {
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--primary);
     flex: 1;
 }
+
 .header-loyalty-arrow {
     color: var(--primary);
     font-size: 1.1rem;
@@ -1678,7 +1681,7 @@ watch(
 .floating-flash-sale {
     position: fixed;
     z-index: 9999;
-    bottom: 120px; 
+    bottom: 120px;
     right: 20px;
     cursor: pointer;
     user-select: none;
@@ -1701,18 +1704,20 @@ watch(
     height: 60px;
     width: 60px;
     border-radius: 30px;
-    padding: 0 18px; /* 18px + 18px + 24px icon = 60px */
+    padding: 0 18px;
+    /* 18px + 18px + 24px icon = 60px */
     overflow: hidden;
     white-space: nowrap;
-    box-shadow: 0 4px 15px rgba(230, 59, 111, 0.4); 
+    box-shadow: 0 4px 15px rgba(230, 59, 111, 0.4);
     position: relative;
     z-index: 1;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy effect */
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* Bouncy effect */
 }
 
 .floating-flash-sale:hover .flash-sale-badge {
     width: 170px;
-    box-shadow: 0 8px 25px rgba(230, 59, 111, 0.5); 
+    box-shadow: 0 8px 25px rgba(230, 59, 111, 0.5);
 }
 
 .flash-sale-icon {
@@ -1760,6 +1765,7 @@ watch(
         transform: scale(1);
         opacity: 1;
     }
+
     100% {
         transform: scale(1.35, 1.6);
         opacity: 0;
@@ -1775,7 +1781,8 @@ watch(
 .new-notif-popup {
     position: absolute;
     top: calc(100% + 12px);
-    right: -10px; /* Căn phải hoặc tùy chỉnh */
+    right: -10px;
+    /* Căn phải hoặc tùy chỉnh */
     background: var(--card-bg);
     color: #1a2b4a;
     padding: 10px 16px;
@@ -1838,7 +1845,8 @@ watch(
 
     .mobile-nav-toggle {
         display: inline-flex !important;
-        order: 99; /* Đưa nút menu sang góc phải tận cùng */
+        order: 99;
+        /* Đưa nút menu sang góc phải tận cùng */
     }
 
     .account-dropdown {
@@ -1859,6 +1867,7 @@ watch(
         height: 18px;
     }
 }
+
 .notif-footer {
     padding: 10px;
     text-align: center;
@@ -1884,5 +1893,4 @@ watch(
     color: #94a3b8;
     cursor: not-allowed;
 }
-
 </style>

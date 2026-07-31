@@ -90,7 +90,11 @@ return new class extends Migration
             }
         });
 
-        DB::statement("UPDATE wallet_transactions SET transaction_code = CONCAT('WTX-MIG-', transaction_id) WHERE transaction_code IS NULL");
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement("UPDATE wallet_transactions SET transaction_code = 'WTX-MIG-' || transaction_id WHERE transaction_code IS NULL");
+        } else {
+            DB::statement("UPDATE wallet_transactions SET transaction_code = CONCAT('WTX-MIG-', transaction_id) WHERE transaction_code IS NULL");
+        }
 
         Schema::table('wallet_transactions', function (Blueprint $table) {
             $table->foreign('wallet_id')

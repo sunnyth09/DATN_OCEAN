@@ -50,21 +50,34 @@ const updateCountdown = () => {
     };
 };
 
-const flashSaleProducts = computed(() =>
-    Products.value.filter(p => p.is_on_sale || p.discount_percent > 0).slice(0, 4)
-);
+const flashSaleProducts = computed(() => {
+    return Products.value.filter(p => p.is_on_sale || p.discount_percent > 0).slice(0, 4).map(p => {
+        // Add fake sold stats for demo Scarcity UX
+        const total = 100;
+        const sold = Math.floor(Math.random() * 50) + 40; // 40-90
+        const percent = Math.floor((sold / total) * 100);
+        return { ...p, flash_sold: sold, flash_total: total, flash_percent: percent };
+    });
+});
 
-// ── Category helpers ──
-const catIcons = ['⚽', '🏀', '🎾', '🏊', '🥊', '🏋️', '🎽', '👟'];
+// ── Category helpers (Updated with Line Art SVGs) ──
+const catIcons = [
+    '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><path d="M11 7h2v6h-2zm0 8h2v2h-2z"/>', // Demo SVG path
+    '<path d="M21 6.5l-4-4-2 2-6-6-2 2 6 6-2 2 4 4 2-2 6 6 2-2-4-4 2-2 4 4z"/>',
+    '<circle cx="12" cy="12" r="8"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
+    '<path d="M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4M8 10l4 4 4-4M12 14V4"/>',
+    '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+    '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'
+];
 const getCatIcon = (idx) => catIcons[idx % catIcons.length];
 
 const catGradients = [
-    'linear-gradient(135deg,#667eea,#764ba2)',
-    'linear-gradient(135deg,#f093fb,#f5576c)',
-    'linear-gradient(135deg,#4facfe,#00f2fe)',
-    'linear-gradient(135deg,#43e97b,#38f9d7)',
-    'linear-gradient(135deg,#fa709a,#fee140)',
-    'linear-gradient(135deg,#a18cd1,#fbc2eb)',
+    'linear-gradient(135deg,#2563eb,#4f46e5)',
+    'linear-gradient(135deg,#ec4899,#e11d48)',
+    'linear-gradient(135deg,#06b6d4,#0ea5e9)',
+    'linear-gradient(135deg,#10b981,#059669)',
+    'linear-gradient(135deg,#f59e0b,#ea580c)',
+    'linear-gradient(135deg,#8b5cf6,#7c3aed)',
 ];
 const getCatGradient = (idx) => catGradients[idx % catGradients.length];
 
@@ -172,11 +185,28 @@ const brands = [
     { name: 'New Balance', logo: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/New_Balance_logo.svg' },
 ];
 
+const revealElements = ref([]);
+
+const initScrollReveal = () => {
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('reveal-active');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
+};
+
 onMounted(() => {
     fetchCategories();
     fetchProducts();
     updateCountdown();
     countdownTimer = setInterval(updateCountdown, 1000);
+    // Initialize reveal slightly after mount to ensure DOM is ready
+    setTimeout(initScrollReveal, 300);
 });
 onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 </script>
@@ -189,22 +219,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 <div class="hero-overlay"></div>
             </div>
             <div class="container hero-content-wrap">
-                <div class="hero-stat--top-right d-none d-lg-flex mt-5">
-                    <div class="hero-stat-item">
-                        <span class="hero-stat-num">50K+</span>
-                        <span class="hero-stat-label">Khách hàng</span>
-                    </div>
-                    <div class="hero-stat-divider"></div>
-                    <div class="hero-stat-item">
-                        <span class="hero-stat-num">1000+</span>
-                        <span class="hero-stat-label">Sản phẩm</span>
-                    </div>
-                    <div class="hero-stat-divider"></div>
-                    <div class="hero-stat-item">
-                        <span class="hero-stat-num">100%</span>
-                        <span class="hero-stat-label">Chính hãng</span>
-                    </div>
-                </div>
+                <!-- Removed legacy top-right stats in favor of new glass block -->
                 <div class="hero-content">
                     <span class="hero-tag">BỘ SƯU TẬP MỚI 2026</span>
                     <h1 class="hero-title">
@@ -212,7 +227,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </h1>
                     <p class="hero-desc">Khám phá những thiết bị chất lượng cao, được thiết kế để nâng tầm kỹ năng
                         và đưa bạn đến chiến thắng. Đam mê bắt đầu từ đây.</p>
-                    <div class="d-flex gap-3 flex-wrap hero-btns">
+                    <div class="d-flex gap-3 flex-wrap hero-btns mb-5">
                         <router-link to="/product" class="btn-primary-hero">
                             Khám phá ngay
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -228,6 +243,23 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                             Flash Sale
                         </router-link>
                     </div>
+                    
+                    <div class="hero-stats-glass mt-4">
+                        <div class="hero-stat-item">
+                            <span class="hero-stat-num">50K+</span>
+                            <span class="hero-stat-label">Khách hàng</span>
+                        </div>
+                        <div class="hero-stat-divider"></div>
+                        <div class="hero-stat-item">
+                            <span class="hero-stat-num">1000+</span>
+                            <span class="hero-stat-label">Sản phẩm</span>
+                        </div>
+                        <div class="hero-stat-divider"></div>
+                        <div class="hero-stat-item">
+                            <span class="hero-stat-num">100%</span>
+                            <span class="hero-stat-label">Chính hãng</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -236,7 +268,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              2. BENEFITS BAR — Full Width
         ══════════════════════════════════════════ -->
-        <section class="benefits-bar">
+        <section class="benefits-bar reveal-on-scroll">
             <div class="container">
                 <div class="benefits-inner">
                     <div class="benefit-item">
@@ -343,7 +375,20 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </template>
                     <template v-else-if="flashSaleProducts.length > 0">
                         <div v-for="product in flashSaleProducts" :key="'flash-' + product.id" class="col-6 col-md-4 col-lg-3">
-                            <ProductCard :product="product" />
+                            <div class="flash-sale-card-wrapper">
+                                <ProductCard :product="product" />
+                                <div class="flash-progress-wrap mt-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="flash-sold-text">Đã bán {{ product.flash_sold }}</span>
+                                        <svg v-if="product.flash_percent > 75" class="fire-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="flash-progress-bar">
+                                        <div class="flash-progress-fill" :style="{ width: product.flash_percent + '%' }"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </template>
                     <template v-else>
@@ -362,7 +407,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              4. DANH MỤC NỔI BẬT — Container width
         ══════════════════════════════════════════ -->
-        <section class="section-categories py-5 bg-light">
+        <section class="section-categories py-5 bg-light reveal-on-scroll">
             <div class="container">
                 <!-- Section head -->
                 <div class="d-flex align-items-end justify-content-between mb-4">
@@ -392,7 +437,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                 <div class="cat-card-img" v-if="cat.image">
                                     <img :src="cat.image" :alt="cat.name" />
                                 </div>
-                                <div class="cat-card-icon" v-else>{{ getCatIcon(idx) }}</div>
+                                <div class="cat-card-icon svg-icon" v-else v-html="getCatIcon(idx)"></div>
                                 <div class="cat-card-info">
                                     <span class="cat-card-name">{{ cat.name }}</span>
                                     <span class="cat-card-count" v-if="cat.product_count">{{ cat.product_count }} SP</span>
@@ -404,7 +449,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                         <div v-for="(icon, idx) in catIcons.slice(0, 6)" :key="idx" class="col-6 col-sm-4 col-lg-2">
                             <router-link to="/product" class="cat-card">
                                 <div class="cat-card-bg" :style="{ background: getCatGradient(idx) }"></div>
-                                <div class="cat-card-icon">{{ icon }}</div>
+                                <div class="cat-card-icon svg-icon" v-html="icon"></div>
                                 <div class="cat-card-info">
                                     <span class="cat-card-name">Thể thao {{ idx + 1 }}</span>
                                 </div>
@@ -418,7 +463,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              5. TRANG BỊ THIẾT YẾU — Container width
         ══════════════════════════════════════════ -->
-        <section class="py-5">
+        <section class="py-5 reveal-on-scroll">
             <div class="container">
                 <div class="d-flex align-items-end justify-content-between mb-4">
                     <div>
@@ -527,25 +572,22 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              6. SẢN PHẨM BÁN CHẠY — Container width
         ══════════════════════════════════════════ -->
-        <section class="py-5 bg-light">
+        <section class="py-5 bg-light reveal-on-scroll">
             <div class="container">
                 <div class="text-center mb-4">
                     <h2 class="section-title accent-title mb-2">SẢN PHẨM BÁN CHẠY</h2>
                     <p class="section-subtitle">Được yêu thích nhất bởi cộng đồng thể thao Việt Nam</p>
                 </div>
-                <!-- Tab filter -->
-                <div class="d-flex justify-content-center gap-2 mb-4">
-                    <button class="tab-btn" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f97316; margin-right: 4px; margin-bottom: 2px;">
-                            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
-                        </svg> Tất cả
-                    </button>
-                    <button class="tab-btn" :class="{ active: activeTab === 'sale' }" @click="activeTab = 'sale'">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #eab308; margin-right: 4px; margin-bottom: 2px;">
-                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                        </svg> Đang Sale
-                    </button>
+                <div class="segmented-control-wrap mb-4">
+                    <div class="segmented-control">
+                        <div class="segmented-bg" :style="{ transform: activeTab === 'sale' ? 'translateX(100%)' : 'translateX(0)' }"></div>
+                        <button class="seg-btn" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">
+                            Tất cả
+                        </button>
+                        <button class="seg-btn" :class="{ active: activeTab === 'sale' }" @click="activeTab = 'sale'">
+                            Đang Sale
+                        </button>
+                    </div>
                 </div>
                 <!-- Products Bootstrap row -->
                 <div class="row g-4">
@@ -582,7 +624,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              7. DUAL PROMO BANNERS — Container width
         ══════════════════════════════════════════ -->
-        <section class="py-5">
+        <section class="py-5 reveal-on-scroll">
             <div class="container">
                 <div class="row g-4">
                     <!-- Banner 1 -->
@@ -658,7 +700,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              9. TESTIMONIALS — Container width
         ══════════════════════════════════════════ -->
-        <section class="py-5 bg-light">
+        <section class="py-5 bg-light reveal-on-scroll">
             <div class="container">
                 <div class="text-center mb-5">
                     <h2 class="section-title mb-2">KHÁCH HÀNG NÓI GÌ?</h2>
@@ -828,7 +870,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .hero-section {
     position: relative;
     width: 100%;
-    height: 620px;
+    height: 80vh;
+    min-height: 600px;
     overflow: hidden;
 }
 
@@ -858,7 +901,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .hero-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(105deg, rgba(15, 15, 25, .92) 0%, rgba(15, 15, 25, .65) 45%, rgba(15, 15, 25, .2) 75%);
+    background: linear-gradient(105deg, rgba(15, 23, 42, .9) 0%, rgba(15, 23, 42, .6) 50%, rgba(230, 59, 111, .35) 100%);
 }
 
 /* Floating stats */
@@ -947,11 +990,11 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .hero-title {
-    font-size: 4rem;
+    font-size: 3.8rem;
     font-weight: 900;
-    line-height: 1.08;
+    line-height: 1.25;
     color: #fff;
-    letter-spacing: -1.5px;
+    letter-spacing: -1px;
     margin: 0 0 20px;
     animation: fadeInLeft .7s ease both .1s;
 }
@@ -959,14 +1002,14 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .hero-title em {
     font-style: italic;
     color: var(--primary);
-    text-shadow: 0 0 40px rgba(230, 59, 111, .5);
+    text-shadow: 0 0 40px rgba(230, 59, 111, .6);
 }
 
 .hero-desc {
-    font-size: 1rem;
-    color: #cbd5e1;
-    line-height: 1.7;
-    margin-bottom: 32px;
+    font-size: 1.1rem;
+    color: #e2e8f0;
+    line-height: 1.6;
+    margin-bottom: 35px;
     animation: fadeInLeft .7s ease both .2s;
 }
 
@@ -1083,8 +1126,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     gap: 20px;
     background: #ffffff;
     border-radius: 20px;
-    padding: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
+    padding: 16px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.02);
     border: 1px solid rgba(0, 0, 0, 0.035);
 }
 
@@ -1173,7 +1216,16 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    3. FLASH SALE
 ============================================ */
 .flash-sale-section {
-    background: linear-gradient(135deg, #0f0f1a 0%, #1a0a1e 50%, #1f0d0d 100%);
+    background: linear-gradient(135deg, #180008 0%, #3a0014 50%, #1f000a 100%);
+    position: relative;
+}
+
+.flash-sale-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at 80% 20%, rgba(230, 59, 111, 0.15), transparent 40%);
+    pointer-events: none;
 }
 
 .flash-sale-icon {
@@ -1290,54 +1342,54 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .cat-card {
     position: relative;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 16px;
     overflow: hidden;
-    min-height: 180px;
+    min-height: 160px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: center;
+    padding: 20px 10px;
     text-decoration: none;
     cursor: pointer;
-    transition: transform .3s, box-shadow .3s;
+    transition: all .3s;
 }
 
 .cat-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, .18);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, .05);
+    border-color: var(--primary);
 }
 
 .cat-card-bg {
-    position: absolute;
-    inset: 0;
-    opacity: .9;
-    transition: opacity .3s;
+    display: none;
 }
 
 .cat-card:hover .cat-card-bg {
-    opacity: 1;
+    display: none;
 }
 
 .cat-card-img {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 90px;
-    height: 90px;
+    position: static;
+    transform: none;
+    width: 80px;
+    height: 80px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #fff;
-    border-radius: 50%;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    padding: 12px;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    margin-bottom: 12px;
+    transition: transform 0.3s ease;
 }
 
 .cat-card:hover .cat-card-img {
-    transform: translateX(-50%) scale(1.1);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-5px);
+    box-shadow: none;
 }
 
 .cat-card-img img {
@@ -1347,42 +1399,41 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .cat-card-icon {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -65%);
-    font-size: 2.8rem;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .15));
+    position: static;
+    transform: none;
+    font-size: 3rem;
+    filter: none;
+    color: var(--primary);
+    margin-bottom: 12px;
     transition: transform .3s;
 }
 
 .cat-card:hover .cat-card-icon {
-    transform: translate(-50%, -75%) scale(1.1);
+    transform: translateY(-5px);
 }
 
 .cat-card-info {
-    position: relative;
-    z-index: 2;
+    position: static;
     width: 100%;
-    padding: 12px 10px;
-    background: linear-gradient(to top, rgba(0, 0, 0, .6), transparent);
+    padding: 0;
+    background: transparent;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
 }
 
 .cat-card-name {
-    color: #fff;
-    font-size: .95rem;
+    color: #1e293b;
+    font-size: 1.05rem;
     font-weight: 700;
     text-align: center;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, .4);
+    text-shadow: none;
 }
 
 .cat-card-count {
-    color: rgba(255, 255, 255, .8);
-    font-size: .75rem;
+    color: #64748b;
+    font-size: .8rem;
     font-weight: 500;
 }
 
@@ -1405,7 +1456,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-big-img {
     width: 100%;
-    height: 280px;
+    height: 340px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1475,11 +1526,12 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     background: var(--card-bg);
     border: 1px solid #eaeaea;
     border-radius: 16px;
-    padding: 32px 24px;
+    padding: 24px;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 190px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 160px;
     text-decoration: none;
     transition: box-shadow .3s, transform .3s;
     overflow: hidden;
@@ -1493,29 +1545,26 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-small-card--empty {
     flex-direction: column;
-    align-items: center;
     justify-content: center;
     background: #f8f9fa;
 }
 
 .equip-small-img {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 45%;
-    height: 85%;
+    position: static;
+    width: 100px;
+    height: 100px;
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
+    transform: none;
+    flex-shrink: 0;
 }
 
 .equip-small-img img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    object-position: right center;
     mix-blend-mode: multiply;
     transition: transform .4s ease;
 }
@@ -1526,8 +1575,9 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-small-info {
     position: relative;
-    max-width: 60%;
     z-index: 2;
+    flex: 1;
+    padding-right: 16px;
 }
 
 .equip-small-name {
@@ -1600,7 +1650,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    7. PROMO BANNERS
 ============================================ */
 .promo-banner {
-    border-radius: 20px;
+    border-radius: 4px;
     padding: 44px 36px;
     position: relative;
     overflow: hidden;
@@ -1608,14 +1658,45 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     align-items: center;
     min-height: 260px;
     height: 100%;
+    box-shadow: var(--shadow-md);
 }
 
 .promo-banner--dark {
-    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
 }
 
 .promo-banner--red {
-    background: linear-gradient(135deg, #2d0011, #4a0020, #6b1a3a);
+    background: #fff0f3;
+    border: 1px solid #ffe4e6;
+}
+
+.promo-banner--red .promo-banner-title {
+    color: #1e293b;
+}
+
+.promo-banner--red .promo-banner-desc {
+    color: #64748b;
+}
+
+.promo-banner--red .promo-banner-tag {
+    background: #fff;
+    color: var(--primary);
+    border-color: #ffe4e6;
+}
+
+.promo-banner--red .promo-banner-btn--outline {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.promo-banner--red .promo-banner-btn--outline:hover {
+    background: var(--primary);
+    color: #fff;
+}
+
+.promo-banner--red .deco-circle {
+    background: var(--primary);
+    opacity: 0.05;
 }
 
 .promo-banner-content {
@@ -1871,7 +1952,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .community-content {
-    background: linear-gradient(135deg, #1a1a2e, #2d3436);
+    background: linear-gradient(135deg, #0f172a, #1e293b);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -2151,4 +2232,141 @@ a.promo-banner-btn {
         font-size: 1.3rem;
     }
 }
+
+/* ============================================
+   NEW UX/UI ADDITIONS
+============================================ */
+
+/* Hero Glassmorphism Stats */
+.hero-stats-glass {
+    display: inline-flex;
+    align-items: center;
+    gap: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 16px 28px;
+    animation: fadeInDown 0.8s ease both 0.4s;
+}
+
+@media (max-width: 576px) {
+    .hero-stats-glass {
+        flex-direction: row;
+        width: 100%;
+        justify-content: space-between;
+        padding: 12px 16px;
+        gap: 10px;
+    }
+    .hero-stat-item .hero-stat-num {
+        font-size: 1.1rem;
+    }
+    .hero-stat-item .hero-stat-label {
+        font-size: 0.65rem;
+    }
+}
+
+/* Flash Sale Progress Bar */
+.flash-sale-card-wrapper {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding-bottom: 12px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.flash-progress-wrap {
+    padding: 0 16px;
+    margin-top: auto;
+}
+.flash-sold-text {
+    font-size: 0.75rem;
+    color: #e63b6f;
+    font-weight: 700;
+}
+.fire-icon {
+    color: #f97316;
+    animation: flicker 1s infinite alternate;
+}
+@keyframes flicker {
+    0% { opacity: 0.7; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1.1); }
+}
+.flash-progress-bar {
+    height: 6px;
+    background: #ffe4e6;
+    border-radius: 99px;
+    overflow: hidden;
+}
+.flash-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff8fab, #e63b6f);
+    border-radius: 99px;
+    transition: width 1s ease-out;
+}
+
+/* Category SVG Icons */
+.cat-card-icon.svg-icon {
+    width: 60px;
+    height: 60px;
+    fill: #ffffff;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2));
+}
+.cat-card-icon.svg-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Segmented Control (Best Sellers Tabs) */
+.segmented-control-wrap {
+    display: flex;
+    justify-content: center;
+}
+.segmented-control {
+    position: relative;
+    display: inline-flex;
+    background: #f1f5f9;
+    padding: 4px;
+    border-radius: 99px;
+}
+.segmented-bg {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    background: var(--primary);
+    border-radius: 99px;
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 2px 10px rgba(230, 59, 111, 0.3);
+}
+.seg-btn {
+    position: relative;
+    z-index: 2;
+    padding: 10px 32px;
+    border: none;
+    background: transparent;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: color 0.3s;
+    border-radius: 99px;
+}
+.seg-btn.active {
+    color: #ffffff;
+}
+
+/* Scroll Reveal Animations */
+.reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+}
+.reveal-active {
+    opacity: 1;
+    transform: translateY(0);
+}
 </style>
+

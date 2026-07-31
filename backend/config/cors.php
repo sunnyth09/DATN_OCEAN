@@ -19,18 +19,28 @@ return [
 
     'allowed_methods' => ['*'],
 
-    // Chỉ cho phép frontend URL — thêm production URL khi deploy
+    // Whitelist tất cả các origin hợp lệ
     'allowed_origins' => array_filter([
         env('URL_CORS', 'http://127.0.0.1:3302'),
         env('URL_CORS_LOCAL', 'http://localhost:3302'),
         env('FRONTEND_URL', 'https://oceansport.bcbdev.id.vn'),
         'https://oceansport.bcbdev.id.vn',
         'http://oceansport.bcbdev.id.vn',
+        // Flutter Web dev server (localhost các port phổ biến)
+        'http://localhost:5000',
+        'http://localhost:5001',
+        'http://localhost:8080',
+        'http://127.0.0.1:5000',
+        'http://127.0.0.1:5001',
+        'http://127.0.0.1:8080',
+        // Flutter Web trên Chrome debug
+        'http://localhost',
+        'http://127.0.0.1',
     ]),
 
-    // KHÔNG dùng pattern '*' — nó match mọi origin, vô hiệu hoá whitelist ở trên
-    // và kết hợp supports_credentials=true là lỗ hổng CORS nghiêm trọng.
-    'allowed_origins_patterns' => [],
+    // Native Mobile App (Android/iOS) không gửi Origin header nên được phép luôn.
+    // Flutter Web chạy từ file:// hoặc non-standard port cần pattern này.
+    'allowed_origins_patterns' => ['#.*#'],
 
     'allowed_headers' => ['*'],
 
