@@ -87,6 +87,7 @@ return [
     'face' => [
         'url' => env('FACE_SERVICE_URL', 'http://face-service:8001'),
         'timeout' => env('FACE_SERVICE_TIMEOUT', 15),
+        'secret' => env('FACE_SERVICE_SECRET', 'super-secret-default-key-change-in-prod'),
     ],
 
 ];

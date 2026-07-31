@@ -26,10 +26,13 @@ class FaceVerificationService
      */
     private int $timeout;
 
+    private string $serviceSecret;
+
     public function __construct()
     {
         $this->serviceUrl = rtrim(config('services.face.url', 'http://face-service:8001'), '/');
         $this->timeout = (int) config('services.face.timeout', 15);
+        $this->serviceSecret = config('services.face.secret', 'super-secret-default-key-change-in-prod');
     }
 
     // ================================================================
@@ -45,7 +48,8 @@ class FaceVerificationService
     public function encodeFace(string $base64Image): array
     {
         try {
-            $response = Http::timeout($this->timeout)
+            $response = Http::withHeaders(['X-Internal-Secret' => $this->serviceSecret])
+                ->timeout($this->timeout)
                 ->post("{$this->serviceUrl}/encode", [
                     'image' => $base64Image,
                 ]);
@@ -95,7 +99,8 @@ class FaceVerificationService
     public function verify(string $base64Image, array $registeredEncodings): array
     {
         try {
-            $response = Http::timeout($this->timeout)
+            $response = Http::withHeaders(['X-Internal-Secret' => $this->serviceSecret])
+                ->timeout($this->timeout)
                 ->post("{$this->serviceUrl}/verify", [
                     'image' => $base64Image,
                     'registered_encodings' => $registeredEncodings,
