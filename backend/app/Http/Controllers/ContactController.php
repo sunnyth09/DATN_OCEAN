@@ -120,6 +120,14 @@ class ContactController extends Controller
             'message.required' => 'Vui lòng nhập nội dung.',
         ]);
 
+        $validator->after(function ($validator) use ($request) {
+            if (\App\Helpers\ProfanityFilter::hasProfanity($request->name) || 
+                \App\Helpers\ProfanityFilter::hasProfanity($request->subject) || 
+                \App\Helpers\ProfanityFilter::hasProfanity($request->message)) {
+                $validator->errors()->add('message', 'Nội dung chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.');
+            }
+        });
+
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
@@ -142,11 +150,13 @@ class ContactController extends Controller
         RateLimiter::hit($ipKey, 3600);
         RateLimiter::hit($emailKey, 3600);
 
+        $filteredMessage = \App\Helpers\ProfanityFilter::filter($request->message);
+
         Contact::create([
             'name' => $request->name,
             'email' => $request->email,
             'subject' => $request->subject,
-            'message' => $request->message,
+            'message' => $filteredMessage,
         ]);
 
         return response()->json([

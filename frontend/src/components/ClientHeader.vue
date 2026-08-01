@@ -528,7 +528,7 @@ watch(
                     <router-link
                         to="/courts"
                         class="nav-link"
-                        :class="{ active: isRouteActive('courts') }"
+                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
                     >
                         Sân thể thao
                     </router-link>
@@ -867,6 +867,14 @@ watch(
                         @click="closeMobileMenu"
                     >
                         {{ cat.name }}
+                    </router-link>
+                    <router-link
+                        to="/courts"
+                        class="mobile-nav-link"
+                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
+                        @click="closeMobileMenu"
+                    >
+                        Sân thể thao
                     </router-link>
                     <router-link
                         to="/contact"
