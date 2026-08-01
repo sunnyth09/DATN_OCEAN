@@ -96,10 +96,18 @@ class ProductCommentController extends Controller
         DB::beginTransaction();
         try {
             // Validate request
-            $request->validate([
+            $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
                 'images' => 'nullable|array|max:5',
                 'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:5120'
             ]);
+
+            $validator->after(function ($validator) use ($request) {
+                if (\App\Helpers\ProfanityFilter::hasProfanity($request->content)) {
+                    $validator->errors()->add('content', 'Nội dung chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.');
+                }
+            });
+
+            $validator->validate();
 
             // Lưu ảnh nếu có
             $imagePaths = [];
@@ -112,13 +120,15 @@ class ProductCommentController extends Controller
                 }
             }
 
+            $filteredContent = \App\Helpers\ProfanityFilter::filter($request->content);
+
             $comment = ProductComment::create([
                 'product_id'     => $request->product_id,
                 'user_id'        => $userId,
                 'commenter_type' => 'user',
                 'order_item_id'  => $request->order_item_id,
                 'rating'         => $request->rating,
-                'content'        => $request->content,
+                'content'        => $filteredContent,
                 'is_approved'    => ($request->rating >= 3 && empty($imagePaths)) ? 1 : 0,
                 'images'         => !empty($imagePaths) ? $imagePaths : null,
             ]);
@@ -130,7 +140,7 @@ class ProductCommentController extends Controller
                     'order_id'    => $orderItem->order_id,
                     'product_id'  => $request->product_id,
                     'reason'      => 'Phản hồi đánh giá thấp (' . $request->rating . ' sao)',
-                    'description' => $request->content ?? 'Khách hàng đánh giá chất lượng sản phẩm thấp.',
+                    'description' => $filteredContent ?? 'Khách hàng đánh giá chất lượng sản phẩm thấp.',
                     'status'      => 'pending',
                 ]);
             }

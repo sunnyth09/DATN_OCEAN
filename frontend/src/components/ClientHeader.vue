@@ -521,7 +521,11 @@ watch(
                         class="nav-link" :class="{ active: isCategoryActive(cat) }">
                         {{ cat.name }}
                     </router-link>
-                    <router-link to="/courts" class="nav-link" :class="{ active: isRouteActive('courts') }">
+                    <router-link
+                        to="/courts"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
+                    >
                         Sân thể thao
                     </router-link>
                     <router-link to="/contact" class="nav-link" :class="{ active: isRouteActive('contact') }">
@@ -841,8 +845,20 @@ watch(
                         @click="closeMobileMenu">
                         {{ cat.name }}
                     </router-link>
-                    <router-link to="/contact" class="mobile-nav-link" :class="{ active: isRouteActive('contact') }"
-                        @click="closeMobileMenu">
+                    <router-link
+                        to="/courts"
+                        class="mobile-nav-link"
+                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
+                        @click="closeMobileMenu"
+                    >
+                        Sân thể thao
+                    </router-link>
+                    <router-link
+                        to="/contact"
+                        class="mobile-nav-link"
+                        :class="{ active: isRouteActive('contact') }"
+                        @click="closeMobileMenu"
+                    >
                         Liên hệ
                     </router-link>
                     <router-link to="/coupon" class="mobile-nav-link" :class="{ active: isRouteActive('coupon') }"
