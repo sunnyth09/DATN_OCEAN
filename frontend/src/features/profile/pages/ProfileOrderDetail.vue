@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted, computed, watch } from 'vue';
+import { ref, nextTick, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
 import { orderService } from '@/services/orderService';
@@ -144,6 +144,10 @@ const returnReason = ref('');
 const returnDescription = ref('');
 const returnImages = ref([]);
 const returnVideos = ref([]);
+const returnImagePreviews = ref([]);
+const returnVideoPreviews = ref([]);
+const returnImageInput = ref(null);
+const returnVideoInput = ref(null);
 const returnValidationError = ref('');
 const returnRefundMethod = ref('wallet');
 const returnShippingMethod = ref('pickup_original_address');
@@ -203,11 +207,24 @@ const dismissCancelModal = () => {
   showCancelModal.value = false;
 };
 
+const revokeReturnPreviews = () => {
+  [...returnImagePreviews.value, ...returnVideoPreviews.value].forEach((item) => URL.revokeObjectURL(item.url));
+  returnImagePreviews.value = [];
+  returnVideoPreviews.value = [];
+};
+
+const resetReturnFiles = () => {
+  revokeReturnPreviews();
+  returnImages.value = [];
+  returnVideos.value = [];
+  if (returnImageInput.value) returnImageInput.value.value = '';
+  if (returnVideoInput.value) returnVideoInput.value.value = '';
+};
+
 const openReturnModal = () => {
   returnReason.value = '';
   returnDescription.value = '';
-  returnImages.value = [];
-  returnVideos.value = [];
+  resetReturnFiles();
   returnRefundMethod.value = 'wallet';
   returnShippingMethod.value = 'pickup_original_address';
   returnSelectedItems.value = {};
@@ -217,22 +234,40 @@ const openReturnModal = () => {
 
 const dismissReturnModal = () => {
   showReturnModal.value = false;
+  resetReturnFiles();
 };
 
+const getReturnFileKey = (file) => `${file.name}-${file.size}-${file.lastModified}`;
+
 const onReturnImagesChange = (event) => {
-  const files = Array.from(event.target.files || []);
-  if (files.length > 5) {
+  const selectedFiles = Array.from(event.target.files || []);
+  const existingKeys = new Set(returnImages.value.map(getReturnFileKey));
+  const newFiles = selectedFiles.filter((file) => !existingKeys.has(getReturnFileKey(file)));
+  const nextImages = [...returnImages.value, ...newFiles];
+
+  if (nextImages.length > 5) {
     returnValidationError.value = 'Chỉ được chọn tối đa 5 ảnh minh chứng';
     event.target.value = '';
-    returnImages.value = [];
     return;
   }
-  returnImages.value = files;
+
+  returnImages.value = nextImages;
+  returnImagePreviews.value = [
+    ...returnImagePreviews.value,
+    ...newFiles.map((file) => ({
+      name: file.name,
+      url: URL.createObjectURL(file),
+    })),
+  ];
+  event.target.value = '';
   returnValidationError.value = '';
 };
 
 const onReturnVideosChange = (event) => {
   const files = Array.from(event.target.files || []);
+  returnVideoPreviews.value.forEach((item) => URL.revokeObjectURL(item.url));
+  returnVideoPreviews.value = [];
+
   if (files.length > 1) {
     returnValidationError.value = 'Chỉ được chọn tối đa 1 video minh chứng';
     event.target.value = '';
@@ -240,7 +275,27 @@ const onReturnVideosChange = (event) => {
     return;
   }
   returnVideos.value = files;
+  returnVideoPreviews.value = files.map((file) => ({
+    name: file.name,
+    url: URL.createObjectURL(file),
+  }));
   returnValidationError.value = '';
+};
+
+const removeReturnImage = (index) => {
+  const preview = returnImagePreviews.value[index];
+  if (preview) URL.revokeObjectURL(preview.url);
+  returnImages.value = returnImages.value.filter((_, itemIndex) => itemIndex !== index);
+  returnImagePreviews.value = returnImagePreviews.value.filter((_, itemIndex) => itemIndex !== index);
+  if (returnImageInput.value) returnImageInput.value.value = '';
+};
+
+const removeReturnVideo = (index) => {
+  const preview = returnVideoPreviews.value[index];
+  if (preview) URL.revokeObjectURL(preview.url);
+  returnVideos.value = returnVideos.value.filter((_, itemIndex) => itemIndex !== index);
+  returnVideoPreviews.value = returnVideoPreviews.value.filter((_, itemIndex) => itemIndex !== index);
+  if (returnVideoInput.value) returnVideoInput.value.value = '';
 };
 
 const submitReturnRequest = async () => {
@@ -399,6 +454,10 @@ const submitTicket = async () => {
 
 onMounted(() => {
   fetchOrderDetail();
+});
+
+onUnmounted(() => {
+  revokeReturnPreviews();
 });
 
 watch(orderId, (newId) => {
@@ -726,12 +785,26 @@ watch(orderId, (newId) => {
               @input="returnValidationError = ''"
             ></textarea>
             <div class="return-section-title">Ảnh minh chứng (tối đa 5)</div>
-            <input class="return-file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple @change="onReturnImagesChange" />
-            <p v-if="returnImages.length" class="return-file-count">Đã chọn {{ returnImages.length }} ảnh minh chứng</p>
+            <input ref="returnImageInput" class="return-file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple @change="onReturnImagesChange" />
+            <div v-if="returnImagePreviews.length" class="return-image-preview-grid">
+              <figure v-for="(image, index) in returnImagePreviews" :key="image.url" class="return-image-preview">
+                <img :src="image.url" :alt="image.name" />
+                <button type="button" class="return-preview-remove" aria-label="Xóa ảnh minh chứng" @click="removeReturnImage(index)">×</button>
+              </figure>
+            </div>
 
             <div class="return-section-title">Video minh chứng (tối đa 1)</div>
-            <input class="return-file-input" type="file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo" @change="onReturnVideosChange" />
-            <p v-if="returnVideos.length" class="return-file-count">Đã chọn {{ returnVideos.length }} video minh chứng</p>
+            <input ref="returnVideoInput" class="return-file-input" type="file" accept="video/mp4,video/quicktime,video/webm,video/x-msvideo" @change="onReturnVideosChange" />
+            <div v-if="returnVideoPreviews.length" class="return-video-preview-list">
+              <div v-for="(video, index) in returnVideoPreviews" :key="video.url" class="return-video-preview-item">
+                <video
+                  class="return-video-preview"
+                  :src="video.url"
+                  controls
+                ></video>
+                <button type="button" class="return-preview-remove" aria-label="Xóa video minh chứng" @click="removeReturnVideo(index)">×</button>
+              </div>
+            </div>
             <p v-if="returnValidationError" class="cancel-validation-error">{{ returnValidationError }}</p>
           </div>
           <div class="cancel-modal-footer">
@@ -1309,10 +1382,63 @@ watch(orderId, (newId) => {
   margin-top: 12px;
   font: inherit;
 }
-.return-file-count {
-  margin: 8px 0 0;
-  font-size: 0.82rem;
-  color: #475569;
+.return-image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.return-image-preview {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+.return-image-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.return-video-preview-list {
+  margin-top: 12px;
+}
+.return-video-preview-item {
+  position: relative;
+}
+.return-video-preview {
+  width: 100%;
+  max-height: 260px;
+  display: block;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #0f172a;
+}
+.return-preview-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.15s;
+}
+.return-preview-remove:hover {
+  background: var(--primary);
+  transform: scale(1.05);
 }
 .cancel-validation-error { color: #dc2626; font-size: 0.82rem; font-weight: 600; margin: 10px 0 0; }
 .cancel-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #e2e8f0; background: var(--card-bg); }

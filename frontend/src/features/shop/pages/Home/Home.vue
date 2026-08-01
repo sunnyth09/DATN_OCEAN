@@ -166,10 +166,10 @@ const testimonials = [
 const brands = [
     { name: 'Nike', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Logo_NIKE.svg' },
     { name: 'Adidas', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/20/Adidas_Logo.svg' },
-    { name: 'Puma', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b3/Puma_AG_Logo.svg' },
+    { name: 'Puma', logo: 'https://cdn.simpleicons.org/puma' },
     { name: 'Under Armour', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Under_armour_logo.svg' },
     { name: 'Asics', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Asics_Logo.svg' },
-    { name: 'New Balance', logo: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/New_Balance_logo.svg' },
+    { name: 'New Balance', logo: 'https://cdn.simpleicons.org/newbalance' },
 ];
 
 onMounted(() => {

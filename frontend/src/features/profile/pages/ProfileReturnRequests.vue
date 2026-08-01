@@ -1,10 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import AppIcon from '@/icons/AppIcon.vue';
 import { useReturnRequestStore } from '@/stores/returnRequestStore';
 import {
-  RETURN_REQUEST_CUSTOMER_STATUS_OPTIONS,
   getReturnRequestStatusLabel,
   getReturnRequestStatusTone,
   getReturnRefundStatusLabel,
@@ -12,9 +11,6 @@ import {
 
 const store = useReturnRequestStore();
 const { myRequests, myPagination, myLoading } = storeToRefs(store);
-const currentFilter = ref('all');
-
-const filterTabs = computed(() => RETURN_REQUEST_CUSTOMER_STATUS_OPTIONS);
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -33,15 +29,7 @@ const formatPrice = (value) => new Intl.NumberFormat('vi-VN', {
 }).format(Number(value || 0));
 
 const fetchData = (page = 1) => {
-  store.fetchMyReturnRequests({
-    page,
-    status: currentFilter.value,
-  });
-};
-
-const setFilter = (status) => {
-  currentFilter.value = status;
-  fetchData(1);
+  store.fetchMyReturnRequests({ page });
 };
 
 onMounted(() => {
@@ -56,17 +44,6 @@ onMounted(() => {
       <p class="page-subtitle">Theo dõi tiến độ xử lý và hoàn tiền cho các đơn đã yêu cầu hoàn.</p>
     </div>
 
-    <div class="filter-tabs">
-      <button
-        v-for="tab in filterTabs"
-        :key="tab.value"
-        class="filter-tab"
-        :class="{ active: currentFilter === tab.value }"
-        @click="setFilter(tab.value)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
 
     <div v-if="myLoading" class="loading-state">
       <div class="spinner"></div>
@@ -146,36 +123,6 @@ onMounted(() => {
 }
 .page-title { margin: 0; font-size: 1.25rem; font-weight: 800; color: var(--text-main); }
 .page-subtitle { margin: 8px 0 0; color: #64748b; font-size: 0.92rem; }
-
-.filter-tabs {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-}
-
-.filter-tab {
-  border: 1px solid #cbd5e1;
-  background: var(--card-bg);
-  color: #475569;
-  border-radius: 20px;
-  padding: 8px 16px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.filter-tab:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-.filter-tab.active {
-  background: rgba(230, 59, 111, 0.1);
-  border-color: var(--primary);
-  color: var(--primary);
-}
 
 .request-list {
   display: flex;
