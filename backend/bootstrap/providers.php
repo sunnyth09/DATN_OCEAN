@@ -1,8 +1,9 @@
 <?php
 
 use App\Providers\AppServiceProvider;
+use PHPOpenSourceSaver\JWTAuth\Providers\LaravelServiceProvider;
 
 return [
     AppServiceProvider::class,
-    PHPOpenSourceSaver\JWTAuth\Providers\LaravelServiceProvider::class,
+    LaravelServiceProvider::class,
 ];

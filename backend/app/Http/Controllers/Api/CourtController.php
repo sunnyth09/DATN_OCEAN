@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Court;
-use App\Models\CourtSchedule;
-use App\Models\CourtPrice;
 use App\Models\CourtBooking;
 use App\Models\CourtBookingLock;
 use App\Models\CourtMaintenance;
+use App\Models\CourtPrice;
+use App\Models\CourtSchedule;
 use App\Models\CourtService;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class CourtController extends Controller
 {
@@ -21,15 +21,16 @@ class CourtController extends Controller
     public function index(Request $request)
     {
         $query = Court::active();
-        
+
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
 
         $courts = $query->orderBy('sort_order')->get();
+
         return response()->json([
             'status' => 'success',
-            'data' => $courts
+            'data' => $courts,
         ]);
     }
 
@@ -39,9 +40,10 @@ class CourtController extends Controller
     public function show($id)
     {
         $court = Court::with(['schedules', 'prices'])->findOrFail($id);
+
         return response()->json([
             'status' => 'success',
-            'data' => $court
+            'data' => $court,
         ]);
     }
 
@@ -194,7 +196,7 @@ class CourtController extends Controller
                 'open_time' => $openTime,
                 'close_time' => $closeTime,
                 'has_schedule' => (bool) $schedule,
-            ]
+            ],
         ]);
     }
 
@@ -209,7 +211,7 @@ class CourtController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $services
+            'data' => $services,
         ]);
     }
 }

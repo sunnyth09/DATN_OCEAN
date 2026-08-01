@@ -2,21 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Services\GeminiService;
+use App\Models\User;
 use App\Services\Chatbot\ChatbotActionService;
 use App\Services\Chatbot\ChatbotInfoService;
-use App\Models\User;
+use App\Services\Chatbot\ChatbotSessionService;
+use App\Services\Chatbot\IntentParserService;
+use App\Services\GeminiService;
+use Illuminate\Http\Request;
 
 class ChatbotController extends Controller
 {
     private GeminiService $gemini;
+
     private ChatbotActionService $chatbotActions;
-    private \App\Services\Chatbot\IntentParserService $intentParser;
-    private \App\Services\Chatbot\ChatbotSessionService $sessionService;
+
+    private IntentParserService $intentParser;
+
+    private ChatbotSessionService $sessionService;
+
     private ChatbotInfoService $chatbotInfo;
 
-    public function __construct(GeminiService $gemini, ChatbotActionService $chatbotActions, \App\Services\Chatbot\IntentParserService $intentParser, \App\Services\Chatbot\ChatbotSessionService $sessionService, ChatbotInfoService $chatbotInfo)
+    public function __construct(GeminiService $gemini, ChatbotActionService $chatbotActions, IntentParserService $intentParser, ChatbotSessionService $sessionService, ChatbotInfoService $chatbotInfo)
     {
         $this->gemini = $gemini;
         $this->chatbotActions = $chatbotActions;
@@ -29,14 +35,14 @@ class ChatbotController extends Controller
      * Xử lý tin nhắn chatbot
      * POST /api/chatbot/message
      *
-     * @param Request $request { message: string, history: array }
+     * @param  Request  $request  { message: string, history: array }
      */
     public function sendMessage(Request $request)
     {
         $request->validate([
-            'message'   => 'required|string|max:1000',
-            'history'   => 'nullable|array',
-            'history.*.role'  => 'required_with:history|string|in:user,model',
+            'message' => 'required|string|max:1000',
+            'history' => 'nullable|array',
+            'history.*.role' => 'required_with:history|string|in:user,model',
             'history.*.parts' => 'required_with:history|array',
         ]);
 
@@ -53,7 +59,7 @@ class ChatbotController extends Controller
             $customerUser = $authUser;
 
             // Nếu không phải user, thử admin guard
-            if (!$authUser) {
+            if (! $authUser) {
                 $adminUser = auth('admin')->user();
                 if ($adminUser) {
                     // Admin đăng nhập → tìm user tương ứng (cùng email) để tra đơn hàng
@@ -91,9 +97,9 @@ class ChatbotController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $response['message'],
-                'data'    => null,
-                'type'    => 'text',
-            'session_id' => $sessionId ?? '',
+                'data' => null,
+                'type' => 'text',
+                'session_id' => $sessionId ?? '',
             ]);
         }
 
@@ -106,10 +112,10 @@ class ChatbotController extends Controller
             $functionResult = $this->executeFunction($functionName, $arguments, $authUser, $customerUser, $request);
 
             // Lưu context (những sản phẩm AI gợi ý hoặc người dùng đang xem)
-            if ($functionName === 'search_products' && ($functionResult['status'] ?? 'error') === 'success' && !empty($functionResult['data'])) {
+            if ($functionName === 'search_products' && ($functionResult['status'] ?? 'error') === 'success' && ! empty($functionResult['data'])) {
                 $productIds = array_column($functionResult['data'], 'product_id');
                 $this->sessionService->saveRecommendedProducts($sessionId, $productIds);
-            } elseif ($functionName === 'get_product_detail' && ($functionResult['status'] ?? 'error') === 'success' && !empty($functionResult['data']['product']['product_id'])) {
+            } elseif ($functionName === 'get_product_detail' && ($functionResult['status'] ?? 'error') === 'success' && ! empty($functionResult['data']['product']['product_id'])) {
                 $this->sessionService->saveRecommendedProducts($sessionId, [$functionResult['data']['product']['product_id']]);
             }
 
@@ -138,10 +144,10 @@ class ChatbotController extends Controller
             if ($functionName === 'quick_order') {
                 $responseType = match ($functionResult['status'] ?? 'error') {
                     'choose_variant' => 'quick_order_choose_variant',
-                    'no_address'     => 'quick_order_no_address',
-                    'over_limit'     => 'quick_order_over_limit',
-                    'success'        => 'order_preview',
-                    default          => 'quick_order',
+                    'no_address' => 'quick_order_no_address',
+                    'over_limit' => 'quick_order_over_limit',
+                    'success' => 'order_preview',
+                    default => 'quick_order',
                 };
             }
 
@@ -149,21 +155,22 @@ class ChatbotController extends Controller
             if ($functionName === 'auto_order') {
                 $responseType = match ($functionResult['status'] ?? 'error') {
                     'auto_order_success' => 'auto_order',
-                    'need_variant_info'  => 'need_variant_info',
-                    'color_not_found'    => 'color_not_found',
-                    'size_not_found'     => 'size_not_found',
+                    'need_variant_info' => 'need_variant_info',
+                    'color_not_found' => 'color_not_found',
+                    'size_not_found' => 'size_not_found',
                     'no_address',
                     'over_limit',
-                    'not_found'          => 'text',
-                    default              => 'text',
+                    'not_found' => 'text',
+                    default => 'text',
                 };
+
                 // Trả thêm status để frontend có thể handle
                 return response()->json([
                     'success' => true,
                     'message' => $message,
-                    'data'    => $functionResult['data'] ?? null,
-                    'type'    => $responseType,
-                    'status'  => $functionResult['status'] ?? 'error',
+                    'data' => $functionResult['data'] ?? null,
+                    'type' => $responseType,
+                    'status' => $functionResult['status'] ?? 'error',
                     'session_id' => $sessionId ?? '',
                 ]);
             }
@@ -171,9 +178,9 @@ class ChatbotController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
-                'data'    => $functionResult['data'] ?? null,
-                'type'    => $responseType,
-            'session_id' => $sessionId ?? '',
+                'data' => $functionResult['data'] ?? null,
+                'type' => $responseType,
+                'session_id' => $sessionId ?? '',
             ]);
         }
 
@@ -181,9 +188,9 @@ class ChatbotController extends Controller
         return response()->json([
             'success' => true,
             'message' => $response['message'],
-            'data'    => null,
-            'type'    => 'text',
-        'session_id' => $sessionId ?? '',
+            'data' => null,
+            'type' => 'text',
+            'session_id' => $sessionId ?? '',
         ]);
     }
 
@@ -297,7 +304,7 @@ class ChatbotController extends Controller
         ]);
 
         $user = auth('api')->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'success' => false,
                 'message' => 'Bạn cần đăng nhập để cập nhật tuỳ chọn.',
@@ -312,8 +319,8 @@ class ChatbotController extends Controller
             'success' => true,
             'message' => 'Đã lưu phương thức thanh toán mặc định.',
             'data' => ['default_payment_method' => $user->default_payment_method],
-            'type'    => 'text',
-        'session_id' => $sessionId ?? '',
+            'type' => 'text',
+            'session_id' => $sessionId ?? '',
         ]);
     }
 
@@ -328,18 +335,18 @@ class ChatbotController extends Controller
         $recentHistory = array_slice($history, -5);
         foreach ($recentHistory as $entry) {
             $text = $entry['parts'][0]['text'] ?? '';
-            if (!is_string($text) || trim($text) === '') {
+            if (! is_string($text) || trim($text) === '') {
                 continue;
             }
             $conversation[] = [
-                'role'  => $entry['role'],
+                'role' => $entry['role'],
                 'parts' => [['text' => mb_substr(strip_tags($text), 0, 1000)]],
             ];
         }
 
         // Thêm tin nhắn mới của user
         $conversation[] = [
-            'role'  => 'user',
+            'role' => 'user',
             'parts' => [['text' => mb_substr(strip_tags($newMessage), 0, 1000)]],
         ];
 
@@ -349,10 +356,8 @@ class ChatbotController extends Controller
     /**
      * Thực thi function call từ Gemini
      *
-     * @param string     $functionName
-     * @param array      $arguments
-     * @param mixed|null $authUser
-     * @return array  Kết quả function
+     * @param  mixed|null  $authUser
+     * @return array Kết quả function
      */
     private function executeFunction(string $functionName, array $arguments, $authUser = null, $customerUser = null, ?Request $request = null): array
     {
@@ -364,11 +369,11 @@ class ChatbotController extends Controller
             'prepare_order',
             'confirm_order',
             'auto_order',
-            'quick_order'          => $this->chatbotActions->execute($functionName, $arguments, $customerUser, $request),
-            'get_order_status'     => $this->chatbotInfo->getOrderStatus($arguments, $authUser),
-            'get_available_coupons'=> $this->chatbotInfo->getAvailableCoupons(),
-            'get_categories'       => $this->chatbotInfo->getCategories(),
-            'get_store_info'       => $this->chatbotInfo->getStoreInfo($arguments),
+            'quick_order' => $this->chatbotActions->execute($functionName, $arguments, $customerUser, $request),
+            'get_order_status' => $this->chatbotInfo->getOrderStatus($arguments, $authUser),
+            'get_available_coupons' => $this->chatbotInfo->getAvailableCoupons(),
+            'get_categories' => $this->chatbotInfo->getCategories(),
+            'get_store_info' => $this->chatbotInfo->getStoreInfo($arguments),
             default => ['status' => 'error', 'message' => 'Function không tồn tại'],
         };
     }
@@ -397,7 +402,7 @@ class ChatbotController extends Controller
             'get_order_status' => $this->buildOrderFallback($data),
             'get_available_coupons' => $this->buildCouponFallback($data),
             'get_categories' => $this->buildCategoryFallback($data),
-            'get_store_info' => $data['title'] ?? 'Thông tin cửa hàng Quyền Sport.',
+            'get_store_info' => $data['title'] ?? 'Thông tin cửa hàng Ocean Sport.',
             default => $message ?: 'Đã xử lý xong.',
         };
     }
@@ -409,21 +414,28 @@ class ChatbotController extends Controller
         foreach (array_slice($data, 0, 5) as $p) {
             $lines[] = "- {$p['name']}: {$p['price']}";
         }
+
         return implode("\n", $lines);
     }
 
     private function buildProductDetailFallback(array $data): string
     {
-        $name  = $data['name'] ?? 'Sản phẩm';
+        $name = $data['name'] ?? 'Sản phẩm';
         $price = $data['price_range'] ?? '';
 
-        $colors = !empty($data['available_colors']) ? implode(', ', $data['available_colors']) : null;
-        $sizes  = !empty($data['available_sizes'])  ? implode(', ', $data['available_sizes'])  : null;
+        $colors = ! empty($data['available_colors']) ? implode(', ', $data['available_colors']) : null;
+        $sizes = ! empty($data['available_sizes']) ? implode(', ', $data['available_sizes']) : null;
 
         $lines = ["Sản phẩm: {$name}"];
-        if ($price)  $lines[] = "Giá: {$price}";
-        if ($colors) $lines[] = "Màu sắc hiện có: {$colors}";
-        if ($sizes)  $lines[] = "Size hiện có: {$sizes}";
+        if ($price) {
+            $lines[] = "Giá: {$price}";
+        }
+        if ($colors) {
+            $lines[] = "Màu sắc hiện có: {$colors}";
+        }
+        if ($sizes) {
+            $lines[] = "Size hiện có: {$sizes}";
+        }
         $lines[] = 'Bạn muốn chọn màu/size nào để đặt hàng?';
 
         return implode("\n", $lines);
@@ -431,7 +443,9 @@ class ChatbotController extends Controller
 
     private function buildOrderFallback($data): string
     {
-        if (!is_array($data)) return 'Không tìm thấy đơn hàng.';
+        if (! is_array($data)) {
+            return 'Không tìm thấy đơn hàng.';
+        }
 
         // Single order
         if (isset($data['order_code'])) {
@@ -444,6 +458,7 @@ class ChatbotController extends Controller
         foreach (array_slice($data, 0, 5) as $order) {
             $lines[] = "- {$order['order_code']}: {$order['status']} - {$order['grand_total']}";
         }
+
         return implode("\n", $lines);
     }
 
@@ -454,15 +469,17 @@ class ChatbotController extends Controller
         foreach ($data as $c) {
             $lines[] = "- {$c['code']}: {$c['description']} (Đơn tối thiểu: {$c['min_order']})";
         }
+
         return implode("\n", $lines);
     }
 
     private function buildCategoryFallback(array $data): string
     {
-        $lines = ["Danh mục sản phẩm:"];
+        $lines = ['Danh mục sản phẩm:'];
         foreach ($data as $cat) {
             $lines[] = "- {$cat['name']} ({$cat['product_count']} sản phẩm)";
         }
+
         return implode("\n", $lines);
     }
 }

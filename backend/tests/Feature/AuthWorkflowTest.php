@@ -21,8 +21,14 @@ class AuthWorkflowTest extends TestCase
             'services.turnstile.secret_key' => 'turnstile-test-secret',
         ]);
 
+        Http::fake([
+            'https://challenges.cloudflare.com/turnstile/v0/siteverify' => Http::response(['success' => true]),
+        ]);
+
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('password_resets_otp');
         Schema::dropIfExists('users');
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');
@@ -69,10 +75,6 @@ class AuthWorkflowTest extends TestCase
 
     public function test_registration_returns_an_authenticated_user_session(): void
     {
-        Http::fake([
-            'https://challenges.cloudflare.com/turnstile/v0/siteverify' => Http::response(['success' => true]),
-        ]);
-
         $this->postJson('/api/register', $this->registrationPayload([
             'email' => 'NEW@EXAMPLE.COM',
         ]))->assertCreated()
@@ -113,7 +115,7 @@ class AuthWorkflowTest extends TestCase
             'created_at' => now()->subMinutes(16),
         ]);
 
-        $resetToken = hash('sha256', $email . $hashedOtp . config('app.key'));
+        $resetToken = hash('sha256', $email.$hashedOtp.config('app.key'));
 
         $this->postJson('/api/forgot-password/reset', [
             'email' => $email,

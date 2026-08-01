@@ -24,9 +24,9 @@ return new class extends Migration
             );
 
             $table->foreign('work_shift_id')
-                  ->references('id')
-                  ->on('work_shifts')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('work_shifts')
+                ->onDelete('cascade');
 
             $table->index(['user_id', 'user_type', 'day_of_week'], 'sa_user_day_idx');
         });

@@ -2,24 +2,30 @@
 
 namespace App\Services\Crawler;
 
-use GuzzleHttp\Client;
-use Symfony\Component\DomCrawler\Crawler;
+use App\Services\Crawler\Importer\DatabaseImporter;
 use App\Services\Crawler\Parser\ProductParser;
 use App\Services\Crawler\Parser\VariantParser;
-use App\Services\Crawler\Resolver\CategoryResolver;
 use App\Services\Crawler\Resolver\BrandResolver;
-use App\Services\Crawler\Importer\DatabaseImporter;
+use App\Services\Crawler\Resolver\CategoryResolver;
+use GuzzleHttp\Client;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\DomCrawler\Crawler;
 
 class ShopVnbCrawlerService
 {
     private $client;
+
     private $productParser;
+
     private $variantParser;
+
     private $categoryResolver;
+
     private $brandResolver;
+
     private $importer;
+
     private $imageDownloader;
 
     private $sportsConfig = [
@@ -31,7 +37,7 @@ class ShopVnbCrawlerService
                 'Áo' => 'https://shopvnb.com/ao-cau-long.html',
                 'Balo' => 'https://shopvnb.com/balo-cau-long.html',
             ],
-            'limit' => 34
+            'limit' => 34,
         ],
         'pickleball' => [
             'name' => 'Pickleball',
@@ -40,7 +46,7 @@ class ShopVnbCrawlerService
                 'Giày' => 'https://shopvnb.com/giay-pickleball.html',
                 'Balo' => 'https://shopvnb.com/balo-pickleball.html',
             ],
-            'limit' => 33
+            'limit' => 33,
         ],
         'tennis' => [
             'name' => 'Tennis',
@@ -49,8 +55,8 @@ class ShopVnbCrawlerService
                 'Giày' => 'https://shopvnb.com/giay-tennis.html',
                 'Balo' => 'https://shopvnb.com/balo-tennis.html',
             ],
-            'limit' => 33
-        ]
+            'limit' => 33,
+        ],
     ];
 
     public function __construct(
@@ -86,7 +92,7 @@ class ShopVnbCrawlerService
         ];
 
         // Adjust limits if specific sports are selected
-        if (!empty($selectedSports)) {
+        if (! empty($selectedSports)) {
             $sportCount = count($selectedSports);
             $limitPerSport = (int) ceil($totalLimit / $sportCount);
             foreach ($this->sportsConfig as $k => &$config) {
@@ -107,40 +113,50 @@ class ShopVnbCrawlerService
         $bar->start();
 
         foreach ($this->sportsConfig as $sportKey => $sportData) {
-            if ($sportData['limit'] <= 0) continue;
+            if ($sportData['limit'] <= 0) {
+                continue;
+            }
 
             $sportName = $sportData['name'];
             $urls = $sportData['urls'];
             $limitPerCategory = (int) ceil($sportData['limit'] / count($urls));
-            
+
             $sportStatsCount = 0;
 
             foreach ($urls as $catName => $catUrl) {
-                if ($sportStatsCount >= $sportData['limit']) break;
+                if ($sportStatsCount >= $sportData['limit']) {
+                    break;
+                }
 
                 $command->info("\nFetching category: $sportName - $catName");
                 // Fetch up to 40 links to have a buffer in case of duplicates/errors
                 $productLinks = $this->getProductLinksFromCategory($catUrl, 40);
 
                 foreach ($productLinks as $link) {
-                    if ($sportStatsCount >= $sportData['limit']) break;
-                    if ($stats['total'] >= $totalLimit) break 3;
+                    if ($sportStatsCount >= $sportData['limit']) {
+                        break;
+                    }
+                    if ($stats['total'] >= $totalLimit) {
+                        break 3;
+                    }
 
                     // Random delay
                     usleep(rand(500000, 1500000));
 
-                    $command->line("Processing: " . $link);
-                    
+                    $command->line('Processing: '.$link);
+
                     try {
                         $html = $this->fetchHtml($link);
-                        if (!$html) {
+                        if (! $html) {
                             $stats['skipped']++;
+
                             continue;
                         }
 
                         $productData = $this->productParser->parse($html, $link);
                         if (empty($productData['name'])) {
                             $stats['skipped']++;
+
                             continue;
                         }
 
@@ -150,7 +166,7 @@ class ShopVnbCrawlerService
                         $brandId = $this->brandResolver->resolve($productData['brand']);
 
                         $imagesData = [];
-                        if ($downloadImages && !empty($productData['images'])) {
+                        if ($downloadImages && ! empty($productData['images'])) {
                             $imagesData = $this->imageDownloader->downloadImages($productData['images']);
                             $stats['images'] += count($imagesData);
                         } else {
@@ -163,13 +179,13 @@ class ShopVnbCrawlerService
                             $stats['total']++;
                             $sportStatsCount++;
                             $stats['variants'] += count($variantsData);
-                            
+
                             $stats['sports'][$sportName] = ($stats['sports'][$sportName] ?? 0) + 1;
                             $stats['categories'][$catName] = ($stats['categories'][$catName] ?? 0) + 1;
                             if ($productData['brand']) {
                                 $stats['brands'][$productData['brand']] = ($stats['brands'][$productData['brand']] ?? 0) + 1;
                             }
-                            
+
                             $command->line("<info>✓ Saved:</info> {$productData['name']}");
                             $bar->advance();
                         } else {
@@ -178,8 +194,8 @@ class ShopVnbCrawlerService
                         }
 
                     } catch (\Exception $e) {
-                        Log::error("Crawler error on $link: " . $e->getMessage());
-                        $command->line("<error>✗ Error:</error> " . $e->getMessage());
+                        Log::error("Crawler error on $link: ".$e->getMessage());
+                        $command->line('<error>✗ Error:</error> '.$e->getMessage());
                     }
                 }
             }
@@ -195,17 +211,21 @@ class ShopVnbCrawlerService
     {
         $links = [];
         $html = $this->fetchHtml($url);
-        if (!$html) return $links;
+        if (! $html) {
+            return $links;
+        }
 
         $crawler = new Crawler($html);
-        
+
         $crawler->filter('.item_product_main .product-thumbnail > a')->each(function (Crawler $node) use (&$links, $limit) {
-            if (count($links) >= $limit) return;
+            if (count($links) >= $limit) {
+                return;
+            }
             $href = $node->attr('href');
             if ($href) {
                 // Ensure absolute URL
                 if (strpos($href, 'http') !== 0) {
-                    $href = 'https://shopvnb.com/' . ltrim($href, '/');
+                    $href = 'https://shopvnb.com/'.ltrim($href, '/');
                 }
                 $links[] = $href;
             }
@@ -219,12 +239,14 @@ class ShopVnbCrawlerService
         try {
             $response = $this->client->get($url, [
                 'headers' => [
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                ]
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                ],
             ]);
+
             return $response->getBody()->getContents();
         } catch (\Exception $e) {
             Log::warning("Crawler failed to fetch URL: $url");
+
             return null;
         }
     }

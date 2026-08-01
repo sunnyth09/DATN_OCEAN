@@ -68,8 +68,8 @@
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
-            <span v-if="unreadCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem; padding: 0.25em 0.4em;">
-              {{ unreadCount > 99 ? '99+' : unreadCount }}
+            <span v-if="uiStore.adminUnreadNotificationCount > 0" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem; padding: 0.25em 0.4em;">
+              {{ uiStore.adminUnreadNotificationCount > 99 ? '99+' : uiStore.adminUnreadNotificationCount }}
             </span>
           </router-link>
 
@@ -213,8 +213,6 @@ watch(
   },
 );
 
-const unreadCount = ref(0);
-
 const fetchUnreadCount = async () => {
   try {
     const response = await api.get('/admin/notifications', {
@@ -224,7 +222,7 @@ const fetchUnreadCount = async () => {
       },
     });
     if (response.data.success) {
-      unreadCount.value = response.data.unread_count || response.data.total || 0;
+      uiStore.setAdminUnreadNotificationCount(response.data.unread_count || response.data.total || 0);
     }
   } catch (error) {
     console.error('Failed to fetch notifications count', error);
@@ -240,8 +238,11 @@ onMounted(() => {
   if (window.Echo) {
     const handleNotification = (e, eventType) => {
         // Increment unread count
-        unreadCount.value++;
+        uiStore.incrementAdminUnreadNotificationCount();
         
+        // Phát event để màn hình AdminNotifications.vue tự tải lại danh sách
+        window.dispatchEvent(new Event('admin-notification-received'));
+
         let message = `Đơn đặt sân ${e.booking_code} có cập nhật mới.`;
         if (eventType === 'CourtBookingCreated' || e.status === 'pending') {
             message = `Có đơn đặt sân mới: ${e.booking_code}`;
@@ -280,8 +281,10 @@ onMounted(() => {
           }
       })
       .listen('.UserNotificationEvent', (e) => {
-          unreadCount.value++;
+          uiStore.incrementAdminUnreadNotificationCount();
           
+          window.dispatchEvent(new Event('admin-notification-received'));
+
           Swal.fire({
             toast: true,
             position: 'top-end',
@@ -311,7 +314,8 @@ onUnmounted(() => {
 <style scoped>
 .backoffice-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--ocean-deepest);
   color: var(--text-main);
   font-family: var(--font-primary);

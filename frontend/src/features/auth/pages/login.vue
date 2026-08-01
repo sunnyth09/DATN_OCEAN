@@ -34,7 +34,7 @@ const renderTurnstile = () => {
   if (!container || !window.turnstile) return;
   container.innerHTML = '';
   turnstileWidgetId = window.turnstile.render('#turnstile-login', {
-    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY,
+    sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADfskJpxs4bqJtS_',
     callback: (token) => { turnstileToken.value = token; },
     'expired-callback': () => { turnstileToken.value = ''; },
     'error-callback': () => { turnstileToken.value = ''; },
@@ -174,7 +174,7 @@ const login = async () => {
                     d="M12 4.5a7.5 7.5 0 0 0-7.39 8.78 1 1 0 0 1-1.94.44A9.5 9.5 0 0 1 21.5 12a9.5 9.5 0 0 1-5.18 8.44 1 1 0 0 1-1.87-.71A7.5 7.5 0 0 0 12 4.5z" />
                 </svg>
               </div>
-              <span class="brand-text">Quyền Sport </span>
+              <span class="brand-text">Ocean Sport </span>
             </div>
 
             <div class="auth-header">

@@ -25,8 +25,7 @@ class CourtBookingService
         $endTime = $this->normalizeTime($data['end_time']);
 
         $lockName = $this->slotLockName($courtId, $date);
-        $gotLock = DB::selectOne('SELECT GET_LOCK(?, 10) AS ok', [$lockName]);
-        if (!$gotLock || (int) $gotLock->ok !== 1) {
+        if (!$this->acquireAdvisoryLock($lockName)) {
             throw new Exception('Hệ thống đang bận, vui lòng thử lại sau giây lát.');
         }
 
@@ -52,7 +51,16 @@ class CourtBookingService
                 throw new Exception('Sân đã được đặt trong khung giờ này.');
             }
 
-            // 2. Check existing active lock
+            // 1.5 Xóa các lock cũ của CHÍNH user này trên cùng sân, cùng ngày
+            // Việc này giúp frontend không cần gọi API release-lock thủ công, giảm 50% API calls
+            // và bảo toàn lock cũ nếu API bị lỗi (VD: 429 Rate Limit) vì transaction sẽ rollback/không chạy.
+            DB::table('court_booking_locks')
+                ->where('user_id', $userId)
+                ->where('court_id', $courtId)
+                ->where('booking_date', $date)
+                ->delete();
+
+            // 2. Check existing active lock (của người khác)
             $lockConflict = DB::table('court_booking_locks')
                 ->where('court_id', $courtId)
                 ->where('booking_date', $date)
@@ -101,7 +109,7 @@ class CourtBookingService
             return $lock;
             });
         } finally {
-            DB::selectOne('SELECT RELEASE_LOCK(?) AS released', [$lockName]);
+            $this->releaseAdvisoryLock($lockName);
         }
     }
 
@@ -147,8 +155,7 @@ class CourtBookingService
         // Dùng GET_LOCK (advisory lock) thay vì dựa vào gap-lock của InnoDB — gap-lock
         // bị vô hiệu dưới READ COMMITTED, còn whereDate/whereTime lại vô hiệu hóa index.
         $lockName = $this->slotLockName($courtId, $date);
-        $gotLock = DB::selectOne('SELECT GET_LOCK(?, 10) AS ok', [$lockName]);
-        if (!$gotLock || (int) $gotLock->ok !== 1) {
+        if (!$this->acquireAdvisoryLock($lockName)) {
             throw new Exception('Hệ thống đang bận, vui lòng thử lại sau giây lát.');
         }
 
@@ -327,7 +334,7 @@ class CourtBookingService
             });
         } finally {
             // Luôn giải phóng advisory lock dù transaction thành công hay lỗi.
-            DB::selectOne('SELECT RELEASE_LOCK(?) AS released', [$lockName]);
+            $this->releaseAdvisoryLock($lockName);
         }
     }
 
@@ -338,6 +345,23 @@ class CourtBookingService
     private function slotLockName(int|string $courtId, string $date): string
     {
         return 'court_booking:' . $courtId . ':' . $date;
+    }
+
+    private function acquireAdvisoryLock(string $lockName): bool
+    {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return true;
+        }
+
+        $gotLock = DB::selectOne('SELECT GET_LOCK(?, 10) AS ok', [$lockName]);
+        return $gotLock && (int) $gotLock->ok === 1;
+    }
+
+    private function releaseAdvisoryLock(string $lockName): void
+    {
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::selectOne('SELECT RELEASE_LOCK(?) AS released', [$lockName]);
+        }
     }
 
     /**

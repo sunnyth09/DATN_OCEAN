@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('product_comments', function (Blueprint $table) {
             $table->string('commenter_type', 10)->default('user')->after('user_id')
-                  ->comment('user = from users table, admin = from admins table');
+                ->comment('user = from users table, admin = from admins table');
         });
     }
 

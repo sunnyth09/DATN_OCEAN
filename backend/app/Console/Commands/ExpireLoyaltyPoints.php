@@ -14,7 +14,8 @@ use Illuminate\Support\Facades\Log;
  */
 class ExpireLoyaltyPoints extends Command
 {
-    protected $signature   = 'loyalty:expire-points';
+    protected $signature = 'loyalty:expire-points';
+
     protected $description = 'Expire điểm thưởng đã hết hạn của tất cả user';
 
     public function __construct(
@@ -25,7 +26,7 @@ class ExpireLoyaltyPoints extends Command
 
     public function handle(): int
     {
-        $this->info('🕐 [' . now()->format('Y-m-d H:i:s') . '] Bắt đầu expire điểm thưởng hết hạn...');
+        $this->info('🕐 ['.now()->format('Y-m-d H:i:s').'] Bắt đầu expire điểm thưởng hết hạn...');
 
         try {
             $count = $this->loyaltyService->expirePoints();
@@ -40,8 +41,9 @@ class ExpireLoyaltyPoints extends Command
 
             return 0;
         } catch (\Exception $e) {
-            $this->error('❌ Lỗi: ' . $e->getMessage());
-            Log::error('LoyaltyExpiry Command failed: ' . $e->getMessage());
+            $this->error('❌ Lỗi: '.$e->getMessage());
+            Log::error('LoyaltyExpiry Command failed: '.$e->getMessage());
+
             return 1;
         }
     }

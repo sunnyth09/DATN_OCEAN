@@ -2,12 +2,12 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\Cart;
 use App\Models\User;
 use App\Notifications\AbandonedCartNotification;
 use App\Services\LoyaltyService;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Log;
 class RemindAbandonedCart extends Command
 {
     protected $signature = 'app:remind-abandoned-cart';
+
     protected $description = 'Nhắc nhở user có giỏ hàng bỏ quên và tặng điểm thưởng';
 
     /**
@@ -55,7 +56,7 @@ class RemindAbandonedCart extends Command
 
     public function handle(): int
     {
-        $this->info('🛒 [' . now()->format('Y-m-d H:i:s') . '] Kiểm tra giỏ hàng bỏ quên...');
+        $this->info('🛒 ['.now()->format('Y-m-d H:i:s').'] Kiểm tra giỏ hàng bỏ quên...');
 
         // ─── Bước 1: Tính mốc thời gian "bỏ quên" ───
         $abandonedThreshold = Carbon::now()->subMinutes(self::COOLDOWN_MINUTES);
@@ -88,8 +89,9 @@ class RemindAbandonedCart extends Command
         foreach ($abandonedCarts as $cart) {
             $user = $cart->user;
 
-            if (!$user || $user->status !== 'active') {
+            if (! $user || $user->status !== 'active') {
                 $this->warn("  ⚠ Cart #{$cart->cart_id}: User không tồn tại hoặc bị banned, bỏ qua.");
+
                 continue;
             }
 
@@ -119,6 +121,7 @@ class RemindAbandonedCart extends Command
                 if ($alreadyNotifiedForThisCart || $recentNotification) {
                     $skipCount++;
                     $this->warn("  ⏭ User #{$user->user_id} ({$user->full_name}): Đã thông báo rồi hoặc nằm trong thời gian cooldown, bỏ qua.");
+
                     continue;
                 }
 
@@ -140,12 +143,13 @@ class RemindAbandonedCart extends Command
             } catch (\Exception $e) {
                 $this->error("  ❌ Lỗi user #{$user->user_id}: {$e->getMessage()}");
                 Log::error("AbandonedCart Error: user #{$user->user_id}: {$e->getMessage()}", [
-                    'trace' => $e->getTraceAsString()
+                    'trace' => $e->getTraceAsString(),
                 ]);
             }
         }
 
         $this->info("🎁 Kết quả: {$successCount} gửi OK, {$skipCount} bỏ qua (cooldown).");
+
         return 0;
     }
 }

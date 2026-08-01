@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\UserReward;
+use Illuminate\Http\Request;
 
 class UserRewardAdminController extends Controller
 {
@@ -13,17 +13,17 @@ class UserRewardAdminController extends Controller
         $userRewards = UserReward::with(['user', 'reward'])
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         return response()->json([
             'status' => 'success',
-            'data' => $userRewards
+            'data' => $userRewards,
         ]);
     }
 
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:pending,completed,cancelled'
+            'status' => 'required|in:pending,completed,cancelled',
         ]);
 
         $userReward = UserReward::findOrFail($id);
@@ -33,7 +33,7 @@ class UserRewardAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật trạng thái đổi quà thành công',
-            'data' => $userReward
+            'data' => $userReward,
         ]);
     }
 }

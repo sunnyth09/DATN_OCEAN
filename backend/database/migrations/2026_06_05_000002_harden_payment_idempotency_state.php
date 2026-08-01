@@ -10,22 +10,22 @@ return new class extends Migration
     public function up(): void
     {
         $missingPostPaymentColumns = array_filter([
-            'post_payment_status' => !Schema::hasColumn('payments', 'post_payment_status'),
-            'post_payment_started_at' => !Schema::hasColumn('payments', 'post_payment_started_at'),
-            'post_payment_last_error' => !Schema::hasColumn('payments', 'post_payment_last_error'),
+            'post_payment_status' => ! Schema::hasColumn('payments', 'post_payment_status'),
+            'post_payment_started_at' => ! Schema::hasColumn('payments', 'post_payment_started_at'),
+            'post_payment_last_error' => ! Schema::hasColumn('payments', 'post_payment_last_error'),
         ]);
 
         if ($missingPostPaymentColumns !== []) {
             Schema::table('payments', function (Blueprint $table) {
-                if (!Schema::hasColumn('payments', 'post_payment_status')) {
+                if (! Schema::hasColumn('payments', 'post_payment_status')) {
                     $table->string('post_payment_status', 20)->nullable()->after('post_payment_key');
                 }
 
-                if (!Schema::hasColumn('payments', 'post_payment_started_at')) {
+                if (! Schema::hasColumn('payments', 'post_payment_started_at')) {
                     $table->dateTime('post_payment_started_at')->nullable()->after('post_payment_status');
                 }
 
-                if (!Schema::hasColumn('payments', 'post_payment_last_error')) {
+                if (! Schema::hasColumn('payments', 'post_payment_last_error')) {
                     $table->text('post_payment_last_error')->nullable()->after('post_payment_source');
                 }
             });
@@ -33,7 +33,7 @@ return new class extends Migration
 
         $this->deduplicatePayments();
 
-        if (!$this->hasIndex('payments', 'payments_order_id_payment_method_unique')) {
+        if (! $this->hasIndex('payments', 'payments_order_id_payment_method_unique')) {
             Schema::table('payments', function (Blueprint $table) {
                 $table->unique(['order_id', 'payment_method'], 'payments_order_id_payment_method_unique');
             });
@@ -63,6 +63,11 @@ return new class extends Migration
 
     private function hasIndex(string $tableName, string $indexName): bool
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return collect(DB::select("PRAGMA index_list('$tableName')"))
+                ->contains(fn ($idx) => $idx->name === $indexName);
+        }
+
         return DB::selectOne(
             'select 1 from information_schema.statistics where table_schema = database() and table_name = ? and index_name = ? limit 1',
             [$tableName, $indexName]

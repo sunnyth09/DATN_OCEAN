@@ -4,17 +4,17 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
-use App\Repositories\AdminOrderRepository;
+use App\Mail\OrderCancelledMail;
 use App\Mail\OrderShippingMail;
 use App\Models\Order;
-use App\Services\LoyaltyService;
-use App\Services\WalletService;
+use App\Notifications\SystemNotification;
+use App\Repositories\AdminOrderRepository;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use App\Mail\OrderCancelledMail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 
 class AdminOrderService
@@ -24,20 +24,22 @@ class AdminOrderService
         'confirmed' => ['processing', 'packing', 'cancelled'],
         'processing' => ['packing', 'shipping', 'cancelled'],
         'packing' => ['shipping', 'cancelled'],
-        'shipping' => ['delivered'],
+        'shipping' => ['delivered', 'cancelled', 'return_requested'],
         'delivered' => ['completed', 'return_requested'],
         'completed' => ['return_requested'],
         'cancelled' => [],
-        'return_requested' => [],
-        'return_approved' => [],
+        'return_requested' => ['return_approved', 'return_rejected'],
+        'return_approved' => ['returned', 'refunded'],
         'return_rejected' => [],
-        'returned' => [],
+        'returned' => ['refunded'],
         'refunded' => [],
     ];
 
     private const STATUS_FIELD_MAP = [
         'confirmed' => 'confirmed_at',
-        'shipping'  => 'shipped_at',
+        'processing' => 'processing_at',
+        'packing' => 'packing_at',
+        'shipping' => 'shipped_at',
         'delivered' => 'delivered_at',
         'completed' => 'completed_at',
         'cancelled' => 'cancelled_at',
@@ -56,11 +58,11 @@ class AdminOrderService
     public function listOrders(Request $request): array
     {
         $filters = [
-            'status'         => $request->status,
+            'status' => $request->status,
             'payment_status' => $request->payment_status,
-            'search'         => $request->search,
-            'date_from'      => $request->date_from,
-            'date_to'        => $request->date_to,
+            'search' => $request->search,
+            'date_from' => $request->date_from,
+            'date_to' => $request->date_to,
         ];
 
         $orders = $this->orderRepository->getFilteredOrders($filters, $request->per_page ?? 10);
@@ -75,7 +77,7 @@ class AdminOrderService
     {
         $order = $this->orderRepository->findWithRelations($id);
 
-        if (!$order) {
+        if (! $order) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
         }
 
@@ -88,7 +90,7 @@ class AdminOrderService
     public function updateStatus(int $id, array $data): array
     {
         $order = $this->orderRepository->find($id);
-        if (!$order) {
+        if (! $order) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
         }
 
@@ -99,17 +101,17 @@ class AdminOrderService
             if ($newFulfillmentStatus === $order->fulfillment_status) {
                 return [
                     '_status' => 422,
-                    'status'  => 'error',
+                    'status' => 'error',
                     'message' => "Đơn hàng đang ở trạng thái '{$order->fulfillment_status}' rồi. Vui lòng chọn trạng thái tiếp theo!",
                 ];
             }
 
             // Kiểm tra luồng trạng thái hợp lệ
             $allowed = self::ALLOWED_TRANSITIONS[$order->fulfillment_status] ?? [];
-            if (!in_array($newFulfillmentStatus, $allowed)) {
+            if (! in_array($newFulfillmentStatus, $allowed)) {
                 return [
                     '_status' => 422,
-                    'status'  => 'error',
+                    'status' => 'error',
                     'message' => "Không thể chuyển từ '{$order->fulfillment_status}' sang '{$newFulfillmentStatus}'. Vui lòng thực hiện theo đúng quy trình!",
                 ];
             }
@@ -118,7 +120,7 @@ class AdminOrderService
         DB::beginTransaction();
         try {
             $oldFulfillmentStatus = $order->fulfillment_status;
-            $oldPaymentStatus     = $order->payment_status;
+            $oldPaymentStatus = $order->payment_status;
             $updates = [];
 
             if ($newFulfillmentStatus) {
@@ -134,6 +136,10 @@ class AdminOrderService
                     && $order->payment_method === 'cod'
                     && $order->payment_status === PaymentStatus::UNPAID->value) {
                     $updates['payment_status'] = PaymentStatus::PAID->value;
+                }
+
+                if ($newFulfillmentStatus === OrderStatus::REFUNDED->value && $order->payment_status !== PaymentStatus::REFUNDED->value) {
+                    $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                 }
 
                 if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
@@ -157,7 +163,7 @@ class AdminOrderService
                     // Hoàn ví GIẢM GIÁ (cột độc lập với wallet_spent; áp được cho mọi
                     // payment method — COD/vnpay vẫn có thể dùng ví giảm giá). Không gate
                     // theo payment_method='wallet' như khối trên.
-                    $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                    $walletDeposit = (float) ($order->wallet_deposit_discount ?? 0);
                     $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
                     if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
                         $this->walletService->reverseOrderDiscount(
@@ -178,31 +184,31 @@ class AdminOrderService
                 }
             }
 
-            if (!empty($updates)) {
+            if (! empty($updates)) {
                 $order->update($updates);
 
                 if (isset($updates['fulfillment_status'])) {
                     $this->orderRepository->createStatusHistory([
-                        'order_id'   => $order->order_id,
+                        'order_id' => $order->order_id,
                         'old_status' => $oldFulfillmentStatus,
                         'new_status' => $updates['fulfillment_status'],
-                        'note'       => $data['note'] ?? 'Chuyển trạng thái bởi Admin',
+                        'note' => $data['note'] ?? 'Chuyển trạng thái bởi Admin',
                     ]);
 
                     if ($order->user) {
-                        $statusLabel = \App\Enums\OrderStatus::tryFrom($updates['fulfillment_status'])?->label() ?? $updates['fulfillment_status'];
+                        $statusLabel = OrderStatus::tryFrom($updates['fulfillment_status'])?->label() ?? $updates['fulfillment_status'];
                         $title = "Cập nhật đơn hàng #{$order->order_code}";
                         $message = "Đơn hàng của bạn đã được cập nhật sang trạng thái: {$statusLabel}.";
-                        \Illuminate\Support\Facades\Notification::sendNow($order->user, new \App\Notifications\SystemNotification($title, $message, "/profile/orders/{$order->order_id}", 'package'));
+                        Notification::sendNow($order->user, new SystemNotification($title, $message, "/profile/orders/{$order->order_id}", 'package'));
                     }
                 }
 
                 if (isset($updates['payment_status']) && $updates['payment_status'] !== $oldPaymentStatus) {
                     $this->orderRepository->createStatusHistory([
-                        'order_id'   => $order->order_id,
+                        'order_id' => $order->order_id,
                         'old_status' => $oldPaymentStatus,
                         'new_status' => $updates['payment_status'],
-                        'note'       => '[Thanh toán] Tự động cập nhật theo trạng thái đơn hàng',
+                        'note' => '[Thanh toán] Tự động cập nhật theo trạng thái đơn hàng',
                     ]);
                 }
             }
@@ -237,7 +243,7 @@ class AdminOrderService
                             $order->update(['is_abandoned_checkout' => false]);
                         }
                     } catch (\Exception $e) {
-                        Log::error("LoyaltyEarn failed for order #{$order->order_id}: " . $e->getMessage());
+                        Log::error("LoyaltyEarn failed for order #{$order->order_id}: ".$e->getMessage());
                     }
                 }
             }
@@ -245,7 +251,8 @@ class AdminOrderService
             return ['_status' => 200, 'status' => 'success', 'message' => 'Cập nhật trạng thái thành công!'];
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Cập nhật trạng thái đơn hàng lỗi: ' . $e->getMessage());
+            Log::error('Cập nhật trạng thái đơn hàng lỗi: '.$e->getMessage());
+
             return ['_status' => 500, 'status' => 'error', 'message' => 'Có lỗi xảy ra!'];
         }
     }
@@ -268,17 +275,18 @@ class AdminOrderService
         foreach ($orders as $order) {
             if ($newFulfillmentStatus && $newFulfillmentStatus !== $order->fulfillment_status) {
                 $allowed = self::ALLOWED_TRANSITIONS[$order->fulfillment_status] ?? [];
-                if (!in_array($newFulfillmentStatus, $allowed)) {
+                if (! in_array($newFulfillmentStatus, $allowed)) {
                     $invalidOrders[] = "#{$order->order_code} (Chuyển Giao hàng không hợp lệ)";
                 }
             }
         }
 
-        if (!empty($invalidOrders)) {
+        if (! empty($invalidOrders)) {
             $invalidList = implode(', ', $invalidOrders);
+
             return [
                 '_status' => 422,
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => "Hủy thao tác do có đơn hàng không hợp lệ: {$invalidList}. Vui lòng bỏ chọn các đơn này và thử lại!",
             ];
         }
@@ -289,7 +297,7 @@ class AdminOrderService
 
             foreach ($orders as $order) {
                 $oldFulfillmentStatus = $order->fulfillment_status;
-                $oldPaymentStatus     = $order->payment_status;
+                $oldPaymentStatus = $order->payment_status;
                 $updates = [];
 
                 if ($newFulfillmentStatus && $newFulfillmentStatus !== $order->fulfillment_status) {
@@ -303,6 +311,10 @@ class AdminOrderService
                         && $order->payment_method === 'cod'
                         && $order->payment_status === PaymentStatus::UNPAID->value) {
                         $updates['payment_status'] = PaymentStatus::PAID->value;
+                    }
+
+                    if ($newFulfillmentStatus === OrderStatus::REFUNDED->value && $order->payment_status !== PaymentStatus::REFUNDED->value) {
+                        $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 
                     if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
@@ -325,7 +337,7 @@ class AdminOrderService
 
                         // Hoàn ví GIẢM GIÁ (deposit/commission discount) — cột độc lập với
                         // wallet_spent; áp cho mọi payment_method nên không gate theo 'wallet'.
-                        $walletDeposit    = (float) ($order->wallet_deposit_discount ?? 0);
+                        $walletDeposit = (float) ($order->wallet_deposit_discount ?? 0);
                         $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
                         if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
                             $this->walletService->reverseOrderDiscount(
@@ -337,7 +349,7 @@ class AdminOrderService
                         }
 
                         // Hoàn tồn kho (dùng items đã eager-load, tránh N+1)
-                        $this->orderRepository->restoreStock($order->items->filter(fn($i) => $i->variant_id)->all());
+                        $this->orderRepository->restoreStock($order->items->filter(fn ($i) => $i->variant_id)->all());
 
                         // Gửi email thông báo hủy đơn
                         if ($order->user && $order->user->email) {
@@ -346,32 +358,32 @@ class AdminOrderService
                     }
                 }
 
-                if (!empty($updates)) {
+                if (! empty($updates)) {
                     $order->update($updates);
                     $updatedCount++;
 
                     if (isset($updates['fulfillment_status'])) {
                         $this->orderRepository->createStatusHistory([
-                            'order_id'   => $order->order_id,
+                            'order_id' => $order->order_id,
                             'old_status' => $oldFulfillmentStatus,
                             'new_status' => $updates['fulfillment_status'],
-                            'note'       => $data['note'] ?? 'Chuyển trạng thái hàng loạt bởi Admin',
+                            'note' => $data['note'] ?? 'Chuyển trạng thái hàng loạt bởi Admin',
                         ]);
 
                         if ($order->user) {
-                            $statusLabel = \App\Enums\OrderStatus::tryFrom($updates['fulfillment_status'])?->label() ?? $updates['fulfillment_status'];
+                            $statusLabel = OrderStatus::tryFrom($updates['fulfillment_status'])?->label() ?? $updates['fulfillment_status'];
                             $title = "Cập nhật đơn hàng #{$order->order_code}";
                             $message = "Đơn hàng của bạn đã được cập nhật sang trạng thái: {$statusLabel}.";
-                            \Illuminate\Support\Facades\Notification::sendNow($order->user, new \App\Notifications\SystemNotification($title, $message, "/profile/orders/{$order->order_id}", 'package'));
+                            Notification::sendNow($order->user, new SystemNotification($title, $message, "/profile/orders/{$order->order_id}", 'package'));
                         }
                     }
 
                     if (isset($updates['payment_status']) && $updates['payment_status'] !== $oldPaymentStatus) {
                         $this->orderRepository->createStatusHistory([
-                            'order_id'   => $order->order_id,
+                            'order_id' => $order->order_id,
                             'old_status' => $oldPaymentStatus,
                             'new_status' => $updates['payment_status'],
-                            'note'       => '[Thanh toán] Tự động cập nhật theo trạng thái đơn hàng',
+                            'note' => '[Thanh toán] Tự động cập nhật theo trạng thái đơn hàng',
                         ]);
                     }
                 }
@@ -400,7 +412,7 @@ class AdminOrderService
                                 $order->update(['is_abandoned_checkout' => false]);
                             }
                         } catch (\Exception $e) {
-                            Log::error("LoyaltyEarn bulk failed for order #{$order->order_id}: " . $e->getMessage());
+                            Log::error("LoyaltyEarn bulk failed for order #{$order->order_id}: ".$e->getMessage());
                         }
                     }
                 }
@@ -409,19 +421,20 @@ class AdminOrderService
             if ($updatedCount === 0) {
                 return [
                     '_status' => 422,
-                    'status'  => 'error',
+                    'status' => 'error',
                     'message' => 'Tất cả đơn hàng đã ở trạng thái được chọn rồi. Không có gì thay đổi!',
                 ];
             }
 
             return [
                 '_status' => 200,
-                'status'  => 'success',
-                'message' => 'Cập nhật trạng thái hàng loạt thành công cho ' . $updatedCount . ' đơn hàng!',
+                'status' => 'success',
+                'message' => 'Cập nhật trạng thái hàng loạt thành công cho '.$updatedCount.' đơn hàng!',
             ];
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Cập nhật trạng thái hàng loạt lỗi: ' . $e->getMessage());
+            Log::error('Cập nhật trạng thái hàng loạt lỗi: '.$e->getMessage());
+
             return ['_status' => 500, 'status' => 'error', 'message' => 'Có lỗi hệ thống xảy ra!'];
         }
     }
@@ -433,13 +446,13 @@ class AdminOrderService
     {
         $lock = Cache::lock("ghn_sync_order_{$id}", 30);
 
-        if (!$lock->get()) {
+        if (! $lock->get()) {
             return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đang được đồng bộ GHN. Vui lòng thử lại sau!'];
         }
 
         try {
             $order = Order::with(['items.product', 'address'])->where('order_id', $id)->first();
-            if (!$order) {
+            if (! $order) {
                 return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
             }
 
@@ -447,14 +460,19 @@ class AdminOrderService
                 return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã được đồng bộ GHN!'];
             }
 
-            $result = \App\Services\GHNService::createOrder($order);
+            $result = GHNService::createOrder($order);
 
             if (isset($result['data']['order_code'])) {
                 $oldStatus = $order->fulfillment_status;
                 $order->ghn_order_code = $result['data']['order_code'];
-                if (!$order->tracking_token) {
-                    $order->tracking_token = hash('sha256', $order->order_code . Str::random(40) . microtime(true));
+                if (! $order->tracking_token) {
+                    $order->tracking_token = hash('sha256', $order->order_code.Str::random(40).microtime(true));
                 }
+                
+                // Tự động chuyển sang trạng thái shipping
+                $order->fulfillment_status = OrderStatus::SHIPPING->value;
+                $order->shipped_at = now();
+                
                 $order->save();
 
                 $this->sendOrderShippingMail($order->fresh(['address']));
@@ -465,19 +483,20 @@ class AdminOrderService
                     'new_status' => $order->fulfillment_status,
                     'note' => 'Đã đồng bộ đơn hàng sang GHN',
                     'source' => 'system',
-                    'description' => 'Đã đồng bộ đơn hàng sang GHN',
+                    'description' => 'Đã đồng bộ đơn hàng sang GHN và chuyển sang trạng thái Giao hàng',
                     'happened_at' => now(),
                 ]);
             }
 
             return [
                 '_status' => 200,
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Đã tạo đơn hàng trên GHN thành công!',
-                'data'    => $result,
+                'data' => $result,
             ];
-        } catch (\Exception $e) {
-            return ['_status' => 500, 'status' => 'error', 'message' => $e->getMessage()];
+        } catch (\Throwable $e) {
+            Log::error('Lỗi syncGHN: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return ['_status' => 400, 'status' => 'error', 'message' => $e->getMessage()];
         } finally {
             optional($lock)->release();
         }
@@ -485,7 +504,7 @@ class AdminOrderService
 
     private function sendOrderShippingMail(Order $order): void
     {
-        if (!$order->email) {
+        if (! $order->email) {
             return;
         }
 

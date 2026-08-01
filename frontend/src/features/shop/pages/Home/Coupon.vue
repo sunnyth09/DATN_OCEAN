@@ -362,11 +362,14 @@ onMounted(fetchPublicCoupons);
 .coupon-code-text {
   font-size: 1rem;
   letter-spacing: 0.5px;
+  word-break: break-all;
+  padding-right: 8px;
 }
 
 .copy-icon {
   opacity: 0.8;
   display: inline-flex;
+  flex-shrink: 0;
 }
 
 /* Value Display */

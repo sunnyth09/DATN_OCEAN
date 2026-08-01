@@ -47,7 +47,7 @@ void _sendMessage() async {
             const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Quyền Sport CSKH', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('Ocean Sport CSKH', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 16)),
                 Text('Trực tuyến', style: TextStyle(color: Colors.green, fontSize: 12)),
               ],
             ),

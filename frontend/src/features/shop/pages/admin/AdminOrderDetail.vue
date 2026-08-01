@@ -51,21 +51,20 @@ statuses.push(
 );
 
 const statusTransitions = {
-  'pending':   ['pending', 'confirmed', 'cancelled'],
-  'confirmed': ['confirmed', 'packing', 'cancelled'],
-  'packing':   ['packing', 'shipping', 'cancelled'],
-  'shipping':  ['shipping', 'delivered'],
-  'delivered': ['delivered', 'completed'],
-  'completed': ['completed'],
+  'pending': ['pending', 'confirmed', 'cancelled'],
+  'confirmed': ['confirmed', 'processing', 'packing', 'cancelled'],
+  'processing': ['processing', 'packing', 'shipping', 'cancelled'],
+  'packing': ['packing', 'shipping', 'cancelled'],
+  'shipping': ['shipping', 'delivered', 'cancelled', 'return_requested'],
+  'delivered': ['delivered', 'completed', 'return_requested'],
+  'completed': ['completed', 'return_requested'],
   'cancelled': ['cancelled'],
+  'return_requested': ['return_requested', 'return_approved', 'return_rejected'],
+  'return_approved': ['return_approved', 'returned', 'refunded'],
+  'return_rejected': ['return_rejected'],
+  'returned': ['returned', 'refunded'],
+  'refunded': ['refunded']
 };
-statusTransitions.confirmed = ['confirmed', 'processing', 'packing', 'cancelled'];
-statusTransitions.processing = ['processing', 'packing', 'shipping', 'cancelled'];
-statusTransitions.return_requested = ['return_requested'];
-statusTransitions.return_approved = ['return_approved'];
-statusTransitions.return_rejected = ['return_rejected'];
-statusTransitions.returned = ['returned'];
-statusTransitions.refunded = ['refunded'];
 
 const isLockedFulfillmentStatus = (status) => {
   return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returned', 'refunded'].includes(status);
@@ -79,6 +78,11 @@ const statusActionDefinitions = {
   delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
   completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
   cancelled: { icon: 'x', label: 'Hủy đơn', success: 'Đã hủy đơn hàng thành công!' },
+  return_requested: { icon: 'rotate-ccw', label: 'Yêu cầu hoàn trả', success: 'Đã chuyển sang yêu cầu hoàn trả!' },
+  return_approved: { icon: 'check', label: 'Duyệt hoàn trả', success: 'Đã duyệt yêu cầu hoàn trả!' },
+  return_rejected: { icon: 'x', label: 'Từ chối hoàn trả', success: 'Đã từ chối yêu cầu hoàn trả!' },
+  returned: { icon: 'package-check', label: 'Đã nhận hàng hoàn', success: 'Đã xác nhận nhận hàng hoàn!' },
+  refunded: { icon: 'corner-down-left', label: 'Đã hoàn tiền', success: 'Đã hoàn tiền thành công!' },
 };
 
 const getCurrentOrderStatusActions = () => {
@@ -214,6 +218,7 @@ const updateOrderStatus = async (action) => {
     const res = await api.put(`/admin/orders/${order.value.order_id}/status`, payload);
     if (res.data.status === 'success') {
       toast.success(action.success || 'Cập nhật trạng thái thành công!');
+      window.dispatchEvent(new Event('admin-order-updated'));
       await fetchOrder();
     }
   } catch (error) {
@@ -391,7 +396,10 @@ onMounted(() => fetchOrder());
             Quay lại
           </button>
           <div>
-            <h1 class="page-title">Đơn hàng <span class="order-code">#{{ order.order_code }}</span></h1>
+            <h1 class="page-title" style="display: flex; align-items: center; gap: 8px;">
+                Đơn hàng <span class="order-code">#{{ order.order_code }}</span>
+                <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center;">⚡ Flash Sale</span>
+            </h1>
             <p class="page-sub">Ngày đặt: {{ formatDate(order.created_at) }}</p>
           </div>
         </div>
@@ -727,8 +735,8 @@ onMounted(() => fetchOrder());
   transition: all 0.2s;
 }
 .btn-back:hover { background: var(--primary); color: white; border-color: var(--primary); }
-.page-title { font-size: 1.5rem; font-weight: 800; margin: 0; color: var(--text-main); }
-.order-code { color: var(--primary); }
+.page-title { font-size: 1.5rem; font-weight: 800; margin: 0; color: var(--text-main); word-break: break-word; }
+.order-code { color: var(--primary); word-break: break-all; }
 .page-sub { margin: 4px 0 0; font-size: 0.9rem; color: var(--text-muted); }
 .header-badges { display: flex; gap: 8px; align-items: center; }
 
@@ -1043,7 +1051,7 @@ onMounted(() => fetchOrder());
 .info-rows { display: flex; flex-direction: column; gap: 14px; }
 .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .info-label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; min-width: 90px; flex-shrink: 0; }
-.info-value { font-size: 0.9rem; color: var(--text-main); text-align: right; word-break: break-word; }
+.info-value { font-size: 0.9rem; color: var(--text-main); text-align: right; word-break: break-all; overflow-wrap: anywhere; }
 .fw-bold { font-weight: 700 !important; }
 .note-text { background: rgba(251, 191, 36, 0.08); padding: 8px 12px; border-radius: 6px; font-style: italic; font-size: 0.85rem; border: 1.5px dashed rgba(251, 191, 36, 0.4); text-align: left; color: #fbbf24; }
  
@@ -1087,7 +1095,7 @@ onMounted(() => fetchOrder());
 .item-name { margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text-main); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
 .item-variant { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .variant-tag { padding: 2px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; background: rgba(230, 59, 111, 0.08); color: var(--primary); }
-.item-sku { font-size: 0.75rem; color: var(--text-light); margin-top: 4px; }
+.item-sku { font-size: 0.75rem; color: var(--text-light); margin-top: 4px; word-break: break-all; overflow-wrap: anywhere; }
 .item-qty { font-weight: 700; color: var(--text-secondary); font-size: 0.95rem; padding: 0 8px; }
 .item-price { font-weight: 700; color: var(--text-main); font-size: 1rem; min-width: 110px; text-align: right; }
  
@@ -1147,7 +1155,10 @@ onMounted(() => fetchOrder());
 /* Responsive */
 @media (max-width: 992px) {
   .detail-grid { grid-template-columns: 1fr; }
-  .detail-header { flex-direction: column; }
+  .detail-header { flex-direction: column; align-items: flex-start; }
+  .header-left { flex-wrap: wrap; max-width: 100%; }
+  .page-title { font-size: 1.3rem; line-height: 1.4; }
+  
   .timeline-card { padding: 20px; }
   .timeline-card-header { flex-direction: column; align-items: flex-start; gap: 12px; }
   .timeline { flex-wrap: wrap; gap: 16px; justify-content: center; }
@@ -1156,6 +1167,27 @@ onMounted(() => fetchOrder());
   .step-dot { width: 42px; height: 42px; }
   .step-dot-inner svg { width: 16px; height: 16px; }
   .step-pulse { width: 42px; height: 42px; }
+}
+
+@media (max-width: 768px) {
+  .order-detail-page { padding: 12px; }
+  .info-card { padding: 16px; }
+  
+  /* Chuyển các hàng thông tin thành cột dọc trên màn hình nhỏ */
+  .info-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .info-value { text-align: left; width: 100%; word-break: break-all; }
+  
+  /* Điều chỉnh danh sách sản phẩm */
+  .order-item { flex-wrap: wrap; gap: 10px; position: relative; padding-bottom: 40px; }
+  .item-img { width: 60px; height: 60px; }
+  .item-qty { position: absolute; bottom: 14px; left: 14px; padding: 0; }
+  .item-price { position: absolute; bottom: 14px; right: 14px; min-width: auto; }
+  .item-info { width: 100%; padding-right: 0; }
+  
+  /* Xử lý các tiêu đề dài chứa mã */
+  .card-title { flex-wrap: wrap; word-break: break-word; line-height: 1.4; }
+  .ghn-lookup-row { flex-direction: column; gap: 2px; }
+  .ghn-lookup-row strong { text-align: left; }
 }
  
 /* Cancel Modal */

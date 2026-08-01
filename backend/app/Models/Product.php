@@ -1,16 +1,20 @@
 <?php
 
 namespace App\Models;
-use Laravel\Scout\Searchable;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Scout\Searchable;
 
 class Product extends Model
 {
     use Searchable;
     use SoftDeletes;
+
     protected $table = 'products';
+
     protected $primaryKey = 'product_id';
+
     protected $fillable = [
         'category_id',
         'brand_id',
@@ -68,10 +72,12 @@ class Product extends Model
     {
         return $this->hasMany(Favorite::class, 'product_id', 'product_id');
     }
+
     public function mainImage()
     {
         return $this->hasOne(ProductImage::class, 'product_id')->where('is_main', 1);
     }
+
     public function lowestPriceVariant()
     {
         return $this->hasOne(ProductVariant::class, 'product_id')->orderBy('price', 'asc');
@@ -93,20 +99,20 @@ class Product extends Model
     public function toSearchableArray(): array
     {
         return [
-            'id'                => $this->product_id,
-            'product_id'        => $this->product_id,
-            'name'              => $this->name,
-            'slug'              => $this->slug,
+            'id' => $this->product_id,
+            'product_id' => $this->product_id,
+            'name' => $this->name,
+            'slug' => $this->slug,
             'short_description' => $this->short_description ?? '',
-            'category_id'       => $this->category_id,
-            'brand_id'          => $this->brand_id,
-            'status'            => $this->status,
-            'is_featured'       => (bool) $this->is_featured,
-            'min_price'         => (float) ($this->min_price ?? 0),
-            'max_price'         => (float) ($this->max_price ?? 0),
-            'thumbnail_url'     => $this->thumbnail_url ?? '',
-            'rating_avg'        => (float) ($this->rating_avg ?? 0),
-            'sold_count'        => (int) ($this->sold_count ?? 0),
+            'category_id' => $this->category_id,
+            'brand_id' => $this->brand_id,
+            'status' => $this->status,
+            'is_featured' => (bool) $this->is_featured,
+            'min_price' => (float) ($this->min_price ?? 0),
+            'max_price' => (float) ($this->max_price ?? 0),
+            'thumbnail_url' => $this->thumbnail_url ?? '',
+            'rating_avg' => (float) ($this->rating_avg ?? 0),
+            'sold_count' => (int) ($this->sold_count ?? 0),
         ];
     }
 

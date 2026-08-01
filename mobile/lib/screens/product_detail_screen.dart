@@ -235,7 +235,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
-          'Quyền Sport',
+          'Ocean Sport',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             color: Color(0xFFB50C4D),

@@ -17,15 +17,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('court_bookings', function (Blueprint $table) {
-            if (!Schema::hasColumn('court_bookings', 'deposit_amount')) {
+            if (! Schema::hasColumn('court_bookings', 'deposit_amount')) {
                 $table->decimal('deposit_amount', 15, 2)->default(0)->after('total_amount');
             }
 
-            if (!$this->indexExists('court_bookings', 'idx_booking_time')) {
+            if (! $this->indexExists('court_bookings', 'idx_booking_time')) {
                 $table->index(['start_time', 'end_time'], 'idx_booking_time');
             }
 
-            if (!$this->indexExists('court_bookings', 'idx_court_status')) {
+            if (! $this->indexExists('court_bookings', 'idx_court_status')) {
                 $table->index(['court_id', 'status'], 'idx_court_status');
             }
         });
@@ -56,6 +56,11 @@ return new class extends Migration
     private function indexExists(string $table, string $index): bool
     {
         $connection = Schema::getConnection();
+        if ($connection->getDriverName() === 'sqlite') {
+            return collect($connection->select("PRAGMA index_list('$table')"))
+                ->contains(fn ($idx) => $idx->name === $index);
+        }
+
         $database = $connection->getDatabaseName();
 
         $result = $connection->selectOne(

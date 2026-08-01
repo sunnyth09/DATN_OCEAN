@@ -2,13 +2,13 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\User;
 use App\Models\Coupon;
+use App\Models\User;
 use App\Models\UserCoupon;
 use App\Notifications\BirthdayNotification;
 use App\Services\LoyaltyService;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 /**
  * =====================================================================
@@ -68,6 +68,7 @@ class SendBirthdayWishes extends Command
         // Nếu không có ai sinh nhật hôm nay → dừng
         if ($birthdayUsers->isEmpty()) {
             $this->info('  Không có user nào sinh nhật hôm nay.');
+
             return 0;
         }
 
@@ -80,40 +81,41 @@ class SendBirthdayWishes extends Command
             try {
                 // --- 3a. Tạo mã giảm giá sinh nhật ---
                 // Mã code: BIRTHDAY-{USER_ID}-{MMDD} → đảm bảo unique mỗi năm
-                $couponCode = 'BIRTHDAY-' . $user->user_id . '-' . $today->format('md');
+                $couponCode = 'BIRTHDAY-'.$user->user_id.'-'.$today->format('md');
 
                 // Kiểm tra xem mã đã tồn tại chưa (tránh tạo trùng nếu command chạy lại)
                 $existingCoupon = Coupon::where('code', $couponCode)->first();
 
                 if ($existingCoupon) {
                     $this->warn("  ⚠ User #{$user->user_id} ({$user->full_name}) đã có mã sinh nhật hôm nay, bỏ qua.");
+
                     continue;
                 }
 
                 // Tạo coupon mới trong bảng coupons
                 // firstOrCreate() → tạo mới nếu chưa tồn tại, trả về nếu đã có
                 $coupon = Coupon::create([
-                    'code'               => $couponCode,
-                    'type'               => 'percentage',           // Giảm theo phần trăm
-                    'value'              => 10,                     // Giảm 10%
+                    'code' => $couponCode,
+                    'type' => 'percentage',           // Giảm theo phần trăm
+                    'value' => 10,                     // Giảm 10%
                     'max_discount_value' => 50000,                  // Tối đa 50.000đ
-                    'min_order_value'    => 0,                      // Không yêu cầu đơn tối thiểu
-                    'usage_limit'        => 1,                      // Chỉ dùng 1 lần
-                    'used_count'         => 0,
-                    'user_usage_limit'   => 1,
-                    'is_public'          => false,                  // Mã riêng, không công khai
-                    'is_first_order'     => false,
-                    'start_date'         => $today->toDateString(),
-                    'end_date'           => $today->copy()->addDays(7)->toDateString(), // Hạn 7 ngày
-                    'is_active'          => true,
+                    'min_order_value' => 0,                      // Không yêu cầu đơn tối thiểu
+                    'usage_limit' => 1,                      // Chỉ dùng 1 lần
+                    'used_count' => 0,
+                    'user_usage_limit' => 1,
+                    'is_public' => false,                  // Mã riêng, không công khai
+                    'is_first_order' => false,
+                    'start_date' => $today->toDateString(),
+                    'end_date' => $today->copy()->addDays(7)->toDateString(), // Hạn 7 ngày
+                    'is_active' => true,
                 ]);
 
                 // --- 3b. Gắn coupon cho user trong bảng user_coupons ---
                 UserCoupon::create([
-                    'user_id'    => $user->user_id,
-                    'coupon_id'  => $coupon->id,
+                    'user_id' => $user->user_id,
+                    'coupon_id' => $coupon->id,
                     'used_count' => 0,
-                    'is_saved'   => true,    // Tự động lưu vào "mã giảm giá của tôi"
+                    'is_saved' => true,    // Tự động lưu vào "mã giảm giá của tôi"
                 ]);
 
                 // --- 3c. Gửi notification (mail + database inbox) ---

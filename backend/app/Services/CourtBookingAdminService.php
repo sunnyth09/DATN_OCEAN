@@ -61,13 +61,13 @@ class CourtBookingAdminService
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('booking_code', 'like', "%$search%")
-                  ->orWhere('customer_name', 'like', "%$search%")
-                  ->orWhere('customer_phone', 'like', "%$search%")
-                  ->orWhere('customer_email', 'like', "%$search%")
-                  ->orWhereHas('user', function ($uq) use ($search) {
-                      $uq->where('full_name', 'like', "%$search%")
-                         ->orWhere('phone', 'like', "%$search%");
-                  });
+                    ->orWhere('customer_name', 'like', "%$search%")
+                    ->orWhere('customer_phone', 'like', "%$search%")
+                    ->orWhere('customer_email', 'like', "%$search%")
+                    ->orWhereHas('user', function ($uq) use ($search) {
+                        $uq->where('full_name', 'like', "%$search%")
+                            ->orWhere('phone', 'like', "%$search%");
+                    });
             });
         }
 
@@ -82,8 +82,8 @@ class CourtBookingAdminService
     public function createWalkIn(array $validated, ?int $staffId, Request $request): array
     {
         return DB::transaction(function () use ($validated, $staffId, $request) {
-            $startTime = $validated['start_time'] . ':00';
-            $endTime = $validated['end_time'] . ':00';
+            $startTime = $validated['start_time'].':00';
+            $endTime = $validated['end_time'].':00';
 
             // Check overlap với booking khác (khóa để chống race)
             $conflict = CourtBooking::where('court_id', $validated['court_id'])
@@ -125,7 +125,7 @@ class CourtBookingAdminService
             $durationMinutes = Carbon::parse($startTime)->diffInMinutes(Carbon::parse($endTime));
             $originalPrice = $this->calcPrice($validated['court_id'], $validated['booking_date'], $startTime, $endTime, $durationMinutes);
 
-            $bookingCode = 'BK-' . now()->format('Ymd') . '-' . str_pad(
+            $bookingCode = 'BK-'.now()->format('Ymd').'-'.str_pad(
                 CourtBooking::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT
             );
 
@@ -176,7 +176,7 @@ class CourtBookingAdminService
     {
         $booking = CourtBooking::with(['services', 'extensions'])->findOrFail($id);
 
-        if (!in_array($booking->status, ['checked_in', 'playing', 'extended'])) {
+        if (! in_array($booking->status, ['checked_in', 'playing', 'extended'])) {
             return ['ok' => false, 'code' => 400, 'message' => 'Booking phải ở trạng thái "Đang chơi" để check-out.'];
         }
 
@@ -197,15 +197,15 @@ class CourtBookingAdminService
 
             if ($remaining > 0) {
                 CourtBookingPayment::create([
-                    'booking_id'       => $booking->booking_id,
-                    'payment_type'     => 'full',
-                    'payment_method'   => $validated['payment_method'],
-                    'transaction_code' => $validated['transaction_code'] ?? 'CHECKOUT-' . $booking->booking_code . '-' . now()->format('His'),
-                    'amount'           => $remaining,
-                    'status'           => 'success',
-                    'paid_at'          => now(),
-                    'note'             => 'Thanh toán khi check-out',
-                    'processed_by'     => $staffId,
+                    'booking_id' => $booking->booking_id,
+                    'payment_type' => 'full',
+                    'payment_method' => $validated['payment_method'],
+                    'transaction_code' => $validated['transaction_code'] ?? 'CHECKOUT-'.$booking->booking_code.'-'.now()->format('His'),
+                    'amount' => $remaining,
+                    'status' => 'success',
+                    'paid_at' => now(),
+                    'note' => 'Thanh toán khi check-out',
+                    'processed_by' => $staffId,
                 ]);
                 $booking->paid_amount = $booking->total_amount;
                 $booking->payment_method = $validated['payment_method'];
@@ -234,9 +234,9 @@ class CourtBookingAdminService
                 'booking_id' => $booking->booking_id,
                 'old_status' => $oldStatus,
                 'new_status' => 'completed',
-                'note'       => 'Check-out trả sân & thanh toán',
+                'note' => 'Check-out trả sân & thanh toán',
                 'actor_type' => 'admin',
-                'actor_id'   => $staffId,
+                'actor_id' => $staffId,
             ]);
 
             return ['ok' => true, 'code' => 200, 'data' => $booking->load(['payments'])];
@@ -291,7 +291,7 @@ class CourtBookingAdminService
             $booking = CourtBooking::whereKey($booking->getKey())->lockForUpdate()->firstOrFail();
 
             $currentEnd = Carbon::parse($booking->end_time);
-            $newEnd     = $currentEnd->copy()->addMinutes($validated['extension_minutes']);
+            $newEnd = $currentEnd->copy()->addMinutes($validated['extension_minutes']);
 
             // Chặn gia hạn vượt qua nửa đêm: end_time là cột TIME, cộng phút sang ngày mới
             // khiến so sánh overlap theo TIME sai. Không cho phép.
@@ -361,7 +361,7 @@ class CourtBookingAdminService
                 ->where('to_time', '>=', $newEndTime)
                 ->first();
 
-            if (!$courtPrice) {
+            if (! $courtPrice) {
                 $courtPrice = CourtPrice::where('court_id', $booking->court_id)
                     ->where('is_active', true)
                     ->where(function ($q) use ($dayType) {
@@ -371,7 +371,7 @@ class CourtBookingAdminService
             }
 
             $pricePerHour = $courtPrice ? (float) $courtPrice->price_per_hour : self::DEFAULT_PRICE_PER_HOUR;
-            $extraAmount  = (int) round(($pricePerHour / 60) * $validated['extension_minutes']);
+            $extraAmount = (int) round(($pricePerHour / 60) * $validated['extension_minutes']);
 
             $extension = CourtBookingExtension::create([
                 'booking_id' => $booking->booking_id,
@@ -435,7 +435,7 @@ class CourtBookingAdminService
                         $booking->deposit_amount += $paymentData['amount'];
                     }
                 }
-                $booking->save();
+                CourtBooking::whereKey($booking->getKey())->update(['deposit_amount' => $booking->deposit_amount]);
             });
 
             return ['ok' => true, 'code' => 200, 'data' => $recordedPayments];
@@ -455,7 +455,7 @@ class CourtBookingAdminService
             ->where('start_time', '<', $validated['end_time'])
             ->where('end_time', '>', $validated['start_time']);
 
-        if (!empty($validated['exclude_booking_id'])) {
+        if (! empty($validated['exclude_booking_id'])) {
             $query->where('booking_id', '!=', $validated['exclude_booking_id']);
         }
 
@@ -519,14 +519,12 @@ class CourtBookingAdminService
         $courtsData = $courts->map(function ($court) use ($now, $bookingsByCourt, $maintenanceCourtIds) {
             $courtBookings = $bookingsByCourt->get($court->court_id) ?? collect();
 
-            $currentBooking = $courtBookings->first(fn ($b) =>
-                in_array($b->status, ['checked_in', 'playing', 'extended'], true)
+            $currentBooking = $courtBookings->first(fn ($b) => in_array($b->status, ['checked_in', 'playing', 'extended'], true)
                 && $b->start_time <= $now && $b->end_time > $now
             );
 
             $nextBooking = $courtBookings
-                ->filter(fn ($b) =>
-                    in_array($b->status, ['pending', 'confirmed'], true)
+                ->filter(fn ($b) => in_array($b->status, ['pending', 'confirmed'], true)
                     && $b->start_time > $now
                 )
                 ->sortBy('start_time')
@@ -617,10 +615,10 @@ class CourtBookingAdminService
             ->get();
 
         $revenueByDay = CourtBooking::select(
-                DB::raw('DATE(booking_date) as date'),
-                DB::raw('SUM(total_amount) as revenue'),
-                DB::raw('COUNT(*) as count')
-            )
+            DB::raw('DATE(booking_date) as date'),
+            DB::raw('SUM(total_amount) as revenue'),
+            DB::raw('COUNT(*) as count')
+        )
             ->whereBetween('booking_date', [$fromDate, $toDate])
             ->where('status', 'completed')
             ->groupBy(DB::raw('DATE(booking_date)'))
@@ -628,10 +626,10 @@ class CourtBookingAdminService
             ->get();
 
         $topServices = CourtBookingServiceModel::select(
-                'service_id',
-                DB::raw('SUM(quantity) as total_quantity'),
-                DB::raw('SUM(subtotal) as total_revenue')
-            )
+            'service_id',
+            DB::raw('SUM(quantity) as total_quantity'),
+            DB::raw('SUM(subtotal) as total_revenue')
+        )
             ->whereHas('booking', function ($q) use ($fromDate, $toDate) {
                 $q->whereBetween('booking_date', [$fromDate, $toDate]);
             })

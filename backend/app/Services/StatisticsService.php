@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
-use App\Repositories\StatisticsRepository;
+use App\Exports\LastMonthRevenueExport;
 use App\Models\Product;
+use App\Repositories\StatisticsRepository;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\LastMonthRevenueExport;
 
 class StatisticsService
 {
@@ -18,8 +18,8 @@ class StatisticsService
     public function getDateRange(Request $request): array
     {
         $startDate = $request->input('start_date');
-        $endDate   = $request->input('end_date');
-        $preset    = $request->input('preset');
+        $endDate = $request->input('end_date');
+        $preset = $request->input('preset');
 
         if ($preset && $preset !== 'custom') {
             return match ($preset) {
@@ -44,19 +44,19 @@ class StatisticsService
 
         $diffInDays = $startDate->diffInDays($endDate) + 1;
         $prevStartDate = (clone $startDate)->subDays($diffInDays);
-        $prevEndDate   = (clone $endDate)->subDays($diffInDays);
+        $prevEndDate = (clone $endDate)->subDays($diffInDays);
 
-        $totalRevenue     = $this->statsRepository->getRevenue($startDate, $endDate);
+        $totalRevenue = $this->statsRepository->getRevenue($startDate, $endDate);
         $prevTotalRevenue = $this->statsRepository->getRevenue($prevStartDate, $prevEndDate);
-        $revenueChange    = $this->calculateChange($prevTotalRevenue, $totalRevenue);
+        $revenueChange = $this->calculateChange($prevTotalRevenue, $totalRevenue);
 
-        $totalOrders     = $this->statsRepository->getOrderCount($startDate, $endDate);
+        $totalOrders = $this->statsRepository->getOrderCount($startDate, $endDate);
         $prevTotalOrders = $this->statsRepository->getOrderCount($prevStartDate, $prevEndDate);
-        $ordersChange    = $this->calculateChange($prevTotalOrders, $totalOrders);
+        $ordersChange = $this->calculateChange($prevTotalOrders, $totalOrders);
 
-        $totalCustomers     = $this->statsRepository->getNewCustomerCount($startDate, $endDate);
+        $totalCustomers = $this->statsRepository->getNewCustomerCount($startDate, $endDate);
         $prevTotalCustomers = $this->statsRepository->getNewCustomerCount($prevStartDate, $prevEndDate);
-        $customersChange    = $this->calculateChange($prevTotalCustomers, $totalCustomers);
+        $customersChange = $this->calculateChange($prevTotalCustomers, $totalCustomers);
 
         $allProducts = Product::count();
         $today = $this->statsRepository->getTodayStats();
@@ -64,24 +64,24 @@ class StatisticsService
 
         return [
             'total_revenue' => [
-                'value'  => $totalRevenue,
-                'isUp'   => $revenueChange >= 0,
-                'change' => abs(round($revenueChange, 1)) . '%',
+                'value' => $totalRevenue,
+                'isUp' => $revenueChange >= 0,
+                'change' => abs(round($revenueChange, 1)).'%',
             ],
             'total_orders' => [
-                'value'  => $totalOrders,
-                'isUp'   => $ordersChange >= 0,
-                'change' => abs(round($ordersChange, 1)) . '%',
+                'value' => $totalOrders,
+                'isUp' => $ordersChange >= 0,
+                'change' => abs(round($ordersChange, 1)).'%',
             ],
             'total_customers' => [
-                'value'  => $totalCustomers,
-                'isUp'   => $customersChange >= 0,
-                'change' => abs(round($customersChange, 1)) . '%',
+                'value' => $totalCustomers,
+                'isUp' => $customersChange >= 0,
+                'change' => abs(round($customersChange, 1)).'%',
             ],
-            'total_products'   => ['value' => $allProducts],
-            'today_revenue'    => $today['revenue'],
-            'today_orders'     => $today['orders'],
-            'pending_orders'   => $pendingCancelled['pending'],
+            'total_products' => ['value' => $allProducts],
+            'today_revenue' => $today['revenue'],
+            'today_orders' => $today['orders'],
+            'pending_orders' => $pendingCancelled['pending'],
             'cancelled_orders' => $pendingCancelled['cancelled'],
         ];
     }
@@ -92,15 +92,15 @@ class StatisticsService
         $maxDays = $startDate->diffInDays($endDate);
 
         $labels = [];
-        $data   = [];
+        $data = [];
 
         if ($maxDays > 60) {
             $revenueData = $this->statsRepository->getRevenueByMonth($startDate, $endDate);
             $currentMonth = (clone $startDate)->startOfMonth();
             while ($currentMonth <= $endDate) {
                 $key = $currentMonth->format('Y-m');
-                $labels[] = 'Tháng ' . $currentMonth->format('m/Y');
-                $data[]   = isset($revenueData[$key]) ? $revenueData[$key]->revenue : 0;
+                $labels[] = 'Tháng '.$currentMonth->format('m/Y');
+                $data[] = isset($revenueData[$key]) ? $revenueData[$key]->revenue : 0;
                 $currentMonth->addMonth();
             }
         } else {
@@ -108,21 +108,21 @@ class StatisticsService
             $currentDate = clone $startDate;
             for ($i = 0; $i <= $maxDays; $i++) {
                 $dateString = $currentDate->format('Y-m-d');
-                $labels[]   = $currentDate->format('d/m/Y');
-                $data[]     = isset($revenueData[$dateString]) ? $revenueData[$dateString]->revenue : 0;
+                $labels[] = $currentDate->format('d/m/Y');
+                $data[] = isset($revenueData[$dateString]) ? $revenueData[$dateString]->revenue : 0;
                 $currentDate->addDay();
             }
         }
 
         return [
-            'labels'   => $labels,
+            'labels' => $labels,
             'datasets' => [[
-                'label'           => 'Doanh thu',
-                'data'            => $data,
-                'borderColor'     => '#0288d1',
+                'label' => 'Doanh thu',
+                'data' => $data,
+                'borderColor' => '#0288d1',
                 'backgroundColor' => 'rgba(2, 136, 209, 0.1)',
-                'fill'            => true,
-                'tension'         => 0.4,
+                'fill' => true,
+                'tension' => 0.4,
             ]],
         ];
     }
@@ -150,18 +150,18 @@ class StatisticsService
         ];
 
         $labels = [];
-        $data   = [];
+        $data = [];
         $backgroundColors = [];
 
         foreach ($statusCounts as $status) {
             $key = $status->fulfillment_status;
             $labels[] = $statusMapping[$key]['label'] ?? ucfirst($key);
-            $data[]   = $status->total;
+            $data[] = $status->total;
             $backgroundColors[] = $statusMapping[$key]['color'] ?? '#cfd8dc';
         }
 
         return [
-            'labels'   => $labels,
+            'labels' => $labels,
             'datasets' => [[
                 'data' => $data,
                 'backgroundColor' => $backgroundColors,
@@ -177,13 +177,13 @@ class StatisticsService
 
         return $topProducts->map(function ($item) {
             return [
-                'id'      => $item->product_id,
-                'name'    => $item->product_name,
-                'image'   => $item->product && $item->product->thumbnail_url
+                'id' => $item->product_id,
+                'name' => $item->product_name,
+                'image' => $item->product && $item->product->thumbnail_url
                     ? $item->product->thumbnail_url : null,
-                'sold'    => (int) $item->total_sold,
+                'sold' => (int) $item->total_sold,
                 'revenue' => (float) $item->total_revenue,
-                'stock'   => $item->product ? $item->product->variants->sum('stock') : 0,
+                'stock' => $item->product ? $item->product->variants->sum('stock') : 0,
             ];
         })->toArray();
     }
@@ -196,12 +196,12 @@ class StatisticsService
 
         return $topCustomers->map(function ($order) {
             return [
-                'id'           => $order->user_id,
-                'name'         => $order->recipient_name,
-                'email'        => $order->user ? $order->user->email : $order->recipient_phone,
+                'id' => $order->user_id,
+                'name' => $order->recipient_name,
+                'email' => $order->user ? $order->user->email : $order->recipient_phone,
                 'total_orders' => (int) $order->total_orders,
-                'total_spent'  => (float) $order->total_spent,
-                'last_order'   => Carbon::parse($order->last_order_date)->format('d/m/Y'),
+                'total_spent' => (float) $order->total_spent,
+                'last_order' => Carbon::parse($order->last_order_date)->format('d/m/Y'),
             ];
         })->toArray();
     }
@@ -214,17 +214,17 @@ class StatisticsService
 
         return $reportData->map(function ($row) {
             return [
-                'date'     => Carbon::parse($row->date)->format('d/m/Y'),
+                'date' => Carbon::parse($row->date)->format('d/m/Y'),
                 'raw_date' => $row->date,
-                'orders'   => $row->total_orders,
-                'revenue'  => $row->total_revenue,
+                'orders' => $row->total_orders,
+                'revenue' => $row->total_revenue,
             ];
         })->toArray();
     }
 
     public function exportLastMonthRevenue()
     {
-        $fileName = 'Doanh_Thu_Thang_Truoc_' . Carbon::now()->format('Y_m') . '.xlsx';
+        $fileName = 'Doanh_Thu_Thang_Truoc_'.Carbon::now()->format('Y_m').'.xlsx';
 
         return Excel::download(new LastMonthRevenueExport, $fileName);
     }
@@ -237,11 +237,11 @@ class StatisticsService
 
         return $staffSales->map(function ($row) {
             return [
-                'staff_id'      => $row->seller_id,
-                'staff_name'    => $row->seller ? $row->seller->full_name : 'Unknown',
-                'staff_email'   => $row->seller ? $row->seller->email : 'Unknown',
-                'role'          => $row->seller ? $row->seller->role : 'Unknown',
-                'total_orders'  => (int) $row->total_orders,
+                'staff_id' => $row->seller_id,
+                'staff_name' => $row->seller ? $row->seller->full_name : 'Unknown',
+                'staff_email' => $row->seller ? $row->seller->email : 'Unknown',
+                'role' => $row->seller ? $row->seller->role : 'Unknown',
+                'total_orders' => (int) $row->total_orders,
                 'total_revenue' => (float) $row->total_revenue,
             ];
         })->toArray();

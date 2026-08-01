@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\Reward;
+use Illuminate\Http\Request;
 
 class RewardAdminController extends Controller
 {
     public function index()
     {
         $rewards = Reward::orderBy('created_at', 'desc')->get();
+
         return response()->json([
             'status' => 'success',
-            'data' => $rewards
+            'data' => $rewards,
         ]);
     }
 
@@ -24,7 +25,7 @@ class RewardAdminController extends Controller
             'description' => 'nullable|string',
             'points_required' => 'required|integer|min:1',
             'type' => 'required|in:voucher,item',
-            'image' => 'nullable|string'
+            'image' => 'nullable|string',
         ]);
 
         $reward = Reward::create($request->all());
@@ -32,16 +33,17 @@ class RewardAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Tạo quà tặng thành công',
-            'data' => $reward
+            'data' => $reward,
         ], 201);
     }
 
     public function show($id)
     {
         $reward = Reward::findOrFail($id);
+
         return response()->json([
             'status' => 'success',
-            'data' => $reward
+            'data' => $reward,
         ]);
     }
 
@@ -54,7 +56,7 @@ class RewardAdminController extends Controller
             'description' => 'nullable|string',
             'points_required' => 'sometimes|integer|min:1',
             'type' => 'sometimes|in:voucher,item',
-            'image' => 'nullable|string'
+            'image' => 'nullable|string',
         ]);
 
         $reward->update($request->all());
@@ -62,7 +64,7 @@ class RewardAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật quà tặng thành công',
-            'data' => $reward
+            'data' => $reward,
         ]);
     }
 
@@ -73,7 +75,7 @@ class RewardAdminController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Xóa quà tặng thành công'
+            'message' => 'Xóa quà tặng thành công',
         ]);
     }
 }

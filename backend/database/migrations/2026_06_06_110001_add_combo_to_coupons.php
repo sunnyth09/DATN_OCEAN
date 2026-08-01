@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -18,10 +19,11 @@ return new class extends Migration
         // Thêm type 'combo' và flag auto_apply vào bảng coupons
         Schema::table('coupons', function (Blueprint $table) {
             // Đổi enum để thêm 'combo'
-            // MySQL không cho ALTER ENUM trực tiếp, dùng CHANGE column
-            \Illuminate\Support\Facades\DB::statement(
-                "ALTER TABLE coupons MODIFY COLUMN type ENUM('fixed','percent','free_ship','combo') NOT NULL DEFAULT 'fixed'"
-            );
+            if (DB::connection()->getDriverName() !== 'sqlite') {
+                DB::statement(
+                    "ALTER TABLE coupons MODIFY COLUMN type ENUM('fixed','percent','free_ship','combo') NOT NULL DEFAULT 'fixed'"
+                );
+            }
 
             // Tự động áp dụng (không cần nhập code)
             $table->boolean('auto_apply')->default(false)->after('is_active');
@@ -51,9 +53,11 @@ return new class extends Migration
         Schema::dropIfExists('coupon_products');
 
         Schema::table('coupons', function (Blueprint $table) {
-            \Illuminate\Support\Facades\DB::statement(
-                "ALTER TABLE coupons MODIFY COLUMN type ENUM('fixed','percent','free_ship') NOT NULL DEFAULT 'fixed'"
-            );
+            if (DB::connection()->getDriverName() !== 'sqlite') {
+                DB::statement(
+                    "ALTER TABLE coupons MODIFY COLUMN type ENUM('fixed','percent','free_ship') NOT NULL DEFAULT 'fixed'"
+                );
+            }
             $table->dropColumn(['auto_apply', 'min_product_qty']);
         });
     }

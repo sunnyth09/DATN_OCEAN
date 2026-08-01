@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Wallet;
-use App\Models\WalletTransaction;
 use App\Services\WalletService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -18,11 +17,13 @@ class WalletServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new WalletService();
+        $this->service = new WalletService;
 
+        Schema::disableForeignKeyConstraints();
         foreach (['wallet_withdrawals', 'wallet_transactions', 'wallets', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');
@@ -83,9 +84,9 @@ class WalletServiceTest extends TestCase
     private function makeUser(int $id = 1): int
     {
         DB::table('users')->insert([
-            'user_id'    => $id,
-            'full_name'  => 'Wallet Tester',
-            'email'      => "wallet{$id}@example.com",
+            'user_id' => $id,
+            'full_name' => 'Wallet Tester',
+            'email' => "wallet{$id}@example.com",
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -96,8 +97,8 @@ class WalletServiceTest extends TestCase
     private function bankInfo(): array
     {
         return [
-            'bank_name'           => 'Vietcombank',
-            'bank_account_name'   => 'NGUYEN VAN A',
+            'bank_name' => 'Vietcombank',
+            'bank_account_name' => 'NGUYEN VAN A',
             'bank_account_number' => '0123456789',
         ];
     }
@@ -198,7 +199,7 @@ class WalletServiceTest extends TestCase
 
         $this->assertDatabaseHas('wallet_withdrawals', [
             'withdrawal_code' => $result['withdrawal_code'],
-            'status'          => 'processing',
+            'status' => 'processing',
         ]);
     }
 

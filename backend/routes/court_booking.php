@@ -1,14 +1,14 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\CourtController;
-use App\Http\Controllers\Api\CourtBookingController;
 use App\Http\Controllers\Api\Admin\CourtAdminController;
 use App\Http\Controllers\Api\Admin\CourtBookingAdminController;
-use App\Http\Controllers\Api\Admin\CourtScheduleAdminController;
-use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
-use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
 use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
+use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
+use App\Http\Controllers\Api\Admin\CourtScheduleAdminController;
+use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
+use App\Http\Controllers\Api\CourtBookingController;
+use App\Http\Controllers\Api\CourtController;
+use Illuminate\Support\Facades\Route;
 
 // PUBLIC & USER ROUTES
 Route::prefix('court-bookings')->group(function () {
@@ -33,7 +33,7 @@ Route::middleware(['auth:api,admin', 'role:admin,staff'])->prefix('admin/court-b
     Route::apiResource('court-prices', CourtPriceAdminController::class);
     Route::apiResource('court-services', CourtServiceAdminController::class);
     Route::apiResource('court-maintenances', CourtMaintenanceAdminController::class);
-    
+
     // Bookings Management
     Route::apiResource('bookings', CourtBookingAdminController::class);
     Route::post('/bookings/{id}/check-in', [CourtBookingAdminController::class, 'checkIn']);

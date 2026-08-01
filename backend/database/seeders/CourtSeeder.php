@@ -2,10 +2,9 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Carbon\Carbon;
 
 /**
  * Seeder: Tạo 7 sân cầu lông + lịch hoạt động + bảng giá
@@ -21,81 +20,81 @@ class CourtSeeder extends Seeder
         // =============================================
         $courts = [
             [
-                'court_name'  => 'Sân 1',
-                'court_code'  => 'SAN-01',
-                'type'        => 'standard',
+                'court_name' => 'Sân 1',
+                'court_code' => 'SAN-01',
+                'type' => 'standard',
                 'description' => 'Sân cầu lông tiêu chuẩn, mặt thảm PVC chống trơn trượt, ánh sáng đạt chuẩn thi đấu.',
-                'surface'     => 'Thảm PVC',
+                'surface' => 'Thảm PVC',
                 'max_players' => 4,
-                'status'      => 'active',
-                'image_url'   => null,
-                'sort_order'  => 1,
+                'status' => 'active',
+                'image_url' => null,
+                'sort_order' => 1,
             ],
             [
-                'court_name'  => 'Sân 2',
-                'court_code'  => 'SAN-02',
-                'type'        => 'standard',
+                'court_name' => 'Sân 2',
+                'court_code' => 'SAN-02',
+                'type' => 'standard',
                 'description' => 'Sân cầu lông tiêu chuẩn, phù hợp luyện tập hàng ngày và thi đấu phong trào.',
-                'surface'     => 'Thảm PVC',
+                'surface' => 'Thảm PVC',
                 'max_players' => 4,
-                'status'      => 'active',
-                'image_url'   => null,
-                'sort_order'  => 2,
+                'status' => 'active',
+                'image_url' => null,
+                'sort_order' => 2,
             ],
             [
-                'court_name'  => 'Sân 3',
-                'court_code'  => 'SAN-03',
-                'type'        => 'vip',
+                'court_name' => 'Sân 3',
+                'court_code' => 'SAN-03',
+                'type' => 'vip',
                 'description' => 'Sân VIP với hệ thống điều hoà, ghế nghỉ riêng, bề mặt sàn gỗ cao cấp.',
-                'surface'     => 'Sàn gỗ',
+                'surface' => 'Sàn gỗ',
                 'max_players' => 4,
-                'status'      => 'active',
-                'image_url'   => null,
-                'sort_order'  => 3,
+                'status' => 'active',
+                'image_url' => null,
+                'sort_order' => 3,
             ],
             [
-                'court_name'  => 'Sân 4',
-                'court_code'  => 'SAN-04',
-                'type'        => 'vip',
+                'court_name' => 'Sân 4',
+                'court_code' => 'SAN-04',
+                'type' => 'vip',
                 'description' => 'Sân VIP chất lượng cao, sàn nhập khẩu, phù hợp thi đấu chuyên nghiệp.',
-                'surface'     => 'Sàn gỗ',
+                'surface' => 'Sàn gỗ',
                 'max_players' => 4,
-                'status'      => 'active',
-                'image_url'   => null,
-                'sort_order'  => 4,
+                'status' => 'active',
+                'image_url' => null,
+                'sort_order' => 4,
             ],
             [
-                'court_name'  => 'Sân 5',
-                'court_code'  => 'SAN-05',
-                'type'        => 'indoor',
+                'court_name' => 'Sân 5',
+                'court_code' => 'SAN-05',
+                'type' => 'indoor',
                 'description' => 'Sân trong nhà có mái che, chống nắng mưa, thông gió tốt.',
-                'surface'     => 'Composite',
+                'surface' => 'Composite',
                 'max_players' => 4,
-                'status'      => 'active',
-                'image_url'   => null,
-                'sort_order'  => 5,
+                'status' => 'active',
+                'image_url' => null,
+                'sort_order' => 5,
             ],
             [
-                'court_name'  => 'Sân 6',
-                'court_code'  => 'SAN-06',
-                'type'        => 'outdoor',
+                'court_name' => 'Sân 6',
+                'court_code' => 'SAN-06',
+                'type' => 'outdoor',
                 'description' => 'Sân ngoài trời thoáng mát, phù hợp chơi buổi sáng và chiều tối.',
-                'surface'     => 'Bê tông phủ cao su',
+                'surface' => 'Bê tông phủ cao su',
                 'max_players' => 4,
-                'status'      => 'active',
-                'image_url'   => null,
-                'sort_order'  => 6,
+                'status' => 'active',
+                'image_url' => null,
+                'sort_order' => 6,
             ],
             [
-                'court_name'  => 'Sân 7',
-                'court_code'  => 'SAN-07',
-                'type'        => 'standard',
+                'court_name' => 'Sân 7',
+                'court_code' => 'SAN-07',
+                'type' => 'standard',
                 'description' => 'Sân tiêu chuẩn đang tạm ngưng để bảo trì hệ thống đèn chiếu sáng.',
-                'surface'     => 'Thảm PVC',
+                'surface' => 'Thảm PVC',
                 'max_players' => 4,
-                'status'      => 'maintenance',
-                'image_url'   => null,
-                'sort_order'  => 7,
+                'status' => 'maintenance',
+                'image_url' => null,
+                'sort_order' => 7,
             ],
         ];
 
@@ -134,15 +133,15 @@ class CourtSeeder extends Seeder
                     ->where('day_of_week', $dow)
                     ->exists();
 
-                if (!$exists) {
+                if (! $exists) {
                     DB::table('court_schedules')->insert([
-                        'court_id'    => $courtId,
+                        'court_id' => $courtId,
                         'day_of_week' => $dow,
-                        'open_time'   => $openTime,
-                        'close_time'  => $closeTime,
-                        'is_active'   => $isActive,
-                        'created_at'  => $now,
-                        'updated_at'  => $now,
+                        'open_time' => $openTime,
+                        'close_time' => $closeTime,
+                        'is_active' => $isActive,
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ]);
                 }
             }
@@ -157,9 +156,9 @@ class CourtSeeder extends Seeder
         // Giá mặc định theo loại sân
         $priceMap = [
             'standard' => 80000,
-            'vip'      => 150000,
-            'indoor'   => 100000,
-            'outdoor'  => 70000,
+            'vip' => 150000,
+            'indoor' => 100000,
+            'outdoor' => 70000,
         ];
 
         foreach ($courtIds as $index => $courtId) {
@@ -168,13 +167,13 @@ class CourtSeeder extends Seeder
 
             $priceConfigs = [
                 // Ngày thường - Sáng sớm (giảm giá)
-                ['price_name' => 'Ngày thường - Sáng sớm', 'day_type' => 'weekday', 'from_time' => '05:00:00', 'to_time' => '08:00:00', 'price' => (int)($basePrice * 0.8)],
+                ['price_name' => 'Ngày thường - Sáng sớm', 'day_type' => 'weekday', 'from_time' => '05:00:00', 'to_time' => '08:00:00', 'price' => (int) ($basePrice * 0.8)],
                 // Ngày thường - Giờ hành chính
                 ['price_name' => 'Ngày thường - Giờ hành chính', 'day_type' => 'weekday', 'from_time' => '08:00:00', 'to_time' => '17:00:00', 'price' => $basePrice],
                 // Ngày thường - Giờ cao điểm
-                ['price_name' => 'Ngày thường - Giờ cao điểm', 'day_type' => 'weekday', 'from_time' => '17:00:00', 'to_time' => '22:00:00', 'price' => (int)($basePrice * 1.3)],
+                ['price_name' => 'Ngày thường - Giờ cao điểm', 'day_type' => 'weekday', 'from_time' => '17:00:00', 'to_time' => '22:00:00', 'price' => (int) ($basePrice * 1.3)],
                 // Cuối tuần - Cả ngày
-                ['price_name' => 'Cuối tuần - Cả ngày', 'day_type' => 'weekend', 'from_time' => '05:00:00', 'to_time' => '22:00:00', 'price' => (int)($basePrice * 1.2)],
+                ['price_name' => 'Cuối tuần - Cả ngày', 'day_type' => 'weekend', 'from_time' => '05:00:00', 'to_time' => '22:00:00', 'price' => (int) ($basePrice * 1.2)],
             ];
 
             foreach ($priceConfigs as $pc) {
@@ -185,19 +184,19 @@ class CourtSeeder extends Seeder
                     ->where('to_time', $pc['to_time'])
                     ->exists();
 
-                if (!$exists) {
+                if (! $exists) {
                     DB::table('court_prices')->insert([
-                        'court_id'       => $courtId,
-                        'price_name'     => $pc['price_name'],
-                        'day_type'       => $pc['day_type'],
-                        'from_time'      => $pc['from_time'],
-                        'to_time'        => $pc['to_time'],
+                        'court_id' => $courtId,
+                        'price_name' => $pc['price_name'],
+                        'day_type' => $pc['day_type'],
+                        'from_time' => $pc['from_time'],
+                        'to_time' => $pc['to_time'],
                         'price_per_hour' => $pc['price'],
-                        'is_active'      => true,
+                        'is_active' => true,
                         'effective_from' => null,
-                        'effective_to'   => null,
-                        'created_at'     => $now,
-                        'updated_at'     => $now,
+                        'effective_to' => null,
+                        'created_at' => $now,
+                        'updated_at' => $now,
                     ]);
                 }
             }

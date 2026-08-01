@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class ProductImage extends Model
 {
     protected $table = 'product_images';
+
     protected $primaryKey = 'image_id';
+
     protected $fillable = [
         'product_id',
         'variant_id',
@@ -23,6 +25,7 @@ class ProductImage extends Model
     {
         return $this->belongsTo(Product::class, 'product_id', 'product_id');
     }
+
     public function variant()
     {
         return $this->belongsTo(ProductVariant::class, 'variant_id');

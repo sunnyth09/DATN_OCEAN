@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Admin\StoreCouponRequest;
 use App\Http\Requests\Admin\UpdateCouponRequest;
+use App\Jobs\SendBulkCouponEmail;
 use App\Services\CouponService;
 use Illuminate\Http\Request;
 
@@ -38,18 +39,19 @@ class CouponController extends Controller
 
         // Gửi email thông báo cho khách hàng
         if ($request->boolean('send_email')) {
-            \App\Jobs\SendBulkCouponEmail::dispatch($coupon);
+            SendBulkCouponEmail::dispatch($coupon);
+
             return response()->json([
                 'status' => 'success',
-                'message' => "Mã giảm giá hoạt động và đang tiến hành xử lý gửi email hàng loạt ngầm ở hậu trường.",
-                'data' => $coupon
+                'message' => 'Mã giảm giá hoạt động và đang tiến hành xử lý gửi email hàng loạt ngầm ở hậu trường.',
+                'data' => $coupon,
             ]);
         }
 
         return response()->json([
             'status' => 'success',
             'message' => 'Mã giảm giá đã được tạo thành công',
-            'data' => $coupon
+            'data' => $coupon,
         ]);
     }
 
@@ -60,17 +62,17 @@ class CouponController extends Controller
     {
         $coupon = $this->couponService->adminUpdate($id, $request->validated());
 
-        if (!$coupon) {
+        if (! $coupon) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Không tìm thấy mã giảm giá!'
+                'message' => 'Không tìm thấy mã giảm giá!',
             ], 404);
         }
 
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật mã giảm giá thành công!',
-            'data' => $coupon
+            'data' => $coupon,
         ]);
     }
 
@@ -79,16 +81,16 @@ class CouponController extends Controller
      */
     public function destroy($id)
     {
-        if (!$this->couponService->adminDelete($id)) {
+        if (! $this->couponService->adminDelete($id)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Không tìm thấy mã giảm giá!'
+                'message' => 'Không tìm thấy mã giảm giá!',
             ], 404);
         }
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã xóa mã giảm giá thành công!'
+            'message' => 'Đã xóa mã giảm giá thành công!',
         ]);
     }
 
@@ -99,7 +101,7 @@ class CouponController extends Controller
     {
         return response()->json([
             'status' => 'success',
-            'data' => $this->couponService->getPublicCoupons()
+            'data' => $this->couponService->getPublicCoupons(),
         ]);
     }
 
@@ -114,17 +116,17 @@ class CouponController extends Controller
         $user = auth('api')->user();
         $userId = $user ? $user->user_id : null;
 
-        if (!$userId && auth('admin')->check()) {
+        if (! $userId && auth('admin')->check()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Tài khoản nhân viên/quản trị không thể lưu mã giảm giá. Vui lòng đăng nhập bằng tài khoản khách hàng.'
+                'message' => 'Tài khoản nhân viên/quản trị không thể lưu mã giảm giá. Vui lòng đăng nhập bằng tài khoản khách hàng.',
             ], 403);
         }
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bạn cần đăng nhập để lưu mã giảm giá!'
+                'message' => 'Bạn cần đăng nhập để lưu mã giảm giá!',
             ], 401);
         }
 
@@ -153,20 +155,20 @@ class CouponController extends Controller
         $user = auth('api')->user();
         $userId = $user ? $user->user_id : null;
 
-        if (!$userId && auth('admin')->check()) {
+        if (! $userId && auth('admin')->check()) {
             abort(403, 'Tài khoản nhân viên/quản trị không thể lưu mã giảm giá. Vui lòng đăng nhập bằng tài khoản khách hàng.');
         }
 
-        if (!$userId) {
+        if (! $userId) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bạn cần đăng nhập!'
+                'message' => 'Bạn cần đăng nhập!',
             ], 401);
         }
 
         return response()->json([
             'status' => 'success',
-            'data' => $this->couponService->getSavedForUser($userId)
+            'data' => $this->couponService->getSavedForUser($userId),
         ]);
     }
 
@@ -177,16 +179,16 @@ class CouponController extends Controller
     {
         $data = $this->couponService->adminUsages($id);
 
-        if (!$data) {
+        if (! $data) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Không tìm thấy mã giảm giá!'
+                'message' => 'Không tìm thấy mã giảm giá!',
             ], 404);
         }
 
         return response()->json([
             'status' => 'success',
-            'data' => $data
+            'data' => $data,
         ]);
     }
 }

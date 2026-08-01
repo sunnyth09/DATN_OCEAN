@@ -28,7 +28,7 @@ class ChangePasswordRequest extends FormRequest
                 'confirmed',
                 'regex:/[A-Z]/',
                 'regex:/[0-9]/',
-                'regex:/[^A-Za-z0-9]/'
+                'regex:/[^A-Za-z0-9]/',
             ],
         ];
     }

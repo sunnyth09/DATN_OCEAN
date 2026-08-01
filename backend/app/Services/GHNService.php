@@ -135,9 +135,6 @@ class GHNService
         }
 
         $sender = config('ghn.sender');
-        if (empty($sender['phone']) || empty($sender['address']) || empty($sender['ward_code']) || empty($sender['district_id'])) {
-            throw new \Exception('Chưa cấu hình đầy đủ địa chỉ kho gửi GHN');
-        }
         $items = [];
         $totalWeight = 0;
         $defaultWeight = (int) config('ghn.default_weight', 500);
@@ -193,7 +190,9 @@ class GHNService
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
-            throw new \Exception('Lỗi từ GHN: ' . $response->body());
+            $errorData = $response->json();
+            $errorMsg = $errorData['message'] ?? $errorData['code_message_value'] ?? $response->body();
+            throw new \Exception('Lỗi từ GHN: ' . $errorMsg);
         } catch (\Exception $e) {
             Log::error('GHN create order exception', [
                 'order_id' => $order->order_id ?? null,
@@ -220,9 +219,6 @@ class GHNService
         }
 
         $sender = config('ghn.sender');
-        if (empty($sender['phone']) || empty($sender['address']) || empty($sender['ward_code']) || empty($sender['district_id'])) {
-            throw new \Exception('Chưa cấu hình đầy đủ địa chỉ kho nhận hàng hoàn GHN');
-        }
 
         $items = [];
         $totalWeight = 0;
@@ -277,7 +273,9 @@ class GHNService
                 'status' => $response->status(),
                 'body' => $response->body(),
             ]);
-            throw new \Exception('Lỗi từ GHN khi tạo vận đơn hoàn: ' . $response->body());
+            $errorData = $response->json();
+            $errorMsg = $errorData['message'] ?? $errorData['code_message_value'] ?? $response->body();
+            throw new \Exception('Lỗi từ GHN khi tạo vận đơn hoàn: ' . $errorMsg);
         } catch (\Exception $e) {
             Log::error('GHN create return order exception', [
                 'return_request_id' => $returnRequest->id,

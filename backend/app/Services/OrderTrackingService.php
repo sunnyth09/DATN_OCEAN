@@ -29,7 +29,7 @@ class OrderTrackingService
             'receiver_name' => $this->maskName($this->receiverName($order)),
             'receiver_phone' => $this->maskPhone($this->receiverPhone($order)),
             'timeline' => $this->getTimeline($order),
-            'items' => $order->items->map(fn($item) => [
+            'items' => $order->items->map(fn ($item) => [
                 'name' => $item->product_name,
                 'quantity' => $item->quantity,
                 'price' => $item->unit_price,
@@ -50,6 +50,7 @@ class OrderTrackingService
             ->values()
             ->map(function (array $event) {
                 $event['is_current'] = false;
+
                 return $event;
             });
 
@@ -85,7 +86,7 @@ class OrderTrackingService
 
     private function ghnEvents(Order $order, Collection $dbEvents): Collection
     {
-        if (!$order->ghn_order_code) {
+        if (! $order->ghn_order_code) {
             return collect();
         }
 
@@ -96,11 +97,12 @@ class OrderTrackingService
                 'order_id' => $order->order_id,
                 'error' => $e->getMessage(),
             ]);
+
             return collect();
         }
 
         $logs = $detail['log'] ?? $detail['logs'] ?? [];
-        if (!is_array($logs)) {
+        if (! is_array($logs)) {
             return collect();
         }
 
@@ -137,12 +139,12 @@ class OrderTrackingService
                 return false;
             }
 
-            if (!$eventTime) {
+            if (! $eventTime) {
                 return true;
             }
 
             $dbTime = strtotime($dbEvent['happened_at'] ?? '') ?: null;
-            if (!$dbTime) {
+            if (! $dbTime) {
                 return ($dbEvent['new_status'] ?? null) === ($event['new_status'] ?? null);
             }
 
@@ -169,12 +171,12 @@ class OrderTrackingService
 
     private function buildGhnTrackingUrl(Order $order): ?string
     {
-        if (!$order->ghn_order_code) {
+        if (! $order->ghn_order_code) {
             return null;
         }
 
         return rtrim((string) config('ghn.tracking_url', 'https://donhang.ghn.vn'), '/')
-            . '/?order_code=' . urlencode($order->ghn_order_code);
+            .'/?order_code='.urlencode($order->ghn_order_code);
     }
 
     private function receiverName(Order $order): string
@@ -192,10 +194,10 @@ class OrderTrackingService
     {
         $digits = preg_replace('/\D+/', '', (string) $phone);
         if (strlen($digits) < 7) {
-            return $digits ? substr($digits, 0, 2) . '***' : '';
+            return $digits ? substr($digits, 0, 2).'***' : '';
         }
 
-        return substr($digits, 0, 3) . '****' . substr($digits, -3);
+        return substr($digits, 0, 3).'****'.substr($digits, -3);
     }
 
     private function maskName(?string $name): string
@@ -207,10 +209,11 @@ class OrderTrackingService
 
         $parts = preg_split('/\s+/', $name);
         if (count($parts) <= 1) {
-            return mb_substr($name, 0, 1) . str_repeat('*', max(mb_strlen($name) - 1, 1));
+            return mb_substr($name, 0, 1).str_repeat('*', max(mb_strlen($name) - 1, 1));
         }
 
         $last = array_pop($parts);
-        return str_repeat('* ', count($parts)) . $last;
+
+        return str_repeat('* ', count($parts)).$last;
     }
 }

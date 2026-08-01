@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Admin;
 use App\Models\Court;
 use App\Models\CourtBooking;
+use App\Models\CourtPrice;
 use App\Models\User;
-use App\Models\Admin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use App\Models\CourtPrice;
 
 class CourtBookingPaymentTest extends TestCase
 {
@@ -17,11 +17,12 @@ class CourtBookingPaymentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->court = Court::create([
-            'name' => 'Sân 1',
-            'type' => 'Standard',
-            'status' => 'active'
+            'court_name' => 'Sân 1',
+            'court_code' => 'SAN-1',
+            'type' => 'standard',
+            'status' => 'active',
         ]);
 
         CourtPrice::create([
@@ -30,15 +31,22 @@ class CourtBookingPaymentTest extends TestCase
             'from_time' => '00:00:00',
             'to_time' => '23:59:59',
             'price_per_hour' => 100000,
-            'is_active' => true
+            'is_active' => true,
         ]);
     }
 
     public function test_split_payment_records_deposit_and_full_payment()
     {
-        $admin = Admin::factory()->create();
+        $admin = Admin::create([
+            'full_name' => 'Admin Test',
+            'email' => 'admin_test@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+            'status' => 'active',
+            'phone' => '0901234567',
+        ]);
         $user = User::factory()->create();
-        
+
         $booking = CourtBooking::create([
             'booking_code' => 'BK-TEST',
             'user_id' => $user->id,
@@ -65,26 +73,27 @@ class CourtBookingPaymentTest extends TestCase
                         'payment_type' => 'deposit',
                         'amount' => 30000,
                         'transaction_code' => 'VN123',
+                        'status' => 'success',
                     ],
                     [
                         'payment_method' => 'cash',
                         'payment_type' => 'full',
                         'amount' => 70000,
-                    ]
-                ]
+                    ],
+                ],
             ]);
 
         $response->assertStatus(200);
         $response->assertJson([
             'status' => 'success',
-            'message' => 'Split payments recorded successfully.'
+            'message' => 'Split payments recorded successfully.',
         ]);
 
         // Assert DB state
         $booking->refresh();
         $this->assertEquals(30000, $booking->deposit_amount);
         $this->assertEquals('paid', $booking->payment_status);
-        
+
         $this->assertDatabaseHas('court_booking_payments', [
             'booking_id' => $booking->booking_id,
             'payment_method' => 'vnpay',

@@ -13,22 +13,22 @@ return new class extends Migration
         // Migration này chỉ giữ các thay đổi cột đi kèm tính năng ví.
 
         Schema::table('affiliate_withdrawals', function (Blueprint $table) {
-            if (!Schema::hasColumn('affiliate_withdrawals', 'withdrawal_method')) {
+            if (! Schema::hasColumn('affiliate_withdrawals', 'withdrawal_method')) {
                 $table->string('withdrawal_method', 30)->default('bank')->after('amount');
             }
         });
 
         Schema::table('orders', function (Blueprint $table) {
-            if (!Schema::hasColumn('orders', 'is_abandoned_checkout')) {
+            if (! Schema::hasColumn('orders', 'is_abandoned_checkout')) {
                 $table->boolean('is_abandoned_checkout')->default(false)->after('payment_status');
             }
-            if (!Schema::hasColumn('orders', 'wallet_spent')) {
+            if (! Schema::hasColumn('orders', 'wallet_spent')) {
                 $table->decimal('wallet_spent', 15, 2)->default(0.00)->after('grand_total');
             }
         });
 
         Schema::table('carts', function (Blueprint $table) {
-            if (!Schema::hasColumn('carts', 'is_abandoned_reminded')) {
+            if (! Schema::hasColumn('carts', 'is_abandoned_reminded')) {
                 $table->boolean('is_abandoned_reminded')->default(false)->after('status');
             }
         });

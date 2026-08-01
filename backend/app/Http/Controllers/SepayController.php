@@ -13,12 +13,13 @@ use Illuminate\Support\Facades\Log;
 class SepayController extends Controller
 {
     protected PaymentProcessingService $paymentService;
+
     protected WalletService $walletService;
 
     public function __construct(PaymentProcessingService $paymentService, WalletService $walletService)
     {
         $this->paymentService = $paymentService;
-        $this->walletService  = $walletService;
+        $this->walletService = $walletService;
     }
 
     public function handleWebhook(Request $request)
@@ -28,16 +29,18 @@ class SepayController extends Controller
 
         if (empty($expectedKey)) {
             Log::critical('SePay Webhook: SEPAY_API_KEY chưa được cấu hình — từ chối mọi webhook');
+
             return response()->json(['status' => 'error', 'message' => 'Webhook not configured'], 500);
         }
 
         $authHeader = $request->header('Authorization');
         $apiKey = $authHeader ? str_replace('Apikey ', '', $authHeader) : '';
 
-        if (!hash_equals($expectedKey, $apiKey)) {
+        if (! hash_equals($expectedKey, $apiKey)) {
             Log::warning('SePay Webhook: Unauthorized webhook call', [
                 'ip' => $request->ip(),
             ]);
+
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
 
@@ -45,22 +48,23 @@ class SepayController extends Controller
 
         // 2. Extract transaction fields from SePay payload
         $transferContent = $payload['code'] ?? $payload['content'] ?? $payload['description'] ?? ''; // Transfer content
-        $transferAmount = (float)($payload['transferAmount'] ?? 0);      // Transferred amount
+        $transferAmount = (float) ($payload['transferAmount'] ?? 0);      // Transferred amount
         $transactionId = $payload['id'] ?? '';                           // Transaction code
 
         Log::info('SePay Webhook: Processing bank transfer', [
             'transaction_id' => $transactionId,
             'content' => $transferContent,
-            'amount' => $transferAmount
+            'amount' => $transferAmount,
         ]);
 
         // 3. Extract code from transfer content (WDP = wallet deposit, ORD/DH = order)
         $code = $this->extractPaymentCode($transferContent);
 
-        if (!$code) {
+        if (! $code) {
             Log::warning('SePay Webhook: Unable to extract payment code from transfer content', [
-                'content' => $transferContent
+                'content' => $transferContent,
             ]);
+
             return response()->json(['status' => 'error', 'message' => 'Payment code not found in content'], 200);
         }
 
@@ -77,9 +81,10 @@ class SepayController extends Controller
             $response = DB::transaction(function () use ($orderCode, $transferAmount, $transactionId, $payload) {
                 $order = Order::where('order_code', $orderCode)->lockForUpdate()->first();
 
-                if (!$order) {
+                if (! $order) {
                     Log::warning('SePay Webhook: Order not found', ['order_code' => $orderCode]);
-                    return ['status' => 'error', 'message' => 'Order not found: ' . $orderCode];
+
+                    return ['status' => 'error', 'message' => 'Order not found: '.$orderCode];
                 }
 
                 if ($order->payment_status === 'paid') {
@@ -91,8 +96,9 @@ class SepayController extends Controller
                     Log::error('SePay Webhook: Amount mismatch', [
                         'order' => $order->order_code,
                         'expected' => $order->grand_total,
-                        'received' => $transferAmount
+                        'received' => $transferAmount,
                     ]);
+
                     return ['status' => 'error', 'message' => 'Amount mismatch'];
                 }
 
@@ -123,9 +129,10 @@ class SepayController extends Controller
             return response()->json($response);
 
         } catch (\Exception $e) {
-            Log::error('SePay Webhook processing error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('SePay Webhook processing error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json(['status' => 'error', 'message' => 'Internal Server Error'], 500);
         }
     }
@@ -142,9 +149,10 @@ class SepayController extends Controller
                     ->lockForUpdate()
                     ->first();
 
-                if (!$deposit) {
+                if (! $deposit) {
                     Log::warning('SePay Wallet: Deposit code not found', ['code' => $depositCode]);
-                    return ['status' => 'error', 'message' => 'Deposit code not found: ' . $depositCode];
+
+                    return ['status' => 'error', 'message' => 'Deposit code not found: '.$depositCode];
                 }
 
                 // Chặn cả trạng thái terminal 'completed' VÀ 'failed'. deposit_code là
@@ -159,9 +167,10 @@ class SepayController extends Controller
                 if (abs($amount - (float) $deposit->amount) > 10) {
                     Log::error('SePay Wallet: Amount mismatch', [
                         'deposit_code' => $depositCode,
-                        'expected'     => $deposit->amount,
-                        'received'     => $amount,
+                        'expected' => $deposit->amount,
+                        'received' => $amount,
                     ]);
+
                     return ['status' => 'error', 'message' => 'Amount mismatch'];
                 }
 
@@ -172,10 +181,10 @@ class SepayController extends Controller
                     type: 'deposit',
                     opts: [
                         'description' => 'Nạp ví qua chuyển khoản ngân hàng',
-                        'metadata'    => [
-                            'deposit_code'  => $depositCode,
+                        'metadata' => [
+                            'deposit_code' => $depositCode,
                             'transaction_id' => $transactionId,
-                            'method'        => 'bank_transfer',
+                            'method' => 'bank_transfer',
                         ],
                     ]
                 );
@@ -184,17 +193,17 @@ class SepayController extends Controller
                 DB::table('wallet_deposits')
                     ->where('deposit_code', $depositCode)
                     ->update([
-                        'status'                 => 'completed',
+                        'status' => 'completed',
                         'gateway_transaction_id' => $transactionId,
-                        'gateway_response'       => json_encode($payload),
-                        'completed_at'           => now(),
-                        'updated_at'             => now(),
+                        'gateway_response' => json_encode($payload),
+                        'completed_at' => now(),
+                        'updated_at' => now(),
                     ]);
 
                 Log::info('SePay Wallet: Deposit completed', [
-                    'user_id'      => $deposit->user_id,
+                    'user_id' => $deposit->user_id,
                     'deposit_code' => $depositCode,
-                    'amount'       => $deposit->amount,
+                    'amount' => $deposit->amount,
                 ]);
 
                 return ['status' => 'success', 'message' => 'Wallet deposit processed successfully'];
@@ -203,10 +212,11 @@ class SepayController extends Controller
             return response()->json($result);
 
         } catch (\Exception $e) {
-            Log::error('SePay Wallet deposit error: ' . $e->getMessage(), [
+            Log::error('SePay Wallet deposit error: '.$e->getMessage(), [
                 'deposit_code' => $depositCode,
-                'trace'        => $e->getTraceAsString(),
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json(['status' => 'error', 'message' => 'Internal Server Error'], 500);
         }
     }
@@ -229,6 +239,7 @@ class SepayController extends Controller
         if (preg_match('/(DH\d+)/i', $content, $matches)) {
             return strtoupper($matches[1]);
         }
+
         return null;
     }
 }

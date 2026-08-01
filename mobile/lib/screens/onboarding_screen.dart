@@ -84,7 +84,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: EdgeInsets.symmetric(horizontal: 40),
               child: Column(
                 children: [
-                  Text('Quyền Sport', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), height: 1.2)),
+                  Text('Ocean Sport', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), height: 1.2)),
                   SizedBox(height: 16),
                   Text('Khám phá hàng ngàn sản phẩm thể thao chính hãng — giày, quần áo, phụ kiện — chỉ với vài thao tác.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.6)),
                 ],

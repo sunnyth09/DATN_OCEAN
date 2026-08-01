@@ -30,34 +30,23 @@ const AdminContact = () => import("@/features/support/pages/AdminContact.vue");
 const AdminCoupon = () => import("@/features/shop/pages/admin/AdminCoupon.vue");
 const AdminRewards = () => import("@/features/shop/pages/admin/AdminRewards.vue");
 const AdminUserRewards = () => import("@/features/shop/pages/admin/AdminUserRewards.vue");
+const AdminAffiliate = () => import("@/features/admin/pages/AdminAffiliate.vue");
 
 const routes = [
 
-    {
-        path: "/cart",
-        component: CheckoutLayout,
-        children: [{ path: "", name: "cart", component: () => import("@/features/shop/pages/Cart/Index.vue"), meta: { title: 'Giỏ hàng' } }]
-    },
     {
         path: "/checkout",
         component: CheckoutLayout,
         children: [{ path: "", name: "checkout", component: () => import("@/features/shop/pages/Cart/Checkout.vue"), meta: { title: 'Thanh toán' } }]
     },
     {
-        path: "/order-success/:order_code?",
-        component: CheckoutLayout,
-        children: [{ path: "", name: "order-success", component: () => import("@/features/shop/pages/Cart/OrderSuccess.vue"), meta: { title: 'Đặt hàng thành công' } }]
-    },
-    {
-        path: "/payment/result",
-        component: CheckoutLayout,
-        children: [{ path: "", name: "payment-result", component: () => import("@/features/shop/pages/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } }]
-    },
-    {
         path: "/",
         component: ClientLayout,
         children: [
             { path: "", name: "home", component: Home, meta: { title: 'Trang chủ' } },
+            { path: "cart", name: "cart", component: () => import("@/features/shop/pages/Cart/Index.vue"), meta: { title: 'Giỏ hàng' } },
+            { path: "order-success/:order_code?", name: "order-success", component: () => import("@/features/shop/pages/Cart/OrderSuccess.vue"), meta: { title: 'Đặt hàng thành công' } },
+            { path: "payment/result", name: "payment-result", component: () => import("@/features/shop/pages/Payment/PaymentResult.vue"), meta: { title: 'Kết quả thanh toán' } },
             // Product pages
             { path: "product", name: "product-list", component: () => import("@/features/shop/pages/Home/Product.vue"), meta: { title: 'Sản phẩm' } },
             { path: "product/:id", name: "product-detail", component: () => import("@/features/shop/pages/Home/productDetail.vue"), meta: { title: 'Chi tiết sản phẩm' } },
@@ -228,6 +217,12 @@ const routes = [
                 name: "admin-coupon",
                 component: AdminCoupon,
                 meta: { roles: ['admin', 'staff'], title: 'Quản lý Mã giảm giá' },
+            },
+            {
+                path: "affiliate",
+                name: "admin-affiliate",
+                component: AdminAffiliate,
+                meta: { roles: ['admin'], title: 'Quản lý Affiliate' },
             },
             {
                 path: "rewards",
@@ -440,9 +435,9 @@ router.afterEach((to) => {
     const isAdmin = to.matched.some(record => record.path === '/admin');
 
     if (title) {
-        document.title = isAdmin ? `${title} | QS Admin` : `${title} | Quyền Sport`;
+        document.title = isAdmin ? `${title} | OS Admin` : `${title} | Ocean Sport`;
     } else {
-        document.title = 'Quyền Sport';
+        document.title = 'Ocean Sport';
     }
 });
 

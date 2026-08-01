@@ -11,31 +11,31 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('orders', function (Blueprint $table) {
-            if (!Schema::hasColumn('orders', 'tracking_token')) {
+            if (! Schema::hasColumn('orders', 'tracking_token')) {
                 $table->string('tracking_token', 64)->nullable()->unique()->after('ghn_order_code');
             }
         });
 
         Schema::table('products', function (Blueprint $table) {
-            if (!Schema::hasColumn('products', 'weight')) {
+            if (! Schema::hasColumn('products', 'weight')) {
                 $table->integer('weight')->default(500)->after('sold_count')->comment('Trọng lượng thực tế (gram)');
             }
         });
 
         Schema::table('order_status_histories', function (Blueprint $table) {
-            if (!Schema::hasColumn('order_status_histories', 'ghn_status')) {
+            if (! Schema::hasColumn('order_status_histories', 'ghn_status')) {
                 $table->string('ghn_status', 50)->nullable()->after('note');
             }
-            if (!Schema::hasColumn('order_status_histories', 'source')) {
+            if (! Schema::hasColumn('order_status_histories', 'source')) {
                 $table->string('source', 20)->default('system')->after('ghn_status');
             }
-            if (!Schema::hasColumn('order_status_histories', 'location')) {
+            if (! Schema::hasColumn('order_status_histories', 'location')) {
                 $table->string('location')->nullable()->after('source');
             }
-            if (!Schema::hasColumn('order_status_histories', 'description')) {
+            if (! Schema::hasColumn('order_status_histories', 'description')) {
                 $table->text('description')->nullable()->after('location');
             }
-            if (!Schema::hasColumn('order_status_histories', 'happened_at')) {
+            if (! Schema::hasColumn('order_status_histories', 'happened_at')) {
                 $table->timestamp('happened_at')->nullable()->after('description');
             }
         });
@@ -48,7 +48,7 @@ return new class extends Migration
                 foreach ($orders as $order) {
                     DB::table('orders')
                         ->where('order_id', $order->order_id)
-                        ->update(['tracking_token' => hash('sha256', $order->order_id . Str::random(40))]);
+                        ->update(['tracking_token' => hash('sha256', $order->order_id.Str::random(40))]);
                 }
             }, 'order_id');
 

@@ -39,13 +39,13 @@ class WalletService
         return Wallet::firstOrCreate(
             ['user_id' => $userId],
             [
-                'deposit_balance'    => 0,
+                'deposit_balance' => 0,
                 'commission_balance' => 0,
-                'frozen_balance'     => 0,
-                'total_deposited'    => 0,
-                'total_commission'   => 0,
-                'total_used'         => 0,
-                'status'             => 'active',
+                'frozen_balance' => 0,
+                'total_deposited' => 0,
+                'total_commission' => 0,
+                'total_used' => 0,
+                'status' => 'active',
             ]
         );
     }
@@ -60,11 +60,9 @@ class WalletService
      * - type = 'commission' → commission_balance
      * - type = deposit/refund/loyalty_convert/promo_credit → deposit_balance
      *
-     * @param int    $userId
-     * @param float  $amount  Số tiền (phải > 0)
-     * @param string $type    deposit|commission|refund|loyalty_convert|promo_credit|adjustment
-     * @param array  $opts    [reference_type, reference_id, description, metadata]
-     * @return WalletTransaction
+     * @param  float  $amount  Số tiền (phải > 0)
+     * @param  string  $type  deposit|commission|refund|loyalty_convert|promo_credit|adjustment
+     * @param  array  $opts  [reference_type, reference_id, description, metadata]
      */
     public function credit(int $userId, float $amount, string $type, array $opts = []): WalletTransaction
     {
@@ -77,7 +75,7 @@ class WalletService
             $this->getOrCreateWallet($userId);
             $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->first();
 
-            if (!$wallet->isActive()) {
+            if (! $wallet->isActive()) {
                 throw new \Exception('Ví đã bị đóng băng hoặc đóng.');
             }
 
@@ -86,7 +84,7 @@ class WalletService
             if ($balanceType === 'commission') {
                 $before = (float) $wallet->commission_balance;
                 $wallet->commission_balance += $amount;
-                $wallet->total_commission   += $amount;
+                $wallet->total_commission += $amount;
                 $after = (float) $wallet->commission_balance;
             } else {
                 $before = (float) $wallet->deposit_balance;
@@ -98,26 +96,26 @@ class WalletService
             $wallet->save();
 
             $transaction = WalletTransaction::create([
-                'wallet_id'        => $wallet->wallet_id,
+                'wallet_id' => $wallet->wallet_id,
                 'transaction_code' => $this->generateTransactionCode(),
-                'type'             => $type,
-                'balance_type'     => $balanceType,
-                'direction'        => 'credit',
-                'amount'           => $amount,
-                'balance_before'   => $before,
-                'balance_after'    => $after,
-                'reference_type'   => $opts['reference_type'] ?? null,
-                'reference_id'     => $opts['reference_id'] ?? null,
-                'description'      => $opts['description'] ?? null,
-                'status'           => 'completed',
-                'metadata'         => $opts['metadata'] ?? null,
+                'type' => $type,
+                'balance_type' => $balanceType,
+                'direction' => 'credit',
+                'amount' => $amount,
+                'balance_before' => $before,
+                'balance_after' => $after,
+                'reference_type' => $opts['reference_type'] ?? null,
+                'reference_id' => $opts['reference_id'] ?? null,
+                'description' => $opts['description'] ?? null,
+                'status' => 'completed',
+                'metadata' => $opts['metadata'] ?? null,
             ]);
 
             Log::info('Wallet credit', [
-                'user_id'  => $userId,
-                'type'     => $type,
-                'amount'   => $amount,
-                'tx_code'  => $transaction->transaction_code,
+                'user_id' => $userId,
+                'type' => $type,
+                'amount' => $amount,
+                'tx_code' => $transaction->transaction_code,
             ]);
 
             return $transaction;
@@ -133,9 +131,7 @@ class WalletService
      *
      * Ưu tiên trừ deposit_balance trước, sau đó commission_balance (max 10%).
      *
-     * @param int   $userId
-     * @param float $requestedAmount  Tổng số tiền user muốn dùng từ ví
-     * @param int   $orderId
+     * @param  float  $requestedAmount  Tổng số tiền user muốn dùng từ ví
      * @return array{deposit_used: float, commission_used: float, total_discount: float, transactions: WalletTransaction[]}
      */
     public function applyOrderDiscount(int $userId, float $requestedAmount, int $orderId): array
@@ -147,19 +143,19 @@ class WalletService
         return DB::transaction(function () use ($userId, $requestedAmount, $orderId) {
             $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->firstOrFail();
 
-            if (!$wallet->isActive()) {
+            if (! $wallet->isActive()) {
                 throw new \Exception('Ví đã bị đóng băng hoặc đóng.');
             }
 
             // Tính giới hạn
-            $maxFromDeposit    = (float) $wallet->deposit_balance;
+            $maxFromDeposit = (float) $wallet->deposit_balance;
             $maxFromCommission = $wallet->getMaxCommissionDiscount(); // 10% hoa hồng
 
             // Ưu tiên trừ deposit trước
-            $depositUsed    = min($requestedAmount, $maxFromDeposit);
-            $remaining      = $requestedAmount - $depositUsed;
+            $depositUsed = min($requestedAmount, $maxFromDeposit);
+            $remaining = $requestedAmount - $depositUsed;
             $commissionUsed = min($remaining, $maxFromCommission);
-            $totalDiscount  = $depositUsed + $commissionUsed;
+            $totalDiscount = $depositUsed + $commissionUsed;
 
             if ($totalDiscount <= 0) {
                 throw new \Exception('Không đủ số dư ví để giảm giá.');
@@ -171,21 +167,21 @@ class WalletService
             if ($depositUsed > 0) {
                 $before = (float) $wallet->deposit_balance;
                 $wallet->deposit_balance -= $depositUsed;
-                $wallet->total_used      += $depositUsed;
+                $wallet->total_used += $depositUsed;
 
                 $transactions[] = WalletTransaction::create([
-                    'wallet_id'        => $wallet->wallet_id,
+                    'wallet_id' => $wallet->wallet_id,
                     'transaction_code' => $this->generateTransactionCode(),
-                    'type'             => 'order_discount',
-                    'balance_type'     => 'deposit',
-                    'direction'        => 'debit',
-                    'amount'           => $depositUsed,
-                    'balance_before'   => $before,
-                    'balance_after'    => (float) $wallet->deposit_balance,
-                    'reference_type'   => Order::class,
-                    'reference_id'     => $orderId,
-                    'description'      => 'Giảm giá đơn hàng (từ số dư nạp)',
-                    'status'           => 'completed',
+                    'type' => 'order_discount',
+                    'balance_type' => 'deposit',
+                    'direction' => 'debit',
+                    'amount' => $depositUsed,
+                    'balance_before' => $before,
+                    'balance_after' => (float) $wallet->deposit_balance,
+                    'reference_type' => Order::class,
+                    'reference_id' => $orderId,
+                    'description' => 'Giảm giá đơn hàng (từ số dư nạp)',
+                    'status' => 'completed',
                 ]);
             }
 
@@ -193,39 +189,39 @@ class WalletService
             if ($commissionUsed > 0) {
                 $before = (float) $wallet->commission_balance;
                 $wallet->commission_balance -= $commissionUsed;
-                $wallet->total_used         += $commissionUsed;
+                $wallet->total_used += $commissionUsed;
 
                 $transactions[] = WalletTransaction::create([
-                    'wallet_id'        => $wallet->wallet_id,
+                    'wallet_id' => $wallet->wallet_id,
                     'transaction_code' => $this->generateTransactionCode(),
-                    'type'             => 'order_discount',
-                    'balance_type'     => 'commission',
-                    'direction'        => 'debit',
-                    'amount'           => $commissionUsed,
-                    'balance_before'   => $before,
-                    'balance_after'    => (float) $wallet->commission_balance,
-                    'reference_type'   => Order::class,
-                    'reference_id'     => $orderId,
-                    'description'      => 'Giảm giá đơn hàng (từ hoa hồng, max 10%)',
-                    'status'           => 'completed',
+                    'type' => 'order_discount',
+                    'balance_type' => 'commission',
+                    'direction' => 'debit',
+                    'amount' => $commissionUsed,
+                    'balance_before' => $before,
+                    'balance_after' => (float) $wallet->commission_balance,
+                    'reference_type' => Order::class,
+                    'reference_id' => $orderId,
+                    'description' => 'Giảm giá đơn hàng (từ hoa hồng, max 10%)',
+                    'status' => 'completed',
                 ]);
             }
 
             $wallet->save();
 
             Log::info('Wallet order discount applied', [
-                'user_id'         => $userId,
-                'order_id'        => $orderId,
-                'deposit_used'    => $depositUsed,
+                'user_id' => $userId,
+                'order_id' => $orderId,
+                'deposit_used' => $depositUsed,
                 'commission_used' => $commissionUsed,
-                'total_discount'  => $totalDiscount,
+                'total_discount' => $totalDiscount,
             ]);
 
             return [
-                'deposit_used'    => $depositUsed,
+                'deposit_used' => $depositUsed,
                 'commission_used' => $commissionUsed,
-                'total_discount'  => $totalDiscount,
-                'transactions'    => $transactions,
+                'total_discount' => $totalDiscount,
+                'transactions' => $transactions,
             ];
         });
     }
@@ -241,11 +237,9 @@ class WalletService
      * toàn phần đơn hàng bằng ví, ưu tiên trừ deposit_balance trước rồi tới
      * commission_balance. Có khóa dòng ví (pessimistic lock) để chống race.
      *
-     * @param int         $userId
-     * @param float       $amount         Số tiền cần trừ (> 0)
-     * @param string      $description
-     * @param int|null    $referenceId    ID đối tượng liên quan (order_id, booking_id...)
-     * @param string|null $referenceType  Class name (Order::class...)
+     * @param  float  $amount  Số tiền cần trừ (> 0)
+     * @param  int|null  $referenceId  ID đối tượng liên quan (order_id, booking_id...)
+     * @param  string|null  $referenceType  Class name (Order::class...)
      * @return array{deposit_used: float, commission_used: float, total_spent: float, transactions: WalletTransaction[]}
      */
     public function spend(int $userId, float $amount, string $description, ?int $referenceId = null, ?string $referenceType = null): array
@@ -258,7 +252,7 @@ class WalletService
             $this->getOrCreateWallet($userId);
             $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->first();
 
-            if (!$wallet->isActive()) {
+            if (! $wallet->isActive()) {
                 throw new \Exception('Ví đã bị đóng băng hoặc đóng.');
             }
 
@@ -267,7 +261,7 @@ class WalletService
             }
 
             // Ưu tiên trừ deposit trước, phần còn lại trừ commission
-            $fromDeposit    = min($amount, (float) $wallet->deposit_balance);
+            $fromDeposit = min($amount, (float) $wallet->deposit_balance);
             $fromCommission = $amount - $fromDeposit;
 
             $transactions = [];
@@ -275,60 +269,60 @@ class WalletService
             if ($fromDeposit > 0) {
                 $before = (float) $wallet->deposit_balance;
                 $wallet->deposit_balance -= $fromDeposit;
-                $wallet->total_used      += $fromDeposit;
+                $wallet->total_used += $fromDeposit;
 
                 $transactions[] = WalletTransaction::create([
-                    'wallet_id'        => $wallet->wallet_id,
+                    'wallet_id' => $wallet->wallet_id,
                     'transaction_code' => $this->generateTransactionCode(),
-                    'type'             => 'order_discount',
-                    'balance_type'     => 'deposit',
-                    'direction'        => 'debit',
-                    'amount'           => $fromDeposit,
-                    'balance_before'   => $before,
-                    'balance_after'    => (float) $wallet->deposit_balance,
-                    'reference_type'   => $referenceType,
-                    'reference_id'     => $referenceId,
-                    'description'      => $description . ' (từ số dư nạp)',
-                    'status'           => 'completed',
+                    'type' => 'order_discount',
+                    'balance_type' => 'deposit',
+                    'direction' => 'debit',
+                    'amount' => $fromDeposit,
+                    'balance_before' => $before,
+                    'balance_after' => (float) $wallet->deposit_balance,
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'description' => $description.' (từ số dư nạp)',
+                    'status' => 'completed',
                 ]);
             }
 
             if ($fromCommission > 0) {
                 $before = (float) $wallet->commission_balance;
                 $wallet->commission_balance -= $fromCommission;
-                $wallet->total_used         += $fromCommission;
+                $wallet->total_used += $fromCommission;
 
                 $transactions[] = WalletTransaction::create([
-                    'wallet_id'        => $wallet->wallet_id,
+                    'wallet_id' => $wallet->wallet_id,
                     'transaction_code' => $this->generateTransactionCode(),
-                    'type'             => 'order_discount',
-                    'balance_type'     => 'commission',
-                    'direction'        => 'debit',
-                    'amount'           => $fromCommission,
-                    'balance_before'   => $before,
-                    'balance_after'    => (float) $wallet->commission_balance,
-                    'reference_type'   => $referenceType,
-                    'reference_id'     => $referenceId,
-                    'description'      => $description . ' (từ hoa hồng)',
-                    'status'           => 'completed',
+                    'type' => 'order_discount',
+                    'balance_type' => 'commission',
+                    'direction' => 'debit',
+                    'amount' => $fromCommission,
+                    'balance_before' => $before,
+                    'balance_after' => (float) $wallet->commission_balance,
+                    'reference_type' => $referenceType,
+                    'reference_id' => $referenceId,
+                    'description' => $description.' (từ hoa hồng)',
+                    'status' => 'completed',
                 ]);
             }
 
             $wallet->save();
 
             Log::info('Wallet spend', [
-                'user_id'         => $userId,
-                'amount'          => $amount,
-                'from_deposit'    => $fromDeposit,
+                'user_id' => $userId,
+                'amount' => $amount,
+                'from_deposit' => $fromDeposit,
                 'from_commission' => $fromCommission,
-                'reference_id'    => $referenceId,
+                'reference_id' => $referenceId,
             ]);
 
             return [
-                'deposit_used'    => $fromDeposit,
+                'deposit_used' => $fromDeposit,
                 'commission_used' => $fromCommission,
-                'total_spent'     => $amount,
-                'transactions'    => $transactions,
+                'total_spent' => $amount,
+                'transactions' => $transactions,
             ];
         });
     }
@@ -359,25 +353,25 @@ class WalletService
             $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->first();
 
             // Không cho commission_balance xuống âm — thu hồi tối đa bằng số dư hiện có.
-            $before  = (float) $wallet->commission_balance;
-            $deduct  = min($amount, $before);
+            $before = (float) $wallet->commission_balance;
+            $deduct = min($amount, $before);
             $wallet->commission_balance -= $deduct;
-            $wallet->total_used         += $deduct;
+            $wallet->total_used += $deduct;
             $wallet->save();
 
             return WalletTransaction::create([
-                'wallet_id'        => $wallet->wallet_id,
+                'wallet_id' => $wallet->wallet_id,
                 'transaction_code' => $this->generateTransactionCode(),
-                'type'             => 'adjustment',
-                'balance_type'     => 'commission',
-                'direction'        => 'debit',
-                'amount'           => $deduct,
-                'balance_before'   => $before,
-                'balance_after'    => (float) $wallet->commission_balance,
-                'reference_type'   => $referenceType,
-                'reference_id'     => $referenceId,
-                'description'      => $description,
-                'status'           => 'completed',
+                'type' => 'adjustment',
+                'balance_type' => 'commission',
+                'direction' => 'debit',
+                'amount' => $deduct,
+                'balance_before' => $before,
+                'balance_after' => (float) $wallet->commission_balance,
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+                'description' => $description,
+                'status' => 'completed',
             ]);
         });
     }
@@ -403,8 +397,8 @@ class WalletService
 
         return $this->credit($userId, $amount, 'refund', [
             'reference_type' => $referenceType,
-            'reference_id'   => $referenceId,
-            'description'    => $description,
+            'reference_id' => $referenceId,
+            'description' => $description,
         ]);
     }
 
@@ -417,8 +411,8 @@ class WalletService
         if ($depositAmount > 0) {
             $this->credit($userId, $depositAmount, 'refund', [
                 'reference_type' => Order::class,
-                'reference_id'   => $orderId,
-                'description'    => "Hoàn tiền ví (nạp) do hủy đơn #{$orderId}",
+                'reference_id' => $orderId,
+                'description' => "Hoàn tiền ví (nạp) do hủy đơn #{$orderId}",
             ]);
         }
 
@@ -433,25 +427,25 @@ class WalletService
                 $wallet->save();
 
                 WalletTransaction::create([
-                    'wallet_id'        => $wallet->wallet_id,
+                    'wallet_id' => $wallet->wallet_id,
                     'transaction_code' => $this->generateTransactionCode(),
-                    'type'             => 'refund',
-                    'balance_type'     => 'commission',
-                    'direction'        => 'credit',
-                    'amount'           => $commissionAmount,
-                    'balance_before'   => $before,
-                    'balance_after'    => (float) $wallet->commission_balance,
-                    'reference_type'   => Order::class,
-                    'reference_id'     => $orderId,
-                    'description'      => "Hoàn hoa hồng do hủy đơn #{$orderId}",
-                    'status'           => 'completed',
+                    'type' => 'refund',
+                    'balance_type' => 'commission',
+                    'direction' => 'credit',
+                    'amount' => $commissionAmount,
+                    'balance_before' => $before,
+                    'balance_after' => (float) $wallet->commission_balance,
+                    'reference_type' => Order::class,
+                    'reference_id' => $orderId,
+                    'description' => "Hoàn hoa hồng do hủy đơn #{$orderId}",
+                    'status' => 'completed',
                 ]);
             });
 
             Log::info('Wallet commission reversed', [
-                'user_id'  => $userId,
+                'user_id' => $userId,
                 'order_id' => $orderId,
-                'amount'   => $commissionAmount,
+                'amount' => $commissionAmount,
             ]);
         }
     }
@@ -467,25 +461,25 @@ class WalletService
     {
         $wallet = $this->getOrCreateWallet($userId);
 
-        $maxDeposit    = (float) $wallet->deposit_balance;
+        $maxDeposit = (float) $wallet->deposit_balance;
         $maxCommission = $wallet->getMaxCommissionDiscount();
-        $maxTotal      = min($maxDeposit + $maxCommission, $orderSubtotal);
+        $maxTotal = min($maxDeposit + $maxCommission, $orderSubtotal);
 
         // Mô phỏng logic applyOrderDiscount: deposit trước, commission sau
-        $depositUsed    = min($orderSubtotal, $maxDeposit);
-        $remaining      = $orderSubtotal - $depositUsed;
+        $depositUsed = min($orderSubtotal, $maxDeposit);
+        $remaining = $orderSubtotal - $depositUsed;
         $commissionUsed = min($remaining, $maxCommission);
 
         return [
-            'deposit_balance'     => (float) $wallet->deposit_balance,
-            'commission_balance'  => (float) $wallet->commission_balance,
-            'max_from_deposit'    => $maxDeposit,
+            'deposit_balance' => (float) $wallet->deposit_balance,
+            'commission_balance' => (float) $wallet->commission_balance,
+            'max_from_deposit' => $maxDeposit,
             'max_from_commission' => $maxCommission,
-            'max_total_discount'  => $maxTotal,
-            'total_available'     => $maxTotal,        // Frontend-friendly alias
-            'deposit_used'        => $depositUsed,     // Preview: sẽ dùng bao nhiêu từ deposit
-            'commission_used'     => $commissionUsed,  // Preview: sẽ dùng bao nhiêu từ commission
-            'remaining_payment'   => max(0, $orderSubtotal - $maxTotal),
+            'max_total_discount' => $maxTotal,
+            'total_available' => $maxTotal,        // Frontend-friendly alias
+            'deposit_used' => $depositUsed,     // Preview: sẽ dùng bao nhiêu từ deposit
+            'commission_used' => $commissionUsed,  // Preview: sẽ dùng bao nhiêu từ commission
+            'remaining_payment' => max(0, $orderSubtotal - $maxTotal),
         ];
     }
 
@@ -497,16 +491,16 @@ class WalletService
         $wallet = $this->getOrCreateWallet($userId);
 
         return [
-            'deposit_balance'        => (float) $wallet->deposit_balance,
-            'commission_balance'     => (float) $wallet->commission_balance,
-            'total_balance'          => $wallet->getTotalBalance(),
-            'frozen_balance'         => (float) $wallet->frozen_balance,
-            'available_balance'      => $wallet->getAvailableBalance(),
+            'deposit_balance' => (float) $wallet->deposit_balance,
+            'commission_balance' => (float) $wallet->commission_balance,
+            'total_balance' => $wallet->getTotalBalance(),
+            'frozen_balance' => (float) $wallet->frozen_balance,
+            'available_balance' => $wallet->getAvailableBalance(),
             'max_commission_per_order' => $wallet->getMaxCommissionDiscount(),
-            'total_deposited'        => (float) $wallet->total_deposited,
-            'total_commission'       => (float) $wallet->total_commission,
-            'total_used'             => (float) $wallet->total_used,
-            'status'                 => $wallet->status,
+            'total_deposited' => (float) $wallet->total_deposited,
+            'total_commission' => (float) $wallet->total_commission,
+            'total_used' => (float) $wallet->total_used,
+            'status' => $wallet->status,
         ];
     }
 
@@ -533,19 +527,19 @@ class WalletService
 
         // Transform cho frontend
         $history->getCollection()->transform(fn (WalletTransaction $tx) => [
-            'id'               => $tx->transaction_id,
+            'id' => $tx->transaction_id,
             'transaction_code' => $tx->transaction_code,
-            'type'             => $tx->type,
-            'type_label'       => $tx->typeLabel(),
-            'type_icon'        => $tx->typeIcon(),
-            'balance_type'     => $tx->balance_type,
-            'direction'        => $tx->direction,
-            'sign'             => $tx->sign,
-            'amount'           => (float) $tx->amount,
-            'balance_before'   => (float) $tx->balance_before,
-            'balance_after'    => (float) $tx->balance_after,
-            'description'      => $tx->description,
-            'created_at'       => $tx->created_at?->toISOString(),
+            'type' => $tx->type,
+            'type_label' => $tx->typeLabel(),
+            'type_icon' => $tx->typeIcon(),
+            'balance_type' => $tx->balance_type,
+            'direction' => $tx->direction,
+            'sign' => $tx->sign,
+            'amount' => (float) $tx->amount,
+            'balance_before' => (float) $tx->balance_before,
+            'balance_after' => (float) $tx->balance_after,
+            'description' => $tx->description,
+            'created_at' => $tx->created_at?->toISOString(),
         ]);
 
         return $history;
@@ -557,12 +551,12 @@ class WalletService
     public function getSummary(int $userId): array
     {
         $balance = $this->getBalance($userId);
-        $wallet  = Wallet::where('user_id', $userId)->first();
+        $wallet = Wallet::where('user_id', $userId)->first();
 
-        if (!$wallet) {
+        if (! $wallet) {
             return array_merge($balance, [
                 'this_month_earned' => 0,
-                'this_month_used'   => 0,
+                'this_month_used' => 0,
                 'recent_transactions' => [],
             ]);
         }
@@ -587,19 +581,19 @@ class WalletService
             ->limit(5)
             ->get()
             ->map(fn (WalletTransaction $tx) => [
-                'id'         => $tx->transaction_id,
-                'type'       => $tx->type,
+                'id' => $tx->transaction_id,
+                'type' => $tx->type,
                 'type_label' => $tx->typeLabel(),
-                'type_icon'  => $tx->typeIcon(),
-                'sign'       => $tx->sign,
-                'amount'     => (float) $tx->amount,
+                'type_icon' => $tx->typeIcon(),
+                'sign' => $tx->sign,
+                'amount' => (float) $tx->amount,
                 'created_at' => $tx->created_at?->toISOString(),
             ]);
 
         return array_merge($balance, [
-            'this_month_earned'    => (float) $thisMonthEarned,
-            'this_month_used'      => (float) $thisMonthUsed,
-            'recent_transactions'  => $recentTransactions,
+            'this_month_earned' => (float) $thisMonthEarned,
+            'this_month_used' => (float) $thisMonthUsed,
+            'recent_transactions' => $recentTransactions,
         ]);
     }
 
@@ -634,17 +628,17 @@ class WalletService
             $wallet->save();
 
             return WalletTransaction::create([
-                'wallet_id'        => $wallet->wallet_id,
+                'wallet_id' => $wallet->wallet_id,
                 'transaction_code' => $this->generateTransactionCode(),
-                'type'             => 'adjustment',
-                'balance_type'     => 'deposit',
-                'direction'        => $delta > 0 ? 'credit' : 'debit',
-                'amount'           => abs($delta),
-                'balance_before'   => $before,
-                'balance_after'    => (float) $wallet->deposit_balance,
-                'description'      => $description,
-                'status'           => 'completed',
-                'metadata'         => ['admin_id' => $adminId],
+                'type' => 'adjustment',
+                'balance_type' => 'deposit',
+                'direction' => $delta > 0 ? 'credit' : 'debit',
+                'amount' => abs($delta),
+                'balance_before' => $before,
+                'balance_after' => (float) $wallet->deposit_balance,
+                'description' => $description,
+                'status' => 'completed',
+                'metadata' => ['admin_id' => $adminId],
             ]);
         });
     }
@@ -695,93 +689,93 @@ class WalletService
     public function withdraw(int $userId, float $amount, array $bankInfo): array
     {
         if ($amount < self::WITHDRAWAL_MIN) {
-            throw new \InvalidArgumentException('Số tiền rút tối thiểu ' . number_format(self::WITHDRAWAL_MIN) . '₫');
+            throw new \InvalidArgumentException('Số tiền rút tối thiểu '.number_format(self::WITHDRAWAL_MIN).'₫');
         }
 
         if ($amount > self::WITHDRAWAL_MAX) {
-            throw new \InvalidArgumentException('Số tiền rút tối đa ' . number_format(self::WITHDRAWAL_MAX) . '₫');
+            throw new \InvalidArgumentException('Số tiền rút tối đa '.number_format(self::WITHDRAWAL_MAX).'₫');
         }
 
         if (floor($amount) != $amount) {
             throw new \InvalidArgumentException('Số tiền rút phải là số nguyên.');
         }
 
-        $fee           = self::WITHDRAWAL_FEE;
+        $fee = self::WITHDRAWAL_FEE;
         $totalDeducted = $amount + $fee;
 
         return DB::transaction(function () use ($userId, $amount, $fee, $totalDeducted, $bankInfo) {
             $this->getOrCreateWallet($userId);
             $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->first();
 
-            if (!$wallet->isActive()) {
+            if (! $wallet->isActive()) {
                 throw new \Exception('Ví đã bị đóng băng hoặc đóng.');
             }
 
             $this->assertWithdrawalAllowed($userId, $amount);
 
             if ((float) $wallet->deposit_balance < $totalDeducted) {
-                throw new \Exception('Số dư nạp không đủ. Cần tối thiểu ' . number_format($totalDeducted) . '₫ (bao gồm phí ' . number_format($fee) . '₫).');
+                throw new \Exception('Số dư nạp không đủ. Cần tối thiểu '.number_format($totalDeducted).'₫ (bao gồm phí '.number_format($fee).'₫).');
             }
 
             // Trừ deposit_balance
             $before = (float) $wallet->deposit_balance;
             $wallet->deposit_balance -= $totalDeducted;
-            $wallet->total_used      += $totalDeducted;
+            $wallet->total_used += $totalDeducted;
             $wallet->save();
 
-            $withdrawalCode = 'WWD' . strtoupper(Str::random(10));
+            $withdrawalCode = 'WWD'.strtoupper(Str::random(10));
 
             // Ghi WalletTransaction
             WalletTransaction::create([
-                'wallet_id'        => $wallet->wallet_id,
+                'wallet_id' => $wallet->wallet_id,
                 'transaction_code' => $this->generateTransactionCode(),
-                'type'             => 'withdrawal',
-                'balance_type'     => 'deposit',
-                'direction'        => 'debit',
-                'amount'           => $totalDeducted,
-                'balance_before'   => $before,
-                'balance_after'    => (float) $wallet->deposit_balance,
-                'description'      => "Rút {$amount}₫ (phí {$fee}₫) → {$bankInfo['bank_name']} - {$bankInfo['bank_account_number']}",
-                'status'           => 'completed',
-                'metadata'         => [
+                'type' => 'withdrawal',
+                'balance_type' => 'deposit',
+                'direction' => 'debit',
+                'amount' => $totalDeducted,
+                'balance_before' => $before,
+                'balance_after' => (float) $wallet->deposit_balance,
+                'description' => "Rút {$amount}₫ (phí {$fee}₫) → {$bankInfo['bank_name']} - {$bankInfo['bank_account_number']}",
+                'status' => 'completed',
+                'metadata' => [
                     'withdrawal_code' => $withdrawalCode,
-                    'amount'          => $amount,
-                    'fee'             => $fee,
-                    'bank_name'       => $bankInfo['bank_name'],
-                    'bank_account'    => $bankInfo['bank_account_number'],
+                    'amount' => $amount,
+                    'fee' => $fee,
+                    'bank_name' => $bankInfo['bank_name'],
+                    'bank_account' => $bankInfo['bank_account_number'],
                 ],
             ]);
 
             // Ghi wallet_withdrawals
             $withdrawalId = DB::table('wallet_withdrawals')->insertGetId([
-                'user_id'             => $userId,
-                'withdrawal_code'     => $withdrawalCode,
-                'amount'              => $amount,
-                'fee'                 => $fee,
-                'total_deducted'      => $totalDeducted,
-                'bank_name'           => $bankInfo['bank_name'],
-                'bank_account_name'   => $bankInfo['bank_account_name'],
+                'user_id' => $userId,
+                'withdrawal_code' => $withdrawalCode,
+                'amount' => $amount,
+                'fee' => $fee,
+                'total_deducted' => $totalDeducted,
+                'bank_name' => $bankInfo['bank_name'],
+                'bank_account_name' => $bankInfo['bank_account_name'],
                 'bank_account_number' => $bankInfo['bank_account_number'],
-                'status'              => 'processing',
-                'created_at'          => now(),
-                'updated_at'          => now(),
+                'status' => 'processing',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             Log::info('Wallet withdrawal created', [
-                'user_id'         => $userId,
+                'user_id' => $userId,
                 'withdrawal_code' => $withdrawalCode,
-                'amount'          => $amount,
-                'fee'             => $fee,
-                'total_deducted'  => $totalDeducted,
+                'amount' => $amount,
+                'fee' => $fee,
+                'total_deducted' => $totalDeducted,
             ]);
 
             return [
-                'withdrawal_id'   => $withdrawalId,
+                'withdrawal_id' => $withdrawalId,
                 'withdrawal_code' => $withdrawalCode,
-                'amount'          => $amount,
-                'fee'             => $fee,
-                'total_deducted'  => $totalDeducted,
-                'new_balance'     => (float) $wallet->deposit_balance,
+                'amount' => $amount,
+                'fee' => $fee,
+                'total_deducted' => $totalDeducted,
+                'new_balance' => (float) $wallet->deposit_balance,
             ];
         });
     }
@@ -807,7 +801,7 @@ class WalletService
 
         if ($latestWithdrawal && now()->diffInMinutes($latestWithdrawal->created_at) < self::WITHDRAWAL_COOLDOWN_MINUTES) {
             $remainingMinutes = self::WITHDRAWAL_COOLDOWN_MINUTES - now()->diffInMinutes($latestWithdrawal->created_at);
-            throw new \Exception('Vui lòng chờ thêm ' . max(1, $remainingMinutes) . ' phút trước khi tạo yêu cầu rút tiền mới.');
+            throw new \Exception('Vui lòng chờ thêm '.max(1, $remainingMinutes).' phút trước khi tạo yêu cầu rút tiền mới.');
         }
 
         $todayWithdrawals = DB::table('wallet_withdrawals')
@@ -816,12 +810,12 @@ class WalletService
             ->whereDate('created_at', today());
 
         if ((clone $todayWithdrawals)->count() >= self::WITHDRAWAL_DAILY_LIMIT) {
-            throw new \Exception('Bạn đã đạt giới hạn ' . self::WITHDRAWAL_DAILY_LIMIT . ' lần rút tiền trong ngày.');
+            throw new \Exception('Bạn đã đạt giới hạn '.self::WITHDRAWAL_DAILY_LIMIT.' lần rút tiền trong ngày.');
         }
 
         $todayAmount = (float) (clone $todayWithdrawals)->sum('amount');
         if (($todayAmount + $amount) > self::WITHDRAWAL_DAILY_AMOUNT_LIMIT) {
-            throw new \Exception('Tổng số tiền rút trong ngày không được vượt quá ' . number_format(self::WITHDRAWAL_DAILY_AMOUNT_LIMIT) . '₫.');
+            throw new \Exception('Tổng số tiền rút trong ngày không được vượt quá '.number_format(self::WITHDRAWAL_DAILY_AMOUNT_LIMIT).'₫.');
         }
     }
 
@@ -845,6 +839,6 @@ class WalletService
      */
     private function generateTransactionCode(): string
     {
-        return 'WTX-' . strtoupper(Str::random(12));
+        return 'WTX-'.strtoupper(Str::random(12));
     }
 }

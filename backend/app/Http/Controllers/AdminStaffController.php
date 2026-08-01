@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Admin;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class AdminStaffController extends Controller
 {
@@ -18,18 +18,18 @@ class AdminStaffController extends Controller
         $query = Admin::query();
 
         if ($search) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%");
+                    ->orWhere('email', 'LIKE', "%{$search}%");
             });
         }
 
-        $admins = $query->orderBy('created_at', 'DESC')->get();
+        $admins = $query->orderBy('created_at', 'DESC')->paginate($request->input('per_page', 10));
 
         return response()->json([
             'status' => 'success',
             'data' => $admins,
-            'total' => $admins->count()
+            'total' => $admins->count(),
         ]);
     }
 
@@ -53,24 +53,24 @@ class AdminStaffController extends Controller
         ]);
 
         // Sync to users table
-        $user = \App\Models\User::where('email', $admin->email)->first();
+        $user = User::where('email', $admin->email)->first();
         if ($user) {
             $user->update(['role' => $admin->role]);
-            \App\Models\User::where('email', $admin->email)->update(['password' => $admin->password]);
+            User::where('email', $admin->email)->update(['password' => $admin->password]);
         } else {
-            \App\Models\User::create([
+            User::create([
                 'full_name' => $admin->full_name,
                 'email' => $admin->email,
                 'password' => $request->password, // will be hashed in User
                 'role' => $admin->role,
             ]);
-            \App\Models\User::where('email', $admin->email)->update(['password' => $admin->password]); // ensure exact match
+            User::where('email', $admin->email)->update(['password' => $admin->password]); // ensure exact match
         }
 
         return response()->json([
             'status' => 'success',
             'message' => 'Đã tạo tài khoản nhân sự mới thành công!',
-            'data' => $admin
+            'data' => $admin,
         ], 201);
     }
 
@@ -80,7 +80,7 @@ class AdminStaffController extends Controller
     public function update(Request $request, $id)
     {
         $admin = Admin::find($id);
-        if (!$admin) {
+        if (! $admin) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy tài khoản!'], 404);
         }
 
@@ -90,7 +90,7 @@ class AdminStaffController extends Controller
 
         $request->validate([
             'full_name' => 'required|string|max:255',
-            'email' => 'required|email|unique:admins,email,' . $id . ',admin_id',
+            'email' => 'required|email|unique:admins,email,'.$id.',admin_id',
             'role' => 'required|in:admin,staff,seller',
         ]);
 
@@ -104,12 +104,12 @@ class AdminStaffController extends Controller
         }
 
         // Sync to users table
-        $user = \App\Models\User::where('email', $oldEmail)->first();
+        $user = User::where('email', $oldEmail)->first();
         if ($user) {
             $user->update([
                 'full_name' => $admin->full_name,
                 'email' => $admin->email,
-                'role' => $admin->role
+                'role' => $admin->role,
             ]);
             if ($request->filled('password')) {
                 $user->update(['password' => $admin->password]);
@@ -118,7 +118,7 @@ class AdminStaffController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã cập nhật thông tin nhân sự thành công!'
+            'message' => 'Đã cập nhật thông tin nhân sự thành công!',
         ]);
     }
 
@@ -130,12 +130,12 @@ class AdminStaffController extends Controller
         $role = $request->input('role');
         $allowedRoles = ['admin', 'staff', 'seller'];
 
-        if (!in_array($role, $allowedRoles)) {
+        if (! in_array($role, $allowedRoles)) {
             return response()->json(['status' => 'error', 'message' => 'Role không hợp lệ!'], 422);
         }
 
         $admin = Admin::find($id);
-        if (!$admin) {
+        if (! $admin) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy tài khoản!'], 404);
         }
 
@@ -152,11 +152,11 @@ class AdminStaffController extends Controller
         $admin->update(['role' => $role]);
 
         // Sync to users table
-        \App\Models\User::where('email', $admin->email)->update(['role' => $role]);
+        User::where('email', $admin->email)->update(['role' => $role]);
 
         return response()->json([
             'status' => 'success',
-            'message' => "Đã phân quyền thành '{$role}' thành công!"
+            'message' => "Đã phân quyền thành '{$role}' thành công!",
         ]);
     }
 
@@ -166,7 +166,7 @@ class AdminStaffController extends Controller
     public function destroy($id)
     {
         $admin = Admin::find($id);
-        if (!$admin) {
+        if (! $admin) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy tài khoản!'], 404);
         }
 
@@ -179,18 +179,18 @@ class AdminStaffController extends Controller
         if ($currentUser && $currentUser->admin_id == $id) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Bạn không thể tự xóa tài khoản của chính mình!'
+                'message' => 'Bạn không thể tự xóa tài khoản của chính mình!',
             ], 403);
         }
 
         $admin->delete();
 
         // Sync to users table: revert to customer when admin account deleted
-        \App\Models\User::where('email', $admin->email)->update(['role' => 'customer']);
+        User::where('email', $admin->email)->update(['role' => 'customer']);
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã xóa tài khoản nhân sự thành công!'
+            'message' => 'Đã xóa tài khoản nhân sự thành công!',
         ]);
     }
 
@@ -200,12 +200,12 @@ class AdminStaffController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $status = $request->input('status');
-        if (!in_array($status, ['active', 'inactive'])) {
+        if (! in_array($status, ['active', 'inactive'])) {
             return response()->json(['status' => 'error', 'message' => 'Trạng thái không hợp lệ!'], 422);
         }
 
         $admin = Admin::find($id);
-        if (!$admin) {
+        if (! $admin) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy tài khoản!'], 404);
         }
 
@@ -217,7 +217,7 @@ class AdminStaffController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Đã cập nhật trạng thái nhân sự thành công!'
+            'message' => 'Đã cập nhật trạng thái nhân sự thành công!',
         ]);
     }
 }

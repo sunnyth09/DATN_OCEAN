@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\OrderProcessingJob;
 use App\Models\FlashSale;
 use App\Models\FlashSaleItem;
 use Illuminate\Support\Facades\Cache;
@@ -35,25 +36,26 @@ class FlashSaleService
                     $remaining = $redisStock !== null ? (int) $redisStock : ($item->campaign_stock - $item->sold);
 
                     $formatted[] = [
-                        'id'               => $fs->id,
-                        'item_id'          => $item->id,
-                        'product_id'       => $item->product_id,
-                        'title'            => $fs->name,
-                        'product_name'     => $item->product->name ?? 'Sản phẩm Flash Sale',
-                        'product_thumbnail'=> $item->product->thumbnail_url ?? null,
-                        'sale_price'       => (float) $item->campaign_price,
-                        'original_price'   => (float) $originalPrice,
+                        'id' => $fs->id,
+                        'item_id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'title' => $fs->name,
+                        'product_name' => $item->product->name ?? 'Sản phẩm Flash Sale',
+                        'product_thumbnail' => $item->product->thumbnail_url ?? null,
+                        'sale_price' => (float) $item->campaign_price,
+                        'original_price' => (float) $originalPrice,
                         'discount_percent' => $discountPct,
-                        'total_stock'      => $item->campaign_stock,
-                        'sold_count'       => max(0, $item->campaign_stock - $remaining),
-                        'max_per_user'     => self::MAX_PER_USER,
-                        'starts_at'        => $fs->start_time->toISOString(),
-                        'ends_at'          => $fs->end_time->toISOString(),
-                        'status'           => $fs->status,
-                        'server_time'      => now()->toISOString(),
+                        'total_stock' => $item->campaign_stock,
+                        'sold_count' => max(0, $item->campaign_stock - $remaining),
+                        'max_per_user' => self::MAX_PER_USER,
+                        'starts_at' => $fs->start_time->toISOString(),
+                        'ends_at' => $fs->end_time->toISOString(),
+                        'status' => $fs->status,
+                        'server_time' => now()->toISOString(),
                     ];
                 }
             }
+
             return $formatted;
         });
 
@@ -72,12 +74,12 @@ class FlashSaleService
      * Tồn kho hiện tại của 1 item (đọc Redis, fallback MySQL).
      *
      * @return array{state: string, data?: array}
-     *   state: ok | sale_not_found | item_not_found
+     *                                            state: ok | sale_not_found | item_not_found
      */
     public function getStock(int $flashSaleId, $productId): array
     {
         $flashSale = Cache::remember("flash_sale_meta_{$flashSaleId}", 30, fn () => FlashSale::find($flashSaleId));
-        if (!$flashSale) {
+        if (! $flashSale) {
             return ['state' => 'sale_not_found'];
         }
 
@@ -87,7 +89,7 @@ class FlashSaleService
         }
         $item = $itemQuery->first();
 
-        if (!$item) {
+        if (! $item) {
             return ['state' => 'item_not_found'];
         }
 
@@ -97,13 +99,13 @@ class FlashSaleService
 
         return [
             'state' => 'ok',
-            'data'  => [
+            'data' => [
                 'flash_sale_id' => $flashSaleId,
-                'product_id'    => $item->product_id,
-                'total_stock'   => $item->campaign_stock,
-                'remaining'     => $remaining,
-                'sold_count'    => max(0, $item->campaign_stock - $remaining),
-                'is_sold_out'   => $remaining <= 0,
+                'product_id' => $item->product_id,
+                'total_stock' => $item->campaign_stock,
+                'remaining' => $remaining,
+                'sold_count' => max(0, $item->campaign_stock - $remaining),
+                'is_sold_out' => $remaining <= 0,
             ],
         ];
     }
@@ -113,18 +115,18 @@ class FlashSaleService
      * ATOMIC trên Redis (incrby/decrby rồi mới kiểm tra), sau đó đẩy tạo đơn qua Queue.
      *
      * @return array{state: string, message?: string, order_code?: string, remaining?: int}
-     *   state: ok | inactive | item_not_found | over_limit | sold_out
+     *                                                                                      state: ok | inactive | item_not_found | over_limit | sold_out
      */
     public function buy($user, int $userId, int $flashSaleId, int $productId, int $quantity, array $orderInfo): array
     {
         $flashSale = Cache::remember("flash_sale_meta_{$flashSaleId}", 10, fn () => FlashSale::find($flashSaleId));
 
-        if (!$flashSale || $flashSale->status !== 'active' || now()->lt($flashSale->start_time) || now()->gt($flashSale->end_time)) {
+        if (! $flashSale || $flashSale->status !== 'active' || now()->lt($flashSale->start_time) || now()->gt($flashSale->end_time)) {
             return ['state' => 'inactive', 'message' => 'Flash Sale không hoạt động.'];
         }
 
         $item = FlashSaleItem::where('flash_sale_id', $flashSaleId)->where('product_id', $productId)->first();
-        if (!$item) {
+        if (! $item) {
             return ['state' => 'item_not_found', 'message' => 'Sản phẩm không có trong Flash Sale.'];
         }
 
@@ -137,19 +139,29 @@ class FlashSaleService
 
         if ($userBought > self::MAX_PER_USER) {
             Redis::decrby($userPurchaseKey, $quantity);
-            return ['state' => 'over_limit', 'message' => 'Mỗi khách hàng chỉ được mua ' . self::MAX_PER_USER . ' sản phẩm này.'];
+
+            return ['state' => 'over_limit', 'message' => 'Mỗi khách hàng chỉ được mua '.self::MAX_PER_USER.' sản phẩm này.'];
         }
 
-        $stockKey  = "flash_sale_{$flashSaleId}_product_{$productId}_stock";
+        $stockKey = "flash_sale_{$flashSaleId}_product_{$productId}_stock";
+        
+        // Initialize stock in Redis if it doesn't exist (e.g., Redis restart, expiration, or missing sync)
+        if (!Redis::exists($stockKey)) {
+            $remainingStock = max(0, $item->campaign_stock - $item->sold);
+            Redis::set($stockKey, $remainingStock);
+            Redis::expire($stockKey, $ttl);
+        }
+        
         $remaining = Redis::decrby($stockKey, $quantity);
 
         if ($remaining < 0) {
             Redis::incrby($stockKey, $quantity);
             Redis::decrby($userPurchaseKey, $quantity);
+
             return ['state' => 'sold_out', 'message' => 'Rất tiếc! Sản phẩm đã hết hàng.'];
         }
 
-        $orderCode = 'FS-' . strtoupper(uniqid());
+        $orderCode = 'FS-'.strtoupper(uniqid());
         $defaultAddress = $user->addresses()->where('is_default', true)->first() ?? $user->addresses()->first();
         $addressId = $defaultAddress ? $defaultAddress->address_id : null;
 
@@ -163,23 +175,38 @@ class FlashSaleService
             ]));
         }
 
-        \App\Jobs\OrderProcessingJob::dispatch(
-            $flashSaleId,
-            $productId,
-            $userId,
-            $quantity,
-            $addressId,
-            $orderInfo['recipient_name'],
-            $orderInfo['recipient_phone'],
-            $shippingAddress,
-            $orderInfo['payment_method'] ?? 'cod',
-            $orderCode
-        );
+        if (app()->environment('local') || config('queue.default') === 'sync') {
+            \App\Jobs\OrderProcessingJob::dispatchSync(
+                $flashSaleId,
+                $productId,
+                $userId,
+                $quantity,
+                $addressId,
+                $orderInfo['recipient_name'],
+                $orderInfo['recipient_phone'],
+                $shippingAddress,
+                $orderInfo['payment_method'] ?? 'cod',
+                $orderCode
+            );
+        } else {
+            \App\Jobs\OrderProcessingJob::dispatch(
+                $flashSaleId,
+                $productId,
+                $userId,
+                $quantity,
+                $addressId,
+                $orderInfo['recipient_name'],
+                $orderInfo['recipient_phone'],
+                $shippingAddress,
+                $orderInfo['payment_method'] ?? 'cod',
+                $orderCode
+            );
+        }
 
         return [
-            'state'      => 'ok',
+            'state' => 'ok',
             'order_code' => $orderCode,
-            'remaining'  => (int) $remaining,
+            'remaining' => (int) $remaining,
         ];
     }
 
@@ -191,10 +218,10 @@ class FlashSaleService
         foreach ($flashSale->items as $item) {
             $key = "flash_sale_{$flashSale->id}_product_{$item->product_id}_stock";
             $remainingStock = max(0, $item->campaign_stock - $item->sold);
-            
+
             // Set số lượng trên Redis
             Redis::set($key, $remainingStock);
-            
+
             // Tính TTL: set thời gian tồn tại của key bằng thời gian kết thúc campaign + 1h dự phòng
             $ttl = now()->diffInSeconds($flashSale->end_time) + 3600;
             Redis::expire($key, (int) max($ttl, 0));
@@ -208,16 +235,16 @@ class FlashSaleService
     {
         foreach ($flashSale->items as $item) {
             $key = "flash_sale_{$flashSale->id}_product_{$item->product_id}_stock";
-            
+
             if (Redis::exists($key)) {
                 $remainingStockOnRedis = (int) Redis::get($key);
-                
+
                 // Update số lượng thực sự đã bán được tại bảng master-detail
                 $actualSold = $item->campaign_stock - $remainingStockOnRedis;
                 if ($actualSold > $item->sold) {
                     $item->update(['sold' => $actualSold]);
                 }
-                
+
                 // Xoá Redis Key
                 Redis::del($key);
             }

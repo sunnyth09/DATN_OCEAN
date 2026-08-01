@@ -59,21 +59,20 @@ const fulfillmentOptions = statuses.filter(s => s.value !== 'all');
 
 // Luồng trạng thái tuần tự: không cho nhảy cóc
 const statusTransitions = {
-  'pending':   ['pending', 'confirmed', 'cancelled'],
-  'confirmed': ['confirmed', 'packing', 'cancelled'],
-  'packing':   ['packing', 'shipping', 'cancelled'],
-  'shipping':  ['shipping', 'delivered'],
-  'delivered': ['delivered', 'completed'],
-  'completed': ['completed'],
+  'pending': ['pending', 'confirmed', 'cancelled'],
+  'confirmed': ['confirmed', 'processing', 'packing', 'cancelled'],
+  'processing': ['processing', 'packing', 'shipping', 'cancelled'],
+  'packing': ['packing', 'shipping', 'cancelled'],
+  'shipping': ['shipping', 'delivered', 'cancelled', 'return_requested'],
+  'delivered': ['delivered', 'completed', 'return_requested'],
+  'completed': ['completed', 'return_requested'],
   'cancelled': ['cancelled'],
+  'return_requested': ['return_requested', 'return_approved', 'return_rejected'],
+  'return_approved': ['return_approved', 'returned', 'refunded'],
+  'return_rejected': ['return_rejected'],
+  'returned': ['returned', 'refunded'],
+  'refunded': ['refunded']
 };
-statusTransitions.confirmed = ['confirmed', 'processing', 'packing', 'cancelled'];
-statusTransitions.processing = ['processing', 'packing', 'shipping', 'cancelled'];
-statusTransitions.return_requested = ['return_requested'];
-statusTransitions.return_approved = ['return_approved'];
-statusTransitions.return_rejected = ['return_rejected'];
-statusTransitions.returned = ['returned'];
-statusTransitions.refunded = ['refunded'];
 
 const getAllowedFulfillmentOptions = (currentStatus) => {
   const allowed = statusTransitions[currentStatus] || [currentStatus];
@@ -97,9 +96,10 @@ const paymentLabels = {
 paymentLabels.refund_pending = 'Chờ hoàn';
 paymentLabels.refund_failed = 'Hoàn lỗi';
 
-const fetchOrders = async (page = 1) => {
-  loading.value = true;
-  selectedOrders.value = []; // Clear selection when changing page
+const fetchOrders = async (page = 1, showLoading = true) => {
+  if (showLoading) loading.value = true;
+  if (showLoading) selectedOrders.value = []; // Clear selection when changing page
+
   try {
     const res = await api.get('/admin/orders', {
       params: {
@@ -126,7 +126,7 @@ const fetchOrders = async (page = 1) => {
     console.error('Fetch orders failed', error);
     toast.error('Không thể tải danh sách đơn hàng');
   } finally {
-    loading.value = false;
+    if (showLoading) loading.value = false;
   }
 };
 
@@ -207,6 +207,11 @@ const statusActionDefinitions = {
   delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
   completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
   cancelled: { icon: 'x', label: 'Hủy đơn', success: 'Đã hủy đơn hàng thành công!' },
+  return_requested: { icon: 'rotate-ccw', label: 'Yêu cầu hoàn trả', success: 'Đã chuyển sang yêu cầu hoàn trả!' },
+  return_approved: { icon: 'check', label: 'Duyệt hoàn trả', success: 'Đã duyệt yêu cầu hoàn trả!' },
+  return_rejected: { icon: 'x', label: 'Từ chối hoàn trả', success: 'Đã từ chối yêu cầu hoàn trả!' },
+  returned: { icon: 'package-check', label: 'Đã nhận hàng hoàn', success: 'Đã xác nhận nhận hàng hoàn!' },
+  refunded: { icon: 'corner-down-left', label: 'Đã hoàn tiền', success: 'Đã hoàn tiền thành công!' },
 };
 
 const getOrderStatusActions = (order) => {
@@ -255,6 +260,8 @@ const updateOrderStatus = async (order, action) => {
       order._prevFulfillmentStatus = nextStatus;
       if (nextStatus === 'cancelled') order.cancel_reason = payload.note;
       toast.success(action.success || 'Cập nhật trạng thái thành công!');
+      window.dispatchEvent(new Event('admin-order-updated'));
+      await fetchOrders(pagination.value.current_page, false);
     }
   } catch (error) {
     toast.error(error.response?.data?.message || 'Lỗi cập nhật trạng thái');
@@ -353,7 +360,8 @@ const applyBulkStatus = async () => {
             toast.success(res.data.message);
             selectedOrders.value = [];
             bulkFulfillmentStatus.value = '';
-            fetchOrders(pagination.value.current_page);
+            window.dispatchEvent(new Event('admin-order-updated'));
+            fetchOrders(pagination.value.current_page, false);
         }
     } catch (error) {
         toast.error(error.response?.data?.message || 'Có lỗi khi cập nhật hàng loạt');
@@ -506,7 +514,10 @@ onUnmounted(() => {
                         </td>
                         <td>
                             <div class="order-code-cell">
-                                <span class="badge-id">#{{ order.order_code }}</span>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="badge-id">#{{ order.order_code }}</span>
+                                    <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">⚡ Flash Sale</span>
+                                </div>
                                 <span class="order-date">{{ formatDate(order.created_at) }}</span>
                             </div>
                         </td>

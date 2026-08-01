@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ProductComment extends Model
 {
     protected $table = 'product_comments';
+
     protected $primaryKey = 'comment_id';
 
     protected $fillable = [
@@ -43,6 +44,7 @@ class ProductComment extends Model
         if ($this->commenter_type === 'admin') {
             return $this->belongsTo(Admin::class, 'user_id', 'admin_id');
         }
+
         return $this->belongsTo(User::class, 'user_id', 'user_id');
     }
 

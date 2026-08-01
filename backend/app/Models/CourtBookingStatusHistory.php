@@ -10,7 +10,7 @@ class CourtBookingStatusHistory extends Model
     use HasFactory;
 
     protected $primaryKey = 'history_id';
-    
+
     public $timestamps = false; // Only created_at is used in migration
 
     protected $fillable = [

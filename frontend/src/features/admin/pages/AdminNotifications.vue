@@ -31,8 +31,22 @@
                     </div>
                     <div class="d-flex gap-2 w-100 justify-content-between">
                         <div>
-                            <h6 class="mb-1 fw-bold" :class="{'text-dark': !noti.read_at, 'text-muted': noti.read_at}">{{ noti.data.title }}</h6>
+                            <h6 class="mb-1 fw-bold d-flex align-items-center gap-2" :class="{'text-dark': !noti.read_at, 'text-muted': noti.read_at}">
+                                {{ noti.data.title }}
+                                <span v-if="noti.data.is_flash_sale || (noti.data.title && noti.data.title.includes('Flash Sale'))" class="badge bg-warning text-dark" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">⚡ Flash Sale</span>
+                            </h6>
                             <p class="mb-1 text-secondary" style="font-size: 0.9rem;">{{ noti.data.message }}</p>
+                            
+                            <!-- Hiển thị trạng thái đơn hàng nếu có -->
+                            <div v-if="noti.data.payment_status || noti.data.fulfillment_status" class="mt-2 mb-2 d-flex gap-2 flex-wrap">
+                                <span v-if="noti.data.fulfillment_status" class="badge rounded-pill" :class="getFulfillmentBadgeClass(noti.data.fulfillment_status)">
+                                    Vận chuyển: {{ fulfillmentLabels[noti.data.fulfillment_status] || noti.data.fulfillment_status }}
+                                </span>
+                                <span v-if="noti.data.payment_status" class="badge rounded-pill" :class="getPaymentBadgeClass(noti.data.payment_status)">
+                                    Thanh toán: {{ paymentLabels[noti.data.payment_status] || noti.data.payment_status }}
+                                </span>
+                            </div>
+
                             <small class="text-muted"><i class="bi bi-clock me-1"></i> {{ formatTimeAgo(noti.created_at) }}</small>
                         </div>
                         <div class="text-end d-flex flex-column justify-content-between">
@@ -50,18 +64,20 @@
             </div>
 
             <!-- Pagination -->
-            <div class="card-footer bg-white border-top py-3 d-flex justify-content-center" v-if="totalPages > 1">
-                <ul class="pagination pagination-sm m-0">
-                    <li class="page-item" :class="{ disabled: currentPage === 1 }">
-                        <a class="page-link" href="#" @click.prevent="changePage(currentPage - 1)">Trang trước</a>
-                    </li>
-                    <li class="page-item" v-for="p in totalPages" :key="p" :class="{ active: p === currentPage }">
-                        <a class="page-link" href="#" @click.prevent="changePage(p)">{{ p }}</a>
-                    </li>
-                    <li class="page-item" :class="{ disabled: currentPage === totalPages }">
-                        <a class="page-link" href="#" @click.prevent="changePage(currentPage + 1)">Trang sau</a>
-                    </li>
-                </ul>
+            <div class="card-footer bg-white border-top py-3 d-flex justify-content-center" v-if="totalPages >= 1">
+                <div class="pagination">
+                    <button class="page-btn" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">‹</button>
+                    <template v-for="(item, index) in visiblePages" :key="index">
+                        <span v-if="item === '...'" class="page-dots">...</span>
+                        <button
+                            v-else
+                            class="page-btn"
+                            :class="{ active: item === currentPage }"
+                            @click="changePage(item)"
+                        >{{ item }}</button>
+                    </template>
+                    <button class="page-btn" :disabled="currentPage === totalPages || totalPages === 0" @click="changePage(currentPage + 1)">›</button>
+                </div>
             </div>
         </div>
     </div>
@@ -73,14 +89,82 @@ import api from '@/axios';
 import Swal from 'sweetalert2';
 import { useRouter } from 'vue-router';
 
+import { useUiStore } from '@/stores/ui';
+
 const router = useRouter();
+const uiStore = useUiStore();
 const notifications = ref([]);
 const filter = ref('all');
 const currentPage = ref(1);
 const totalPages = ref(1);
-const unreadCount = ref(0);
 
-const hasUnread = computed(() => unreadCount.value > 0);
+const hasUnread = computed(() => uiStore.adminUnreadNotificationCount > 0);
+
+const visiblePages = computed(() => {
+    const total = totalPages.value;
+    const current = currentPage.value;
+    
+    if (total <= 7) {
+        const pages = [];
+        for (let i = 1; i <= total; i++) pages.push(i);
+        return pages;
+    }
+    
+    if (current <= 4) {
+        return [1, 2, 3, 4, 5, '...', total];
+    }
+    
+    if (current >= total - 3) {
+        return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    
+    return [1, '...', current - 1, current, current + 1, '...', total];
+});
+
+const paymentLabels = {
+  'unpaid': 'Chưa TT',
+  'paid': 'Đã thanh toán',
+  'pending': 'Đang xử lý',
+  'failed': 'Thất bại',
+  'refunded': 'Đã hoàn tiền',
+  'partially_refunded': 'Hoàn 1 phần',
+  'refund_pending': 'Chờ hoàn',
+  'refund_failed': 'Hoàn lỗi'
+};
+
+const fulfillmentLabels = {
+  'pending': 'Chờ duyệt',
+  'confirmed': 'Đã duyệt',
+  'processing': 'Đang xử lý',
+  'packing': 'Đóng gói',
+  'shipping': 'Đang giao',
+  'delivered': 'Đã giao',
+  'completed': 'Hoàn thành',
+  'cancelled': 'Đã hủy',
+  'return_requested': 'Yêu cầu hoàn',
+  'return_approved': 'Đã duyệt hoàn',
+  'return_rejected': 'Từ chối hoàn',
+  'returned': 'Đã nhận hàng hoàn',
+  'refunded': 'Đã hoàn tiền'
+};
+
+const getPaymentBadgeClass = (status) => {
+    switch (status) {
+        case 'paid': return 'text-success bg-success-subtle border border-success-subtle';
+        case 'unpaid': return 'text-secondary bg-secondary-subtle border border-secondary-subtle';
+        case 'failed': case 'refund_failed': return 'text-danger bg-danger-subtle border border-danger-subtle';
+        default: return 'text-warning bg-warning-subtle border border-warning-subtle';
+    }
+};
+
+const getFulfillmentBadgeClass = (status) => {
+    switch (status) {
+        case 'delivered': case 'completed': case 'returned': case 'refunded': return 'text-success bg-success-subtle border border-success-subtle';
+        case 'cancelled': case 'return_rejected': return 'text-danger bg-danger-subtle border border-danger-subtle';
+        case 'pending': return 'text-secondary bg-secondary-subtle border border-secondary-subtle';
+        default: return 'text-primary bg-primary-subtle border border-primary-subtle';
+    }
+};
 
 const fetchNotifications = async () => {
     try {
@@ -94,7 +178,7 @@ const fetchNotifications = async () => {
         if (res.data.success) {
             notifications.value = res.data.notifications;
             totalPages.value = res.data.last_page;
-            unreadCount.value = res.data.unread_count;
+            uiStore.setAdminUnreadNotificationCount(res.data.unread_count);
         }
     } catch (error) {
         console.error('Lỗi khi tải thông báo', error);
@@ -104,7 +188,7 @@ const fetchNotifications = async () => {
 const markAllAsRead = async () => {
     try {
         await api.post('/admin/notifications/read-all');
-        unreadCount.value = 0;
+        uiStore.setAdminUnreadNotificationCount(0);
         fetchNotifications();
     } catch (error) {
         console.error(error);
@@ -114,15 +198,17 @@ const markAllAsRead = async () => {
 const handleNotificationClick = async (noti) => {
     if (!noti.read_at) {
         try {
-            await api.post(`/admin/notifications/${noti.id}/read`);
             noti.read_at = new Date().toISOString();
-            unreadCount.value--;
+            uiStore.decrementAdminUnreadNotificationCount();
+            await api.post(`/admin/notifications/${noti.id}/read`);
         } catch (error) {
             console.error(error);
         }
     }
 
-    if (noti.data.booking_id) {
+    if (noti.data.url_redirect) {
+        router.push(noti.data.url_redirect);
+    } else if (noti.data.booking_id) {
         router.push({
             path: '/admin/court-bookings',
             query: { search: noti.data.booking_code }
@@ -182,6 +268,12 @@ watch(filter, () => {
 
 onMounted(() => {
     fetchNotifications();
+    window.addEventListener('admin-notification-received', fetchNotifications);
+});
+
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+    window.removeEventListener('admin-notification-received', fetchNotifications);
 });
 </script>
 
@@ -192,4 +284,17 @@ onMounted(() => {
 .nav-pills .nav-link {
     color: var(--text-muted);
 }
+
+.pagination {
+    display: flex; justify-content: center; align-items: center; gap: 8px; padding: 10px 0; margin: 0;
+}
+.page-btn {
+    width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; border: 1px solid #e2e8f0; background: #fff;
+    font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.page-btn:hover:not(:disabled) { border-color: var(--primary, #E63B6F); color: var(--primary, #E63B6F); }
+.page-btn.active { background: var(--primary, #E63B6F); color: white; border-color: var(--primary, #E63B6F); }
+.page-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #f8fafc; }
+.page-dots { font-weight: 700; color: #64748b; padding: 0 4px; }
 </style>

@@ -4,24 +4,24 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\ChatMessage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ChatController extends Controller
 {
     public function getMessages(Request $request)
     {
         $user = $request->user();
-        
+
         $session = DB::table('chat_sessions')
             ->where('user_id', $user->user_id)
             ->where('status', 'open')
             ->first();
 
-        if (!$session) {
+        if (! $session) {
             return response()->json([
                 'status' => 'success',
-                'data' => []
+                'data' => [],
             ]);
         }
 
@@ -32,14 +32,14 @@ class ChatController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $messages
+            'data' => $messages,
         ]);
     }
 
     public function sendMessage(Request $request)
     {
         $request->validate([
-            'message' => 'required|string'
+            'message' => 'required|string',
         ]);
 
         $user = $request->user();
@@ -49,9 +49,9 @@ class ChatController extends Controller
             ->where('status', 'open')
             ->first();
 
-        if (!$session) {
+        if (! $session) {
             $sessionId = DB::table('chat_sessions')->insertGetId([
-                'session_token' => \Illuminate\Support\Str::uuid(),
+                'session_token' => Str::uuid(),
                 'user_id' => $user->user_id,
                 'status' => 'open',
                 'created_at' => now(),
@@ -61,7 +61,7 @@ class ChatController extends Controller
             $sessionId = $session->id;
             DB::table('chat_sessions')->where('id', $sessionId)->update([
                 'last_message_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
         }
 
@@ -77,7 +77,7 @@ class ChatController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $message
+            'data' => $message,
         ]);
     }
 }

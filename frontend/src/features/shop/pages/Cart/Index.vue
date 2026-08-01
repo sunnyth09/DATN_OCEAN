@@ -280,11 +280,18 @@ const toggleSelectAll = async () => {
         return;
     }
     
-    const promises = cartItems.value.map(item => {
-        item.selected = newState;
-        return api.put(`/cart/items/${item.cart_item_id}`, { selected: newState }).catch(() => { });
-    });
-    await Promise.all(promises);
+    // Cập nhật UI lập tức
+    cartItems.value.forEach(item => { item.selected = newState; });
+
+    // Gửi 1 request batch duy nhất thay vì N request song song (tránh vượt rate limit)
+    try {
+        await api.put('/cart/select-all', { selected: newState });
+    } catch (error) {
+        // Rollback UI nếu lỗi
+        cartItems.value.forEach(item => { item.selected = !newState; });
+        selectAll.value = !newState;
+        showToast('Không thể cập nhật. Vui lòng thử lại.', 'error');
+    }
 };
 
 // Toggle chọn 1 item
@@ -1470,8 +1477,9 @@ onUnmounted(() => {
 }
 
 .btn-primary:hover {
-    background: #039be5;
-    transform: translateY(-1px);
+    background: #C4305D; /* Tối hơn màu E63B6F một chút */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.3);
 }
 
 /* Toast */

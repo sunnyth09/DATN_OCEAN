@@ -7,7 +7,6 @@ use App\Models\FlashSale;
 use App\Models\UserCoupon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /**
  * ComboService — Xử lý Combo/Bundle Promotion dựa trên:
@@ -25,68 +24,68 @@ class ComboService
     /**
      * Áp dụng tất cả combo đang eligible cho cart.
      *
-     * @param  int        $userId
-     * @param  Collection $cartItems   CartItem collection (với variant.product loaded)
-     * @param  float      $subtotal    Tổng tiền hàng trước discount
+     * @param  Collection  $cartItems  CartItem collection (với variant.product loaded)
+     * @param  float  $subtotal  Tổng tiền hàng trước discount
      * @return array {
-     *     discount_amount: float,
-     *     applied_flash_sale_combos: FlashSale[],
-     *     applied_combo_vouchers: Coupon[],
-     *     details: array           // Chi tiết từng combo áp dụng (để hiển thị)
-     * }
+     *               discount_amount: float,
+     *               applied_flash_sale_combos: FlashSale[],
+     *               applied_combo_vouchers: Coupon[],
+     *               details: array           // Chi tiết từng combo áp dụng (để hiển thị)
+     *               }
      */
     public function applyAllCombos(int $userId, Collection $cartItems, float $subtotal): array
     {
-        $totalDiscount  = 0.0;
-        $flashCombos    = [];
-        $voucherCombos  = [];
-        $details        = [];
+        $totalDiscount = 0.0;
+        $flashCombos = [];
+        $voucherCombos = [];
+        $details = [];
 
         // 1. Flash Sale Combo (is_combo=true)
         $flashResult = $this->applyFlashSaleCombos($cartItems);
         $totalDiscount += $flashResult['discount_amount'];
-        $flashCombos    = $flashResult['applied'];
-        $details        = array_merge($details, $flashResult['details']);
+        $flashCombos = $flashResult['applied'];
+        $details = array_merge($details, $flashResult['details']);
 
         // 2. Auto-apply Combo Vouchers (type=combo, auto_apply=true)
-        $voucherResult  = $this->applyComboVouchers($userId, $cartItems, $subtotal - $totalDiscount);
+        $voucherResult = $this->applyComboVouchers($userId, $cartItems, $subtotal - $totalDiscount);
         $totalDiscount += $voucherResult['discount_amount'];
-        $voucherCombos  = $voucherResult['applied'];
-        $details        = array_merge($details, $voucherResult['details']);
+        $voucherCombos = $voucherResult['applied'];
+        $details = array_merge($details, $voucherResult['details']);
 
         return [
-            'discount_amount'          => round($totalDiscount, 2),
+            'discount_amount' => round($totalDiscount, 2),
             'applied_flash_sale_combos' => $flashCombos,
-            'applied_combo_vouchers'   => $voucherCombos,
-            'details'                  => $details,
+            'applied_combo_vouchers' => $voucherCombos,
+            'details' => $details,
         ];
     }
 
     /**
      * Lấy danh sách combo đang eligible với cart (dùng cho preview ở frontend).
      *
-     * @param  Collection $cartItems
      * @return array { flash_sale_combos: [], combo_vouchers: [] }
      */
     public function getEligibleCombos(Collection $cartItems): array
     {
-        $flashCombos   = $this->getEligibleFlashSaleCombos($cartItems);
+        $flashCombos = $this->getEligibleFlashSaleCombos($cartItems);
         $voucherCombos = $this->getEligibleComboVouchers($cartItems);
 
         return [
             'flash_sale_combos' => $flashCombos->map(fn ($fs) => $this->formatFlashCombo($fs, $cartItems))->values(),
-            'combo_vouchers'    => $voucherCombos->map(fn ($c) => $this->formatVoucherCombo($c, $cartItems))->values(),
+            'combo_vouchers' => $voucherCombos->map(fn ($c) => $this->formatVoucherCombo($c, $cartItems))->values(),
         ];
     }
 
     /**
      * Đánh dấu đã sử dụng combo vouchers sau khi order tạo xong.
      *
-     * @param Coupon[] $vouchers
+     * @param  Coupon[]  $vouchers
      */
     public function markVouchersAsUsed(array $vouchers, int $userId): void
     {
-        if ($userId <= 0) return;
+        if ($userId <= 0) {
+            return;
+        }
 
         // PHẢI gọi bên trong DB::transaction() của đơn hàng (OrderService) để đảm bảo
         // atomic cùng với việc tạo đơn. Dùng conditional UPDATE trên used_count để
@@ -96,11 +95,11 @@ class ComboService
             $globalOk = Coupon::where('id', $voucher->id)
                 ->where(function ($q) {
                     $q->whereNull('usage_limit')
-                      ->orWhereColumn('used_count', '<', 'usage_limit');
+                        ->orWhereColumn('used_count', '<', 'usage_limit');
                 })
                 ->update(['used_count' => DB::raw('used_count + 1')]);
 
-            if (!$globalOk) {
+            if (! $globalOk) {
                 // Hết lượt toàn cục → bỏ qua voucher này (không chặn cả đơn vì đây là auto-apply).
                 continue;
             }
@@ -119,12 +118,12 @@ class ComboService
                     ->lockForUpdate()
                     ->exists();
 
-                if (!$exists) {
+                if (! $exists) {
                     UserCoupon::create([
-                        'user_id'    => $userId,
-                        'coupon_id'  => $voucher->id,
+                        'user_id' => $userId,
+                        'coupon_id' => $voucher->id,
                         'used_count' => 1,
-                        'is_saved'   => false,
+                        'is_saved' => false,
                     ]);
                 }
             }
@@ -143,29 +142,31 @@ class ComboService
         $eligibleCombos = $this->getEligibleFlashSaleCombos($cartItems);
 
         $totalDiscount = 0.0;
-        $applied       = [];
-        $details       = [];
+        $applied = [];
+        $details = [];
 
         foreach ($eligibleCombos as $combo) {
             $discount = $this->calcFlashComboDiscount($combo, $cartItems);
 
-            if ($discount <= 0) continue;
+            if ($discount <= 0) {
+                continue;
+            }
 
             $totalDiscount += $discount;
-            $applied[]      = $combo;
-            $details[]      = [
-                'type'          => 'flash_sale_combo',
-                'id'            => $combo->id,
-                'name'          => $combo->name,
-                'combo_label'   => $combo->combo_label,
-                'discount'      => $discount,
+            $applied[] = $combo;
+            $details[] = [
+                'type' => 'flash_sale_combo',
+                'id' => $combo->id,
+                'name' => $combo->name,
+                'combo_label' => $combo->combo_label,
+                'discount' => $discount,
             ];
         }
 
         return [
             'discount_amount' => $totalDiscount,
-            'applied'         => $applied,
-            'details'         => $details,
+            'applied' => $applied,
+            'details' => $details,
         ];
     }
 
@@ -186,22 +187,30 @@ class ComboService
      */
     private function cartHasAllComboItems(FlashSale $combo, Collection $cartItems): bool
     {
-        if ($combo->items->isEmpty()) return false;
+        if ($combo->items->isEmpty()) {
+            return false;
+        }
 
         $cartProductIds = $this->getCartProductIds($cartItems);
 
         foreach ($combo->items as $item) {
-            if (!in_array($item->product_id, $cartProductIds)) return false;
+            if (! in_array($item->product_id, $cartProductIds)) {
+                return false;
+            }
 
             // Kiểm tra số lượng tối thiểu
-            $minQty  = $item->min_qty ?? 1;
+            $minQty = $item->min_qty ?? 1;
             $cartQty = $this->getCartQtyForProduct($cartItems, $item->product_id);
 
-            if ($cartQty < $minQty) return false;
+            if ($cartQty < $minQty) {
+                return false;
+            }
 
             // Kiểm tra còn hàng Flash Sale (kiểm tra Redis hoặc DB)
             $remaining = $item->campaign_stock - $item->sold;
-            if ($remaining <= 0) return false;
+            if ($remaining <= 0) {
+                return false;
+            }
         }
 
         return true;
@@ -220,11 +229,13 @@ class ComboService
             foreach ($cartItems as $cartItem) {
                 $productId = $cartItem->variant?->product_id ?? null;
 
-                if ($productId !== $comboItem->product_id) continue;
+                if ($productId !== $comboItem->product_id) {
+                    continue;
+                }
 
-                $regularPrice  = (float) ($cartItem->variant->price ?? 0);
+                $regularPrice = (float) ($cartItem->variant->price ?? 0);
                 $campaignPrice = (float) $comboItem->campaign_price;
-                $qty           = min($cartItem->quantity, $comboItem->min_qty ?? 1);
+                $qty = min($cartItem->quantity, $comboItem->min_qty ?? 1);
 
                 if ($regularPrice > $campaignPrice) {
                     $discount += ($regularPrice - $campaignPrice) * $qty;
@@ -246,31 +257,35 @@ class ComboService
         $eligibleVouchers = $this->getEligibleComboVouchers($cartItems);
 
         $totalDiscount = 0.0;
-        $applied       = [];
-        $details       = [];
+        $applied = [];
+        $details = [];
 
         foreach ($eligibleVouchers as $voucher) {
             // Kiểm tra user còn lượt dùng không
-            if (!$this->userCanUseVoucher($userId, $voucher)) continue;
+            if (! $this->userCanUseVoucher($userId, $voucher)) {
+                continue;
+            }
 
             $discount = $this->calcVoucherDiscount($voucher, $currentSubtotal - $totalDiscount);
 
-            if ($discount <= 0) continue;
+            if ($discount <= 0) {
+                continue;
+            }
 
             $totalDiscount += $discount;
-            $applied[]      = $voucher;
-            $details[]      = [
-                'type'     => 'combo_voucher',
-                'id'       => $voucher->id,
-                'code'     => $voucher->code,
+            $applied[] = $voucher;
+            $details[] = [
+                'type' => 'combo_voucher',
+                'id' => $voucher->id,
+                'code' => $voucher->code,
                 'discount' => $discount,
             ];
         }
 
         return [
             'discount_amount' => $totalDiscount,
-            'applied'         => $applied,
-            'details'         => $details,
+            'applied' => $applied,
+            'details' => $details,
         ];
     }
 
@@ -312,24 +327,31 @@ class ComboService
         // Nếu không chỉ định sản phẩm → áp dụng dựa vào min_product_qty
         if ($requiredProducts->isEmpty()) {
             $totalQty = $cartItems->sum('quantity');
+
             return $totalQty >= ($voucher->min_product_qty ?? 1);
         }
 
         $cartProductIds = $this->getCartProductIds($cartItems);
 
         foreach ($requiredProducts as $product) {
-            if (!in_array($product->product_id, $cartProductIds)) return false;
+            if (! in_array($product->product_id, $cartProductIds)) {
+                return false;
+            }
 
-            $minQty  = $product->pivot->min_qty ?? 1;
+            $minQty = $product->pivot->min_qty ?? 1;
             $cartQty = $this->getCartQtyForProduct($cartItems, $product->product_id);
 
-            if ($cartQty < $minQty) return false;
+            if ($cartQty < $minQty) {
+                return false;
+            }
         }
 
         // Kiểm tra min_order_value nếu có
         if ($voucher->min_order_value) {
             $subtotal = $cartItems->sum(fn ($i) => ($i->variant->price ?? 0) * $i->quantity);
-            if ($subtotal < $voucher->min_order_value) return false;
+            if ($subtotal < $voucher->min_order_value) {
+                return false;
+            }
         }
 
         return true;
@@ -340,13 +362,17 @@ class ComboService
      */
     private function userCanUseVoucher(int $userId, Coupon $voucher): bool
     {
-        if ($userId <= 0) return true;
-        if (!$voucher->user_usage_limit) return true;
+        if ($userId <= 0) {
+            return true;
+        }
+        if (! $voucher->user_usage_limit) {
+            return true;
+        }
 
         // Cột thật trên user_coupons là used_count (không có cột status).
         $used = (int) (UserCoupon::where('user_id', $userId)
-                          ->where('coupon_id', $voucher->id)
-                          ->value('used_count') ?? 0);
+            ->where('coupon_id', $voucher->id)
+            ->value('used_count') ?? 0);
 
         return $used < $voucher->user_usage_limit;
     }
@@ -357,11 +383,11 @@ class ComboService
     private function calcVoucherDiscount(Coupon $voucher, float $subtotal): float
     {
         $discount = match ($voucher->type) {
-            'percent'   => $subtotal * ($voucher->value / 100),
-            'fixed'     => min($voucher->value, $subtotal),
+            'percent' => $subtotal * ($voucher->value / 100),
+            'fixed' => min($voucher->value, $subtotal),
             'free_ship' => 0, // xử lý ở ShippingService
-            'combo'     => $this->calcComboTypeDiscount($voucher, $subtotal),
-            default     => 0,
+            'combo' => $this->calcComboTypeDiscount($voucher, $subtotal),
+            default => 0,
         };
 
         if ($voucher->max_discount_value) {
@@ -395,17 +421,17 @@ class ComboService
     private function formatFlashCombo(FlashSale $combo, Collection $cartItems): array
     {
         return [
-            'type'        => 'flash_sale_combo',
-            'id'          => $combo->id,
-            'name'        => $combo->name,
+            'type' => 'flash_sale_combo',
+            'id' => $combo->id,
+            'name' => $combo->name,
             'combo_label' => $combo->combo_label,
-            'end_time'    => $combo->end_time?->toISOString(),
-            'discount'    => $this->calcFlashComboDiscount($combo, $cartItems),
-            'items'       => $combo->items->map(fn ($i) => [
-                'product_id'    => $i->product_id,
-                'product_name'  => $i->product?->name,
+            'end_time' => $combo->end_time?->toISOString(),
+            'discount' => $this->calcFlashComboDiscount($combo, $cartItems),
+            'items' => $combo->items->map(fn ($i) => [
+                'product_id' => $i->product_id,
+                'product_name' => $i->product?->name,
                 'campaign_price' => $i->campaign_price,
-                'min_qty'       => $i->min_qty ?? 1,
+                'min_qty' => $i->min_qty ?? 1,
             ]),
         ];
     }
@@ -415,14 +441,14 @@ class ComboService
         $subtotal = $cartItems->sum(fn ($i) => ($i->variant->price ?? 0) * $i->quantity);
 
         return [
-            'type'     => 'combo_voucher',
-            'id'       => $voucher->id,
-            'code'     => $voucher->code,
+            'type' => 'combo_voucher',
+            'id' => $voucher->id,
+            'code' => $voucher->code,
             'discount' => $this->calcVoucherDiscount($voucher, $subtotal),
             'products' => $voucher->products->map(fn ($p) => [
                 'product_id' => $p->product_id,
-                'name'       => $p->name,
-                'min_qty'    => $p->pivot->min_qty ?? 1,
+                'name' => $p->name,
+                'min_qty' => $p->pivot->min_qty ?? 1,
             ]),
         ];
     }

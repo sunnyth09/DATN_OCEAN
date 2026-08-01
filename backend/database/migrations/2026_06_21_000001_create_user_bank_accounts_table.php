@@ -20,8 +20,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('user_id')
-                  ->references('user_id')->on('users')
-                  ->onDelete('cascade');
+                ->references('user_id')->on('users')
+                ->onDelete('cascade');
 
             $table->index('user_id');
             // Mỗi user không trùng số TK cùng ngân hàng

@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\User;
 use App\Services\LoyaltyService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -19,11 +20,13 @@ class LoyaltyServiceTest extends TestCase
     {
         parent::setUp();
 
-        $this->service = new LoyaltyService();
+        $this->service = new LoyaltyService;
 
+        Schema::disableForeignKeyConstraints();
         foreach (['loyalty_transactions', 'loyalty_rules', 'orders', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');
@@ -259,12 +262,12 @@ class LoyaltyServiceTest extends TestCase
     {
         $user = User::create([
             'full_name' => 'Loyalty Tester',
-            'email' => 'loyalty' . uniqid() . '@example.com',
+            'email' => 'loyalty'.uniqid().'@example.com',
             'password' => bcrypt('password'),
         ]);
 
         // reward_points bị loại khỏi $fillable (chống mass-assignment) → set qua DB
-        \Illuminate\Support\Facades\DB::table('users')
+        DB::table('users')
             ->where('user_id', $user->user_id)
             ->update(['reward_points' => $rewardPoints]);
 
@@ -274,7 +277,7 @@ class LoyaltyServiceTest extends TestCase
     private function makeOrder(int $userId, float $grandTotal): Order
     {
         return Order::create([
-            'order_code' => 'ORD-' . strtoupper(uniqid()),
+            'order_code' => 'ORD-'.strtoupper(uniqid()),
             'user_id' => $userId,
             'payment_method' => 'cod',
             'payment_status' => 'unpaid',

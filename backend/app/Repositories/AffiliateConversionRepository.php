@@ -35,8 +35,8 @@ class AffiliateConversionRepository
     {
         $result = AffiliateConversion::where('referrer_id', $referrerId)
             ->select(
-                DB::raw("COUNT(*) as total_conversions"),
-                DB::raw("SUM(total_amount) as total_revenue"),
+                DB::raw('COUNT(*) as total_conversions'),
+                DB::raw('SUM(total_amount) as total_revenue'),
                 DB::raw("SUM(CASE WHEN status = 'pending' THEN commission_amount ELSE 0 END) as pending_commission"),
                 DB::raw("SUM(CASE WHEN status = 'approved' THEN commission_amount ELSE 0 END) as approved_commission"),
                 DB::raw("SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END) as paid_commission")
@@ -58,8 +58,8 @@ class AffiliateConversionRepository
     public function getStatsByReferrer(int $referrerId, string $type = 'month'): array
     {
         $groupBy = match ($type) {
-            'day' => DB::raw("DATE(created_at) as period"),
-            'year' => DB::raw("YEAR(created_at) as period"),
+            'day' => DB::raw('DATE(created_at) as period'),
+            'year' => DB::raw('YEAR(created_at) as period'),
             default => DB::raw("DATE_FORMAT(created_at, '%Y-%m') as period"),
         };
 
@@ -67,9 +67,9 @@ class AffiliateConversionRepository
             ->where('status', '!=', 'cancelled')
             ->select(
                 $groupBy,
-                DB::raw("COUNT(*) as total_orders"),
-                DB::raw("SUM(total_amount) as total_revenue"),
-                DB::raw("SUM(commission_amount) as total_commission")
+                DB::raw('COUNT(*) as total_orders'),
+                DB::raw('SUM(total_amount) as total_revenue'),
+                DB::raw('SUM(commission_amount) as total_commission')
             )
             ->groupBy('period')
             ->orderByDesc('period')
@@ -110,10 +110,10 @@ class AffiliateConversionRepository
     public function adminList(int $perPage = 15)
     {
         return AffiliateConversion::with([
-                'referrer:user_id,full_name,email',
-                'buyer:user_id,full_name,email',
-                'order:order_id,order_code,grand_total,fulfillment_status'
-            ])
+            'referrer:user_id,full_name,email',
+            'buyer:user_id,full_name,email',
+            'order:order_id,order_code,grand_total,fulfillment_status',
+        ])
             ->orderByDesc('created_at')
             ->paginate($perPage);
     }

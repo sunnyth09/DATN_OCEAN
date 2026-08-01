@@ -22,7 +22,7 @@ class InventoryTransaction extends Model
     ];
 
     protected $casts = [
-        'quantity'     => 'integer',
+        'quantity' => 'integer',
         'reference_id' => 'integer',
     ];
 }

@@ -58,7 +58,7 @@ class PaymentGatewayService
                 ],
             ];
         } catch (\Exception $e) {
-            Log::error('VNPay URL generation failed: ' . $e->getMessage());
+            Log::error('VNPay URL generation failed: '.$e->getMessage());
 
             return [
                 'type' => 'redirect',
@@ -84,7 +84,7 @@ class PaymentGatewayService
         ]);
 
         try {
-            $momoUrl = \App\Services\MoMoService::createPaymentUrl($order);
+            $momoUrl = MoMoService::createPaymentUrl($order);
 
             return [
                 'type' => 'redirect',
@@ -100,7 +100,7 @@ class PaymentGatewayService
                 ],
             ];
         } catch (\Exception $e) {
-            Log::error('MoMo URL generation failed: ' . $e->getMessage());
+            Log::error('MoMo URL generation failed: '.$e->getMessage());
 
             return [
                 'type' => 'redirect',
@@ -119,41 +119,41 @@ class PaymentGatewayService
     private function handleBanking($order): array
     {
         // Lấy thông tin tài khoản ngân hàng từ config (hoạt động đúng khi config:cache)
-        $bankBin  = config('services.bank.bin');
+        $bankBin = config('services.bank.bin');
         $bankAccount = config('services.bank.account_number');
-        $accountName  = config('services.bank.account_name');
-        $amount   = (int) $order->grand_total;
+        $accountName = config('services.bank.account_name');
+        $amount = (int) $order->grand_total;
         $orderCode = $order->order_code;
 
         // VietQR API: https://img.vietqr.io/image/{BANK_BIN}-{ACCOUNT}-{template}.png
         $qrUrl = "https://img.vietqr.io/image/{$bankBin}-{$bankAccount}-compact2.png"
-            . "?amount={$amount}"
-            . "&addInfo=" . urlencode($orderCode)
-            . "&accountName=" . urlencode($accountName);
+            ."?amount={$amount}"
+            .'&addInfo='.urlencode($orderCode)
+            .'&accountName='.urlencode($accountName);
 
         $this->paymentRepository->create([
-            'order_id'       => $order->order_id,
+            'order_id' => $order->order_id,
             'payment_method' => 'bank_transfer',
-            'amount'         => $order->grand_total,
-            'status'         => 'pending',
+            'amount' => $order->grand_total,
+            'status' => 'pending',
         ]);
 
         return [
             'type' => 'redirect',
             'body' => [
-                'status'         => 'success',
-                'message'        => 'Đơn hàng đã tạo. Vui lòng chuyển khoản để hoàn tất.',
+                'status' => 'success',
+                'message' => 'Đơn hàng đã tạo. Vui lòng chuyển khoản để hoàn tất.',
                 'payment_method' => 'bank_transfer',
-                'banking_info'   => [
-                    'bank_bin'       => $bankBin,
+                'banking_info' => [
+                    'bank_bin' => $bankBin,
                     'account_number' => $bankAccount,
-                    'account_name'   => $accountName,
-                    'amount'         => $amount,
-                    'order_code'     => $orderCode,
-                    'qr_url'         => $qrUrl,
+                    'account_name' => $accountName,
+                    'amount' => $amount,
+                    'order_code' => $orderCode,
+                    'qr_url' => $qrUrl,
                 ],
                 'data' => [
-                    'order_code'  => $order->order_code,
+                    'order_code' => $order->order_code,
                     'grand_total' => $order->grand_total,
                 ],
             ],

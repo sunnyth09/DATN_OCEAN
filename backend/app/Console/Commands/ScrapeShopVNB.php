@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 class ScrapeShopVNB extends Command
 {
     protected $signature = 'scrape:shopvnb {--limit=30 : Số sản phẩm tối đa mỗi danh mục} {--output=storage/app/shopvnb_products.json : File xuất JSON}';
+
     protected $description = 'Quét sản phẩm từ shopvnb.com (tên, ảnh, giá) và xuất ra JSON';
 
     /**
@@ -14,23 +15,23 @@ class ScrapeShopVNB extends Command
      * key = slug trên shopvnb, value = tên category tương ứng trong hệ thống
      */
     private array $categories = [
-        'vot-cau-long.html'        => 'Cầu lông',
-        'giay-cau-long.html'       => 'Cầu lông',
-        'ao-cau-long.html'         => 'Đồ thể thao',
-        'vot-pickleball.html'      => 'Pickleball',
-        'giay-pickleball.html'     => 'Pickleball',
-        'phu-kien-cau-long.html'   => 'Phụ kiện thể thao',
-        'tui-vot-cau-long.html'    => 'Phụ kiện thể thao',
-        'vot-tennis.html'          => 'Thể thao vợt & bóng',
+        'vot-cau-long.html' => 'Cầu lông',
+        'giay-cau-long.html' => 'Cầu lông',
+        'ao-cau-long.html' => 'Đồ thể thao',
+        'vot-pickleball.html' => 'Pickleball',
+        'giay-pickleball.html' => 'Pickleball',
+        'phu-kien-cau-long.html' => 'Phụ kiện thể thao',
+        'tui-vot-cau-long.html' => 'Phụ kiện thể thao',
+        'vot-tennis.html' => 'Thể thao vợt & bóng',
     ];
 
     public function handle(): int
     {
-        $limit  = (int) $this->option('limit');
+        $limit = (int) $this->option('limit');
         $output = $this->option('output');
         $allProducts = [];
 
-        $this->info("🔍 Bắt đầu quét shopvnb.com...");
+        $this->info('🔍 Bắt đầu quét shopvnb.com...');
         $this->info("   Giới hạn: {$limit} sản phẩm/danh mục");
         $this->newLine();
 
@@ -53,7 +54,7 @@ class ScrapeShopVNB extends Command
         $seen = [];
         foreach ($allProducts as $p) {
             $key = mb_strtolower(trim($p['name']));
-            if (!isset($seen[$key])) {
+            if (! isset($seen[$key])) {
                 $seen[$key] = true;
                 $unique[] = $p;
             }
@@ -61,7 +62,7 @@ class ScrapeShopVNB extends Command
 
         $totalPath = base_path($output);
         $dir = dirname($totalPath);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
@@ -71,7 +72,7 @@ class ScrapeShopVNB extends Command
         );
 
         $this->newLine();
-        $this->info("🎉 Hoàn tất! Tổng cộng: " . count($unique) . " sản phẩm (đã loại trùng)");
+        $this->info('🎉 Hoàn tất! Tổng cộng: '.count($unique).' sản phẩm (đã loại trùng)');
         $this->info("📄 Đã lưu vào: {$totalPath}");
 
         return Command::SUCCESS;
@@ -86,7 +87,7 @@ class ScrapeShopVNB extends Command
             $pageUrl = $page === 1 ? $url : $this->buildPageUrl($url, $page);
             $html = $this->fetchHtml($pageUrl);
 
-            if (!$html) {
+            if (! $html) {
                 $this->warn("   ⚠️ Không thể tải trang: {$pageUrl}");
                 break;
             }
@@ -98,7 +99,9 @@ class ScrapeShopVNB extends Command
             }
 
             foreach ($parsed as $p) {
-                if (count($products) >= $limit) break;
+                if (count($products) >= $limit) {
+                    break;
+                }
                 $products[] = $p;
             }
 
@@ -119,6 +122,7 @@ class ScrapeShopVNB extends Command
     {
         // shopvnb dùng format: vot-cau-long.html?page=2
         $separator = str_contains($baseUrl, '?') ? '&' : '?';
+
         return "{$baseUrl}{$separator}page={$page}";
     }
 
@@ -126,12 +130,12 @@ class ScrapeShopVNB extends Command
     {
         $ch = curl_init();
         curl_setopt_array($ch, [
-            CURLOPT_URL            => $url,
+            CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT        => 15,
-            CURLOPT_USERAGENT      => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-            CURLOPT_HTTPHEADER     => [
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            CURLOPT_HTTPHEADER => [
                 'Accept: text/html,application/xhtml+xml',
                 'Accept-Language: vi-VN,vi;q=0.9,en;q=0.8',
             ],
@@ -142,7 +146,7 @@ class ScrapeShopVNB extends Command
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpCode !== 200 || !$response) {
+        if ($httpCode !== 200 || ! $response) {
             return null;
         }
 
@@ -202,15 +206,17 @@ class ScrapeShopVNB extends Command
             }
 
             // Bỏ qua nếu không có tên hoặc tên quá ngắn
-            if (mb_strlen($name) < 5) continue;
+            if (mb_strlen($name) < 5) {
+                continue;
+            }
 
             $products[] = [
-                'name'           => $name,
-                'slug_source'    => $slug,
-                'price'          => $price,
-                'image_url'      => $imageUrl,
+                'name' => $name,
+                'slug_source' => $slug,
+                'price' => $price,
+                'image_url' => $imageUrl,
                 'category_local' => $localCategory,
-                'source'         => 'shopvnb.com',
+                'source' => 'shopvnb.com',
             ];
         }
 

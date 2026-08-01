@@ -2,13 +2,22 @@
 
 namespace App\Services;
 
+use App\Enums\PaymentStatus;
+use App\Mail\OrderCancelledMail;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Repositories\AdminOrderRepository;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class GhnOrderStatusSyncService
 {
+    public function __construct(
+        protected WalletService $walletService,
+        protected AdminOrderRepository $orderRepository
+    ) {}
+
     private const TERMINAL_STATUSES = ['completed', 'cancelled', 'returned', 'refunded'];
 
     public function mapGhnStatus(string $status): ?string
@@ -29,13 +38,13 @@ class GhnOrderStatusSyncService
             'cancel' => 'cancelled',
             'damage' => 'cancelled',
             'lost' => 'cancelled',
-            'waiting_to_return' => 'returned',
-            'return' => 'returned',
-            'return_transporting' => 'returned',
-            'return_sorting' => 'returned',
-            'returning' => 'returned',
-            'return_fail' => 'returned',
-            'returned' => 'returned',
+            'waiting_to_return' => 'return_requested',
+            'return' => 'return_requested',
+            'return_transporting' => 'return_requested',
+            'return_sorting' => 'return_requested',
+            'returning' => 'return_requested',
+            'return_fail' => 'return_requested',
+            'returned' => 'return_requested',
         ][$status] ?? null;
     }
 
@@ -47,7 +56,7 @@ class GhnOrderStatusSyncService
         $location = $this->extractLocation($ghnDetail);
         $description = $this->extractDescription($ghnDetail, $ghnStatus);
 
-        if (!$ghnStatus || !$mappedStatus) {
+        if (! $ghnStatus || ! $mappedStatus) {
             return [
                 'changed' => false,
                 'history_created' => false,
@@ -73,7 +82,7 @@ class GhnOrderStatusSyncService
         $location = $this->extractLocation($payload);
         $description = $this->extractDescription($payload, $ghnStatus);
 
-        if (!$ghnStatus || !$mappedStatus) {
+        if (! $ghnStatus || ! $mappedStatus) {
             return [
                 'changed' => false,
                 'history_created' => false,
@@ -108,7 +117,7 @@ class GhnOrderStatusSyncService
                 ->orderByDesc('happened_at')
                 ->orderByDesc('history_id')
                 ->first();
-                
+
             $historyExists = $lastHistory && $lastHistory->ghn_status === $ghnStatus;
 
             if ($shouldUpdateOrder) {
@@ -126,13 +135,47 @@ class GhnOrderStatusSyncService
                 if ($mappedStatus === 'cancelled') {
                     $updates['cancelled_at'] = $happenedAt;
                     $updates['cancel_reason'] = $description ?: 'Canceled by GHN';
+
+                    if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
+                        $updates['payment_status'] = PaymentStatus::REFUNDED->value;
+                    }
+
+                    if ($order->payment_method === 'wallet' && $order->payment_status === PaymentStatus::PAID->value) {
+                        $updates['payment_status'] = PaymentStatus::REFUNDED->value;
+                        $this->walletService->refund(
+                            $order->user_id,
+                            (float) $order->wallet_spent,
+                            "Hoàn tiền hủy đơn hàng (GHN) #{$order->order_code}",
+                            $order->order_id,
+                            Order::class
+                        );
+                    }
+
+                    $walletDeposit = (float) ($order->wallet_deposit_discount ?? 0);
+                    $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
+                    if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
+                        $this->walletService->reverseOrderDiscount(
+                            $order->user_id,
+                            $walletDeposit,
+                            $walletCommission,
+                            $order->order_id
+                        );
+                    }
+
+                    if ($order->items) {
+                        $this->orderRepository->restoreStock($order->items);
+                    }
+
+                    if ($order->user && $order->user->email) {
+                        Mail::to($order->user->email)->queue(new OrderCancelledMail($order, 'system', $updates['cancel_reason']));
+                    }
                 }
 
                 $order->update($updates);
             }
 
             $historyCreated = false;
-            if (!$historyExists) {
+            if (! $historyExists) {
                 OrderStatusHistory::create([
                     'order_id' => $order->order_id,
                     'old_status' => $oldStatus,
@@ -189,7 +232,7 @@ class GhnOrderStatusSyncService
             }
         }
 
-        if (in_array($currentStatus, self::TERMINAL_STATUSES, true) && !in_array($mappedStatus, self::TERMINAL_STATUSES, true)) {
+        if (in_array($currentStatus, self::TERMINAL_STATUSES, true) && ! in_array($mappedStatus, self::TERMINAL_STATUSES, true)) {
             return false;
         }
 

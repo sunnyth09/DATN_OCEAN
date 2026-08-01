@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\CourtMaintenance;
+use Illuminate\Http\Request;
 
 class CourtMaintenanceAdminController extends Controller
 {
     public function index(Request $request)
     {
         $maintenances = CourtMaintenance::with(['court', 'createdBy'])->orderBy('start_datetime', 'desc')->get();
+
         return response()->json([
             'status' => 'success',
-            'data' => $maintenances
+            'data' => $maintenances,
         ]);
     }
 
@@ -35,16 +36,17 @@ class CourtMaintenanceAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Maintenance created successfully.',
-            'data' => $maintenance
+            'data' => $maintenance,
         ]);
     }
 
     public function show($id)
     {
         $maintenance = CourtMaintenance::with(['court', 'createdBy'])->findOrFail($id);
+
         return response()->json([
             'status' => 'success',
-            'data' => $maintenance
+            'data' => $maintenance,
         ]);
     }
 
@@ -65,7 +67,7 @@ class CourtMaintenanceAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Maintenance updated successfully.',
-            'data' => $maintenance
+            'data' => $maintenance,
         ]);
     }
 
@@ -76,7 +78,7 @@ class CourtMaintenanceAdminController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Maintenance deleted successfully.'
+            'message' => 'Maintenance deleted successfully.',
         ]);
     }
 }

@@ -20,9 +20,9 @@ class WalletDeposit extends Model
     ];
 
     protected $casts = [
-        'amount'           => 'decimal:2',
+        'amount' => 'decimal:2',
         'gateway_response' => 'array',
-        'completed_at'     => 'datetime',
+        'completed_at' => 'datetime',
     ];
 
     // ── Relationships ──

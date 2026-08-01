@@ -2,8 +2,6 @@
 
 namespace App\Services\Chatbot;
 
-use Illuminate\Support\Str;
-
 class IntentParserService
 {
     private array $categoryMap = [
@@ -31,7 +29,7 @@ class IntentParserService
         'xam' => 'xám', 'gray' => 'xám', 'grey' => 'xám',
         'nau' => 'nâu', 'brown' => 'nâu',
         'be' => 'be', 'beige' => 'be',
-        'vang' => 'vàng', 'yellow' => 'vàng'
+        'vang' => 'vàng', 'yellow' => 'vàng',
     ];
 
     /**
@@ -40,7 +38,7 @@ class IntentParserService
     public function parse(string $message): array
     {
         $normalized = $this->normalizeVietnameseText($message);
-        
+
         // 1. Fallback nếu câu quá ngắn
         if ($normalized === '' || mb_strlen($normalized) <= 2) {
             return $this->buildResult('greeting');
@@ -54,11 +52,19 @@ class IntentParserService
         // 3. Chính sách, cửa hàng
         if (preg_match('/\b(doi tra|bao hanh|van chuyen|ship|lien he|hotline|thanh toan)\b/u', $normalized)) {
             $topic = 'general';
-            if (str_contains($normalized, 'doi tra') || str_contains($normalized, 'bao hanh')) $topic = 'return_policy';
-            if (str_contains($normalized, 'van chuyen') || str_contains($normalized, 'ship')) $topic = 'shipping';
-            if (str_contains($normalized, 'thanh toan')) $topic = 'payment';
-            if (str_contains($normalized, 'lien he') || str_contains($normalized, 'hotline')) $topic = 'contact';
-            
+            if (str_contains($normalized, 'doi tra') || str_contains($normalized, 'bao hanh')) {
+                $topic = 'return_policy';
+            }
+            if (str_contains($normalized, 'van chuyen') || str_contains($normalized, 'ship')) {
+                $topic = 'shipping';
+            }
+            if (str_contains($normalized, 'thanh toan')) {
+                $topic = 'payment';
+            }
+            if (str_contains($normalized, 'lien he') || str_contains($normalized, 'hotline')) {
+                $topic = 'contact';
+            }
+
             return $this->buildResult('get_store_info', ['topic' => $topic]);
         }
 
@@ -83,14 +89,15 @@ class IntentParserService
         }
 
         // 8. Sản phẩm giảm giá
-        if (preg_match('/\b(giam gia|dang giam|hang sale|san pham sale|san pham giam|khuyen mai san pham|sale)\b/u', $normalized) 
-            && !str_contains($normalized, 'flash sale')) {
+        if (preg_match('/\b(giam gia|dang giam|hang sale|san pham sale|san pham giam|khuyen mai san pham|sale)\b/u', $normalized)
+            && ! str_contains($normalized, 'flash sale')) {
             return $this->buildResult('search_products', ['on_sale' => true]);
         }
 
         // 9. Lệnh Mua / Auto Order
         if ($this->looksLikeBuyIntent($normalized)) {
             $args = $this->extractAutoOrderArgs($message, $normalized);
+
             return $this->buildResult('auto_order', $args);
         }
 
@@ -98,14 +105,14 @@ class IntentParserService
         if (preg_match('/\b(cai nay|san pham nay|cai do|cai dau tien|cai thu 1|cai so 1|cai thu nhat|cai thu 2|cai so 2|cai thu hai|cai thu 3|cai so 3|cai thu ba|cai cuoi cung|cai cuoi)\b/u', $normalized, $matches)) {
             return $this->buildResult('context_selection', [
                 'reference' => $matches[1],
-                'action' => 'select'
+                'action' => 'select',
             ]);
         }
-        
+
         // 11. Hỏi chi tiết sản phẩm
         if ($this->looksLikeProductDetailQuery($normalized, $message)) {
             return $this->buildResult('get_product_detail', [
-                'product_name' => $this->extractProductNameForDetail($message)
+                'product_name' => $this->extractProductNameForDetail($message),
             ]);
         }
 
@@ -121,7 +128,7 @@ class IntentParserService
     {
         return [
             'intent' => $intent,
-            'entities' => $entities
+            'entities' => $entities,
         ];
     }
 
@@ -129,13 +136,14 @@ class IntentParserService
     {
         $text = mb_strtolower(trim($text));
         $map = [
-            'à'=>'a','á'=>'a','ạ'=>'a','ả'=>'a','ã'=>'a','â'=>'a','ầ'=>'a','ấ'=>'a','ậ'=>'a','ẩ'=>'a','ẫ'=>'a','ă'=>'a','ằ'=>'a','ắ'=>'a','ặ'=>'a','ẳ'=>'a','ẵ'=>'a',
-            'è'=>'e','é'=>'e','ẹ'=>'e','ẻ'=>'e','ẽ'=>'e','ê'=>'e','ề'=>'e','ế'=>'e','ệ'=>'e','ể'=>'e','ễ'=>'e',
-            'ì'=>'i','í'=>'i','ị'=>'i','ỉ'=>'i','ĩ'=>'i',
-            'ò'=>'o','ó'=>'o','ọ'=>'o','ỏ'=>'o','õ'=>'o','ô'=>'o','ồ'=>'o','ố'=>'o','ộ'=>'o','ổ'=>'o','ỗ'=>'o','ơ'=>'o','ờ'=>'o','ớ'=>'o','ợ'=>'o','ở'=>'o','ỡ'=>'o',
-            'ù'=>'u','ú'=>'u','ụ'=>'u','ủ'=>'u','ũ'=>'u','ư'=>'u','ừ'=>'u','ứ'=>'u','ự'=>'u','ử'=>'u','ữ'=>'u',
-            'ỳ'=>'y','ý'=>'y','ỵ'=>'y','ỷ'=>'y','ỹ'=>'y','đ'=>'d',
+            'à' => 'a', 'á' => 'a', 'ạ' => 'a', 'ả' => 'a', 'ã' => 'a', 'â' => 'a', 'ầ' => 'a', 'ấ' => 'a', 'ậ' => 'a', 'ẩ' => 'a', 'ẫ' => 'a', 'ă' => 'a', 'ằ' => 'a', 'ắ' => 'a', 'ặ' => 'a', 'ẳ' => 'a', 'ẵ' => 'a',
+            'è' => 'e', 'é' => 'e', 'ẹ' => 'e', 'ẻ' => 'e', 'ẽ' => 'e', 'ê' => 'e', 'ề' => 'e', 'ế' => 'e', 'ệ' => 'e', 'ể' => 'e', 'ễ' => 'e',
+            'ì' => 'i', 'í' => 'i', 'ị' => 'i', 'ỉ' => 'i', 'ĩ' => 'i',
+            'ò' => 'o', 'ó' => 'o', 'ọ' => 'o', 'ỏ' => 'o', 'õ' => 'o', 'ô' => 'o', 'ồ' => 'o', 'ố' => 'o', 'ộ' => 'o', 'ổ' => 'o', 'ỗ' => 'o', 'ơ' => 'o', 'ờ' => 'o', 'ớ' => 'o', 'ợ' => 'o', 'ở' => 'o', 'ỡ' => 'o',
+            'ù' => 'u', 'ú' => 'u', 'ụ' => 'u', 'ủ' => 'u', 'ũ' => 'u', 'ư' => 'u', 'ừ' => 'u', 'ứ' => 'u', 'ự' => 'u', 'ử' => 'u', 'ữ' => 'u',
+            'ỳ' => 'y', 'ý' => 'y', 'ỵ' => 'y', 'ỷ' => 'y', 'ỹ' => 'y', 'đ' => 'd',
         ];
+
         return strtr($text, $map);
     }
 
@@ -156,12 +164,20 @@ class IntentParserService
             }
         }
 
-        if (preg_match('/\bhay\s+(dat|mua|order)\b/u', $normalized)) return true;
-        if (preg_match('/\b(dat|mua|order)\b/u', $normalized) && str_contains($normalized, 'giup toi')) return true;
-        if (preg_match('/\b(dat|mua|order)\s+\d+\s+\w/u', $normalized)) return true;
-        
+        if (preg_match('/\bhay\s+(dat|mua|order)\b/u', $normalized)) {
+            return true;
+        }
+        if (preg_match('/\b(dat|mua|order)\b/u', $normalized) && str_contains($normalized, 'giup toi')) {
+            return true;
+        }
+        if (preg_match('/\b(dat|mua|order)\s+\d+\s+\w/u', $normalized)) {
+            return true;
+        }
+
         // Thêm rule cho các câu như "thêm cái này vào giỏ", "lấy cái này"
-        if (preg_match('/\b(lay cai|mua cai|dat cai|them vao gio)\b/u', $normalized)) return true;
+        if (preg_match('/\b(lay cai|mua cai|dat cai|them vao gio)\b/u', $normalized)) {
+            return true;
+        }
 
         return false;
     }
@@ -175,7 +191,7 @@ class IntentParserService
             '/tôi\s+muốn\s+mua/iu', '/tôi\s+muốn\s+đặt/iu', '/tôi\s+cần\s+mua/iu',
             '/đặt\s+ngay/iu', '/mua\s+ngay/iu', '/order\s+ngay/iu', '/chốt\s+đơn/iu',
             '/đặt\s+luôn/iu', '/mua\s+luôn/iu', '/hãy/iu', '/thêm\s+vào\s+giỏ/iu',
-            '/lấy\s+cái/iu', '/mua\s+cái/iu', '/đặt\s+cái/iu'
+            '/lấy\s+cái/iu', '/mua\s+cái/iu', '/đặt\s+cái/iu',
         ];
 
         $cleanedOriginal = $message;
@@ -192,21 +208,21 @@ class IntentParserService
         // Thử match color và size
         $color = null;
         $size = null;
-        
+
         foreach ($this->colorMap as $plain => $c) {
-            if (preg_match('/\b' . $plain . '\b/u', $normalized)) {
+            if (preg_match('/\b'.$plain.'\b/u', $normalized)) {
                 $color = $c;
                 break;
             }
         }
-        
+
         if (preg_match('/\b(xs|s|m|l|xl|xxl|2xl|3xl|4xl|[3-4][0-9])\b/u', $normalized, $matches)) {
             $size = strtoupper($matches[1]);
         }
-        
+
         // Remove color và size words khỏi keyword
         $keyword = trim($cleanedOriginal);
-        
+
         // Remove color phrases
         $keyword = preg_replace('/\b(màu|mau)\s+(đen|den|trắng|trang|đỏ|do|vàng|vang|xanh\s+dương|xanh\s+duong|xanh\s+navy|xanh\s+lá|xanh\s+la|xám|xam|hồng|hong|tím|tim)\b/iu', ' ', $keyword);
         // Remove standalone colors
@@ -215,15 +231,15 @@ class IntentParserService
         $keyword = preg_replace('/\b(size)\s+(xs|s|m|l|xl|xxl|2xl|3xl|4xl|[3-4][0-9])\b/iu', ' ', $keyword);
         // Remove trailing words like "cái này", "nhé", "đi"
         $keyword = preg_replace('/\b(cái\s+này|sản\s+phẩm\s+này|cái\s+đó|chiếc\s+này|đôi\s+này|bộ\s+này|này|nhé|nha|đi|với|ạ)\b/iu', ' ', $keyword);
-        
+
         // Clean up spaces
         $keyword = trim(preg_replace('/\s+/', ' ', $keyword));
-        
+
         return [
             'keyword' => $keyword,
             'quantity' => $qty,
             'color' => $color,
-            'size' => $size
+            'size' => $size,
         ];
     }
 
@@ -242,6 +258,7 @@ class IntentParserService
                 return mb_strlen(trim($original)) > 10;
             }
         }
+
         return false;
     }
 
@@ -272,6 +289,7 @@ class IntentParserService
         if (preg_match('/\b(kinh|mat kinh|ao|quan|giay|dep|tui|balo|mu|non|vot|bong|gang|phu kien|san pham|hang|mua|show|tim|kiem)\b/u', $normalized)) {
             return true;
         }
+
         return preg_match('/\b([0-9]+(?:[\.,][0-9]+)?\s*(k|nghin|trieu|m))\b/u', $normalized) === 1;
     }
 
@@ -280,7 +298,7 @@ class IntentParserService
         $args = [];
         $categories = [];
         foreach ($this->categoryMap as $keyword => $category) {
-            if (preg_match('/\b' . preg_quote($keyword, '/') . '\b/u', $normalized)) {
+            if (preg_match('/\b'.preg_quote($keyword, '/').'\b/u', $normalized)) {
                 $categories[] = $category;
             }
         }
@@ -305,7 +323,7 @@ class IntentParserService
         }
 
         foreach ($this->colorMap as $plain => $color) {
-            if (preg_match('/\b' . $plain . '\b/u', $normalized)) {
+            if (preg_match('/\b'.$plain.'\b/u', $normalized)) {
                 $args['color'] = $color;
                 break;
             }
@@ -318,26 +336,26 @@ class IntentParserService
         if (isset($args['min_price'], $args['max_price']) && $args['min_price'] > $args['max_price']) {
             [$args['min_price'], $args['max_price']] = [$args['max_price'], $args['min_price']];
         }
-        
+
         if (empty($args['keyword'])) {
             $cleaned = mb_strtolower(trim($message));
-            
+
             // Remove prices
             $cleaned = preg_replace('/(?:tu|khoang|tam|duoi|nho hon|toi da|<=|<|tren|lon hon|>=|>|gia)?\s*([0-9]+(?:[\.,][0-9]+)?)\s*(k|nghin|trieu|m)\b/u', '', $cleaned);
-            
+
             // Remove colors
             $colorsToRemove = ['đen', 'black', 'trắng', 'white', 'xanh', 'blue', 'green', 'đỏ', 'red', 'hồng', 'pink', 'xám', 'gray', 'grey', 'nâu', 'brown', 'be', 'beige', 'vàng', 'yellow', 'màu'];
             foreach ($colorsToRemove as $c) {
-                $cleaned = preg_replace('/\b' . preg_quote($c, '/') . '\b/u', '', $cleaned);
+                $cleaned = preg_replace('/\b'.preg_quote($c, '/').'\b/u', '', $cleaned);
             }
-            
+
             // Remove sizes & common noise words
             $cleaned = preg_replace('/\b(size|gia|giá|duoi|dưới|trên|tren|từ|tu|đến|den|khoảng|khoang|tầm|tam)\b/u', '', $cleaned);
             $cleaned = preg_replace('/\b(xs|s|m|l|xl|xxl|2xl|3xl|4xl|[3-4][0-9])\b/u', '', $cleaned);
-            
+
             $cleaned = trim(preg_replace('/\s+/', ' ', $cleaned));
 
-            if (!empty($cleaned)) {
+            if (! empty($cleaned)) {
                 $args['keyword'] = mb_substr(strip_tags($cleaned), 0, 80);
             } elseif (count($categories) === 1) {
                 $args['keyword'] = $categories[0];
@@ -354,9 +372,15 @@ class IntentParserService
         $value = (float) str_replace(',', '.', $number);
         $unit = trim($unit);
 
-        if (in_array($unit, ['k', 'nghin'], true)) return (int) round($value * 1000);
-        if (in_array($unit, ['trieu', 'm'], true)) return (int) round($value * 1000000);
-        if ($value < 1000) $value = $value * 1000;
+        if (in_array($unit, ['k', 'nghin'], true)) {
+            return (int) round($value * 1000);
+        }
+        if (in_array($unit, ['trieu', 'm'], true)) {
+            return (int) round($value * 1000000);
+        }
+        if ($value < 1000) {
+            $value = $value * 1000;
+        }
 
         return (int) min(max(round($value), 0), 100000000);
     }

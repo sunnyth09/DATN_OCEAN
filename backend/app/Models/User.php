@@ -5,9 +5,9 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 
 class User extends Authenticatable implements JWTSubject
@@ -74,11 +74,11 @@ class User extends Authenticatable implements JWTSubject
     protected function casts(): array
     {
         return [
-            'email_verified_at'        => 'datetime',
-            'date_of_birth'            => 'date',
-            'password'                 => 'hashed',
-            'is_affiliate'             => 'boolean',
-            'affiliate_registered_at'  => 'datetime',
+            'email_verified_at' => 'datetime',
+            'date_of_birth' => 'date',
+            'password' => 'hashed',
+            'is_affiliate' => 'boolean',
+            'affiliate_registered_at' => 'datetime',
         ];
     }
 
@@ -87,7 +87,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function addresses()
     {
-        return $this->hasMany(\App\Models\Address::class, 'user_id', 'user_id');
+        return $this->hasMany(Address::class, 'user_id', 'user_id');
     }
 
     /**
@@ -95,7 +95,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function defaultAddress()
     {
-        return $this->hasOne(\App\Models\Address::class, 'user_id', 'user_id')
+        return $this->hasOne(Address::class, 'user_id', 'user_id')
             ->where('is_default', true);
     }
 
@@ -135,8 +135,6 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(UserDevice::class, 'user_id', 'user_id');
     }
-
-
 
     // ==================== Affiliate Relationships ====================
 
@@ -190,12 +188,12 @@ class User extends Authenticatable implements JWTSubject
      */
     public function receivesBroadcastNotificationsOn()
     {
-        $channels = ['user.' . $this->user_id];
-        
+        $channels = ['user.'.$this->user_id];
+
         if (in_array($this->role, ['admin', 'staff', 'seller'])) {
             $channels[] = 'admin-notifications';
         }
-        
+
         return $channels;
     }
 }

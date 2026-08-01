@@ -100,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
-            'Quyền Sport',
+            'Ocean Sport',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,

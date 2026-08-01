@@ -35,6 +35,7 @@ class CouponRepository
 
         if ($userCoupon) {
             $userCoupon->increment('used_count');
+
             return;
         }
 
@@ -58,7 +59,7 @@ class CouponRepository
         $affected = Coupon::where('id', $couponId)
             ->where(function ($q) {
                 $q->whereNull('usage_limit')
-                  ->orWhereColumn('used_count', '<', 'usage_limit');
+                    ->orWhereColumn('used_count', '<', 'usage_limit');
             })
             ->update(['used_count' => DB::raw('used_count + 1')]);
 
@@ -101,10 +102,10 @@ class CouponRepository
         }
 
         UserCoupon::create([
-            'user_id'    => $userId,
-            'coupon_id'  => $couponId,
+            'user_id' => $userId,
+            'coupon_id' => $couponId,
             'used_count' => 1,
-            'is_saved'   => false,
+            'is_saved' => false,
         ]);
 
         return true;

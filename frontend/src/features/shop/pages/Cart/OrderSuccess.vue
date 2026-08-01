@@ -76,7 +76,7 @@ onMounted(() => {
             <h1 class="success-title">Đặt hàng thành công!</h1>
 
             <p class="success-message">
-                Cảm ơn bạn đã mua sắm tại <strong>Quyền Sport</strong>. Đơn hàng của
+                Cảm ơn bạn đã mua sắm tại <strong>Ocean Sport</strong>. Đơn hàng của
                 bạn đã được tiếp nhận và đang trong quá trình xử lý.
             </p>
 
@@ -93,7 +93,7 @@ onMounted(() => {
             <div class="action-buttons">
                 <router-link
                     v-if="authStore.isAuthenticated"
-                    :to="'/profile/orders/' + orderId"
+                    :to="orderId ? '/profile/orders/' + orderId : (orderCode ? '/profile/orders?code=' + orderCode : '/profile/orders')"
                     class="btn-outline-brown"
                     >Xem đơn hàng của tôi</router-link
                 >
@@ -335,7 +335,8 @@ onMounted(() => {
 
 @media (max-width: 480px) {
     .products-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
     }
 }
 

@@ -53,8 +53,11 @@ const isTokenExpiring = (token, leewaySeconds = 30) => {
     }
 };
 
+import { broadcastLogout } from '@/sessionSync';
+
 const redirectToLogin = () => {
     if (window.location.pathname !== '/client/login') {
+        broadcastLogout();
         window.dispatchEvent(new CustomEvent('auth-logout'));
         window.location.href = '/client/login';
     }

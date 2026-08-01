@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * LoyaltyRule — Quy tắc Earn/Burn của hệ thống loyalty
@@ -30,13 +31,13 @@ class LoyaltyRule extends Model
     ];
 
     protected $casts = [
-        'points_per_unit'      => 'float',
-        'vnd_per_point'        => 'float',
-        'min_points'           => 'integer',
+        'points_per_unit' => 'float',
+        'vnd_per_point' => 'float',
+        'min_points' => 'integer',
         'max_points_per_order' => 'integer',
-        'max_burn_percent'     => 'float',
-        'earn_expiry_days'     => 'integer',
-        'is_active'            => 'boolean',
+        'max_burn_percent' => 'float',
+        'earn_expiry_days' => 'integer',
+        'is_active' => 'boolean',
     ];
 
     // ─── Scopes ────────────────────────────────────────────────────────
@@ -61,9 +62,12 @@ class LoyaltyRule extends Model
     /**
      * Tính ngày hết hạn dựa trên earn_expiry_days (từ thời điểm hiện tại)
      */
-    public function calcExpiryDate(): ?\Carbon\Carbon
+    public function calcExpiryDate(): ?Carbon
     {
-        if (!$this->earn_expiry_days) return null;
+        if (! $this->earn_expiry_days) {
+            return null;
+        }
+
         return now()->addDays($this->earn_expiry_days);
     }
 

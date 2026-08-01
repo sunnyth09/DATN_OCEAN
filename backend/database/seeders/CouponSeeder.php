@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\Coupon;
+use Illuminate\Database\Seeder;
 
 class CouponSeeder extends Seeder
 {
@@ -86,7 +85,7 @@ class CouponSeeder extends Seeder
                 'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]
+            ],
         ]);
 
         // 2. Tạo thêm 10 coupons ngẫu nhiên bằng Factory

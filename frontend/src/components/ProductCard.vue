@@ -751,38 +751,88 @@ const handleAddToCart = async (event) => {
 
 @media (max-width: 768px) {
     .card-link {
-        min-height: 332px;
-        border-radius: 16px;
+        min-height: unset; /* Bỏ min-height, để card tự co theo nội dung */
+        border-radius: 12px;
     }
 
     .media {
-        padding: 12px 12px 0;
+        padding: 8px 8px 0;
     }
 
     .image-shell {
-        height: 168px;
+        height: 120px; /* Giảm mạnh từ 168px xuống 120px */
         width: 100%;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .product-image {
+        padding: 8px; /* Giảm padding ảnh */
     }
 
     .content {
-        padding: 12px 14px 16px;
+        padding: 8px 10px 10px;
+        gap: 4px;
     }
 
     .category {
-        font-size: 0.84rem;
+        display: none; /* Ẩn dòng danh mục trên mobile để tiết kiệm diện tích */
     }
 
     .name {
-        font-size: 0.95rem;
-        height: 44px;
+        font-size: 0.82rem;
+        height: 36px;
+        line-height: 1.35;
+        -webkit-line-clamp: 2;
+    }
+
+    .star-rating {
+        margin-bottom: 2px;
+    }
+
+    .star-icon {
+        width: 11px;
+        height: 11px;
+    }
+
+    .rating-count {
+        font-size: 0.7rem;
+    }
+
+    .footer-row {
+        gap: 8px;
     }
 
     .original-price {
-        font-size: 0.88rem;
+        font-size: 0.75rem;
     }
 
     .current-price {
-        font-size: 1rem;
+        font-size: 0.88rem;
+    }
+
+    .price-block {
+        gap: 2px;
+    }
+
+    .stock-info {
+        font-size: 0.68rem;
+        min-height: 14px;
+    }
+
+    .icon-btn {
+        width: 30px;
+        height: 30px;
+    }
+
+    .product-badge {
+        min-height: 22px;
+        padding: 2px 8px;
+        font-size: 0.72rem;
+    }
+
+    .favorite-btn {
+        top: 8px;
+        right: 8px;
     }
 }
 

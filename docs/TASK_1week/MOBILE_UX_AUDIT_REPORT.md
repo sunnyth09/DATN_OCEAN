@@ -1,5 +1,5 @@
 # 📱 MOBILE UX & NAVIGATION AUDIT REPORT
-> **Dự án:** Quyen Sport E-commerce (Flutter Mobile App)
+> **Dự án:** Ocean Sport E-commerce (Flutter Mobile App)
 > **Thực hiện bởi:** Senior Mobile UX Architect & Senior Flutter Developer
 > **Dựa trên source code thực tế**
 

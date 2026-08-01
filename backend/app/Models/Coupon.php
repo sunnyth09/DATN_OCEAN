@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\CouponFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Coupon extends Model
 {
-    /** @use HasFactory<\Database\Factories\CouponFactory> */
+    /** @use HasFactory<CouponFactory> */
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
@@ -30,16 +31,16 @@ class Coupon extends Model
     ];
 
     protected $casts = [
-        'is_active'       => 'boolean',
-        'is_public'       => 'boolean',
-        'is_first_order'  => 'boolean',
-        'auto_apply'      => 'boolean',
+        'is_active' => 'boolean',
+        'is_public' => 'boolean',
+        'is_first_order' => 'boolean',
+        'auto_apply' => 'boolean',
         'min_product_qty' => 'integer',
-        'value'           => 'decimal:2',
+        'value' => 'decimal:2',
         'max_discount_value' => 'decimal:2',
         'min_order_value' => 'decimal:2',
-        'start_date'      => 'datetime',
-        'end_date'        => 'datetime',
+        'start_date' => 'datetime',
+        'end_date' => 'datetime',
     ];
 
     /**

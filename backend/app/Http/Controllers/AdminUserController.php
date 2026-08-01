@@ -36,10 +36,10 @@ class AdminUserController extends Controller
     {
         $detail = $this->adminUserService->getDetail($id);
 
-        if (!$detail) {
+        if (! $detail) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Không tìm thấy khách hàng!'
+                'message' => 'Không tìm thấy khách hàng!',
             ], 404);
         }
 
@@ -61,7 +61,7 @@ class AdminUserController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Tạo khách hàng thành công!',
-            'data' => $user
+            'data' => $user,
         ], 201);
     }
 
@@ -72,17 +72,17 @@ class AdminUserController extends Controller
     {
         $user = $this->adminUserService->update($id, $request->validated());
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Không tìm thấy khách hàng!'
+                'message' => 'Không tìm thấy khách hàng!',
             ], 404);
         }
 
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật khách hàng thành công!',
-            'data' => $user
+            'data' => $user,
         ]);
     }
 
@@ -131,7 +131,7 @@ class AdminUserController extends Controller
     private function currentUserId()
     {
         $currentUser = auth('admin')->user() ?? auth('api')->user();
-        if (!$currentUser) {
+        if (! $currentUser) {
             return null;
         }
 

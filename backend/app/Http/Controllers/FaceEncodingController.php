@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Admin;
+use App\Models\FaceEncoding;
 use App\Services\AttendanceService;
 use App\Services\FaceVerificationService;
 use Illuminate\Http\JsonResponse;
@@ -9,7 +11,7 @@ use Illuminate\Http\Request;
 
 /**
  * Controller quản lý đăng ký và xác thực khuôn mặt cho chấm công.
- * 
+ *
  * Endpoints:
  * - POST   /admin/face/register     — Đăng ký khuôn mặt (nhiều ảnh)
  * - GET    /admin/face/status       — Kiểm tra đã đăng ký chưa
@@ -19,6 +21,7 @@ use Illuminate\Http\Request;
 class FaceEncodingController extends Controller
 {
     private FaceVerificationService $faceService;
+
     private AttendanceService $attendanceService;
 
     public function __construct(
@@ -39,20 +42,20 @@ class FaceEncodingController extends Controller
     public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'images'          => 'required|array|min:1|max:5',
-            'images.*.image'  => 'required|string|max:2800000', // ~2MB base64
-            'images.*.label'  => 'nullable|string|max:50',
+            'images' => 'required|array|min:1|max:5',
+            'images.*.image' => 'required|string|max:2800000', // ~2MB base64
+            'images.*.label' => 'nullable|string|max:50',
         ], [
-            'images.required'       => 'Vui lòng chụp ít nhất 1 ảnh.',
-            'images.max'            => 'Tối đa 5 ảnh đăng ký.',
-            'images.*.image.max'    => 'Ảnh quá lớn (tối đa ~2MB).',
+            'images.required' => 'Vui lòng chụp ít nhất 1 ảnh.',
+            'images.max' => 'Tối đa 5 ảnh đăng ký.',
+            'images.*.image.max' => 'Ảnh quá lớn (tối đa ~2MB).',
         ]);
 
         $user = $this->attendanceService->resolveUser();
 
-        if (!$user['user_id']) {
+        if (! $user['user_id']) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không xác định được người dùng.',
             ], 401);
         }
@@ -64,12 +67,12 @@ class FaceEncodingController extends Controller
         );
 
         return response()->json([
-            'status'  => $result['success'] ? 'success' : 'error',
+            'status' => $result['success'] ? 'success' : 'error',
             'message' => $result['message'],
-            'data'    => [
-                'total'         => $result['total'],
+            'data' => [
+                'total' => $result['total'],
                 'success_count' => $result['success_count'],
-                'results'       => $result['results'],
+                'results' => $result['results'],
             ],
         ], $result['success'] ? 200 : 400);
     }
@@ -82,9 +85,9 @@ class FaceEncodingController extends Controller
     {
         $user = $this->attendanceService->resolveUser();
 
-        if (!$user['user_id']) {
+        if (! $user['user_id']) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không xác định được người dùng.',
             ], 401);
         }
@@ -96,7 +99,7 @@ class FaceEncodingController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $result,
+            'data' => $result,
         ]);
     }
 
@@ -108,18 +111,18 @@ class FaceEncodingController extends Controller
     {
         $user = $this->attendanceService->resolveUser();
 
-        if (!$user['user_id']) {
+        if (! $user['user_id']) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không xác định được người dùng.',
             ], 401);
         }
 
-        $encoding = \App\Models\FaceEncoding::find($id);
+        $encoding = FaceEncoding::find($id);
 
-        if (!$encoding) {
+        if (! $encoding) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không tìm thấy bản ghi.',
             ], 404);
         }
@@ -129,7 +132,7 @@ class FaceEncodingController extends Controller
             // Nếu không phải admin, kiểm tra ownership
             if ($encoding->user_id !== $user['user_id'] || $encoding->user_type !== $user['user_type']) {
                 return response()->json([
-                    'status'  => 'error',
+                    'status' => 'error',
                     'message' => 'Bạn không có quyền xóa bản ghi này.',
                 ], 403);
             }
@@ -138,7 +141,7 @@ class FaceEncodingController extends Controller
         $encoding->update(['is_active' => false]);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã xóa ảnh đăng ký.',
         ]);
     }
@@ -151,19 +154,19 @@ class FaceEncodingController extends Controller
     {
         $user = $this->attendanceService->resolveUser();
 
-        if (!$user['user_id']) {
+        if (! $user['user_id']) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không xác định được người dùng.',
             ], 401);
         }
 
-        \App\Models\FaceEncoding::where('user_id', $user['user_id'])
+        FaceEncoding::where('user_id', $user['user_id'])
             ->where('user_type', $user['user_type'])
             ->update(['is_active' => false]);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã xóa toàn bộ ảnh đăng ký. Bạn có thể đăng ký lại.',
         ]);
     }
@@ -175,7 +178,7 @@ class FaceEncodingController extends Controller
     /**
      * Danh sách tất cả nhân viên + trạng thái đăng ký khuôn mặt.
      * GET /admin/face/management
-     * 
+     *
      * Trả về: danh sách admins kèm face_count, face_encodings
      */
     public function management(Request $request): JsonResponse
@@ -183,19 +186,19 @@ class FaceEncodingController extends Controller
         $search = $request->input('search', '');
 
         // Lấy tất cả nhân sự
-        $query = \App\Models\Admin::query();
+        $query = Admin::query();
 
         if ($search) {
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%");
+                    ->orWhere('email', 'LIKE', "%{$search}%");
             });
         }
 
         $admins = $query->orderBy('full_name')->get();
 
         // Lấy face encodings cho tất cả admins
-        $allEncodings = \App\Models\FaceEncoding::where('user_type', 'admin')
+        $allEncodings = FaceEncoding::where('user_type', 'admin')
             ->where('is_active', true)
             ->get()
             ->groupBy('user_id');
@@ -205,17 +208,17 @@ class FaceEncodingController extends Controller
             $encodings = $allEncodings->get($admin->admin_id, collect());
 
             return [
-                'admin_id'       => $admin->admin_id,
-                'full_name'      => $admin->full_name,
-                'email'          => $admin->email,
-                'role'           => $admin->role,
-                'avatar_url'     => $admin->avatar_url,
-                'status'         => $admin->status ?? 'active',
+                'admin_id' => $admin->admin_id,
+                'full_name' => $admin->full_name,
+                'email' => $admin->email,
+                'role' => $admin->role,
+                'avatar_url' => $admin->avatar_url,
+                'status' => $admin->status ?? 'active',
                 'face_registered' => $encodings->isNotEmpty(),
-                'face_count'     => $encodings->count(),
+                'face_count' => $encodings->count(),
                 'face_encodings' => $encodings->map(fn ($e) => [
-                    'id'         => $e->id,
-                    'label'      => $e->label,
+                    'id' => $e->id,
+                    'label' => $e->label,
                     'image_path' => $e->image_path,
                     'created_at' => $e->created_at?->format('d/m/Y H:i'),
                 ])->values()->toArray(),
@@ -231,11 +234,11 @@ class FaceEncodingController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => [
-                'staff'            => $result->values(),
-                'total'            => $totalStaff,
+            'data' => [
+                'staff' => $result->values(),
+                'total' => $totalStaff,
                 'registered_count' => $registeredCount,
-                'not_registered'   => $totalStaff - $registeredCount,
+                'not_registered' => $totalStaff - $registeredCount,
             ],
         ]);
     }
@@ -246,27 +249,26 @@ class FaceEncodingController extends Controller
      */
     public function adminResetUser(int $userId): JsonResponse
     {
-        $admin = \App\Models\Admin::find($userId);
-        if (!$admin) {
+        $admin = Admin::find($userId);
+        if (! $admin) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không tìm thấy nhân viên.',
             ], 404);
         }
 
-        $count = \App\Models\FaceEncoding::where('user_id', $userId)
+        $count = FaceEncoding::where('user_id', $userId)
             ->where('user_type', 'admin')
             ->where('is_active', true)
             ->count();
 
-        \App\Models\FaceEncoding::where('user_id', $userId)
+        FaceEncoding::where('user_id', $userId)
             ->where('user_type', 'admin')
             ->update(['is_active' => false]);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => "Đã xóa {$count} ảnh đăng ký của {$admin->full_name}.",
         ]);
     }
 }
-

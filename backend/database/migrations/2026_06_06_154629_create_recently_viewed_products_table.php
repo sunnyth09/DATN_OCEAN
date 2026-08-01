@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('recently_viewed_products')) {
+        if (! Schema::hasTable('recently_viewed_products')) {
             Schema::create('recently_viewed_products', function (Blueprint $table) {
                 $table->id();
                 $table->unsignedBigInteger('user_id')->nullable();
                 $table->string('session_id')->nullable()->index();
-                $table->foreignId('product_id')->constrained()->onDelete('cascade');
+                $table->foreignId('product_id')->constrained('products', 'product_id')->onDelete('cascade');
                 $table->timestamp('viewed_at')->useCurrent();
                 $table->timestamps();
 
