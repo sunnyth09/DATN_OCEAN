@@ -23,7 +23,7 @@ class CategoryResolver
             ]
         );
 
-        $childSlug = Str::slug($sportName . '-' . $categoryName);
+        $childSlug = Str::slug($sportName.'-'.$categoryName);
         $child = Category::firstOrCreate(
             ['slug' => $childSlug],
             [

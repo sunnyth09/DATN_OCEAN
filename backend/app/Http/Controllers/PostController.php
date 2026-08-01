@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 class PostController extends Controller
 {
     private const SUMMARY_MAX_LENGTH = 500;
+
     private const SEO_DESCRIPTION_MAX_LENGTH = 500;
 
     /**
@@ -18,6 +19,7 @@ class PostController extends Controller
     public function index()
     {
         $posts = Post::with('category')->get();
+
         return response()->json($posts);
     }
 
@@ -28,7 +30,7 @@ class PostController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'summary' => 'nullable|string|max:' . self::SUMMARY_MAX_LENGTH,
+            'summary' => 'nullable|string|max:'.self::SUMMARY_MAX_LENGTH,
             'content' => 'nullable|string',
             'post_category_id' => 'required|exists:post_categories,post_category_id',
             'post_type' => 'nullable|string',
@@ -39,16 +41,16 @@ class PostController extends Controller
             'thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'banner' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'seo_title' => 'nullable|string|max:255',
-            'seo_description' => 'nullable|string|max:' . self::SEO_DESCRIPTION_MAX_LENGTH,
+            'seo_description' => 'nullable|string|max:'.self::SEO_DESCRIPTION_MAX_LENGTH,
             'seo_keywords' => 'nullable|string|max:255',
         ], [
-            'summary.max' => 'Tóm tắt nội dung không được vượt quá ' . self::SUMMARY_MAX_LENGTH . ' ký tự.',
-            'seo_description.max' => 'Mô tả SEO không được vượt quá ' . self::SEO_DESCRIPTION_MAX_LENGTH . ' ký tự.',
+            'summary.max' => 'Tóm tắt nội dung không được vượt quá '.self::SUMMARY_MAX_LENGTH.' ký tự.',
+            'seo_description.max' => 'Mô tả SEO không được vượt quá '.self::SEO_DESCRIPTION_MAX_LENGTH.' ký tự.',
         ]);
         $post = Post::where('slug', Str::slug($request->title))->first();
-        if($post){
+        if ($post) {
             $request['slug'] = Str::slug($request->title).'-'.rand(1, 100);
-        }else{
+        } else {
             $request['slug'] = Str::slug($request->title);
         }
         $request['post_type'] = $request->post_type ?? 'news';
@@ -65,13 +67,13 @@ class PostController extends Controller
         if ($request->hasFile('thumbnail')) {
             $thumbnail = $request->file('thumbnail');
             $thumbnailPath = $thumbnail->store('uploads/posts', 'public');
-            $request['thumbnail'] = 'storage/' . $thumbnailPath;
+            $request['thumbnail'] = 'storage/'.$thumbnailPath;
         }
 
         if ($request->hasFile('banner')) {
             $banner = $request->file('banner');
             $bannerPath = $banner->store('uploads/posts', 'public');
-            $request['banner'] = 'storage/' . $bannerPath;
+            $request['banner'] = 'storage/'.$bannerPath;
         }
 
         $post = Post::create($request->all());

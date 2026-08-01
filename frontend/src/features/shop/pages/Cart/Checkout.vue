@@ -14,6 +14,15 @@ import { useAuthStore } from '@/stores/auth';
 import { sanitizeAddressPayload, validateAddressPayload } from '@/utils/addressValidation';
 import AppIcon from '@/icons/AppIcon.vue';
 
+// Debounce helper — tránh gửi quá nhiều request liên tiếp gây rate-limit 429
+const debounce = (fn, delay) => {
+    let timer = null;
+    return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+    };
+};
+
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
@@ -404,11 +413,16 @@ const getShippingFee = async (district_id, ward_code) => {
 };
 
 // Watch for address selection change in the list
+// Debounced — tránh gọi GHN API liên tiếp khi user đang chọn địa chỉ
+const debouncedGetShippingFee = debounce((districtId, wardCode) => {
+    getShippingFee(districtId, wardCode);
+}, 300);
+
 watch(selectedAddressId, (newVal) => {
     if (newVal && !showAddAddressForm.value) {
         const addr = addresses.value.find(a => a.address_id === newVal);
         if (addr && addr.district_code && addr.ward_code) {
-            getShippingFee(addr.district_code, addr.ward_code);
+            debouncedGetShippingFee(addr.district_code, addr.ward_code);
         } else {
             shippingFee.value = 0;
         }
@@ -494,12 +508,15 @@ const fetchWalletPreview = async () => {
     }
 };
 
+// Debounced wallet preview — tránh gọi liên tục mỗi khi subtotal thay đổi
+const debouncedFetchWalletPreview = debounce(fetchWalletPreview, 500);
+
 watch(subtotal, () => {
-    if (authStore.isAuthenticated) fetchWalletPreview();
+    if (authStore.isAuthenticated) debouncedFetchWalletPreview();
 });
 
 watch(useWallet, (val) => {
-    if (val && !walletPreview.value) fetchWalletPreview();
+    if (val && !walletPreview.value) debouncedFetchWalletPreview();
 });
 
 // Appy coupon (Mã cứng mockup cho UI: OCEAN10)

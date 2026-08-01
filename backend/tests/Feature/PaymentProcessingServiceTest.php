@@ -178,7 +178,7 @@ class PaymentProcessingServiceTest extends TestCase
         DB::table('users')->insert([
             'user_id' => DB::table('users')->count() + 1,
             'full_name' => 'Payment Tester',
-            'email' => strtolower($orderCode) . '@example.com',
+            'email' => strtolower($orderCode).'@example.com',
             'password' => bcrypt('password'),
             'role' => 'customer',
             'status' => 'active',
@@ -206,7 +206,7 @@ class PaymentProcessingServiceTest extends TestCase
         $payload = [
             'vnp_Amount' => $amount * 100,
             'vnp_BankCode' => 'NCB',
-            'vnp_OrderInfo' => 'Thanh toan don hang ' . $orderCode,
+            'vnp_OrderInfo' => 'Thanh toan don hang '.$orderCode,
             'vnp_PayDate' => '20260605123045',
             'vnp_ResponseCode' => $responseCode,
             'vnp_TmnCode' => 'TESTTMN',
@@ -220,8 +220,8 @@ class PaymentProcessingServiceTest extends TestCase
         $hashData = '';
         $index = 0;
         foreach ($signable as $key => $value) {
-            $segment = urlencode($key) . '=' . urlencode((string) $value);
-            $hashData .= $index === 0 ? $segment : '&' . $segment;
+            $segment = urlencode($key).'='.urlencode((string) $value);
+            $hashData .= $index === 0 ? $segment : '&'.$segment;
             $index++;
         }
 

@@ -10,6 +10,7 @@ class Ticket extends Model
     use HasFactory;
 
     protected $table = 'tickets';
+
     protected $primaryKey = 'ticket_id';
 
     protected $fillable = [
@@ -20,7 +21,7 @@ class Ticket extends Model
         'description',
         'image_url',
         'status',
-        'admin_reply'
+        'admin_reply',
     ];
 
     public function user()

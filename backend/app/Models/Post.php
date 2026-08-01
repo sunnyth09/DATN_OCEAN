@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Post extends Model
 {
     use SoftDeletes;
+
     protected $table = 'posts';
+
     protected $primaryKey = 'post_id';
 
     protected $fillable = [
@@ -42,17 +44,19 @@ class Post extends Model
 
     public function getThumbnailUrlAttribute($value)
     {
-        if ($value && !str_starts_with($value, 'http')) {
+        if ($value && ! str_starts_with($value, 'http')) {
             return asset($value);
         }
+
         return $value;
     }
 
     public function getBannerUrlAttribute($value)
     {
-        if ($value && !str_starts_with($value, 'http')) {
+        if ($value && ! str_starts_with($value, 'http')) {
             return asset($value);
         }
+
         return $value;
     }
 }

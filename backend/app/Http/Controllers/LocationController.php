@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Services\GHNService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 
 /**
  * LocationController — Cung cấp danh sách Tỉnh/Quận/Phường chuẩn GHN cho frontend.
@@ -107,7 +106,7 @@ class LocationController extends Controller
 
     private function isSandboxTestLocation(?string $name, mixed $id = null): bool
     {
-        if (!$name) {
+        if (! $name) {
             return false;
         }
 

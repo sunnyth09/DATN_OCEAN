@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 class VerifyProductDataCommand extends Command
 {
     protected $signature = 'products:verify';
+
     protected $description = 'Kiểm tra tính toàn vẹn của dữ liệu sản phẩm sau khi refactor';
 
     public function handle(): int
@@ -38,14 +39,14 @@ class VerifyProductDataCommand extends Command
             ->whereNull('deleted_at')
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
-                  ->from('product_variants')
-                  ->whereColumn('product_variants.product_id', 'products.product_id');
+                    ->from('product_variants')
+                    ->whereColumn('product_variants.product_id', 'products.product_id');
             })->count();
         if ($noVariants > 0) {
             $this->error("  ❌ {$noVariants} sản phẩm KHÔNG có variant");
             $errors++;
         } else {
-            $this->info("  ✅ Mọi sản phẩm đều có variant");
+            $this->info('  ✅ Mọi sản phẩm đều có variant');
         }
 
         // 5. Mỗi SP có ít nhất 1 ảnh (is_main)
@@ -53,15 +54,15 @@ class VerifyProductDataCommand extends Command
             ->whereNull('deleted_at')
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
-                  ->from('product_images')
-                  ->whereColumn('product_images.product_id', 'products.product_id')
-                  ->where('product_images.is_main', 1);
+                    ->from('product_images')
+                    ->whereColumn('product_images.product_id', 'products.product_id')
+                    ->where('product_images.is_main', 1);
             })->count();
         if ($noMainImage > 0) {
             $this->error("  ❌ {$noMainImage} sản phẩm KHÔNG có ảnh chính (is_main)");
             $errors++;
         } else {
-            $this->info("  ✅ Mọi sản phẩm đều có ảnh chính");
+            $this->info('  ✅ Mọi sản phẩm đều có ảnh chính');
         }
 
         // 6. Mỗi category con có ảnh
@@ -73,7 +74,7 @@ class VerifyProductDataCommand extends Command
             $this->warn("  ⚠️ {$catNoImage} child categories thiếu ảnh");
             $warnings++;
         } else {
-            $this->info("  ✅ Mọi child category đều có ảnh đại diện");
+            $this->info('  ✅ Mọi child category đều có ảnh đại diện');
         }
 
         // 7. Không duplicate slug
@@ -87,7 +88,7 @@ class VerifyProductDataCommand extends Command
             $this->error("  ❌ {$dupSlugs} slug bị trùng lặp");
             $errors++;
         } else {
-            $this->info("  ✅ Không có slug trùng lặp");
+            $this->info('  ✅ Không có slug trùng lặp');
         }
 
         // 8. Giá hợp lệ
@@ -100,35 +101,35 @@ class VerifyProductDataCommand extends Command
             $this->error("  ❌ {$invalidPrice} sản phẩm có giá <= 0");
             $errors++;
         } else {
-            $this->info("  ✅ Tất cả sản phẩm có giá hợp lệ");
+            $this->info('  ✅ Tất cả sản phẩm có giá hợp lệ');
         }
 
         // 9. Orphan images
         $orphanImages = DB::table('product_images')
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
-                  ->from('products')
-                  ->whereColumn('products.product_id', 'product_images.product_id');
+                    ->from('products')
+                    ->whereColumn('products.product_id', 'product_images.product_id');
             })->count();
         if ($orphanImages > 0) {
             $this->error("  ❌ {$orphanImages} ảnh mồ côi (orphan)");
             $errors++;
         } else {
-            $this->info("  ✅ Không có orphan images");
+            $this->info('  ✅ Không có orphan images');
         }
 
         // 10. Orphan variants
         $orphanVariants = DB::table('product_variants')
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
-                  ->from('products')
-                  ->whereColumn('products.product_id', 'product_variants.product_id');
+                    ->from('products')
+                    ->whereColumn('products.product_id', 'product_variants.product_id');
             })->count();
         if ($orphanVariants > 0) {
             $this->error("  ❌ {$orphanVariants} variants mồ côi (orphan)");
             $errors++;
         } else {
-            $this->info("  ✅ Không có orphan variants");
+            $this->info('  ✅ Không có orphan variants');
         }
 
         // 11. Tổng variant count
@@ -149,7 +150,7 @@ class VerifyProductDataCommand extends Command
             $this->error("  ❌ {$dupSkus} SKU bị trùng");
             $errors++;
         } else {
-            $this->info("  ✅ Không có SKU trùng");
+            $this->info('  ✅ Không có SKU trùng');
         }
 
         // 14. Status: chỉ active

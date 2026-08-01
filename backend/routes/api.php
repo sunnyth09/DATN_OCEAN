@@ -1,59 +1,78 @@
 <?php
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Route;
 
 Broadcast::routes(['middleware' => ['api', 'auth:api,admin']]);
 
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ContactController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\Api\Admin\RewardAdminController;
-use App\Http\Controllers\Api\Admin\UserRewardAdminController;
-use App\Http\Controllers\AdminUserController;
-use App\Http\Controllers\AdminStaffController;
-use App\Http\Controllers\BrandController;
-use App\Http\Controllers\ForgotPasswordController;
-use App\Http\Controllers\LocationController;
 use App\Http\Controllers\AddressController;
-use App\Http\Controllers\CouponController;
-use App\Http\Controllers\CartController;
-use App\Http\Controllers\PostCategoryController;
-use App\Http\Controllers\PostController;
-use App\Http\Controllers\OrderController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PosController;
-use App\Http\Controllers\ProductCommentController;
-use App\Http\Controllers\SellerController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\FavoriteController;
-use App\Http\Controllers\ChatController;
-use App\Http\Controllers\FlashSaleController;
-use App\Http\Controllers\AffiliateController;
+use App\Http\Controllers\Admin\AdminChatController;
 use App\Http\Controllers\AdminAffiliateController;
-use App\Http\Controllers\Api\ReturnRequestController;
-use App\Http\Controllers\TryOnController;
-use App\Http\Controllers\Api\CourtController;
-use App\Http\Controllers\Api\CourtBookingController;
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminOrderController;
+use App\Http\Controllers\AdminStaffController;
+use App\Http\Controllers\AdminStatisticsController;
+use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminWalletController;
+use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\Api\Admin\CourtAdminController;
 use App\Http\Controllers\Api\Admin\CourtBookingAdminController;
-use App\Http\Controllers\Api\Admin\CourtScheduleAdminController;
-use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
-use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
 use App\Http\Controllers\Api\Admin\CourtMaintenanceAdminController;
-use App\Http\Controllers\TicketController;
-use App\Http\Controllers\ComboController;
-use App\Http\Controllers\LoyaltyController;
-use App\Http\Controllers\WalletController;
-use App\Http\Controllers\AdminWalletController;
+use App\Http\Controllers\Api\Admin\CourtPriceAdminController;
+use App\Http\Controllers\Api\Admin\CourtScheduleAdminController;
+use App\Http\Controllers\Api\Admin\CourtServiceAdminController;
+use App\Http\Controllers\Api\Admin\RewardAdminController;
+use App\Http\Controllers\Api\Admin\UserRewardAdminController;
 use App\Http\Controllers\Api\Client\TrackingController;
+use App\Http\Controllers\Api\CourtBookingController;
+use App\Http\Controllers\Api\CourtController;
 use App\Http\Controllers\Api\DeviceTokenController;
+use App\Http\Controllers\Api\ReturnRequestController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ChatbotController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ComboController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CouponController;
+use App\Http\Controllers\FaceEncodingController;
+use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\FlashSaleController;
+use App\Http\Controllers\ForgotPasswordController;
+use App\Http\Controllers\GhnController;
+use App\Http\Controllers\GhnWebhookController;
+use App\Http\Controllers\LocationController;
+use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\MoMoController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderTrackingController;
-
-
+use App\Http\Controllers\PosController;
+use App\Http\Controllers\PostCategoryController;
+use App\Http\Controllers\PostController;
+use App\Http\Controllers\ProductCommentController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SepayController;
+use App\Http\Controllers\TestCorsController;
+use App\Http\Controllers\TicketController;
+use App\Http\Controllers\TryOnController;
+use App\Http\Controllers\UserBankAccountController;
+use App\Http\Controllers\VNPayController;
+use App\Http\Controllers\WalletController;
+use App\Http\Controllers\WalletDepositController;
+use App\Http\Controllers\WorkLocationController;
+use App\Http\Controllers\WorkShiftController;
+use App\Models\Cart;
+use App\Models\Order;
 use App\Services\FcmService;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+
 // use Illuminate\Http\Request;
 
 // Route debug gửi push — CHỈ đăng ký ở môi trường local để tránh bị lạm dụng
@@ -76,7 +95,7 @@ if (app()->environment('local')) {
 Route::get('/', function () {
     return response()->json([
         'status' => 'success',
-        'message' => 'Welcome to the API!'
+        'message' => 'Welcome to the API!',
     ]);
 });
 
@@ -99,7 +118,7 @@ Route::post('/auth/facebook/callback', [AuthController::class, 'facebookCallback
 Route::middleware('throttle:20,1')->post('/refresh', [AuthController::class, 'refresh']);
 
 // Try-on (Public - guest can use)
-Route::get("/test-cors", [\App\Http\Controllers\TestCorsController::class, "test"]);
+Route::get('/test-cors', [TestCorsController::class, 'test']);
 Route::middleware('throttle:10,1')->post('/try-on', [TryOnController::class, 'process']);
 Route::middleware('throttle:5,1')->post('/try-on/generate-360', [TryOnController::class, 'generate360Views']);
 
@@ -135,15 +154,15 @@ Route::middleware('auth:api,admin')->group(function () {
 
     // Device token
     Route::post('/device-tokens', [DeviceTokenController::class, 'store']);
-    
+
     // Loyalty (Tích điểm)
-    Route::get('/loyalty/profile', [\App\Http\Controllers\Api\LoyaltyController::class, 'profile']);
-    Route::get('/loyalty/rewards', [\App\Http\Controllers\Api\LoyaltyController::class, 'rewards']);
-    Route::post('/loyalty/redeem', [\App\Http\Controllers\Api\LoyaltyController::class, 'redeem']);
+    Route::get('/loyalty/profile', [App\Http\Controllers\Api\LoyaltyController::class, 'profile']);
+    Route::get('/loyalty/rewards', [App\Http\Controllers\Api\LoyaltyController::class, 'rewards']);
+    Route::post('/loyalty/redeem', [App\Http\Controllers\Api\LoyaltyController::class, 'redeem']);
 
     // Chat (CSKH)
-    Route::get('/chat/messages', [\App\Http\Controllers\Api\ChatController::class, 'getMessages']);
-    Route::post('/chat/messages', [\App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
+    Route::get('/chat/messages', [App\Http\Controllers\Api\ChatController::class, 'getMessages']);
+    Route::post('/chat/messages', [App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
 });
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
@@ -159,7 +178,6 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
         Route::middleware('throttle:10,1')->put('/addresses/{id}/default', [AddressController::class, 'setDefault']);
     });
 
-
     // Coupons (Lưu và xem mã giảm giá của tôi)
     Route::middleware('customer.only')->group(function () {
         Route::middleware('throttle:60,1')->get('/coupons', [CouponController::class, 'getUserCoupons']);
@@ -168,7 +186,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // Đơn hàng của tôi
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::middleware('throttle:10,1')->post('/orders', [OrderController::class, 'store']);
+    Route::middleware('throttle:20,1')->post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
     Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
@@ -204,7 +222,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
 // Tracking routes (Public, optional auth logic handled inside controller)
 Route::prefix('tracking')->group(function () {
-    Route::post('/view-product', [TrackingController::class, 'viewProduct']);
+    Route::middleware('throttle:120,1')->post('/view-product', [TrackingController::class, 'viewProduct']);
     Route::get('/recently-viewed', [TrackingController::class, 'getRecentlyViewed']);
     Route::get('/search-history', [TrackingController::class, 'getSearchHistory']);
 });
@@ -214,12 +232,13 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'getCart']);
     Route::get('/count', [CartController::class, 'getCount']);
     Route::get('/upsell-suggestions', [CartController::class, 'upsellSuggestions']);
-    Route::middleware('throttle:30,1')->post('/items', [CartController::class, 'addItem']);
-    Route::put('/items/{id}', [CartController::class, 'updateItem']);
-    Route::put('/items/{id}/variant', [CartController::class, 'changeVariant']);
+    Route::middleware('throttle:60,1')->post('/items', [CartController::class, 'addItem']);
+    Route::middleware('throttle:120,1')->put('/items/{id}', [CartController::class, 'updateItem']);
+    Route::middleware('throttle:120,1')->put('/items/{id}/variant', [CartController::class, 'changeVariant']);
     Route::delete('/items/{id}', [CartController::class, 'removeItem']);
     Route::delete('/', [CartController::class, 'clearCart']);
     Route::post('/buy-again/{orderId}', [CartController::class, 'buyAgain']);
+    Route::middleware('throttle:60,1')->put('/select-all', [CartController::class, 'selectAll']);
     Route::post('/sync', [CartController::class, 'sync']);
 });
 
@@ -227,7 +246,6 @@ Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
 Route::middleware('throttle:5,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
 Route::middleware('throttle:30,1')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
 Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
-
 
 // ==========================================
 // FLASH SALE routes
@@ -255,7 +273,7 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::get('/rewards/{id}', [RewardAdminController::class, 'show']);
     Route::put('/rewards/{id}', [RewardAdminController::class, 'update']);
     Route::delete('/rewards/{id}', [RewardAdminController::class, 'destroy']);
-    
+
     Route::get('/user-rewards', [UserRewardAdminController::class, 'index']);
     Route::put('/user-rewards/{id}/status', [UserRewardAdminController::class, 'updateStatus']);
 
@@ -301,19 +319,19 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::get('/wallets', [AdminWalletController::class, 'index']);
     Route::get('/wallets/{userId}', [AdminWalletController::class, 'show']);
     Route::post('/wallets/{userId}/adjust', [AdminWalletController::class, 'adjust']);
-    
+
     // Duyệt rút tiền ví
     Route::get('/wallets/withdrawals/pending', [AdminWalletController::class, 'withdrawals']);
     Route::put('/wallets/withdrawals/{id}/complete', [AdminWalletController::class, 'completeWithdrawal']);
     Route::put('/wallets/withdrawals/{id}/reject', [AdminWalletController::class, 'rejectWithdrawal']);
 
     // Flash Sale Management (Admin only)
-    Route::get('/flash-sale', [\App\Http\Controllers\Admin\FlashSaleController::class, 'adminIndex']);
-    Route::get('/flash-sale/search-products', [\App\Http\Controllers\Admin\FlashSaleController::class, 'searchProducts']);
-    Route::post('/flash-sale', [\App\Http\Controllers\Admin\FlashSaleController::class, 'store']);
-    Route::put('/flash-sale/{id}', [\App\Http\Controllers\Admin\FlashSaleController::class, 'update']);
-    Route::delete('/flash-sale/{id}', [\App\Http\Controllers\Admin\FlashSaleController::class, 'destroy']);
-    Route::post('/flash-sale/{id}/initialize', [\App\Http\Controllers\Admin\FlashSaleController::class, 'initialize']);
+    Route::get('/flash-sale', [App\Http\Controllers\Admin\FlashSaleController::class, 'adminIndex']);
+    Route::get('/flash-sale/search-products', [App\Http\Controllers\Admin\FlashSaleController::class, 'searchProducts']);
+    Route::post('/flash-sale', [App\Http\Controllers\Admin\FlashSaleController::class, 'store']);
+    Route::put('/flash-sale/{id}', [App\Http\Controllers\Admin\FlashSaleController::class, 'update']);
+    Route::delete('/flash-sale/{id}', [App\Http\Controllers\Admin\FlashSaleController::class, 'destroy']);
+    Route::post('/flash-sale/{id}/initialize', [App\Http\Controllers\Admin\FlashSaleController::class, 'initialize']);
     // ── Affiliate Management (Admin) ──
     Route::get('/affiliate/users', [AdminAffiliateController::class, 'affiliates']);
     Route::get('/affiliate/conversions', [AdminAffiliateController::class, 'conversions']);
@@ -325,23 +343,23 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::put('/affiliate/withdrawals/{id}/paid', [AdminAffiliateController::class, 'markPaidWithdrawal']);
 
     // Quản lý Vị trí Làm việc (Admin only)
-    Route::get('/work-locations', [\App\Http\Controllers\WorkLocationController::class, 'index']);
-    Route::post('/work-locations', [\App\Http\Controllers\WorkLocationController::class, 'store']);
-    Route::put('/work-locations/{id}', [\App\Http\Controllers\WorkLocationController::class, 'update']);
-    Route::delete('/work-locations/{id}', [\App\Http\Controllers\WorkLocationController::class, 'destroy']);
+    Route::get('/work-locations', [WorkLocationController::class, 'index']);
+    Route::post('/work-locations', [WorkLocationController::class, 'store']);
+    Route::put('/work-locations/{id}', [WorkLocationController::class, 'update']);
+    Route::delete('/work-locations/{id}', [WorkLocationController::class, 'destroy']);
 
     // Quản lý Ca Làm việc (Admin only)
-    Route::get('/work-shifts', [\App\Http\Controllers\WorkShiftController::class, 'index']);
-    Route::post('/work-shifts', [\App\Http\Controllers\WorkShiftController::class, 'store']);
-    Route::put('/work-shifts/{id}', [\App\Http\Controllers\WorkShiftController::class, 'update']);
-    Route::delete('/work-shifts/{id}', [\App\Http\Controllers\WorkShiftController::class, 'destroy']);
+    Route::get('/work-shifts', [WorkShiftController::class, 'index']);
+    Route::post('/work-shifts', [WorkShiftController::class, 'store']);
+    Route::put('/work-shifts/{id}', [WorkShiftController::class, 'update']);
+    Route::delete('/work-shifts/{id}', [WorkShiftController::class, 'destroy']);
 
     // Phân Ca cho Nhân viên (Admin only)
-    Route::get('/shift-assignments', [\App\Http\Controllers\WorkShiftController::class, 'getAssignments']);
-    Route::post('/shift-assignments', [\App\Http\Controllers\WorkShiftController::class, 'saveAssignments']);
+    Route::get('/shift-assignments', [WorkShiftController::class, 'getAssignments']);
+    Route::post('/shift-assignments', [WorkShiftController::class, 'saveAssignments']);
 
     // Flag chấm công bất thường (Admin only)
-    Route::put('/attendance/{id}/flag', [\App\Http\Controllers\AttendanceController::class, 'flag']);
+    Route::put('/attendance/{id}/flag', [AttendanceController::class, 'flag']);
 
     // Return requests (Admin only)
     Route::get('/return-requests', [ReturnRequestController::class, 'adminIndex']);
@@ -363,10 +381,10 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::get('/users/{id}', [AdminUserController::class, 'show']);
 
     // Admin Notifications
-    Route::get('/notifications', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'index']);
-    Route::post('/notifications/{id}/read', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'markAsRead']);
-    Route::post('/notifications/read-all', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'markAllAsRead']);
-    Route::delete('/notifications/{id}', [\App\Http\Controllers\Api\Admin\NotificationController::class, 'destroy']);
+    Route::get('/notifications', [App\Http\Controllers\Api\Admin\NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [App\Http\Controllers\Api\Admin\NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [App\Http\Controllers\Api\Admin\NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [App\Http\Controllers\Api\Admin\NotificationController::class, 'destroy']);
 
     // Quản lý Đánh giá sản phẩm (Duyệt)
     Route::get('/reviews', [ProductCommentController::class, 'adminIndex']);
@@ -379,11 +397,11 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::post('/contacts/{id}/reply', [ContactController::class, 'reply']);
 
     // Quản lý Đơn hàng
-    Route::get('/orders', [\App\Http\Controllers\AdminOrderController::class, 'index']);
-    Route::put('/orders/bulk-status', [\App\Http\Controllers\AdminOrderController::class, 'bulkUpdateStatus']);
-    Route::get('/orders/{id}', [\App\Http\Controllers\AdminOrderController::class, 'show']);
-    Route::put('/orders/{id}/status', [\App\Http\Controllers\AdminOrderController::class, 'updateStatus']);
-    Route::post('/orders/{id}/ghn-sync', [\App\Http\Controllers\AdminOrderController::class, 'syncGHN']);
+    Route::get('/orders', [AdminOrderController::class, 'index']);
+    Route::put('/orders/bulk-status', [AdminOrderController::class, 'bulkUpdateStatus']);
+    Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
+    Route::put('/orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
+    Route::post('/orders/{id}/ghn-sync', [AdminOrderController::class, 'syncGHN']);
 
     // POS - Bán hàng trực tiếp
     Route::get('/pos/products/search', [PosController::class, 'searchProducts']);
@@ -393,10 +411,10 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::get('/pos/orders/{id}/receipt-pdf', [PosController::class, 'exportReceiptPdf']);
 
     // Admin Live Chat
-    Route::get('/live-chats', [\App\Http\Controllers\Admin\AdminChatController::class, 'getSessions']);
-    Route::get('/live-chats/{id}', [\App\Http\Controllers\Admin\AdminChatController::class, 'getMessages']);
-    Route::post('/live-chats/{id}/reply', [\App\Http\Controllers\Admin\AdminChatController::class, 'replyMessage']);
-    Route::post('/live-chats/{id}/close', [\App\Http\Controllers\Admin\AdminChatController::class, 'closeSession']);
+    Route::get('/live-chats', [AdminChatController::class, 'getSessions']);
+    Route::get('/live-chats/{id}', [AdminChatController::class, 'getMessages']);
+    Route::post('/live-chats/{id}/reply', [AdminChatController::class, 'replyMessage']);
+    Route::post('/live-chats/{id}/close', [AdminChatController::class, 'closeSession']);
 
     // Quản lý Khiếu nại
     Route::get('/tickets', [TicketController::class, 'adminIndex']);
@@ -408,36 +426,36 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
 // NHÓM 3: CHẤM CÔNG (Tất cả nhân viên hệ thống)
 // ==========================================
 Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin')->group(function () {
-    Route::get('/attendance', [\App\Http\Controllers\AttendanceController::class, 'index']);
-    Route::middleware('throttle:10,1')->post('/attendance/check-in', [\App\Http\Controllers\AttendanceController::class, 'checkIn']);
-    Route::middleware('throttle:10,1')->post('/attendance/check-out', [\App\Http\Controllers\AttendanceController::class, 'checkOut']);
-    Route::get('/attendance/today', [\App\Http\Controllers\AttendanceController::class, 'today']);
-    Route::get('/attendance/my-history', [\App\Http\Controllers\AttendanceController::class, 'myHistory']);
+    Route::get('/attendance', [AttendanceController::class, 'index']);
+    Route::middleware('throttle:10,1')->post('/attendance/check-in', [AttendanceController::class, 'checkIn']);
+    Route::middleware('throttle:10,1')->post('/attendance/check-out', [AttendanceController::class, 'checkOut']);
+    Route::get('/attendance/today', [AttendanceController::class, 'today']);
+    Route::get('/attendance/my-history', [AttendanceController::class, 'myHistory']);
 
     // Face Registration & Verification (tất cả nhân viên)
-    Route::middleware('throttle:10,1')->post('/face/register', [\App\Http\Controllers\FaceEncodingController::class, 'register']);
-    Route::get('/face/status', [\App\Http\Controllers\FaceEncodingController::class, 'status']);
-    Route::delete('/face/{id}', [\App\Http\Controllers\FaceEncodingController::class, 'destroy']);
-    Route::post('/face/reset', [\App\Http\Controllers\FaceEncodingController::class, 'reset']);
+    Route::middleware('throttle:10,1')->post('/face/register', [FaceEncodingController::class, 'register']);
+    Route::get('/face/status', [FaceEncodingController::class, 'status']);
+    Route::delete('/face/{id}', [FaceEncodingController::class, 'destroy']);
+    Route::post('/face/reset', [FaceEncodingController::class, 'reset']);
 
     // Face Management (admin only)
-    Route::get('/face/management', [\App\Http\Controllers\FaceEncodingController::class, 'management']);
-    Route::post('/face/reset-user/{userId}', [\App\Http\Controllers\FaceEncodingController::class, 'adminResetUser']);
+    Route::get('/face/management', [FaceEncodingController::class, 'management']);
+    Route::post('/face/reset-user/{userId}', [FaceEncodingController::class, 'adminResetUser']);
 
     // Tổng quan (Dashboard)
-    Route::get('/dashboard', [\App\Http\Controllers\AdminDashboardController::class, 'getDashboardData']);
+    Route::get('/dashboard', [AdminDashboardController::class, 'getDashboardData']);
+    Route::middleware('throttle:60,1')->get('/sidebar-badges', [AdminDashboardController::class, 'getSidebarBadges']);
 
     // Admin Statistics (Detailed dashboard)
-    Route::get('/statistics/overview', [\App\Http\Controllers\AdminStatisticsController::class, 'getOverview']);
-    Route::get('/statistics/revenue', [\App\Http\Controllers\AdminStatisticsController::class, 'getRevenueChart']);
-    Route::get('/statistics/orders-status', [\App\Http\Controllers\AdminStatisticsController::class, 'getOrderStatusChart']);
-    Route::get('/statistics/top-products', [\App\Http\Controllers\AdminStatisticsController::class, 'getTopProducts']);
-    Route::get('/statistics/top-customers', [\App\Http\Controllers\AdminStatisticsController::class, 'getTopCustomers']);
-    Route::get('/statistics/report', [\App\Http\Controllers\AdminStatisticsController::class, 'getRevenueReport']);
-    Route::get('/statistics/staff-sales', [\App\Http\Controllers\AdminStatisticsController::class, 'getStaffSales']);
-    Route::get('/statistics/export-revenue-last-month', [\App\Http\Controllers\AdminStatisticsController::class, 'exportLastMonthRevenue']);
+    Route::get('/statistics/overview', [AdminStatisticsController::class, 'getOverview']);
+    Route::get('/statistics/revenue', [AdminStatisticsController::class, 'getRevenueChart']);
+    Route::get('/statistics/orders-status', [AdminStatisticsController::class, 'getOrderStatusChart']);
+    Route::get('/statistics/top-products', [AdminStatisticsController::class, 'getTopProducts']);
+    Route::get('/statistics/top-customers', [AdminStatisticsController::class, 'getTopCustomers']);
+    Route::get('/statistics/report', [AdminStatisticsController::class, 'getRevenueReport']);
+    Route::get('/statistics/staff-sales', [AdminStatisticsController::class, 'getStaffSales']);
+    Route::get('/statistics/export-revenue-last-month', [AdminStatisticsController::class, 'exportLastMonthRevenue']);
 });
-
 
 // ==========================================
 // NHÓM KHO / IMPORT (Khai báo trước các route động như products/{id} để tránh shadowing)
@@ -502,7 +520,7 @@ Route::get('/loyalty/rules', [LoyaltyController::class, 'rules']);
 Route::middleware('auth:api')->prefix('loyalty')->group(function () {
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
-    Route::middleware('throttle:20,1')->post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
+    Route::middleware('throttle:60,1')->post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
 });
 
 // ==========================================
@@ -514,18 +532,18 @@ Route::middleware('auth:api')->prefix('wallet')->group(function () {
     Route::get('/preview-discount', [WalletController::class, 'previewDiscount']); // Preview giảm giá checkout
 
     // Nạp tiền ví (rate limited: 5 requests/phút)
-    Route::middleware('throttle:5,1')->post('/deposit/init', [\App\Http\Controllers\WalletDepositController::class, 'initDeposit']);
+    Route::middleware('throttle:5,1')->post('/deposit/init', [WalletDepositController::class, 'initDeposit']);
 
     // Rút tiền ví (rate limited: 3 requests/phút)
     Route::middleware('throttle:3,1')->post('/withdraw', [WalletController::class, 'withdraw']);
     Route::get('/withdrawals', [WalletController::class, 'withdrawals']);
 
     // Tài khoản ngân hàng liên kết
-    Route::get('/bank-accounts', [\App\Http\Controllers\UserBankAccountController::class, 'index']);
-    Route::post('/bank-accounts', [\App\Http\Controllers\UserBankAccountController::class, 'store']);
-    Route::put('/bank-accounts/{id}', [\App\Http\Controllers\UserBankAccountController::class, 'update']);
-    Route::delete('/bank-accounts/{id}', [\App\Http\Controllers\UserBankAccountController::class, 'destroy']);
-    Route::post('/bank-accounts/{id}/default', [\App\Http\Controllers\UserBankAccountController::class, 'setDefault']);
+    Route::get('/bank-accounts', [UserBankAccountController::class, 'index']);
+    Route::post('/bank-accounts', [UserBankAccountController::class, 'store']);
+    Route::put('/bank-accounts/{id}', [UserBankAccountController::class, 'update']);
+    Route::delete('/bank-accounts/{id}', [UserBankAccountController::class, 'destroy']);
+    Route::post('/bank-accounts/{id}/default', [UserBankAccountController::class, 'setDefault']);
 });
 
 // API Địa chỉ Việt Nam (Public)
@@ -538,16 +556,16 @@ Route::prefix('location')->group(function () {
 Route::get('/posts', [PostController::class, 'index']);
 
 // AI Chatbot (Public — tự detect auth nếu có JWT token, có rate limit chống abuse AI)
-Route::middleware('throttle:20,1')->post('/chatbot/message', [\App\Http\Controllers\ChatbotController::class, 'sendMessage']);
+Route::middleware('throttle:20,1')->post('/chatbot/message', [ChatbotController::class, 'sendMessage']);
 
 // Chatbot transactional actions (Customer only — không cho admin/staff đặt hàng qua AI)
 Route::middleware(['auth:api', 'throttle:10,1'])->prefix('chatbot')->group(function () {
-    Route::post('/cart/add', [\App\Http\Controllers\ChatbotController::class, 'addToCart']);
-    Route::get('/addresses', [\App\Http\Controllers\ChatbotController::class, 'getAddresses']);
-    Route::post('/order/prepare', [\App\Http\Controllers\ChatbotController::class, 'prepareOrder']);
-    Route::post('/order/confirm', [\App\Http\Controllers\ChatbotController::class, 'confirmOrder']);
-    Route::post('/quick-order', [\App\Http\Controllers\ChatbotController::class, 'quickOrder']);
-    Route::post('/preferences', [\App\Http\Controllers\ChatbotController::class, 'updatePreferences']);
+    Route::post('/cart/add', [ChatbotController::class, 'addToCart']);
+    Route::get('/addresses', [ChatbotController::class, 'getAddresses']);
+    Route::post('/order/prepare', [ChatbotController::class, 'prepareOrder']);
+    Route::post('/order/confirm', [ChatbotController::class, 'confirmOrder']);
+    Route::post('/quick-order', [ChatbotController::class, 'quickOrder']);
+    Route::post('/preferences', [ChatbotController::class, 'updatePreferences']);
 });
 
 // Live Chat (Realtime - Public/User)
@@ -557,16 +575,16 @@ Route::middleware('throttle:30,1')->group(function () {
 });
 
 // VNPay Payment Gateway (Public — VNPay redirect về đây, rate limiting chống brute-force)
-Route::middleware('throttle:30,1')->get('/payment/vnpay-return', [\App\Http\Controllers\VNPayController::class, 'vnpayReturn']);
-Route::middleware('throttle:30,1')->post('/payment/vnpay-ipn', [\App\Http\Controllers\VNPayController::class, 'vnpayIpn']);
+Route::middleware('throttle:30,1')->get('/payment/vnpay-return', [VNPayController::class, 'vnpayReturn']);
+Route::middleware('throttle:30,1')->post('/payment/vnpay-ipn', [VNPayController::class, 'vnpayIpn']);
 
 // MoMo Payment Gateway
-Route::middleware('throttle:30,1')->get('/payment/momo-return', [\App\Http\Controllers\MoMoController::class, 'momoReturn']);
+Route::middleware('throttle:30,1')->get('/payment/momo-return', [MoMoController::class, 'momoReturn']);
 
-Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [\App\Http\Controllers\MoMoController::class, 'momoIpn']);
+Route::middleware('throttle:30,1')->post('/payment/momo-ipn', [MoMoController::class, 'momoIpn']);
 
 // SePay Webhook
-Route::middleware('throttle:60,1')->post('/payment/sepay-webhook', [\App\Http\Controllers\SepayController::class, 'handleWebhook']);
+Route::middleware('throttle:60,1')->post('/payment/sepay-webhook', [SepayController::class, 'handleWebhook']);
 // =====================================================================
 // ██ DEBUG ROUTES — Chạy thủ công scheduler commands (XÓA KHI PRODUCTION)
 // =====================================================================
@@ -574,22 +592,32 @@ Route::middleware('throttle:60,1')->post('/payment/sepay-webhook', [\App\Http\Co
 Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
     Route::get('/run-abandoned-cart', function () {
         try {
-            \Illuminate\Support\Facades\Artisan::call('app:remind-abandoned-cart');
-            return response()->json(['status' => 'success', 'output' => \Illuminate\Support\Facades\Artisan::output()]);
-        } catch (\Exception $e) {
+            Artisan::call('app:remind-abandoned-cart');
+
+            return response()->json(['status' => 'success', 'output' => Artisan::output()]);
+        } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     });
 
+    Route::get('/run-birthday', function () {
+        try {
+            Artisan::call('app:send-birthday-wishes');
 
+            return response()->json(['status' => 'success', 'output' => Artisan::output()]);
+        } catch (Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    });
 
     Route::get('/cart-status', function () {
-        $carts = \App\Models\Cart::where('status', 'active')
+        $carts = Cart::where('status', 'active')
             ->whereHas('items')
             ->with(['user:user_id,full_name,email,reward_points', 'items'])
             ->get()
             ->map(function ($cart) {
                 $latestItem = $cart->items->sortByDesc('updated_at')->first();
+
                 return [
                     'cart_id' => $cart->cart_id,
                     'user' => $cart->user ? [
@@ -604,7 +632,7 @@ Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
                 ];
             });
 
-        $notifications = \Illuminate\Support\Facades\DB::table('notifications')
+        $notifications = DB::table('notifications')
             ->orderByDesc('created_at')
             ->limit(10)
             ->get(['id', 'type', 'notifiable_id', 'data', 'read_at', 'created_at']);
@@ -620,15 +648,16 @@ Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
 
     Route::get('/run-order-emails', function () {
         try {
-            \Illuminate\Support\Facades\Artisan::call('app:send-order-emails');
-            return response()->json(['status' => 'success', 'output' => \Illuminate\Support\Facades\Artisan::output()]);
-        } catch (\Exception $e) {
+            Artisan::call('app:send-order-emails');
+
+            return response()->json(['status' => 'success', 'output' => Artisan::output()]);
+        } catch (Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     });
 
     Route::get('/pending-emails', function () {
-        $orders = \App\Models\Order::where('email_sent', false)
+        $orders = Order::where('email_sent', false)
             ->with('user:user_id,full_name,email')
             ->latest()
             ->limit(20)
@@ -636,8 +665,8 @@ Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
             ->map(function ($order) {
                 return [
                     'order_code' => $order->order_code,
-                    'user' => $order->user ? $order->user->full_name . ' (' . $order->user->email . ')' : 'N/A',
-                    'grand_total' => number_format($order->grand_total, 0, ',', '.') . 'đ',
+                    'user' => $order->user ? $order->user->full_name.' ('.$order->user->email.')' : 'N/A',
+                    'grand_total' => number_format($order->grand_total, 0, ',', '.').'đ',
                     'status' => $order->fulfillment_status,
                     'created_at' => $order->created_at->format('H:i:s d/m'),
                     'minutes_ago' => now()->diffInMinutes($order->created_at),
@@ -654,9 +683,11 @@ Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
 });
 
 // FIX C6: image-proxy — chống path traversal, whitelist extensions, nosniff header
-Route::get('image-proxy', function (\Illuminate\Http\Request $request) {
+Route::get('image-proxy', function (Request $request) {
     $path = $request->query('path');
-    if (!$path) abort(404);
+    if (! $path) {
+        abort(404);
+    }
 
     // Chặn path traversal sequences
     if (str_contains($path, '..') || str_contains($path, "\0")) {
@@ -666,16 +697,16 @@ Route::get('image-proxy', function (\Illuminate\Http\Request $request) {
     // Whitelist extensions cho phép
     $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
     $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-    if (!in_array($extension, $allowedExtensions)) {
+    if (! in_array($extension, $allowedExtensions)) {
         abort(403, 'File type not allowed');
     }
 
     // Resolve absolute path và verify nằm trong storage boundary
     $storagePath = realpath(storage_path('app/public'));
-    $absolutePath = realpath(storage_path('app/public/' . $path));
+    $absolutePath = realpath(storage_path('app/public/'.$path));
 
     // realpath trả false nếu file không tồn tại
-    if (!$absolutePath || !str_starts_with($absolutePath, $storagePath . DIRECTORY_SEPARATOR)) {
+    if (! $absolutePath || ! str_starts_with($absolutePath, $storagePath.DIRECTORY_SEPARATOR)) {
         abort(404);
     }
 
@@ -732,16 +763,15 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
 // ==========================================
 // GHN Integration routes
 // ==========================================
-Route::middleware('throttle:120,1')->post('/ghn-webhook', [\App\Http\Controllers\GhnWebhookController::class, 'handle']);
+Route::middleware('throttle:120,1')->post('/ghn-webhook', [GhnWebhookController::class, 'handle']);
 
 Route::prefix('ghn')->group(function () {
-    Route::middleware('throttle:60,1')->post('/calculate-fee', [\App\Http\Controllers\GhnController::class, 'calculateFee']);
-    Route::middleware('throttle:60,1')->post('/leadtime', [\App\Http\Controllers\GhnController::class, 'getLeadtime']);
+    Route::middleware('throttle:120,1')->post('/calculate-fee', [GhnController::class, 'calculateFee']);
+    Route::middleware('throttle:120,1')->post('/leadtime', [GhnController::class, 'getLeadtime']);
 });
 
 Route::middleware('auth:api,admin')->prefix('ghn')->group(function () {
-    Route::post('/order-detail', [\App\Http\Controllers\GhnController::class, 'orderDetail']);
-    Route::post('/cancel-order', [\App\Http\Controllers\GhnController::class, 'cancelOrder']);
-    Route::post('/print-label', [\App\Http\Controllers\GhnController::class, 'printLabel']);
+    Route::post('/order-detail', [GhnController::class, 'orderDetail']);
+    Route::post('/cancel-order', [GhnController::class, 'cancelOrder']);
+    Route::post('/print-label', [GhnController::class, 'printLabel']);
 });
-

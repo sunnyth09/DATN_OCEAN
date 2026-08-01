@@ -18,7 +18,7 @@ class WorkLocationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $locations,
+            'data' => $locations,
         ]);
     }
 
@@ -29,16 +29,16 @@ class WorkLocationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'          => 'required|string|max:255',
-            'address'       => 'nullable|string|max:500',
-            'latitude'      => 'required|numeric|between:-90,90',
-            'longitude'     => 'required|numeric|between:-180,180',
+            'name' => 'required|string|max:255',
+            'address' => 'nullable|string|max:500',
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
             'radius_meters' => 'required|integer|min:10|max:5000',
-            'is_active'     => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
         ], [
-            'name.required'     => 'Tên vị trí không được để trống.',
+            'name.required' => 'Tên vị trí không được để trống.',
             'latitude.required' => 'Vĩ độ không được để trống.',
-            'latitude.between'  => 'Vĩ độ phải từ -90 đến 90.',
+            'latitude.between' => 'Vĩ độ phải từ -90 đến 90.',
             'longitude.required' => 'Kinh độ không được để trống.',
             'longitude.between' => 'Kinh độ phải từ -180 đến 180.',
             'radius_meters.required' => 'Bán kính không được để trống.',
@@ -49,9 +49,9 @@ class WorkLocationController extends Controller
         $location = WorkLocation::create($validated);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Tạo chi nhánh thành công!',
-            'data'    => $location,
+            'data' => $location,
         ], 201);
     }
 
@@ -63,28 +63,28 @@ class WorkLocationController extends Controller
     {
         $location = WorkLocation::find($id);
 
-        if (!$location) {
+        if (! $location) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không tìm thấy chi nhánh.',
             ], 404);
         }
 
         $validated = $request->validate([
-            'name'          => 'sometimes|required|string|max:255',
-            'address'       => 'nullable|string|max:500',
-            'latitude'      => 'sometimes|required|numeric|between:-90,90',
-            'longitude'     => 'sometimes|required|numeric|between:-180,180',
+            'name' => 'sometimes|required|string|max:255',
+            'address' => 'nullable|string|max:500',
+            'latitude' => 'sometimes|required|numeric|between:-90,90',
+            'longitude' => 'sometimes|required|numeric|between:-180,180',
             'radius_meters' => 'sometimes|required|integer|min:10|max:5000',
-            'is_active'     => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
         ]);
 
         $location->update($validated);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Cập nhật chi nhánh thành công!',
-            'data'    => $location->fresh(),
+            'data' => $location->fresh(),
         ]);
     }
 
@@ -96,9 +96,9 @@ class WorkLocationController extends Controller
     {
         $location = WorkLocation::find($id);
 
-        if (!$location) {
+        if (! $location) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không tìm thấy chi nhánh.',
             ], 404);
         }
@@ -107,7 +107,7 @@ class WorkLocationController extends Controller
         $location->update(['is_active' => false]);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã vô hiệu hóa chi nhánh.',
         ]);
     }

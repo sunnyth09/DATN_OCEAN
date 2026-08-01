@@ -12,6 +12,7 @@ class CourtBookingNotification extends Notification implements ShouldQueue
     use Queueable;
 
     public $booking;
+
     public $eventType;
 
     /**

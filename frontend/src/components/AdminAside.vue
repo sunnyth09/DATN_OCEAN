@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onMounted, ref, reactive } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
+import api from '@/axios';
 import Swal from 'sweetalert2';
 import AppIcon from '@/icons/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
@@ -72,7 +73,51 @@ onMounted(() => {
       console.error("Failed to parse user data", e);
     }
   }
+
+  // Load badges and poll every 60s
+  if (hasRole('admin', 'seller')) {
+    fetchBadges();
+    badgeTimer = setInterval(fetchBadges, 60000);
+    // Re-fetch khi có thông báo mới (cầu nối với hệ thống real-time)
+    window.addEventListener('admin-notification-received', fetchBadges);
+    window.addEventListener('admin-order-updated', fetchBadges);
+  }
 });
+
+onBeforeUnmount(() => {
+  if (badgeTimer) clearInterval(badgeTimer);
+  window.removeEventListener('admin-notification-received', fetchBadges);
+  window.removeEventListener('admin-order-updated', fetchBadges);
+});
+
+// ─── Sidebar Badges ────────────────────────────────────────────────
+const badges = reactive({
+  pending_orders: 0,
+  pending_returns: 0,
+  open_tickets: 0,
+  unreplied_chats: 0,
+});
+
+let badgeTimer = null;
+
+const fetchBadges = async () => {
+  try {
+    const res = await api.get('/admin/sidebar-badges');
+    if (res.data?.data) {
+      badges.pending_orders  = res.data.data.pending_orders  || 0;
+      badges.pending_returns = res.data.data.pending_returns || 0;
+      badges.open_tickets    = res.data.data.open_tickets    || 0;
+      badges.unreplied_chats = res.data.data.unreplied_chats || 0;
+    }
+  } catch {
+    // Fail silently — badges are non-critical UI
+  }
+};
+
+// Tổng badge cho nhóm Kinh doanh (hiển thị trên tên nhóm khi submenu đóng)
+const totalBusinessBadge = computed(() => badges.pending_orders + badges.pending_returns);
+// Tổng badge cho nhóm Chăm sóc Khách hàng
+const totalCareBadge = computed(() => badges.unreplied_chats + badges.open_tickets);
 
 const handleLogout = async () => {
   const result = await Swal.fire({
@@ -94,7 +139,7 @@ const handleLogout = async () => {
     <!-- Brand -->
     <div class="sidebar-brand">
       <div class="brand-icon" v-show="!collapsed">
-        <img :src="BASE_URL + '/storage/logo/LOGO_QS.png'" alt="logo-ocean" width="45">
+        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="logo-ocean" width="45">
       </div>
       <h2 class="brand-title"> Quản trị </h2>
       <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">
@@ -135,6 +180,7 @@ const handleLogout = async () => {
           </svg>
         </div>
         <span>Kinh doanh</span>
+        <span v-if="totalBusinessBadge > 0 && !openMenus.business" class="nav-badge nav-badge--parent">{{ totalBusinessBadge > 99 ? '99+' : totalBusinessBadge }}</span>
         <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.business }"
           size="14" />
       </div>
@@ -144,11 +190,15 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span><span>Bán hàng (POS)</span>
           </router-link>
           <router-link to="/admin/order" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Đơn hàng</span>
+            <span class="submenu-dot"></span>
+            <span>Đơn hàng</span>
+            <span v-if="badges.pending_orders > 0" class="nav-badge">{{ badges.pending_orders > 99 ? '99+' : badges.pending_orders }}</span>
           </router-link>
           <router-link v-if="hasRole('admin')" to="/admin/return-requests" class="submenu-item"
             active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Hoàn hàng</span>
+            <span class="submenu-dot"></span>
+            <span>Hoàn hàng</span>
+            <span v-if="badges.pending_returns > 0" class="nav-badge">{{ badges.pending_returns > 99 ? '99+' : badges.pending_returns }}</span>
           </router-link>
         </div>
       </transition>
@@ -291,6 +341,7 @@ const handleLogout = async () => {
           <AppIcon name="chat" />
         </div>
         <span>Chăm sóc Khách hàng</span>
+        <span v-if="totalCareBadge > 0 && !openMenus.care" class="nav-badge nav-badge--parent">{{ totalCareBadge > 99 ? '99+' : totalCareBadge }}</span>
         <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.care }"
           size="14" />
       </div>
@@ -303,10 +354,14 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span><span>Đánh giá & Khiếu nại</span>
           </router-link>
           <router-link to="/admin/chat" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Chat</span>
+            <span class="submenu-dot"></span>
+            <span>Chat</span>
+            <span v-if="badges.unreplied_chats > 0" class="nav-badge">{{ badges.unreplied_chats > 99 ? '99+' : badges.unreplied_chats }}</span>
           </router-link>
           <router-link to="/admin/contact" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Liên hệ</span>
+            <span class="submenu-dot"></span>
+            <span>Liên hệ</span>
+            <span v-if="badges.open_tickets > 0" class="nav-badge">{{ badges.open_tickets > 99 ? '99+' : badges.open_tickets }}</span>
           </router-link>
         </div>
       </transition>
@@ -621,6 +676,36 @@ const handleLogout = async () => {
   background: var(--primary) !important;
 }
 
+/* Nav Badge (số đếm góc phải menu item) */
+.nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: #e63b6f;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  animation: badge-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  flex-shrink: 0;
+}
+
+@keyframes badge-pop {
+  0%   { transform: scale(0); opacity: 0; }
+  70%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Badge trên nhóm cha (chỉ hiển khi submenu đang đóng) */
+.nav-badge--parent {
+  margin-left: 6px;
+  margin-right: auto;
+}
 /* Transitions */
 .slide-fade-enter-active {
   transition: all 0.3s ease-out;

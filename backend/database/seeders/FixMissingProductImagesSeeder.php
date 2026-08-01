@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Product;
 use App\Models\ProductImage;
+use Illuminate\Database\Seeder;
 
 class FixMissingProductImagesSeeder extends Seeder
 {
@@ -37,7 +37,7 @@ class FixMissingProductImagesSeeder extends Seeder
                     'image_url' => $defaultImage,
                     'is_main' => 1,
                     'alt_text' => $product->name,
-                    'sort_order' => 1
+                    'sort_order' => 1,
                 ]);
                 $updated = true;
             }

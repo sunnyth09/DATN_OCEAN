@@ -238,19 +238,19 @@ class ChatbotInfoService
                 'content' => [
                     'Địa chỉ: 134 Nguyễn Thị Định, P.Buôn Ma Thuột, Tỉnh Đắk Lắk',
                     'Hotline: 1900-SPORT',
-                    'Email: contact@quyensport.vn',
+                    'Email: contact@oceansport.vn',
                     'Giờ làm việc: 8:00 - 22:00 hàng ngày',
-                    'Fanpage Facebook: Quyền Sport',
+                    'Fanpage Facebook: Ocean Sport',
                 ],
             ],
             default => [
-                'title'   => 'Về Quyền Sport',
+                'title'   => 'Về Ocean Sport',
                 'content' => [
-                    'Quyền Sport — Cửa hàng thời trang và phụ kiện trực tuyến',
+                    'Ocean Sport — Cửa hàng thời trang và phụ kiện trực tuyến',
                     'Sản phẩm chính hãng, đa dạng thương hiệu',
                     'Giao hàng toàn quốc',
                     'Hotline: 1900-SPORT',
-                    'Email: contact@quyensport.vn',
+                    'Email: contact@oceansport.vn',
                 ],
             ],
         };

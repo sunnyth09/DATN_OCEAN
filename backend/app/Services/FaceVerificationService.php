@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Service gọi đến Python Face Verification Microservice.
- * 
+ *
  * Flow:
  * 1. Register: Nhân viên chụp 3-5 ảnh → encode → lưu vectors vào DB
  * 2. Verify:   Khi chấm công → gửi ảnh + encodings đã lưu → so khớp
@@ -29,7 +29,7 @@ class FaceVerificationService
     public function __construct()
     {
         $this->serviceUrl = rtrim(config('services.face.url', 'http://face-service:8001'), '/');
-        $this->timeout    = (int) config('services.face.timeout', 15);
+        $this->timeout = (int) config('services.face.timeout', 15);
     }
 
     // ================================================================
@@ -39,8 +39,8 @@ class FaceVerificationService
     /**
      * Gửi ảnh base64 đến face service để encode.
      *
-     * @param  string $base64Image Ảnh base64 (có hoặc không có header)
-     * @return array  ['success' => bool, 'encoding' => array|null, 'message' => string]
+     * @param  string  $base64Image  Ảnh base64 (có hoặc không có header)
+     * @return array ['success' => bool, 'encoding' => array|null, 'message' => string]
      */
     public function encodeFace(string $base64Image): array
     {
@@ -52,29 +52,31 @@ class FaceVerificationService
 
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
-                    'success'  => $data['success'] ?? false,
+                    'success' => $data['success'] ?? false,
                     'encoding' => $data['encoding'] ?? null,
-                    'message'  => $data['message'] ?? '',
+                    'message' => $data['message'] ?? '',
                 ];
             }
 
             Log::warning('Face encode failed', [
                 'status' => $response->status(),
-                'body'   => $response->body(),
+                'body' => $response->body(),
             ]);
 
             return [
-                'success'  => false,
+                'success' => false,
                 'encoding' => null,
-                'message'  => 'Face service trả về lỗi: ' . ($response->json('detail') ?? 'Unknown error'),
+                'message' => 'Face service trả về lỗi: '.($response->json('detail') ?? 'Unknown error'),
             ];
         } catch (\Exception $e) {
             Log::error('Face service connection error (encode)', ['error' => $e->getMessage()]);
+
             return [
-                'success'  => false,
+                'success' => false,
                 'encoding' => null,
-                'message'  => 'Không thể kết nối đến Face Service. Vui lòng thử lại sau.',
+                'message' => 'Không thể kết nối đến Face Service. Vui lòng thử lại sau.',
             ];
         }
     }
@@ -86,50 +88,52 @@ class FaceVerificationService
     /**
      * Verify ảnh mới với danh sách encodings đã đăng ký.
      *
-     * @param  string $base64Image         Ảnh mới (base64)
-     * @param  array  $registeredEncodings Danh sách encoding vectors (128-dim mỗi cái)
-     * @return array  ['match' => bool, 'distance' => float, 'confidence' => float, 'message' => string]
+     * @param  string  $base64Image  Ảnh mới (base64)
+     * @param  array  $registeredEncodings  Danh sách encoding vectors (128-dim mỗi cái)
+     * @return array ['match' => bool, 'distance' => float, 'confidence' => float, 'message' => string]
      */
     public function verify(string $base64Image, array $registeredEncodings): array
     {
         try {
             $response = Http::timeout($this->timeout)
                 ->post("{$this->serviceUrl}/verify", [
-                    'image'                 => $base64Image,
-                    'registered_encodings'  => $registeredEncodings,
+                    'image' => $base64Image,
+                    'registered_encodings' => $registeredEncodings,
                 ]);
 
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
-                    'success'    => $data['success'] ?? false,
-                    'match'      => $data['match'] ?? false,
-                    'distance'   => $data['distance'] ?? 1.0,
+                    'success' => $data['success'] ?? false,
+                    'match' => $data['match'] ?? false,
+                    'distance' => $data['distance'] ?? 1.0,
                     'confidence' => $data['confidence'] ?? 0.0,
-                    'message'    => $data['message'] ?? '',
+                    'message' => $data['message'] ?? '',
                 ];
             }
 
             Log::warning('Face verify failed', [
                 'status' => $response->status(),
-                'body'   => $response->body(),
+                'body' => $response->body(),
             ]);
 
             return [
-                'success'    => false,
-                'match'      => false,
-                'distance'   => 1.0,
+                'success' => false,
+                'match' => false,
+                'distance' => 1.0,
                 'confidence' => 0.0,
-                'message'    => 'Face service trả về lỗi.',
+                'message' => 'Face service trả về lỗi.',
             ];
         } catch (\Exception $e) {
             Log::error('Face service connection error (verify)', ['error' => $e->getMessage()]);
+
             return [
-                'success'    => false,
-                'match'      => false,
-                'distance'   => 1.0,
+                'success' => false,
+                'match' => false,
+                'distance' => 1.0,
                 'confidence' => 0.0,
-                'message'    => 'Không thể kết nối đến Face Service.',
+                'message' => 'Không thể kết nối đến Face Service.',
             ];
         }
     }
@@ -142,10 +146,7 @@ class FaceVerificationService
      * Đăng ký khuôn mặt cho một nhân viên.
      * Nhận nhiều ảnh base64, encode từng ảnh và lưu vào DB.
      *
-     * @param  int    $userId
-     * @param  string $userType
-     * @param  array  $images    [['image' => base64, 'label' => 'front'], ...]
-     * @return array
+     * @param  array  $images  [['image' => base64, 'label' => 'front'], ...]
      */
     public function registerFaces(int $userId, string $userType, array $images): array
     {
@@ -154,22 +155,24 @@ class FaceVerificationService
 
         foreach ($images as $index => $item) {
             $base64Image = $item['image'] ?? '';
-            $label = $item['label'] ?? ('photo_' . ($index + 1));
+            $label = $item['label'] ?? ('photo_'.($index + 1));
 
             if (empty($base64Image)) {
                 $results[] = ['index' => $index, 'success' => false, 'message' => 'Ảnh trống.'];
+
                 continue;
             }
 
             // Encode qua Python service
             $encodeResult = $this->encodeFace($base64Image);
 
-            if (!$encodeResult['success'] || !$encodeResult['encoding']) {
+            if (! $encodeResult['success'] || ! $encodeResult['encoding']) {
                 $results[] = [
-                    'index'   => $index,
+                    'index' => $index,
                     'success' => false,
                     'message' => $encodeResult['message'] ?: 'Không tìm thấy khuôn mặt.',
                 ];
+
                 continue;
             }
 
@@ -178,29 +181,29 @@ class FaceVerificationService
 
             // Lưu encoding vào DB
             FaceEncoding::create([
-                'user_id'    => $userId,
-                'user_type'  => $userType,
-                'encoding'   => $encodeResult['encoding'],
+                'user_id' => $userId,
+                'user_type' => $userType,
+                'encoding' => $encodeResult['encoding'],
                 'image_path' => $imagePath ?? '',
-                'label'      => $label,
-                'is_active'  => true,
+                'label' => $label,
+                'is_active' => true,
             ]);
 
             $successCount++;
             $results[] = [
-                'index'   => $index,
+                'index' => $index,
                 'success' => true,
                 'message' => 'Đăng ký thành công.',
             ];
         }
 
         return [
-            'success'       => $successCount > 0,
-            'total'         => count($images),
+            'success' => $successCount > 0,
+            'total' => count($images),
             'success_count' => $successCount,
-            'results'       => $results,
-            'message'       => $successCount > 0
-                ? "Đăng ký thành công {$successCount}/" . count($images) . " ảnh."
+            'results' => $results,
+            'message' => $successCount > 0
+                ? "Đăng ký thành công {$successCount}/".count($images).' ảnh.'
                 : 'Không thể đăng ký khuôn mặt. Vui lòng thử lại.',
         ];
     }
@@ -213,10 +216,8 @@ class FaceVerificationService
      * Xác thực khuôn mặt cho chấm công.
      * Lấy encodings đã đăng ký từ DB, gửi lên Python service so khớp.
      *
-     * @param  int    $userId
-     * @param  string $userType
-     * @param  string $base64Image Ảnh selfie khi check-in/out
-     * @return array  ['match' => bool, 'confidence' => float, 'distance' => float, 'registered' => bool]
+     * @param  string  $base64Image  Ảnh selfie khi check-in/out
+     * @return array ['match' => bool, 'confidence' => float, 'distance' => float, 'registered' => bool]
      */
     public function verifyForAttendance(int $userId, string $userType, string $base64Image): array
     {
@@ -226,10 +227,10 @@ class FaceVerificationService
         if ($faceEncodings->isEmpty()) {
             return [
                 'registered' => false,
-                'match'      => false,
+                'match' => false,
                 'confidence' => 0.0,
-                'distance'   => 1.0,
-                'message'    => 'Bạn chưa đăng ký khuôn mặt. Vui lòng đăng ký trước khi chấm công.',
+                'distance' => 1.0,
+                'message' => 'Bạn chưa đăng ký khuôn mặt. Vui lòng đăng ký trước khi chấm công.',
             ];
         }
 
@@ -240,10 +241,10 @@ class FaceVerificationService
 
         return [
             'registered' => true,
-            'match'      => $result['match'],
+            'match' => $result['match'],
             'confidence' => $result['confidence'],
-            'distance'   => $result['distance'],
-            'message'    => $result['message'],
+            'distance' => $result['distance'],
+            'message' => $result['message'],
         ];
     }
 
@@ -259,11 +260,11 @@ class FaceVerificationService
         $encodings = FaceEncoding::ofUser($userId, $userType)->get();
 
         return [
-            'registered'     => $encodings->isNotEmpty(),
+            'registered' => $encodings->isNotEmpty(),
             'encoding_count' => $encodings->count(),
-            'encodings'      => $encodings->map(fn ($e) => [
-                'id'         => $e->id,
-                'label'      => $e->label,
+            'encodings' => $encodings->map(fn ($e) => [
+                'id' => $e->id,
+                'label' => $e->label,
                 'image_path' => $e->image_path,
                 'created_at' => $e->created_at?->toDateTimeString(),
             ])->toArray(),
@@ -279,7 +280,7 @@ class FaceVerificationService
      */
     private function saveRegistrationImage(?string $base64Image, int $userId, string $label): ?string
     {
-        if (!$base64Image) {
+        if (! $base64Image) {
             return null;
         }
 
@@ -300,17 +301,17 @@ class FaceVerificationService
 
         // Validate magic bytes (JPEG or PNG only)
         $isJpeg = str_starts_with($imageData, "\xFF\xD8");
-        $isPng  = str_starts_with($imageData, "\x89PNG");
-        if (!$isJpeg && !$isPng) {
+        $isPng = str_starts_with($imageData, "\x89PNG");
+        if (! $isJpeg && ! $isPng) {
             return null;
         }
 
         $ext = $isPng ? 'png' : 'jpg';
-        $fileName = "face_{$userId}_{$label}_" . time() . '_' . bin2hex(random_bytes(4)) . ".{$ext}";
-        $path = 'face_registrations/' . $fileName;
+        $fileName = "face_{$userId}_{$label}_".time().'_'.bin2hex(random_bytes(4)).".{$ext}";
+        $path = 'face_registrations/'.$fileName;
 
         Storage::disk('public')->put($path, $imageData, 'public');
 
-        return '/storage/' . $path;
+        return '/storage/'.$path;
     }
 }

@@ -148,7 +148,7 @@ const testimonials = [
     {
         id: 1, name: 'Nguyễn Minh Tuấn', role: 'VĐV Bóng đá Phong trào',
         avatar: 'https://i.pravatar.cc/80?img=12',
-        text: 'Sản phẩm chất lượng tuyệt vời! Giày tôi mua ở đây đã đi được 6 tháng mà vẫn như mới. Giao hàng nhanh, đóng gói cẩn thận. Sẽ tiếp tục ủng hộ Quyền Sport.'
+        text: 'Sản phẩm chất lượng tuyệt vời! Giày tôi mua ở đây đã đi được 6 tháng mà vẫn như mới. Giao hàng nhanh, đóng gói cẩn thận. Sẽ tiếp tục ủng hộ Ocean Sport.'
     },
     {
         id: 2, name: 'Trần Thị Lan Anh', role: 'Huấn Luyện Viên Yoga',
@@ -662,7 +662,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
             <div class="container">
                 <div class="text-center mb-5">
                     <h2 class="section-title mb-2">KHÁCH HÀNG NÓI GÌ?</h2>
-                    <p class="section-subtitle">Hơn 50,000 khách hàng đã tin tưởng và yêu thích Quyền Sport</p>
+                    <p class="section-subtitle">Hơn 50,000 khách hàng đã tin tưởng và yêu thích Ocean Sport</p>
                 </div>
                 <div class="row g-4">
                     <div v-for="t in testimonials" :key="t.id" class="col-md-4">
@@ -704,7 +704,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                                 </svg>
-                                CỘNG ĐỒNG QUYỀN SPORT
+                                CỘNG ĐỒNG OCEAN SPORT
                             </span>
                             <h2 class="community-title mb-0">Hơn cả một cửa hàng.<br />Chúng tôi là <em>đam mê</em>.
                             </h2>

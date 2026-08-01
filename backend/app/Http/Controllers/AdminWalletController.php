@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\OrderException;
+use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletDeposit;
-use App\Models\User;
 use App\Services\WalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,12 +35,12 @@ class AdminWalletController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = min((int) ($request->per_page ?? 20), 100);
-        $search  = $request->search;
-        $sort    = $request->sort ?? 'created_at';
-        $order   = $request->order ?? 'desc';
+        $search = $request->search;
+        $sort = $request->sort ?? 'created_at';
+        $order = $request->order ?? 'desc';
 
         $allowedSorts = ['deposit_balance', 'commission_balance', 'total_used', 'created_at'];
-        if (!in_array($sort, $allowedSorts, true)) {
+        if (! in_array($sort, $allowedSorts, true)) {
             $sort = 'created_at';
         }
         $order = strtolower($order) === 'asc' ? 'asc' : 'desc';
@@ -49,8 +50,8 @@ class AdminWalletController extends Controller
         if ($search) {
             $query->whereHas('user', function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
             });
         }
 
@@ -59,29 +60,29 @@ class AdminWalletController extends Controller
         // Thêm computed fields
         $wallets->getCollection()->transform(function (Wallet $wallet) {
             return [
-                'wallet_id'            => $wallet->wallet_id,
-                'user_id'              => $wallet->user_id,
-                'user'                 => $wallet->user ? [
-                    'full_name'  => $wallet->user->full_name,
-                    'email'      => $wallet->user->email,
-                    'phone'      => $wallet->user->phone,
+                'wallet_id' => $wallet->wallet_id,
+                'user_id' => $wallet->user_id,
+                'user' => $wallet->user ? [
+                    'full_name' => $wallet->user->full_name,
+                    'email' => $wallet->user->email,
+                    'phone' => $wallet->user->phone,
                     'avatar_url' => $wallet->user->avatar_url,
                 ] : null,
-                'deposit_balance'      => (float) $wallet->deposit_balance,
-                'commission_balance'   => (float) $wallet->commission_balance,
-                'total_balance'        => $wallet->getTotalBalance(),
-                'frozen_balance'       => (float) $wallet->frozen_balance,
-                'total_deposited'      => (float) $wallet->total_deposited,
-                'total_commission'     => (float) $wallet->total_commission,
-                'total_used'           => (float) $wallet->total_used,
-                'status'               => $wallet->status,
-                'created_at'           => $wallet->created_at?->toISOString(),
+                'deposit_balance' => (float) $wallet->deposit_balance,
+                'commission_balance' => (float) $wallet->commission_balance,
+                'total_balance' => $wallet->getTotalBalance(),
+                'frozen_balance' => (float) $wallet->frozen_balance,
+                'total_deposited' => (float) $wallet->total_deposited,
+                'total_commission' => (float) $wallet->total_commission,
+                'total_used' => (float) $wallet->total_used,
+                'status' => $wallet->status,
+                'created_at' => $wallet->created_at?->toISOString(),
             ];
         });
 
         return response()->json([
             'status' => 'success',
-            'data'   => $wallets,
+            'data' => $wallets,
         ]);
     }
 
@@ -92,7 +93,7 @@ class AdminWalletController extends Controller
     public function show(Request $request, int $userId): JsonResponse
     {
         $user = User::find($userId);
-        if (!$user) {
+        if (! $user) {
             return response()->json(['status' => 'error', 'message' => 'User không tồn tại'], 404);
         }
 
@@ -106,14 +107,14 @@ class AdminWalletController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => [
+            'data' => [
                 'user' => [
-                    'user_id'   => $user->user_id,
+                    'user_id' => $user->user_id,
                     'full_name' => $user->full_name,
-                    'email'     => $user->email,
-                    'phone'     => $user->phone,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
                 ],
-                'balance'      => $balance,
+                'balance' => $balance,
                 'transactions' => $history,
             ],
         ]);
@@ -130,7 +131,7 @@ class AdminWalletController extends Controller
         $admin = auth('admin')->user();
 
         $request->validate([
-            'delta'       => 'required|numeric|not_in:0',
+            'delta' => 'required|numeric|not_in:0',
             'description' => 'required|string|max:500',
         ]);
 
@@ -143,18 +144,18 @@ class AdminWalletController extends Controller
             );
 
             return response()->json([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Đã điều chỉnh số dư ví',
-                'data'    => [
+                'data' => [
                     'transaction_code' => $tx->transaction_code,
-                    'amount'           => (float) $tx->amount,
-                    'direction'        => $tx->direction,
-                    'balance_after'    => (float) $tx->balance_after,
+                    'amount' => (float) $tx->amount,
+                    'direction' => $tx->direction,
+                    'balance_after' => (float) $tx->balance_after,
                 ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => $e->getMessage(),
             ], 422);
         }
@@ -169,7 +170,7 @@ class AdminWalletController extends Controller
      */
     public function pendingDeposits(Request $request): JsonResponse
     {
-        $status  = $request->status ?? 'pending';
+        $status = $request->status ?? 'pending';
         $perPage = min((int) ($request->per_page ?? 30), 100);
 
         $query = WalletDeposit::with('user:user_id,full_name,email,phone')
@@ -184,23 +185,23 @@ class AdminWalletController extends Controller
         // Transform để flatten user info
         $deposits->getCollection()->transform(function ($d) {
             return [
-                'id'            => $d->id,
-                'deposit_code'  => $d->deposit_code,
-                'user_id'       => $d->user_id,
-                'full_name'     => $d->user?->full_name ?? 'N/A',
-                'email'         => $d->user?->email ?? '',
-                'phone'         => $d->user?->phone ?? '',
-                'amount'        => (float) $d->amount,
-                'method'        => $d->method,
-                'status'        => $d->status,
-                'completed_at'  => $d->completed_at?->toISOString(),
-                'created_at'    => $d->created_at?->toISOString(),
+                'id' => $d->id,
+                'deposit_code' => $d->deposit_code,
+                'user_id' => $d->user_id,
+                'full_name' => $d->user?->full_name ?? 'N/A',
+                'email' => $d->user?->email ?? '',
+                'phone' => $d->user?->phone ?? '',
+                'amount' => (float) $d->amount,
+                'method' => $d->method,
+                'status' => $d->status,
+                'completed_at' => $d->completed_at?->toISOString(),
+                'created_at' => $d->created_at?->toISOString(),
             ];
         });
 
         return response()->json([
             'status' => 'success',
-            'data'   => $deposits,
+            'data' => $deposits,
         ]);
     }
 
@@ -216,12 +217,12 @@ class AdminWalletController extends Controller
                 // double-credit khi có 2 request confirm đồng thời.
                 $deposit = WalletDeposit::whereKey($depositId)->lockForUpdate()->first();
 
-                if (!$deposit) {
-                    throw new \App\Exceptions\OrderException('Không tìm thấy yêu cầu nạp tiền', 404);
+                if (! $deposit) {
+                    throw new OrderException('Không tìm thấy yêu cầu nạp tiền', 404);
                 }
 
                 if ($deposit->status !== 'pending') {
-                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                    throw new OrderException('Yêu cầu đã được xử lý trước đó', 422);
                 }
 
                 // Credit ví user
@@ -230,9 +231,9 @@ class AdminWalletController extends Controller
                     amount: (float) $deposit->amount,
                     type: 'deposit',
                     opts: [
-                        'description'    => 'Nạp ví - Admin duyệt - ' . $deposit->deposit_code,
+                        'description' => 'Nạp ví - Admin duyệt - '.$deposit->deposit_code,
                         'reference_type' => 'wallet_deposit',
-                        'reference_id'   => $deposit->id,
+                        'reference_id' => $deposit->id,
                     ],
                 );
 
@@ -241,33 +242,34 @@ class AdminWalletController extends Controller
                 $affected = WalletDeposit::whereKey($deposit->id)
                     ->where('status', 'pending')
                     ->update([
-                        'status'                 => 'completed',
-                        'completed_at'           => now(),
+                        'status' => 'completed',
+                        'completed_at' => now(),
                         'gateway_transaction_id' => 'ADMIN_CONFIRM',
                     ]);
 
                 if ($affected === 0) {
-                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                    throw new OrderException('Yêu cầu đã được xử lý trước đó', 422);
                 }
 
                 return $deposit;
             });
 
             Log::info('Admin confirmed wallet deposit', [
-                'deposit_id'   => $deposit->id,
-                'user_id'      => $deposit->user_id,
-                'amount'       => $deposit->amount,
-                'admin_id'     => auth('admin')->id(),
+                'deposit_id' => $deposit->id,
+                'user_id' => $deposit->user_id,
+                'amount' => $deposit->amount,
+                'admin_id' => auth('admin')->id(),
             ]);
 
             return response()->json([
-                'status'  => 'success',
-                'message' => 'Đã duyệt nạp ' . number_format($deposit->amount) . '₫ vào ví user.',
+                'status' => 'success',
+                'message' => 'Đã duyệt nạp '.number_format($deposit->amount).'₫ vào ví user.',
             ]);
-        } catch (\App\Exceptions\OrderException $e) {
+        } catch (OrderException $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], $e->getCode() ?: 422);
         } catch (\Exception $e) {
             Log::error('Admin confirm deposit failed', ['error' => $e->getMessage()]);
+
             return response()->json(['status' => 'error', 'message' => 'Duyệt nạp tiền thất bại, vui lòng thử lại.'], 500);
         }
     }
@@ -280,7 +282,7 @@ class AdminWalletController extends Controller
     {
         $deposit = WalletDeposit::find($depositId);
 
-        if (!$deposit) {
+        if (! $deposit) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy yêu cầu nạp tiền'], 404);
         }
 
@@ -289,18 +291,18 @@ class AdminWalletController extends Controller
         }
 
         $deposit->update([
-            'status'       => 'failed',
+            'status' => 'failed',
             'completed_at' => now(),
         ]);
 
         Log::info('Admin rejected wallet deposit', [
             'deposit_id' => $deposit->id,
-            'user_id'    => $deposit->user_id,
-            'admin_id'   => auth('admin')->id(),
+            'user_id' => $deposit->user_id,
+            'admin_id' => auth('admin')->id(),
         ]);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã từ chối yêu cầu nạp tiền.',
         ]);
     }
@@ -313,7 +315,7 @@ class AdminWalletController extends Controller
      */
     public function withdrawals(Request $request): JsonResponse
     {
-        $status  = $request->status ?? 'all';
+        $status = $request->status ?? 'all';
         $perPage = min((int) ($request->per_page ?? 30), 100);
 
         $query = DB::table('wallet_withdrawals as w')
@@ -329,7 +331,7 @@ class AdminWalletController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $withdrawals,
+            'data' => $withdrawals,
         ]);
     }
 
@@ -344,25 +346,25 @@ class AdminWalletController extends Controller
                 // race với thao tác reject/complete từ request khác.
                 $withdrawal = DB::table('wallet_withdrawals')->where('id', $id)->lockForUpdate()->first();
 
-                if (!$withdrawal) {
-                    throw new \App\Exceptions\OrderException('Không tìm thấy yêu cầu rút tiền', 404);
+                if (! $withdrawal) {
+                    throw new OrderException('Không tìm thấy yêu cầu rút tiền', 404);
                 }
 
                 if ($withdrawal->status !== 'processing') {
-                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                    throw new OrderException('Yêu cầu đã được xử lý trước đó', 422);
                 }
 
                 $affected = DB::table('wallet_withdrawals')
                     ->where('id', $withdrawal->id)
                     ->where('status', 'processing')
                     ->update([
-                        'status'       => 'completed',
+                        'status' => 'completed',
                         'completed_at' => now(),
-                        'updated_at'   => now(),
+                        'updated_at' => now(),
                     ]);
 
                 if ($affected === 0) {
-                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                    throw new OrderException('Yêu cầu đã được xử lý trước đó', 422);
                 }
 
                 return $withdrawal;
@@ -370,19 +372,20 @@ class AdminWalletController extends Controller
 
             Log::info('Admin completed wallet withdrawal', [
                 'withdrawal_id' => $id,
-                'user_id'       => $withdrawal->user_id,
-                'amount'        => $withdrawal->amount,
-                'admin_id'      => auth('admin')->id(),
+                'user_id' => $withdrawal->user_id,
+                'amount' => $withdrawal->amount,
+                'admin_id' => auth('admin')->id(),
             ]);
 
             return response()->json([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Đã đánh dấu chuyển khoản thành công.',
             ]);
-        } catch (\App\Exceptions\OrderException $e) {
+        } catch (OrderException $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], $e->getCode() ?: 422);
         } catch (\Exception $e) {
             Log::error('Admin complete withdrawal failed', ['error' => $e->getMessage()]);
+
             return response()->json(['status' => 'error', 'message' => 'Duyệt rút tiền thất bại.'], 500);
         }
     }
@@ -400,12 +403,12 @@ class AdminWalletController extends Controller
                 // double-refund khi có 2 request reject đồng thời.
                 $withdrawal = DB::table('wallet_withdrawals')->where('id', $id)->lockForUpdate()->first();
 
-                if (!$withdrawal) {
-                    throw new \App\Exceptions\OrderException('Không tìm thấy yêu cầu rút tiền', 404);
+                if (! $withdrawal) {
+                    throw new OrderException('Không tìm thấy yêu cầu rút tiền', 404);
                 }
 
                 if ($withdrawal->status !== 'processing') {
-                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                    throw new OrderException('Yêu cầu đã được xử lý trước đó', 422);
                 }
 
                 // Update có điều kiện status='processing' → 0 dòng nghĩa là đã bị xử lý bởi
@@ -414,14 +417,14 @@ class AdminWalletController extends Controller
                     ->where('id', $withdrawal->id)
                     ->where('status', 'processing')
                     ->update([
-                        'status'       => 'failed',
-                        'note'         => $note,
+                        'status' => 'failed',
+                        'note' => $note,
                         'completed_at' => now(),
-                        'updated_at'   => now(),
+                        'updated_at' => now(),
                     ]);
 
                 if ($affected === 0) {
-                    throw new \App\Exceptions\OrderException('Yêu cầu đã được xử lý trước đó', 422);
+                    throw new OrderException('Yêu cầu đã được xử lý trước đó', 422);
                 }
 
                 // Hoàn tiền lại (amount + fee)
@@ -431,10 +434,10 @@ class AdminWalletController extends Controller
                     type: 'refund',
                     opts: [
                         'description' => "Hoàn tiền do yêu cầu rút tiền {$withdrawal->withdrawal_code} bị từ chối. Lý do: {$note}",
-                        'metadata'    => [
-                            'withdrawal_id'   => $withdrawal->id,
-                            'withdrawal_code' => $withdrawal->withdrawal_code
-                        ]
+                        'metadata' => [
+                            'withdrawal_id' => $withdrawal->id,
+                            'withdrawal_code' => $withdrawal->withdrawal_code,
+                        ],
                     ]
                 );
 
@@ -443,20 +446,21 @@ class AdminWalletController extends Controller
 
             Log::info('Admin rejected wallet withdrawal', [
                 'withdrawal_id' => $id,
-                'user_id'       => $withdrawal->user_id,
-                'amount'        => $withdrawal->amount,
-                'admin_id'      => auth('admin')->id(),
-                'note'          => $note
+                'user_id' => $withdrawal->user_id,
+                'amount' => $withdrawal->amount,
+                'admin_id' => auth('admin')->id(),
+                'note' => $note,
             ]);
 
             return response()->json([
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Đã từ chối và hoàn tiền lại vào ví cho khách hàng.',
             ]);
-        } catch (\App\Exceptions\OrderException $e) {
+        } catch (OrderException $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], $e->getCode() ?: 422);
         } catch (\Exception $e) {
             Log::error('Admin reject withdrawal failed', ['error' => $e->getMessage()]);
+
             return response()->json(['status' => 'error', 'message' => 'Từ chối rút tiền thất bại.'], 500);
         }
     }

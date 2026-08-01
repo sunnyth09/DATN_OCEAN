@@ -3,16 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\CourtBooking;
-use App\Http\Requests\CourtBooking\StoreCourtBookingRequest;
 use App\Http\Requests\CourtBooking\LockCourtBookingRequest;
+use App\Http\Requests\CourtBooking\StoreCourtBookingRequest;
+use App\Models\Admin;
+use App\Models\CourtBooking;
+use App\Notifications\SystemNotification;
 use App\Services\CourtBookingService;
 use App\Services\CourtBookingWorkflowService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class CourtBookingController extends Controller
 {
     protected $bookingService;
+
     protected $workflowService;
 
     public function __construct(CourtBookingService $bookingService, CourtBookingWorkflowService $workflowService)
@@ -28,15 +32,16 @@ class CourtBookingController extends Controller
     {
         try {
             $lock = $this->bookingService->lockSlot($request->validated());
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Slot locked successfully for 5 minutes.',
-                'data' => $lock
+                'data' => $lock,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 400);
         }
     }
@@ -62,25 +67,25 @@ class CourtBookingController extends Controller
     {
         try {
             $booking = $this->bookingService->createBooking($request->validated());
-            
+
             // Notify Customer
             $user = auth()->guard('api')->user();
             if ($user) {
-                $user->notify(new \App\Notifications\SystemNotification(
+                $user->notify(new SystemNotification(
                     'Đặt sân thành công',
-                    'Bạn đã đặt sân thành công. Mã đặt sân: ' . $booking->booking_code,
+                    'Bạn đã đặt sân thành công. Mã đặt sân: '.$booking->booking_code,
                     '/profile/court-bookings',
                     'calendar'
                 ));
             }
 
             // Notify Staff and Admins
-            $staffs = \App\Models\Admin::whereIn('role', ['admin', 'staff'])->get();
+            $staffs = Admin::whereIn('role', ['admin', 'staff'])->get();
             if ($staffs->count() > 0) {
-                \Illuminate\Support\Facades\Notification::send($staffs, new \App\Notifications\SystemNotification(
+                Notification::send($staffs, new SystemNotification(
                     'Lịch đặt sân mới',
-                    'Khách hàng ' . ($user->full_name ?? 'Khách') . ' vừa đặt sân. Mã: ' . $booking->booking_code,
-                    '/admin/court-bookings/' . $booking->booking_id,
+                    'Khách hàng '.($user->full_name ?? 'Khách').' vừa đặt sân. Mã: '.$booking->booking_code,
+                    '/admin/court-bookings/'.$booking->booking_id,
                     'calendar'
                 ));
             }
@@ -88,12 +93,12 @@ class CourtBookingController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Booking created successfully.',
-                'data' => $booking
+                'data' => $booking,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 400);
         }
     }
@@ -107,10 +112,10 @@ class CourtBookingController extends Controller
             ->with(['court'])
             ->orderBy('created_at', 'desc')
             ->get();
-            
+
         return response()->json([
             'status' => 'success',
-            'data' => $bookings
+            'data' => $bookings,
         ]);
     }
 
@@ -125,7 +130,7 @@ class CourtBookingController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $booking
+            'data' => $booking,
         ]);
     }
 
@@ -143,7 +148,7 @@ class CourtBookingController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Booking cancelled successfully.',
-            'data' => $booking
+            'data' => $booking,
         ]);
     }
 

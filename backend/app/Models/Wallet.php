@@ -13,15 +13,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * - deposit_balance:    Tiền nạp trực tiếp + refund + loyalty convert
  * - commission_balance: Hoa hồng affiliate (giới hạn dùng 10%/đơn)
  *
- * @property int    $wallet_id
- * @property int    $user_id
- * @property float  $deposit_balance
- * @property float  $commission_balance
- * @property float  $frozen_balance
- * @property float  $total_deposited
- * @property float  $total_commission
- * @property float  $total_used
- * @property string $status            active|frozen|closed
+ * @property int $wallet_id
+ * @property int $user_id
+ * @property float $deposit_balance
+ * @property float $commission_balance
+ * @property float $frozen_balance
+ * @property float $total_deposited
+ * @property float $total_commission
+ * @property float $total_used
+ * @property string $status active|frozen|closed
  * @property string|null $pin_hash
  */
 class Wallet extends Model
@@ -45,12 +45,12 @@ class Wallet extends Model
     protected function casts(): array
     {
         return [
-            'deposit_balance'    => 'decimal:2',
+            'deposit_balance' => 'decimal:2',
             'commission_balance' => 'decimal:2',
-            'frozen_balance'     => 'decimal:2',
-            'total_deposited'    => 'decimal:2',
-            'total_commission'   => 'decimal:2',
-            'total_used'         => 'decimal:2',
+            'frozen_balance' => 'decimal:2',
+            'total_deposited' => 'decimal:2',
+            'total_commission' => 'decimal:2',
+            'total_used' => 'decimal:2',
         ];
     }
 
@@ -86,9 +86,9 @@ class Wallet extends Model
      */
     public function getMaxOrderDiscount(float $orderSubtotal): float
     {
-        $fromDeposit    = (float) $this->deposit_balance;
+        $fromDeposit = (float) $this->deposit_balance;
         $fromCommission = $this->getMaxCommissionDiscount();
-        $maxDiscount    = $fromDeposit + $fromCommission;
+        $maxDiscount = $fromDeposit + $fromCommission;
 
         return min($maxDiscount, $orderSubtotal);
     }

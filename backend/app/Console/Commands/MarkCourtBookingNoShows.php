@@ -23,7 +23,7 @@ class MarkCourtBookingNoShows extends Command
             ->orderBy('booking_id')
             ->chunkById(100, function ($bookings) use ($workflowService, $graceMinutes, &$count) {
                 foreach ($bookings as $booking) {
-                    $startAt = Carbon::parse($booking->booking_date->format('Y-m-d') . ' ' . $booking->start_time);
+                    $startAt = Carbon::parse($booking->booking_date->format('Y-m-d').' '.$booking->start_time);
                     if (now()->lt($startAt->copy()->addMinutes($graceMinutes))) {
                         continue;
                     }

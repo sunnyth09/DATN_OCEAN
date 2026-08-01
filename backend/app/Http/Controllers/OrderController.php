@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\CancelOrderRequest;
+use App\Http\Requests\StoreOrderRequest;
 use App\Models\Order;
 use App\Services\OrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -39,7 +40,7 @@ class OrderController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $orders,
+            'data' => $orders,
         ]);
     }
 
@@ -49,11 +50,11 @@ class OrderController extends Controller
      */
     public function store(StoreOrderRequest $request): JsonResponse
     {
-        $user   = auth('api')->user();
-        
-        $lock = \Illuminate\Support\Facades\Cache::lock('order_checkout_' . $user->user_id, 5);
+        $user = auth('api')->user();
 
-        if (!$lock->get()) {
+        $lock = Cache::lock('order_checkout_'.$user->user_id, 5);
+
+        if (! $lock->get()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Hệ thống đang xử lý đơn hàng của bạn. Vui lòng không gửi yêu cầu liên tục!',
@@ -83,39 +84,39 @@ class OrderController extends Controller
     {
         $request->validate([
             'recipient_name' => 'required|string|max:255',
-            'phone'          => 'required|string|max:20',
-            'email'          => 'required|email|max:255',
-            'province'       => 'required|string|max:100',
-            'district'       => 'required|string|max:100',
-            'ward'           => 'required|string|max:100',
-            'address_line'   => 'required|string|max:255',
-            'province_code'  => 'nullable',
-            'district_code'  => 'nullable',
-            'ward_code'      => 'nullable',
+            'phone' => 'required|string|max:20',
+            'email' => 'required|email|max:255',
+            'province' => 'required|string|max:100',
+            'district' => 'required|string|max:100',
+            'ward' => 'required|string|max:100',
+            'address_line' => 'required|string|max:255',
+            'province_code' => 'nullable',
+            'district_code' => 'nullable',
+            'ward_code' => 'nullable',
             'payment_method' => 'required|string|in:cod,vnpay,momo,bank_transfer',
             'coupon_applied' => 'nullable|string',
-            'note'           => 'nullable|string|max:500',
-            'referral_code'  => 'nullable|string|max:20',
-            'items'          => 'required|array|min:1',
+            'note' => 'nullable|string|max:500',
+            'referral_code' => 'nullable|string|max:20',
+            'items' => 'required|array|min:1',
             'items.*.variant_id' => 'required|integer|exists:product_variants,variant_id',
-            'items.*.quantity'   => 'required|integer|min:1',
+            'items.*.quantity' => 'required|integer|min:1',
         ], [
             'payment_method.required' => 'Vui lòng chọn phương thức thanh toán.',
-            'payment_method.in'       => 'Phương thức thanh toán không hợp lệ.',
+            'payment_method.in' => 'Phương thức thanh toán không hợp lệ.',
             'recipient_name.required' => 'Vui lòng nhập họ tên người nhận.',
-            'phone.required'          => 'Vui lòng nhập số điện thoại.',
-            'email.required'          => 'Vui lòng nhập email để nhận xác nhận đơn hàng.',
-            'email.email'             => 'Email không hợp lệ.',
-            'province.required'       => 'Vui lòng chọn Tỉnh/Thành phố.',
-            'district.required'       => 'Vui lòng chọn Quận/Huyện.',
-            'ward.required'           => 'Vui lòng chọn Phường/Xã.',
-            'address_line.required'   => 'Vui lòng nhập địa chỉ chi tiết.',
-            'items.required'          => 'Giỏ hàng trống.',
+            'phone.required' => 'Vui lòng nhập số điện thoại.',
+            'email.required' => 'Vui lòng nhập email để nhận xác nhận đơn hàng.',
+            'email.email' => 'Email không hợp lệ.',
+            'province.required' => 'Vui lòng chọn Tỉnh/Thành phố.',
+            'district.required' => 'Vui lòng chọn Quận/Huyện.',
+            'ward.required' => 'Vui lòng chọn Phường/Xã.',
+            'address_line.required' => 'Vui lòng nhập địa chỉ chi tiết.',
+            'items.required' => 'Giỏ hàng trống.',
         ]);
 
-        $lock = \Illuminate\Support\Facades\Cache::lock('order_checkout_guest_' . $request->ip(), 5);
+        $lock = Cache::lock('order_checkout_guest_'.$request->ip(), 5);
 
-        if (!$lock->get()) {
+        if (! $lock->get()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Hệ thống đang xử lý đơn hàng của bạn. Vui lòng không gửi yêu cầu liên tục!',
@@ -145,9 +146,9 @@ class OrderController extends Controller
     {
         $order = is_numeric($id) ? Order::find($id) : Order::where('order_code', $id)->first();
 
-        if (!$order) {
+        if (! $order) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không tìm thấy đơn hàng!',
             ], 404);
         }
@@ -162,7 +163,7 @@ class OrderController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $detail,
+            'data' => $detail,
         ]);
     }
 
@@ -194,16 +195,16 @@ class OrderController extends Controller
             $orderCode
         );
 
-        if (!$orderId) {
+        if (! $orderId) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Không tìm thấy đơn hàng!',
             ], 404);
         }
 
         return response()->json([
             'status' => 'success',
-            'data'   => ['order_id' => $orderId],
+            'data' => ['order_id' => $orderId],
         ]);
     }
 }

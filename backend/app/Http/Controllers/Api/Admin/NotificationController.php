@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Models\Order;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
@@ -14,8 +15,8 @@ class NotificationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $admin = auth('api')->user() ?? auth('admin')->user();
-        
-        if (!$admin) {
+
+        if (! $admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
 
@@ -26,10 +27,10 @@ class NotificationController extends Controller
         }
 
         $notifications = $query->paginate((int) $request->query('per_page', 10));
-        
+
         $items = $notifications->items();
         $orderIds = [];
-        
+
         // Extract order IDs
         foreach ($items as $noti) {
             if (isset($noti->data['order_id'])) {
@@ -41,10 +42,10 @@ class NotificationController extends Controller
                 $noti->data = $data;
             }
         }
-        
+
         // Fetch current status for orders and update data array
-        if (!empty($orderIds)) {
-            $orders = \App\Models\Order::whereIn('order_id', array_unique($orderIds))->get()->keyBy('order_id');
+        if (! empty($orderIds)) {
+            $orders = Order::whereIn('order_id', array_unique($orderIds))->get()->keyBy('order_id');
             foreach ($items as $noti) {
                 if (isset($noti->data['order_id']) && isset($orders[$noti->data['order_id']])) {
                     $order = $orders[$noti->data['order_id']];
@@ -72,20 +73,20 @@ class NotificationController extends Controller
     public function markAsRead(Request $request, $id): JsonResponse
     {
         $admin = auth('api')->user() ?? auth('admin')->user();
-        
-        if (!$admin) {
+
+        if (! $admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
-        
+
         $notification = $admin->notifications()->where('id', $id)->first();
-        
+
         if ($notification) {
             $notification->markAsRead();
         }
 
         return response()->json([
             'success' => true,
-            'unread_count' => $admin->unreadNotifications()->count()
+            'unread_count' => $admin->unreadNotifications()->count(),
         ]);
     }
 
@@ -95,8 +96,8 @@ class NotificationController extends Controller
     public function markAllAsRead(Request $request): JsonResponse
     {
         $admin = auth('api')->user() ?? auth('admin')->user();
-        
-        if (!$admin) {
+
+        if (! $admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
 
@@ -104,7 +105,7 @@ class NotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'unread_count' => 0
+            'unread_count' => 0,
         ]);
     }
 
@@ -114,20 +115,20 @@ class NotificationController extends Controller
     public function destroy(Request $request, $id): JsonResponse
     {
         $admin = auth('api')->user() ?? auth('admin')->user();
-        
-        if (!$admin) {
+
+        if (! $admin) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated'], 401);
         }
-        
+
         $notification = $admin->notifications()->where('id', $id)->first();
-        
+
         if ($notification) {
             $notification->delete();
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Notification deleted successfully'
+            'message' => 'Notification deleted successfully',
         ]);
     }
 }

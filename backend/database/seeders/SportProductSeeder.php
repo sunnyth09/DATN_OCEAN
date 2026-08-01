@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class SportProductSeeder extends Seeder
 {
@@ -30,17 +30,17 @@ class SportProductSeeder extends Seeder
         // Parent
         $parentSlug = 'do-the-thao';
         $parent = DB::table('categories')->where('slug', $parentSlug)->first();
-        if (!$parent) {
+        if (! $parent) {
             $parentId = DB::table('categories')->insertGetId([
-                'parent_id'   => null,
-                'name'        => 'Đồ thể thao',
-                'slug'        => $parentSlug,
-                'image'       => null,
+                'parent_id' => null,
+                'name' => 'Đồ thể thao',
+                'slug' => $parentSlug,
+                'image' => null,
                 'description' => 'Trang phục và phụ kiện thể thao chuyên nghiệp',
-                'sort_order'  => 10,
-                'is_active'   => 1,
-                'created_at'  => $this->now,
-                'updated_at'  => $this->now,
+                'sort_order' => 10,
+                'is_active' => 1,
+                'created_at' => $this->now,
+                'updated_at' => $this->now,
             ]);
         } else {
             $parentId = $parent->category_id;
@@ -58,17 +58,17 @@ class SportProductSeeder extends Seeder
             $childSlug = Str::slug($childName);
             $child = DB::table('categories')->where('slug', $childSlug)->first();
 
-            if (!$child) {
+            if (! $child) {
                 $childId = DB::table('categories')->insertGetId([
-                    'parent_id'   => $parentId,
-                    'name'        => $childName,
-                    'slug'        => $childSlug,
-                    'image'       => null,
+                    'parent_id' => $parentId,
+                    'name' => $childName,
+                    'slug' => $childSlug,
+                    'image' => null,
                     'description' => $childDesc,
-                    'sort_order'  => 1,
-                    'is_active'   => 1,
-                    'created_at'  => $this->now,
-                    'updated_at'  => $this->now,
+                    'sort_order' => 1,
+                    'is_active' => 1,
+                    'created_at' => $this->now,
+                    'updated_at' => $this->now,
                 ]);
                 $catMap[$childSlug] = $childId;
             } else {
@@ -84,19 +84,20 @@ class SportProductSeeder extends Seeder
     {
         $allProducts = $this->getProductsData();
         $counter = 0;
-        
+
         // Retrieve Nike and Adidas brand ids, fallback to first brand if not found
         $nike = DB::table('brands')->where('slug', 'nike')->first();
         $adidas = DB::table('brands')->where('slug', 'adidas')->first();
         $defaultBrand = DB::table('brands')->first();
-        
+
         $brandNikeId = $nike ? $nike->brand_id : ($defaultBrand ? $defaultBrand->brand_id : null);
         $brandAdidasId = $adidas ? $adidas->brand_id : ($defaultBrand ? $defaultBrand->brand_id : null);
 
         foreach ($allProducts as $catSlug => $products) {
             $categoryId = $catMap[$catSlug] ?? null;
-            if (!$categoryId) {
+            if (! $categoryId) {
                 echo "⚠️ Category not found: {$catSlug}\n";
+
                 continue;
             }
 
@@ -109,32 +110,32 @@ class SportProductSeeder extends Seeder
 
                 // Ensure unique slug
                 if (DB::table('products')->where('slug', $slug)->exists()) {
-                    $slug .= '-' . Str::random(4);
+                    $slug .= '-'.Str::random(4);
                 }
 
                 $imagePath = $p[5] ?? null;
 
                 $productId = DB::table('products')->insertGetId([
-                    'category_id'       => $categoryId,
-                    'brand_id'          => $brandId,
-                    'seller_id'         => null,
-                    'name'              => $p[0],
-                    'slug'              => $slug,
+                    'category_id' => $categoryId,
+                    'brand_id' => $brandId,
+                    'seller_id' => null,
+                    'name' => $p[0],
+                    'slug' => $slug,
                     'short_description' => $p[3],
-                    'description'       => $this->buildDescription($p[0], $catSlug),
-                    'thumbnail_url'     => $imagePath,
-                    'product_type'      => 'variant',
-                    'status'            => 'active',
-                    'is_featured'       => $p[4] ?? false,
-                    'min_price'         => $p[1],
-                    'max_price'         => $p[1],
-                    'rating_avg'        => round(mt_rand(40, 50) / 10, 1),
-                    'rating_count'      => mt_rand(50, 200),
-                    'view_count'        => mt_rand(500, 3000),
-                    'sold_count'        => mt_rand(20, 150),
-                    'published_at'      => $this->now,
-                    'created_at'        => $this->now,
-                    'updated_at'        => $this->now,
+                    'description' => $this->buildDescription($p[0], $catSlug),
+                    'thumbnail_url' => $imagePath,
+                    'product_type' => 'variant',
+                    'status' => 'active',
+                    'is_featured' => $p[4] ?? false,
+                    'min_price' => $p[1],
+                    'max_price' => $p[1],
+                    'rating_avg' => round(mt_rand(40, 50) / 10, 1),
+                    'rating_count' => mt_rand(50, 200),
+                    'view_count' => mt_rand(500, 3000),
+                    'sold_count' => mt_rand(20, 150),
+                    'published_at' => $this->now,
+                    'created_at' => $this->now,
+                    'updated_at' => $this->now,
                 ]);
 
                 // ── Variants ──
@@ -142,10 +143,10 @@ class SportProductSeeder extends Seeder
 
                 // Update min/max price
                 $prices = array_column($variants, 'price');
-                if (!empty($prices)) {
+                if (! empty($prices)) {
                     DB::table('products')->where('product_id', $productId)->update([
-                        'min_price'    => min($prices),
-                        'max_price'    => max($prices),
+                        'min_price' => min($prices),
+                        'max_price' => max($prices),
                         'product_type' => count($variants) > 1 ? 'variant' : 'simple',
                     ]);
                 }
@@ -167,39 +168,45 @@ class SportProductSeeder extends Seeder
                 $price = max($basePrice + $variance, 50000);
 
                 $skuParts = [$slug];
-                if ($color) $skuParts[] = Str::slug($color);
-                if ($size) $skuParts[] = Str::slug($size);
+                if ($color) {
+                    $skuParts[] = Str::slug($color);
+                }
+                if ($size) {
+                    $skuParts[] = Str::slug($size);
+                }
                 $sku = implode('-', $skuParts);
 
                 // Ensure unique SKU
                 $attempt = 0;
                 $originalSku = $sku;
                 while (DB::table('product_variants')->where('sku', $sku)->exists()) {
-                    $sku = $originalSku . '-' . Str::random(3);
-                    if (++$attempt > 5) break;
+                    $sku = $originalSku.'-'.Str::random(3);
+                    if (++$attempt > 5) {
+                        break;
+                    }
                 }
 
-                $barcode = 'SPORT' . strtoupper(Str::random(8)) . mt_rand(10, 99);
+                $barcode = 'SPORT'.strtoupper(Str::random(8)).mt_rand(10, 99);
 
                 DB::table('product_variants')->insert([
-                    'product_id'       => $productId,
-                    'sku'              => $sku,
-                    'barcode'          => $barcode,
-                    'variant_name'     => trim(($color ?? '') . ' - ' . ($size ?? ''), ' -'),
-                    'color'            => $color,
-                    'size'             => $size,
-                    'material'         => $config['material'] ?? null,
-                    'weight_gram'      => $config['weight'] ?? null,
-                    'cost_price'       => round($price * 0.6),
-                    'price'            => $price,
+                    'product_id' => $productId,
+                    'sku' => $sku,
+                    'barcode' => $barcode,
+                    'variant_name' => trim(($color ?? '').' - '.($size ?? ''), ' -'),
+                    'color' => $color,
+                    'size' => $size,
+                    'material' => $config['material'] ?? null,
+                    'weight_gram' => $config['weight'] ?? null,
+                    'cost_price' => round($price * 0.6),
+                    'price' => $price,
                     'compare_at_price' => round($price * 1.2),
-                    'stock'            => mt_rand(10, 100),
-                    'reserved_stock'   => 0,
-                    'safety_stock'     => 5,
-                    'image_url'        => null,
-                    'status'           => 'active',
-                    'created_at'       => $this->now,
-                    'updated_at'       => $this->now,
+                    'stock' => mt_rand(10, 100),
+                    'reserved_stock' => 0,
+                    'safety_stock' => 5,
+                    'image_url' => null,
+                    'status' => 'active',
+                    'created_at' => $this->now,
+                    'updated_at' => $this->now,
                 ]);
 
                 $variants[] = ['price' => $price];
@@ -213,41 +220,43 @@ class SportProductSeeder extends Seeder
     {
         if (Str::contains($catSlug, ['ao-', 'quan-'])) {
             return [
-                'colors'   => ['Đen', 'Xanh Navy'],
-                'sizes'    => ['M', 'L', 'XL'],
+                'colors' => ['Đen', 'Xanh Navy'],
+                'sizes' => ['M', 'L', 'XL'],
                 'material' => 'Polyester Dry-Fit',
-                'weight'   => mt_rand(150, 300),
+                'weight' => mt_rand(150, 300),
             ];
         }
 
         if (Str::contains($catSlug, ['giay-'])) {
             return [
-                'colors'   => ['Trắng', 'Đỏ'],
-                'sizes'    => ['40', '41', '42'],
+                'colors' => ['Trắng', 'Đỏ'],
+                'sizes' => ['40', '41', '42'],
                 'material' => 'Vải Mesh thoáng khí',
-                'weight'   => mt_rand(400, 600),
+                'weight' => mt_rand(400, 600),
             ];
         }
 
         return [
-            'colors'   => ['Đen'],
-            'sizes'    => [null],
+            'colors' => ['Đen'],
+            'sizes' => [null],
             'material' => 'Tổng hợp',
-            'weight'   => mt_rand(100, 1000),
+            'weight' => mt_rand(100, 1000),
         ];
     }
 
     private function createImages(int $productId, string $name, ?string $imagePath, int $index): void
     {
-        if (!$imagePath) return;
+        if (! $imagePath) {
+            return;
+        }
 
         // Main image
         DB::table('product_images')->insert([
             'product_id' => $productId,
             'variant_id' => null,
-            'image_url'  => $imagePath,
-            'alt_text'   => $name . ' chính',
-            'is_main'    => 1,
+            'image_url' => $imagePath,
+            'alt_text' => $name.' chính',
+            'is_main' => 1,
             'sort_order' => 0,
             'created_at' => $this->now,
         ]);
@@ -256,9 +265,9 @@ class SportProductSeeder extends Seeder
         DB::table('product_images')->insert([
             'product_id' => $productId,
             'variant_id' => null,
-            'image_url'  => str_replace('.jpg', '_sub1.jpg', $imagePath),
-            'alt_text'   => $name . ' góc 1',
-            'is_main'    => 0,
+            'image_url' => str_replace('.jpg', '_sub1.jpg', $imagePath),
+            'alt_text' => $name.' góc 1',
+            'is_main' => 0,
             'sort_order' => 1,
             'created_at' => $this->now,
         ]);
@@ -267,9 +276,9 @@ class SportProductSeeder extends Seeder
         DB::table('product_images')->insert([
             'product_id' => $productId,
             'variant_id' => null,
-            'image_url'  => str_replace('.jpg', '_sub2.jpg', $imagePath),
-            'alt_text'   => $name . ' góc 2',
-            'is_main'    => 0,
+            'image_url' => str_replace('.jpg', '_sub2.jpg', $imagePath),
+            'alt_text' => $name.' góc 2',
+            'is_main' => 0,
             'sort_order' => 2,
             'created_at' => $this->now,
         ]);
@@ -278,19 +287,19 @@ class SportProductSeeder extends Seeder
     private function buildDescription(string $name, string $catSlug): string
     {
         return '<div class="product-description">'
-            . '<h3>Mô tả sản phẩm</h3>'
-            . '<p><strong>' . $name . '</strong> là sản phẩm thể thao cao cấp, được thiết kế chuyên dụng giúp tối ưu hiệu suất tập luyện. '
-            . 'Chất liệu thoáng mát, độ bền cao, phù hợp với cường độ vận động mạnh.</p>'
-            . '<h3>Đặc điểm nổi bật</h3><ul>'
-            . '<li>Công nghệ thoát mồ hôi nhanh chóng</li>'
-            . '<li>Thiết kế ôm sát nhưng vẫn đảm bảo linh hoạt</li>'
-            . '<li>Đường may chắc chắn, không gây cọ xát da</li>'
-            . '<li>Thiết kế thời trang thể thao năng động</li></ul>'
-            . '<h3>Hướng dẫn bảo quản</h3><ul>'
-            . '<li>Giặt lạnh, không dùng hóa chất tẩy rửa mạnh</li>'
-            . '<li>Không ủi trực tiếp lên logo/họa tiết</li>'
-            . '<li>Phơi nơi thoáng mát, tránh nắng gắt</li></ul>'
-            . '</div>';
+            .'<h3>Mô tả sản phẩm</h3>'
+            .'<p><strong>'.$name.'</strong> là sản phẩm thể thao cao cấp, được thiết kế chuyên dụng giúp tối ưu hiệu suất tập luyện. '
+            .'Chất liệu thoáng mát, độ bền cao, phù hợp với cường độ vận động mạnh.</p>'
+            .'<h3>Đặc điểm nổi bật</h3><ul>'
+            .'<li>Công nghệ thoát mồ hôi nhanh chóng</li>'
+            .'<li>Thiết kế ôm sát nhưng vẫn đảm bảo linh hoạt</li>'
+            .'<li>Đường may chắc chắn, không gây cọ xát da</li>'
+            .'<li>Thiết kế thời trang thể thao năng động</li></ul>'
+            .'<h3>Hướng dẫn bảo quản</h3><ul>'
+            .'<li>Giặt lạnh, không dùng hóa chất tẩy rửa mạnh</li>'
+            .'<li>Không ủi trực tiếp lên logo/họa tiết</li>'
+            .'<li>Phơi nơi thoáng mát, tránh nắng gắt</li></ul>'
+            .'</div>';
     }
 
     private function getProductsData(): array

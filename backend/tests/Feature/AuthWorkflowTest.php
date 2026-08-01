@@ -115,7 +115,7 @@ class AuthWorkflowTest extends TestCase
             'created_at' => now()->subMinutes(16),
         ]);
 
-        $resetToken = hash('sha256', $email . $hashedOtp . config('app.key'));
+        $resetToken = hash('sha256', $email.$hashedOtp.config('app.key'));
 
         $this->postJson('/api/forgot-password/reset', [
             'email' => $email,

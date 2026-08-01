@@ -13,14 +13,14 @@ class ChatbotSessionService
     public function getSessionId(?string $providedSessionId, $user = null): string
     {
         if ($user) {
-            return 'user_' . $user->user_id;
+            return 'user_'.$user->user_id;
         }
 
         if ($providedSessionId && Str::length($providedSessionId) > 10) {
-            return 'guest_' . $providedSessionId;
+            return 'guest_'.$providedSessionId;
         }
 
-        return 'guest_' . Str::uuid()->toString();
+        return 'guest_'.Str::uuid()->toString();
     }
 
     /**
@@ -28,7 +28,7 @@ class ChatbotSessionService
      */
     public function saveRecommendedProducts(string $sessionId, array $productIds): void
     {
-        $key = 'chatbot_context_' . $sessionId . '_products';
+        $key = 'chatbot_context_'.$sessionId.'_products';
         Cache::put($key, $productIds, now()->addMinutes(30));
     }
 
@@ -37,7 +37,7 @@ class ChatbotSessionService
      */
     public function getProductFromContext(string $sessionId, string $reference): ?int
     {
-        $key = 'chatbot_context_' . $sessionId . '_products';
+        $key = 'chatbot_context_'.$sessionId.'_products';
         $productIds = Cache::get($key, []);
 
         if (empty($productIds)) {
@@ -63,13 +63,13 @@ class ChatbotSessionService
 
         return null;
     }
-    
+
     /**
      * Dọn dẹp context
      */
     public function clearContext(string $sessionId): void
     {
-        $key = 'chatbot_context_' . $sessionId . '_products';
+        $key = 'chatbot_context_'.$sessionId.'_products';
         Cache::forget($key);
     }
 }

@@ -38,13 +38,13 @@ class AddressController extends Controller
         if ($request->has('page') || $request->has('per_page')) {
             $validated = $request->validate([
                 'page' => 'nullable|integer|min:1',
-                'per_page' => 'nullable|integer|min:1|max:' . Address::MAX_PER_USER,
+                'per_page' => 'nullable|integer|min:1|max:'.Address::MAX_PER_USER,
             ], [
                 'page.integer' => 'Trang không hợp lệ.',
                 'page.min' => 'Trang không hợp lệ.',
                 'per_page.integer' => 'Số địa chỉ mỗi trang không hợp lệ.',
                 'per_page.min' => 'Số địa chỉ mỗi trang không hợp lệ.',
-                'per_page.max' => 'Số địa chỉ mỗi trang không được vượt quá ' . Address::MAX_PER_USER . '.',
+                'per_page.max' => 'Số địa chỉ mỗi trang không được vượt quá '.Address::MAX_PER_USER.'.',
             ]);
 
             $perPage = (int) ($validated['per_page'] ?? 5);
@@ -76,7 +76,7 @@ class AddressController extends Controller
             $addressCount = Address::where('user_id', $userId)->count();
             if ($addressCount >= Address::MAX_PER_USER) {
                 throw ValidationException::withMessages([
-                    'address' => ['Bạn chỉ có thể lưu tối đa ' . Address::MAX_PER_USER . ' địa chỉ.'],
+                    'address' => ['Bạn chỉ có thể lưu tối đa '.Address::MAX_PER_USER.' địa chỉ.'],
                 ]);
             }
 
@@ -86,7 +86,7 @@ class AddressController extends Controller
             // Nếu là địa chỉ đầu tiên hoặc user chủ động đặt mặc định → đảm bảo chỉ có 1 default.
             if ($addressCount === 0) {
                 $validated['is_default'] = true;
-            } elseif (!empty($validated['is_default'])) {
+            } elseif (! empty($validated['is_default'])) {
                 Address::where('user_id', $userId)->update(['is_default' => false]);
             }
 
@@ -115,14 +115,14 @@ class AddressController extends Controller
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($address->is_default && array_key_exists('is_default', $validated) && !$validated['is_default']) {
+            if ($address->is_default && array_key_exists('is_default', $validated) && ! $validated['is_default']) {
                 throw ValidationException::withMessages([
                     'is_default' => ['Phải có một địa chỉ mặc định. Vui lòng chọn địa chỉ khác làm mặc định trước.'],
                 ]);
             }
 
             // Nếu đặt làm mặc định → bỏ mặc định tất cả địa chỉ khác trong cùng transaction.
-            if (!empty($validated['is_default'])) {
+            if (! empty($validated['is_default'])) {
                 Address::where('user_id', $userId)
                     ->where('address_id', '!=', $id)
                     ->update(['is_default' => false]);

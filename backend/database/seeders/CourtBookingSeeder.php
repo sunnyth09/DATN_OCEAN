@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Carbon\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -25,18 +25,18 @@ class CourtBookingSeeder extends Seeder
         // --- Admin (bảng admins) ---
         $adminId = $this->createAdmin([
             'full_name' => 'Quản Trị Viên',
-            'email'     => 'court_admin@demo.com',
-            'phone'     => '0900000001',
-            'role'      => 'admin',
-            'status'    => 'active',
+            'email' => 'court_admin@demo.com',
+            'phone' => '0900000001',
+            'role' => 'admin',
+            'status' => 'active',
         ]);
 
         $staffId = $this->createAdmin([
             'full_name' => 'Lễ Tân Sân',
-            'email'     => 'court_staff@demo.com',
-            'phone'     => '0900000002',
-            'role'      => 'staff',
-            'status'    => 'active',
+            'email' => 'court_staff@demo.com',
+            'phone' => '0900000002',
+            'role' => 'staff',
+            'status' => 'active',
         ]);
 
         // --- Users (bảng users) ---
@@ -67,6 +67,7 @@ class CourtBookingSeeder extends Seeder
 
         if ($activeCourts->isEmpty()) {
             echo "⚠️  Không tìm thấy sân nào active. Chạy CourtSeeder trước!\n";
+
             return;
         }
 
@@ -92,41 +93,43 @@ class CourtBookingSeeder extends Seeder
 
                 // Chọn khung giờ ngẫu nhiên không trùng
                 $startHour = $this->pickAvailableSlot($slotsUsed, $court->court_id, $date->format('Y-m-d'));
-                if ($startHour === null) continue;
+                if ($startHour === null) {
+                    continue;
+                }
 
                 $duration = rand(1, 2); // 1-2 giờ
                 $endHour = $startHour + $duration;
                 $slotsUsed[] = ['court' => $court->court_id, 'start' => $startHour, 'end' => $endHour];
 
                 $price = $this->calculatePrice($court->court_id, $date, $startHour, $endHour);
-                $bookingCode = 'BK-' . $date->format('Ymd') . '-' . strtoupper(Str::random(4));
+                $bookingCode = 'BK-'.$date->format('Ymd').'-'.strtoupper(Str::random(4));
 
                 $bookingId = DB::table('court_bookings')->insertGetId([
-                    'booking_code'    => $bookingCode,
-                    'user_id'         => $userId,
-                    'staff_id'        => null,
-                    'court_id'        => $court->court_id,
-                    'booking_date'    => $date->format('Y-m-d'),
-                    'start_time'      => sprintf('%02d:00:00', $startHour),
-                    'end_time'        => sprintf('%02d:00:00', $endHour),
-                    'duration_minutes'=> $duration * 60,
-                    'status'          => 'completed',
-                    'original_price'  => $price,
+                    'booking_code' => $bookingCode,
+                    'user_id' => $userId,
+                    'staff_id' => null,
+                    'court_id' => $court->court_id,
+                    'booking_date' => $date->format('Y-m-d'),
+                    'start_time' => sprintf('%02d:00:00', $startHour),
+                    'end_time' => sprintf('%02d:00:00', $endHour),
+                    'duration_minutes' => $duration * 60,
+                    'status' => 'completed',
+                    'original_price' => $price,
                     'discount_amount' => 0,
-                    'service_amount'  => 0,
-                    'total_amount'    => $price,
-                    'deposit_amount'  => 0,
-                    'paid_amount'     => $price,
-                    'payment_status'  => 'paid',
-                    'payment_method'  => ['cash', 'vnpay', 'momo', 'bank_transfer'][array_rand(['cash', 'vnpay', 'momo', 'bank_transfer'])],
-                    'checked_in_at'   => $date->copy()->setHour($startHour),
-                    'checked_out_at'  => $date->copy()->setHour($endHour),
-                    'confirmed_at'    => $date->copy()->setHour($startHour)->subMinutes(30),
-                    'cancelled_at'    => null,
-                    'source'          => 'web',
-                    'note'            => null,
-                    'created_at'      => $date->copy()->subDays(1)->setHour(rand(8, 20)),
-                    'updated_at'      => $date->copy()->setHour($endHour),
+                    'service_amount' => 0,
+                    'total_amount' => $price,
+                    'deposit_amount' => 0,
+                    'paid_amount' => $price,
+                    'payment_status' => 'paid',
+                    'payment_method' => ['cash', 'vnpay', 'momo', 'bank_transfer'][array_rand(['cash', 'vnpay', 'momo', 'bank_transfer'])],
+                    'checked_in_at' => $date->copy()->setHour($startHour),
+                    'checked_out_at' => $date->copy()->setHour($endHour),
+                    'confirmed_at' => $date->copy()->setHour($startHour)->subMinutes(30),
+                    'cancelled_at' => null,
+                    'source' => 'web',
+                    'note' => null,
+                    'created_at' => $date->copy()->subDays(1)->setHour(rand(8, 20)),
+                    'updated_at' => $date->copy()->setHour($endHour),
                 ]);
 
                 // Status history
@@ -155,73 +158,77 @@ class CourtBookingSeeder extends Seeder
 
         // 2a. 1 booking checked_in (đang chơi)
         $court = $todayCourts[0];
-        $startH = (int)$now->format('H') - 1;
-        if ($startH < 6) $startH = 6;
+        $startH = (int) $now->format('H') - 1;
+        if ($startH < 6) {
+            $startH = 6;
+        }
         $endH = $startH + 2;
         $todaySlots[] = ['court' => $court->court_id, 'start' => $startH, 'end' => $endH];
         $price = $this->calculatePrice($court->court_id, $today, $startH, $endH);
         $bId = DB::table('court_bookings')->insertGetId([
-            'booking_code'    => 'BK-' . $today->format('Ymd') . '-PLAY',
-            'user_id'         => $userIds[0],
-            'staff_id'        => $staffId,
-            'court_id'        => $court->court_id,
-            'booking_date'    => $today->format('Y-m-d'),
-            'start_time'      => sprintf('%02d:00:00', $startH),
-            'end_time'        => sprintf('%02d:00:00', $endH),
-            'duration_minutes'=> 120,
-            'status'          => 'checked_in',
-            'original_price'  => $price,
+            'booking_code' => 'BK-'.$today->format('Ymd').'-PLAY',
+            'user_id' => $userIds[0],
+            'staff_id' => $staffId,
+            'court_id' => $court->court_id,
+            'booking_date' => $today->format('Y-m-d'),
+            'start_time' => sprintf('%02d:00:00', $startH),
+            'end_time' => sprintf('%02d:00:00', $endH),
+            'duration_minutes' => 120,
+            'status' => 'checked_in',
+            'original_price' => $price,
             'discount_amount' => 0,
-            'service_amount'  => 0,
-            'total_amount'    => $price,
-            'deposit_amount'  => (int)($price * 0.5),
-            'paid_amount'     => (int)($price * 0.5),
-            'payment_status'  => 'deposit_paid',
-            'payment_method'  => 'cash',
-            'checked_in_at'   => $today->copy()->setHour($startH),
-            'confirmed_at'    => $today->copy()->setHour($startH)->subMinutes(20),
-            'source'          => 'web',
-            'created_at'      => $today->copy()->subDay(),
-            'updated_at'      => $now,
+            'service_amount' => 0,
+            'total_amount' => $price,
+            'deposit_amount' => (int) ($price * 0.5),
+            'paid_amount' => (int) ($price * 0.5),
+            'payment_status' => 'deposit_paid',
+            'payment_method' => 'cash',
+            'checked_in_at' => $today->copy()->setHour($startH),
+            'confirmed_at' => $today->copy()->setHour($startH)->subMinutes(20),
+            'source' => 'web',
+            'created_at' => $today->copy()->subDay(),
+            'updated_at' => $now,
         ]);
         $this->createStatusHistory($bId, [
             ['old' => null, 'new' => 'pending', 'actor' => 'user', 'actor_id' => $userIds[0]],
             ['old' => 'pending', 'new' => 'confirmed', 'actor' => 'admin', 'actor_id' => $adminId],
             ['old' => 'confirmed', 'new' => 'checked_in', 'actor' => 'admin', 'actor_id' => $staffId],
         ], $today);
-        $this->createPayment($bId, 'deposit', (int)($price * 0.5), 'success', $staffId);
+        $this->createPayment($bId, 'deposit', (int) ($price * 0.5), 'success', $staffId);
         $bookingCounter++;
 
         // 2b. 2 booking confirmed (chờ đến giờ)
         for ($i = 1; $i <= 2; $i++) {
             $court = $todayCourts[$i % $todayCourts->count()];
-            $sH = (int)$now->format('H') + $i + 1;
-            if ($sH > 20) $sH = 18 + $i;
+            $sH = (int) $now->format('H') + $i + 1;
+            if ($sH > 20) {
+                $sH = 18 + $i;
+            }
             $eH = $sH + 1;
             $todaySlots[] = ['court' => $court->court_id, 'start' => $sH, 'end' => $eH];
             $price = $this->calculatePrice($court->court_id, $today, $sH, $eH);
 
             $bId = DB::table('court_bookings')->insertGetId([
-                'booking_code'    => 'BK-' . $today->format('Ymd') . '-CF' . $i,
-                'user_id'         => $userIds[$i],
-                'court_id'        => $court->court_id,
-                'booking_date'    => $today->format('Y-m-d'),
-                'start_time'      => sprintf('%02d:00:00', $sH),
-                'end_time'        => sprintf('%02d:00:00', $eH),
-                'duration_minutes'=> 60,
-                'status'          => 'confirmed',
-                'original_price'  => $price,
+                'booking_code' => 'BK-'.$today->format('Ymd').'-CF'.$i,
+                'user_id' => $userIds[$i],
+                'court_id' => $court->court_id,
+                'booking_date' => $today->format('Y-m-d'),
+                'start_time' => sprintf('%02d:00:00', $sH),
+                'end_time' => sprintf('%02d:00:00', $eH),
+                'duration_minutes' => 60,
+                'status' => 'confirmed',
+                'original_price' => $price,
                 'discount_amount' => 0,
-                'service_amount'  => 0,
-                'total_amount'    => $price,
-                'deposit_amount'  => 0,
-                'paid_amount'     => 0,
-                'payment_status'  => 'unpaid',
-                'payment_method'  => 'cash',
-                'confirmed_at'    => $now->copy()->subHours(2),
-                'source'          => 'web',
-                'created_at'      => $today->copy()->subDay(),
-                'updated_at'      => $now,
+                'service_amount' => 0,
+                'total_amount' => $price,
+                'deposit_amount' => 0,
+                'paid_amount' => 0,
+                'payment_status' => 'unpaid',
+                'payment_method' => 'cash',
+                'confirmed_at' => $now->copy()->subHours(2),
+                'source' => 'web',
+                'created_at' => $today->copy()->subDay(),
+                'updated_at' => $now,
             ]);
             $this->createStatusHistory($bId, [
                 ['old' => null, 'new' => 'pending', 'actor' => 'user', 'actor_id' => $userIds[$i]],
@@ -238,25 +245,25 @@ class CourtBookingSeeder extends Seeder
             $price = $this->calculatePrice($court->court_id, $today, $sH, $eH);
 
             $bId = DB::table('court_bookings')->insertGetId([
-                'booking_code'    => 'BK-' . $today->format('Ymd') . '-PD' . ($i - 2),
-                'user_id'         => $userIds[$i % count($userIds)],
-                'court_id'        => $court->court_id,
-                'booking_date'    => $today->format('Y-m-d'),
-                'start_time'      => sprintf('%02d:00:00', $sH),
-                'end_time'        => sprintf('%02d:00:00', $eH),
-                'duration_minutes'=> 60,
-                'status'          => 'pending',
-                'original_price'  => $price,
+                'booking_code' => 'BK-'.$today->format('Ymd').'-PD'.($i - 2),
+                'user_id' => $userIds[$i % count($userIds)],
+                'court_id' => $court->court_id,
+                'booking_date' => $today->format('Y-m-d'),
+                'start_time' => sprintf('%02d:00:00', $sH),
+                'end_time' => sprintf('%02d:00:00', $eH),
+                'duration_minutes' => 60,
+                'status' => 'pending',
+                'original_price' => $price,
                 'discount_amount' => 0,
-                'service_amount'  => 0,
-                'total_amount'    => $price,
-                'deposit_amount'  => 0,
-                'paid_amount'     => 0,
-                'payment_status'  => 'unpaid',
-                'payment_method'  => 'vnpay',
-                'source'          => 'web',
-                'created_at'      => $now->copy()->subMinutes(rand(10, 60)),
-                'updated_at'      => $now,
+                'service_amount' => 0,
+                'total_amount' => $price,
+                'deposit_amount' => 0,
+                'paid_amount' => 0,
+                'payment_status' => 'unpaid',
+                'payment_method' => 'vnpay',
+                'source' => 'web',
+                'created_at' => $now->copy()->subMinutes(rand(10, 60)),
+                'updated_at' => $now,
             ]);
             $this->createStatusHistory($bId, [
                 ['old' => null, 'new' => 'pending', 'actor' => 'user', 'actor_id' => $userIds[$i % count($userIds)]],
@@ -278,28 +285,28 @@ class CourtBookingSeeder extends Seeder
             ];
 
             $bId = DB::table('court_bookings')->insertGetId([
-                'booking_code'       => 'BK-' . $cancelDate->format('Ymd') . '-CL' . ($i + 1),
-                'user_id'            => $userIds[$i],
-                'court_id'           => $court->court_id,
-                'booking_date'       => $cancelDate->format('Y-m-d'),
-                'start_time'         => sprintf('%02d:00:00', $sH),
-                'end_time'           => sprintf('%02d:00:00', $eH),
-                'duration_minutes'   => 60,
-                'status'             => 'cancelled',
-                'original_price'     => $price,
-                'discount_amount'    => 0,
-                'service_amount'     => 0,
-                'total_amount'       => $price,
-                'deposit_amount'     => 0,
-                'paid_amount'        => 0,
-                'payment_status'     => 'unpaid',
-                'payment_method'     => 'cash',
-                'cancelled_at'       => $cancelDate->copy()->setHour($sH)->subHour(),
+                'booking_code' => 'BK-'.$cancelDate->format('Ymd').'-CL'.($i + 1),
+                'user_id' => $userIds[$i],
+                'court_id' => $court->court_id,
+                'booking_date' => $cancelDate->format('Y-m-d'),
+                'start_time' => sprintf('%02d:00:00', $sH),
+                'end_time' => sprintf('%02d:00:00', $eH),
+                'duration_minutes' => 60,
+                'status' => 'cancelled',
+                'original_price' => $price,
+                'discount_amount' => 0,
+                'service_amount' => 0,
+                'total_amount' => $price,
+                'deposit_amount' => 0,
+                'paid_amount' => 0,
+                'payment_status' => 'unpaid',
+                'payment_method' => 'cash',
+                'cancelled_at' => $cancelDate->copy()->setHour($sH)->subHour(),
                 'cancel_reason_type' => $cancelReasons[$i]['type'],
-                'cancel_reason'      => $cancelReasons[$i]['reason'],
-                'source'             => 'web',
-                'created_at'         => $cancelDate->copy()->subDays(1),
-                'updated_at'         => $cancelDate,
+                'cancel_reason' => $cancelReasons[$i]['reason'],
+                'source' => 'web',
+                'created_at' => $cancelDate->copy()->subDays(1),
+                'updated_at' => $cancelDate,
             ]);
             $this->createStatusHistory($bId, [
                 ['old' => null, 'new' => 'pending', 'actor' => 'user', 'actor_id' => $userIds[$i]],
@@ -313,26 +320,26 @@ class CourtBookingSeeder extends Seeder
         $court = $activeCourts->values()[2];
         $price = $this->calculatePrice($court->court_id, $noShowDate, 8, 9);
         $bId = DB::table('court_bookings')->insertGetId([
-            'booking_code'    => 'BK-' . $noShowDate->format('Ymd') . '-NS01',
-            'user_id'         => $userIds[3],
-            'court_id'        => $court->court_id,
-            'booking_date'    => $noShowDate->format('Y-m-d'),
-            'start_time'      => '08:00:00',
-            'end_time'        => '09:00:00',
-            'duration_minutes'=> 60,
-            'status'          => 'no_show',
-            'original_price'  => $price,
+            'booking_code' => 'BK-'.$noShowDate->format('Ymd').'-NS01',
+            'user_id' => $userIds[3],
+            'court_id' => $court->court_id,
+            'booking_date' => $noShowDate->format('Y-m-d'),
+            'start_time' => '08:00:00',
+            'end_time' => '09:00:00',
+            'duration_minutes' => 60,
+            'status' => 'no_show',
+            'original_price' => $price,
             'discount_amount' => 0,
-            'service_amount'  => 0,
-            'total_amount'    => $price,
-            'deposit_amount'  => 0,
-            'paid_amount'     => 0,
-            'payment_status'  => 'unpaid',
-            'payment_method'  => 'cash',
-            'source'          => 'phone',
-            'note'            => 'Khách không đến, không liên lạc được.',
-            'created_at'      => $noShowDate->copy()->subDay(),
-            'updated_at'      => $noShowDate,
+            'service_amount' => 0,
+            'total_amount' => $price,
+            'deposit_amount' => 0,
+            'paid_amount' => 0,
+            'payment_status' => 'unpaid',
+            'payment_method' => 'cash',
+            'source' => 'phone',
+            'note' => 'Khách không đến, không liên lạc được.',
+            'created_at' => $noShowDate->copy()->subDay(),
+            'updated_at' => $noShowDate,
         ]);
         $this->createStatusHistory($bId, [
             ['old' => null, 'new' => 'pending', 'actor' => 'user', 'actor_id' => $userIds[3]],
@@ -350,35 +357,39 @@ class CourtBookingSeeder extends Seeder
             for ($i = 0; $i < $numBookings; $i++) {
                 $court = $activeCourts->values()[$i % $activeCourts->count()];
                 $sH = $this->pickAvailableSlot($futureSlots, $court->court_id, $futureDate->format('Y-m-d'));
-                if ($sH === null) continue;
+                if ($sH === null) {
+                    continue;
+                }
                 $eH = $sH + rand(1, 2);
-                if ($eH > 22) $eH = 22;
+                if ($eH > 22) {
+                    $eH = 22;
+                }
                 $futureSlots[] = ['court' => $court->court_id, 'start' => $sH, 'end' => $eH];
 
                 $price = $this->calculatePrice($court->court_id, $futureDate, $sH, $eH);
                 $status = ($i === 0) ? 'confirmed' : 'pending';
 
                 $bId = DB::table('court_bookings')->insertGetId([
-                    'booking_code'    => 'BK-' . $futureDate->format('Ymd') . '-' . strtoupper(Str::random(4)),
-                    'user_id'         => $userIds[array_rand($userIds)],
-                    'court_id'        => $court->court_id,
-                    'booking_date'    => $futureDate->format('Y-m-d'),
-                    'start_time'      => sprintf('%02d:00:00', $sH),
-                    'end_time'        => sprintf('%02d:00:00', $eH),
-                    'duration_minutes'=> ($eH - $sH) * 60,
-                    'status'          => $status,
-                    'original_price'  => $price,
+                    'booking_code' => 'BK-'.$futureDate->format('Ymd').'-'.strtoupper(Str::random(4)),
+                    'user_id' => $userIds[array_rand($userIds)],
+                    'court_id' => $court->court_id,
+                    'booking_date' => $futureDate->format('Y-m-d'),
+                    'start_time' => sprintf('%02d:00:00', $sH),
+                    'end_time' => sprintf('%02d:00:00', $eH),
+                    'duration_minutes' => ($eH - $sH) * 60,
+                    'status' => $status,
+                    'original_price' => $price,
                     'discount_amount' => 0,
-                    'service_amount'  => 0,
-                    'total_amount'    => $price,
-                    'deposit_amount'  => 0,
-                    'paid_amount'     => 0,
-                    'payment_status'  => 'unpaid',
-                    'payment_method'  => ['cash', 'vnpay', 'momo', 'bank_transfer'][array_rand(['cash', 'vnpay', 'momo', 'bank_transfer'])],
-                    'source'          => 'web',
-                    'confirmed_at'    => $status === 'confirmed' ? $now : null,
-                    'created_at'      => $now->copy()->subHours(rand(1, 24)),
-                    'updated_at'      => $now,
+                    'service_amount' => 0,
+                    'total_amount' => $price,
+                    'deposit_amount' => 0,
+                    'paid_amount' => 0,
+                    'payment_status' => 'unpaid',
+                    'payment_method' => ['cash', 'vnpay', 'momo', 'bank_transfer'][array_rand(['cash', 'vnpay', 'momo', 'bank_transfer'])],
+                    'source' => 'web',
+                    'confirmed_at' => $status === 'confirmed' ? $now : null,
+                    'created_at' => $now->copy()->subHours(rand(1, 24)),
+                    'updated_at' => $now,
                 ]);
 
                 $histories = [['old' => null, 'new' => 'pending', 'actor' => 'user', 'actor_id' => $userIds[array_rand($userIds)]]];
@@ -395,28 +406,28 @@ class CourtBookingSeeder extends Seeder
         $court = $activeCourts->values()[1];
         $price = $this->calculatePrice($court->court_id, $refundDate, 10, 12);
         $bId = DB::table('court_bookings')->insertGetId([
-            'booking_code'    => 'BK-' . $refundDate->format('Ymd') . '-RF01',
-            'user_id'         => $userIds[1],
-            'court_id'        => $court->court_id,
-            'booking_date'    => $refundDate->format('Y-m-d'),
-            'start_time'      => '10:00:00',
-            'end_time'        => '12:00:00',
-            'duration_minutes'=> 120,
-            'status'          => 'cancelled',
-            'original_price'  => $price,
+            'booking_code' => 'BK-'.$refundDate->format('Ymd').'-RF01',
+            'user_id' => $userIds[1],
+            'court_id' => $court->court_id,
+            'booking_date' => $refundDate->format('Y-m-d'),
+            'start_time' => '10:00:00',
+            'end_time' => '12:00:00',
+            'duration_minutes' => 120,
+            'status' => 'cancelled',
+            'original_price' => $price,
             'discount_amount' => 0,
-            'service_amount'  => 0,
-            'total_amount'    => $price,
-            'deposit_amount'  => $price,
-            'paid_amount'     => 0,
-            'payment_status'  => 'refunded',
-            'payment_method'  => 'bank_transfer',
-            'cancelled_at'    => $refundDate->copy()->setHour(9),
+            'service_amount' => 0,
+            'total_amount' => $price,
+            'deposit_amount' => $price,
+            'paid_amount' => 0,
+            'payment_status' => 'refunded',
+            'payment_method' => 'bank_transfer',
+            'cancelled_at' => $refundDate->copy()->setHour(9),
             'cancel_reason_type' => 'maintenance',
-            'cancel_reason'      => 'Sân bị hỏng hệ thống đèn, CLB chủ động hoàn tiền cho khách.',
-            'source'          => 'web',
-            'created_at'      => $refundDate->copy()->subDays(2),
-            'updated_at'      => $refundDate,
+            'cancel_reason' => 'Sân bị hỏng hệ thống đèn, CLB chủ động hoàn tiền cho khách.',
+            'source' => 'web',
+            'created_at' => $refundDate->copy()->subDays(2),
+            'updated_at' => $refundDate,
         ]);
         $this->createStatusHistory($bId, [
             ['old' => null, 'new' => 'pending', 'actor' => 'user', 'actor_id' => $userIds[1]],
@@ -469,20 +480,22 @@ class CourtBookingSeeder extends Seeder
         $existing = DB::table('admins')->where('email', $data['email'])->first();
         if ($existing) {
             echo "ℹ️  Admin {$data['email']} đã tồn tại.\n";
+
             return $existing->admin_id;
         }
 
         $id = DB::table('admins')->insertGetId([
             'full_name' => $data['full_name'],
-            'email'     => $data['email'],
-            'password'  => Hash::make('password'),
-            'role'      => $data['role'],
-            'status'    => $data['status'],
-            'phone'     => $data['phone'],
-            'created_at'=> now(),
-            'updated_at'=> now(),
+            'email' => $data['email'],
+            'password' => Hash::make('password'),
+            'role' => $data['role'],
+            'status' => $data['status'],
+            'phone' => $data['phone'],
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         echo "✅ Admin: {$data['email']} / password\n";
+
         return $id;
     }
 
@@ -491,20 +504,22 @@ class CourtBookingSeeder extends Seeder
         $existing = DB::table('users')->where('email', $email)->first();
         if ($existing) {
             echo "ℹ️  User {$email} đã tồn tại.\n";
+
             return $existing->user_id;
         }
 
         $id = DB::table('users')->insertGetId([
             'full_name' => $name,
-            'email'     => $email,
-            'phone'     => $phone,
-            'password'  => Hash::make('password'),
-            'role'      => 'customer',
-            'status'    => 'active',
-            'created_at'=> now(),
-            'updated_at'=> now(),
+            'email' => $email,
+            'phone' => $phone,
+            'password' => Hash::make('password'),
+            'role' => 'customer',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         echo "✅ User: {$email} / password\n";
+
         return $id;
     }
 
@@ -526,7 +541,8 @@ class CourtBookingSeeder extends Seeder
             ->where('to_time', '>=', sprintf('%02d:00:00', $endH))
             ->first();
 
-        $perHour = $priceRow ? (int)$priceRow->price_per_hour : 80000;
+        $perHour = $priceRow ? (int) $priceRow->price_per_hour : 80000;
+
         return $perHour * $hours;
     }
 
@@ -543,8 +559,11 @@ class CourtBookingSeeder extends Seeder
                     break;
                 }
             }
-            if (!$conflict) return $h;
+            if (! $conflict) {
+                return $h;
+            }
         }
+
         return null;
     }
 
@@ -556,9 +575,9 @@ class CourtBookingSeeder extends Seeder
                 'old_status' => $t['old'],
                 'new_status' => $t['new'],
                 'actor_type' => $t['actor'],
-                'actor_id'   => $t['actor_id'],
-                'note'       => null,
-                'meta'       => null,
+                'actor_id' => $t['actor_id'],
+                'note' => null,
+                'meta' => null,
                 'created_at' => $baseDate->copy()->addMinutes($i * 15),
             ]);
         }
@@ -569,18 +588,18 @@ class CourtBookingSeeder extends Seeder
         $method = DB::table('court_bookings')->where('booking_id', $bookingId)->value('payment_method') ?? 'cash';
 
         DB::table('court_booking_payments')->insert([
-            'booking_id'       => $bookingId,
-            'payment_type'     => $type,
-            'payment_method'   => $method,
-            'transaction_code' => 'TXN-' . strtoupper(Str::random(8)),
-            'amount'           => $amount,
-            'status'           => $status,
-            'paid_at'          => ($status === 'success' || $status === 'refunded') ? now() : null,
+            'booking_id' => $bookingId,
+            'payment_type' => $type,
+            'payment_method' => $method,
+            'transaction_code' => 'TXN-'.strtoupper(Str::random(8)),
+            'amount' => $amount,
+            'status' => $status,
+            'paid_at' => ($status === 'success' || $status === 'refunded') ? now() : null,
             'gateway_response' => null,
-            'note'             => null,
-            'processed_by'     => $processedBy,
-            'created_at'       => now(),
-            'updated_at'       => now(),
+            'note' => null,
+            'processed_by' => $processedBy,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 
@@ -597,11 +616,11 @@ class CourtBookingSeeder extends Seeder
             DB::table('court_booking_services')->insert([
                 'booking_id' => $bookingId,
                 'service_id' => $service->service_id,
-                'quantity'   => $qty,
+                'quantity' => $qty,
                 'unit_price' => $service->unit_price,
-                'subtotal'   => $subtotal,
-                'note'       => null,
-                'added_by'   => $staffId,
+                'subtotal' => $subtotal,
+                'note' => null,
+                'added_by' => $staffId,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -610,8 +629,8 @@ class CourtBookingSeeder extends Seeder
         // Cập nhật service_amount & total_amount trên booking
         DB::table('court_bookings')->where('booking_id', $bookingId)->update([
             'service_amount' => $totalServiceAmount,
-            'total_amount'   => DB::raw("original_price + {$totalServiceAmount}"),
-            'paid_amount'    => DB::raw("original_price + {$totalServiceAmount}"), // Completed = đã thanh toán
+            'total_amount' => DB::raw("original_price + {$totalServiceAmount}"),
+            'paid_amount' => DB::raw("original_price + {$totalServiceAmount}"), // Completed = đã thanh toán
         ]);
     }
 }

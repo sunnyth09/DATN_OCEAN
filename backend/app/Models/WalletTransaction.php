@@ -2,27 +2,27 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
 
 /**
  * WalletTransaction — Giao dịch ví của user.
  *
- * @property int    $transaction_id
- * @property int    $wallet_id
- * @property string $transaction_code     WTX-xxxx (unique idempotency key)
- * @property string $type                 deposit|commission|refund|loyalty_convert|promo_credit|order_discount|booking_payment|adjustment
- * @property string $balance_type         deposit|commission
- * @property string $direction            credit|debit
- * @property float  $amount
- * @property float  $balance_before
- * @property float  $balance_after
+ * @property int $transaction_id
+ * @property int $wallet_id
+ * @property string $transaction_code WTX-xxxx (unique idempotency key)
+ * @property string $type deposit|commission|refund|loyalty_convert|promo_credit|order_discount|booking_payment|adjustment
+ * @property string $balance_type deposit|commission
+ * @property string $direction credit|debit
+ * @property float $amount
+ * @property float $balance_before
+ * @property float $balance_after
  * @property string|null $reference_type
- * @property int|null    $reference_id
+ * @property int|null $reference_id
  * @property string|null $description
- * @property string $status               pending|completed|failed|cancelled
- * @property array|null  $metadata
+ * @property string $status pending|completed|failed|cancelled
+ * @property array|null $metadata
  */
 class WalletTransaction extends Model
 {
@@ -47,10 +47,10 @@ class WalletTransaction extends Model
     protected function casts(): array
     {
         return [
-            'amount'         => 'decimal:2',
+            'amount' => 'decimal:2',
             'balance_before' => 'decimal:2',
-            'balance_after'  => 'decimal:2',
-            'metadata'       => 'array',
+            'balance_after' => 'decimal:2',
+            'metadata' => 'array',
         ];
     }
 
@@ -96,6 +96,7 @@ class WalletTransaction extends Model
         if ($to) {
             $query->where('created_at', '<=', $to);
         }
+
         return $query;
     }
 
@@ -107,16 +108,16 @@ class WalletTransaction extends Model
     public function typeLabel(): string
     {
         return match ($this->type) {
-            'deposit'         => 'Nạp tiền',
-            'commission'      => 'Hoa hồng affiliate',
-            'refund'          => 'Hoàn tiền',
+            'deposit' => 'Nạp tiền',
+            'commission' => 'Hoa hồng affiliate',
+            'refund' => 'Hoàn tiền',
             'loyalty_convert' => 'Quy đổi điểm',
-            'promo_credit'    => 'Khuyến mãi',
-            'order_discount'  => 'Giảm giá đơn hàng',
-            'withdrawal'      => 'Rút tiền',
+            'promo_credit' => 'Khuyến mãi',
+            'order_discount' => 'Giảm giá đơn hàng',
+            'withdrawal' => 'Rút tiền',
             'booking_payment' => 'Thanh toán đặt sân',
-            'adjustment'      => 'Điều chỉnh',
-            default           => $this->type,
+            'adjustment' => 'Điều chỉnh',
+            default => $this->type,
         };
     }
 
@@ -126,16 +127,16 @@ class WalletTransaction extends Model
     public function typeIcon(): string
     {
         return match ($this->type) {
-            'deposit'         => '💳',
-            'commission'      => '🤝',
-            'refund'          => '🎁',
+            'deposit' => '💳',
+            'commission' => '🤝',
+            'refund' => '🎁',
             'loyalty_convert' => '💎',
-            'promo_credit'    => '🎉',
-            'order_discount'  => '🛒',
-            'withdrawal'      => '🏧',
+            'promo_credit' => '🎉',
+            'order_discount' => '🛒',
+            'withdrawal' => '🏧',
             'booking_payment' => '⛳',
-            'adjustment'      => '⚙️',
-            default           => '💰',
+            'adjustment' => '⚙️',
+            default => '💰',
         };
     }
 

@@ -16,7 +16,7 @@ class PosService
     /**
      * Quét barcode → 1 variant active.
      *
-     * @return array|null  null nếu không tìm thấy.
+     * @return array|null null nếu không tìm thấy.
      */
     public function scanByBarcode(string $barcode): ?array
     {
@@ -25,7 +25,7 @@ class PosService
             ->where('status', 'active')
             ->first();
 
-        if (!$variant) {
+        if (! $variant) {
             return null;
         }
 
@@ -38,15 +38,15 @@ class PosService
     public function searchProducts(string $query)
     {
         $products = Product::with(['variants' => function ($q) {
-                $q->where('status', 'active')->where('stock', '>', 0);
-            }, 'images', 'category'])
+            $q->where('status', 'active')->where('stock', '>', 0);
+        }, 'images', 'category'])
             ->where(function ($q) use ($query) {
                 $q->where('name', 'LIKE', "%{$query}%")
-                  ->orWhere('slug', 'LIKE', "%{$query}%")
-                  ->orWhereHas('variants', function ($vq) use ($query) {
-                      $vq->where('sku', 'LIKE', "%{$query}%")
-                         ->orWhere('barcode', 'LIKE', "%{$query}%");
-                  });
+                    ->orWhere('slug', 'LIKE', "%{$query}%")
+                    ->orWhereHas('variants', function ($vq) use ($query) {
+                        $vq->where('sku', 'LIKE', "%{$query}%")
+                            ->orWhere('barcode', 'LIKE', "%{$query}%");
+                    });
             })
             ->where('status', 'active')
             ->limit(20)
@@ -59,22 +59,22 @@ class PosService
                 : ($product->images->first()->image_url ?? $product->thumbnail_url);
 
             return [
-                'product_id'    => $product->product_id,
-                'name'          => $product->name,
-                'slug'          => $product->slug,
-                'thumbnail'     => $thumbnail,
+                'product_id' => $product->product_id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'thumbnail' => $thumbnail,
                 'category_name' => $product->category->name ?? '',
-                'variants'      => $product->variants->map(fn ($v) => [
-                    'variant_id'       => $v->variant_id,
-                    'variant_name'     => $v->variant_name,
-                    'sku'              => $v->sku,
-                    'barcode'          => $v->barcode,
-                    'color'            => $v->color,
-                    'size'             => $v->size,
-                    'price'            => $v->price,
+                'variants' => $product->variants->map(fn ($v) => [
+                    'variant_id' => $v->variant_id,
+                    'variant_name' => $v->variant_name,
+                    'sku' => $v->sku,
+                    'barcode' => $v->barcode,
+                    'color' => $v->color,
+                    'size' => $v->size,
+                    'price' => $v->price,
                     'compare_at_price' => $v->compare_at_price,
-                    'stock'            => $v->stock,
-                    'image_url'        => $v->image_url,
+                    'stock' => $v->stock,
+                    'image_url' => $v->image_url,
                 ]),
             ];
         });
@@ -84,16 +84,16 @@ class PosService
      * Thanh toán POS (bán trực tiếp). Khóa từng variant để trừ kho an toàn.
      * Ném \Exception nếu sản phẩm không khả dụng / thiếu kho (controller map 422).
      *
-     * @param array    $data      items[], customer_name/phone, payment_method, note, discount_amount
-     * @param int|null $staffId   admin_id/user_id của người bán
-     * @return Order  đơn đã tạo (kèm items).
+     * @param  array  $data  items[], customer_name/phone, payment_method, note, discount_amount
+     * @param  int|null  $staffId  admin_id/user_id của người bán
+     * @return Order đơn đã tạo (kèm items).
      */
     public function checkout(array $data, ?int $staffId): Order
     {
         // Không tin user_id từ client: tra khách theo customer_phone để gắn đúng.
         $customerId = null;
         $customerName = $data['customer_name'] ?? null;
-        if (!empty($data['customer_phone'])) {
+        if (! empty($data['customer_phone'])) {
             $customer = User::where('phone', $data['customer_phone'])->first();
             if ($customer) {
                 $customerId = $customer->user_id;
@@ -114,21 +114,21 @@ class PosService
                     ->lockForUpdate()
                     ->first();
 
-                if (!$variant || $variant->status !== 'active') {
+                if (! $variant || $variant->status !== 'active') {
                     $productName = $variant && $variant->product ? $variant->product->name : 'N/A';
-                    throw new \Exception('Sản phẩm "' . $productName . '" không khả dụng.');
+                    throw new \Exception('Sản phẩm "'.$productName.'" không khả dụng.');
                 }
 
                 if ($variant->stock < $item['quantity']) {
-                    throw new \Exception('Sản phẩm "' . $variant->product->name . '" (' . $variant->variant_name . ') chỉ còn ' . $variant->stock . ' trong kho.');
+                    throw new \Exception('Sản phẩm "'.$variant->product->name.'" ('.$variant->variant_name.') chỉ còn '.$variant->stock.' trong kho.');
                 }
 
                 $lineTotal = $variant->price * $item['quantity'];
                 $subtotal += $lineTotal;
 
                 $itemsData[] = [
-                    'variant'    => $variant,
-                    'quantity'   => $item['quantity'],
+                    'variant' => $variant,
+                    'quantity' => $item['quantity'],
                     'line_total' => $lineTotal,
                 ];
             }
@@ -137,48 +137,48 @@ class PosService
             $grandTotal = $subtotal - $discountAmount;
 
             $order = Order::create([
-                'order_code'         => 'POS' . strtoupper(uniqid()) . rand(10, 99),
-                'order_type'         => 'pos',
-                'user_id'            => $customerId ?? $staffId,
-                'seller_id'          => $staffId,
-                'recipient_name'     => !empty($customerName) ? $customerName : 'Khách lẻ',
-                'recipient_phone'    => !empty($data['customer_phone']) ? $data['customer_phone'] : '',
-                'shipping_address'   => 'Mua tại cửa hàng',
-                'note'               => !empty($data['note']) ? $data['note'] : '',
-                'payment_method'     => !empty($data['payment_method']) ? $data['payment_method'] : 'pos_cash',
-                'payment_status'     => 'paid',
+                'order_code' => 'POS'.strtoupper(uniqid()).rand(10, 99),
+                'order_type' => 'pos',
+                'user_id' => $customerId ?? $staffId,
+                'seller_id' => $staffId,
+                'recipient_name' => ! empty($customerName) ? $customerName : 'Khách lẻ',
+                'recipient_phone' => ! empty($data['customer_phone']) ? $data['customer_phone'] : '',
+                'shipping_address' => 'Mua tại cửa hàng',
+                'note' => ! empty($data['note']) ? $data['note'] : '',
+                'payment_method' => ! empty($data['payment_method']) ? $data['payment_method'] : 'pos_cash',
+                'payment_status' => 'paid',
                 'fulfillment_status' => 'completed',
-                'subtotal'           => $subtotal,
-                'discount_amount'    => $discountAmount,
-                'shipping_fee'       => 0,
-                'grand_total'        => $grandTotal,
-                'completed_at'       => now(),
+                'subtotal' => $subtotal,
+                'discount_amount' => $discountAmount,
+                'shipping_fee' => 0,
+                'grand_total' => $grandTotal,
+                'completed_at' => now(),
             ]);
 
             foreach ($itemsData as $row) {
                 /** @var ProductVariant $v */
                 $v = $row['variant'];
                 OrderItem::create([
-                    'order_id'     => $order->order_id,
-                    'product_id'   => $v->product_id,
-                    'variant_id'   => $v->variant_id,
+                    'order_id' => $order->order_id,
+                    'product_id' => $v->product_id,
+                    'variant_id' => $v->variant_id,
                     'product_name' => $v->product->name,
                     'variant_name' => $v->variant_name,
-                    'sku'          => $v->sku,
-                    'color'        => $v->color,
-                    'size'         => $v->size,
-                    'quantity'     => $row['quantity'],
-                    'unit_price'   => $v->price,
-                    'line_total'   => $row['line_total'],
+                    'sku' => $v->sku,
+                    'color' => $v->color,
+                    'size' => $v->size,
+                    'quantity' => $row['quantity'],
+                    'unit_price' => $v->price,
+                    'line_total' => $row['line_total'],
                 ]);
 
                 $v->decrement('stock', $row['quantity']);
             }
 
             OrderStatusHistory::create([
-                'order_id'   => $order->order_id,
+                'order_id' => $order->order_id,
                 'new_status' => 'completed',
-                'note'       => 'Bán hàng trực tiếp tại cửa hàng (POS)',
+                'note' => 'Bán hàng trực tiếp tại cửa hàng (POS)',
             ]);
 
             Cache::flush();
@@ -201,19 +201,19 @@ class PosService
         $mainImage = $product->images->where('is_main', 1)->first();
 
         return [
-            'variant_id'   => $variant->variant_id,
+            'variant_id' => $variant->variant_id,
             'variant_name' => $variant->variant_name,
-            'sku'          => $variant->sku,
-            'barcode'      => $variant->barcode,
-            'color'        => $variant->color,
-            'size'         => $variant->size,
-            'price'        => $variant->price,
-            'stock'        => $variant->stock,
-            'image_url'    => $variant->image_url,
-            'product'      => [
+            'sku' => $variant->sku,
+            'barcode' => $variant->barcode,
+            'color' => $variant->color,
+            'size' => $variant->size,
+            'price' => $variant->price,
+            'stock' => $variant->stock,
+            'image_url' => $variant->image_url,
+            'product' => [
                 'product_id' => $product->product_id,
-                'name'       => $product->name,
-                'thumbnail'  => $mainImage->image_url ?? $product->thumbnail_url,
+                'name' => $product->name,
+                'thumbnail' => $mainImage->image_url ?? $product->thumbnail_url,
             ],
         ];
     }

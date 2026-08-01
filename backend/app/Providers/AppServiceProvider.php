@@ -3,11 +3,11 @@
 namespace App\Providers;
 
 use App\Models\Order;
-use App\Models\ReturnRequest;
 use App\Models\ProductComment;
+use App\Models\ReturnRequest;
 use App\Policies\OrderPolicy;
-use App\Policies\ReturnRequestPolicy;
 use App\Policies\ProductCommentPolicy;
+use App\Policies\ReturnRequestPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 

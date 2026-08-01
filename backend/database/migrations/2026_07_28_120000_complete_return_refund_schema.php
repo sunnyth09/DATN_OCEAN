@@ -65,49 +65,53 @@ return new class extends Migration
         DB::table('return_requests')->where('status', 'received')->update(['status' => 'warehouse_received']);
         DB::table('return_requests')->where('status', 'refunded')->update(['status' => 'return_completed']);
 
-        Schema::create('return_request_items', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('return_request_id')->constrained('return_requests')->cascadeOnDelete();
-            $table->foreignId('order_item_id')->constrained('order_items', 'order_item_id')->cascadeOnDelete();
-            $table->foreignId('product_id')->nullable()->constrained('products', 'product_id')->nullOnDelete();
-            $table->foreignId('variant_id')->nullable()->constrained('product_variants', 'variant_id')->nullOnDelete();
-            $table->integer('ordered_quantity');
-            $table->integer('requested_quantity');
-            $table->integer('received_quantity')->default(0);
-            $table->integer('qc_pass_quantity')->default(0);
-            $table->integer('qc_fail_quantity')->default(0);
-            $table->decimal('unit_price', 12, 2)->default(0);
-            $table->decimal('refundable_amount', 12, 2)->default(0);
-            $table->enum('qc_status', ['pending', 'passed', 'failed', 'partial'])->default('pending');
-            $table->text('qc_note')->nullable();
-            $table->timestamp('inventory_updated_at')->nullable();
-            $table->timestamps();
+        if (!Schema::hasTable('return_request_items')) {
+            Schema::create('return_request_items', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('return_request_id')->constrained('return_requests')->cascadeOnDelete();
+                $table->foreignId('order_item_id')->constrained('order_items', 'order_item_id')->cascadeOnDelete();
+                $table->foreignId('product_id')->nullable()->constrained('products', 'product_id')->nullOnDelete();
+                $table->foreignId('variant_id')->nullable()->constrained('product_variants', 'variant_id')->nullOnDelete();
+                $table->integer('ordered_quantity');
+                $table->integer('requested_quantity');
+                $table->integer('received_quantity')->default(0);
+                $table->integer('qc_pass_quantity')->default(0);
+                $table->integer('qc_fail_quantity')->default(0);
+                $table->decimal('unit_price', 12, 2)->default(0);
+                $table->decimal('refundable_amount', 12, 2)->default(0);
+                $table->enum('qc_status', ['pending', 'passed', 'failed', 'partial'])->default('pending');
+                $table->text('qc_note')->nullable();
+                $table->timestamp('inventory_updated_at')->nullable();
+                $table->timestamps();
 
-            $table->index(['return_request_id', 'qc_status']);
-            $table->index(['order_item_id']);
-        });
+                $table->index(['return_request_id', 'qc_status']);
+                $table->index(['order_item_id']);
+            });
+        }
 
-        Schema::create('refund_transactions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('return_request_id')->constrained('return_requests')->cascadeOnDelete();
-            $table->foreignId('order_id')->constrained('orders', 'order_id')->cascadeOnDelete();
-            $table->foreignId('payment_id')->nullable()->constrained('payments', 'payment_id')->nullOnDelete();
-            $table->string('gateway', 50)->default('manual');
-            $table->string('method', 50);
-            $table->decimal('amount', 12, 2);
-            $table->enum('status', ['pending', 'processing', 'success', 'failed', 'timeout'])->default('pending');
-            $table->string('idempotency_key', 160)->unique();
-            $table->string('gateway_refund_id', 120)->nullable();
-            $table->json('gateway_response')->nullable();
-            $table->text('failure_reason')->nullable();
-            $table->unsignedInteger('attempt_count')->default(0);
-            $table->foreignId('requested_by')->nullable()->constrained('admins', 'admin_id')->nullOnDelete();
-            $table->timestamp('processed_at')->nullable();
-            $table->timestamps();
+        if (!Schema::hasTable('refund_transactions')) {
+            Schema::create('refund_transactions', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('return_request_id')->constrained('return_requests')->cascadeOnDelete();
+                $table->foreignId('order_id')->constrained('orders', 'order_id')->cascadeOnDelete();
+                $table->foreignId('payment_id')->nullable()->constrained('payments', 'payment_id')->nullOnDelete();
+                $table->string('gateway', 50)->default('manual');
+                $table->string('method', 50);
+                $table->decimal('amount', 12, 2);
+                $table->enum('status', ['pending', 'processing', 'success', 'failed', 'timeout'])->default('pending');
+                $table->string('idempotency_key', 160)->unique();
+                $table->string('gateway_refund_id', 120)->nullable();
+                $table->json('gateway_response')->nullable();
+                $table->text('failure_reason')->nullable();
+                $table->unsignedInteger('attempt_count')->default(0);
+                $table->foreignId('requested_by')->nullable()->constrained('admins', 'admin_id')->nullOnDelete();
+                $table->timestamp('processed_at')->nullable();
+                $table->timestamps();
 
-            $table->index(['return_request_id', 'status']);
-            $table->index(['order_id', 'status']);
-        });
+                $table->index(['return_request_id', 'status']);
+                $table->index(['order_id', 'status']);
+            });
+        }
     }
 
     public function down(): void

@@ -40,7 +40,7 @@ class ShippingService
                 return (int) $json['data']['total'];
             }
         } catch (\Exception $e) {
-            Log::error('GHN fee API error: ' . $e->getMessage());
+            Log::error('GHN fee API error: '.$e->getMessage());
         }
 
         return 30000;

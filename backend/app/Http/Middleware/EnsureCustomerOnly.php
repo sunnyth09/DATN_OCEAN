@@ -27,15 +27,15 @@ class EnsureCustomerOnly
         // Nếu request đến từ admin guard → từ chối
         if (auth('admin')->check()) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Tài khoản quản trị/nhân viên không thể sử dụng tính năng này. Vui lòng đăng nhập bằng tài khoản khách hàng.',
             ], 403);
         }
 
         // Nếu không phải customer (chưa login qua 'api' guard)
-        if (!auth('api')->check()) {
+        if (! auth('api')->check()) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Bạn cần đăng nhập để sử dụng tính năng này.',
             ], 401);
         }

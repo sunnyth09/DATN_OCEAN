@@ -11,10 +11,10 @@ return new class extends Migration
         Schema::table('orders', function (Blueprint $table) {
             // Drop foreign key first
             $table->dropForeign(['user_id']);
-            
+
             // Change column type
             $table->unsignedBigInteger('user_id')->nullable()->change();
-            
+
             // Re-create foreign key with nullOnDelete
             $table->foreign('user_id')
                 ->references('user_id')

@@ -20,7 +20,7 @@ class ShiftAssignment extends Model
     {
         return [
             'day_of_week' => 'integer',
-            'is_active'   => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 

@@ -218,6 +218,7 @@ const updateOrderStatus = async (action) => {
     const res = await api.put(`/admin/orders/${order.value.order_id}/status`, payload);
     if (res.data.status === 'success') {
       toast.success(action.success || 'Cập nhật trạng thái thành công!');
+      window.dispatchEvent(new Event('admin-order-updated'));
       await fetchOrder();
     }
   } catch (error) {

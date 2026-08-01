@@ -73,6 +73,7 @@ class CurrentSportsCatalogSeeder extends Seeder
             if ($existing) {
                 DB::table('brands')->where('brand_id', $existing->brand_id)->update($payload);
                 $map[$brand['slug']] = $existing->brand_id;
+
                 continue;
             }
 
@@ -127,7 +128,7 @@ class CurrentSportsCatalogSeeder extends Seeder
         $map = [];
 
         foreach ($children as $child) {
-            $imagePath = 'products/sports/categories/' . $child['slug'] . '.svg';
+            $imagePath = 'products/sports/categories/'.$child['slug'].'.svg';
             Storage::disk('public')->put($imagePath, $this->buildCategorySvg($child['name'], $child['palette']));
 
             $map[$child['slug']] = $this->upsertCategory(
@@ -166,10 +167,12 @@ class CurrentSportsCatalogSeeder extends Seeder
 
         if ($existing) {
             DB::table('categories')->where('category_id', $existing->category_id)->update($payload);
+
             return $existing->category_id;
         }
 
         $payload['created_at'] = $this->now;
+
         return DB::table('categories')->insertGetId($payload);
     }
 
@@ -246,7 +249,7 @@ class CurrentSportsCatalogSeeder extends Seeder
                 'product_id' => $productId,
                 'variant_id' => null,
                 'image_url' => $assets['main'],
-                'alt_text' => $product['name'] . ' - ảnh chính',
+                'alt_text' => $product['name'].' - ảnh chính',
                 'is_main' => 1,
                 'sort_order' => 0,
                 'created_at' => $this->now,
@@ -255,7 +258,7 @@ class CurrentSportsCatalogSeeder extends Seeder
                 'product_id' => $productId,
                 'variant_id' => null,
                 'image_url' => $assets['angle'],
-                'alt_text' => $product['name'] . ' - góc nghiêng',
+                'alt_text' => $product['name'].' - góc nghiêng',
                 'is_main' => 0,
                 'sort_order' => 1,
                 'created_at' => $this->now,
@@ -264,7 +267,7 @@ class CurrentSportsCatalogSeeder extends Seeder
                 'product_id' => $productId,
                 'variant_id' => null,
                 'image_url' => $assets['detail'],
-                'alt_text' => $product['name'] . ' - chi tiết',
+                'alt_text' => $product['name'].' - chi tiết',
                 'is_main' => 0,
                 'sort_order' => 2,
                 'created_at' => $this->now,
@@ -283,11 +286,11 @@ class CurrentSportsCatalogSeeder extends Seeder
 
     private function generateProductAssets(array $product, string $slug): array
     {
-        $dir = 'products/sports/' . $product['sport'] . '/' . $slug;
-        $main = $dir . '/main.svg';
-        $angle = $dir . '/angle.svg';
-        $detail = $dir . '/detail.svg';
-        $variant = $dir . '/variant.svg';
+        $dir = 'products/sports/'.$product['sport'].'/'.$slug;
+        $main = $dir.'/main.svg';
+        $angle = $dir.'/angle.svg';
+        $detail = $dir.'/detail.svg';
+        $variant = $dir.'/variant.svg';
 
         Storage::disk('public')->put($main, $this->buildPackshotSvg($product, 'main'));
         Storage::disk('public')->put($angle, $this->buildPackshotSvg($product, 'angle'));
@@ -309,7 +312,7 @@ class CurrentSportsCatalogSeeder extends Seeder
         $sport = $this->svgEscape(Str::upper($product['sport_label']));
         $name = $this->svgEscape($product['name']);
         $subtitle = $this->svgEscape($product['image_caption']);
-        $price = number_format($product['base_price'], 0, ',', '.') . ' đ';
+        $price = number_format($product['base_price'], 0, ',', '.').' đ';
         $accentA = $palette[0];
         $accentB = $palette[1];
 
@@ -527,21 +530,21 @@ SVG;
         $features = '';
 
         foreach ($product['features'] as $feature) {
-            $features .= '<li>' . e($feature) . '</li>';
+            $features .= '<li>'.e($feature).'</li>';
         }
 
         $specs = '';
         foreach ($product['specs'] as $label => $value) {
-            $specs .= '<li><strong>' . e($label) . ':</strong> ' . e($value) . '</li>';
+            $specs .= '<li><strong>'.e($label).':</strong> '.e($value).'</li>';
         }
 
         return '<div class="product-description">'
-            . '<h3>Mô tả sản phẩm</h3>'
-            . '<p>' . e($product['short_description']) . '</p>'
-            . '<h3>Điểm nổi bật</h3><ul>' . $features . '</ul>'
-            . '<h3>Thông số nhanh</h3><ul>' . $specs . '</ul>'
-            . '<p><em>Giá seed tham chiếu theo dữ liệu công khai được tổng hợp ngày 05/06/2026.</em></p>'
-            . '</div>';
+            .'<h3>Mô tả sản phẩm</h3>'
+            .'<p>'.e($product['short_description']).'</p>'
+            .'<h3>Điểm nổi bật</h3><ul>'.$features.'</ul>'
+            .'<h3>Thông số nhanh</h3><ul>'.$specs.'</ul>'
+            .'<p><em>Giá seed tham chiếu theo dữ liệu công khai được tổng hợp ngày 05/06/2026.</em></p>'
+            .'</div>';
     }
 
     private function ensureUniqueSku(string $sku): string
@@ -550,7 +553,7 @@ SVG;
         $suffix = 1;
 
         while (DB::table('product_variants')->where('sku', $candidate)->exists()) {
-            $candidate = Str::upper($sku) . '-' . $suffix;
+            $candidate = Str::upper($sku).'-'.$suffix;
             $suffix++;
         }
 
@@ -565,7 +568,7 @@ SVG;
             default => 'PKB',
         };
 
-        return $prefix . strtoupper(substr(md5($slug . $index), 0, 10));
+        return $prefix.strtoupper(substr(md5($slug.$index), 0, 10));
     }
 
     private function svgEscape(string $value): string
@@ -614,8 +617,8 @@ SVG;
 
         foreach ($sizes as $size) {
             $variants[] = [
-                'sku' => $skuBase . '-' . $size,
-                'variant_name' => 'Size ' . $size,
+                'sku' => $skuBase.'-'.$size,
+                'variant_name' => 'Size '.$size,
                 'color' => $color,
                 'size' => (string) $size,
                 'material' => $material,
@@ -643,8 +646,8 @@ SVG;
 
         foreach ($grips as $grip) {
             $variants[] = [
-                'sku' => $skuBase . '-' . strtolower($grip),
-                'variant_name' => 'Cán ' . $grip,
+                'sku' => $skuBase.'-'.strtolower($grip),
+                'variant_name' => 'Cán '.$grip,
                 'color' => $color,
                 'size' => $grip,
                 'material' => $material,

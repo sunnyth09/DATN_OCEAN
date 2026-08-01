@@ -13,6 +13,6 @@ void main() {
     );
 
     expect(find.text('Đăng nhập'), findsOneWidget);
-    expect(find.text('Quyền Sport'), findsOneWidget);
+    expect(find.text('Ocean Sport'), findsOneWidget);
   });
 }

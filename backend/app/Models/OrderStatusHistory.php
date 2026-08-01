@@ -21,7 +21,7 @@ class OrderStatusHistory extends Model
         'location',
         'description',
         'happened_at',
-        'created_at'
+        'created_at',
     ];
 
     protected $casts = [
@@ -34,4 +34,3 @@ class OrderStatusHistory extends Model
         return $this->belongsTo(Order::class, 'order_id', 'order_id');
     }
 }
-

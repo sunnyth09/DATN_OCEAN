@@ -509,8 +509,9 @@ watch(
             <div class="header-left">
                 <!-- Logo -->
                 <router-link to="/" class="logo">
-                    <img :src="BASE_URL + '/storage/logo/LOGO_QS.png'" alt="Logo" class="logo-img"
-                        width="70" height="auto" />
+                    <div class="logo-container">
+                        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Logo" class="logo-img" />
+                    </div>
                 </router-link>
 
                 <!-- Navigation Links -->
@@ -776,7 +777,7 @@ watch(
             <div class="mobile-nav-panel" @click.stop>
                 <div class="mobile-nav-header">
                     <div>
-                        <p class="mobile-nav-eyebrow">Quyền Sport</p>
+                        <p class="mobile-nav-eyebrow">Ocean Sport</p>
                         <h2 class="mobile-nav-title">Khám phá nhanh</h2>
                     </div>
                     <button type="button" class="icon-btn mobile-nav-close" @click="closeMobileMenu">
@@ -916,7 +917,7 @@ watch(
     <div class="floating-flash-sale" @click="handleFlashSaleClick">
         <div class="flash-sale-badge">
             <AppIcon name="zap" class="flash-sale-icon" size="24" />
-            <span>FLASH SALE</span>
+            <span class="flash-sale-text">FLASH SALE</span>
         </div>
     </div>
 </template>
@@ -971,13 +972,28 @@ watch(
     align-items: center;
 }
 
+.logo-container {
+    width: 60px;
+    height: 50px; /* Adjust height to crop the text at the bottom */
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
 .logo-img {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 70px;
     height: auto;
 }
 
+.site-header.is-scrolled .logo-container {
+    width: 50px;
+    height: 42px;
+}
+
 .site-header.is-scrolled .logo-img {
-    width: 50px !important;
+    width: 60px !important;
 }
 
 /* NAVIGATION */
@@ -1662,35 +1678,61 @@ watch(
 .floating-flash-sale {
     position: fixed;
     z-index: 9999;
-    bottom: 120px; /* Nằm cách chatbox một khoảng an toàn để không bị lẹm hiệu ứng */
+    bottom: 120px; 
     right: 20px;
     cursor: pointer;
     user-select: none;
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    /* transition: transform 0.2s ease, opacity 0.2s ease; */
 }
 
 .floating-flash-sale:hover {
-    transform: scale(1.05);
+    transform: translateY(-3px);
 }
 
 .floating-flash-sale:active {
-    transform: scale(0.95);
+    transform: translateY(0) scale(0.95);
 }
 
 .flash-sale-badge {
     display: flex;
     align-items: center;
-    gap: 6px;
-    background: linear-gradient(135deg, #f43f5e, #e11d48);
+    background: var(--primary);
     color: #fff;
-    padding: 10px 18px;
+    height: 60px;
+    width: 60px;
     border-radius: 30px;
-    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
-    font-weight: 800;
-    font-size: 0.85rem;
-    letter-spacing: 0.5px;
+    padding: 0 18px; /* 18px + 18px + 24px icon = 60px */
+    overflow: hidden;
+    white-space: nowrap;
+    box-shadow: 0 4px 15px rgba(230, 59, 111, 0.4); 
     position: relative;
     z-index: 1;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy effect */
+}
+
+.floating-flash-sale:hover .flash-sale-badge {
+    width: 170px;
+    box-shadow: 0 8px 25px rgba(230, 59, 111, 0.5); 
+}
+
+.flash-sale-icon {
+    flex-shrink: 0;
+}
+
+.flash-sale-text {
+    font-weight: 800;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    margin-left: 12px;
+    opacity: 0;
+    transform: translateX(-15px);
+    transition: all 0.3s ease;
+}
+
+.floating-flash-sale:hover .flash-sale-text {
+    opacity: 1;
+    transform: translateX(0);
+    transition-delay: 0.05s;
 }
 
 /* Vòng tròn sóng lan tỏa (Sonar Ping) */
@@ -1702,7 +1744,8 @@ watch(
     right: 0;
     bottom: 0;
     border-radius: 30px;
-    background: rgba(225, 29, 72, 0.6);
+    background: var(--primary);
+    opacity: 0.6;
     z-index: -1;
     animation: sonar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }

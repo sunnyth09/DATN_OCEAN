@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\ReturnRequest;
 use App\Models\User;
@@ -22,10 +23,11 @@ class ReturnRequestPolicy
     /**
      * Gate trước: Admin/Staff được phép làm tất cả.
      */
-    public function before(mixed $user, string $ability): bool|null
+    public function before(mixed $user, string $ability): ?bool
     {
         if (auth('admin')->check()) {
             $adminUser = auth('admin')->user();
+
             return in_array($adminUser->role, ['admin', 'staff'], true);
         }
 
@@ -39,7 +41,7 @@ class ReturnRequestPolicy
     public function create(User $user, Order $order): bool
     {
         return $user->user_id === $order->user_id
-            && in_array($order->fulfillment_status, \App\Enums\OrderStatus::returnEligibleValues(), true);
+            && in_array($order->fulfillment_status, OrderStatus::returnEligibleValues(), true);
     }
 
     /**
@@ -56,7 +58,10 @@ class ReturnRequestPolicy
      */
     public function processRefund(): bool
     {
-        if (!auth('admin')->check()) return false;
+        if (! auth('admin')->check()) {
+            return false;
+        }
+
         return auth('admin')->user()->role === 'admin';
     }
 }

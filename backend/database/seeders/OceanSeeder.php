@@ -2,12 +2,12 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use App\Models\Category;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\ProductImage;
+use App\Models\ProductVariant;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class OceanSeeder extends Seeder
@@ -31,7 +31,7 @@ class OceanSeeder extends Seeder
             'Quần' => ['Quần jeans', 'Quần tây', 'Quần short', 'Quần kaki'],
             'Váy' => ['Váy chữ A', 'Váy xếp ly', 'Váy midi'],
             'Đầm' => ['Đầm dự tiệc', 'Đầm công sở'],
-            'Phụ kiện' => ['Túi xách', 'Mũ nón', 'Thắt lưng']
+            'Phụ kiện' => ['Túi xách', 'Mũ nón', 'Thắt lưng'],
         ];
 
         $allCategoriesList = [];
@@ -41,7 +41,7 @@ class OceanSeeder extends Seeder
             $parentCat = Category::create([
                 'name' => $parentName,
                 'slug' => Str::slug($parentName),
-                'description' => 'Khám phá bộ sưu tập ' . $parentName . ' phong cách thời thượng, thiết kế tối giản, dễ mặc cho mọi lứa tuổi.',
+                'description' => 'Khám phá bộ sưu tập '.$parentName.' phong cách thời thượng, thiết kế tối giản, dễ mặc cho mọi lứa tuổi.',
                 'sort_order' => $sortOrder++,
                 'is_active' => 1,
             ]);
@@ -51,13 +51,13 @@ class OceanSeeder extends Seeder
                     'parent_id' => $parentCat->category_id,
                     'name' => $childName,
                     'slug' => Str::slug($childName),
-                    'description' => $childName . ' - Định hình cá tính của bạn với thiết kế mới nhất.',
+                    'description' => $childName.' - Định hình cá tính của bạn với thiết kế mới nhất.',
                     'sort_order' => $sortOrder++,
                     'is_active' => 1,
                 ]);
                 $allCategoriesList[] = [
                     'id' => $childCat->category_id,
-                    'name' => $childName
+                    'name' => $childName,
                 ];
             }
         }
@@ -75,26 +75,26 @@ class OceanSeeder extends Seeder
             $isVariable = $i % 2 === 0; // Một nửa có biến thể, một nửa đơn
             $catInfo = $allCategoriesList[array_rand($allCategoriesList)];
             $catId = $catInfo['id'];
-            
+
             // Lựa chọn ngẫu nhiên có lấy style hay không (70% tỉ lệ có)
             $style = rand(1, 100) <= 70 ? $styles[array_rand($styles)] : '';
             // Lựa chọn ngẫu nhiên có lấy suffix hay không (50% tỉ lệ có)
             $suffix = rand(1, 100) <= 50 ? $suffixes[array_rand($suffixes)] : '';
             $adj = $adjectives[array_rand($adjectives)];
-            
+
             $nameParts = array_filter([$catInfo['name'], $style, $adj, $suffix]);
-            $productName = implode(' ', $nameParts) . ' - SP' . str_pad($i, 3, '0', STR_PAD_LEFT);
+            $productName = implode(' ', $nameParts).' - SP'.str_pad($i, 3, '0', STR_PAD_LEFT);
             $basePrice = rand(150, 800) * 1000;
-            
+
             $productType = $isVariable ? 'variant' : 'simple';
 
             $product = Product::create([
                 'category_id' => $catId,
                 'name' => $productName,
-                'slug' => Str::slug($productName) . '-' . time() . rand(10, 99),
+                'slug' => Str::slug($productName).'-'.time().rand(10, 99),
                 'short_description' => 'Định hình cá tính của bạn với bộ sưu tập thời trang mới nhất. Thiết kế tối giản, dễ mặc, dễ phối cho mọi lứa tuổi.',
                 'description' => '<p>Đây là sản phẩm thuộc bộ sưu tập Phong Cách Thời Thượng, được thiết kế tối giản giúp bạn dễ dàng phối đồ.</p><p>Sản phẩm phù hợp cho mọi lứa tuổi, mang lại cảm giác thoải mái và tự tin.</p>',
-                'thumbnail_url' => 'https://picsum.photos/800/800?random=' . rand(1, 1000),
+                'thumbnail_url' => 'https://picsum.photos/800/800?random='.rand(1, 1000),
                 'product_type' => $productType,
                 'status' => 'active',
                 'is_featured' => rand(0, 1),
@@ -115,23 +115,23 @@ class OceanSeeder extends Seeder
                 'sort_order' => 1,
                 'is_main' => 1,
             ]);
-            
+
             // Thêm vài hình ảnh phụ
             for ($img = 2; $img <= 3; $img++) {
-                 ProductImage::create([
+                ProductImage::create([
                     'product_id' => $product->product_id,
-                    'image_url' => 'https://picsum.photos/800/800?random=' . rand(1001, 2000),
-                    'alt_text' => $productName . ' ' . $img,
+                    'image_url' => 'https://picsum.photos/800/800?random='.rand(1001, 2000),
+                    'alt_text' => $productName.' '.$img,
                     'sort_order' => $img,
                     'is_main' => 0,
                 ]);
             }
 
-            if (!$isVariable) {
+            if (! $isVariable) {
                 // Sản phẩm đơn (simple)
                 ProductVariant::create([
                     'product_id' => $product->product_id,
-                    'sku' => 'SKU-' . $product->product_id . '-00',
+                    'sku' => 'SKU-'.$product->product_id.'-00',
                     'variant_name' => 'Mặc định',
                     'price' => $basePrice,
                     'compare_at_price' => $basePrice * 1.2,
@@ -151,8 +151,8 @@ class OceanSeeder extends Seeder
                         $variantPrice = $basePrice + rand(0, 5) * 10000;
                         ProductVariant::create([
                             'product_id' => $product->product_id,
-                            'sku' => 'SKU-' . $product->product_id . '-' . Str::slug($color . '-' . $size),
-                            'variant_name' => $color . ' - ' . $size,
+                            'sku' => 'SKU-'.$product->product_id.'-'.Str::slug($color.'-'.$size),
+                            'variant_name' => $color.' - '.$size,
                             'color' => $color,
                             'size' => $size,
                             'material' => $prodMaterial,
@@ -160,7 +160,7 @@ class OceanSeeder extends Seeder
                             'compare_at_price' => $variantPrice * 1.3,
                             'stock' => rand(5, 50),
                             'status' => 'active',
-                            'image_url' => 'https://picsum.photos/800/800?random=' . rand(2001, 3000),
+                            'image_url' => 'https://picsum.photos/800/800?random='.rand(2001, 3000),
                         ]);
                     }
                 }

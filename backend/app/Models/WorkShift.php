@@ -20,7 +20,7 @@ class WorkShift extends Model
     {
         return [
             'early_buffer_minutes' => 'integer',
-            'is_active'            => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 

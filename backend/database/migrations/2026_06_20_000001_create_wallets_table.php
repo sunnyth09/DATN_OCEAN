@@ -12,7 +12,7 @@ return new class extends Migration
         // Chỉ xóa khi bảng wallets tồn tại nhưng THIẾU cột deposit_balance —
         // đó là dấu hiệu chắc chắn của schema cũ (balance/affiliate_earnings),
         // không đụng tới schema canonical. wallet_transactions drop trước vì có FK.
-        if (Schema::hasTable('wallets') && !Schema::hasColumn('wallets', 'deposit_balance')) {
+        if (Schema::hasTable('wallets') && ! Schema::hasColumn('wallets', 'deposit_balance')) {
             Schema::dropIfExists('wallet_transactions');
             Schema::dropIfExists('wallets');
         }
@@ -44,8 +44,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('user_id')
-                  ->references('user_id')->on('users')
-                  ->onDelete('cascade');
+                ->references('user_id')->on('users')
+                ->onDelete('cascade');
         });
     }
 

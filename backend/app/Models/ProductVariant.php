@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 class ProductVariant extends Model
 {
     protected $table = 'product_variants';
+
     protected $primaryKey = 'variant_id';
+
     protected $fillable = [
         'product_id',
         'sku',
@@ -30,11 +32,12 @@ class ProductVariant extends Model
         'image_url',
         'status',
     ];
+
     protected $casts = [
         'attributes_json' => 'array',
-        'sale_price'      => 'float',
-        'sale_starts_at'  => 'datetime',
-        'sale_ends_at'    => 'datetime',
+        'sale_price' => 'float',
+        'sale_starts_at' => 'datetime',
+        'sale_ends_at' => 'datetime',
     ];
 
     /**
@@ -49,10 +52,10 @@ class ProductVariant extends Model
      */
     public function getIsOnSaleAttribute(): bool
     {
-        if (!$this->sale_price || $this->sale_price <= 0) {
+        if (! $this->sale_price || $this->sale_price <= 0) {
             return false;
         }
-        
+
         $now = Carbon::now();
 
         // Nếu không có thời gian bắt đầu và kết thúc -> Sale vô thời hạn (dài hạn)
@@ -87,9 +90,10 @@ class ProductVariant extends Model
      */
     public function getDiscountPercentAttribute(): int
     {
-        if (!$this->is_on_sale || $this->price <= 0) {
+        if (! $this->is_on_sale || $this->price <= 0) {
             return 0;
         }
+
         return (int) round(($this->price - $this->sale_price) / $this->price * 100);
     }
 
@@ -99,6 +103,7 @@ class ProductVariant extends Model
     {
         return $this->belongsTo(Product::class, 'product_id', 'product_id');
     }
+
     public function images()
     {
         return $this->hasMany(ProductImage::class, 'variant_id');

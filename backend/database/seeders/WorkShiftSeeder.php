@@ -11,25 +11,25 @@ class WorkShiftSeeder extends Seeder
     {
         $shifts = [
             [
-                'name'                 => 'Ca sáng',
-                'start_time'           => '08:00:00',
-                'end_time'             => '12:30:00',
+                'name' => 'Ca sáng',
+                'start_time' => '08:00:00',
+                'end_time' => '12:30:00',
                 'early_buffer_minutes' => 30,
-                'is_active'            => true,
+                'is_active' => true,
             ],
             [
-                'name'                 => 'Ca chiều',
-                'start_time'           => '12:30:00',
-                'end_time'             => '17:00:00',
+                'name' => 'Ca chiều',
+                'start_time' => '12:30:00',
+                'end_time' => '17:00:00',
                 'early_buffer_minutes' => 30,
-                'is_active'            => true,
+                'is_active' => true,
             ],
             [
-                'name'                 => 'Ca tối',
-                'start_time'           => '17:00:00',
-                'end_time'             => '21:00:00',
+                'name' => 'Ca tối',
+                'start_time' => '17:00:00',
+                'end_time' => '21:00:00',
                 'early_buffer_minutes' => 30,
-                'is_active'            => true,
+                'is_active' => true,
             ],
         ];
 

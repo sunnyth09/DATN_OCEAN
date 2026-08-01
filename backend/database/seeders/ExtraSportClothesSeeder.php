@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class ExtraSportClothesSeeder extends Seeder
 {
@@ -23,7 +23,7 @@ class ExtraSportClothesSeeder extends Seeder
 
     private function getCategories(): array
     {
-        $catMap = []; 
+        $catMap = [];
         $children = ['ao-the-thao-nam', 'ao-the-thao-nu', 'quan-the-thao'];
 
         foreach ($children as $slug) {
@@ -41,58 +41,60 @@ class ExtraSportClothesSeeder extends Seeder
     private function seedProducts(array $catMap): void
     {
         $allProducts = $this->getProductsData();
-        
+
         $nike = DB::table('brands')->where('slug', 'nike')->first();
         $adidas = DB::table('brands')->where('slug', 'adidas')->first();
         $defaultBrand = DB::table('brands')->first();
-        
+
         $brandNikeId = $nike ? $nike->brand_id : ($defaultBrand ? $defaultBrand->brand_id : null);
         $brandAdidasId = $adidas ? $adidas->brand_id : ($defaultBrand ? $defaultBrand->brand_id : null);
 
         foreach ($allProducts as $catSlug => $products) {
             $categoryId = $catMap[$catSlug] ?? null;
-            if (!$categoryId) continue;
+            if (! $categoryId) {
+                continue;
+            }
 
             foreach ($products as $index => $p) {
                 $brandId = ($p[2] == 1) ? $brandNikeId : $brandAdidasId;
                 $slug = Str::slug($p[0]);
 
                 if (DB::table('products')->where('slug', $slug)->exists()) {
-                    $slug .= '-' . Str::random(4);
+                    $slug .= '-'.Str::random(4);
                 }
 
                 $imagePath = $p[5] ?? null;
 
                 $productId = DB::table('products')->insertGetId([
-                    'category_id'       => $categoryId,
-                    'brand_id'          => $brandId,
-                    'seller_id'         => null,
-                    'name'              => $p[0],
-                    'slug'              => $slug,
+                    'category_id' => $categoryId,
+                    'brand_id' => $brandId,
+                    'seller_id' => null,
+                    'name' => $p[0],
+                    'slug' => $slug,
                     'short_description' => $p[3],
-                    'description'       => $this->buildDescription($p[0]),
-                    'thumbnail_url'     => $imagePath,
-                    'product_type'      => 'variant',
-                    'status'            => 'active',
-                    'is_featured'       => $p[4] ?? false,
-                    'min_price'         => $p[1],
-                    'max_price'         => $p[1],
-                    'rating_avg'        => round(mt_rand(42, 50) / 10, 1),
-                    'rating_count'      => mt_rand(30, 150),
-                    'view_count'        => mt_rand(400, 2000),
-                    'sold_count'        => mt_rand(15, 100),
-                    'published_at'      => $this->now,
-                    'created_at'        => $this->now,
-                    'updated_at'        => $this->now,
+                    'description' => $this->buildDescription($p[0]),
+                    'thumbnail_url' => $imagePath,
+                    'product_type' => 'variant',
+                    'status' => 'active',
+                    'is_featured' => $p[4] ?? false,
+                    'min_price' => $p[1],
+                    'max_price' => $p[1],
+                    'rating_avg' => round(mt_rand(42, 50) / 10, 1),
+                    'rating_count' => mt_rand(30, 150),
+                    'view_count' => mt_rand(400, 2000),
+                    'sold_count' => mt_rand(15, 100),
+                    'published_at' => $this->now,
+                    'created_at' => $this->now,
+                    'updated_at' => $this->now,
                 ]);
 
                 $variants = $this->generateVariants($productId, $slug, $p[1], $catSlug);
 
                 $prices = array_column($variants, 'price');
-                if (!empty($prices)) {
+                if (! empty($prices)) {
                     DB::table('products')->where('product_id', $productId)->update([
-                        'min_price'    => min($prices),
-                        'max_price'    => max($prices),
+                        'min_price' => min($prices),
+                        'max_price' => max($prices),
                         'product_type' => count($variants) > 1 ? 'variant' : 'simple',
                     ]);
                 }
@@ -119,31 +121,33 @@ class ExtraSportClothesSeeder extends Seeder
                 $attempt = 0;
                 $originalSku = $sku;
                 while (DB::table('product_variants')->where('sku', $sku)->exists()) {
-                    $sku = $originalSku . '-' . Str::random(3);
-                    if (++$attempt > 5) break;
+                    $sku = $originalSku.'-'.Str::random(3);
+                    if (++$attempt > 5) {
+                        break;
+                    }
                 }
 
-                $barcode = 'CLOTH' . strtoupper(Str::random(7)) . mt_rand(10, 99);
+                $barcode = 'CLOTH'.strtoupper(Str::random(7)).mt_rand(10, 99);
 
                 DB::table('product_variants')->insert([
-                    'product_id'       => $productId,
-                    'sku'              => $sku,
-                    'barcode'          => $barcode,
-                    'variant_name'     => trim(($color ?? '') . ' - ' . ($size ?? ''), ' -'),
-                    'color'            => $color,
-                    'size'             => $size,
-                    'material'         => 'Vải thể thao cao cấp',
-                    'weight_gram'      => mt_rand(200, 450),
-                    'cost_price'       => round($price * 0.55),
-                    'price'            => $price,
+                    'product_id' => $productId,
+                    'sku' => $sku,
+                    'barcode' => $barcode,
+                    'variant_name' => trim(($color ?? '').' - '.($size ?? ''), ' -'),
+                    'color' => $color,
+                    'size' => $size,
+                    'material' => 'Vải thể thao cao cấp',
+                    'weight_gram' => mt_rand(200, 450),
+                    'cost_price' => round($price * 0.55),
+                    'price' => $price,
                     'compare_at_price' => round($price * 1.25),
-                    'stock'            => mt_rand(20, 150),
-                    'reserved_stock'   => 0,
-                    'safety_stock'     => 5,
-                    'image_url'        => null,
-                    'status'           => 'active',
-                    'created_at'       => $this->now,
-                    'updated_at'       => $this->now,
+                    'stock' => mt_rand(20, 150),
+                    'reserved_stock' => 0,
+                    'safety_stock' => 5,
+                    'image_url' => null,
+                    'status' => 'active',
+                    'created_at' => $this->now,
+                    'updated_at' => $this->now,
                 ]);
 
                 $variants[] = ['price' => $price];
@@ -155,14 +159,16 @@ class ExtraSportClothesSeeder extends Seeder
 
     private function createImages(int $productId, string $name, ?string $imagePath): void
     {
-        if (!$imagePath) return;
+        if (! $imagePath) {
+            return;
+        }
 
         DB::table('product_images')->insert([
             'product_id' => $productId,
             'variant_id' => null,
-            'image_url'  => $imagePath,
-            'alt_text'   => $name . ' mặt trước',
-            'is_main'    => 1,
+            'image_url' => $imagePath,
+            'alt_text' => $name.' mặt trước',
+            'is_main' => 1,
             'sort_order' => 0,
             'created_at' => $this->now,
         ]);
@@ -170,9 +176,9 @@ class ExtraSportClothesSeeder extends Seeder
         DB::table('product_images')->insert([
             'product_id' => $productId,
             'variant_id' => null,
-            'image_url'  => str_replace('.jpg', '_back.jpg', $imagePath),
-            'alt_text'   => $name . ' mặt sau',
-            'is_main'    => 0,
+            'image_url' => str_replace('.jpg', '_back.jpg', $imagePath),
+            'alt_text' => $name.' mặt sau',
+            'is_main' => 0,
             'sort_order' => 1,
             'created_at' => $this->now,
         ]);
@@ -181,14 +187,14 @@ class ExtraSportClothesSeeder extends Seeder
     private function buildDescription(string $name): string
     {
         return '<div class="product-description">'
-            . '<h3>Chi tiết sản phẩm</h3>'
-            . '<p>Sản phẩm <strong>' . $name . '</strong> mang phong cách năng động, hiện đại. Thích hợp cho cả việc tập luyện thể thao lẫn phối đồ đi chơi hằng ngày.</p>'
-            . '<ul>'
-            . '<li>Độ co giãn 4 chiều, thoải mái khi vận động mạnh.</li>'
-            . '<li>Chống tia UV bảo vệ da khi tập luyện ngoài trời.</li>'
-            . '<li>Giữ form cực tốt sau nhiều lần giặt.</li>'
-            . '</ul>'
-            . '</div>';
+            .'<h3>Chi tiết sản phẩm</h3>'
+            .'<p>Sản phẩm <strong>'.$name.'</strong> mang phong cách năng động, hiện đại. Thích hợp cho cả việc tập luyện thể thao lẫn phối đồ đi chơi hằng ngày.</p>'
+            .'<ul>'
+            .'<li>Độ co giãn 4 chiều, thoải mái khi vận động mạnh.</li>'
+            .'<li>Chống tia UV bảo vệ da khi tập luyện ngoài trời.</li>'
+            .'<li>Giữ form cực tốt sau nhiều lần giặt.</li>'
+            .'</ul>'
+            .'</div>';
     }
 
     private function getProductsData(): array

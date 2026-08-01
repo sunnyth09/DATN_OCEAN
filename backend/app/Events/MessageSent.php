@@ -3,10 +3,8 @@
 namespace App\Events;
 
 use App\Models\ChatMessage;
-use App\Models\ChatSession;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -16,7 +14,9 @@ class MessageSent implements ShouldBroadcastNow
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $message;
+
     public $sessionToken;
+
     public $senderType;
 
     /**
@@ -38,9 +38,9 @@ class MessageSent implements ShouldBroadcastNow
     {
         return [
             // Public channel cho guest (UUID token làm bảo mật)
-            new Channel('chat.' . $this->sessionToken),
-            // Public/Private channel cho Admin 
-            new Channel('admin.chats') // Tạm dùng public channel để tránh lỗi auth cho admin dashboard nếu setup chưa xong
+            new Channel('chat.'.$this->sessionToken),
+            // Public/Private channel cho Admin
+            new Channel('admin.chats'), // Tạm dùng public channel để tránh lỗi auth cho admin dashboard nếu setup chưa xong
         ];
     }
 

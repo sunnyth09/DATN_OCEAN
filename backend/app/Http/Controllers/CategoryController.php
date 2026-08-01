@@ -4,15 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Category;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
-
     private function buildTree(array $elements, $parentId = 0)
     {
         $branch = [];
@@ -27,6 +25,7 @@ class CategoryController extends Controller
                 $branch[] = $element;
             }
         }
+
         return $branch;
     }
 
@@ -35,10 +34,15 @@ class CategoryController extends Controller
      */
     private function buildImageUrl(?string $path): ?string
     {
-        if (!$path) return null;
+        if (! $path) {
+            return null;
+        }
         // Nếu đã là URL tuyệt đối thì trả về ngay
-        if (Str::startsWith($path, ['http://', 'https://'])) return $path;
-        return url('/api/image-proxy?path=' . $path);
+        if (Str::startsWith($path, ['http://', 'https://'])) {
+            return $path;
+        }
+
+        return url('/api/image-proxy?path='.$path);
     }
 
     /**
@@ -48,9 +52,10 @@ class CategoryController extends Controller
     {
         return array_map(function ($cat) {
             $cat['image_url'] = $this->buildImageUrl($cat['image'] ?? null);
-            if (!empty($cat['children'])) {
+            if (! empty($cat['children'])) {
                 $cat['children'] = $this->appendImageUrl($cat['children']);
             }
+
             return $cat;
         }, $categories);
     }
@@ -62,6 +67,7 @@ class CategoryController extends Controller
     {
         $tree = Cache::rememberForever('categories:tree', function () {
             $cats = Category::all()->toArray();
+
             return $this->buildTree($cats);
         });
 
@@ -69,7 +75,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $tree
+            'data' => $tree,
         ]);
     }
 
@@ -79,19 +85,19 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name'        => 'required|string|max:255',
-            'parent_id'   => 'nullable|integer',
+            'name' => 'required|string|max:255',
+            'parent_id' => 'nullable|integer',
             'description' => 'nullable|string',
-            'sort_order'  => 'nullable|integer',
-            'is_active'   => 'nullable|boolean',
-            'image'       => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
+            'sort_order' => 'nullable|integer',
+            'is_active' => 'nullable|boolean',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Lỗi xác thực dữ liệu',
-                'errors'  => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -106,7 +112,7 @@ class CategoryController extends Controller
         $originalSlug = $data['slug'];
         $count = 1;
         while (Category::where('slug', $data['slug'])->exists()) {
-            $data['slug'] = $originalSlug . '-' . $count++;
+            $data['slug'] = $originalSlug.'-'.$count++;
         }
 
         // Upload ảnh nếu có
@@ -121,9 +127,9 @@ class CategoryController extends Controller
         Cache::forget('categories:tree');
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Tạo danh mục thành công',
-            'data'    => $category
+            'data' => $category,
         ], 201);
     }
 
@@ -131,10 +137,10 @@ class CategoryController extends Controller
     {
         $category = Category::find($id);
 
-        if (!$category) {
+        if (! $category) {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Không tìm thấy danh mục'
+                'status' => 'error',
+                'message' => 'Không tìm thấy danh mục',
             ], 404);
         }
 
@@ -143,7 +149,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data'   => $data
+            'data' => $data,
         ]);
     }
 
@@ -154,27 +160,27 @@ class CategoryController extends Controller
     {
         $category = Category::find($id);
 
-        if (!$category) {
+        if (! $category) {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Không tìm thấy danh mục'
+                'status' => 'error',
+                'message' => 'Không tìm thấy danh mục',
             ], 404);
         }
 
         $validator = Validator::make($request->all(), [
-            'name'        => 'sometimes|required|string|max:255',
-            'parent_id'   => 'nullable|integer',
+            'name' => 'sometimes|required|string|max:255',
+            'parent_id' => 'nullable|integer',
             'description' => 'nullable|string',
-            'sort_order'  => 'nullable|integer',
-            'is_active'   => 'nullable|boolean',
-            'image'       => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
+            'sort_order' => 'nullable|integer',
+            'is_active' => 'nullable|boolean',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,webp,gif|max:2048',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status'  => 'error',
+                'status' => 'error',
                 'message' => 'Lỗi xác thực dữ liệu',
-                'errors'  => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -191,7 +197,7 @@ class CategoryController extends Controller
             $originalSlug = $data['slug'];
             $count = 1;
             while (Category::where('slug', $data['slug'])->where('category_id', '!=', $id)->exists()) {
-                $data['slug'] = $originalSlug . '-' . $count++;
+                $data['slug'] = $originalSlug.'-'.$count++;
             }
         }
 
@@ -212,9 +218,9 @@ class CategoryController extends Controller
         $result['image_url'] = $this->buildImageUrl($category->fresh()->image);
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Cập nhật danh mục thành công',
-            'data'    => $result
+            'data' => $result,
         ]);
     }
 
@@ -225,10 +231,10 @@ class CategoryController extends Controller
     {
         $category = Category::find($id);
 
-        if (!$category) {
+        if (! $category) {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Không tìm thấy danh mục'
+                'status' => 'error',
+                'message' => 'Không tìm thấy danh mục',
             ], 404);
         }
 
@@ -239,8 +245,8 @@ class CategoryController extends Controller
         }
 
         return response()->json([
-            'status'  => 'success',
-            'message' => 'Đã xóa ảnh danh mục'
+            'status' => 'success',
+            'message' => 'Đã xóa ảnh danh mục',
         ]);
     }
 
@@ -251,23 +257,20 @@ class CategoryController extends Controller
     {
         $category = Category::find($id);
 
-        if (!$category) {
+        if (! $category) {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Không tìm thấy danh mục'
+                'status' => 'error',
+                'message' => 'Không tìm thấy danh mục',
             ], 404);
         }
-
 
         $hasChildren = Category::where('parent_id', $id)->exists();
         if ($hasChildren) {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Không thể xóa danh mục có danh mục con'
+                'status' => 'error',
+                'message' => 'Không thể xóa danh mục có danh mục con',
             ], 400);
         }
-
-
 
         // Xóa ảnh kèm theo khi xóa danh mục
         if ($category->image) {
@@ -278,8 +281,8 @@ class CategoryController extends Controller
         Cache::forget('categories:tree');
 
         return response()->json([
-            'status'  => 'success',
-            'message' => 'Xóa danh mục thành công'
+            'status' => 'success',
+            'message' => 'Xóa danh mục thành công',
         ]);
     }
 }

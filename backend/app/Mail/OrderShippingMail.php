@@ -24,7 +24,7 @@ class OrderShippingMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '[Quyền Sport] Đơn hàng #' . $this->order->order_code . ' đã được tạo vận đơn GHN',
+            subject: '[Ocean Sport] Đơn hàng #' . $this->order->order_code . ' đã được tạo vận đơn GHN',
         );
     }
 

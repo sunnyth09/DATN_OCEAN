@@ -20,10 +20,10 @@ class WorkLocation extends Model
     protected function casts(): array
     {
         return [
-            'latitude'      => 'float',
-            'longitude'     => 'float',
+            'latitude' => 'float',
+            'longitude' => 'float',
             'radius_meters' => 'integer',
-            'is_active'     => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 
