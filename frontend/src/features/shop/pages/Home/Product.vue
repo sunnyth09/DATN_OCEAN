@@ -312,14 +312,7 @@ onMounted(async () => {
 
     await nextTick();
     isInitializing = false;
-    
-    // Nếu URL CÓ chứa param (category, q, search, v.v.), watcher sẽ tự động trigger scheduleFetchProducts.
-    // Nếu KHÔNG có param nào, watcher sẽ KHÔNG trigger do state khởi tạo trùng khớp.
-    // Do đó, ta chỉ tự fetchProducts khi không có params thay đổi so với mặc định.
-    const hasFilters = route.query.category || route.query.q || route.query.search || currentPage.value > 1;
-    if (!hasFilters) {
-        await fetchProducts();
-    }
+    scheduleFetchProducts();
 
     // === Affiliate: ghi nhận referral code từ URL ===
     const refCode = route.query.ref;

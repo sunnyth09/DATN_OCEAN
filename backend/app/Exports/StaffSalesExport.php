@@ -13,19 +13,19 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class StaffSalesExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
-    protected \;
-    protected \;
+    protected $startDate;
+    protected $endDate;
 
-    public function __construct(\, \)
+    public function __construct($startDate, $endDate)
     {
-        \->startDate = \;
-        \->endDate = \;
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
     }
 
     public function collection()
     {
-        \ = app(StatisticsRepository::class);
-        return \->getStaffSales(\->startDate, \->endDate);
+        $statisticsRepository = app(StatisticsRepository::class);
+        return $statisticsRepository->getStaffSales($this->startDate, $this->endDate);
     }
 
     public function headings(): array
@@ -40,19 +40,19 @@ class StaffSalesExport implements FromCollection, ShouldAutoSize, WithHeadings, 
         ];
     }
 
-    public function map(\): array
+    public function map($row): array
     {
         return [
-            \->seller_id,
-            \->seller ? \->seller->full_name : 'Không xác định',
-            \->seller ? \->seller->email : 'Không xác định',
-            \->seller ? \->seller->role : 'Không xác định',
-            \->total_orders,
-            \->total_revenue,
+            $row->seller_id,
+            $row->seller ? $row->seller->full_name : 'Không xác định',
+            $row->seller ? $row->seller->email : 'Không xác định',
+            $row->seller ? $row->seller->role : 'Không xác định',
+            $row->total_orders,
+            $row->total_revenue,
         ];
     }
 
-    public function styles(Worksheet \)
+    public function styles(Worksheet $sheet)
     {
         return [
             1 => ['font' => ['bold' => true]],
