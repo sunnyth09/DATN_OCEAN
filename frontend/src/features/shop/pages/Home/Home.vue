@@ -14,6 +14,7 @@ const Products = ref([]);
 const Categories = ref([]);
 const isLoadingFeatured = ref(true);
 const isLoadingCategories = ref(true);
+const isPageReady = computed(() => !isLoadingFeatured.value && !isLoadingCategories.value);
 const catalogStore = useCatalogStore();
 const { categories: storeCategories } = storeToRefs(catalogStore);
 
@@ -212,8 +213,21 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 </script>
 
 <template>
-    <main class="home-main">
-        <section class="hero-section">
+    <div class="home-wrapper">
+        <!-- SPLASH SCREEN -->
+        <Transition name="splash">
+            <div v-if="!isPageReady" class="splash-screen">
+                <div class="splash-logo-container">
+                    <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Ocean Sport Logo" class="splash-logo pulse-animation" />
+                    <div class="splash-progress">
+                        <div class="splash-progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </Transition>
+
+        <main class="home-main" :class="{ 'page-ready': isPageReady }">
+            <section class="hero-section">
             <div class="hero-bg">
                 <img :src="BASE_URL + '/storage/banners/banner_1.jpg'" alt="hero" class="hero-bg-img" />
                 <div class="hero-overlay"></div>
@@ -227,7 +241,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </h1>
                     <p class="hero-desc">Khám phá những thiết bị chất lượng cao, được thiết kế để nâng tầm kỹ năng
                         và đưa bạn đến chiến thắng. Đam mê bắt đầu từ đây.</p>
-                    <div class="d-flex gap-3 flex-wrap hero-btns mb-5">
+                    <div class="d-flex gap-3 flex-wrap hero-btns mb-4">
                         <router-link to="/product" class="btn-primary-hero">
                             Khám phá ngay
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -244,7 +258,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                         </router-link>
                     </div>
                     
-                    <div class="hero-stats-glass mt-4">
+                    <div class="hero-stats-glass mt-3">
                         <div class="hero-stat-item">
                             <span class="hero-stat-num">50K+</span>
                             <span class="hero-stat-label">Khách hàng</span>
@@ -813,9 +827,86 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         </section>
 
     </main>
+    </div>
 </template>
 
 <style scoped>
+/* SPLASH SCREEN CSS */
+.splash-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: #ffffff; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.splash-leave-active {
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.splash-leave-to {
+    opacity: 0;
+    transform: scale(1.05);
+}
+
+.splash-logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+}
+
+.splash-logo {
+    width: 200px;
+    height: auto;
+}
+
+.pulse-animation {
+    animation: splashPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes splashPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.95); }
+}
+
+.splash-progress {
+    width: 140px;
+    height: 4px;
+    background: #f1f5f9;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.splash-progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 40%;
+    background: linear-gradient(90deg, var(--primary), #ff6b9d);
+    border-radius: 4px;
+    animation: splashLoading 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes splashLoading {
+    0% { left: -40%; }
+    100% { left: 100%; }
+}
+
+/* PAGE CONTENT REVEAL */
+.home-main {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s;
+}
+
+.home-main.page-ready {
+    opacity: 1;
+    transform: translateY(0);
+}
 /* ============================================
    HOME WRAPPER
 ============================================ */
@@ -870,38 +961,32 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .hero-section {
     position: relative;
     width: 100%;
-    height: 80vh;
-    min-height: 600px;
+    height: 70vh;
+    min-height: 550px;
     overflow: hidden;
+    display: flex;
+    align-items: center;
 }
 
 .hero-bg {
     position: absolute;
     inset: 0;
+    z-index: 0;
 }
 
 .hero-bg-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center 30%;
-    animation: heroZoom 12s ease-in-out infinite alternate;
-}
-
-@keyframes heroZoom {
-    from {
-        transform: scale(1);
-    }
-
-    to {
-        transform: scale(1.06);
-    }
+    object-position: center;
+    /* Removed the zoom animation to prevent distortion/cropping feeling */
 }
 
 .hero-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(105deg, rgba(15, 23, 42, .9) 0%, rgba(15, 23, 42, .6) 50%, rgba(230, 59, 111, .35) 100%);
+    /* Richer, smoother gradient for better text contrast and modern look */
+    background: linear-gradient(105deg, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.7) 45%, rgba(230, 59, 111, 0.4) 100%);
 }
 
 /* Floating stats */
@@ -964,14 +1049,16 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .hero-content-wrap {
     position: relative;
     z-index: 2;
-    height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    width: 100%;
 }
 
 .hero-content {
-    max-width: 540px;
+    max-width: 500px; /* Reduced from 600px to ensure it doesn't push against edges */
+    position: relative;
+    z-index: 10;
 }
 
 .hero-tag {
@@ -982,34 +1069,36 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     font-size: .7rem;
     font-weight: 700;
     letter-spacing: 2px;
-    padding: 6px 20px;
+    padding: 6px 16px;
     border-radius: 99px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     text-transform: uppercase;
     animation: fadeInLeft .7s ease both;
 }
 
 .hero-title {
-    font-size: 3.8rem;
+    font-size: clamp(2rem, 4.5vw, 3.2rem); 
     font-weight: 900;
-    line-height: 1.25;
+    line-height: 1.15;
     color: #fff;
-    letter-spacing: -1px;
-    margin: 0 0 20px;
+    letter-spacing: -0.5px;
+    margin: 0 0 16px;
     animation: fadeInLeft .7s ease both .1s;
+    text-wrap: balance; 
 }
 
 .hero-title em {
     font-style: italic;
     color: var(--primary);
     text-shadow: 0 0 40px rgba(230, 59, 111, .6);
+    display: inline-block;
 }
 
 .hero-desc {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     color: #e2e8f0;
-    line-height: 1.6;
-    margin-bottom: 35px;
+    line-height: 1.5;
+    margin-bottom: 24px;
     animation: fadeInLeft .7s ease both .2s;
 }
 
@@ -1124,11 +1213,13 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 20px;
-    background: #ffffff;
-    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
     padding: 16px;
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.02);
-    border: 1px solid rgba(0, 0, 0, 0.035);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.03);
+    margin-top: -25px; /* Pull up into hero for depth */
 }
 
 .benefit-item {
@@ -1137,21 +1228,22 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     gap: 16px;
     padding: 20px 24px;
     border-radius: 16px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     background: transparent;
     cursor: pointer;
 }
 
 .benefit-item:hover {
-    background: #fff5f7;
-    transform: translateY(-4px);
-    box-shadow: 0 12px 20px rgba(230, 59, 111, 0.06);
+    background: #fff;
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(230, 59, 111, 0.08);
 }
 
 .benefit-item:hover .benefit-icon {
-    transform: scale(1.1) rotate(5deg);
+    transform: scale(1.15) rotate(8deg);
     color: var(--primary);
-    background: #ffe5ed;
+    background: linear-gradient(135deg, rgba(230, 59, 111, 0.1), rgba(255, 107, 157, 0.15));
+    box-shadow: 0 8px 20px rgba(230, 59, 111, 0.15);
 }
 
 .benefit-icon {
@@ -1216,7 +1308,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    3. FLASH SALE
 ============================================ */
 .flash-sale-section {
-    background: linear-gradient(135deg, #180008 0%, #3a0014 50%, #1f000a 100%);
+    background: linear-gradient(135deg, #0a0005 0%, #240010 50%, #0d0006 100%);
     position: relative;
 }
 
@@ -1238,18 +1330,15 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     justify-content: center;
     color: #fff;
     flex-shrink: 0;
-    animation: flashPulse 1.5s ease-in-out infinite;
+    animation: flashNeonPulse 1.5s ease-in-out infinite;
 }
 
-@keyframes flashPulse {
-
-    0%,
-    100% {
-        box-shadow: 0 0 0 0 rgba(230, 59, 111, .5);
+@keyframes flashNeonPulse {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(230, 59, 111, .5), 0 0 20px rgba(230, 59, 111, .3);
     }
-
     50% {
-        box-shadow: 0 0 0 12px rgba(230, 59, 111, 0);
+        box-shadow: 0 0 20px rgba(230, 59, 111, .8), 0 0 40px rgba(230, 59, 111, .5);
     }
 }
 
@@ -1343,24 +1432,24 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .cat-card {
     position: relative;
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
     overflow: hidden;
     min-height: 160px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 20px 10px;
+    padding: 24px 10px;
     text-decoration: none;
     cursor: pointer;
-    transition: all .3s;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .cat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, .05);
-    border-color: var(--primary);
+    transform: translateY(-8px) scale(1.03);
+    box-shadow: 0 20px 40px rgba(230, 59, 111, 0.12);
 }
 
 .cat-card-bg {
@@ -1396,6 +1485,11 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.cat-card:hover .cat-card-img img {
+    transform: scale(1.2) rotate(3deg);
 }
 
 .cat-card-icon {
@@ -1442,16 +1536,16 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 ============================================ */
 .equip-big-card {
     background: var(--card-bg);
-    border: 1px solid #eaeaea;
-    border-radius: 16px;
-    padding: 28px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, .04);
-    transition: box-shadow .3s, transform .3s;
+    border: none;
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.02);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .equip-big-card:hover {
-    box-shadow: 0 12px 40px rgba(0, 0, 0, .08);
-    transform: translateY(-2px);
+    box-shadow: 0 25px 50px rgba(230, 59, 111, 0.12);
+    transform: translateY(-6px);
 }
 
 .equip-big-img {
@@ -1524,8 +1618,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-small-card {
     background: var(--card-bg);
-    border: 1px solid #eaeaea;
-    border-radius: 16px;
+    border: none;
+    border-radius: 20px;
     padding: 24px;
     display: flex;
     flex-direction: row;
@@ -1533,14 +1627,15 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     justify-content: space-between;
     min-height: 160px;
     text-decoration: none;
-    transition: box-shadow .3s, transform .3s;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     overflow: hidden;
     position: relative;
 }
 
 .equip-small-card:hover {
-    box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
-    transform: translateY(-2px);
+    box-shadow: 0 20px 40px rgba(230, 59, 111, 0.12);
+    transform: translateY(-5px);
 }
 
 .equip-small-card--empty {
@@ -1600,28 +1695,28 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    6. BEST SELLERS TABS
 ============================================ */
 .tab-btn {
-    padding: 10px 24px;
-    border: 2px solid #e5e7eb;
-    background: transparent;
+    padding: 12px 28px;
+    border: none;
+    background: #f1f5f9;
     border-radius: 99px;
-    font-size: .88rem;
-    font-weight: 600;
+    font-size: 0.95rem;
+    font-weight: 700;
     cursor: pointer;
-    color: #636E72;
-    transition: all .2s;
+    color: #64748b;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
 }
 
 .tab-btn:hover {
-    border-color: var(--primary);
-    color: var(--primary);
+    background: #e2e8f0;
+    color: #334155;
+    transform: translateY(-2px);
 }
 
 .tab-btn.active {
-    background: var(--primary);
-    border-color: var(--primary);
+    background: linear-gradient(135deg, var(--primary), #ff6b9d);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(230, 59, 111, .3);
+    box-shadow: 0 8px 20px rgba(230, 59, 111, 0.3);
 }
 
 .btn-view-more {
@@ -2269,12 +2364,23 @@ a.promo-banner-btn {
 
 /* Flash Sale Progress Bar */
 .flash-sale-card-wrapper {
-    background: var(--card-bg);
-    border-radius: 16px;
-    padding-bottom: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding-bottom: 16px;
     height: 100%;
     display: flex;
     flex-direction: column;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    overflow: hidden;
+}
+.flash-sale-card-wrapper:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(230, 59, 111, 0.25);
+    border-color: rgba(230, 59, 111, 0.4);
+    background: rgba(255, 255, 255, 0.1);
 }
 .flash-progress-wrap {
     padding: 0 16px;

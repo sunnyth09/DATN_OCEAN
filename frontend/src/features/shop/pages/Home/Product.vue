@@ -43,6 +43,45 @@ const getImageUrl = (path) => {
     return getStorageUrl(path);
 };
 
+// ── Dynamic Banner Info ──
+const bannerInfo = computed(() => {
+    // Default banner
+    const defaultBanner = {
+        title: "Tất Cả Sản Phẩm",
+        sub: "Nâng tầm cuộc chơi với trang thiết bị chuyên nghiệp",
+        bg: "linear-gradient(90deg, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.2) 100%), url('/banners/general.png') center/cover no-repeat"
+    };
+
+    if (selectedCategories.value.length === 1) {
+        const catId = selectedCategories.value[0];
+        // Find category name by flattening Categories
+        const flatCategories = Categories.value.reduce((acc, cat) => {
+            acc.push(cat);
+            if (cat.children) acc.push(...cat.children);
+            return acc;
+        }, []);
+        
+        const category = flatCategories.find(c => c.category_id === catId || c.id === catId);
+        if (category && category.name) {
+            const nameLower = category.name.toLowerCase();
+            let bgImage = '/banners/general.png';
+            if (nameLower.includes('pickleball')) {
+                bgImage = '/banners/pickleball.png';
+            } else if (nameLower.includes('cầu lông') || nameLower.includes('badminton')) {
+                bgImage = '/banners/badminton.png';
+            } else if (nameLower.includes('tennis')) {
+                bgImage = '/banners/tennis.png';
+            }
+            return {
+                title: `Sản Phẩm ${category.name}`,
+                sub: `Trang thiết bị chuyên nghiệp cho môn ${category.name}`,
+                bg: `linear-gradient(90deg, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.2) 100%), url('${bgImage}') center/cover no-repeat`
+            };
+        }
+    }
+    return defaultBanner;
+});
+
 // ── Pagination ──
 const visiblePages = computed(() => {
     const total = totalPages.value;
@@ -144,10 +183,8 @@ const fetchCategories = async () => {
 // ── Fetch brands ──
 const fetchBrands = async () => {
     try {
-        const response = await catalogService.listBrands();
-        Brands.value = response.data.data || response.data || [];
+        Brands.value = await catalogStore.fetchBrands();
     } catch (e) {
-        // Brands endpoint might not exist, fail silently
         Brands.value = [];
     }
 };
@@ -275,7 +312,14 @@ onMounted(async () => {
 
     await nextTick();
     isInitializing = false;
-    await fetchProducts();
+    
+    // Nếu URL CÓ chứa param (category, q, search, v.v.), watcher sẽ tự động trigger scheduleFetchProducts.
+    // Nếu KHÔNG có param nào, watcher sẽ KHÔNG trigger do state khởi tạo trùng khớp.
+    // Do đó, ta chỉ tự fetchProducts khi không có params thay đổi so với mặc định.
+    const hasFilters = route.query.category || route.query.q || route.query.search || currentPage.value > 1;
+    if (!hasFilters) {
+        await fetchProducts();
+    }
 
     // === Affiliate: ghi nhận referral code từ URL ===
     const refCode = route.query.ref;
@@ -299,9 +343,9 @@ onUnmounted(() => {
         <!-- ══ MAIN CONTENT ══ -->
         <div class="product-container">
             <!-- ══ HERO BANNER ══ -->
-            <section class="page-hero">
-                <h1>Tất Cả Sản Phẩm</h1>
-                <p class="hero-sub">Nâng tầm cuộc chơi với trang thiết bị chuyên nghiệp</p>
+            <section class="page-hero" :style="{ background: bannerInfo.bg }">
+                <h1>{{ bannerInfo.title }}</h1>
+                <p class="hero-sub">{{ bannerInfo.sub }}</p>
             </section>
             <!-- Info bar -->
             <div class="product-toolbar">
@@ -479,12 +523,16 @@ onUnmounted(() => {
 .page-hero {
   background: linear-gradient(135deg, #e63b6f, #a0204e);
   color: #fff;
-  border-radius: 16px;
-  padding: 32px;
+  border-radius: var(--radius-md, 12px); /* Reduced border radius */
+  padding: 56px 40px; /* Increased padding to make it larger */
   margin: 0 0 28px 0;
   position: relative;
   overflow: hidden;
   text-align: left;
+  min-height: 180px; /* Ensure a minimum height for the banner */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .page-hero::after {
   content: '';
@@ -496,8 +544,8 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 50%;
 }
-.page-hero h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 8px; position: relative; z-index: 1; }
-.hero-sub { opacity: 0.85; font-size: 0.95rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.6; }
+.page-hero h1 { font-size: 2.2rem; font-weight: 800; margin: 0 0 12px; position: relative; z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.hero-sub { opacity: 0.95; font-size: 1.1rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
 
 /* ── CONTAINER ── */
 .product-container {
