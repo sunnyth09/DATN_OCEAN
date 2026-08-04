@@ -93,7 +93,7 @@ onMounted(() => {
             <div class="action-buttons">
                 <router-link
                     v-if="authStore.isAuthenticated"
-                    :to="'/profile/orders/' + orderId"
+                    :to="orderId ? '/profile/orders/' + orderId : (orderCode ? '/profile/orders?code=' + orderCode : '/profile/orders')"
                     class="btn-outline-brown"
                     >Xem đơn hàng của tôi</router-link
                 >
