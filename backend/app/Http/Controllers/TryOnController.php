@@ -50,17 +50,34 @@ class TryOnController extends Controller
             ], 400);
         }
 
-        // Chuyển ảnh sản phẩm sang base64 data URI (vì Fashn.ai không truy cập được localhost)
         $productImageUrl = $productImagePath;
         if (!preg_match('/^https?:\/\//', $productImagePath)) {
-            // Ảnh nằm trong storage local → đọc file và encode base64
-            $storagePath = storage_path('app/public/' . ltrim($productImagePath, '/'));
+            // Ảnh nằm trong storage local hoặc public → đọc file và encode base64
+            $cleanPath = ltrim($productImagePath, '/');
+            // Xoá tiền tố 'storage/' nếu có (đề phòng DB lưu thừa)
+            if (str_starts_with($cleanPath, 'storage/')) {
+                $cleanPath = substr($cleanPath, 8);
+            }
+
+            $storagePath = storage_path('app/public/' . $cleanPath);
+            $publicPath = public_path('storage/' . $cleanPath);
+            $directPublicPath = public_path($cleanPath);
+
+            $filePathToUse = null;
             if (file_exists($storagePath)) {
-                $mime = mime_content_type($storagePath) ?: 'image/jpeg';
-                $productImageUrl = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($storagePath));
+                $filePathToUse = $storagePath;
+            } elseif (file_exists($publicPath)) {
+                $filePathToUse = $publicPath;
+            } elseif (file_exists($directPublicPath)) {
+                $filePathToUse = $directPublicPath;
+            }
+
+            if ($filePathToUse) {
+                $mime = mime_content_type($filePathToUse) ?: 'image/jpeg';
+                $productImageUrl = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($filePathToUse));
             } else {
-                // Fallback: dùng URL (chỉ hoạt động khi deploy với domain thật)
-                $productImageUrl = url('storage/' . ltrim($productImagePath, '/'));
+                // Fallback: dùng URL tuyệt đối dựa vào request domain thay vì config APP_URL
+                $productImageUrl = $request->getSchemeAndHttpHost() . '/storage/' . $cleanPath;
             }
         }
 
