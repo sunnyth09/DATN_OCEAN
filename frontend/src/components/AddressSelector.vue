@@ -374,11 +374,11 @@ onMounted(async () => {
 .address-selector__preview {
     margin-top: 14px;
     padding: 12px 16px;
-    background: var(--primary);
-    border: 1px solid #f3d1de;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
     border-radius: 10px;
     font-size: 0.875rem;
-    color: #ffffff;
+    color: #334155;
     display: flex;
     align-items: flex-start;
     gap: 8px;
