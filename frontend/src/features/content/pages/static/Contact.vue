@@ -53,21 +53,14 @@
       <div class="contact-layout">
         <div class="info-panel">
           <div class="mini-map">
-            <iframe
-              src="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-              title="Mini map Ocean Sport"
-            ></iframe>
+            <iframe src="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed" loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade" title="Mini map Ocean Sport"></iframe>
           </div>
           <div class="location-meta">
             <h3>Showroom OCEAN SPORT</h3>
             <p>101 Y Ngông, Phường Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
-            <a
-              href="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk" target="_blank"
+              rel="noopener noreferrer">
               Xem bản đồ lớn
             </a>
           </div>
@@ -75,81 +68,68 @@
         <div class="form-panel">
           <h2>Gửi yêu cầu hỗ trợ</h2>
           <form @submit.prevent="submitContact" class="contact-form" novalidate>
-          <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
-          <div v-if="errorMsg" class="alert-error">{{ errorMsg }}</div>
-          <div class="form-row-2">
-            <div class="form-group">
-              <label>Họ và tên</label>
-              <input
-                v-model="form.name"
-                type="text"
-                placeholder="Nguyễn Văn A"
-                :aria-invalid="Boolean(fieldErrors.name)"
-                @input="clearFieldError('name')"
-              />
-              <span v-if="fieldErrors.name" class="field-error">{{ fieldErrors.name }}</span>
+            <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
+            <div v-if="errorMsg" class="alert-error">{{ errorMsg }}</div>
+            <div class="form-row-2">
+              <div class="form-group">
+                <label>Họ và tên</label>
+                <input v-model="form.name" type="text" placeholder="Nguyễn Văn A"
+                  :aria-invalid="Boolean(fieldErrors.name)" @input="clearFieldError('name')" />
+                <span v-if="fieldErrors.name" class="field-error">{{ fieldErrors.name }}</span>
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input v-model="form.email" type="email" placeholder="your@email.com"
+                  :aria-invalid="Boolean(fieldErrors.email)" @input="clearFieldError('email')" />
+                <span v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</span>
+              </div>
             </div>
             <div class="form-group">
-              <label>Email</label>
-              <input
-                v-model="form.email"
-                type="email"
-                placeholder="your@email.com"
-                :aria-invalid="Boolean(fieldErrors.email)"
-                @input="clearFieldError('email')"
-              />
-              <span v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</span>
+              <label>Chủ đề</label>
+              <select v-model="form.subject" :aria-invalid="Boolean(fieldErrors.subject)"
+                @change="clearFieldError('subject')">
+                <option value="">-- Chọn chủ đề --</option>
+                <option>Hỏi về đơn hàng</option>
+                <option>Đổi/Trả sản phẩm</option>
+                <option>Khiếu nại chất lượng</option>
+                <option>Hợp tác kinh doanh</option>
+                <option>Khác</option>
+              </select>
+              <span v-if="fieldErrors.subject" class="field-error">{{ fieldErrors.subject }}</span>
             </div>
-          </div>
-          <div class="form-group">
-            <label>Chủ đề</label>
-            <select
-              v-model="form.subject"
-              :aria-invalid="Boolean(fieldErrors.subject)"
-              @change="clearFieldError('subject')"
-            >
-              <option value="">-- Chọn chủ đề --</option>
-              <option>Hỏi về đơn hàng</option>
-              <option>Đổi/Trả sản phẩm</option>
-              <option>Khiếu nại chất lượng</option>
-              <option>Hợp tác kinh doanh</option>
-              <option>Khác</option>
-            </select>
-            <span v-if="fieldErrors.subject" class="field-error">{{ fieldErrors.subject }}</span>
-          </div>
-          <div class="form-group">
-            <label>Nội dung</label>
-            <textarea
-              v-model="form.message"
-              rows="5"
-              placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."
-              :aria-invalid="Boolean(fieldErrors.message)"
-              @input="clearFieldError('message')"
-            ></textarea>
-            <span v-if="fieldErrors.message" class="field-error">{{ fieldErrors.message }}</span>
-          </div>
+            <div class="form-group">
+              <label>Nội dung</label>
+              <textarea v-model="form.message" rows="5" placeholder="Mô tả chi tiết vấn đề bạn gặp phải..."
+                :aria-invalid="Boolean(fieldErrors.message)" @input="clearFieldError('message')"></textarea>
+              <span v-if="fieldErrors.message" class="field-error">{{ fieldErrors.message }}</span>
+            </div>
 
-          <!-- CAPTCHA -->
-          <div class="turnstile-container" style="margin-bottom: 16px;">
-             <div class="captcha-box" v-show="!turnstileToken">
+            <!-- CAPTCHA -->
+            <div class="turnstile-container" style="margin-bottom: 16px;">
+              <div class="captcha-box" v-show="!turnstileToken">
                 <div class="turnstile-wrapper">
                   <div id="turnstile-contact"></div>
                 </div>
-             </div>
-             <div class="captcha-box success" v-if="turnstileToken" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 14px; display: inline-flex; align-items: center; gap: 10px;">
+              </div>
+              <div class="captcha-box success" v-if="turnstileToken"
+                style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 14px; display: inline-flex; align-items: center; gap: 10px;">
                 <span class="icon text-success" style="color: #22c55e;">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
                 </span>
-                <span class="captcha-text" style="color: #15803d; font-weight: 600; font-size: 0.85rem;">Xác thực thành công</span>
-             </div>
-          </div>
+                <span class="captcha-text" style="color: #15803d; font-weight: 600; font-size: 0.85rem;">Xác thực thành
+                  công</span>
+              </div>
+            </div>
 
-          <button type="submit" class="btn-primary" :disabled="isSubmitting || !turnstileToken">
-            {{ isSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu' }}
-          </button>
-        </form>
+            <button type="submit" class="btn-primary" :disabled="isSubmitting || !turnstileToken">
+              {{ isSubmitting ? 'Đang gửi...' : 'Gửi yêu cầu' }}
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
     </section>
   </div>
 </template>
@@ -316,8 +296,24 @@ const submitContact = async () => {
   font-size: 1.05rem;
   line-height: 1.7;
 }
-.page-hero h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 8px; position: relative; z-index: 1; }
-.hero-sub { opacity: 0.85; font-size: 0.95rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.6; }
+
+.page-hero h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-sub {
+  opacity: 0.85;
+  font-size: 0.95rem;
+  max-width: 500px;
+  margin-top: 5px;
+  z-index: 1;
+  line-height: 1.6;
+  text-align: center;
+}
 
 .page-content {
   padding: 24px 24px 64px;
@@ -531,10 +527,22 @@ const submitContact = async () => {
 }
 
 @media (max-width: 768px) {
-  .static-page { padding-top: 16px; }
-  .page-hero { padding: 0 16px; }
-  .page-hero .container { padding: 40px 18px; border-radius: 18px; }
-  .page-content { padding: 36px 24px 56px; }
+  .static-page {
+    padding-top: 16px;
+  }
+
+  .page-hero {
+    padding: 0 16px;
+  }
+
+  .page-hero .container {
+    padding: 40px 18px;
+    border-radius: 18px;
+  }
+
+  .page-content {
+    padding: 36px 24px 56px;
+  }
 
   .contact-grid {
     grid-template-columns: 1fr 1fr;
