@@ -49,7 +49,7 @@ jobs:
           VITE_REVERB_SCHEME: ${{ vars.VITE_REVERB_SCHEME || 'https' }}
           VITE_REVERB_APP_KEY: ${{ secrets.REVERB_APP_KEY || 'ocean_realtime_key_2024' }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAADfskJpxs4bqJtS_' }}
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || '69477374031-v9nattjdc51dj9hb20qntpq6dkqedem8.apps.googleusercontent.com' }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || '305541227432-7u1qt6nh7814p9qlv7bm8282fhp1163j.apps.googleusercontent.com' }}
         run: npm run build
 
       - name: Upload Frontend Artifact
