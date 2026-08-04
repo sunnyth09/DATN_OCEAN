@@ -4,6 +4,7 @@ import { storeToRefs } from "pinia";
 import ProductCard from "@/components/ProductCard.vue";
 import ProductSkeleton from "@/components/ProductSkeleton.vue";
 import AppIcon from "@/components/AppIcon.vue";
+import CouponDetailModal from "@/features/shop/components/CouponDetailModal.vue";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
 import { getAppBaseUrl, getStorageUrl } from '@/utils/url';
@@ -15,6 +16,9 @@ const Products = ref([]);
 const Categories = ref([]);
 const isLoadingFeatured = ref(true);
 const isLoadingCategories = ref(true);
+const publicCoupons = ref([]);
+const selectedCoupon = ref(null);
+const copiedCouponCode = ref('');
 const catalogStore = useCatalogStore();
 const { categories: storeCategories } = storeToRefs(catalogStore);
 
@@ -139,6 +143,59 @@ const fetchProducts = async () => {
     }
 };
 
+const fetchPublicCoupons = async () => {
+    try {
+        const res = await api.get('/coupons/public');
+        if (res.data?.status === 'success') {
+            publicCoupons.value = (res.data.data || []).filter(c => c.is_active).slice(0, 4);
+        }
+    } catch (e) {
+        console.error('Lỗi tải voucher:', e);
+    }
+};
+
+const formatCurrency = (val) => {
+    if (!val) return '0₫';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+};
+
+const formatCouponValue = (coupon) => {
+    if (coupon.type === 'percent') return `Giảm ${coupon.value}%`;
+    if (coupon.type === 'free_ship') return 'Miễn phí vận chuyển';
+    return `Giảm ${formatCurrency(coupon.value)}`;
+};
+
+const getCouponIcon = (coupon) => {
+    if (coupon.type === 'free_ship') return 'shipping';
+    if (coupon.type === 'percent') return 'percent';
+    return 'tag';
+};
+
+const copyCouponCode = async (code) => {
+    try {
+        await navigator.clipboard.writeText(code);
+        copiedCouponCode.value = code;
+        setTimeout(() => {
+            if (copiedCouponCode.value === code) copiedCouponCode.value = '';
+        }, 1600);
+    } catch (e) {
+        console.error('Không thể sao chép voucher:', e);
+    }
+};
+
+const openCouponDetail = (coupon) => {
+    selectedCoupon.value = coupon;
+};
+
+const closeCouponDetail = () => {
+    selectedCoupon.value = null;
+};
+
+const goToCouponPage = () => {
+    closeCouponDetail();
+    window.location.href = '/coupon';
+};
+
 const sideCategories = computed(() => Categories.value.slice(1, 3));
 const featuredProduct = computed(() =>
     Products.value.find(p => p.badge === 'Hot' || p.is_on_sale) || Products.value[0] || null
@@ -230,6 +287,7 @@ const formatPostDate = (dateStr) => {
 onMounted(() => {
     fetchCategories();
     fetchProducts();
+    fetchPublicCoupons();
     fetchHomePosts();
     updateCountdown();
     countdownTimer = setInterval(updateCountdown, 1000);
@@ -290,59 +348,55 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         </section>
 
         <!-- ══════════════════════════════════════════
-             2. BENEFITS BAR — Full Width
+             2.5. SĂN VOUCHER — Public coupon strip
         ══════════════════════════════════════════ -->
-        <section class="benefits-bar">
+        <section class="home-coupon-section py-5" v-if="publicCoupons.length > 0">
             <div class="container">
-                <div class="benefits-inner">
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="shipping" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Miễn phí vận chuyển</span>
-                            <span class="benefit-sub">Đơn hàng từ 500K</span>
-                        </div>
+                <div class="d-flex align-items-end justify-content-between mb-4">
+                    <div>
+                        <span class="coupon-section-kicker">ƯU ĐÃI CÓ HẠN</span>
+                        <h2 class="section-title mb-1">SĂN VOUCHER HÔM NAY</h2>
+                        <p class="section-subtitle mb-0">Sao chép mã trước, đăng nhập khi thanh toán để sử dụng voucher.</p>
                     </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="return" />
+                    <router-link to="/coupon" class="link-more d-flex align-items-center gap-1">
+                        Xem tất cả voucher
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </router-link>
+                </div>
+
+                <div class="home-coupon-grid">
+                    <article v-for="coupon in publicCoupons" :key="coupon.id" class="home-coupon-card" @click="openCouponDetail(coupon)">
+                        <div class="coupon-ticket-cut coupon-ticket-cut--left"></div>
+                        <div class="coupon-ticket-cut coupon-ticket-cut--right"></div>
+                        <div class="home-coupon-icon">
+                            <AppIcon :name="getCouponIcon(coupon)" width="24" height="24" :stroke-width="2.2" />
                         </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Đổi trả 30 ngày</span>
-                            <span class="benefit-sub">Không cần lý do</span>
+                        <div class="home-coupon-main">
+                            <span class="home-coupon-type">{{ coupon.type === 'free_ship' ? 'FREESHIP' : 'VOUCHER' }}</span>
+                            <strong class="home-coupon-value">{{ formatCouponValue(coupon) }}</strong>
+                            <span class="home-coupon-condition" v-if="coupon.min_order_value">
+                                Đơn từ {{ formatCurrency(coupon.min_order_value) }}
+                            </span>
+                            <span class="home-coupon-condition" v-else>Không yêu cầu đơn tối thiểu</span>
                         </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="payment" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Thanh toán bảo mật</span>
-                            <span class="benefit-sub">SSL 256-bit</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="shield" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Hàng chính hãng 100%</span>
-                            <span class="benefit-sub">Cam kết đảm bảo</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="heart" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Hỗ trợ 24/7</span>
-                            <span class="benefit-sub">Tư vấn nhiệt tình</span>
-                        </div>
-                    </div>
+                        <button class="home-coupon-copy" type="button" @click.stop="copyCouponCode(coupon.code)">
+                            {{ coupon.code }}
+                            <span>{{ copiedCouponCode === coupon.code ? 'Đã sao chép' : 'Sao chép' }}</span>
+                        </button>
+                    </article>
                 </div>
             </div>
         </section>
+
+        <CouponDetailModal
+            :coupon="selectedCoupon"
+            @close="closeCouponDetail"
+            @copy="copyCouponCode"
+            @view-all="goToCouponPage"
+        />
 
         <!-- ══════════════════════════════════════════
              3. FLASH SALE COUNTDOWN — Full Width Dark
@@ -789,6 +843,61 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
             </div>
         </section>
 
+        <!-- ══════════════════════════════════════════
+             2. BENEFITS BAR — Full Width
+        ══════════════════════════════════════════ -->
+        <section class="benefits-bar">
+            <div class="container">
+                <div class="benefits-inner">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="shipping" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Miễn phí vận chuyển</span>
+                            <span class="benefit-sub">Đơn hàng từ 500K</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="return" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Đổi trả 30 ngày</span>
+                            <span class="benefit-sub">Không cần lý do</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="payment" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Thanh toán bảo mật</span>
+                            <span class="benefit-sub">SSL 256-bit</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="shield" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Hàng chính hãng 100%</span>
+                            <span class="benefit-sub">Cam kết đảm bảo</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="heart" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Hỗ trợ 24/7</span>
+                            <span class="benefit-sub">Tư vấn nhiệt tình</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
 
         <!-- ══════════════════════════════════════════
              10. COMMUNITY — Full Width
@@ -1175,9 +1284,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 ============================================ */
 .benefits-bar {
     background: #ffffff;
-    padding: 35px 0;
+    padding: 50px 0;
     position: relative;
-    z-index: 10;
 }
 
 .benefits-inner {
@@ -1269,6 +1377,168 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 @media (max-width: 480px) {
     .benefits-inner {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================
+   2.5. HOME COUPONS
+============================================ */
+.home-coupon-section {
+    background: linear-gradient(180deg, #fff 0%, #fff7fb 100%);
+}
+
+.coupon-section-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    margin-bottom: 8px;
+}
+
+.home-coupon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.home-coupon-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 132px;
+    padding: 18px;
+    border: 1px solid #ffe0ea;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top right, rgba(230, 59, 111, 0.12), transparent 35%),
+        #fff;
+    box-shadow: 0 12px 30px rgba(230, 59, 111, 0.08);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.home-coupon-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 42px rgba(230, 59, 111, 0.14);
+}
+
+.coupon-ticket-cut {
+    position: absolute;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff7fb;
+    border: 1px solid #ffe0ea;
+    transform: translateY(-50%);
+}
+
+.coupon-ticket-cut--left {
+    left: -10px;
+}
+
+.coupon-ticket-cut--right {
+    right: -10px;
+}
+
+.home-coupon-icon {
+    width: 46px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    color: var(--primary);
+    background: #fff0f5;
+    flex-shrink: 0;
+}
+
+.home-coupon-main {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.home-coupon-type {
+    color: #fb7185;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.home-coupon-value {
+    color: #111827;
+    font-size: 1rem;
+    line-height: 1.25;
+}
+
+.home-coupon-condition {
+    color: #64748b;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.home-coupon-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 86px;
+    padding: 9px 10px;
+    border: 1px dashed var(--primary);
+    border-radius: 12px;
+    background: #fff5f8;
+    color: var(--primary);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.home-coupon-copy span {
+    color: #94a3b8;
+    font-size: 0.66rem;
+    font-weight: 700;
+}
+
+.home-coupon-copy:hover {
+    color: #fff;
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.home-coupon-copy:hover span {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+@media (max-width: 1199px) {
+    .home-coupon-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 576px) {
+    .home-coupon-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .home-coupon-card {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .home-coupon-copy {
+        width: 100%;
+        flex-direction: row;
     }
 }
 

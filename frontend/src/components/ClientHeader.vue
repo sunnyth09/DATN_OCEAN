@@ -540,6 +540,13 @@ watch(
                         Tin tức
                     </router-link>
                     <router-link
+                        to="/coupon"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('coupon') }"
+                    >
+                        Voucher
+                    </router-link>
+                    <router-link
                         to="/contact"
                         class="nav-link"
                         :class="{ active: isRouteActive('contact') }"

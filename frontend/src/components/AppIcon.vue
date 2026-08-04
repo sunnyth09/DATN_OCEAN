@@ -56,6 +56,30 @@ const icons = {
       { type: "path", d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" },
     ],
   },
+  voucher: {
+    viewBox: "0 0 24 24",
+    paths: [
+      { type: "path", d: "M3 9a3 3 0 000 6v2a2 2 0 002 2h14a2 2 0 002-2v-2a3 3 0 010-6V7a2 2 0 00-2-2H5a2 2 0 00-2 2z" },
+      { type: "path", d: "M9 9h.01" },
+      { type: "path", d: "M15 15h.01" },
+      { type: "path", d: "M15 9l-6 6" },
+    ],
+  },
+  percent: {
+    viewBox: "0 0 24 24",
+    paths: [
+      { type: "line", x1: "19", y1: "5", x2: "5", y2: "19" },
+      { type: "circle", cx: "6.5", cy: "6.5", r: "2.5" },
+      { type: "circle", cx: "17.5", cy: "17.5", r: "2.5" },
+    ],
+  },
+  tag: {
+    viewBox: "0 0 24 24",
+    paths: [
+      { type: "path", d: "M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" },
+      { type: "line", x1: "7", y1: "7", x2: "7.01", y2: "7" },
+    ],
+  },
 };
 
 const currentIcon = computed(() => icons[props.name] || null);
@@ -93,6 +117,13 @@ const currentIcon = computed(() => icons[props.name] || null);
         :cx="elem.cx"
         :cy="elem.cy"
         :r="elem.r"
+      />
+      <line
+        v-else-if="elem.type === 'line'"
+        :x1="elem.x1"
+        :y1="elem.y1"
+        :x2="elem.x2"
+        :y2="elem.y2"
       />
       <path
         v-else-if="elem.type === 'path'"
