@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\PostResource;
 use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redis;
@@ -64,7 +65,7 @@ class PostController extends Controller
             ->limit($validated['limit'] ?? self::PUBLIC_POST_LIMIT_DEFAULT)
             ->get();
 
-        return response()->json($posts);
+        return response()->json(PostResource::collection($posts)->resolve());
     }
 
     /**
@@ -165,7 +166,7 @@ class PostController extends Controller
             }
         }
 
-        return response()->json($post);
+        return response()->json((new PostResource($post))->resolve());
     }
 
     /**
