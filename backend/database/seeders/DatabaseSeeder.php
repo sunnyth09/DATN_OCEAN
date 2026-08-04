@@ -54,6 +54,11 @@ class DatabaseSeeder extends Seeder
             CurrentSportsCatalogSeeder::class,
         ]);
 
+        // Gọi seeder bài viết mẫu
+        $this->call([
+            PostSeeder::class,
+        ]);
+
         // ========== COURT BOOKING SEEDERS ==========
         $this->call([
             CourtSeeder::class,
