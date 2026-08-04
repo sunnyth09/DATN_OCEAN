@@ -800,7 +800,18 @@ class ChatbotActionService
             $keyword = trim((string) $args['keyword']);
             $keywordLen = mb_strlen($keyword);
             
-            // Chia nhỏ từ khóa thành các token để tìm kiếm linh hoạt hơn
+            // Bỏ qua các từ khóa chung chung do AI đôi khi trích xuất nhầm
+            $genericKeywords = ['bán chạy', 'hot', 'mới nhất', 'giá rẻ', 'đẹp', 'gợi ý', 'sản phẩm'];
+            $isGeneric = false;
+            foreach ($genericKeywords as $gk) {
+                if (mb_stripos($keyword, $gk) !== false) {
+                    $isGeneric = true;
+                    break;
+                }
+            }
+
+            if (!$isGeneric) {
+                // Chia nhỏ từ khóa thành các token để tìm kiếm linh hoạt hơn
             // Ví dụ: "áo thun nam" -> ['áo', 'thun', 'nam']
             $tokens = array_filter(explode(' ', $keyword), fn($t) => mb_strlen($t) > 0);
             
@@ -830,6 +841,7 @@ class ChatbotActionService
                     }
                 }
             });
+            }
         }
 
         if (!empty($args['categories'])) {
