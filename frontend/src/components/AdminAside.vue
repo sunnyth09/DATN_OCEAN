@@ -92,7 +92,7 @@ const handleLogout = async () => {
     <!-- Brand -->
     <div class="sidebar-brand">
       <div class="brand-icon" v-show="!collapsed">
-        <img :src="BASE_URL + '/storage/logo/LOGO_QS.png'" alt="logo-ocean" width="45" >
+        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png'" alt="logo-ocean" width="45" >
       </div>
       <h2 class="brand-title"> Quản trị </h2>
       <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">

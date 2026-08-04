@@ -32,7 +32,7 @@
               </svg>
             </div>
             <div>
-              <h3 class="chat-title">{{ mode === 'live' ? 'Hỗ trợ viên' : 'Quyền Sport AI' }}</h3>
+              <h3 class="chat-title">{{ mode === 'live' ? 'Hỗ trợ viên' : 'Ocean Sport AI' }}</h3>
               <p class="chat-subtitle">{{ mode === 'live' ? 'Sẵn sàng hỗ trợ bạn' : 'Trợ lý mua sắm thông minh' }}</p>
             </div>
           </div>
@@ -54,7 +54,7 @@
                 <path d="M2 7c1.5-3 4.5-3 6 0s4.5 3 6 0 4.5-3 6 0" opacity="0.5"/>
               </svg>
             </div>
-            <h4 class="welcome-title">{{ mode === 'live' ? 'Kết nối thành công!' : 'Xin chào! Tôi là Quyền Sport AI' }}</h4>
+            <h4 class="welcome-title">{{ mode === 'live' ? 'Kết nối thành công!' : 'Xin chào! Tôi là Ocean Sport AI' }}</h4>
             <p class="welcome-desc">{{ mode === 'live' ? 'Vui lòng đặt câu hỏi, chúng tôi sẽ phản hồi trong giây lát.' : 'Tôi có thể giúp bạn tìm sản phẩm, tra đơn hàng, xem khuyến mãi và nhiều hơn nữa!' }}</p>
           </div>
 
