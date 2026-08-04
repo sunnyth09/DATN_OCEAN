@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
+import DOMPurify from 'dompurify';
 import AppIcon from '@/icons/AppIcon.vue';
 import { getStorageUrl } from '@/utils/url';
 
@@ -11,6 +12,10 @@ const router = useRouter();
 const post = ref(null);
 const relatedPosts = ref([]);
 const isLoading = ref(true);
+
+const sanitizedContent = computed(() => DOMPurify.sanitize(post.value?.content || '', {
+  USE_PROFILES: { html: true },
+}));
 
 const fetchPostDetail = async (idOrSlug) => {
   try {
@@ -152,7 +157,7 @@ const getAuthorRole = (author) => {
           </div>
 
           <!-- Rich Text Content (Quill Render) -->
-          <div class="article-body ql-editor" v-html="post.content"></div>
+          <div class="article-body ql-editor" v-html="sanitizedContent"></div>
 
           <!-- Author Bio Card -->
           <div class="author-bio-card">

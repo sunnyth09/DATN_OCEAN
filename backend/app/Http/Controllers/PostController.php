@@ -14,33 +14,55 @@ class PostController extends Controller
 
     private const SEO_DESCRIPTION_MAX_LENGTH = 500;
 
+    private const PUBLIC_POST_LIMIT_DEFAULT = 12;
+
+    private const PUBLIC_POST_LIMIT_MAX = 50;
+
+    private function generateUniqueSlug(string $source, ?int $ignorePostId = null): string
+    {
+        $baseSlug = Str::slug($source);
+        $baseSlug = $baseSlug !== '' ? $baseSlug : 'bai-viet';
+        $baseSlug = substr($baseSlug, 0, 95);
+
+        $slug = $baseSlug;
+        $counter = 1;
+
+        while (Post::where('slug', $slug)
+            ->when($ignorePostId, fn ($query) => $query->where('post_id', '!=', $ignorePostId))
+            ->exists()) {
+            $suffix = '-'.$counter++;
+            $slug = substr($baseSlug, 0, 100 - strlen($suffix)).$suffix;
+        }
+
+        return $slug;
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = Post::with(['category', 'author']);
+        $validated = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:'.self::PUBLIC_POST_LIMIT_MAX,
+            'post_type' => 'nullable|string|max:50',
+            'is_featured' => 'nullable|boolean',
+        ]);
 
-        if ($request->has('status')) {
-            $query->where('status', $request->query('status'));
-        }
+        $query = Post::with(['category', 'author'])
+            ->where('status', 'published');
 
-        if ($request->has('post_type')) {
-            $query->where('post_type', $request->query('post_type'));
+        if (! empty($validated['post_type'])) {
+            $query->where('post_type', $validated['post_type']);
         }
 
         if ($request->has('is_featured')) {
-            $isFeatured = $request->query('is_featured');
-            $query->where('is_featured', $isFeatured === 'true' || $isFeatured === '1' || $isFeatured === 1);
+            $query->where('is_featured', $request->boolean('is_featured'));
         }
 
-        $query->orderBy('published_at', 'desc');
-
-        if ($request->has('limit')) {
-            $posts = $query->limit((int)$request->query('limit'))->get();
-        } else {
-            $posts = $query->get();
-        }
+        $posts = $query
+            ->orderBy('published_at', 'desc')
+            ->limit($validated['limit'] ?? self::PUBLIC_POST_LIMIT_DEFAULT)
+            ->get();
 
         return response()->json($posts);
     }
@@ -71,12 +93,8 @@ class PostController extends Controller
         ]);
         $authorId = auth('admin')->id() ?? auth('api')->id();
 
-        $slug = $request->filled('slug') ? Str::slug($request->slug) : Str::slug($request->title);
-        $slug = substr($slug, 0, 100);
-        $exists = Post::where('slug', $slug)->exists();
-        if ($exists) {
-            $slug = substr($slug, 0, 95) . '-' . rand(1, 999);
-        }
+        $slugSource = $request->filled('slug') ? $request->slug : $request->title;
+        $slug = $this->generateUniqueSlug($slugSource);
 
         $request->merge([
             'slug' => $slug,
@@ -123,25 +141,27 @@ class PostController extends Controller
     public function show($idOrSlug)
     {
         $post = Post::with(['category', 'author'])
+            ->where('status', 'published')
             ->where(function($query) use ($idOrSlug) {
                 $query->where('post_id', $idOrSlug)
                       ->orWhere('slug', $idOrSlug);
             })
             ->firstOrFail();
 
-        if ($post->status === 'published') {
-            // Redis-based view count throttle: 5-minute cooldown per IP
-            $ip = request()->ip();
-            $cacheKey = 'post_viewed:' . $post->post_id . ':' . $ip;
+        // Redis-based view count throttle: 5-minute cooldown per IP
+        $ip = request()->ip();
+        $cacheKey = 'post_viewed:' . $post->post_id . ':' . $ip;
 
-            try {
-                if (!Redis::exists($cacheKey)) {
-                    $post->increment('view_count');
-                    Redis::setex($cacheKey, 300, 1); // 300 seconds = 5 minutes
-                }
-            } catch (\Exception $e) {
-                // Fallback: update DB nếu Redis không khả dụng
+        try {
+            if (Redis::setnx($cacheKey, 1)) {
+                Redis::expire($cacheKey, 300);
                 $post->increment('view_count');
+            }
+        } catch (\Exception $e) {
+            $fallbackKey = 'post_viewed_fallback_'.$post->post_id;
+            if (! session()->has($fallbackKey)) {
+                $post->increment('view_count');
+                session()->put($fallbackKey, true);
             }
         }
 
@@ -184,12 +204,8 @@ class PostController extends Controller
             'seo_description.max' => 'Mô tả SEO không được vượt quá '.self::SEO_DESCRIPTION_MAX_LENGTH.' ký tự.',
         ]);
 
-        $slug = $request->filled('slug') ? Str::slug($request->slug) : Str::slug($request->title);
-        $slug = substr($slug, 0, 100);
-        $exists = Post::where('slug', $slug)->where('post_id', '!=', $id)->exists();
-        if ($exists) {
-            $slug = substr($slug, 0, 95) . '-' . rand(1, 999);
-        }
+        $slugSource = $request->filled('slug') ? $request->slug : $request->title;
+        $slug = $this->generateUniqueSlug($slugSource, (int) $id);
 
         $post->title = $request->title;
         $post->slug = $slug;
