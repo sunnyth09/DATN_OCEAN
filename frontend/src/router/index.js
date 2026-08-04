@@ -84,9 +84,6 @@ const routes = [
             { path: "return-policy", name: "return-policy", component: () => import("@/features/content/pages/static/ReturnPolicy.vue"), meta: { title: 'Chính sách đổi trả' } },
             { path: "shopping-guide", name: "shopping-guide", component: () => import("@/features/content/pages/static/ShoppingGuide.vue"), meta: { title: 'Hướng dẫn mua hàng' } },
             { path: "terms", name: "terms", component: () => import("@/features/content/pages/static/Terms.vue"), meta: { title: 'Điều khoản dịch vụ' } },
-            // Public blog/posts routes
-            { path: "posts", name: "post-list", component: () => import("@/features/content/pages/client/PostList.vue"), meta: { title: 'Tin tức' } },
-            { path: "posts/:idOrSlug", name: "post-detail", component: () => import("@/features/content/pages/client/PostDetail.vue"), meta: { title: 'Chi tiết bài viết' } },
             // Court Booking Pages
             { path: "courts", name: "courts-list", component: () => import("@/features/courts/pages/client/CourtsList.vue"), meta: { title: 'Đặt sân cầu lông' } },
             { path: "courts/:id", name: "court-detail", component: () => import("@/features/courts/pages/client/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },
@@ -114,13 +111,13 @@ const routes = [
     },
     // OAuth Callback routes
     {
-        path: "/client/auth/google/callback",
+        path: "/api/auth/google/callback",
         name: "google-callback",
         component: GoogleCallback,
         meta: { title: 'Đăng nhập Google' },
     },
     {
-        path: "/client/auth/facebook/callback",
+        path: "/api/auth/facebook/callback",
         name: "facebook-callback",
         component: FacebookCallback,
         meta: { title: 'Đăng nhập Facebook' },
@@ -438,7 +435,7 @@ router.afterEach((to) => {
     const isAdmin = to.matched.some(record => record.path === '/admin');
 
     if (title) {
-        document.title = isAdmin ? `${title} | OS Admin` : `${title} | Ocean Sport`;
+        document.title = isAdmin ? `${title} | QS Admin` : `${title} | Ocean Sport`;
     } else {
         document.title = 'Ocean Sport';
     }

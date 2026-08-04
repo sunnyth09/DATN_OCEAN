@@ -1,14 +1,12 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import { storeToRefs } from "pinia";
 import ProductCard from "@/components/ProductCard.vue";
 import ProductSkeleton from "@/components/ProductSkeleton.vue";
 import AppIcon from "@/components/AppIcon.vue";
-import CouponDetailModal from "@/features/shop/components/CouponDetailModal.vue";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
 import { getAppBaseUrl, getStorageUrl } from '@/utils/url';
-import api from "@/axios";
 
 const BASE_URL = getAppBaseUrl();
 
@@ -16,27 +14,8 @@ const Products = ref([]);
 const Categories = ref([]);
 const isLoadingFeatured = ref(true);
 const isLoadingCategories = ref(true);
-const publicCoupons = ref([]);
-const selectedCoupon = ref(null);
-const copiedCouponCode = ref('');
-const isPageReady = computed(() => !isLoadingFeatured.value && !isLoadingCategories.value);
-
 const catalogStore = useCatalogStore();
 const { categories: storeCategories } = storeToRefs(catalogStore);
-
-// Sử dụng Pinia Store để lưu trạng thái hiển thị Splash thay vì sessionStorage
-// Để khi user ấn F5 (load lại trang), store reset -> Splash sẽ hiện lại
-// Nhưng khi chuyển trang bằng vue-router -> store giữ nguyên -> Splash không hiện
-const showSplash = ref(!catalogStore.hasSeenSplash);
-
-// Khi load xong lần đầu tiên thì lưu lại session
-watch(isPageReady, (ready) => {
-    if (ready && showSplash.value) {
-        catalogStore.hasSeenSplash = true;
-        setTimeout(() => { showSplash.value = false; }, 300);
-    }
-});
-
 
 // ── Tab filter ──
 const activeTab = ref('all');
@@ -71,34 +50,21 @@ const updateCountdown = () => {
     };
 };
 
-const flashSaleProducts = computed(() => {
-    return Products.value.filter(p => p.is_on_sale || p.discount_percent > 0).slice(0, 4).map(p => {
-        // Add fake sold stats for demo Scarcity UX
-        const total = 100;
-        const sold = Math.floor(Math.random() * 50) + 40; // 40-90
-        const percent = Math.floor((sold / total) * 100);
-        return { ...p, flash_sold: sold, flash_total: total, flash_percent: percent };
-    });
-});
+const flashSaleProducts = computed(() =>
+    Products.value.filter(p => p.is_on_sale || p.discount_percent > 0).slice(0, 4)
+);
 
-// ── Category helpers (Updated with Line Art SVGs) ──
-const catIcons = [
-    '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><path d="M11 7h2v6h-2zm0 8h2v2h-2z"/>', // Demo SVG path
-    '<path d="M21 6.5l-4-4-2 2-6-6-2 2 6 6-2 2 4 4 2-2 6 6 2-2-4-4 2-2 4 4z"/>',
-    '<circle cx="12" cy="12" r="8"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
-    '<path d="M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4M8 10l4 4 4-4M12 14V4"/>',
-    '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
-    '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'
-];
+// ── Category helpers ──
+const catIcons = ['⚽', '🏀', '🎾', '🏊', '🥊', '🏋️', '🎽', '👟'];
 const getCatIcon = (idx) => catIcons[idx % catIcons.length];
 
 const catGradients = [
-    'linear-gradient(135deg,#2563eb,#4f46e5)',
-    'linear-gradient(135deg,#ec4899,#e11d48)',
-    'linear-gradient(135deg,#06b6d4,#0ea5e9)',
-    'linear-gradient(135deg,#10b981,#059669)',
-    'linear-gradient(135deg,#f59e0b,#ea580c)',
-    'linear-gradient(135deg,#8b5cf6,#7c3aed)',
+    'linear-gradient(135deg,#667eea,#764ba2)',
+    'linear-gradient(135deg,#f093fb,#f5576c)',
+    'linear-gradient(135deg,#4facfe,#00f2fe)',
+    'linear-gradient(135deg,#43e97b,#38f9d7)',
+    'linear-gradient(135deg,#fa709a,#fee140)',
+    'linear-gradient(135deg,#a18cd1,#fbc2eb)',
 ];
 const getCatGradient = (idx) => catGradients[idx % catGradients.length];
 
@@ -141,12 +107,7 @@ const mapProduct = (item) => {
 };
 
 const fetchCategories = async () => {
-    if (catalogStore.hasFetchedCategories) {
-        isLoadingCategories.value = false;
-    } else {
-        isLoadingCategories.value = true;
-    }
-    
+    isLoadingCategories.value = true;
     try {
         await catalogStore.fetchCategories();
         const data = storeCategories.value || [];
@@ -165,14 +126,9 @@ const fetchCategories = async () => {
 };
 
 const fetchProducts = async () => {
-    if (catalogStore.hasFetchedFeaturedProducts) {
-        isLoadingFeatured.value = false;
-    } else {
-        isLoadingFeatured.value = true;
-    }
-
+    isLoadingFeatured.value = true;
     try {
-        const res = await catalogStore.fetchFeaturedProducts();
+        const res = await catalogService.listProducts({ limit: 8, sort: 'newest' });
         const rawData = extractCollection(res);
         Products.value = (Array.isArray(rawData) ? rawData : []).map(mapProduct);
     } catch (e) {
@@ -180,59 +136,6 @@ const fetchProducts = async () => {
     } finally {
         isLoadingFeatured.value = false;
     }
-};
-
-const fetchPublicCoupons = async () => {
-    try {
-        const res = await api.get('/coupons/public');
-        if (res.data?.status === 'success') {
-            publicCoupons.value = (res.data.data || []).filter(c => c.is_active).slice(0, 4);
-        }
-    } catch (e) {
-        console.error('Lỗi tải voucher:', e);
-    }
-};
-
-const formatCurrency = (val) => {
-    if (!val) return '0₫';
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
-};
-
-const formatCouponValue = (coupon) => {
-    if (coupon.type === 'percent') return `Giảm ${coupon.value}%`;
-    if (coupon.type === 'free_ship') return 'Miễn phí vận chuyển';
-    return `Giảm ${formatCurrency(coupon.value)}`;
-};
-
-const getCouponIcon = (coupon) => {
-    if (coupon.type === 'free_ship') return 'shipping';
-    if (coupon.type === 'percent') return 'percent';
-    return 'tag';
-};
-
-const copyCouponCode = async (code) => {
-    try {
-        await navigator.clipboard.writeText(code);
-        copiedCouponCode.value = code;
-        setTimeout(() => {
-            if (copiedCouponCode.value === code) copiedCouponCode.value = '';
-        }, 1600);
-    } catch (e) {
-        console.error('Không thể sao chép voucher:', e);
-    }
-};
-
-const openCouponDetail = (coupon) => {
-    selectedCoupon.value = coupon;
-};
-
-const closeCouponDetail = () => {
-    selectedCoupon.value = null;
-};
-
-const goToCouponPage = () => {
-    closeCouponDetail();
-    window.location.href = '/coupon';
 };
 
 const sideCategories = computed(() => Categories.value.slice(1, 3));
@@ -263,113 +166,45 @@ const testimonials = [
 const brands = [
     { name: 'Nike', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Logo_NIKE.svg' },
     { name: 'Adidas', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/20/Adidas_Logo.svg' },
-    { name: 'Puma', logo: 'https://cdn.simpleicons.org/puma' },
+    { name: 'Puma', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b3/Puma_AG_Logo.svg' },
     { name: 'Under Armour', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Under_armour_logo.svg' },
     { name: 'Asics', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Asics_Logo.svg' },
-    { name: 'New Balance', logo: 'https://cdn.simpleicons.org/newbalance' },
+    { name: 'New Balance', logo: 'https://upload.wikimedia.org/wikipedia/commons/e/ea/New_Balance_logo.svg' },
 ];
-
-// ── Public Posts ──
-const homePosts = ref([]);
-const fetchHomePosts = async () => {
-    try {
-        const res = await api.get('/posts', { params: { status: 'published', limit: 4 } });
-        homePosts.value = res.data || [];
-    } catch (e) {
-        console.error('Lỗi tải bài viết:', e);
-    }
-};
-
-const featuredHomePost = computed(() => {
-    const feat = homePosts.value.find(p => p.is_featured);
-    return feat || homePosts.value[0] || null;
-});
-
-const sideHomePosts = computed(() => {
-    if (!featuredHomePost.value) return homePosts.value.slice(0, 3);
-    return homePosts.value.filter(p => p.post_id !== featuredHomePost.value.post_id).slice(0, 3);
-});
-
-const getHomePostImage = (url) => {
-    if (!url || url === '0') return 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
-    return getStorageUrl(url);
-};
-
-const getHomeAuthorName = (author) => {
-    if (!author) return 'Ban Biên Tập';
-    return author.full_name || author.name || 'Ban Biên Tập';
-};
-
-const getHomeAuthorFallbackAvatar = (author) => {
-    const name = encodeURIComponent(getHomeAuthorName(author));
-    return `https://ui-avatars.com/api/?name=${name}&background=e63b6f&color=fff&size=80&bold=true`;
-};
-
-const getHomeAuthorAvatar = (author) => {
-    if (!author?.avatar_url) return getHomeAuthorFallbackAvatar(author);
-    return getStorageUrl(author.avatar_url);
-};
-
-const getHomePostSummary = (post, limit = 96) => {
-    const text = post?.summary || post?.excerpt || post?.content || '';
-    const plainText = String(text).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-    if (!plainText) return '';
-    return plainText.length > limit ? `${plainText.slice(0, limit).trim()}...` : plainText;
-};
-
-const formatPostDate = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-};
-
-const revealElements = ref([]);
-
-const initScrollReveal = () => {
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('reveal-active');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.1 });
-
-    document.querySelectorAll('.reveal-on-scroll').forEach(el => observer.observe(el));
-};
 
 onMounted(() => {
     fetchCategories();
     fetchProducts();
-    fetchPublicCoupons();
-    fetchHomePosts();
     updateCountdown();
     countdownTimer = setInterval(updateCountdown, 1000);
-    // Initialize reveal slightly after mount to ensure DOM is ready
-    setTimeout(initScrollReveal, 300);
 });
 onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 </script>
 
 <template>
-    <div class="home-wrapper">
-        <!-- SPLASH SCREEN -->
-        <Transition name="splash">
-            <div v-if="showSplash && !isPageReady" class="splash-screen">
-                <div class="splash-logo-container">
-                    <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Ocean Sport Logo" class="splash-logo pulse-animation" />
-                </div>
-            </div>
-        </Transition>
-
-        <main class="home-main" :class="{ 'page-ready': isPageReady }">
-            <section class="hero-section">
+    <main class="home-main">
+        <section class="hero-section">
             <div class="hero-bg">
                 <img :src="BASE_URL + '/storage/banners/banner_1.jpg'" alt="hero" class="hero-bg-img" />
                 <div class="hero-overlay"></div>
             </div>
             <div class="container hero-content-wrap">
-                <!-- Removed legacy top-right stats in favor of new glass block -->
+                <div class="hero-stat--top-right d-none d-lg-flex mt-5">
+                    <div class="hero-stat-item">
+                        <span class="hero-stat-num">50K+</span>
+                        <span class="hero-stat-label">Khách hàng</span>
+                    </div>
+                    <div class="hero-stat-divider"></div>
+                    <div class="hero-stat-item">
+                        <span class="hero-stat-num">1000+</span>
+                        <span class="hero-stat-label">Sản phẩm</span>
+                    </div>
+                    <div class="hero-stat-divider"></div>
+                    <div class="hero-stat-item">
+                        <span class="hero-stat-num">100%</span>
+                        <span class="hero-stat-label">Chính hãng</span>
+                    </div>
+                </div>
                 <div class="hero-content">
                     <span class="hero-tag">BỘ SƯU TẬP MỚI 2026</span>
                     <h1 class="hero-title">
@@ -377,7 +212,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </h1>
                     <p class="hero-desc">Khám phá những thiết bị chất lượng cao, được thiết kế để nâng tầm kỹ năng
                         và đưa bạn đến chiến thắng. Đam mê bắt đầu từ đây.</p>
-                    <div class="d-flex gap-3 flex-wrap hero-btns mb-4">
+                    <div class="d-flex gap-3 flex-wrap hero-btns">
                         <router-link to="/product" class="btn-primary-hero">
                             Khám phá ngay
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -393,78 +228,65 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                             Flash Sale
                         </router-link>
                     </div>
-                    
-                    <div class="hero-stats-glass mt-3">
-                        <div class="hero-stat-item">
-                            <span class="hero-stat-num">50K+</span>
-                            <span class="hero-stat-label">Khách hàng</span>
-                        </div>
-                        <div class="hero-stat-divider"></div>
-                        <div class="hero-stat-item">
-                            <span class="hero-stat-num">1000+</span>
-                            <span class="hero-stat-label">Sản phẩm</span>
-                        </div>
-                        <div class="hero-stat-divider"></div>
-                        <div class="hero-stat-item">
-                            <span class="hero-stat-num">100%</span>
-                            <span class="hero-stat-label">Chính hãng</span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
         </section>
 
         <!-- ══════════════════════════════════════════
-             2.5. SĂN VOUCHER — Public coupon strip
+             2. BENEFITS BAR — Full Width
         ══════════════════════════════════════════ -->
-        <section class="home-coupon-section py-5" v-if="publicCoupons.length > 0">
+        <section class="benefits-bar">
             <div class="container">
-                <div class="d-flex align-items-end justify-content-between mb-4">
-                    <div>
-                        <span class="coupon-section-kicker">ƯU ĐÃI CÓ HẠN</span>
-                        <h2 class="section-title mb-1">SĂN VOUCHER HÔM NAY</h2>
-                        <p class="section-subtitle mb-0">Sao chép mã trước, đăng nhập khi thanh toán để sử dụng voucher.</p>
+                <div class="benefits-inner">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="shipping" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Miễn phí vận chuyển</span>
+                            <span class="benefit-sub">Đơn hàng từ 500K</span>
+                        </div>
                     </div>
-                    <router-link to="/coupon" class="link-more d-flex align-items-center gap-1">
-                        Xem tất cả voucher
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5">
-                            <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                    </router-link>
-                </div>
-
-                <div class="home-coupon-grid">
-                    <article v-for="coupon in publicCoupons" :key="coupon.id" class="home-coupon-card" @click="openCouponDetail(coupon)">
-                        <div class="coupon-ticket-cut coupon-ticket-cut--left"></div>
-                        <div class="coupon-ticket-cut coupon-ticket-cut--right"></div>
-                        <div class="home-coupon-icon">
-                            <AppIcon :name="getCouponIcon(coupon)" width="24" height="24" :stroke-width="2.2" />
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="return" />
                         </div>
-                        <div class="home-coupon-main">
-                            <span class="home-coupon-type">{{ coupon.type === 'free_ship' ? 'FREESHIP' : 'VOUCHER' }}</span>
-                            <strong class="home-coupon-value">{{ formatCouponValue(coupon) }}</strong>
-                            <span class="home-coupon-condition" v-if="coupon.min_order_value">
-                                Đơn từ {{ formatCurrency(coupon.min_order_value) }}
-                            </span>
-                            <span class="home-coupon-condition" v-else>Không yêu cầu đơn tối thiểu</span>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Đổi trả 30 ngày</span>
+                            <span class="benefit-sub">Không cần lý do</span>
                         </div>
-                        <button class="home-coupon-copy" type="button" @click.stop="copyCouponCode(coupon.code)">
-                            {{ coupon.code }}
-                            <span>{{ copiedCouponCode === coupon.code ? 'Đã sao chép' : 'Sao chép' }}</span>
-                        </button>
-                    </article>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="payment" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Thanh toán bảo mật</span>
+                            <span class="benefit-sub">SSL 256-bit</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="shield" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Hàng chính hãng 100%</span>
+                            <span class="benefit-sub">Cam kết đảm bảo</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="heart" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Hỗ trợ 24/7</span>
+                            <span class="benefit-sub">Tư vấn nhiệt tình</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
-
-        <CouponDetailModal
-            :coupon="selectedCoupon"
-            @close="closeCouponDetail"
-            @copy="copyCouponCode"
-            @view-all="goToCouponPage"
-        />
 
         <!-- ══════════════════════════════════════════
              3. FLASH SALE COUNTDOWN — Full Width Dark
@@ -521,20 +343,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                     </template>
                     <template v-else-if="flashSaleProducts.length > 0">
                         <div v-for="product in flashSaleProducts" :key="'flash-' + product.id" class="col-6 col-md-4 col-lg-3">
-                            <div class="flash-sale-card-wrapper">
-                                <ProductCard :product="product" />
-                                <div class="flash-progress-wrap mt-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="flash-sold-text">Đã bán {{ product.flash_sold }}</span>
-                                        <svg v-if="product.flash_percent > 75" class="fire-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z"/>
-                                        </svg>
-                                    </div>
-                                    <div class="flash-progress-bar">
-                                        <div class="flash-progress-fill" :style="{ width: product.flash_percent + '%' }"></div>
-                                    </div>
-                                </div>
-                            </div>
+                            <ProductCard :product="product" />
                         </div>
                     </template>
                     <template v-else>
@@ -553,7 +362,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              4. DANH MỤC NỔI BẬT — Container width
         ══════════════════════════════════════════ -->
-        <section class="section-categories py-5 bg-light reveal-on-scroll">
+        <section class="section-categories py-5 bg-light">
             <div class="container">
                 <!-- Section head -->
                 <div class="d-flex align-items-end justify-content-between mb-4">
@@ -583,7 +392,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                                 <div class="cat-card-img" v-if="cat.image">
                                     <img :src="cat.image" :alt="cat.name" />
                                 </div>
-                                <div class="cat-card-icon svg-icon" v-else v-html="getCatIcon(idx)"></div>
+                                <div class="cat-card-icon" v-else>{{ getCatIcon(idx) }}</div>
                                 <div class="cat-card-info">
                                     <span class="cat-card-name">{{ cat.name }}</span>
                                     <span class="cat-card-count" v-if="cat.product_count">{{ cat.product_count }} SP</span>
@@ -595,7 +404,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                         <div v-for="(icon, idx) in catIcons.slice(0, 6)" :key="idx" class="col-6 col-sm-4 col-lg-2">
                             <router-link to="/product" class="cat-card">
                                 <div class="cat-card-bg" :style="{ background: getCatGradient(idx) }"></div>
-                                <div class="cat-card-icon svg-icon" v-html="icon"></div>
+                                <div class="cat-card-icon">{{ icon }}</div>
                                 <div class="cat-card-info">
                                     <span class="cat-card-name">Thể thao {{ idx + 1 }}</span>
                                 </div>
@@ -609,7 +418,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              5. TRANG BỊ THIẾT YẾU — Container width
         ══════════════════════════════════════════ -->
-        <section class="py-5 reveal-on-scroll">
+        <section class="py-5">
             <div class="container">
                 <div class="d-flex align-items-end justify-content-between mb-4">
                     <div>
@@ -718,22 +527,25 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              6. SẢN PHẨM BÁN CHẠY — Container width
         ══════════════════════════════════════════ -->
-        <section class="py-5 bg-light reveal-on-scroll">
+        <section class="py-5 bg-light">
             <div class="container">
                 <div class="text-center mb-4">
                     <h2 class="section-title accent-title mb-2">SẢN PHẨM BÁN CHẠY</h2>
                     <p class="section-subtitle">Được yêu thích nhất bởi cộng đồng thể thao Việt Nam</p>
                 </div>
-                <div class="segmented-control-wrap mb-4">
-                    <div class="segmented-control">
-                        <div class="segmented-bg" :style="{ transform: activeTab === 'sale' ? 'translateX(100%)' : 'translateX(0)' }"></div>
-                        <button class="seg-btn" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">
-                            Tất cả
-                        </button>
-                        <button class="seg-btn" :class="{ active: activeTab === 'sale' }" @click="activeTab = 'sale'">
-                            Đang Sale
-                        </button>
-                    </div>
+                <!-- Tab filter -->
+                <div class="d-flex justify-content-center gap-2 mb-4">
+                    <button class="tab-btn" :class="{ active: activeTab === 'all' }" @click="activeTab = 'all'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f97316; margin-right: 4px; margin-bottom: 2px;">
+                            <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                        </svg> Tất cả
+                    </button>
+                    <button class="tab-btn" :class="{ active: activeTab === 'sale' }" @click="activeTab = 'sale'">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #eab308; margin-right: 4px; margin-bottom: 2px;">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                        </svg> Đang Sale
+                    </button>
                 </div>
                 <!-- Products Bootstrap row -->
                 <div class="row g-4">
@@ -770,7 +582,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <!-- ══════════════════════════════════════════
              7. DUAL PROMO BANNERS — Container width
         ══════════════════════════════════════════ -->
-        <section class="py-5 reveal-on-scroll">
+        <section class="py-5">
             <div class="container">
                 <div class="row g-4">
                     <!-- Banner 1 -->
@@ -844,75 +656,29 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         </section>
 
         <!-- ══════════════════════════════════════════
-             9.5. TIN TỨC & BÀI VIẾT — Container width
+             9. TESTIMONIALS — Container width
         ══════════════════════════════════════════ -->
-        <section class="py-5 home-news-section" v-if="homePosts.length > 0">
+        <section class="py-5 bg-light">
             <div class="container">
-                <div class="d-flex align-items-end justify-content-between mb-4">
-                    <div>
-                        <h2 class="section-title mb-1">TIN TỨC &amp; BÀI VIẾT</h2>
-                        <p class="section-subtitle mb-0">Cập nhật tin tức thể thao và khuyến mãi mới nhất</p>
-                    </div>
-                    <router-link to="/posts" class="link-more d-flex align-items-center gap-1">
-                        Xem tất cả
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
-                    </router-link>
+                <div class="text-center mb-5">
+                    <h2 class="section-title mb-2">KHÁCH HÀNG NÓI GÌ?</h2>
+                    <p class="section-subtitle">Hơn 50,000 khách hàng đã tin tưởng và yêu thích Ocean Sport</p>
                 </div>
-
-                <!-- Featured large + 3 side posts -->
-                <div class="home-news-grid">
-                    <!-- Large featured post -->
-                    <router-link
-                        v-if="featuredHomePost"
-                        :to="'/posts/' + (featuredHomePost.slug || featuredHomePost.post_id)"
-                        class="home-news-featured"
-                    >
-                        <img :src="getHomePostImage(featuredHomePost.thumbnail_url)" :alt="featuredHomePost.title" class="home-news-featured-img" />
-                        <div class="home-news-featured-overlay">
-                            <span class="hn-tag">{{ featuredHomePost.category?.name || 'Tin nổi bật' }}</span>
-                            <h3 class="hn-title">{{ featuredHomePost.title }}</h3>
-                            <p v-if="getHomePostSummary(featuredHomePost, 120)" class="hn-desc">
-                                {{ getHomePostSummary(featuredHomePost, 120) }}
-                            </p>
-                            <div class="hn-author">
-                                <img
-                                    :src="getHomeAuthorAvatar(featuredHomePost.author)"
-                                    :alt="getHomeAuthorName(featuredHomePost.author)"
-                                    class="hn-avt"
-                                    @error="e => e.target.src = getHomeAuthorFallbackAvatar(featuredHomePost.author)"
-                                />
-                                <span class="hn-author-name">{{ getHomeAuthorName(featuredHomePost.author) }}</span>
+                <div class="row g-4">
+                    <div v-for="t in testimonials" :key="t.id" class="col-md-4">
+                        <div class="testimonial-card h-100">
+                            <div class="d-flex gap-1 mb-3">
+                                <svg v-for="s in 5" :key="s" width="16" height="16" viewBox="0 0 24 24" fill="#FBBF24">
+                                    <polygon
+                                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
                             </div>
-                        </div>
-                    </router-link>
-
-                    <!-- 3 small side posts -->
-                    <div class="home-news-side">
-                        <div v-for="post in sideHomePosts" :key="post.post_id" class="home-post-card">
-                            <router-link :to="'/posts/' + (post.slug || post.post_id)" class="home-post-img-wrap">
-                                <img :src="getHomePostImage(post.thumbnail_url)" :alt="post.title" class="home-post-img" />
-                                <span class="home-post-tag">{{ post.category?.name || 'Tin tức' }}</span>
-                            </router-link>
-                            <div class="home-post-content">
-                                <span class="home-post-date">{{ formatPostDate(post.published_at) }}</span>
-                                <h3 class="home-post-title">
-                                    <router-link :to="'/posts/' + (post.slug || post.post_id)">
-                                        {{ post.title }}
-                                    </router-link>
-                                </h3>
-                                <p v-if="getHomePostSummary(post)" class="home-post-desc">
-                                    {{ getHomePostSummary(post) }}
-                                </p>
-                                <div class="home-post-author">
-                                    <img
-                                        :src="getHomeAuthorAvatar(post.author)"
-                                        :alt="getHomeAuthorName(post.author)"
-                                        class="hn-avt"
-                                        @error="e => e.target.src = getHomeAuthorFallbackAvatar(post.author)"
-                                    />
-                                    <span class="home-post-author-name">{{ getHomeAuthorName(post.author) }}</span>
+                            <p class="testimonial-text">"{{ t.text }}"</p>
+                            <div class="d-flex align-items-center gap-3 pt-3 border-top">
+                                <img :src="t.avatar" :alt="t.name" class="testimonial-avatar" />
+                                <div>
+                                    <span class="d-block fw-bold" style="font-size:.9rem;">{{ t.name }}</span>
+                                    <span class="d-block text-muted" style="font-size:.78rem;">{{ t.role }}</span>
                                 </div>
                             </div>
                         </div>
@@ -920,62 +686,6 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 </div>
             </div>
         </section>
-
-        <!-- ══════════════════════════════════════════
-             2. BENEFITS BAR — Full Width
-        ══════════════════════════════════════════ -->
-        <section class="benefits-bar">
-            <div class="container">
-                <div class="benefits-inner">
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="shipping" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Miễn phí vận chuyển</span>
-                            <span class="benefit-sub">Đơn hàng từ 500K</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="return" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Đổi trả 30 ngày</span>
-                            <span class="benefit-sub">Không cần lý do</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="payment" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Thanh toán bảo mật</span>
-                            <span class="benefit-sub">SSL 256-bit</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="shield" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Hàng chính hãng 100%</span>
-                            <span class="benefit-sub">Cam kết đảm bảo</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="heart" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Hỗ trợ 24/7</span>
-                            <span class="benefit-sub">Tư vấn nhiệt tình</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
 
         <!-- ══════════════════════════════════════════
              10. COMMUNITY — Full Width
@@ -1061,69 +771,9 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         </section>
 
     </main>
-    </div>
 </template>
 
 <style scoped>
-/* SPLASH SCREEN CSS */
-.splash-screen {
-    position: fixed;
-    inset: 0;
-    z-index: 99999;
-    background: #ffffff; 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.splash-leave-active {
-    transition: opacity 0.6s ease, transform 0.6s ease;
-}
-.splash-leave-to {
-    opacity: 0;
-    transform: scale(1.05);
-}
-
-.splash-logo-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-}
-
-.splash-logo {
-    width: 200px;
-    height: auto;
-}
-
-.pulse-animation {
-    animation: fadeGlow 2s ease-in-out infinite alternate;
-}
-
-@keyframes fadeGlow {
-    0% { 
-        opacity: 0.3; 
-        filter: brightness(0.8) drop-shadow(0 0 0px rgba(230, 59, 111, 0));
-        transform: scale(0.98); 
-    }
-    100% { 
-        opacity: 1; 
-        filter: brightness(1.1) drop-shadow(0 0 20px rgba(230, 59, 111, 0.3));
-        transform: scale(1.02); 
-    }
-}
-
-/* PAGE CONTENT REVEAL */
-.home-main {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s;
-}
-
-.home-main.page-ready {
-    opacity: 1;
-    transform: translateY(0);
-}
 /* ============================================
    HOME WRAPPER
 ============================================ */
@@ -1178,32 +828,37 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .hero-section {
     position: relative;
     width: 100%;
-    height: 70vh;
-    min-height: 550px;
+    height: 620px;
     overflow: hidden;
-    display: flex;
-    align-items: center;
 }
 
 .hero-bg {
     position: absolute;
     inset: 0;
-    z-index: 0;
 }
 
 .hero-bg-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center;
-    /* Removed the zoom animation to prevent distortion/cropping feeling */
+    object-position: center 30%;
+    animation: heroZoom 12s ease-in-out infinite alternate;
+}
+
+@keyframes heroZoom {
+    from {
+        transform: scale(1);
+    }
+
+    to {
+        transform: scale(1.06);
+    }
 }
 
 .hero-overlay {
     position: absolute;
     inset: 0;
-    /* Richer, smoother gradient for better text contrast and modern look */
-    background: linear-gradient(105deg, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.7) 45%, rgba(230, 59, 111, 0.4) 100%);
+    background: linear-gradient(105deg, rgba(15, 15, 25, .92) 0%, rgba(15, 15, 25, .65) 45%, rgba(15, 15, 25, .2) 75%);
 }
 
 /* Floating stats */
@@ -1266,16 +921,14 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .hero-content-wrap {
     position: relative;
     z-index: 2;
+    height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    width: 100%;
 }
 
 .hero-content {
-    max-width: 500px; /* Reduced from 600px to ensure it doesn't push against edges */
-    position: relative;
-    z-index: 10;
+    max-width: 540px;
 }
 
 .hero-tag {
@@ -1286,36 +939,34 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     font-size: .7rem;
     font-weight: 700;
     letter-spacing: 2px;
-    padding: 6px 16px;
+    padding: 6px 20px;
     border-radius: 99px;
-    margin-bottom: 12px;
+    margin-bottom: 20px;
     text-transform: uppercase;
     animation: fadeInLeft .7s ease both;
 }
 
 .hero-title {
-    font-size: clamp(2rem, 4.5vw, 3.2rem); 
+    font-size: 4rem;
     font-weight: 900;
-    line-height: 1.15;
+    line-height: 1.08;
     color: #fff;
-    letter-spacing: -0.5px;
-    margin: 0 0 16px;
+    letter-spacing: -1.5px;
+    margin: 0 0 20px;
     animation: fadeInLeft .7s ease both .1s;
-    text-wrap: balance; 
 }
 
 .hero-title em {
     font-style: italic;
     color: var(--primary);
-    text-shadow: 0 0 40px rgba(230, 59, 111, .6);
-    display: inline-block;
+    text-shadow: 0 0 40px rgba(230, 59, 111, .5);
 }
 
 .hero-desc {
-    font-size: 1.05rem;
-    color: #e2e8f0;
-    line-height: 1.5;
-    margin-bottom: 24px;
+    font-size: 1rem;
+    color: #cbd5e1;
+    line-height: 1.7;
+    margin-bottom: 32px;
     animation: fadeInLeft .7s ease both .2s;
 }
 
@@ -1421,21 +1072,20 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 ============================================ */
 .benefits-bar {
     background: #ffffff;
-    padding: 50px 0;
+    padding: 35px 0;
     position: relative;
+    z-index: 10;
 }
 
 .benefits-inner {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 20px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 24px;
-    padding: 16px;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.03);
-    margin-top: -25px; /* Pull up into hero for depth */
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.01);
+    border: 1px solid rgba(0, 0, 0, 0.035);
 }
 
 .benefit-item {
@@ -1444,22 +1094,21 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     gap: 16px;
     padding: 20px 24px;
     border-radius: 16px;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background: transparent;
     cursor: pointer;
 }
 
 .benefit-item:hover {
-    background: #fff;
-    transform: translateY(-6px) scale(1.02);
-    box-shadow: 0 15px 35px rgba(230, 59, 111, 0.08);
+    background: #fff5f7;
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px rgba(230, 59, 111, 0.06);
 }
 
 .benefit-item:hover .benefit-icon {
-    transform: scale(1.15) rotate(8deg);
+    transform: scale(1.1) rotate(5deg);
     color: var(--primary);
-    background: linear-gradient(135deg, rgba(230, 59, 111, 0.1), rgba(255, 107, 157, 0.15));
-    box-shadow: 0 8px 20px rgba(230, 59, 111, 0.15);
+    background: #ffe5ed;
 }
 
 .benefit-icon {
@@ -1521,181 +1170,10 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 /* ============================================
-   2.5. HOME COUPONS
-============================================ */
-.home-coupon-section {
-    background: linear-gradient(180deg, #fff 0%, #fff7fb 100%);
-}
-
-.coupon-section-kicker {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--primary);
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 1.4px;
-    margin-bottom: 8px;
-}
-
-.home-coupon-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 18px;
-}
-
-.home-coupon-card {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    min-height: 132px;
-    padding: 18px;
-    border: 1px solid #ffe0ea;
-    border-radius: 18px;
-    background:
-        radial-gradient(circle at top right, rgba(230, 59, 111, 0.12), transparent 35%),
-        #fff;
-    box-shadow: 0 12px 30px rgba(230, 59, 111, 0.08);
-    overflow: hidden;
-    cursor: pointer;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.home-coupon-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 18px 42px rgba(230, 59, 111, 0.14);
-}
-
-.coupon-ticket-cut {
-    position: absolute;
-    top: 50%;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #fff7fb;
-    border: 1px solid #ffe0ea;
-    transform: translateY(-50%);
-}
-
-.coupon-ticket-cut--left {
-    left: -10px;
-}
-
-.coupon-ticket-cut--right {
-    right: -10px;
-}
-
-.home-coupon-icon {
-    width: 46px;
-    height: 46px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 14px;
-    color: var(--primary);
-    background: #fff0f5;
-    flex-shrink: 0;
-}
-
-.home-coupon-main {
-    min-width: 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.home-coupon-type {
-    color: #fb7185;
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 1px;
-}
-
-.home-coupon-value {
-    color: #111827;
-    font-size: 1rem;
-    line-height: 1.25;
-}
-
-.home-coupon-condition {
-    color: #64748b;
-    font-size: 0.78rem;
-    line-height: 1.35;
-}
-
-.home-coupon-copy {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    min-width: 86px;
-    padding: 9px 10px;
-    border: 1px dashed var(--primary);
-    border-radius: 12px;
-    background: #fff5f8;
-    color: var(--primary);
-    font-family: inherit;
-    font-size: 0.78rem;
-    font-weight: 800;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.home-coupon-copy span {
-    color: #94a3b8;
-    font-size: 0.66rem;
-    font-weight: 700;
-}
-
-.home-coupon-copy:hover {
-    color: #fff;
-    background: var(--primary);
-    border-color: var(--primary);
-}
-
-.home-coupon-copy:hover span {
-    color: rgba(255, 255, 255, 0.85);
-}
-
-@media (max-width: 1199px) {
-    .home-coupon-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
-@media (max-width: 576px) {
-    .home-coupon-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .home-coupon-card {
-        align-items: flex-start;
-        flex-wrap: wrap;
-    }
-
-    .home-coupon-copy {
-        width: 100%;
-        flex-direction: row;
-    }
-}
-
-/* ============================================
    3. FLASH SALE
 ============================================ */
 .flash-sale-section {
-    background: linear-gradient(135deg, #0a0005 0%, #240010 50%, #0d0006 100%);
-    position: relative;
-}
-
-.flash-sale-section::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: radial-gradient(circle at 80% 20%, rgba(230, 59, 111, 0.15), transparent 40%);
-    pointer-events: none;
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a0a1e 50%, #1f0d0d 100%);
 }
 
 .flash-sale-icon {
@@ -1708,15 +1186,18 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     justify-content: center;
     color: #fff;
     flex-shrink: 0;
-    animation: flashNeonPulse 1.5s ease-in-out infinite;
+    animation: flashPulse 1.5s ease-in-out infinite;
 }
 
-@keyframes flashNeonPulse {
-    0%, 100% {
-        box-shadow: 0 0 10px rgba(230, 59, 111, .5), 0 0 20px rgba(230, 59, 111, .3);
+@keyframes flashPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(230, 59, 111, .5);
     }
+
     50% {
-        box-shadow: 0 0 20px rgba(230, 59, 111, .8), 0 0 40px rgba(230, 59, 111, .5);
+        box-shadow: 0 0 0 12px rgba(230, 59, 111, 0);
     }
 }
 
@@ -1809,103 +1290,99 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .cat-card {
     position: relative;
-    background: #ffffff;
-    border: none;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+    border-radius: 16px;
     overflow: hidden;
-    min-height: 160px;
+    min-height: 180px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 24px 10px;
+    justify-content: flex-end;
     text-decoration: none;
     cursor: pointer;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform .3s, box-shadow .3s;
 }
 
 .cat-card:hover {
-    transform: translateY(-8px) scale(1.03);
-    box-shadow: 0 20px 40px rgba(230, 59, 111, 0.12);
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, .18);
 }
 
 .cat-card-bg {
-    display: none;
+    position: absolute;
+    inset: 0;
+    opacity: .9;
+    transition: opacity .3s;
 }
 
 .cat-card:hover .cat-card-bg {
-    display: none;
+    opacity: 1;
 }
 
 .cat-card-img {
-    position: static;
-    transform: none;
-    width: 80px;
-    height: 80px;
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90px;
+    height: 90px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border-radius: 0;
-    box-shadow: none;
-    padding: 0;
-    margin-bottom: 12px;
-    transition: transform 0.3s ease;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 12px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .cat-card:hover .cat-card-img {
-    transform: translateY(-5px);
-    box-shadow: none;
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .cat-card-img img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.cat-card:hover .cat-card-img img {
-    transform: scale(1.2) rotate(3deg);
 }
 
 .cat-card-icon {
-    position: static;
-    transform: none;
-    font-size: 3rem;
-    filter: none;
-    color: var(--primary);
-    margin-bottom: 12px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -65%);
+    font-size: 2.8rem;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .15));
     transition: transform .3s;
 }
 
 .cat-card:hover .cat-card-icon {
-    transform: translateY(-5px);
+    transform: translate(-50%, -75%) scale(1.1);
 }
 
 .cat-card-info {
-    position: static;
+    position: relative;
+    z-index: 2;
     width: 100%;
-    padding: 0;
-    background: transparent;
+    padding: 12px 10px;
+    background: linear-gradient(to top, rgba(0, 0, 0, .6), transparent);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
 }
 
 .cat-card-name {
-    color: #1e293b;
-    font-size: 1.05rem;
+    color: #fff;
+    font-size: .95rem;
     font-weight: 700;
     text-align: center;
-    text-shadow: none;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .4);
 }
 
 .cat-card-count {
-    color: #64748b;
-    font-size: .8rem;
+    color: rgba(255, 255, 255, .8);
+    font-size: .75rem;
     font-weight: 500;
 }
 
@@ -1914,21 +1391,21 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 ============================================ */
 .equip-big-card {
     background: var(--card-bg);
-    border: none;
-    border-radius: 24px;
-    padding: 32px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.02);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid #eaeaea;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, .04);
+    transition: box-shadow .3s, transform .3s;
 }
 
 .equip-big-card:hover {
-    box-shadow: 0 25px 50px rgba(230, 59, 111, 0.12);
-    transform: translateY(-6px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, .08);
+    transform: translateY(-2px);
 }
 
 .equip-big-img {
     width: 100%;
-    height: 340px;
+    height: 280px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1996,48 +1473,49 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-small-card {
     background: var(--card-bg);
-    border: none;
-    border-radius: 20px;
-    padding: 24px;
+    border: 1px solid #eaeaea;
+    border-radius: 16px;
+    padding: 32px 24px;
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 160px;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 190px;
     text-decoration: none;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.02);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: box-shadow .3s, transform .3s;
     overflow: hidden;
     position: relative;
 }
 
 .equip-small-card:hover {
-    box-shadow: 0 20px 40px rgba(230, 59, 111, 0.12);
-    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .08);
+    transform: translateY(-2px);
 }
 
 .equip-small-card--empty {
     flex-direction: column;
+    align-items: center;
     justify-content: center;
     background: #f8f9fa;
 }
 
 .equip-small-img {
-    position: static;
-    width: 100px;
-    height: 100px;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 45%;
+    height: 85%;
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    transform: none;
-    flex-shrink: 0;
 }
 
 .equip-small-img img {
     width: 100%;
     height: 100%;
     object-fit: contain;
+    object-position: right center;
     mix-blend-mode: multiply;
     transition: transform .4s ease;
 }
@@ -2048,9 +1526,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 .equip-small-info {
     position: relative;
+    max-width: 60%;
     z-index: 2;
-    flex: 1;
-    padding-right: 16px;
 }
 
 .equip-small-name {
@@ -2073,28 +1550,28 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    6. BEST SELLERS TABS
 ============================================ */
 .tab-btn {
-    padding: 12px 28px;
-    border: none;
-    background: #f1f5f9;
+    padding: 10px 24px;
+    border: 2px solid #e5e7eb;
+    background: transparent;
     border-radius: 99px;
-    font-size: 0.95rem;
-    font-weight: 700;
+    font-size: .88rem;
+    font-weight: 600;
     cursor: pointer;
-    color: #64748b;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #636E72;
+    transition: all .2s;
     font-family: inherit;
 }
 
 .tab-btn:hover {
-    background: #e2e8f0;
-    color: #334155;
-    transform: translateY(-2px);
+    border-color: var(--primary);
+    color: var(--primary);
 }
 
 .tab-btn.active {
-    background: linear-gradient(135deg, var(--primary), #ff6b9d);
+    background: var(--primary);
+    border-color: var(--primary);
     color: #fff;
-    box-shadow: 0 8px 20px rgba(230, 59, 111, 0.3);
+    box-shadow: 0 4px 14px rgba(230, 59, 111, .3);
 }
 
 .btn-view-more {
@@ -2123,7 +1600,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
    7. PROMO BANNERS
 ============================================ */
 .promo-banner {
-    border-radius: 4px;
+    border-radius: 20px;
     padding: 44px 36px;
     position: relative;
     overflow: hidden;
@@ -2131,45 +1608,14 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     align-items: center;
     min-height: 260px;
     height: 100%;
-    box-shadow: var(--shadow-md);
 }
 
 .promo-banner--dark {
-    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
 }
 
 .promo-banner--red {
-    background: #fff0f3;
-    border: 1px solid #ffe4e6;
-}
-
-.promo-banner--red .promo-banner-title {
-    color: #1e293b;
-}
-
-.promo-banner--red .promo-banner-desc {
-    color: #64748b;
-}
-
-.promo-banner--red .promo-banner-tag {
-    background: #fff;
-    color: var(--primary);
-    border-color: #ffe4e6;
-}
-
-.promo-banner--red .promo-banner-btn--outline {
-    border-color: var(--primary);
-    color: var(--primary);
-}
-
-.promo-banner--red .promo-banner-btn--outline:hover {
-    background: var(--primary);
-    color: #fff;
-}
-
-.promo-banner--red .deco-circle {
-    background: var(--primary);
-    opacity: 0.05;
+    background: linear-gradient(135deg, #2d0011, #4a0020, #6b1a3a);
 }
 
 .promo-banner-content {
@@ -2425,7 +1871,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .community-content {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, #1a1a2e, #2d3436);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -2705,527 +2151,4 @@ a.promo-banner-btn {
         font-size: 1.3rem;
     }
 }
-
-/* ============================================
-   HOME POST CARDS
-   ============================================ */
-.home-post-card {
-    background: var(--card-bg);
-    border: 1px solid #f1f5f9;
-    border-radius: 16px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-    transition: all 0.3s ease;
-    height: 100%;
-}
-
-.home-post-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.06);
-}
-
-.home-post-img-wrap {
-    position: relative;
-    padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
-    overflow: hidden;
-}
-
-.home-post-img {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.6s ease;
-}
-
-.home-post-card:hover .home-post-img {
-    transform: scale(1.05);
-}
-
-.home-post-tag {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    background: var(--primary);
-    color: #fff;
-    padding: 4px 10px;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-}
-
-.home-post-content {
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    flex-grow: 1;
-}
-
-.home-post-date {
-    color: #94a3b8;
-    font-size: 0.8rem;
-    margin-bottom: 12px;
-    display: block;
-}
-
-.home-post-title {
-    font-size: 1.15rem;
-    font-weight: 700;
-    line-height: 1.4;
-    margin-bottom: 8px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    height: 2.8em;
-}
-
-.home-post-title a {
-    color: var(--text-main);
-    text-decoration: none;
-    transition: color 0.2s ease;
-}
-
-.home-post-title a:hover {
-    color: var(--primary);
-}
-
-.home-post-summary {
-    color: #64748b;
-    font-size: 0.88rem;
-    line-height: 1.6;
-    margin-bottom: 16px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    flex-grow: 1;
-}
-
-.home-post-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--primary);
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 0.88rem;
-    transition: all 0.2s ease;
-}
-
-.home-post-link:hover {
-    gap: 8px;
-}
-
-/* ── Home News Section new layout ── */
-.home-news-section {
-    background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
-}
-
-.home-news-grid {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: 24px;
-    align-items: stretch;
-}
-
-.home-news-featured {
-    display: block;
-    position: relative;
-    border-radius: 20px;
-    overflow: hidden;
-    text-decoration: none;
-    height: 100%;
-    min-height: 380px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.home-news-featured:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 48px rgba(0,0,0,0.14);
-}
-
-.home-news-featured-img {
-    width: 100%;
-    height: 100%;
-    min-height: 380px;
-    object-fit: cover;
-    object-position: center;
-    display: block;
-}
-
-.home-news-featured-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 55%, transparent 100%);
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: 28px;
-    gap: 10px;
-}
-
-.hn-tag {
-    display: inline-block;
-    background: var(--primary);
-    color: #fff;
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 4px 12px;
-    border-radius: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    width: fit-content;
-}
-
-.hn-title {
-    font-size: 1.3rem;
-    font-weight: 800;
-    color: #fff;
-    line-height: 1.35;
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    max-width: 92%;
-}
-
-.hn-desc {
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 0.84rem;
-    line-height: 1.5;
-    margin: 0;
-    max-width: 88%;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.hn-author {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.hn-avt {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 2px solid rgba(255,255,255,0.6);
-    flex-shrink: 0;
-}
-
-.hn-author-name {
-    font-size: 0.82rem;
-    color: rgba(255,255,255,0.9);
-    font-weight: 600;
-}
-
-/* Side posts stack */
-.home-news-side {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    min-height: 380px;
-}
-
-.home-news-side .home-post-card {
-    display: flex;
-    flex-direction: row; /* override column from base */
-    gap: 0;
-    align-items: stretch;
-    background: #fff;
-    border: 1px solid #f1f5f9;
-    border-radius: 14px;
-    padding: 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
-    flex: 1 1 0;
-    min-height: 0;
-    height: auto; /* override height: 100% */
-    overflow: hidden;
-}
-
-.home-news-side .home-post-card:hover {
-    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-    transform: translateY(-2px);
-}
-
-.home-news-side .home-post-img-wrap {
-    width: 33.333%;
-    height: auto;
-    min-height: 100%;
-    margin-right: 8px;
-    border-radius: 14px 0 0 14px;
-    overflow: hidden;
-    flex: 0 0 33.333%;
-    position: relative;
-    display: block;
-    padding-bottom: 0; /* override 16:9 trick */
-}
-
-.home-news-side .home-post-img {
-    position: static; /* override absolute */
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.4s ease;
-    top: auto;
-    left: auto;
-}
-
-
-.home-news-side .home-post-card:hover .home-post-img {
-    transform: scale(1.07);
-}
-
-.home-news-side .home-post-tag {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    font-size: 0.6rem;
-    padding: 2px 7px;
-    border-radius: 10px;
-}
-
-.home-news-side .home-post-content {
-    flex: 0 0 calc(66.667% - 8px);
-    width: calc(66.667% - 8px);
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    gap: 5px;
-    padding: 12px 14px 10px 0; /* override base 24px padding */
-    overflow: hidden;
-}
-
-.home-news-side .home-post-date {
-    font-size: 0.72rem;
-    margin-bottom: 0;
-}
-
-.home-news-side .home-post-title {
-    font-size: 0.88rem;
-    line-height: 1.35;
-    height: auto;
-    margin-bottom: 0;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-}
-
-.home-news-side .home-post-desc {
-    color: #64748b;
-    font-size: 0.76rem;
-    line-height: 1.45;
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.home-post-author {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 4px;
-    min-width: 0;
-    flex-shrink: 0;
-}
-
-.home-post-author-name {
-    min-width: 0;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #94a3b8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-@media (max-width: 768px) {
-    .home-news-grid {
-        grid-template-columns: 1fr;
-    }
-    .home-news-featured {
-        min-height: 260px;
-    }
-    .home-news-featured-img {
-        min-height: 260px;
-    }
-    .home-news-side .home-post-img-wrap {
-        width: 34%;
-        flex-basis: 34%;
-        min-height: 92px;
-    }
-
-    .home-news-side .home-post-content {
-        flex-basis: calc(66% - 8px);
-        width: calc(66% - 8px);
-    }
-}
-
-/* ============================================
-   NEW UX/UI ADDITIONS
-============================================ */
-
-/* Hero Glassmorphism Stats */
-.hero-stats-glass {
-    display: inline-flex;
-    align-items: center;
-    gap: 24px;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 16px;
-    padding: 16px 28px;
-    animation: fadeInDown 0.8s ease both 0.4s;
-}
-
-@media (max-width: 576px) {
-    .hero-stats-glass {
-        flex-direction: row;
-        width: 100%;
-        justify-content: space-between;
-        padding: 12px 16px;
-        gap: 10px;
-    }
-    .hero-stat-item .hero-stat-num {
-        font-size: 1.1rem;
-    }
-    .hero-stat-item .hero-stat-label {
-        font-size: 0.65rem;
-    }
-}
-
-/* Flash Sale Progress Bar */
-.flash-sale-card-wrapper {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding-bottom: 16px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    overflow: hidden;
-}
-.flash-sale-card-wrapper:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 20px 40px rgba(230, 59, 111, 0.25);
-    border-color: rgba(230, 59, 111, 0.4);
-    background: rgba(255, 255, 255, 0.1);
-}
-.flash-progress-wrap {
-    padding: 0 16px;
-    margin-top: auto;
-}
-.flash-sold-text {
-    font-size: 0.75rem;
-    color: #e63b6f;
-    font-weight: 700;
-}
-.fire-icon {
-    color: #f97316;
-    animation: flicker 1s infinite alternate;
-}
-@keyframes flicker {
-    0% { opacity: 0.7; transform: scale(0.9); }
-    100% { opacity: 1; transform: scale(1.1); }
-}
-.flash-progress-bar {
-    height: 6px;
-    background: #ffe4e6;
-    border-radius: 99px;
-    overflow: hidden;
-}
-.flash-progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #ff8fab, #e63b6f);
-    border-radius: 99px;
-    transition: width 1s ease-out;
-}
-
-/* Category SVG Icons */
-.cat-card-icon.svg-icon {
-    width: 60px;
-    height: 60px;
-    fill: #ffffff;
-    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2));
-}
-.cat-card-icon.svg-icon svg {
-    width: 100%;
-    height: 100%;
-}
-
-/* Segmented Control (Best Sellers Tabs) */
-.segmented-control-wrap {
-    display: flex;
-    justify-content: center;
-}
-.segmented-control {
-    position: relative;
-    display: inline-flex;
-    background: #f1f5f9;
-    padding: 4px;
-    border-radius: 99px;
-}
-.segmented-bg {
-    position: absolute;
-    top: 4px;
-    bottom: 4px;
-    left: 4px;
-    width: calc(50% - 4px);
-    background: var(--primary);
-    border-radius: 99px;
-    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    box-shadow: 0 2px 10px rgba(230, 59, 111, 0.3);
-}
-.seg-btn {
-    position: relative;
-    z-index: 2;
-    padding: 10px 32px;
-    border: none;
-    background: transparent;
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #64748b;
-    cursor: pointer;
-    transition: color 0.3s;
-    border-radius: 99px;
-}
-.seg-btn.active {
-    color: #ffffff;
-}
-
-/* Scroll Reveal Animations */
-.reveal-on-scroll {
-    opacity: 0;
-    transform: translateY(30px);
-    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-}
-.reveal-active {
-    opacity: 1;
-    transform: translateY(0);
-}
 </style>
-
