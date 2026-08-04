@@ -17,15 +17,34 @@ class GhnController extends Controller
     public function calculateFee(Request $request)
     {
         $data = $request->validate([
-            'district_id' => 'required_without:to_district_id|integer',
-            'to_district_id' => 'required_without:district_id|integer',
-            'ward_code' => 'required_without:to_ward_code|string',
-            'to_ward_code' => 'required_without:ward_code|string',
-            'weight' => 'nullable|integer|min:10',
-            'service_type_id' => 'nullable|integer',
+            // Legacy GHN fields (kept for backward compat — ignored for Ocean Express)
+            'district_id'         => 'nullable',
+            'to_district_id'      => 'nullable',
+            'service_type_id'     => 'nullable|integer',
+            // Ocean Express: ward_code is a string location ID like 'VN-01-00004'
+            'ward_code'           => 'required_without:to_ward_code|string',
+            'to_ward_code'        => 'required_without:ward_code|string',
+            // Also accept receiver_location_id directly (preferred)
+            'receiver_location_id' => 'nullable|string',
+            'weight'              => 'nullable|integer|min:10',
         ]);
 
-        return response()->json(GHNService::calculateFee($data));
+        // Priority: receiver_location_id > to_ward_code > ward_code
+        $receiverLocationId = $data['receiver_location_id']
+            ?? $data['to_ward_code']
+            ?? $data['ward_code'];
+
+        $weight = (int) ($data['weight'] ?? 500);
+
+        $fee = \App\Services\OceanExpressService::calculateRate($receiverLocationId, $weight);
+
+        return response()->json([
+            'code'    => 200,
+            'message' => 'Success',
+            'data'    => [
+                'total' => $fee,
+            ],
+        ]);
     }
 
     public function getLeadtime(Request $request)

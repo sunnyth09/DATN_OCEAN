@@ -59,9 +59,24 @@ class CartService
             ];
         }
 
-        $cart->load(['items.variant.product.images' => function ($query) {
+        $cart->load(['items.variant.product' => function ($q) {
+            $q->withTrashed(); // Load to check if deleted
+        }, 'items.variant.product.images' => function ($query) {
             $query->where('is_main', 1);
         }]);
+
+        // Cleanup: Xóa các sản phẩm đã bị xóa hoặc variant không tồn tại khỏi giỏ hàng
+        $invalidItemIds = [];
+        foreach ($cart->items as $item) {
+            if (!$item->variant || !$item->variant->product || $item->variant->product->trashed() || $item->variant->status !== 'active') {
+                $invalidItemIds[] = $item->cart_item_id;
+            }
+        }
+
+        if (!empty($invalidItemIds)) {
+            CartItem::whereIn('cart_item_id', $invalidItemIds)->delete();
+            $cart->setRelation('items', $cart->items->whereNotIn('cart_item_id', $invalidItemIds));
+        }
 
         $items = $cart->items->map(function ($item) {
             $variant = $item->variant;
@@ -116,10 +131,10 @@ class CartService
      */
     public function addItem(int $userId, array $data): array
     {
-        $variant = ProductVariant::find($data['variant_id']);
+        $variant = ProductVariant::with('product')->find($data['variant_id']);
 
-        if (! $variant || $variant->status !== 'active') {
-            return ['_status' => 422, 'status' => 'error', 'message' => 'Sản phẩm này hiện không khả dụng.'];
+        if (! $variant || $variant->status !== 'active' || !$variant->product) {
+            return ['_status' => 422, 'status' => 'error', 'message' => 'Sản phẩm này hiện không khả dụng hoặc đã bị xóa.'];
         }
 
         return DB::transaction(function () use ($userId, $data, $variant) {

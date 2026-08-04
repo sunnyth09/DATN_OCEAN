@@ -192,6 +192,12 @@ const fetchLoyaltyPoints = async () => {
 watch(() => authStore.isAuthenticated, (val) => {
     if (val) {
         fetchLoyaltyPoints();
+    } else {
+        appliedCoupon.value = null;
+        couponCode.value = '';
+        showCouponModal.value = false;
+        useWallet.value = false;
+        if (paymentMethod.value === 'wallet') paymentMethod.value = 'cod';
     }
 }, { immediate: true });
 
@@ -284,21 +290,22 @@ const formatFullAddress = (addr) => {
     if (addr.ward) parts.push(addr.ward);
     if (addr.district) parts.push(addr.district);
     if (addr.province) parts.push(addr.province);
-    return parts.join(', ') || 'Chưa có thông tin địa chỉ cụ thể';
+    return [...new Set(parts)].join(', ') || 'Chưa có thông tin địa chỉ cụ thể';
 };
 
 // Xử lý tạo địa chỉ mới
 const onAddressChange = (data) => {
     formAddress.value.province = data.province_name;
     formAddress.value.province_code = data.province_code;
-    formAddress.value.district = data.district_name;
-    formAddress.value.district_code = data.district_code;
+    // Ocean Express không có Quận/Huyện — district_name rỗng, district_code = province_code
+    formAddress.value.district = data.district_name || '';
+    formAddress.value.district_code = data.district_code || data.province_code;
     formAddress.value.ward = data.ward_name;
     formAddress.value.ward_code = data.ward_code;
     formAddress.value.address_line = data.address_detail;
 
-    if (data.district_code && data.ward_code) {
-        getShippingFee(data.district_code, data.ward_code);
+    if (data.ward_code) {
+        getShippingFee(data.ward_code);
     } else {
         shippingFee.value = 0;
     }
@@ -323,8 +330,8 @@ const useSavedAddresses = () => {
     if (!selectedAddressId.value) return;
 
     const savedAddress = addresses.value.find((addr) => addr.address_id === selectedAddressId.value);
-    if (savedAddress?.district_code && savedAddress?.ward_code) {
-        getShippingFee(savedAddress.district_code, savedAddress.ward_code);
+    if (savedAddress?.ward_code) {
+        getShippingFee(savedAddress.ward_code);
     }
 };
 
@@ -379,32 +386,18 @@ const shippingWeight = computed(() => {
     );
 });
 
-const getShippingFee = async (district_id, ward_code) => {
-    if (!district_id || !ward_code) return;
+const getShippingFee = async (ward_code) => {
+    if (!ward_code) return;
     isCalculatingFee.value = true;
     try {
         shippingFee.value = await addressService.getShippingFee({
-            districtCode: district_id,
             wardCode: ward_code,
             weight: shippingWeight.value,
         });
-
-        // Lấy leadtime
-        const res = await api.post('/ghn/leadtime', {
-            to_district_id: Number(district_id),
-            to_ward_code: String(ward_code),
-        });
-
-        if (res.data.code === 200 && res.data.data) {
-            const timestamp = res.data.data.leadtime * 1000;
-            const date = new Date(timestamp);
-            leadtimeDate.value = date.toLocaleDateString('vi-VN');
-        } else {
-            leadtimeDate.value = null;
-        }
-
+        // Ocean Express không có leadtime endpoint — ẩn estimated delivery
+        leadtimeDate.value = null;
     } catch (error) {
-        console.error("Lỗi tính phí vận chuyển GHN:", error.response?.data || error.message);
+        console.error('Lỗi tính phí vận chuyển Ocean Express:', error.response?.data || error.message);
         shippingFee.value = 0;
         leadtimeDate.value = null;
     } finally {
@@ -414,15 +407,15 @@ const getShippingFee = async (district_id, ward_code) => {
 
 // Watch for address selection change in the list
 // Debounced — tránh gọi GHN API liên tiếp khi user đang chọn địa chỉ
-const debouncedGetShippingFee = debounce((districtId, wardCode) => {
-    getShippingFee(districtId, wardCode);
+const debouncedGetShippingFee = debounce((wardCode) => {
+    getShippingFee(wardCode);
 }, 300);
 
 watch(selectedAddressId, (newVal) => {
     if (newVal && !showAddAddressForm.value) {
         const addr = addresses.value.find(a => a.address_id === newVal);
-        if (addr && addr.district_code && addr.ward_code) {
-            debouncedGetShippingFee(addr.district_code, addr.ward_code);
+        if (addr?.ward_code) {
+            debouncedGetShippingFee(addr.ward_code);
         } else {
             shippingFee.value = 0;
         }
@@ -519,35 +512,40 @@ watch(useWallet, (val) => {
     if (val && !walletPreview.value) debouncedFetchWalletPreview();
 });
 
-// Appy coupon (Mã cứng mockup cho UI: OCEAN10)
+const promptLoginForCoupon = () => {
+    showToast('Vui lòng đăng nhập để sử dụng mã giảm giá.', 'warning');
+    router.push({ name: 'login', query: { redirect: route.fullPath || '/checkout' } });
+};
+
 const applyCoupon = () => {
+    if (!authStore.isAuthenticated) {
+        promptLoginForCoupon();
+        return;
+    }
     if (!couponCode.value.trim()) return;
 
-    // Tìm trong danh sách available xem có mã nào trùng không
     const found = availableCoupons.value.find(c => c.code.toUpperCase() === couponCode.value.trim().toUpperCase());
     if (found) {
         selectCoupon(found);
     } else {
-        // Fake apply cho OCEAN10 nếu backend chưa có data để test UI
-        checkingCoupon.value = true;
-        setTimeout(() => {
-            checkingCoupon.value = false;
-            if (couponCode.value.toUpperCase() === 'OCEAN10') {
-                appliedCoupon.value = { code: 'OCEAN10', type: 'percent', value: 10 };
-                showToast('Đã áp dụng mã giảm giá 10% (OCEAN10)!', 'success');
-            } else {
-                showToast('Mã giảm giá không hợp lệ hoặc đã hết hạn', 'error');
-                appliedCoupon.value = null;
-            }
-        }, 800);
+        showToast('Mã giảm giá không hợp lệ hoặc chưa được lưu', 'error');
+        appliedCoupon.value = null;
     }
 };
 
 const openCouponModal = () => {
+    if (!authStore.isAuthenticated) {
+        promptLoginForCoupon();
+        return;
+    }
     showCouponModal.value = true;
 };
 
 const selectCoupon = (coupon) => {
+    if (!authStore.isAuthenticated) {
+        promptLoginForCoupon();
+        return;
+    }
     if (coupon.type === 'free_ship' && subtotal.value >= (upsellState.freeshipThreshold || 500000)) {
         showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển!', 'warning');
         return;
@@ -582,10 +580,10 @@ const placeOrder = async () => {
     const payload = {
         payment_method: paymentMethod.value,
         note: note.value,
-        coupon_applied: appliedCoupon.value?.code || null,
+        coupon_applied: authStore.isAuthenticated ? (appliedCoupon.value?.code || null) : null,
         referral_code: localStorage.getItem('affiliate_ref') || null,
-        use_wallet: useWallet.value && walletDiscount.value > 0,
-        wallet_amount: useWallet.value ? walletDiscount.value : 0,
+        use_wallet: authStore.isAuthenticated && useWallet.value && walletDiscount.value > 0,
+        wallet_amount: authStore.isAuthenticated && useWallet.value ? walletDiscount.value : 0,
         reward_points_used: useLoyaltyPoints.value ? inputPoints.value : 0,
     };
 
@@ -627,7 +625,7 @@ const placeOrder = async () => {
         let res;
         if (isFlashSale.value) {
             const fsAddress = showAddAddressForm.value
-                ? `${payload.address_line}, ${payload.ward}, ${payload.district}, ${payload.province}`
+                ? formatFullAddress(payload)
                 : formatFullAddress(addresses.value.find(a => a.address_id === payload.address_id));
 
             const fsPhone = showAddAddressForm.value ? payload.phone : (addresses.value.find(a => a.address_id === payload.address_id)?.phone);
@@ -1090,7 +1088,7 @@ onMounted(async () => {
                                     </div>
                                 </label>
 
-                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'wallet', 'is-disabled': walletBalance < total }">
+                                <label v-if="authStore.isAuthenticated" class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'wallet', 'is-disabled': walletBalance < total }">
                                     <input type="radio" v-model="paymentMethod" value="wallet" :disabled="walletBalance < total" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
@@ -1151,25 +1149,37 @@ onMounted(async () => {
                                 </div>
 
                                 <div class="coupon-section">
-                                    <div class="coupon-input-group" v-if="!appliedCoupon">
-                                        <input type="text" v-model="couponCode" placeholder="Nhập mã khuyến mãi"
-                                            class="coupon-input" @keyup.enter="applyCoupon" />
-                                        <button class="btn-apply-coupon" @click="applyCoupon"
-                                            :disabled="checkingCoupon || !couponCode">
-                                            <span v-if="checkingCoupon" class="small-spinner"></span>
-                                            <span v-else>Áp dụng</span>
-                                        </button>
-                                    </div>
-                                    <div v-else class="coupon-applied-box">
-                                        <div class="coupon-tag">
-                                            <AppIcon name="voucher" size="20" color="#111" class="me-1" />{{
-                                            appliedCoupon.code }}
+                                    <template v-if="authStore.isAuthenticated">
+                                        <div class="coupon-input-group" v-if="!appliedCoupon">
+                                            <input type="text" v-model="couponCode" placeholder="Nhập mã khuyến mãi"
+                                                class="coupon-input" @keyup.enter="applyCoupon" />
+                                            <button class="btn-apply-coupon" @click="applyCoupon"
+                                                :disabled="checkingCoupon || !couponCode">
+                                                <span v-if="checkingCoupon" class="small-spinner"></span>
+                                                <span v-else>Áp dụng</span>
+                                            </button>
                                         </div>
-                                        <button class="btn-remove-coupon" @click="removingCoupon">Gỡ bỏ</button>
-                                    </div>
-                                    <div v-if="authStore.isAuthenticated" class="text-right mt-1">
-                                        <button class="btn-select-coupon" @click="openCouponModal">Chọn mã có
-                                            sẵn</button>
+                                        <div v-else class="coupon-applied-box">
+                                            <div class="coupon-tag">
+                                                <AppIcon name="voucher" size="20" color="#111" class="me-1" />{{
+                                                appliedCoupon.code }}
+                                            </div>
+                                            <button class="btn-remove-coupon" @click="removingCoupon">Gỡ bỏ</button>
+                                        </div>
+                                        <div class="text-right mt-1">
+                                            <button class="btn-select-coupon" @click="openCouponModal">Chọn mã có
+                                                sẵn</button>
+                                        </div>
+                                    </template>
+                                    <div v-else class="coupon-login-required">
+                                        <div class="coupon-input-group">
+                                            <input type="text" placeholder="Đăng nhập để sử dụng mã khuyến mãi"
+                                                class="coupon-input" disabled />
+                                            <button class="btn-apply-coupon" @click="promptLoginForCoupon">
+                                                Đăng nhập
+                                            </button>
+                                        </div>
+                                        <p class="coupon-login-note">Bạn vẫn có thể đặt hàng không cần tài khoản, nhưng cần đăng nhập để dùng voucher.</p>
                                     </div>
                                 </div>
 
@@ -2256,6 +2266,19 @@ textarea.note-input {
     cursor: not-allowed;
     background: #cbd5e1;
     color: white;
+}
+
+.coupon-login-required .coupon-input {
+    color: #94a3b8;
+    background: #f8fafc;
+    text-transform: none;
+}
+
+.coupon-login-note {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 0.78rem;
+    line-height: 1.45;
 }
 
 .coupon-applied-box {

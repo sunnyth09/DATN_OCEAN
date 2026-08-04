@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref, onMounted, nextTick } from "vue";
+import { reactive, ref, onMounted, nextTick, watch } from "vue";
 import api from '@/axios';
 import { useRouter } from 'vue-router';
 import Quill from "quill";
@@ -117,6 +117,7 @@ const handleThumbnailChange = (event) => {
 
 const post = reactive({
     title: "",
+    slug: "",
     summary: "",
     content: "",
     post_category_id: "",
@@ -130,6 +131,60 @@ const post = reactive({
     seo_title: "",
     seo_description: "",
     seo_keywords: ""
+});
+
+// SEO Manual Overrides
+const isSlugManual = ref(false);
+const isSeoTitleManual = ref(false);
+const isSeoDescManual = ref(false);
+
+// SEO Keyword Tags
+const keywordTags = ref([]);
+const newTagInput = ref("");
+
+const addTag = () => {
+    const val = newTagInput.value.trim().replace(/,$/, "");
+    if (val && !keywordTags.value.includes(val)) {
+        keywordTags.value.push(val);
+        post.seo_keywords = keywordTags.value.join(",");
+    }
+    newTagInput.value = "";
+};
+
+const removeTag = (index) => {
+    keywordTags.value.splice(index, 1);
+    post.seo_keywords = keywordTags.value.join(",");
+};
+
+const generateSlug = (text) => {
+    if (!text) return "";
+    return text
+        .toString()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // remove accents
+        .replace(/[đĐ]/g, 'd')
+        .replace(/([^a-z0-9\s-]|_)+/g, '') // remove special chars
+        .trim()
+        .replace(/\s+/g, '-') // spaces to hyphens
+        .replace(/-+/g, '-') // remove double hyphens
+        .substring(0, 100);
+};
+
+// Automatic SEO / Slug syncing
+watch(() => post.title, (newVal) => {
+    if (!isSlugManual.value) {
+        post.slug = generateSlug(newVal);
+    }
+    if (!isSeoTitleManual.value) {
+        post.seo_title = newVal.substring(0, 60);
+    }
+});
+
+watch(() => post.summary, (newVal) => {
+    if (!isSeoDescManual.value) {
+        post.seo_description = (newVal || "").substring(0, 160);
+    }
 });
 
 const handleSubmit = async () => {
@@ -151,6 +206,7 @@ const handleSubmit = async () => {
     isSubmitting.value = true;
     const formData = new FormData();
     formData.append("title", post.title);
+    if(post.slug) formData.append("slug", post.slug);
     if(post.summary) formData.append("summary", post.summary);
     formData.append("content", post.content);
     formData.append("post_category_id", post.post_category_id);
@@ -220,6 +276,11 @@ const handleSubmit = async () => {
                             <input type="text" id="title" v-model="post.title" class="form-control" placeholder="Nhập tiêu đề..." required />
                         </div>
                         <div class="form-group">
+                            <label for="slug">Đường dẫn thân thiện (Slug)</label>
+                            <input type="text" id="slug" v-model="post.slug" @input="isSlugManual = true" class="form-control" placeholder="tieu-de-bai-viet" />
+                            <small class="field-hint">Tự động tạo từ tiêu đề. Tối đa 100 ký tự.</small>
+                        </div>
+                        <div class="form-group">
                             <label for="summary">Tóm tắt nội dung</label>
                             <textarea
                                 id="summary"
@@ -243,13 +304,14 @@ const handleSubmit = async () => {
                         <h3 class="section-title">SEO Tùy chỉnh (Tùy chọn)</h3>
                         <div class="form-group">
                             <label for="seo_title">Tiêu đề SEO</label>
-                            <input type="text" id="seo_title" v-model="post.seo_title" class="form-control" placeholder="Tối đa 60 ký tự" />
+                            <input type="text" id="seo_title" v-model="post.seo_title" @input="isSeoTitleManual = true" class="form-control" placeholder="Tối đa 60 ký tự" />
                         </div>
                         <div class="form-group">
                             <label for="seo_description">Mô tả SEO</label>
                             <textarea
                                 id="seo_description"
                                 v-model="post.seo_description"
+                                @input="isSeoDescManual = true"
                                 class="form-control"
                                 rows="2"
                                 :maxlength="SEO_DESCRIPTION_MAX_LENGTH"
@@ -258,8 +320,24 @@ const handleSubmit = async () => {
                             <small class="field-hint">{{ post.seo_description.length }}/{{ SEO_DESCRIPTION_MAX_LENGTH }}</small>
                         </div>
                         <div class="form-group">
-                            <label for="seo_keywords">Từ khóa SEO</label>
-                            <input type="text" id="seo_keywords" v-model="post.seo_keywords" class="form-control" placeholder="Cách nhau bởi dấu phẩy" />
+                            <label>Từ khóa SEO</label>
+                            <div class="tags-input-container">
+                                <div class="tags-list">
+                                    <span v-for="(tag, idx) in keywordTags" :key="idx" class="tag-badge">
+                                        {{ tag }}
+                                        <button type="button" @click="removeTag(idx)" class="btn-remove-tag">×</button>
+                                    </span>
+                                </div>
+                                <input 
+                                    type="text" 
+                                    v-model="newTagInput" 
+                                    @keydown.enter.prevent="addTag"
+                                    @keydown.comma.prevent="addTag"
+                                    placeholder="Nhập từ khóa và nhấn Enter..." 
+                                    class="tag-input-field" 
+                                />
+                            </div>
+                            <small class="field-hint">Nhấn Enter hoặc phím dấu phẩy ( , ) để thêm từ khóa mới.</small>
                         </div>
                     </div>
                 </div>
@@ -456,4 +534,58 @@ const handleSubmit = async () => {
 .quill-wrapper:focus-within :deep(.ql-container.ql-snow) { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
 .quill-wrapper :deep(.ql-editor) { color: var(--text-main); }
 .editor-long :deep(.ql-editor) { min-height: 350px; }
+
+/* SEO Keyword Tags */
+.tags-input-container {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: var(--ocean-deepest);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.tag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--primary);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.btn-remove-tag {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+.btn-remove-tag:hover {
+    color: #fff;
+}
+.tag-input-field {
+    border: none !important;
+    padding: 4px 0 !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    flex-grow: 1;
+    min-width: 150px;
+    color: var(--text-main);
+    font-family: var(--font-inter);
+    font-size: 0.85rem;
+}
 </style>

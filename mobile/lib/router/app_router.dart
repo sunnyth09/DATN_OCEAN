@@ -38,8 +38,6 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> shellNavigatorHomeKey = GlobalKey<NavigatorState>(debugLabel: 'homeTab');
 final GlobalKey<NavigatorState> shellNavigatorShopKey = GlobalKey<NavigatorState>(debugLabel: 'shopTab');
 final GlobalKey<NavigatorState> shellNavigatorCourtKey = GlobalKey<NavigatorState>(debugLabel: 'courtTab');
-final GlobalKey<NavigatorState> shellNavigatorCartKey = GlobalKey<NavigatorState>(debugLabel: 'cartTab');
-final GlobalKey<NavigatorState> shellNavigatorOrdersKey = GlobalKey<NavigatorState>(debugLabel: 'ordersTab');
 final GlobalKey<NavigatorState> shellNavigatorMeKey = GlobalKey<NavigatorState>(debugLabel: 'meTab');
 
 GoRouter createRouter({required bool isFirstLaunch}) {
@@ -101,30 +99,6 @@ GoRouter createRouter({required bool isFirstLaunch}) {
             ],
           ),
           StatefulShellBranch(
-            navigatorKey: shellNavigatorCartKey,
-            routes: [
-              GoRoute(
-                path: '/cart',
-                builder: (context, state) {
-                  return CartScreen(
-                    onContinueShopping: () {
-                      context.go('/shop');
-                    },
-                  );
-                },
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            navigatorKey: shellNavigatorOrdersKey,
-            routes: [
-              GoRoute(
-                path: '/orders',
-                builder: (context, state) => const OrderScreen(),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
             navigatorKey: shellNavigatorMeKey,
             routes: [
               GoRoute(
@@ -137,6 +111,22 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       ),
 
       // Global routes (pushed on top of root navigator)
+      GoRoute(
+        path: '/cart',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          return CartScreen(
+            onContinueShopping: () {
+              context.go('/shop');
+            },
+          );
+        },
+      ),
+      GoRoute(
+        path: '/orders',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const OrderScreen(),
+      ),
       GoRoute(
         path: '/product-detail',
         parentNavigatorKey: rootNavigatorKey,

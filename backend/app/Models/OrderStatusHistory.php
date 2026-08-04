@@ -20,6 +20,8 @@ class OrderStatusHistory extends Model
         'source',
         'location',
         'description',
+        'latitude',
+        'longitude',
         'happened_at',
         'created_at',
     ];

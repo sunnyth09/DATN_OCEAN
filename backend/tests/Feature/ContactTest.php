@@ -10,6 +10,13 @@ class ContactTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Disable ThrottleRequests middleware for these tests to avoid 429
+        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+    }
+
     public function test_submit_contact_fails_without_turnstile()
     {
         $response = $this->postJson('/api/submitcontact', [

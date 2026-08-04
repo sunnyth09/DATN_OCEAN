@@ -214,11 +214,11 @@ class AddressController extends Controller
             'phone' => ['required', 'string', 'max:20', 'regex:/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/'],
             'address_line' => 'required|string|min:5|max:255',
             'ward' => 'required|string|max:120',
-            'district' => 'required|string|max:120',
+            'district' => 'nullable|string|max:120', // Ocean Express không có quận
             'province' => 'required|string|max:120',
-            'ward_code' => 'nullable|integer',
-            'district_code' => 'nullable|integer',
-            'province_code' => 'nullable|integer',
+            'ward_code' => 'nullable|string', // Ocean Express dùng string ID
+            'district_code' => 'nullable|string',
+            'province_code' => 'nullable|string',
             'postal_code' => 'nullable|string|max:20',
             'address_type' => 'nullable|in:home,office,other',
             'is_default' => 'nullable|boolean',
@@ -232,11 +232,10 @@ class AddressController extends Controller
             'address_line.min' => 'Địa chỉ cụ thể quá ngắn, vui lòng nhập số nhà/tên đường.',
             'address_line.max' => 'Địa chỉ cụ thể không được vượt quá 255 ký tự.',
             'ward.required' => 'Vui lòng chọn Phường/Xã.',
-            'district.required' => 'Vui lòng chọn Quận/Huyện.',
             'province.required' => 'Vui lòng chọn Tỉnh/Thành phố.',
-            'ward_code.integer' => 'Phường/Xã không hợp lệ.',
-            'district_code.integer' => 'Quận/Huyện không hợp lệ.',
-            'province_code.integer' => 'Tỉnh/Thành phố không hợp lệ.',
+            'ward_code.string' => 'Phường/Xã không hợp lệ.',
+            'district_code.string' => 'Quận/Huyện không hợp lệ.',
+            'province_code.string' => 'Tỉnh/Thành phố không hợp lệ.',
         ]);
     }
 }

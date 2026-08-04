@@ -181,7 +181,7 @@ const getStatusLabel = (status) => {
                                     </div>
                                 </td>
                                 <td>{{ p.category ? p.category.name : 'Không có' }}</td>
-                                <td>{{ p.author ? p.author.name : 'Admin' }}</td>
+                                <td>{{ p.author?.full_name || 'Không xác định' }}</td>
                                 <td>{{ p.view_count || 0 }}</td>
                                 <td>
                                     <span class="status-badge" :class="getStatusLabel(p.status).class">
