@@ -98,7 +98,7 @@ PROMPT;
     {
         $this->apiKey  = config('services.deepseek.api_key', '');
         $this->baseUrl = rtrim(config('services.deepseek.base_url', 'https://api.deepseek.com'), '/');
-        $this->model   = config('services.deepseek.model', 'deepseek-v4-flash');
+        $this->model   = config('services.deepseek.model', 'deepseek-v4-pro');
     }
 
     /**
