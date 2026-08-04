@@ -231,7 +231,7 @@ const getOrderStatusActions = (order) => {
   const allowed = (statusTransitions[current] || []).filter(status => status !== current);
   return allowed
     .filter((status) => {
-      if (status === 'delivered' && order.ghn_order_code) return false;
+      if (status === 'delivered' && order.tracking_number) return false;
       return Boolean(statusActionDefinitions[status]);
     })
     .map((status) => ({ value: status, ...statusActionDefinitions[status] }));

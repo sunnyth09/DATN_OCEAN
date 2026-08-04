@@ -66,21 +66,65 @@ export const useCatalogStore = defineStore('catalog', () => {
     return brandsRequest;
   };
 
+  const homeFeaturedProducts = ref([]);
+  const hasFetchedFeaturedProducts = ref(false);
+  const isFetchingFeaturedProducts = ref(false);
+  let featuredProductsRequest = null;
+
+  const fetchFeaturedProducts = async (force = false) => {
+    if (hasFetchedFeaturedProducts.value && !force) {
+      return homeFeaturedProducts.value;
+    }
+    if (featuredProductsRequest && !force) {
+      return featuredProductsRequest;
+    }
+
+    isFetchingFeaturedProducts.value = true;
+    // Lấy 8 sản phẩm mới nhất làm featured
+    featuredProductsRequest = catalogService.listProducts({ limit: 8, sort: 'newest' })
+      .then((response) => {
+        homeFeaturedProducts.value = response; // Lưu toàn bộ raw response
+        hasFetchedFeaturedProducts.value = true;
+        return homeFeaturedProducts.value;
+      })
+      .catch((err) => {
+        console.error('Error fetching featured products:', err);
+        homeFeaturedProducts.value = null;
+        return [];
+      })
+      .finally(() => {
+        isFetchingFeaturedProducts.value = false;
+        featuredProductsRequest = null;
+      });
+
+    return featuredProductsRequest;
+  };
+
   const reset = () => {
     categories.value = [];
     hasFetchedCategories.value = false;
     brands.value = [];
     hasFetchedBrands.value = false;
+    homeFeaturedProducts.value = [];
+    hasFetchedFeaturedProducts.value = false;
+    hasSeenSplash.value = false;
   };
+
+  const hasSeenSplash = ref(false);
 
   return {
     categories,
     brands,
+    homeFeaturedProducts,
     isFetchingCategories,
     hasFetchedCategories,
     hasFetchedBrands,
+    isFetchingFeaturedProducts,
+    hasFetchedFeaturedProducts,
+    hasSeenSplash,
     fetchCategories,
     fetchBrands,
+    fetchFeaturedProducts,
     reset,
   };
 });

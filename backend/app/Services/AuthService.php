@@ -66,7 +66,7 @@ class AuthService
 
             return $response->json('success', false);
         } catch (\Exception $e) {
-            Log::error('Turnstile verification failed: '.$e->getMessage());
+            Log::error('Turnstile verification failed: ' . $e->getMessage());
 
             return false;
         }
@@ -279,7 +279,7 @@ class AuthService
             ]);
 
             if ($tokenResponse->failed()) {
-                Log::error('Google token exchange failed: '.$tokenResponse->body());
+                Log::error('Google token exchange failed: ' . $tokenResponse->body());
 
                 return ['_status' => 401, 'status' => 'error', 'message' => 'Xác thực Google thất bại! Vui lòng thử lại.'];
             }
@@ -343,7 +343,7 @@ class AuthService
                 'user' => clone $user,
             ];
         } catch (\Exception $e) {
-            Log::error('Google login error: '.$e->getMessage());
+            Log::error('Google login error: ' . $e->getMessage());
 
             return ['_status' => 500, 'status' => 'error', 'message' => 'Đăng nhập Google thất bại! Vui lòng thử lại.'];
         }
@@ -363,7 +363,7 @@ class AuthService
             ]);
 
             if ($tokenResponse->failed()) {
-                Log::error('Facebook token exchange failed: '.$tokenResponse->body());
+                Log::error('Facebook token exchange failed: ' . $tokenResponse->body());
 
                 return ['_status' => 401, 'status' => 'error', 'message' => 'Xác thực Facebook thất bại! Vui lòng thử lại.'];
             }
@@ -380,7 +380,7 @@ class AuthService
 
             $fbUser = $userResponse->json();
             $fbId = $fbUser['id'];
-            $fbEmail = $fbUser['email'] ?? ($fbId.'@facebook.local');
+            $fbEmail = $fbUser['email'] ?? ($fbId . '@facebook.local');
             $fbName = $fbUser['name'] ?? 'Facebook User';
             $fbAvatar = $fbUser['picture']['data']['url'] ?? null;
 
@@ -430,7 +430,7 @@ class AuthService
                 'user' => clone $user,
             ];
         } catch (\Exception $e) {
-            Log::error('Facebook login error: '.$e->getMessage());
+            Log::error('Facebook login error: ' . $e->getMessage());
 
             return ['_status' => 500, 'status' => 'error', 'message' => 'Đăng nhập Facebook thất bại! Vui lòng thử lại.'];
         }

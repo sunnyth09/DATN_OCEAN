@@ -45,6 +45,7 @@ use App\Http\Controllers\FlashSaleController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\GhnController;
 use App\Http\Controllers\GhnWebhookController;
+use App\Http\Controllers\OceanExpressWebhookController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\MoMoController;
@@ -186,7 +187,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
 
     // Đơn hàng của tôi
     Route::get('/orders', [OrderController::class, 'index']);
-    Route::middleware('throttle:20,1')->post('/orders', [OrderController::class, 'store']);
+    Route::middleware('throttle:60,1')->post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order_code}/order-id', [OrderController::class, 'getOrderIdByCode']);
     Route::get('/orders/{id}/tracking', [OrderTrackingController::class, 'show']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
@@ -243,7 +244,7 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 });
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
-Route::middleware('throttle:10,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:60,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
 Route::middleware('throttle:30,1')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
 Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
@@ -763,8 +764,11 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
 
 // ==========================================
 // GHN Integration routes
-// ==========================================
+// GHN Webhook — server-to-server, 120req/min
 Route::middleware('throttle:120,1')->post('/ghn-webhook', [GhnWebhookController::class, 'handle']);
+
+// Ocean Express Webhook — server-to-server, 120req/min
+Route::middleware('throttle:120,1')->post('/ocean-express-webhook', [OceanExpressWebhookController::class, 'handle']);
 
 Route::prefix('ghn')->group(function () {
     Route::middleware('throttle:120,1')->post('/calculate-fee', [GhnController::class, 'calculateFee']);

@@ -476,7 +476,7 @@ watch(orderId, (newId) => {
         </router-link>
       </div>
 
-      <div v-if="tracking?.ghn_order_code || trackingLoading" class="ghn-tracking-card mt-4">
+      <div v-if="tracking?.tracking_number || trackingLoading" class="ghn-tracking-card mt-4">
         <div class="card-header">
           <h3>Thông tin vận chuyển GHN</h3>
         </div>
@@ -485,7 +485,7 @@ watch(orderId, (newId) => {
           <template v-else>
             <div class="ghn-info-row">
               <span>Mã vận đơn</span>
-              <strong>{{ tracking.ghn_order_code }}</strong>
+              <strong>{{ tracking.tracking_number }}</strong>
             </div>
             <div class="ghn-info-row" v-if="tracking.receiver_phone">
               <span>SĐT nhận hàng</span>

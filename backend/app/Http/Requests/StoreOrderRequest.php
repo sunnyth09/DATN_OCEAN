@@ -23,7 +23,8 @@ class StoreOrderRequest extends FormRequest
             'recipient_name' => 'required_without:address_id|nullable|string|min:2|max:120',
             'phone' => ['required_without:address_id', 'nullable', 'string', 'max:20', 'regex:/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/'],
             'province' => 'required_without:address_id|nullable|string|max:120',
-            'district' => 'required_without:address_id|nullable|string|max:120',
+            // Quận/Huyện không bắt buộc — Ocean Express chỉ dùng Tỉnh và Phường/Xã
+            'district' => 'nullable|string|max:120',
             'ward' => 'required_without:address_id|nullable|string|max:120',
             'address_line' => 'required_without:address_id|nullable|string|min:5|max:255',
 
@@ -62,7 +63,7 @@ class StoreOrderRequest extends FormRequest
             'phone.required_without' => 'Vui lòng nhập số điện thoại.',
             'phone.regex' => 'Số điện thoại không hợp lệ.',
             'province.required_without' => 'Vui lòng chọn Tỉnh/Thành phố.',
-            'district.required_without' => 'Vui lòng chọn Quận/Huyện.',
+            // district không còn required
             'ward.required_without' => 'Vui lòng chọn Phường/Xã.',
             'address_line.required_without' => 'Vui lòng nhập địa chỉ cụ thể.',
             'address_line.min' => 'Địa chỉ cụ thể quá ngắn, vui lòng nhập số nhà/tên đường.',

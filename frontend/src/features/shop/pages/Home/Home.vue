@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
 import ProductCard from "@/components/ProductCard.vue";
 import ProductSkeleton from "@/components/ProductSkeleton.vue";
@@ -15,8 +15,23 @@ const Categories = ref([]);
 const isLoadingFeatured = ref(true);
 const isLoadingCategories = ref(true);
 const isPageReady = computed(() => !isLoadingFeatured.value && !isLoadingCategories.value);
+
 const catalogStore = useCatalogStore();
 const { categories: storeCategories } = storeToRefs(catalogStore);
+
+// Sử dụng Pinia Store để lưu trạng thái hiển thị Splash thay vì sessionStorage
+// Để khi user ấn F5 (load lại trang), store reset -> Splash sẽ hiện lại
+// Nhưng khi chuyển trang bằng vue-router -> store giữ nguyên -> Splash không hiện
+const showSplash = ref(!catalogStore.hasSeenSplash);
+
+// Khi load xong lần đầu tiên thì lưu lại session
+watch(isPageReady, (ready) => {
+    if (ready && showSplash.value) {
+        catalogStore.hasSeenSplash = true;
+        setTimeout(() => { showSplash.value = false; }, 300);
+    }
+});
+
 
 // ── Tab filter ──
 const activeTab = ref('all');
@@ -121,7 +136,12 @@ const mapProduct = (item) => {
 };
 
 const fetchCategories = async () => {
-    isLoadingCategories.value = true;
+    if (catalogStore.hasFetchedCategories) {
+        isLoadingCategories.value = false;
+    } else {
+        isLoadingCategories.value = true;
+    }
+    
     try {
         await catalogStore.fetchCategories();
         const data = storeCategories.value || [];
@@ -140,9 +160,14 @@ const fetchCategories = async () => {
 };
 
 const fetchProducts = async () => {
-    isLoadingFeatured.value = true;
+    if (catalogStore.hasFetchedFeaturedProducts) {
+        isLoadingFeatured.value = false;
+    } else {
+        isLoadingFeatured.value = true;
+    }
+
     try {
-        const res = await catalogService.listProducts({ limit: 8, sort: 'newest' });
+        const res = await catalogStore.fetchFeaturedProducts();
         const rawData = extractCollection(res);
         Products.value = (Array.isArray(rawData) ? rawData : []).map(mapProduct);
     } catch (e) {
@@ -216,12 +241,9 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     <div class="home-wrapper">
         <!-- SPLASH SCREEN -->
         <Transition name="splash">
-            <div v-if="!isPageReady" class="splash-screen">
+            <div v-if="showSplash && !isPageReady" class="splash-screen">
                 <div class="splash-logo-container">
                     <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Ocean Sport Logo" class="splash-logo pulse-animation" />
-                    <div class="splash-progress">
-                        <div class="splash-progress-bar"></div>
-                    </div>
                 </div>
             </div>
         </Transition>
@@ -863,37 +885,20 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .pulse-animation {
-    animation: splashPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    animation: fadeGlow 2s ease-in-out infinite alternate;
 }
 
-@keyframes splashPulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(0.95); }
-}
-
-.splash-progress {
-    width: 140px;
-    height: 4px;
-    background: #f1f5f9;
-    border-radius: 4px;
-    overflow: hidden;
-    position: relative;
-}
-
-.splash-progress-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 40%;
-    background: linear-gradient(90deg, var(--primary), #ff6b9d);
-    border-radius: 4px;
-    animation: splashLoading 1.2s ease-in-out infinite alternate;
-}
-
-@keyframes splashLoading {
-    0% { left: -40%; }
-    100% { left: 100%; }
+@keyframes fadeGlow {
+    0% { 
+        opacity: 0.3; 
+        filter: brightness(0.8) drop-shadow(0 0 0px rgba(230, 59, 111, 0));
+        transform: scale(0.98); 
+    }
+    100% { 
+        opacity: 1; 
+        filter: brightness(1.1) drop-shadow(0 0 20px rgba(230, 59, 111, 0.3));
+        transform: scale(1.02); 
+    }
 }
 
 /* PAGE CONTENT REVEAL */

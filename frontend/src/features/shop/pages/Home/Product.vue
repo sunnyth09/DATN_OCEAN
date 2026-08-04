@@ -257,9 +257,24 @@ watch(() => route.query.q, (val) => {
 
 watch(() => route.query.category, (val) => {
     if (val) {
-        const catId = parseInt(val);
-        if (!selectedCategories.value.includes(catId)) {
-            selectedCategories.value = [catId];
+        if (typeof val === 'string' && val.includes(',')) {
+            const parsed = val.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+            if (JSON.stringify(selectedCategories.value) !== JSON.stringify(parsed)) {
+                selectedCategories.value = parsed;
+            }
+        } else {
+            const flatCategories = Categories.value.reduce((acc, cat) => {
+                acc.push(cat);
+                if (cat.children) acc.push(...cat.children);
+                return acc;
+            }, []);
+            
+            const cat = flatCategories.find(c => c.category_id == val || c.slug === val);
+            const catId = cat ? cat.category_id : parseInt(val);
+            
+            if (!isNaN(catId) && !selectedCategories.value.includes(catId)) {
+                selectedCategories.value = [catId];
+            }
         }
     } else {
         selectedCategories.value = [];

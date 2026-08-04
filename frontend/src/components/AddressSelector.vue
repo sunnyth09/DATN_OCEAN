@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { addressService } from "@/services/addressService";
 
 // Props
@@ -26,16 +26,16 @@ const emit = defineEmits([
 
 // Data
 const provinces = ref([]);
-const districts = ref([]);
 const wards = ref([]);
 
 const selectedProvince = ref("");
+// district ảo — Ocean Express không có cấp Quận/Huyện
+// DistrictID = provinceCode, tự động được set khi chọn tỉnh
 const selectedDistrict = ref("");
 const selectedWard = ref("");
 const addressDetail = ref("");
 
 const loadingProvinces = ref(false);
-const loadingDistricts = ref(false);
 const loadingWards = ref(false);
 
 // Computed - Tên đầy đủ
@@ -46,12 +46,8 @@ const selectedProvinceName = computed(() => {
     return p ? p.ProvinceName : "";
 });
 
-const selectedDistrictName = computed(() => {
-    const d = districts.value.find(
-        (item) => item.DistrictID == selectedDistrict.value,
-    );
-    return d ? d.DistrictName : "";
-});
+// districtName không hiển thị trực tiếp nhưng giữ cho emitChange compat
+const selectedDistrictName = computed(() => "");
 
 const selectedWardName = computed(() => {
     const w = wards.value.find((item) => item.WardCode == selectedWard.value);
@@ -62,9 +58,8 @@ const fullAddress = computed(() => {
     const parts = [];
     if (addressDetail.value) parts.push(addressDetail.value);
     if (selectedWardName.value) parts.push(selectedWardName.value);
-    if (selectedDistrictName.value) parts.push(selectedDistrictName.value);
     if (selectedProvinceName.value) parts.push(selectedProvinceName.value);
-    return parts.join(", ");
+    return [...new Set(parts)].join(", ");
 });
 
 // Methods
@@ -81,31 +76,19 @@ async function fetchProvinces() {
     }
 }
 
-async function fetchDistricts(provinceCode) {
+/**
+ * Ocean Express không có cấp Quận/Huyện.
+ * Khi chọn tỉnh → tự động dùng provinceCode làm districtCode để load phường/xã.
+ */
+async function fetchWards(provinceCode) {
     if (!provinceCode) {
-        districts.value = [];
-        return;
-    }
-    loadingDistricts.value = true;
-    try {
-        const response = await addressService.listDistricts(provinceCode);
-        districts.value = response.data.data || [];
-    } catch (error) {
-        console.error("Lỗi khi tải danh sách quận/huyện:", error);
-        districts.value = [];
-    } finally {
-        loadingDistricts.value = false;
-    }
-}
-
-async function fetchWards(districtCode) {
-    if (!districtCode) {
         wards.value = [];
         return;
     }
     loadingWards.value = true;
     try {
-        const response = await addressService.listWards(districtCode);
+        // API: GET /location/wards/:districtCode — districtCode = provinceCode (district ảo)
+        const response = await addressService.listWards(provinceCode);
         wards.value = response.data.data || [];
     } catch (error) {
         console.error("Lỗi khi tải danh sách phường/xã:", error);
@@ -116,26 +99,16 @@ async function fetchWards(districtCode) {
 }
 
 function onProvinceChange() {
-    // Reset quận + phường khi đổi tỉnh
-    selectedDistrict.value = "";
+    // Reset phường khi đổi tỉnh
     selectedWard.value = "";
-    districts.value = [];
     wards.value = [];
 
     if (selectedProvince.value) {
-        fetchDistricts(selectedProvince.value);
-    }
-
-    emitChange();
-}
-
-function onDistrictChange() {
-    // Reset phường khi đổi quận
-    selectedWard.value = "";
-    wards.value = [];
-
-    if (selectedDistrict.value) {
-        fetchWards(selectedDistrict.value);
+        // District ảo = provinceCode — bỏ qua step chọn quận/huyện
+        selectedDistrict.value = selectedProvince.value;
+        fetchWards(selectedProvince.value);
+    } else {
+        selectedDistrict.value = "";
     }
 
     emitChange();
@@ -153,6 +126,7 @@ function emitChange() {
     const data = {
         province_code: selectedProvince.value,
         province_name: selectedProvinceName.value,
+        // district_code = provinceCode (ảo, để backward compat với DB)
         district_code: selectedDistrict.value,
         district_name: selectedDistrictName.value,
         ward_code: selectedWard.value,
@@ -175,15 +149,14 @@ onMounted(async () => {
     // Nếu có giá trị ban đầu (edit mode)
     if (props.initialProvince) {
         selectedProvince.value = props.initialProvince;
-        await fetchDistricts(props.initialProvince);
 
-        if (props.initialDistrict) {
-            selectedDistrict.value = props.initialDistrict;
-            await fetchWards(props.initialDistrict);
+        // District ảo: dùng initialDistrict nếu có, fallback về provinceCode
+        const districtCode = props.initialDistrict || props.initialProvince;
+        selectedDistrict.value = districtCode;
+        await fetchWards(districtCode);
 
-            if (props.initialWard) {
-                selectedWard.value = props.initialWard;
-            }
+        if (props.initialWard) {
+            selectedWard.value = props.initialWard;
         }
     }
 
@@ -225,38 +198,8 @@ onMounted(async () => {
                 </div>
             </div>
 
-            <!-- Quận / Huyện -->
-            <div class="address-selector__field">
-                <label class="address-selector__label" for="district-select">
-                    <i class="fas fa-building"></i>
-                    Quận / Huyện <span class="required">*</span>
-                </label>
-                <div class="address-selector__select-wrapper">
-                    <select
-                        id="district-select"
-                        v-model="selectedDistrict"
-                        @change="onDistrictChange"
-                        class="address-selector__select"
-                        :disabled="!selectedProvince || loadingDistricts"
-                    >
-                        <option value="">-- Chọn Quận/Huyện --</option>
-                        <option
-                            v-for="district in districts"
-                            :key="district.DistrictID"
-                            :value="district.DistrictID"
-                        >
-                            {{ district.DistrictName }}
-                        </option>
-                    </select>
-                    <div
-                        v-if="loadingDistricts"
-                        class="address-selector__spinner"
-                    ></div>
-                </div>
-            </div>
-
-            <!-- Phường / Xã -->
-            <div class="address-selector__field">
+            <!-- Phường / Xã — span 2 cột vì không còn Quận/Huyện -->
+            <div class="address-selector__field address-selector__field--ward">
                 <label class="address-selector__label" for="ward-select">
                     <i class="fas fa-home"></i>
                     Phường / Xã <span class="required">*</span>
@@ -267,7 +210,7 @@ onMounted(async () => {
                         v-model="selectedWard"
                         @change="onWardChange"
                         class="address-selector__select"
-                        :disabled="!selectedDistrict || loadingWards"
+                        :disabled="!selectedProvince || loadingWards"
                     >
                         <option value="">-- Chọn Phường/Xã --</option>
                         <option
@@ -317,7 +260,7 @@ onMounted(async () => {
 
 .address-selector__row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr 2fr;
     gap: 16px;
 }
 

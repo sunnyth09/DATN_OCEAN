@@ -447,14 +447,14 @@ class AdminOrderService
     }
 
     /**
-     * Đồng bộ đơn hàng lên GHN
+     * Đồng bộ đơn hàng lên Ocean Express
      */
     public function syncGHN(int $id): array
     {
-        $lock = Cache::lock("ghn_sync_order_{$id}", 30);
+        $lock = Cache::lock("oe_sync_order_{$id}", 30);
 
         if (! $lock->get()) {
-            return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đang được đồng bộ GHN. Vui lòng thử lại sau!'];
+            return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đang được đồng bộ. Vui lòng thử lại sau!'];
         }
 
         try {
@@ -463,46 +463,76 @@ class AdminOrderService
                 return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
             }
 
-            if ($order->ghn_order_code) {
-                return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã được đồng bộ GHN!'];
+            if ($order->tracking_number) {
+                return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã được đồng bộ vận chuyển (Tracking: ' . $order->tracking_number . ')!'];
             }
 
-            $result = GHNService::createOrder($order);
+            // receiver_location_id = ward_code (Ocean Express location ID, e.g. 'VN-01-00004')
+            $receiverLocationId = $order->ward_code;
 
-            if (isset($result['data']['order_code'])) {
+            if (empty($receiverLocationId)) {
+                return ['_status' => 422, 'status' => 'error', 'message' => 'Đơn hàng thiếu thông tin địa chỉ (ward_code). Không thể tạo vận đơn!'];
+            }
+
+            // Tính tổng trọng lượng: mặc định 500g/sản phẩm nếu chưa có product weight
+            $totalWeight = $order->items->sum(function ($item) {
+                return ($item->variant?->product?->weight ?? 500) * $item->quantity;
+            });
+            $totalWeight = max($totalWeight, 100); // tối thiểu 100g
+
+            // Ocean Express API spec: POST /api/v1/orders
+            $orderData = [
+                'receiver_name'           => $order->recipient_name,
+                'receiver_phone'          => $order->recipient_phone,
+                'receiver_location_id'    => $receiverLocationId,
+                'receiver_address_detail' => $order->shipping_address,
+                'weight'                  => (int) $totalWeight,
+                // cod_amount: số tiền thu hộ — 0 nếu đã thanh toán trước
+                'cod_amount'              => $order->payment_status === 'paid'
+                    ? 0
+                    : (int) $order->grand_total,
+            ];
+
+            $result = \App\Services\OceanExpressService::createOrder($orderData);
+
+            if (isset($result['tracking_number'])) {
                 $oldStatus = $order->fulfillment_status;
-                $order->ghn_order_code = $result['data']['order_code'];
+                $order->tracking_number = $result['tracking_number'];
+
                 if (! $order->tracking_token) {
-                    $order->tracking_token = hash('sha256', $order->order_code.Str::random(40).microtime(true));
+                    $order->tracking_token = hash('sha256', $order->order_code . Str::random(40) . microtime(true));
                 }
-                
+
                 // Tự động chuyển sang trạng thái shipping
                 $order->fulfillment_status = OrderStatus::SHIPPING->value;
                 $order->shipped_at = now();
-                
+
                 $order->save();
 
                 $this->sendOrderShippingMail($order->fresh(['address']));
 
                 $this->orderRepository->createStatusHistory([
-                    'order_id' => $order->order_id,
-                    'old_status' => $oldStatus,
-                    'new_status' => $order->fulfillment_status,
-                    'note' => 'Đã đồng bộ đơn hàng sang GHN',
-                    'source' => 'system',
-                    'description' => 'Đã đồng bộ đơn hàng sang GHN và chuyển sang trạng thái Giao hàng',
+                    'order_id'    => $order->order_id,
+                    'old_status'  => $oldStatus,
+                    'new_status'  => $order->fulfillment_status,
+                    'note'        => 'Đã đồng bộ đơn hàng sang Ocean Express',
+                    'source'      => 'system',
+                    'description' => 'Vận đơn: ' . $result['tracking_number'] . ' — Đơn hàng chuyển sang trạng thái Giao hàng',
                     'happened_at' => now(),
                 ]);
+            } else {
+                return ['_status' => 400, 'status' => 'error', 'message' => 'Lỗi tạo đơn vận chuyển: Ocean Express không trả về tracking_number'];
             }
 
             return [
                 '_status' => 200,
-                'status' => 'success',
-                'message' => 'Đã tạo đơn hàng trên GHN thành công!',
-                'data' => $result,
+                'status'  => 'success',
+                'message' => 'Đã tạo đơn hàng trên Ocean Express thành công!',
+                'data'    => $result,
             ];
         } catch (\Throwable $e) {
-            Log::error('Lỗi syncGHN: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            Log::error('Lỗi syncOceanExpress: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+
             return ['_status' => 400, 'status' => 'error', 'message' => $e->getMessage()];
         } finally {
             optional($lock)->release();

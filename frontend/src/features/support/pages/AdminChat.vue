@@ -141,10 +141,20 @@ const setupEcho = () => {
         // Có tin nhắn mới từ bất kỳ ai
         const sessionId = e.message.chat_session_id;
 
-        // Nếu admin gửi (broadcast ngược từ server), nếu đang chọn chính session đó thì hiển thị
         if (e.senderType === 'admin') {
+           const existingSession = sessions.value.find(s => s.id === sessionId);
+           if (existingSession) {
+             existingSession.last_message_at = new Date().toISOString();
+             sessions.value.sort((a,b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+           }
+
            if (activeSession.value && activeSession.value.id === sessionId) {
-               // Đã do hàm add push sẵn rồi, ko cần làm gì
+               const exists = currentMessages.value.some(m => m.id === e.message.id);
+               const isPending = currentMessages.value.some(m => m._tempId && m.message === e.message.message);
+               if (!exists && !isPending && e.message.id) {
+                   currentMessages.value.push(e.message);
+                   scrollToBottom();
+               }
            }
            return;
         }
@@ -205,7 +215,7 @@ const sendReply = async () => {
   isSending.value = true;
   
   // Optimistic UI
-  const tempMsg = { message: text, sender_type: 'admin', created_at: new Date() };
+  const tempMsg = { _tempId: Date.now(), message: text, sender_type: 'admin', created_at: new Date() };
   currentMessages.value.push(tempMsg);
   scrollToBottom();
 
@@ -215,13 +225,22 @@ const sendReply = async () => {
     });
     // Thay thế temp bằng real
     if (res.data.success) {
-      currentMessages.value[currentMessages.value.length - 1] = res.data.message;
+      const idx = currentMessages.value.findIndex(m => m._tempId === tempMsg._tempId);
+      if (idx !== -1) {
+        currentMessages.value[idx] = res.data.message;
+      } else {
+        currentMessages.value.push(res.data.message);
+      }
       fetchSessions(); // Cập nhật danh sách last time
     }
   } catch (err) {
     console.error(err);
     Swal.fire('Lỗi', 'Không thể gửi!', 'error');
-    currentMessages.value.pop();
+    const idx = currentMessages.value.findIndex(m => m._tempId === tempMsg._tempId);
+    if (idx !== -1) {
+      currentMessages.value.splice(idx, 1);
+    }
+    replyText.value = text;
   } finally {
     isSending.value = false;
   }
