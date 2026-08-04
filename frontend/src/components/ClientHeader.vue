@@ -533,6 +533,20 @@ watch(
                         Sân thể thao
                     </router-link>
                     <router-link
+                        to="/posts"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('post-list') || isRouteActive('post-detail') }"
+                    >
+                        Tin tức
+                    </router-link>
+                    <router-link
+                        to="/coupon"
+                        class="nav-link"
+                        :class="{ active: isRouteActive('coupon') }"
+                    >
+                        Voucher
+                    </router-link>
+                    <router-link
                         to="/contact"
                         class="nav-link"
                         :class="{ active: isRouteActive('contact') }"
@@ -577,19 +591,7 @@ watch(
                             class="icon-btn search-icon-btn"
                             @click="toggleSearch"
                         >
-                            <svg
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="2"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                            >
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                            </svg>
+                            <AppIcon name="search" />
                         </button>
                     </div>
 
@@ -877,6 +879,14 @@ watch(
                         Sân thể thao
                     </router-link>
                     <router-link
+                        to="/posts"
+                        class="mobile-nav-link"
+                        :class="{ active: isRouteActive('post-list') || isRouteActive('post-detail') }"
+                        @click="closeMobileMenu"
+                    >
+                        Tin tức
+                    </router-link>
+                    <router-link
                         to="/contact"
                         class="mobile-nav-link"
                         :class="{ active: isRouteActive('contact') }"
@@ -1007,6 +1017,7 @@ watch(
 /* NAVIGATION */
 .main-nav {
     display: flex;
+    align-items: stretch;
     gap: 32px;
     height: 100%;
 }
@@ -1014,10 +1025,13 @@ watch(
 .nav-link {
     display: inline-flex;
     align-items: center;
+    height: 100%;
+    padding: 0 2px;
     text-decoration: none;
     color: #555;
     font-weight: 600;
     font-size: 0.95rem;
+    line-height: 1;
     position: relative;
     transition: color 0.2s;
     text-transform: capitalize;
@@ -1034,12 +1048,17 @@ watch(
 .nav-link.active::after {
     content: "";
     position: absolute;
-    bottom: 20px;
-    left: 0;
-    right: 0;
+    left: 2px;
+    right: 2px;
+    bottom: calc(50% - 18px);
     height: 2px;
     background-color: var(--primary);
-    border-radius: 2px;
+    border-radius: 999px;
+    transform-origin: center;
+}
+
+.site-header.is-scrolled .nav-link.active::after {
+    bottom: calc(50% - 17px);
 }
 
 /* HEADER ACTIONS */
@@ -1135,7 +1154,7 @@ watch(
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #475569;
+    color: #111;
     background: transparent;
     border: none;
     cursor: pointer;

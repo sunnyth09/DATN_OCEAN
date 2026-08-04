@@ -135,7 +135,7 @@ const BASE_URL = getAppBaseUrl();
 
 .footer-desc { font-size: 0.95rem; color: #64748b; line-height: 1.6; margin-bottom: 24px; }
 
-.newsletter-title { font-size: 0.95rem; font-weight: 700; color: var(--text-main); margin-bottom: 10px; }
+.newsletter-title { font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin-bottom: 10px; }
 
 .newsletter-form {
   display: flex;
@@ -152,7 +152,7 @@ const BASE_URL = getAppBaseUrl();
 
 .newsletter-btn:hover { background: #d82f65; transform: scale(1.02); }
 
-.footer-heading { font-size: 1.05rem; font-weight: 700; color: var(--text-main); margin-bottom: 20px; font-style: normal; }
+.footer-heading { font-size: 1.05rem; font-weight: 800; color: var(--text-main); margin-bottom: 20px; font-style: normal; }
 
 .footer-links {
   list-style: none;

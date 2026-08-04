@@ -4,9 +4,11 @@ import { storeToRefs } from "pinia";
 import ProductCard from "@/components/ProductCard.vue";
 import ProductSkeleton from "@/components/ProductSkeleton.vue";
 import AppIcon from "@/components/AppIcon.vue";
+import CouponDetailModal from "@/features/shop/components/CouponDetailModal.vue";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
 import { getAppBaseUrl, getStorageUrl } from '@/utils/url';
+import api from "@/axios";
 
 const BASE_URL = getAppBaseUrl();
 
@@ -14,6 +16,9 @@ const Products = ref([]);
 const Categories = ref([]);
 const isLoadingFeatured = ref(true);
 const isLoadingCategories = ref(true);
+const publicCoupons = ref([]);
+const selectedCoupon = ref(null);
+const copiedCouponCode = ref('');
 const catalogStore = useCatalogStore();
 const { categories: storeCategories } = storeToRefs(catalogStore);
 
@@ -138,6 +143,59 @@ const fetchProducts = async () => {
     }
 };
 
+const fetchPublicCoupons = async () => {
+    try {
+        const res = await api.get('/coupons/public');
+        if (res.data?.status === 'success') {
+            publicCoupons.value = (res.data.data || []).filter(c => c.is_active).slice(0, 4);
+        }
+    } catch (e) {
+        console.error('Lỗi tải voucher:', e);
+    }
+};
+
+const formatCurrency = (val) => {
+    if (!val) return '0₫';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+};
+
+const formatCouponValue = (coupon) => {
+    if (coupon.type === 'percent') return `Giảm ${coupon.value}%`;
+    if (coupon.type === 'free_ship') return 'Miễn phí vận chuyển';
+    return `Giảm ${formatCurrency(coupon.value)}`;
+};
+
+const getCouponIcon = (coupon) => {
+    if (coupon.type === 'free_ship') return 'shipping';
+    if (coupon.type === 'percent') return 'percent';
+    return 'tag';
+};
+
+const copyCouponCode = async (code) => {
+    try {
+        await navigator.clipboard.writeText(code);
+        copiedCouponCode.value = code;
+        setTimeout(() => {
+            if (copiedCouponCode.value === code) copiedCouponCode.value = '';
+        }, 1600);
+    } catch (e) {
+        console.error('Không thể sao chép voucher:', e);
+    }
+};
+
+const openCouponDetail = (coupon) => {
+    selectedCoupon.value = coupon;
+};
+
+const closeCouponDetail = () => {
+    selectedCoupon.value = null;
+};
+
+const goToCouponPage = () => {
+    closeCouponDetail();
+    window.location.href = '/coupon';
+};
+
 const sideCategories = computed(() => Categories.value.slice(1, 3));
 const featuredProduct = computed(() =>
     Products.value.find(p => p.badge === 'Hot' || p.is_on_sale) || Products.value[0] || null
@@ -172,9 +230,65 @@ const brands = [
     { name: 'New Balance', logo: 'https://cdn.simpleicons.org/newbalance' },
 ];
 
+// ── Public Posts ──
+const homePosts = ref([]);
+const fetchHomePosts = async () => {
+    try {
+        const res = await api.get('/posts', { params: { status: 'published', limit: 4 } });
+        homePosts.value = res.data || [];
+    } catch (e) {
+        console.error('Lỗi tải bài viết:', e);
+    }
+};
+
+const featuredHomePost = computed(() => {
+    const feat = homePosts.value.find(p => p.is_featured);
+    return feat || homePosts.value[0] || null;
+});
+
+const sideHomePosts = computed(() => {
+    if (!featuredHomePost.value) return homePosts.value.slice(0, 3);
+    return homePosts.value.filter(p => p.post_id !== featuredHomePost.value.post_id).slice(0, 3);
+});
+
+const getHomePostImage = (url) => {
+    if (!url || url === '0') return 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
+    return getStorageUrl(url);
+};
+
+const getHomeAuthorName = (author) => {
+    if (!author) return 'Ban Biên Tập';
+    return author.full_name || author.name || 'Ban Biên Tập';
+};
+
+const getHomeAuthorFallbackAvatar = (author) => {
+    const name = encodeURIComponent(getHomeAuthorName(author));
+    return `https://ui-avatars.com/api/?name=${name}&background=e63b6f&color=fff&size=80&bold=true`;
+};
+
+const getHomeAuthorAvatar = (author) => {
+    if (!author?.avatar_url) return getHomeAuthorFallbackAvatar(author);
+    return getStorageUrl(author.avatar_url);
+};
+
+const getHomePostSummary = (post, limit = 96) => {
+    const text = post?.summary || post?.excerpt || post?.content || '';
+    const plainText = String(text).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    if (!plainText) return '';
+    return plainText.length > limit ? `${plainText.slice(0, limit).trim()}...` : plainText;
+};
+
+const formatPostDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 onMounted(() => {
     fetchCategories();
     fetchProducts();
+    fetchPublicCoupons();
+    fetchHomePosts();
     updateCountdown();
     countdownTimer = setInterval(updateCountdown, 1000);
 });
@@ -234,59 +348,55 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         </section>
 
         <!-- ══════════════════════════════════════════
-             2. BENEFITS BAR — Full Width
+             2.5. SĂN VOUCHER — Public coupon strip
         ══════════════════════════════════════════ -->
-        <section class="benefits-bar">
+        <section class="home-coupon-section py-5" v-if="publicCoupons.length > 0">
             <div class="container">
-                <div class="benefits-inner">
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="shipping" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Miễn phí vận chuyển</span>
-                            <span class="benefit-sub">Đơn hàng từ 500K</span>
-                        </div>
+                <div class="d-flex align-items-end justify-content-between mb-4">
+                    <div>
+                        <span class="coupon-section-kicker">ƯU ĐÃI CÓ HẠN</span>
+                        <h2 class="section-title mb-1">SĂN VOUCHER HÔM NAY</h2>
+                        <p class="section-subtitle mb-0">Sao chép mã trước, đăng nhập khi thanh toán để sử dụng voucher.</p>
                     </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="return" />
+                    <router-link to="/coupon" class="link-more d-flex align-items-center gap-1">
+                        Xem tất cả voucher
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </router-link>
+                </div>
+
+                <div class="home-coupon-grid">
+                    <article v-for="coupon in publicCoupons" :key="coupon.id" class="home-coupon-card" @click="openCouponDetail(coupon)">
+                        <div class="coupon-ticket-cut coupon-ticket-cut--left"></div>
+                        <div class="coupon-ticket-cut coupon-ticket-cut--right"></div>
+                        <div class="home-coupon-icon">
+                            <AppIcon :name="getCouponIcon(coupon)" width="24" height="24" :stroke-width="2.2" />
                         </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Đổi trả 30 ngày</span>
-                            <span class="benefit-sub">Không cần lý do</span>
+                        <div class="home-coupon-main">
+                            <span class="home-coupon-type">{{ coupon.type === 'free_ship' ? 'FREESHIP' : 'VOUCHER' }}</span>
+                            <strong class="home-coupon-value">{{ formatCouponValue(coupon) }}</strong>
+                            <span class="home-coupon-condition" v-if="coupon.min_order_value">
+                                Đơn từ {{ formatCurrency(coupon.min_order_value) }}
+                            </span>
+                            <span class="home-coupon-condition" v-else>Không yêu cầu đơn tối thiểu</span>
                         </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="payment" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Thanh toán bảo mật</span>
-                            <span class="benefit-sub">SSL 256-bit</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="shield" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Hàng chính hãng 100%</span>
-                            <span class="benefit-sub">Cam kết đảm bảo</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="heart" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Hỗ trợ 24/7</span>
-                            <span class="benefit-sub">Tư vấn nhiệt tình</span>
-                        </div>
-                    </div>
+                        <button class="home-coupon-copy" type="button" @click.stop="copyCouponCode(coupon.code)">
+                            {{ coupon.code }}
+                            <span>{{ copiedCouponCode === coupon.code ? 'Đã sao chép' : 'Sao chép' }}</span>
+                        </button>
+                    </article>
                 </div>
             </div>
         </section>
+
+        <CouponDetailModal
+            :coupon="selectedCoupon"
+            @close="closeCouponDetail"
+            @copy="copyCouponCode"
+            @view-all="goToCouponPage"
+        />
 
         <!-- ══════════════════════════════════════════
              3. FLASH SALE COUNTDOWN — Full Width Dark
@@ -656,29 +766,75 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         </section>
 
         <!-- ══════════════════════════════════════════
-             9. TESTIMONIALS — Container width
+             9.5. TIN TỨC & BÀI VIẾT — Container width
         ══════════════════════════════════════════ -->
-        <section class="py-5 bg-light">
+        <section class="py-5 home-news-section" v-if="homePosts.length > 0">
             <div class="container">
-                <div class="text-center mb-5">
-                    <h2 class="section-title mb-2">KHÁCH HÀNG NÓI GÌ?</h2>
-                    <p class="section-subtitle">Hơn 50,000 khách hàng đã tin tưởng và yêu thích Ocean Sport</p>
+                <div class="d-flex align-items-end justify-content-between mb-4">
+                    <div>
+                        <h2 class="section-title mb-1">TIN TỨC &amp; BÀI VIẾT</h2>
+                        <p class="section-subtitle mb-0">Cập nhật tin tức thể thao và khuyến mãi mới nhất</p>
+                    </div>
+                    <router-link to="/posts" class="link-more d-flex align-items-center gap-1">
+                        Xem tất cả
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                    </router-link>
                 </div>
-                <div class="row g-4">
-                    <div v-for="t in testimonials" :key="t.id" class="col-md-4">
-                        <div class="testimonial-card h-100">
-                            <div class="d-flex gap-1 mb-3">
-                                <svg v-for="s in 5" :key="s" width="16" height="16" viewBox="0 0 24 24" fill="#FBBF24">
-                                    <polygon
-                                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                </svg>
+
+                <!-- Featured large + 3 side posts -->
+                <div class="home-news-grid">
+                    <!-- Large featured post -->
+                    <router-link
+                        v-if="featuredHomePost"
+                        :to="'/posts/' + (featuredHomePost.slug || featuredHomePost.post_id)"
+                        class="home-news-featured"
+                    >
+                        <img :src="getHomePostImage(featuredHomePost.thumbnail_url)" :alt="featuredHomePost.title" class="home-news-featured-img" />
+                        <div class="home-news-featured-overlay">
+                            <span class="hn-tag">{{ featuredHomePost.category?.name || 'Tin nổi bật' }}</span>
+                            <h3 class="hn-title">{{ featuredHomePost.title }}</h3>
+                            <p v-if="getHomePostSummary(featuredHomePost, 120)" class="hn-desc">
+                                {{ getHomePostSummary(featuredHomePost, 120) }}
+                            </p>
+                            <div class="hn-author">
+                                <img
+                                    :src="getHomeAuthorAvatar(featuredHomePost.author)"
+                                    :alt="getHomeAuthorName(featuredHomePost.author)"
+                                    class="hn-avt"
+                                    @error="e => e.target.src = getHomeAuthorFallbackAvatar(featuredHomePost.author)"
+                                />
+                                <span class="hn-author-name">{{ getHomeAuthorName(featuredHomePost.author) }}</span>
                             </div>
-                            <p class="testimonial-text">"{{ t.text }}"</p>
-                            <div class="d-flex align-items-center gap-3 pt-3 border-top">
-                                <img :src="t.avatar" :alt="t.name" class="testimonial-avatar" />
-                                <div>
-                                    <span class="d-block fw-bold" style="font-size:.9rem;">{{ t.name }}</span>
-                                    <span class="d-block text-muted" style="font-size:.78rem;">{{ t.role }}</span>
+                        </div>
+                    </router-link>
+
+                    <!-- 3 small side posts -->
+                    <div class="home-news-side">
+                        <div v-for="post in sideHomePosts" :key="post.post_id" class="home-post-card">
+                            <router-link :to="'/posts/' + (post.slug || post.post_id)" class="home-post-img-wrap">
+                                <img :src="getHomePostImage(post.thumbnail_url)" :alt="post.title" class="home-post-img" />
+                                <span class="home-post-tag">{{ post.category?.name || 'Tin tức' }}</span>
+                            </router-link>
+                            <div class="home-post-content">
+                                <span class="home-post-date">{{ formatPostDate(post.published_at) }}</span>
+                                <h3 class="home-post-title">
+                                    <router-link :to="'/posts/' + (post.slug || post.post_id)">
+                                        {{ post.title }}
+                                    </router-link>
+                                </h3>
+                                <p v-if="getHomePostSummary(post)" class="home-post-desc">
+                                    {{ getHomePostSummary(post) }}
+                                </p>
+                                <div class="home-post-author">
+                                    <img
+                                        :src="getHomeAuthorAvatar(post.author)"
+                                        :alt="getHomeAuthorName(post.author)"
+                                        class="hn-avt"
+                                        @error="e => e.target.src = getHomeAuthorFallbackAvatar(post.author)"
+                                    />
+                                    <span class="home-post-author-name">{{ getHomeAuthorName(post.author) }}</span>
                                 </div>
                             </div>
                         </div>
@@ -686,6 +842,62 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 </div>
             </div>
         </section>
+
+        <!-- ══════════════════════════════════════════
+             2. BENEFITS BAR — Full Width
+        ══════════════════════════════════════════ -->
+        <section class="benefits-bar">
+            <div class="container">
+                <div class="benefits-inner">
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="shipping" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Miễn phí vận chuyển</span>
+                            <span class="benefit-sub">Đơn hàng từ 500K</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="return" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Đổi trả 30 ngày</span>
+                            <span class="benefit-sub">Không cần lý do</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="payment" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Thanh toán bảo mật</span>
+                            <span class="benefit-sub">SSL 256-bit</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="shield" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Hàng chính hãng 100%</span>
+                            <span class="benefit-sub">Cam kết đảm bảo</span>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <AppIcon name="heart" />
+                        </div>
+                        <div class="benefit-text">
+                            <span class="benefit-title">Hỗ trợ 24/7</span>
+                            <span class="benefit-sub">Tư vấn nhiệt tình</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
 
         <!-- ══════════════════════════════════════════
              10. COMMUNITY — Full Width
@@ -1072,9 +1284,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 ============================================ */
 .benefits-bar {
     background: #ffffff;
-    padding: 35px 0;
+    padding: 50px 0;
     position: relative;
-    z-index: 10;
 }
 
 .benefits-inner {
@@ -1166,6 +1377,168 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 @media (max-width: 480px) {
     .benefits-inner {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================
+   2.5. HOME COUPONS
+============================================ */
+.home-coupon-section {
+    background: linear-gradient(180deg, #fff 0%, #fff7fb 100%);
+}
+
+.coupon-section-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 1.4px;
+    margin-bottom: 8px;
+}
+
+.home-coupon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+}
+
+.home-coupon-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 132px;
+    padding: 18px;
+    border: 1px solid #ffe0ea;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top right, rgba(230, 59, 111, 0.12), transparent 35%),
+        #fff;
+    box-shadow: 0 12px 30px rgba(230, 59, 111, 0.08);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.home-coupon-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 42px rgba(230, 59, 111, 0.14);
+}
+
+.coupon-ticket-cut {
+    position: absolute;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff7fb;
+    border: 1px solid #ffe0ea;
+    transform: translateY(-50%);
+}
+
+.coupon-ticket-cut--left {
+    left: -10px;
+}
+
+.coupon-ticket-cut--right {
+    right: -10px;
+}
+
+.home-coupon-icon {
+    width: 46px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    color: var(--primary);
+    background: #fff0f5;
+    flex-shrink: 0;
+}
+
+.home-coupon-main {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.home-coupon-type {
+    color: #fb7185;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.home-coupon-value {
+    color: #111827;
+    font-size: 1rem;
+    line-height: 1.25;
+}
+
+.home-coupon-condition {
+    color: #64748b;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+.home-coupon-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 86px;
+    padding: 9px 10px;
+    border: 1px dashed var(--primary);
+    border-radius: 12px;
+    background: #fff5f8;
+    color: var(--primary);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.home-coupon-copy span {
+    color: #94a3b8;
+    font-size: 0.66rem;
+    font-weight: 700;
+}
+
+.home-coupon-copy:hover {
+    color: #fff;
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.home-coupon-copy:hover span {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+@media (max-width: 1199px) {
+    .home-coupon-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 576px) {
+    .home-coupon-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .home-coupon-card {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .home-coupon-copy {
+        width: 100%;
+        flex-direction: row;
     }
 }
 
@@ -2151,4 +2524,380 @@ a.promo-banner-btn {
         font-size: 1.3rem;
     }
 }
+
+/* ============================================
+   HOME POST CARDS
+   ============================================ */
+.home-post-card {
+    background: var(--card-bg);
+    border: 1px solid #f1f5f9;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.home-post-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.06);
+}
+
+.home-post-img-wrap {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
+    overflow: hidden;
+}
+
+.home-post-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+}
+
+.home-post-card:hover .home-post-img {
+    transform: scale(1.05);
+}
+
+.home-post-tag {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    background: var(--primary);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.home-post-content {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.home-post-date {
+    color: #94a3b8;
+    font-size: 0.8rem;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.home-post-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    height: 2.8em;
+}
+
+.home-post-title a {
+    color: var(--text-main);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.home-post-title a:hover {
+    color: var(--primary);
+}
+
+.home-post-summary {
+    color: #64748b;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin-bottom: 16px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    flex-grow: 1;
+}
+
+.home-post-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.88rem;
+    transition: all 0.2s ease;
+}
+
+.home-post-link:hover {
+    gap: 8px;
+}
+
+/* ── Home News Section new layout ── */
+.home-news-section {
+    background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+}
+
+.home-news-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 24px;
+    align-items: stretch;
+}
+
+.home-news-featured {
+    display: block;
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    text-decoration: none;
+    height: 100%;
+    min-height: 380px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.home-news-featured:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.14);
+}
+
+.home-news-featured-img {
+    width: 100%;
+    height: 100%;
+    min-height: 380px;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+.home-news-featured-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 55%, transparent 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 28px;
+    gap: 10px;
+}
+
+.hn-tag {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    width: fit-content;
+}
+
+.hn-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.35;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 92%;
+}
+
+.hn-desc {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.84rem;
+    line-height: 1.5;
+    margin: 0;
+    max-width: 88%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.hn-author {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hn-avt {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.6);
+    flex-shrink: 0;
+}
+
+.hn-author-name {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.9);
+    font-weight: 600;
+}
+
+/* Side posts stack */
+.home-news-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 380px;
+}
+
+.home-news-side .home-post-card {
+    display: flex;
+    flex-direction: row; /* override column from base */
+    gap: 0;
+    align-items: stretch;
+    background: #fff;
+    border: 1px solid #f1f5f9;
+    border-radius: 14px;
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto; /* override height: 100% */
+    overflow: hidden;
+}
+
+.home-news-side .home-post-card:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+}
+
+.home-news-side .home-post-img-wrap {
+    width: 33.333%;
+    height: auto;
+    min-height: 100%;
+    margin-right: 8px;
+    border-radius: 14px 0 0 14px;
+    overflow: hidden;
+    flex: 0 0 33.333%;
+    position: relative;
+    display: block;
+    padding-bottom: 0; /* override 16:9 trick */
+}
+
+.home-news-side .home-post-img {
+    position: static; /* override absolute */
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+    top: auto;
+    left: auto;
+}
+
+
+.home-news-side .home-post-card:hover .home-post-img {
+    transform: scale(1.07);
+}
+
+.home-news-side .home-post-tag {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    font-size: 0.6rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+}
+
+.home-news-side .home-post-content {
+    flex: 0 0 calc(66.667% - 8px);
+    width: calc(66.667% - 8px);
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 5px;
+    padding: 12px 14px 10px 0; /* override base 24px padding */
+    overflow: hidden;
+}
+
+.home-news-side .home-post-date {
+    font-size: 0.72rem;
+    margin-bottom: 0;
+}
+
+.home-news-side .home-post-title {
+    font-size: 0.88rem;
+    line-height: 1.35;
+    height: auto;
+    margin-bottom: 0;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+}
+
+.home-news-side .home-post-desc {
+    color: #64748b;
+    font-size: 0.76rem;
+    line-height: 1.45;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.home-post-author {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    min-width: 0;
+    flex-shrink: 0;
+}
+
+.home-post-author-name {
+    min-width: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+    .home-news-grid {
+        grid-template-columns: 1fr;
+    }
+    .home-news-featured {
+        min-height: 260px;
+    }
+    .home-news-featured-img {
+        min-height: 260px;
+    }
+    .home-news-side .home-post-img-wrap {
+        width: 34%;
+        flex-basis: 34%;
+        min-height: 92px;
+    }
+
+    .home-news-side .home-post-content {
+        flex-basis: calc(66% - 8px);
+        width: calc(66% - 8px);
+    }
+}
 </style>
+

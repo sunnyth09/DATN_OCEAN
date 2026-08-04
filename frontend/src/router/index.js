@@ -84,6 +84,9 @@ const routes = [
             { path: "return-policy", name: "return-policy", component: () => import("@/features/content/pages/static/ReturnPolicy.vue"), meta: { title: 'Chính sách đổi trả' } },
             { path: "shopping-guide", name: "shopping-guide", component: () => import("@/features/content/pages/static/ShoppingGuide.vue"), meta: { title: 'Hướng dẫn mua hàng' } },
             { path: "terms", name: "terms", component: () => import("@/features/content/pages/static/Terms.vue"), meta: { title: 'Điều khoản dịch vụ' } },
+            // Public blog/posts routes
+            { path: "posts", name: "post-list", component: () => import("@/features/content/pages/client/PostList.vue"), meta: { title: 'Tin tức' } },
+            { path: "posts/:idOrSlug", name: "post-detail", component: () => import("@/features/content/pages/client/PostDetail.vue"), meta: { title: 'Chi tiết bài viết' } },
             // Court Booking Pages
             { path: "courts", name: "courts-list", component: () => import("@/features/courts/pages/client/CourtsList.vue"), meta: { title: 'Đặt sân cầu lông' } },
             { path: "courts/:id", name: "court-detail", component: () => import("@/features/courts/pages/client/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },

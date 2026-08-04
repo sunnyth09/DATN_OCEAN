@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="static-page">
     <section class="page-hero">
       <div class="container">
@@ -120,6 +120,24 @@
   color: rgba(255,255,255,0.9);
   font-size: 1.05rem;
   line-height: 1.7;
+}
+
+.page-hero h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0 0 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-sub {
+  opacity: 0.85;
+  font-size: 0.95rem;
+  max-width: 500px;
+  margin-top: 5px;
+  z-index: 1;
+  line-height: 1.6;
+  text-align: center;
 }
 
 .page-content { padding: 48px 24px 64px; }

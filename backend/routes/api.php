@@ -140,12 +140,14 @@ Route::middleware('auth:api,admin')->group(function () {
     Route::put('/post-categories/{id}', [PostCategoryController::class, 'edit']);
     Route::delete('/post-categories/{id}', [PostCategoryController::class, 'destroy']);
 
-    // Posts routes
-    Route::post('/posts', [PostController::class, 'create']);
-    Route::post('/posts/upload-image', [PostController::class, 'uploadImage']);
-    Route::put('/posts/{id}', [PostController::class, 'update']);
-    Route::delete('/posts/{id}', [PostController::class, 'destroy']);
-    Route::get('posts/edit/{id}', [PostController::class, 'edit']);
+    // Posts routes (Admin & Staff only)
+    Route::middleware('role:admin,staff')->group(function () {
+        Route::post('/posts', [PostController::class, 'create']);
+        Route::post('/posts/upload-image', [PostController::class, 'uploadImage']);
+        Route::put('/posts/{id}', [PostController::class, 'update']);
+        Route::delete('/posts/{id}', [PostController::class, 'destroy']);
+        Route::get('posts/edit/{id}', [PostController::class, 'edit']);
+    });
 
     // Return requests
     Route::post('/orders/{order}/return-request', [ReturnRequestController::class, 'store']);
@@ -554,6 +556,7 @@ Route::prefix('location')->group(function () {
     Route::get('/search', [LocationController::class, 'search']);
 });
 Route::get('/posts', [PostController::class, 'index']);
+Route::get('/posts/{idOrSlug}', [PostController::class, 'show']);
 
 // AI Chatbot (Public — tự detect auth nếu có JWT token, có rate limit chống abuse AI)
 Route::middleware('throttle:20,1')->post('/chatbot/message', [ChatbotController::class, 'sendMessage']);
