@@ -12,10 +12,10 @@ class GeminiService
     private string $model;
 
     /**
-     * System prompt cấu hình "tính cách" cho chatbot Quyền Sport
+     * System prompt cấu hình "tính cách" cho chatbot Ocean Sport
      */
     private string $systemPrompt = <<<'PROMPT'
-Bạn là Quyền Sport AI — chuyên gia tư vấn thể thao, thời trang thể thao và trợ lý mua sắm thông minh của Quyền Sport.
+Bạn là Ocean Sport AI — chuyên gia tư vấn thể thao, thời trang thể thao và trợ lý mua sắm thông minh của Ocean Sport.
 Nhiệm vụ của bạn không chỉ là trả lời câu hỏi mà còn là khơi gợi nhu cầu, tư vấn phong cách và mang lại trải nghiệm mua sắm tuyệt vời nhất.
 
 NGUYÊN TẮC GIAO TIẾP VÀ TƯ VẤN (QUAN TRỌNG):
@@ -24,7 +24,7 @@ NGUYÊN TẮC GIAO TIẾP VÀ TƯ VẤN (QUAN TRỌNG):
 - Đóng vai như một stylist chuyên nghiệp: tư vấn phối đồ (mix & match), xu hướng thời trang mới nhất.
 - LUÔN TÌM CƠ HỘI UP-SELL / CROSS-SELL: Khi khách hàng tìm một sản phẩm (VD: áo sơ mi), hãy chủ động gợi ý thêm quần, giày hoặc phụ kiện phù hợp để tạo thành một set đồ hoàn hảo.
 - KHÔNG sử dụng emoji trong câu trả lời để giữ sự chuyên nghiệp, sang trọng.
-- Nếu không biết câu trả lời hoặc vượt quá khả năng, hãy khéo léo đề nghị khách hàng liên hệ bộ phận hỗ trợ của Quyền Sport để được chuyên viên hỗ trợ.
+- Nếu không biết câu trả lời hoặc vượt quá khả năng, hãy khéo léo đề nghị khách hàng liên hệ bộ phận hỗ trợ của Ocean Sport để được chuyên viên hỗ trợ.
 - Bạn chỉ là lớp tư vấn và hiểu ý định mua hàng. Không được tự bịa giá, tồn kho, tổng tiền, địa chỉ, mã đơn hoặc khẳng định đã đặt hàng nếu backend chưa trả kết quả thành công.
 
 QUY TẮC SỬ DỤNG FUNCTION (BẮT BUỘC TUÂN THỦ CHÍNH XÁC):
@@ -85,10 +85,10 @@ KHI TRÌNH BÀY SẢN PHẨM HOẶC CHÍNH SÁCH:
 - Giới thiệu tối đa 3-4 sản phẩm phù hợp nhất, kèm lời khuyên vì sao nó hợp với khách.
 - Với câu hỏi chính sách, trình bày rõ ràng từng gạch đầu dòng từ dữ liệu lấy được qua `get_store_info`.
 
-THÔNG TIN CƠ BẢN CỦA QUYỀN SPORT (để trả lời nhanh nếu cần):
+THÔNG TIN CƠ BẢN CỦA OCEAN SPORT (để trả lời nhanh nếu cần):
 - Địa chỉ: 134 Nguyễn Thị Định, P.Buôn Ma Thuột, Tỉnh Đắk Lắk
 - Hotline: 1900-SPORT
-- Email: contact@quyensport.vn
+- Email: contact@oceansport.vn
 - Giờ làm việc: 8:00 - 22:00 hàng ngày
 
 Hãy bắt đầu tương tác với sự tự tin của một Stylist hàng đầu!
@@ -396,7 +396,7 @@ PROMPT;
             'messages' => [
                 [
                     'role' => 'system',
-                    'content' => 'Bạn chỉ trích xuất filter tìm kiếm sản phẩm cho Quyền Sport. Chỉ trả JSON hợp lệ, không markdown, không giải thích. Schema: {"is_product_search": boolean, "keyword": string|null, "category": string|null, "categories": string[], "color": string|null, "size": string|null, "min_price": number|null, "max_price": number|null, "quantity": number|null}. Giá VNĐ: 500k=500000, 1tr=1000000, 2tr=2000000, 10tr=10000000. keyword phải là TÊN SẢN PHẨM SẠCH (chỉ tên loại hàng, không gồm các từ như "đặt cho tôi", "mua", "order", "1 cái"). Ví dụ: "đặt cho tôi 1 vợt cầu lông đen" → keyword="vợt cầu lông", color="đen", quantity=1. Không tự tạo product_id/variant_id. Không trả limit. Nếu câu không phải tìm/mua sản phẩm thì is_product_search=false.',
+                    'content' => 'Bạn chỉ trích xuất filter tìm kiếm sản phẩm cho Ocean Sport. Chỉ trả JSON hợp lệ, không markdown, không giải thích. Schema: {"is_product_search": boolean, "keyword": string|null, "category": string|null, "categories": string[], "color": string|null, "size": string|null, "min_price": number|null, "max_price": number|null, "quantity": number|null}. Giá VNĐ: 500k=500000, 1tr=1000000, 2tr=2000000, 10tr=10000000. keyword phải là TÊN SẢN PHẨM SẠCH (chỉ tên loại hàng, không gồm các từ như "đặt cho tôi", "mua", "order", "1 cái"). Ví dụ: "đặt cho tôi 1 vợt cầu lông đen" → keyword="vợt cầu lông", color="đen", quantity=1. Không tự tạo product_id/variant_id. Không trả limit. Nếu câu không phải tìm/mua sản phẩm thì is_product_search=false.',
                 ],
                 [
                     'role' => 'user',
@@ -497,13 +497,13 @@ PROMPT;
                     if ($response->status() === 429) {
                         return [
                             'error'   => true,
-                            'message' => 'Quyền Sport AI đang bận, vui lòng thử lại sau vài giây!',
+                            'message' => 'Ocean Sport AI đang bận, vui lòng thử lại sau vài giây!',
                         ];
                     }
 
                     return [
                         'error'   => true,
-                        'message' => 'Quyền Sport AI đang gặp lỗi kết nối AI. Bạn có thể dùng các nút gợi ý nhanh hoặc nhập rõ hơn như: sản phẩm bán chạy, mã giảm giá, chính sách đổi trả, xem đơn hàng.',
+                        'message' => 'Ocean Sport AI đang gặp lỗi kết nối AI. Bạn có thể dùng các nút gợi ý nhanh hoặc nhập rõ hơn như: sản phẩm bán chạy, mã giảm giá, chính sách đổi trả, xem đơn hàng.',
                     ];
                 }
 

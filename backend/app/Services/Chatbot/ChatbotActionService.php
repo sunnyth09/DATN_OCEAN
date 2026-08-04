@@ -898,7 +898,7 @@ class ChatbotActionService
         $products = $query->orderByDesc('sold_count')->limit(6)->get();
         if ($products->isEmpty()) {
             $keyword = $args['keyword'] ?? $args['category'] ?? '';
-            $hint = $keyword ? "Quyền Sport không có sản phẩm nào tên chứa \"{$keyword}\" trong hệ thống." : 'Không tìm thấy sản phẩm nào phù hợp.';
+            $hint = $keyword ? "Ocean Sport không có sản phẩm nào tên chứa \"{$keyword}\" trong hệ thống." : 'Không tìm thấy sản phẩm nào phù hợp.';
             return ['status' => 'no_results', 'message' => $hint . ' Bạn có thể thử từ khoá khác hoặc xem danh mục sản phẩm bán chạy.', 'data' => []];
         }
 

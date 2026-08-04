@@ -397,7 +397,7 @@ class ChatbotController extends Controller
             'get_order_status' => $this->buildOrderFallback($data),
             'get_available_coupons' => $this->buildCouponFallback($data),
             'get_categories' => $this->buildCategoryFallback($data),
-            'get_store_info' => $data['title'] ?? 'Thông tin cửa hàng Quyền Sport.',
+            'get_store_info' => $data['title'] ?? 'Thông tin cửa hàng Ocean Sport.',
             default => $message ?: 'Đã xử lý xong.',
         };
     }
