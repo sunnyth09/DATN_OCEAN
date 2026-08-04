@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   AppConfig._();
 
-  static const String kProductionBaseUrl = 'https://api.ocean.pro.vn/api';
+  static const String kProductionBaseUrl = 'https://apiocean.bcbdev.id.vn/api';
   static const String kProductionStorageUrl =
-      'https://api.ocean.pro.vn/storage';
+      'https://apiocean.bcbdev.id.vn/storage';
 
   static const String _apiBaseUrlOverride = String.fromEnvironment(
     'API_BASE_URL',
@@ -26,8 +26,8 @@ class AppConfig {
     return _apiIpOverride.isNotEmpty ? _apiIpOverride : '10.0.2.2';
   }
 
-  static String get kLocalBaseUrl => 'https://kilometric-unprotrusively-romona.ngrok-free.dev/api';
-  static String get kLocalStorageUrl => 'https://kilometric-unprotrusively-romona.ngrok-free.dev/storage';
+  static String get kLocalBaseUrl => 'https://apiocean.bcbdev.id.vn/api';
+  static String get kLocalStorageUrl => 'https://apiocean.bcbdev.id.vn/storage';
 
   static String get kBaseUrl {
     if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;

@@ -91,7 +91,7 @@ const getCurrentOrderStatusActions = () => {
   const allowed = (statusTransitions[current] || []).filter(status => status !== current);
   return allowed
     .filter((status) => {
-      if (status === 'delivered' && order.value.ghn_order_code) return false;
+      if (status === 'delivered' && order.value.tracking_number) return false;
       return Boolean(statusActionDefinitions[status]);
     })
     .map((status) => ({ value: status, ...statusActionDefinitions[status] }));
@@ -274,7 +274,7 @@ const getProductImage = (item) => {
 const timelineSteps = [
   { key: 'pending', label: 'Đặt hàng', field: 'created_at' },
   { key: 'confirmed', label: 'Xác nhận', field: 'confirmed_at' },
-  { key: 'packing', label: 'Đóng gói', field: null },
+  { key: 'packing', label: 'Đóng gói', field: 'packing_at' },
   { key: 'shipping', label: 'Vận chuyển', field: 'shipped_at' },
   { key: 'delivered', label: 'Đã giao', field: 'delivered_at' },
   { key: 'completed', label: 'Hoàn thành', field: 'completed_at' },
@@ -299,6 +299,18 @@ const getStepStatus = (stepKey) => {
   return 'inactive';
 };
 
+const getStepTimestamp = (step) => {
+  if (!order.value) return null;
+  if (step.field && order.value[step.field]) {
+    return order.value[step.field];
+  }
+  if (order.value.status_histories && order.value.status_histories.length > 0) {
+    const history = order.value.status_histories.find(h => h.new_status === step.key);
+    if (history) return history.created_at;
+  }
+  return null;
+};
+
 const isSyncingGhn = ref(false);
 const isPrinting = ref(false);
 const isCanceling = ref(false);
@@ -308,47 +320,47 @@ const syncGhn = async () => {
   try {
     const res = await api.post(`/admin/orders/${order.value.order_id}/ghn-sync`);
     if (res.data.status === 'success') {
-      toast.success(res.data.message || 'Đã đẩy đơn lên GHN thành công!');
+      toast.success(res.data.message || 'Đã đẩy đơn thành công!');
       fetchOrder();
     }
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Không thể đồng bộ GHN');
+    toast.error(error.response?.data?.message || 'Không thể đồng bộ vận chuyển');
   } finally {
     isSyncingGhn.value = false;
   }
 };
 
 const lookupGhnStatus = async (sync = true) => {
-  if (!order.value?.ghn_order_code) return;
+  if (!order.value?.tracking_number) return;
   isLookingUpGhn.value = true;
   try {
     const res = await api.post('/ghn/order-detail', {
-      order_code: order.value.ghn_order_code,
+      order_code: order.value.tracking_number,
       sync,
     });
     if (res.data.status === 'success') {
       ghnLookup.value = res.data.data;
-      toast.success(res.data.message || 'Đã tra cứu trạng thái GHN');
+      toast.success(res.data.message || 'Đã tra cứu trạng thái vận chuyển');
       if (sync) await fetchOrder();
     }
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Không thể tra cứu trạng thái GHN');
+    toast.error(error.response?.data?.message || 'Không thể tra cứu trạng thái vận chuyển');
   } finally {
     isLookingUpGhn.value = false;
   }
 };
 
 const printLabel = async () => {
-  if (!order.value?.ghn_order_code) return;
+  if (!order.value?.tracking_number) return;
   isPrinting.value = true;
   try {
-    const res = await api.post('/ghn/print-label', { order_code: order.value.ghn_order_code });
+    const res = await api.post('/ghn/print-label', { order_code: order.value.tracking_number });
     if (res.data.code === 200 && res.data.data?.token) {
       const printUrl = res.data.data.print_url;
       if (printUrl) window.open(printUrl, '_blank');
-      else toast.error('Không thể lấy link in vận đơn GHN');
+      else toast.error('Không thể lấy link in vận đơn');
     } else {
-      toast.error('Không thể in vận đơn GHN');
+      toast.error('Không thể in vận đơn');
     }
   } catch (error) {
     toast.error('Lỗi khi in vận đơn');
@@ -358,20 +370,20 @@ const printLabel = async () => {
 };
 
 const cancelGhnOrder = async () => {
-  if (!order.value?.ghn_order_code) return;
-  const reason = window.prompt('Nhập lý do hủy vận đơn GHN:');
+  if (!order.value?.tracking_number) return;
+  const reason = window.prompt('Nhập lý do hủy vận đơn:');
   if (!reason?.trim()) return;
   if (!confirm('Bạn có chắc chắn muốn hủy vận đơn này trên hệ thống GHN?')) return;
   isCanceling.value = true;
   try {
-    const res = await api.post('/ghn/cancel-order', { order_code: order.value.ghn_order_code, reason: reason.trim() });
+    const res = await api.post('/ghn/cancel-order', { order_code: order.value.tracking_number, reason: reason.trim() });
     if (res.data.code === 200) {
-      toast.success('Đã hủy vận đơn trên GHN thành công!');
+      toast.success('Đã hủy vận đơn trên thành công!');
     } else {
-      toast.error(res.data.message || 'Không thể hủy vận đơn GHN');
+      toast.error(res.data.message || 'Không thể hủy vận đơn');
     }
   } catch (error) {
-    toast.error('Lỗi khi hủy vận đơn GHN');
+    toast.error('Lỗi khi hủy vận đơn');
   } finally {
     isCanceling.value = false;
   }
@@ -456,7 +468,7 @@ onMounted(() => fetchOrder());
             </div>
             <div class="step-info">
               <span class="step-label">{{ step.label }}</span>
-              <span class="step-time" v-if="step.field && order[step.field]">{{ formatDate(order[step.field]) }}</span>
+              <span class="step-time" v-if="getStepTimestamp(step)">{{ formatDate(getStepTimestamp(step)) }}</span>
               <span class="step-time" v-else-if="getStepStatus(step.key) === 'active'">Đang xử lý...</span>
             </div>
           </div>
@@ -597,19 +609,19 @@ onMounted(() => fetchOrder());
               <div style="display:flex; align-items:center; gap: 10px;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 Giao hàng
-                <span v-if="order.ghn_order_code" class="status-badge badge-success sm ms-2">Mã GHN: {{ order.ghn_order_code }}</span>
+                <span v-if="order.tracking_number" class="status-badge badge-success sm ms-2">Mã vận đơn: {{ order.tracking_number }}</span>
               </div>
               <div style="display: flex; gap: 8px;">
-                <button v-if="!order.ghn_order_code" class="btn-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
-                   {{ isSyncingGhn ? 'Đang đẩy...' : 'Đẩy qua GHN' }}
+                <button v-if="!order.tracking_number" class="btn-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
+                   {{ isSyncingGhn ? 'Đang đẩy...' : 'Đẩy đơn vận chuyển' }}
                 </button>
-                <button v-if="order.ghn_order_code" class="btn-lookup-ghn" @click="lookupGhnStatus(true)" :disabled="isLookingUpGhn">
-                   {{ isLookingUpGhn ? 'Đang tra...' : 'Tra cứu GHN' }}
+                <button v-if="order.tracking_number" class="btn-lookup-ghn" @click="lookupGhnStatus(true)" :disabled="isLookingUpGhn">
+                   {{ isLookingUpGhn ? 'Đang tra...' : 'Tra cứu đơn' }}
                 </button>
-                <button v-if="order.ghn_order_code" class="btn-print" @click="printLabel" :disabled="isPrinting">
+                <button v-if="order.tracking_number" class="btn-print" @click="printLabel" :disabled="isPrinting">
                    {{ isPrinting ? 'Đang tạo...' : 'In vận đơn' }}
                 </button>
-                <button v-if="order.ghn_order_code" class="btn-cancel-ghn" @click="cancelGhnOrder" :disabled="isCanceling">
+                <button v-if="order.tracking_number" class="btn-cancel-ghn" @click="cancelGhnOrder" :disabled="isCanceling">
                    Hủy vận đơn
                 </button>
               </div>
@@ -637,8 +649,8 @@ onMounted(() => fetchOrder());
               </div>
             </div>
             <div v-if="ghnLookup" class="ghn-lookup-panel">
-              <div class="ghn-lookup-title">Trạng thái GHN mới nhất</div>
-              <div class="ghn-lookup-row"><span>GHN status</span><strong>{{ ghnLookup.ghn_status || '—' }}</strong></div>
+              <div class="ghn-lookup-title">Trạng thái vận chuyển</div>
+              <div class="ghn-lookup-row"><span>Trạng thái vận chuyển</span><strong>{{ ghnLookup.ghn_status || '—' }}</strong></div>
               <div class="ghn-lookup-row"><span>Trạng thái local</span><strong>{{ getStatusLabel(ghnLookup.local_status) }}</strong></div>
               <div class="ghn-lookup-row"><span>Mapping</span><strong>{{ getStatusLabel(ghnLookup.mapped_status) }}</strong></div>
               <div class="ghn-lookup-row" v-if="ghnLookup.happened_at"><span>Thời gian</span><strong>{{ formatDate(ghnLookup.happened_at) }}</strong></div>

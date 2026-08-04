@@ -316,8 +316,8 @@ class SpamProtectionTest extends TestCase
     // 2. SPAM ĐƠN HÀNG — Kiểm tra cấu hình throttle trên route
     // =========================================================================
 
-    /** Route user order có throttle:5,1 */
-    public function test_user_order_route_has_throttle_5_per_minute(): void
+    /** Route user order có throttle:60,1 */
+    public function test_user_order_route_has_throttle_60_per_minute(): void
     {
         $routes = Route::getRoutes();
 
@@ -329,13 +329,14 @@ class SpamProtectionTest extends TestCase
         $this->assertNotNull($route, 'Route POST /api/profile/orders phải tồn tại');
 
         $middleware = $route->middleware();
-        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:5'));
+        // Nâng lên 60,1 để tránh 429 khi thao tác nhiều
+        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:60'));
 
-        $this->assertTrue($hasThrottle, 'Route POST /api/profile/orders phải có throttle:5,1 (giảm từ 10 xuống 5)');
+        $this->assertTrue($hasThrottle, 'Route POST /api/profile/orders phải có throttle:60,1');
     }
 
-    /** Route guest order có throttle:3,1 */
-    public function test_guest_order_route_has_throttle_3_per_minute(): void
+    /** Route guest order có throttle:30,1 */
+    public function test_guest_order_route_has_throttle_30_per_minute(): void
     {
         $routes = Route::getRoutes();
 
@@ -347,9 +348,10 @@ class SpamProtectionTest extends TestCase
         $this->assertNotNull($route, 'Route POST /api/orders/guest phải tồn tại');
 
         $middleware = $route->middleware();
-        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:3'));
+        // Đặt mức 30,1 — vẫn chặt hơn user (60,1) nhưng đủ cho guest retry
+        $hasThrottle = collect($middleware)->contains(fn ($m) => str_starts_with($m, 'throttle:30'));
 
-        $this->assertTrue($hasThrottle, 'Route guest order phải có throttle:3,1 (chặt hơn user)');
+        $this->assertTrue($hasThrottle, 'Route guest order phải có throttle:30,1 (chặt hơn user 60,1)');
     }
 
     /** Guest order throttle phải chặt hơn user order */

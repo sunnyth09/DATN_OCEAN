@@ -43,6 +43,45 @@ const getImageUrl = (path) => {
     return getStorageUrl(path);
 };
 
+// ── Dynamic Banner Info ──
+const bannerInfo = computed(() => {
+    // Default banner
+    const defaultBanner = {
+        title: "Tất Cả Sản Phẩm",
+        sub: "Nâng tầm cuộc chơi với trang thiết bị chuyên nghiệp",
+        bg: "linear-gradient(90deg, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.2) 100%), url('/banners/general.png') center/cover no-repeat"
+    };
+
+    if (selectedCategories.value.length === 1) {
+        const catId = selectedCategories.value[0];
+        // Find category name by flattening Categories
+        const flatCategories = Categories.value.reduce((acc, cat) => {
+            acc.push(cat);
+            if (cat.children) acc.push(...cat.children);
+            return acc;
+        }, []);
+        
+        const category = flatCategories.find(c => c.category_id === catId || c.id === catId);
+        if (category && category.name) {
+            const nameLower = category.name.toLowerCase();
+            let bgImage = '/banners/general.png';
+            if (nameLower.includes('pickleball')) {
+                bgImage = '/banners/pickleball.png';
+            } else if (nameLower.includes('cầu lông') || nameLower.includes('badminton')) {
+                bgImage = '/banners/badminton.png';
+            } else if (nameLower.includes('tennis')) {
+                bgImage = '/banners/tennis.png';
+            }
+            return {
+                title: `Sản Phẩm ${category.name}`,
+                sub: `Trang thiết bị chuyên nghiệp cho môn ${category.name}`,
+                bg: `linear-gradient(90deg, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.2) 100%), url('${bgImage}') center/cover no-repeat`
+            };
+        }
+    }
+    return defaultBanner;
+});
+
 // ── Pagination ──
 const visiblePages = computed(() => {
     const total = totalPages.value;
@@ -144,19 +183,34 @@ const fetchCategories = async () => {
 // ── Fetch brands ──
 const fetchBrands = async () => {
     try {
-        const response = await catalogService.listBrands();
-        Brands.value = response.data.data || response.data || [];
+        Brands.value = await catalogStore.fetchBrands();
     } catch (e) {
-        // Brands endpoint might not exist, fail silently
         Brands.value = [];
     }
 };
 
-// ── Category checkbox toggle ──
-const toggleCategoryFilter = (catId) => {
-    const idx = selectedCategories.value.indexOf(catId);
-    if (idx > -1) selectedCategories.value.splice(idx, 1);
-    else selectedCategories.value.push(catId);
+// ── Category toggle (Single Select) ──
+const expandedCategories = ref([]);
+const toggleExpandCategory = (catId) => {
+    const idx = expandedCategories.value.indexOf(catId);
+    if (idx > -1) {
+        expandedCategories.value = [];
+    } else {
+        expandedCategories.value = [catId];
+    }
+};
+
+const toggleCategoryFilter = (cat, isParent = false) => {
+    const catId = typeof cat === 'object' ? cat.category_id : cat;
+    
+    if (selectedCategories.value.includes(catId)) {
+        selectedCategories.value = []; // Bỏ chọn nếu click lại
+    } else {
+        selectedCategories.value = [catId]; // Chọn 1 danh mục duy nhất
+        if (isParent) {
+            expandedCategories.value = [catId]; // Xổ ra danh mục con của nó, đóng các danh mục khác
+        }
+    }
 };
 
 // ── Brand checkbox toggle ──
@@ -203,9 +257,24 @@ watch(() => route.query.q, (val) => {
 
 watch(() => route.query.category, (val) => {
     if (val) {
-        const catId = parseInt(val);
-        if (!selectedCategories.value.includes(catId)) {
-            selectedCategories.value = [catId];
+        if (typeof val === 'string' && val.includes(',')) {
+            const parsed = val.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+            if (JSON.stringify(selectedCategories.value) !== JSON.stringify(parsed)) {
+                selectedCategories.value = parsed;
+            }
+        } else {
+            const flatCategories = Categories.value.reduce((acc, cat) => {
+                acc.push(cat);
+                if (cat.children) acc.push(...cat.children);
+                return acc;
+            }, []);
+            
+            const cat = flatCategories.find(c => c.category_id == val || c.slug === val);
+            const catId = cat ? cat.category_id : parseInt(val);
+            
+            if (!isNaN(catId) && !selectedCategories.value.includes(catId)) {
+                selectedCategories.value = [catId];
+            }
         }
     } else {
         selectedCategories.value = [];
@@ -258,7 +327,7 @@ onMounted(async () => {
 
     await nextTick();
     isInitializing = false;
-    await fetchProducts();
+    scheduleFetchProducts();
 
     // === Affiliate: ghi nhận referral code từ URL ===
     const refCode = route.query.ref;
@@ -282,9 +351,9 @@ onUnmounted(() => {
         <!-- ══ MAIN CONTENT ══ -->
         <div class="product-container">
             <!-- ══ HERO BANNER ══ -->
-            <section class="page-hero">
-                <h1>Tất Cả Sản Phẩm</h1>
-                <p class="hero-sub">Nâng tầm cuộc chơi với trang thiết bị chuyên nghiệp</p>
+            <section class="page-hero" :style="{ background: bannerInfo.bg }">
+                <h1>{{ bannerInfo.title }}</h1>
+                <p class="hero-sub">{{ bannerInfo.sub }}</p>
             </section>
             <!-- Info bar -->
             <div class="product-toolbar">
@@ -334,28 +403,34 @@ onUnmounted(() => {
                         </h3>
                         <div v-show="isCategoryOpen" class="filter-content">
                             <template v-for="cat in Categories" :key="cat.category_id">
-                                <!-- Danh mục cha -->
-                                <label
-                                    class="filter-checkbox"
-                                    :class="{ checked: selectedCategories.includes(cat.category_id) }"
-                                >
-                                    <input type="checkbox" :value="cat.category_id" :checked="selectedCategories.includes(cat.category_id)" @change="toggleCategoryFilter(cat.category_id)" />
-                                    <span class="cb-custom"></span>
-                                    <span class="cb-label">{{ cat.name }}</span>
-                                </label>
+                                <div class="category-parent-wrap">
+                                    <!-- Danh mục cha -->
+                                    <div
+                                        class="filter-item"
+                                        :class="{ active: selectedCategories.includes(cat.category_id) }"
+                                        @click="toggleCategoryFilter(cat, true)"
+                                    >
+                                        <span class="filter-name">{{ cat.name }}</span>
+                                    </div>
+                                    <span v-if="cat.children && cat.children.length > 0" 
+                                          class="expand-icon" 
+                                          :class="{ expanded: expandedCategories.includes(cat.category_id) }"
+                                          @click.stop="toggleExpandCategory(cat.category_id)">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </span>
+                                </div>
 
                                 <!-- Danh mục con -->
-                                <div v-if="cat.children && cat.children.length > 0" class="sub-categories">
-                                    <label
+                                <div v-show="expandedCategories.includes(cat.category_id)" v-if="cat.children && cat.children.length > 0" class="sub-categories">
+                                    <div
                                         v-for="child in cat.children"
                                         :key="child.category_id"
-                                        class="filter-checkbox sub-category"
-                                        :class="{ checked: selectedCategories.includes(child.category_id) }"
+                                        class="filter-item sub-category"
+                                        :class="{ active: selectedCategories.includes(child.category_id) }"
+                                        @click="toggleCategoryFilter(child, false)"
                                     >
-                                        <input type="checkbox" :value="child.category_id" :checked="selectedCategories.includes(child.category_id)" @change="toggleCategoryFilter(child.category_id)" />
-                                        <span class="cb-custom"></span>
-                                        <span class="cb-label">{{ child.name }}</span>
-                                    </label>
+                                        <span class="filter-name">{{ child.name }}</span>
+                                    </div>
                                 </div>
                             </template>
                         </div>
@@ -456,12 +531,16 @@ onUnmounted(() => {
 .page-hero {
   background: linear-gradient(135deg, #e63b6f, #a0204e);
   color: #fff;
-  border-radius: 16px;
-  padding: 32px;
+  border-radius: var(--radius-md, 12px); /* Reduced border radius */
+  padding: 56px 40px; /* Increased padding to make it larger */
   margin: 0 0 28px 0;
   position: relative;
   overflow: hidden;
   text-align: left;
+  min-height: 180px; /* Ensure a minimum height for the banner */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .page-hero::after {
   content: '';
@@ -473,8 +552,8 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 50%;
 }
-.page-hero h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 8px; position: relative; z-index: 1; }
-.hero-sub { opacity: 0.85; font-size: 0.95rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.6; }
+.page-hero h1 { font-size: 2.2rem; font-weight: 800; margin: 0 0 12px; position: relative; z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+.hero-sub { opacity: 0.95; font-size: 1.1rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
 
 /* ── CONTAINER ── */
 .product-container {
@@ -610,6 +689,48 @@ onUnmounted(() => {
 }
 
 /* Checkbox filter */
+.category-parent-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.expand-icon {
+    cursor: pointer;
+    color: #636E72;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+.expand-icon:hover {
+    color: var(--text-main);
+}
+.expand-icon.expanded {
+    transform: rotate(180deg);
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    padding: 7px 0;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #636E72;
+    transition: color 0.2s, font-weight 0.2s;
+}
+.filter-item:hover {
+    color: var(--text-main);
+}
+.filter-item.active {
+    color: var(--primary);
+    font-weight: 700;
+}
+.filter-item.sub-category {
+    padding: 5px 0;
+    font-size: 0.85rem;
+}
+
 .filter-checkbox {
     display: flex;
     align-items: center;

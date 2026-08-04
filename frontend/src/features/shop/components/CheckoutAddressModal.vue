@@ -72,9 +72,8 @@ function confirm() {
 }
 
 function formatFullAddress(address) {
-    return [address.address_line, address.ward, address.district, address.province]
-        .filter(Boolean)
-        .join(', ') || 'Chưa có thông tin địa chỉ cụ thể';
+    const parts = [address.address_line, address.ward, address.district, address.province].filter(Boolean);
+    return [...new Set(parts)].join(', ') || 'Chưa có thông tin địa chỉ cụ thể';
 }
 </script>
 

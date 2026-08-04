@@ -13,7 +13,7 @@ return new class extends Migration
             return;
         }
 
-        if (Schema::hasTable('wallet_transactions')) {
+        if (Schema::hasTable('wallet_transactions') && DB::getDriverName() !== 'sqlite') {
             Schema::table('wallet_transactions', function (Blueprint $table) {
                 try {
                     $table->dropForeign('wallet_transactions_wallet_id_foreign');
@@ -23,7 +23,7 @@ return new class extends Migration
             });
         }
 
-        if (Schema::hasColumn('wallets', 'id') && !Schema::hasColumn('wallets', 'wallet_id')) {
+        if (Schema::hasColumn('wallets', 'id') && !Schema::hasColumn('wallets', 'wallet_id') && DB::getDriverName() !== 'sqlite') {
             DB::statement('ALTER TABLE wallets CHANGE id wallet_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT');
         }
 
@@ -90,7 +90,11 @@ return new class extends Migration
             }
         });
 
-        DB::statement("UPDATE wallet_transactions SET transaction_code = CONCAT('WTX-MIG-', transaction_id) WHERE transaction_code IS NULL");
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement("UPDATE wallet_transactions SET transaction_code = 'WTX-MIG-' || transaction_id WHERE transaction_code IS NULL");
+        } else {
+            DB::statement("UPDATE wallet_transactions SET transaction_code = CONCAT('WTX-MIG-', transaction_id) WHERE transaction_code IS NULL");
+        }
 
         Schema::table('wallet_transactions', function (Blueprint $table) {
             $table->foreign('wallet_id')

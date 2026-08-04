@@ -680,9 +680,18 @@ onUnmounted(() => {
             </div>
             <div class="cart-item-actions">
               <div class="qty-control">
-                <button class="qty-btn" @click="decreaseQuantity(item)">−</button>
+                <button class="qty-btn" @click="decreaseQuantity(item)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
                 <input type="text" readonly :value="item.quantity" class="qty-input">
-                <button class="qty-btn" @click="increaseQuantity(item)">+</button>
+                <button class="qty-btn" @click="increaseQuantity(item)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
               </div>
               <div class="cart-item-bottom">
                 <span class="line-total">{{ formatPrice(item.price * item.quantity) }}</span>

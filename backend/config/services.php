@@ -73,7 +73,7 @@ return [
         'account_name' => env('BANK_ACCOUNT_NAME'),
     ],
 
-    // Gemini API keys — nhiều key để rotate khi bị rate limit
+    // Gemini API keys — nhiều key để rotate khi bị rate limit (backup)
     'gemini' => [
         'keys' => array_values(array_filter([
             env('GEMINI_API_KEY'),
@@ -83,10 +83,18 @@ return [
         ])),
     ],
 
+    // DeepSeek API — chuẩn OpenAI-compatible
+    'deepseek' => [
+        'api_key'  => env('DEEPSEEK_API_KEY'),
+        'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
+        'model'    => env('DEEPSEEK_MODEL', 'deepseek-chat'),
+    ],
+
     // Face Verification Microservice (internal Docker network)
     'face' => [
         'url' => env('FACE_SERVICE_URL', 'http://face-service:8001'),
         'timeout' => env('FACE_SERVICE_TIMEOUT', 15),
+        'secret' => env('FACE_SERVICE_SECRET', 'super-secret-default-key-change-in-prod'),
     ],
 
 ];

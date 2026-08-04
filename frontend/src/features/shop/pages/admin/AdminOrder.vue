@@ -52,6 +52,10 @@ statuses.push(
   { value: 'return_requested', label: 'Yêu cầu hoàn' },
   { value: 'return_approved', label: 'Đã duyệt hoàn' },
   { value: 'return_rejected', label: 'Từ chối hoàn' },
+  { value: 'returning', label: 'Khách đang hoàn' },
+  { value: 'warehouse_received', label: 'Kho đã nhận hàng' },
+  { value: 'inspection_failed', label: 'Kiểm tra thất bại' },
+  { value: 'inspected_ok', label: 'Kiểm tra đạt' },
   { value: 'returned', label: 'Đã nhận hàng hoàn' },
   { value: 'refunded', label: 'Đã hoàn tiền' },
 );
@@ -68,7 +72,11 @@ const statusTransitions = {
   'completed': ['completed', 'return_requested'],
   'cancelled': ['cancelled'],
   'return_requested': ['return_requested', 'return_approved', 'return_rejected'],
-  'return_approved': ['return_approved', 'returned', 'refunded'],
+  'return_approved': ['return_approved', 'returning'],
+  'returning': ['returning', 'warehouse_received'],
+  'warehouse_received': ['warehouse_received', 'inspected_ok', 'inspection_failed'],
+  'inspected_ok': ['inspected_ok', 'returned'],
+  'inspection_failed': ['inspection_failed', 'return_rejected'],
   'return_rejected': ['return_rejected'],
   'returned': ['returned', 'refunded'],
   'refunded': ['refunded']
@@ -80,7 +88,7 @@ const getAllowedFulfillmentOptions = (currentStatus) => {
 };
 
 const isLockedFulfillmentStatus = (status) => {
-  return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returned', 'refunded'].includes(status);
+  return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returning', 'warehouse_received', 'inspection_failed', 'inspected_ok', 'returned', 'refunded'].includes(status);
 };
 
 // ===== Payment Status (Chỉ hiển thị, không cho admin sửa) =====
@@ -210,6 +218,10 @@ const statusActionDefinitions = {
   return_requested: { icon: 'rotate-ccw', label: 'Yêu cầu hoàn trả', success: 'Đã chuyển sang yêu cầu hoàn trả!' },
   return_approved: { icon: 'check', label: 'Duyệt hoàn trả', success: 'Đã duyệt yêu cầu hoàn trả!' },
   return_rejected: { icon: 'x', label: 'Từ chối hoàn trả', success: 'Đã từ chối yêu cầu hoàn trả!' },
+  returning: { icon: 'truck', label: 'Khách đang gửi trả', success: 'Khách hàng đang gửi trả sản phẩm!' },
+  warehouse_received: { icon: 'box', label: 'Kho đã nhận', success: 'Kho đã nhận sản phẩm hoàn trả!' },
+  inspection_failed: { icon: 'x-circle', label: 'Không đạt kiểm tra', success: 'Hàng hoàn trả không đạt yêu cầu!' },
+  inspected_ok: { icon: 'check-circle', label: 'Đạt kiểm tra', success: 'Hàng hoàn trả đạt yêu cầu!' },
   returned: { icon: 'package-check', label: 'Đã nhận hàng hoàn', success: 'Đã xác nhận nhận hàng hoàn!' },
   refunded: { icon: 'corner-down-left', label: 'Đã hoàn tiền', success: 'Đã hoàn tiền thành công!' },
 };
@@ -219,7 +231,7 @@ const getOrderStatusActions = (order) => {
   const allowed = (statusTransitions[current] || []).filter(status => status !== current);
   return allowed
     .filter((status) => {
-      if (status === 'delivered' && order.ghn_order_code) return false;
+      if (status === 'delivered' && order.tracking_number) return false;
       return Boolean(statusActionDefinitions[status]);
     })
     .map((status) => ({ value: status, ...statusActionDefinitions[status] }));
