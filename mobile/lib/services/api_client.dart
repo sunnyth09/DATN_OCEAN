@@ -33,7 +33,6 @@ class ApiClient {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           if (!kIsWeb) 'User-Agent': kMobileUserAgent,
-          'ngrok-skip-browser-warning': '69420',
         },
       ),
     );
@@ -42,6 +41,8 @@ class ApiClient {
       dio.httpClientAdapter = IOHttpClientAdapter(
         createHttpClient: () {
           final client = HttpClient();
+          client.badCertificateCallback =
+              (X509Certificate cert, String host, int port) => true;
           client.userAgent = kMobileUserAgent;
           return client;
         },
@@ -95,6 +96,9 @@ class ApiClient {
         onError: (DioException e, handler) async {
           if (kDebugMode) {
             debugPrint('======= API ERROR =======');
+            debugPrint('Type: ${e.type}');
+            debugPrint('Message: ${e.message}');
+            debugPrint('Error: ${e.error}');
             debugPrint('Status: ${e.response?.statusCode}');
             debugPrint('Data: ${e.response?.data}');
             debugPrint('=========================');
@@ -189,7 +193,6 @@ class ApiClient {
               'Accept': 'application/json',
               'Authorization': 'Bearer $token',
               if (!kIsWeb) 'User-Agent': kMobileUserAgent,
-              'ngrok-skip-browser-warning': '69420',
             },
           ),
         );

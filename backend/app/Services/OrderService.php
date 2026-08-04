@@ -93,19 +93,19 @@ class OrderService
                 $cartItems = $this->buildDirectItems($data['items']);
 
                 if ($cartItems->isEmpty()) {
-                    return $this->error('Sản phẩm không hợp lệ!', 400);
+                    throw new OrderException('Sản phẩm không hợp lệ!');
                 }
             } else {
                 $cart = $this->cartRepository->getActiveCart($userId);
 
                 if (! $cart) {
-                    return $this->error('Giỏ hàng trống!', 400);
+                    throw new OrderException('Giỏ hàng trống!');
                 }
 
                 $cartItems = $this->cartRepository->getSelectedCartItems($cart->cart_id);
 
                 if ($cartItems->isEmpty()) {
-                    return $this->error('Vui lòng chọn sản phẩm để thanh toán!', 400);
+                    throw new OrderException('Vui lòng chọn sản phẩm để thanh toán!');
                 }
 
                 // Đơn đặt từ giỏ đã được gửi nhắc nhở bỏ quên → đánh dấu để cộng điểm khi hoàn tất
@@ -121,7 +121,7 @@ class OrderService
             );
 
             if (! $couponResult['success']) {
-                return $this->error($couponResult['message'], 400);
+                throw new OrderException($couponResult['message']);
             }
 
             $shippingFee = $this->shippingService->calculateShippingFee(
@@ -144,13 +144,13 @@ class OrderService
             if ($rewardPointsUsed > 0) {
                 $user = User::find($userId);
                 if (! $user) {
-                    return $this->error('Không tìm thấy người dùng!', 400);
+                    throw new OrderException('Không tìm thấy người dùng!');
                 }
 
                 $preview = app(LoyaltyService::class)->previewBurn($userId, $rewardPointsUsed, $subtotal);
 
                 if (! $preview['eligible']) {
-                    return $this->error($preview['message'], 400);
+                    throw new OrderException($preview['message']);
                 }
 
                 // Nếu user cố ý truyền sai số lượng vượt quá cho phép, previewBurn sẽ trả về actual_points nhỏ hơn.
@@ -216,6 +216,17 @@ class OrderService
             ) {
                 $this->lockAndValidateStock($cartItems, $subtotal);
 
+                // Lưu địa chỉ mới nếu cần (lưu TRONG transaction để rollback nếu đơn lỗi)
+                if (isset($address->needs_saving) && $address->needs_saving) {
+                    if (Address::where('user_id', $userId)->count() < Address::MAX_PER_USER) {
+                        // Xóa flag tạm trước khi save để tránh lỗi "Unknown column 'needs_saving'"
+                        unset($address->needs_saving);
+                        $address->save();
+                    } else {
+                        unset($address->needs_saving);
+                    }
+                }
+
                 // Áp dụng wallet discount (trong transaction để đảm bảo atomic)
                 if ($useWallet && $walletTotalDiscount > 0) {
                     $walletResult = $this->walletService->applyOrderDiscount(
@@ -231,7 +242,7 @@ class OrderService
                 $order = $this->orderRepository->create([
                     'order_code' => $this->generateOrderCode(),
                     'user_id' => $userId,
-                    'address_id' => $address->address_id,
+                    'address_id' => $address->address_id, // Có thể null nếu user vượt quá MAX_PER_USER
                     'promotion_id' => $couponId,
                     'recipient_name' => $address->recipient_name,
                     'recipient_phone' => $address->phone,
@@ -335,34 +346,11 @@ class OrderService
                     );
                 }
 
-                $paymentResult = $this->paymentGatewayService->handlePayment(
-                    $order,
-                    $data['payment_method'],
-                    $request
-                );
-
-                $this->dispatchOrderCreatedEvent($order);
-
-                if ($paymentResult['type'] === 'redirect') {
-                    return [
-                        'status_code' => 200,
-                        'body' => $paymentResult['body'],
-                        '_order' => $order,
-                    ];
-                }
-
                 return [
                     'status_code' => 200,
-                    'body' => [
-                        'status' => 'success',
-                        'message' => 'Đặt hàng thành công!',
-                        'data' => [
-                            'order_id' => $order->order_id,
-                            'order_code' => $order->order_code,
-                            'grand_total' => $order->grand_total,
-                        ],
-                    ],
                     '_order' => $order,
+                    '_payment_method' => $data['payment_method'],
+                    '_request' => $request,
                 ];
             });
 
@@ -370,15 +358,42 @@ class OrderService
             // Bọc riêng để lỗi ở đây KHÔNG khiến trả 500 "tạo đơn thất bại" — nếu không
             // user sẽ retry và tạo đơn trùng (double stock/points).
             if (isset($result['_order'])) {
+                $order = $result['_order'];
+
+                $paymentResult = $this->paymentGatewayService->handlePayment(
+                    $order,
+                    $result['_payment_method'],
+                    $result['_request']
+                );
+
+                $this->dispatchOrderCreatedEvent($order);
+
                 try {
                     $this->affiliateService->createConversionFromOrder(
-                        $result['_order'],
+                        $order,
                         $data['referral_code'] ?? null
                     );
                 } catch (\Throwable $e) {
                     Log::error('Affiliate conversion failed (đơn đã được tạo thành công): '.$e->getMessage());
                 }
-                unset($result['_order']); // Không trả _order ra response
+                
+                unset($result['_order']);
+                unset($result['_payment_method']);
+                unset($result['_request']);
+
+                if ($paymentResult['type'] === 'redirect') {
+                    $result['body'] = $paymentResult['body'];
+                } else {
+                    $result['body'] = [
+                        'status' => 'success',
+                        'message' => 'Đặt hàng thành công!',
+                        'data' => [
+                            'order_id' => $order->order_id,
+                            'order_code' => $order->order_code,
+                            'grand_total' => $order->grand_total,
+                        ],
+                    ];
+                }
             }
 
             try {
@@ -538,25 +553,42 @@ class OrderService
                     );
                 }
 
+                return [
+                    'status_code' => 200,
+                    '_order' => $order,
+                    '_payment_method' => $data['payment_method'],
+                    '_request' => $request,
+                ];
+            });
+
+            if (isset($result['_order'])) {
+                $order = $result['_order'];
+
                 $paymentResult = $this->paymentGatewayService->handlePayment(
                     $order,
-                    $data['payment_method'],
-                    $request
+                    $result['_payment_method'],
+                    $result['_request']
                 );
-
-                if ($paymentResult['type'] === 'redirect') {
-                    return [
-                        'status_code' => 200,
-                        'body' => $paymentResult['body'],
-                        '_order' => $order,
-                    ];
-                }
 
                 $this->dispatchOrderCreatedEvent($order);
 
-                return [
-                    'status_code' => 200,
-                    'body' => [
+                try {
+                    $this->affiliateService->createConversionFromOrder(
+                        $order,
+                        $data['referral_code'] ?? null
+                    );
+                } catch (\Throwable $e) {
+                    Log::error('Guest Affiliate conversion failed: '.$e->getMessage());
+                }
+
+                unset($result['_order']);
+                unset($result['_payment_method']);
+                unset($result['_request']);
+
+                if ($paymentResult['type'] === 'redirect') {
+                    $result['body'] = $paymentResult['body'];
+                } else {
+                    $result['body'] = [
                         'status' => 'success',
                         'message' => 'Đặt hàng thành công!',
                         'data' => [
@@ -564,17 +596,8 @@ class OrderService
                             'order_code' => $order->order_code,
                             'grand_total' => $order->grand_total,
                         ],
-                    ],
-                    '_order' => $order,
-                ];
-            });
-
-            if (isset($result['_order'])) {
-                $this->affiliateService->createConversionFromOrder(
-                    $result['_order'],
-                    $data['referral_code'] ?? null
-                );
-                unset($result['_order']);
+                    ];
+                }
             }
 
             Cache::flush();
@@ -708,11 +731,11 @@ class OrderService
             'is_default' => false,
         ];
 
-        if (Address::where('user_id', $userId)->count() >= Address::MAX_PER_USER) {
-            return (object) array_merge(['address_id' => null], $addressData);
-        }
+        // Create an unsaved Address model instance
+        $address = new Address($addressData);
+        $address->needs_saving = true;
 
-        return $this->addressRepository->create($addressData);
+        return $address;
     }
 
     /**
@@ -748,6 +771,10 @@ class OrderService
         $subtotal = 0;
 
         foreach ($cartItems as $item) {
+            if (!$item->variant || !$item->variant->product) {
+                throw new OrderException('Một trong các sản phẩm trong giỏ hàng không còn tồn tại hoặc đã bị xóa.');
+            }
+
             if ($item->variant->stock < $item->quantity) {
                 throw new OrderException(
                     'Sản phẩm '.$item->variant->product->name.' không đủ tồn kho!'
@@ -788,12 +815,12 @@ class OrderService
 
     private function makeFullAddress($address): string
     {
-        return implode(', ', array_filter([
+        return implode(', ', array_unique(array_filter([
             $address->address_line,
             $address->ward,
             $address->district,
             $address->province,
-        ]));
+        ])));
     }
 
     private function generateOrderCode(): string

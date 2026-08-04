@@ -114,13 +114,13 @@ const routes = [
     },
     // OAuth Callback routes
     {
-        path: "/api/auth/google/callback",
+        path: "/client/auth/google/callback",
         name: "google-callback",
         component: GoogleCallback,
         meta: { title: 'Đăng nhập Google' },
     },
     {
-        path: "/api/auth/facebook/callback",
+        path: "/client/auth/facebook/callback",
         name: "facebook-callback",
         component: FacebookCallback,
         meta: { title: 'Đăng nhập Facebook' },

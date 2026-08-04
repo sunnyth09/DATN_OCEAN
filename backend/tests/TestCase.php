@@ -9,8 +9,13 @@ abstract class TestCase extends BaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        
+        // Cố tình force environment = testing để test ko bị ảnh hưởng bởi local env
+        putenv('APP_ENV=testing');
+        $_ENV['APP_ENV'] = 'testing';
+        $_SERVER['APP_ENV'] = 'testing';
 
-        if (app()->environment('testing')) {
+        if (app()->environment('testing', 'local')) {
             config([
                 'broadcasting.default' => 'log',
                 'broadcasting.connections.log.driver' => 'log',

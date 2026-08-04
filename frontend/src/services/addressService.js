@@ -33,22 +33,25 @@ export const addressService = {
         return api.get(`/location/wards/${districtCode}`);
     },
 
-    async getShippingFee({ districtCode, wardCode, weight = 1000, serviceTypeId = 2 }) {
-        if (!districtCode || !wardCode) {
+    /**
+     * Tính phí vận chuyển qua Ocean Express (proxy qua Backend /ghn/calculate-fee).
+     * wardCode: Ocean Express location ID (e.g. "VN-01-00004") — đây là WardCode từ /location/wards
+     * weight: trọng lượng gói hàng tính bằng gram
+     */
+    async getShippingFee({ wardCode, weight = 500 }) {
+        if (!wardCode) {
             return 0;
         }
 
         try {
             const response = await api.post('/ghn/calculate-fee', {
-                service_type_id: serviceTypeId,
-                to_district_id: Number.parseInt(districtCode, 10),
-                to_ward_code: String(wardCode),
+                ward_code: String(wardCode),
                 weight: weight,
             });
 
             return response.data?.data?.total || 0;
         } catch (error) {
-            console.error('Lỗi tính phí vận chuyển GHN (qua Backend):', error);
+            console.error('Lỗi tính phí vận chuyển Ocean Express (qua Backend):', error);
             return 30000; // Fallback fee
         }
     },

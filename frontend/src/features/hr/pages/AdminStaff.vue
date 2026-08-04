@@ -174,6 +174,7 @@ onMounted(fetchStaff);
             <th>ID</th>
             <th>Họ tên</th>
             <th>Email</th>
+            <th>Vai trò</th>
             <th>Tham gia</th>
             <th class="status-th">Trạng thái</th>
             <th class="actions-th">Thao tác</th>

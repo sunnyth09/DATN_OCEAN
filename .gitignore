@@ -46,6 +46,11 @@ Thumbs.db
 # Chặn push ảnh của backend
 /backend/storage/app/public/products/*
 /backend/storage/app/public/banners/*
+/backend/storage/app/public/face_registrations/*
+/backend/storage/app/public/checkins/*
+/backend/storage/app/public/return-requests/*
+/backend/storage/app/public/attendances/*
+*.mp4
 /backend/storage/tmp/*
 
 # MySQL data volume

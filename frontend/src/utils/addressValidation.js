@@ -34,9 +34,8 @@ export function validateAddressPayload(address = {}) {
         errors.province = 'Vui lòng chọn Tỉnh/Thành phố';
     }
 
-    if (!data.district) {
-        errors.district = 'Vui lòng chọn Quận/Huyện';
-    }
+    // Quận/Huyện KHÔNG validate — Ocean Express chỉ dùng Tỉnh + Phường/Xã.
+    // district_code được tự động gán = province_code (district ảo) trong AddressSelector.
 
     if (!data.ward) {
         errors.ward = 'Vui lòng chọn Phường/Xã';

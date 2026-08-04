@@ -9,13 +9,38 @@ return new class extends Migration
 {
     public function up(): void
     {
+        Schema::disableForeignKeyConstraints();
+
         Schema::table('order_items', function (Blueprint $table) {
             if (!Schema::hasColumn('order_items', 'returned_quantity')) {
                 $table->integer('returned_quantity')->default(0)->after('quantity');
             }
         });
 
-        DB::statement("\n            ALTER TABLE orders\n            MODIFY fulfillment_status ENUM(\n                'pending',\n                'confirmed',\n                'processing',\n                'packing',\n                'shipping',\n                'delivered',\n                'completed',\n                'cancelled',\n                'return_requested',\n                'return_approved',\n                'return_rejected',\n                'returning',\n                'warehouse_received',\n                'inspection_failed',\n                'inspected_ok',\n                'returned',\n                'refunded'\n            ) NOT NULL DEFAULT 'pending'\n        ");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("
+                ALTER TABLE orders
+                MODIFY fulfillment_status ENUM(
+                    'pending',
+                    'confirmed',
+                    'processing',
+                    'packing',
+                    'shipping',
+                    'delivered',
+                    'completed',
+                    'cancelled',
+                    'return_requested',
+                    'return_approved',
+                    'return_rejected',
+                    'returning',
+                    'warehouse_received',
+                    'inspection_failed',
+                    'inspected_ok',
+                    'returned',
+                    'refunded'
+                ) NOT NULL DEFAULT 'pending'
+            ");
+        }
 
         Schema::table('return_requests', function (Blueprint $table) {
             if (!Schema::hasColumn('return_requests', 'return_code')) {
@@ -57,7 +82,29 @@ return new class extends Migration
             }
         });
 
-        DB::statement("\n            ALTER TABLE return_requests\n            MODIFY status ENUM(\n                'pending',\n                'approved',\n                'rejected',\n                'received',\n                'refunded',\n                'return_pending',\n                'return_approved',\n                'return_rejected',\n                'returning',\n                'warehouse_received',\n                'inspection_failed',\n                'inspected_ok',\n                'refunding',\n                'refund_pending',\n                'refund_failed',\n                'return_completed'\n            ) NOT NULL DEFAULT 'return_pending'\n        ");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("
+                ALTER TABLE return_requests
+                MODIFY status ENUM(
+                    'pending',
+                    'approved',
+                    'rejected',
+                    'received',
+                    'refunded',
+                    'return_pending',
+                    'return_approved',
+                    'return_rejected',
+                    'returning',
+                    'warehouse_received',
+                    'inspection_failed',
+                    'inspected_ok',
+                    'refunding',
+                    'refund_pending',
+                    'refund_failed',
+                    'return_completed'
+                ) NOT NULL DEFAULT 'return_pending'
+            ");
+        }
 
         DB::table('return_requests')->where('status', 'pending')->update(['status' => 'return_pending']);
         DB::table('return_requests')->where('status', 'approved')->update(['status' => 'return_approved']);

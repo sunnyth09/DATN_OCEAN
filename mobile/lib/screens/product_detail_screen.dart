@@ -426,12 +426,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   color: Color(0xFF0F172A),
                                 ),
                               ),
-                              Text(
-                                'Hướng dẫn đo size',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFFE63B6F),
+                              GestureDetector(
+                                onTap: () => _showSizeGuide(context),
+                                child: const Text(
+                                  'Hướng dẫn đo size',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFE63B6F),
+                                  ),
                                 ),
                               ),
                             ],
@@ -608,7 +611,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               ),
                             ),
                             GestureDetector(
-                              onTap: () {},
+                              onTap: () {
+                                final catId = widget.product['category_id'];
+                                if (catId != null) {
+                                  context.push('/product-list', extra: {
+                                    'categoryId': catId,
+                                    'categoryName': 'Sản phẩm tương tự',
+                                  });
+                                } else {
+                                  context.push('/product-list');
+                                }
+                              },
                               child: const Text(
                                 'Xem tất cả →',
                                 style: TextStyle(
@@ -1002,6 +1015,56 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showSizeGuide(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Hướng dẫn chọn size',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('• Size S: 45 - 55 kg / 1m50 - 1m60', style: TextStyle(fontSize: 15)),
+              const SizedBox(height: 8),
+              const Text('• Size M: 55 - 65 kg / 1m60 - 1m70', style: TextStyle(fontSize: 15)),
+              const SizedBox(height: 8),
+              const Text('• Size L: 65 - 75 kg / 1m70 - 1m75', style: TextStyle(fontSize: 15)),
+              const SizedBox(height: 8),
+              const Text('• Size XL: 75 - 85 kg / 1m75 - 1m85', style: TextStyle(fontSize: 15)),
+              const SizedBox(height: 24),
+              const Text(
+                'Lưu ý: Bảng size chỉ mang tính chất tham khảo. Bạn có thể chọn size lớn hơn nếu muốn mặc thoải mái.',
+                style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, height: 1.5),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
     );
   }
 }

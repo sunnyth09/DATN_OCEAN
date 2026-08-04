@@ -229,6 +229,15 @@ class StatisticsService
         return Excel::download(new LastMonthRevenueExport, $fileName);
     }
 
+    public function exportStaffSales(Request $request)
+    {
+        [$startDate, $endDate] = $this->getDateRange($request);
+        
+        $fileName = 'Doanh_Thu_Nhan_Vien_'.Carbon::now()->format('Y_m_d_His').'.xlsx';
+
+        return Excel::download(new \App\Exports\StaffSalesExport($startDate, $endDate), $fileName);
+    }
+
     public function getStaffSales(Request $request): array
     {
         [$startDate, $endDate] = $this->getDateRange($request);

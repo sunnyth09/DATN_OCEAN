@@ -86,6 +86,14 @@ class AdminStatisticsController extends Controller
     }
 
     /**
+     * Xuất file Excel báo cáo doanh thu theo nhân viên
+     */
+    public function exportStaffSales(Request $request)
+    {
+        return $this->statisticsService->exportStaffSales($request);
+    }
+
+    /**
      * Get staff sales report
      */
     public function getStaffSales(Request $request)

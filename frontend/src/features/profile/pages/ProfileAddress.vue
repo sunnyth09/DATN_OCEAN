@@ -223,21 +223,20 @@ const form = ref({
 
 const hasAddresses = computed(() => (pagination.value?.total ?? addresses.value.length) > 0);
 
-// --- GHN API Functions ---
-async function updateShippingFee(districtCode, wardCode) {
-  if (!districtCode || !wardCode) {
+// --- Ocean Express Shipping API ---
+async function updateShippingFee(wardCode) {
+  if (!wardCode) {
     shippingFee.value = 0;
     return;
   }
   loadingGHN.value.fee = true;
   try {
     shippingFee.value = await addressService.getShippingFee({
-      districtCode,
       wardCode,
-      weight: 1000,
+      weight: 500,
     });
   } catch (error) {
-    console.error("Lỗi tính phí vận chuyển GHN:", error);
+    console.error('Lỗi tính phí vận chuyển Ocean Express:', error);
     shippingFee.value = 0;
   } finally {
     loadingGHN.value.fee = false;
@@ -273,13 +272,16 @@ function formatFullAddress(addr) {
 function onAddressChange(data) {
   form.value.province = data.province_name;
   form.value.province_code = data.province_code;
-  form.value.district = data.district_name;
-  form.value.district_code = data.district_code;
+  // Ocean Express không có Quận/Huyện — district_code = province_code (như district ảo)
+  form.value.district = data.district_name || '';
+  form.value.district_code = data.district_code || data.province_code;
   form.value.ward = data.ward_name;
   form.value.ward_code = data.ward_code;
   form.value.address_line = data.address_detail;
 
-  updateShippingFee(data.district_code, data.ward_code);
+  if (data.ward_code) {
+    updateShippingFee(data.ward_code);
+  }
 }
 
 // Open Add form
@@ -316,17 +318,18 @@ const openEditForm = async(address) => {
     phone: address.phone,
     address_line: address.address_line || '',
     ward: address.ward || '',
-    district: address.district || '',
+    district: address.district || address.province || '',
     province: address.province || '',
     ward_code: address.ward_code || '',
-    district_code: address.district_code || '',
-    province_code: parseInt(address.province_code) || '',
+    // district_code: province_code (Ocean Express — à string ID, không parseInt)
+    district_code: address.district_code || address.province_code || '',
+    province_code: address.province_code || '',
     address_type: address.address_type || 'home',
     is_default: address.is_default || false,
   };
 
-  if (form.value.district_code && form.value.ward_code) {
-    await updateShippingFee(form.value.district_code, form.value.ward_code);
+  if (form.value.ward_code) {
+    await updateShippingFee(form.value.ward_code);
   } else {
     shippingFee.value = 0;
   }

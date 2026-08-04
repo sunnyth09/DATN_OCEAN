@@ -344,6 +344,29 @@ onMounted(() => {
   
   if (sessionToken.value) {
      mode.value = 'live';
+     
+     // Gọi API để lấy tin nhắn mới nhất (tránh mất tin nhắn sau khi F5)
+     const token = sessionStorage.getItem('auth_token');
+     const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+     api.post('/live-chat/init', { session_token: sessionToken.value }, { headers })
+       .then(response => {
+          if (response.data && response.data.session) {
+             if (response.data.messages && response.data.messages.length > 0) {
+                messages.value = response.data.messages.map(m => ({
+                   role: m.sender_type === 'user' ? 'user' : 'assistant',
+                   content: m.message
+                }));
+                scrollToBottom();
+             }
+          } else {
+             // Session không hợp lệ hoặc đã đóng
+             sessionToken.value = '';
+             localStorage.removeItem('ocean_live_chat_token');
+             mode.value = 'ai';
+          }
+       })
+       .catch(err => console.error('Lỗi tải lịch sử live chat:', err));
+       
      connectLiveChat();
   }
 });
@@ -570,21 +593,31 @@ async function startLiveChat() {
   }
 }
 
+let currentLiveChannel = null;
+
 function connectLiveChat() {
-  if (window.Echo && sessionToken.value && !isConnectedLiveChat) {
+  if (window.Echo && sessionToken.value) {
     const channelName = `chat.${sessionToken.value}`;
-    // Rời kênh cũ (nếu có do hot-reload) để xóa toàn bộ event listeners
-    window.Echo.leave(channelName);
+    
+    // Nếu kênh hiện tại là kênh cần join, không làm gì cả để tránh dính race condition
+    if (currentLiveChannel === channelName) {
+       return;
+    }
+    
+    // Rời kênh cũ (nếu có) trước khi join kênh mới
+    if (currentLiveChannel && currentLiveChannel !== channelName) {
+      window.Echo.leave(currentLiveChannel);
+    }
     
     window.Echo.channel(channelName)
       .listen('.message.sent', (e) => {
         if (e.senderType === 'admin') {
-           // Nếu là mã lệnh đóng phòng chat
            if (e.message.message === 'SYSTEM_SESSION_CLOSED') {
               messages.value.push({ role: 'assistant', content: 'Phiên hỗ trợ đã kết thúc.' });
               mode.value = 'ai';
               showQuickActions.value = true;
               window.Echo.leave(channelName);
+              currentLiveChannel = null;
               scrollToBottom();
               return;
            }
@@ -595,7 +628,7 @@ function connectLiveChat() {
         }
       });
       
-    isConnectedLiveChat = true;
+    currentLiveChannel = channelName;
   }
 }
 
@@ -609,11 +642,13 @@ async function sendMessage() {
     content: msg,
   });
 
-  // Add to conversation history (Gemini format)
-  conversationHistory.value.push({
-    role: 'user',
-    parts: [{ text: msg }],
-  });
+  // Add to conversation history (Gemini format) if not in live mode
+  if (mode.value !== 'live') {
+    conversationHistory.value.push({
+      role: 'user',
+      parts: [{ text: msg }],
+    });
+  }
 
   inputMessage.value = '';
   isTyping.value = true;
@@ -683,6 +718,7 @@ async function sendMessage() {
         role: 'assistant',
         content: data.message || 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại!',
       });
+      if (mode.value !== 'live') conversationHistory.value.pop();
     }
   } catch (error) {
     console.error('Chat error:', error);
@@ -690,6 +726,7 @@ async function sendMessage() {
       role: 'assistant',
       content: 'Xin lỗi, kết nối bị gián đoạn. Vui lòng thử lại sau!',
     });
+    if (mode.value !== 'live') conversationHistory.value.pop();
   } finally {
     isTyping.value = false;
     scrollToBottom();
