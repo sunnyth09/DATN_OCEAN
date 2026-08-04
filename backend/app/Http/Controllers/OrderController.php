@@ -87,7 +87,7 @@ class OrderController extends Controller
             'phone' => 'required|string|max:20',
             'email' => 'required|email|max:255',
             'province' => 'required|string|max:100',
-            'district' => 'required|string|max:100',
+            'district' => 'nullable|string|max:100', // Ocean Express không có quận
             'ward' => 'required|string|max:100',
             'address_line' => 'required|string|max:255',
             'province_code' => 'nullable',
@@ -109,7 +109,6 @@ class OrderController extends Controller
             'email.required' => 'Vui lòng nhập email để nhận xác nhận đơn hàng.',
             'email.email' => 'Email không hợp lệ.',
             'province.required' => 'Vui lòng chọn Tỉnh/Thành phố.',
-            'district.required' => 'Vui lòng chọn Quận/Huyện.',
             'ward.required' => 'Vui lòng chọn Phường/Xã.',
             'address_line.required' => 'Vui lòng nhập địa chỉ chi tiết.',
             'items.required' => 'Giỏ hàng trống.',

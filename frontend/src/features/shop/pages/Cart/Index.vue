@@ -8,7 +8,8 @@ import QuickAddSlider from '@/features/shop/components/QuickAddSlider.vue';
 import { useCartUpsell } from '@/composables/useCartUpsell';
 import { productService } from '@/services/productService';
 import ProductCard from '@/components/ProductCard.vue';
-
+import BaseInput from '@/components/base/BaseInput.vue';
+import BaseButton from '@/components/base/BaseButton.vue';
 import { getStorageUrl } from '@/utils/url';
 import { pinia } from '@/stores';
 import { useAuthStore } from '@/stores/auth';

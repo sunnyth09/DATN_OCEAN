@@ -15,12 +15,6 @@ class MainWrapper extends StatefulWidget {
 }
 
 class _MainWrapperState extends State<MainWrapper> {
-  void _refreshCart() {
-    if (context.read<AuthProvider>().isAuthenticated) {
-      context.read<CartProvider>().fetchCart(silent: true);
-    }
-  }
-
   void _onItemTapped(int index) {
     if (index >= 2) {
       final loggedIn = context.read<AuthProvider>().isAuthenticated;
@@ -37,7 +31,6 @@ class _MainWrapperState extends State<MainWrapper> {
       index,
       initialLocation: index == widget.navigationShell.currentIndex,
     );
-    if (index == 3) _refreshCart();
   }
 
   @override
@@ -50,8 +43,6 @@ class _MainWrapperState extends State<MainWrapper> {
   }
 
   Widget _buildBottomNavigationBar(int selectedIndex) {
-    final cartBadgeCount = context.watch<CartProvider>().itemCount;
-    
     return NavigationBar(
       selectedIndex: selectedIndex,
       onDestinationSelected: _onItemTapped,
@@ -63,40 +54,22 @@ class _MainWrapperState extends State<MainWrapper> {
         const NavigationDestination(
           icon: Icon(Icons.home_outlined),
           selectedIcon: Icon(Icons.home, color: AppColors.primary),
-          label: 'Home',
+          label: 'Trang chủ',
         ),
         const NavigationDestination(
           icon: Icon(Icons.grid_view_outlined),
           selectedIcon: Icon(Icons.grid_view, color: AppColors.primary),
-          label: 'Shop',
+          label: 'Cửa hàng',
         ),
         const NavigationDestination(
           icon: Icon(Icons.sports_tennis_outlined),
           selectedIcon: Icon(Icons.sports_tennis, color: AppColors.primary),
-          label: 'Sân',
-        ),
-        NavigationDestination(
-          icon: Badge(
-            isLabelVisible: cartBadgeCount > 0,
-            label: Text(cartBadgeCount > 99 ? '99+' : cartBadgeCount.toString()),
-            child: const Icon(Icons.shopping_cart_outlined),
-          ),
-          selectedIcon: Badge(
-            isLabelVisible: cartBadgeCount > 0,
-            label: Text(cartBadgeCount > 99 ? '99+' : cartBadgeCount.toString()),
-            child: const Icon(Icons.shopping_cart, color: AppColors.primary),
-          ),
-          label: 'Cart',
-        ),
-        const NavigationDestination(
-          icon: Icon(Icons.receipt_long_outlined),
-          selectedIcon: Icon(Icons.receipt_long, color: AppColors.primary),
-          label: 'Orders',
+          label: 'Sân cầu',
         ),
         const NavigationDestination(
           icon: Icon(Icons.person_outline),
           selectedIcon: Icon(Icons.person, color: AppColors.primary),
-          label: 'Me',
+          label: 'Tài khoản',
         ),
       ],
     );

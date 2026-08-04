@@ -782,7 +782,11 @@ onBeforeUnmount(() => {
         <div class="pd-qty-row">
           <span class="pd-qty-label">Số lượng</span>
           <div class="pd-qty">
-            <button type="button" @click="decreaseQuantity" :disabled="quantity <= 1">−</button>
+            <button type="button" @click="decreaseQuantity" :disabled="quantity <= 1" class="qty-btn-align">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
             <input
               type="text"
               inputmode="numeric"
@@ -793,7 +797,12 @@ onBeforeUnmount(() => {
               @blur="normalizeQuantity()"
               @keydown.enter.prevent="normalizeQuantity()"
             />
-            <button type="button" @click="increaseQuantity" :disabled="selectedVariant && quantity >= selectedVariant.stock">+</button>
+            <button type="button" @click="increaseQuantity" :disabled="selectedVariant && quantity >= selectedVariant.stock" class="qty-btn-align">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -1439,6 +1448,9 @@ onBeforeUnmount(() => {
   cursor: pointer;
   color: var(--text-main);
   transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pd-qty button:hover {

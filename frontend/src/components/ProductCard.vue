@@ -381,25 +381,14 @@ const handleAddToCart = async (event) => {
                     {{ badgeLabel }}
                 </span>
 
-                <button
-                    class="icon-btn favorite-btn"
-                    :class="{ 'is-active': isFavorited(productId) }"
-                    @click="handleToggleFav"
-                    title="Yêu thích"
-                    aria-label="Yêu thích"
-                >
+                <button class="icon-btn favorite-btn" :class="{ 'is-active': isFavorited(productId) }"
+                    @click="handleToggleFav" title="Yêu thích" aria-label="Yêu thích">
                     <AppIcon name="heart" size="18" stroke-width="1.8" />
                 </button>
 
                 <div class="image-shell" :class="{ 'is-empty': !productImage }">
-                    <img
-                        ref="productImageRef"
-                        v-if="productImage"
-                        :src="productImageUrl"
-                        :alt="product.name"
-                        class="product-image"
-                        loading="lazy"
-                    />
+                    <img ref="productImageRef" v-if="productImage" :src="productImageUrl" :alt="product.name"
+                        class="product-image" loading="lazy" />
 
                     <div v-else class="image-placeholder" aria-hidden="true">
                         <div class="placeholder-circle">
@@ -426,8 +415,10 @@ const handleAddToCart = async (event) => {
                 <!-- Star Rating -->
                 <div class="star-rating">
                     <span class="stars">
-                        <svg v-for="s in 5" :key="s" class="star-icon" :class="s <= 4 ? 'star-filled' : 'star-half'" viewBox="0 0 24 24">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        <svg v-for="s in 5" :key="s" class="star-icon" :class="s <= 4 ? 'star-filled' : 'star-half'"
+                            viewBox="0 0 24 24">
+                            <polygon
+                                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                         </svg>
                     </span>
                     <span class="rating-count">4.5 <span class="rating-num">({{ (product.id % 80) + 20 }})</span></span>
@@ -449,15 +440,12 @@ const handleAddToCart = async (event) => {
                         </span>
                     </div>
 
-                    <button
-                        class="icon-btn cart-btn"
-                        @click="handleAddToCart"
-                        :disabled="isAddingToCart || isOutOfStock"
-                        :class="{ 'is-disabled': isOutOfStock }"
+                    <button class="icon-btn cart-btn" @click="handleAddToCart"
+                        :disabled="isAddingToCart || isOutOfStock" :class="{ 'is-disabled': isOutOfStock }"
                         :title="isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ'"
-                        :aria-label="isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'"
-                    >
-                        <AppIcon v-if="!isAddingToCart" :name="isOutOfStock ? 'x' : 'cart'" size="18" stroke-width="1.9" />
+                        :aria-label="isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'">
+                        <AppIcon v-if="!isAddingToCart" :name="isOutOfStock ? 'x' : 'cart'" size="18"
+                            stroke-width="1.9" />
                         <span v-else class="small-spinner"></span>
                     </button>
                 </div>
@@ -465,27 +453,12 @@ const handleAddToCart = async (event) => {
         </router-link>
     </article>
 
-    <ProductVariantAddToCartModal
-        :show="showVariantModal"
-        :product-name="product.name"
-        :image-url="variantImageUrl"
-        :variants="variants"
-        :unique-colors="uniqueColors"
-        :has-colors="hasColors"
-        :available-sizes="availableSizes"
-        :selected-variant="selectedVariant"
-        :selected-color="selectedColor"
-        :selected-size="selectedSize"
-        :quantity="quantity"
-        :confirming="confirming"
-        @close="showVariantModal = false"
-        @select-color="selectColor"
-        @update:selected-size="selectedSize = $event"
-        @update:quantity="quantity = $event"
-        @increase="increaseQuantity"
-        @decrease="decreaseQuantity"
-        @confirm="handleConfirmAddToCart"
-    />
+    <ProductVariantAddToCartModal :show="showVariantModal" :product-name="product.name" :image-url="variantImageUrl"
+        :variants="variants" :unique-colors="uniqueColors" :has-colors="hasColors" :available-sizes="availableSizes"
+        :selected-variant="selectedVariant" :selected-color="selectedColor" :selected-size="selectedSize"
+        :quantity="quantity" :confirming="confirming" @close="showVariantModal = false" @select-color="selectColor"
+        @update:selected-size="selectedSize = $event" @update:quantity="quantity = $event" @increase="increaseQuantity"
+        @decrease="decreaseQuantity" @confirm="handleConfirmAddToCart" />
 </template>
 
 <style scoped>
@@ -751,7 +724,8 @@ const handleAddToCart = async (event) => {
 
 @media (max-width: 768px) {
     .card-link {
-        min-height: unset; /* Bỏ min-height, để card tự co theo nội dung */
+        min-height: unset;
+        /* Bỏ min-height, để card tự co theo nội dung */
         border-radius: 12px;
     }
 
@@ -760,13 +734,15 @@ const handleAddToCart = async (event) => {
     }
 
     .image-shell {
-        height: 120px; /* Giảm mạnh từ 168px xuống 120px */
+        height: 120px;
+        /* Giảm mạnh từ 168px xuống 120px */
         width: 100%;
         border-radius: 8px 8px 0 0;
     }
 
     .product-image {
-        padding: 8px; /* Giảm padding ảnh */
+        padding: 8px;
+        /* Giảm padding ảnh */
     }
 
     .content {
@@ -775,7 +751,8 @@ const handleAddToCart = async (event) => {
     }
 
     .category {
-        display: none; /* Ẩn dòng danh mục trên mobile để tiết kiệm diện tích */
+        display: none;
+        /* Ẩn dòng danh mục trên mobile để tiết kiệm diện tích */
     }
 
     .name {
@@ -876,8 +853,10 @@ const handleAddToCart = async (event) => {
     color: #829ab1;
     margin-top: 3px;
     letter-spacing: 0.2px;
-    min-height: 16px; /* Giữ cứng chiều cao để các card thẳng hàng */
+    min-height: 16px;
+    /* Giữ cứng chiều cao để các card thẳng hàng */
 }
+
 .stock-info.is-low-stock {
     color: #f97316;
     font-weight: 700;
@@ -885,8 +864,15 @@ const handleAddToCart = async (event) => {
 }
 
 @keyframes pulse-text {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.65; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.65;
+    }
 }
 
 /* Nút giỏ hàng khi sản phẩm hết hàng */

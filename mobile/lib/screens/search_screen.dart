@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
+import '../services/api_client.dart';
+import '../widgets/network_image_widget.dart';
+import '../utils/format_utils.dart';
 
 import '../config/app_theme.dart';
 
@@ -17,6 +21,10 @@ class _SearchScreenState extends State<SearchScreen> {
   
   List<String> _recentSearches = [];
   final String _historyKey = 'recent_searches_v1';
+  
+  Timer? _debounce;
+  List<dynamic> _searchResults = [];
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -30,6 +38,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
@@ -71,11 +80,73 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _fetchLiveResults(trimmedQuery);
+    });
+  }
+
+  Future<void> _fetchLiveResults(String query) async {
+    if (!mounted) return;
+    try {
+      final response = await ApiClient().dio.get(
+        '/products',
+        queryParameters: {'search': query, 'per_page': 10},
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        List<dynamic> fetched = [];
+        if (data is List) {
+          fetched = data;
+        } else if (data['data'] is List) {
+          fetched = data['data'];
+        }
+
+        if (mounted) {
+          setState(() {
+            _searchResults = fetched;
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _searchResults = [];
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _searchResults = [];
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   void _performSearch(String query) {
     if (query.trim().isEmpty) return;
     _saveHistory(query);
     // Navigate to product list screen with search query
-    context.push('/products', extra: {'searchQuery': query.trim()});
+    context.push('/product-list', extra: {'searchQuery': query.trim()});
   }
 
   @override
@@ -117,13 +188,14 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             onChanged: (val) {
               setState(() {}); // For suffix icon
+              _onSearchChanged(val);
             },
           ),
         ),
       ),
-      body: _recentSearches.isEmpty
-          ? _buildEmptyState()
-          : _buildRecentSearches(),
+      body: _searchController.text.trim().isEmpty
+          ? (_recentSearches.isEmpty ? _buildEmptyState() : _buildRecentSearches())
+          : _buildLiveSearchView(),
     );
   }
 
@@ -192,6 +264,76 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLiveSearchView() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+    if (_searchResults.isEmpty) {
+      return Center(
+        child: Text(
+          'Không tìm thấy sản phẩm nào',
+          style: TextStyle(color: Colors.grey.shade500),
+        ),
+      );
+    }
+    return ListView.separated(
+      itemCount: _searchResults.length,
+      separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade200),
+      itemBuilder: (context, index) {
+        final product = _searchResults[index];
+        final name = product['name'] ?? 'Không có tên';
+        final price = product['price'];
+        
+        String imageUrl = '';
+        if (product['thumbnail'] != null) {
+          imageUrl = ApiClient.getStorageUrl(product['thumbnail']);
+        } else if (product['images'] != null && (product['images'] as List).isNotEmpty) {
+          final firstImage = (product['images'] as List).first;
+          imageUrl = ApiClient.getStorageUrl(firstImage['image_path']);
+        }
+
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: SizedBox(
+            width: 50,
+            height: 50,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: NetworkImageWidget(
+                imageUrl: imageUrl,
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+                errorWidget: Container(
+                  color: Colors.grey.shade200,
+                  child: const Icon(Icons.image, color: Colors.grey),
+                ),
+              ),
+            ),
+          ),
+          title: Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          subtitle: Text(
+            FormatUtils.formatPrice(price),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
+          onTap: () {
+            _saveHistory(_searchController.text);
+            context.push('/product-detail', extra: product);
+          },
+        );
+      },
     );
   }
 }
