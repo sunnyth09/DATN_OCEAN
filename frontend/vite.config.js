@@ -28,6 +28,8 @@ export default defineConfig({
     },
   },
   build: {
+    // Xóa sạch thư mục dist/ trước mỗi lần build
+    emptyOutDir: true,
     // Tách code thành nhiều chunk nhỏ
     rollupOptions: {
       output: {

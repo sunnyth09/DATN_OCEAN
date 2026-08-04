@@ -36,34 +36,48 @@ class ReturnRequestService
 
     public function create(int $userId, int $orderId, array $data, Request $request): array
     {
+        $storedImages = [];
+        $storedVideos = [];
+
         try {
-            $created = DB::transaction(function () use ($userId, $orderId, $data, $request) {
-                $order = Order::with(['items.product', 'items.variant'])
+            // Validate eligibility before uploading files to save bandwidth & I/O
+            $order = Order::with(['items.product', 'items.variant'])
+                ->where('order_id', $orderId)
+                ->where('user_id', $userId)
+                ->first();
+
+            if (!$order) {
+                throw new OrderException('Không tìm thấy đơn hàng hoặc đơn hàng không thuộc về bạn.');
+            }
+
+            $validationError = $this->validateReturnEligibility($order, false);
+            if ($validationError) {
+                throw new OrderException($validationError);
+            }
+
+            $idempotencyKey = $data['idempotency_key'] ?? null;
+            if ($idempotencyKey) {
+                $existing = ReturnRequest::where('user_id', $userId)
                     ->where('order_id', $orderId)
-                    ->where('user_id', $userId)
-                    ->lockForUpdate()
+                    ->where('idempotency_key', $idempotencyKey)
+                    ->with(['items', 'order', 'refundTransactions'])
                     ->first();
 
-                if (!$order) {
-                    throw new OrderException('Không tìm thấy đơn hàng hoặc đơn hàng không thuộc về bạn.');
+                if ($existing) {
+                    return $this->success('Đã gửi yêu cầu hoàn hàng thành công.', $existing);
                 }
+            }
 
-                $validationError = $this->validateReturnEligibility($order, false);
+            // Upload files OUTSIDE of transaction to prevent long database locks
+            $storedImages = $this->storeEvidenceFiles($request, 'images', 'return-requests/images');
+            $storedVideos = $this->storeEvidenceFiles($request, 'videos', 'return-requests/videos');
+
+            $created = DB::transaction(function () use ($userId, $order, $data, $storedImages, $storedVideos, $idempotencyKey) {
+                // Re-fetch with lock inside transaction to ensure atomicity
+                $orderLocked = Order::where('order_id', $order->order_id)->lockForUpdate()->first();
+                $validationError = $this->validateReturnEligibility($orderLocked, false);
                 if ($validationError) {
                     throw new OrderException($validationError);
-                }
-
-                $idempotencyKey = $data['idempotency_key'] ?? null;
-                if ($idempotencyKey) {
-                    $existing = ReturnRequest::where('user_id', $userId)
-                        ->where('order_id', $orderId)
-                        ->where('idempotency_key', $idempotencyKey)
-                        ->with(['items', 'order', 'refundTransactions'])
-                        ->first();
-
-                    if ($existing) {
-                        return $existing;
-                    }
                 }
 
                 $itemsPayload = collect($data['items'] ?? [])
@@ -106,9 +120,6 @@ class ReturnRequestService
                     ];
                 }
 
-                $storedImages = $this->storeEvidenceFiles($request, 'images', 'return-requests/images');
-                $storedVideos = $this->storeEvidenceFiles($request, 'videos', 'return-requests/videos');
-
                 $returnRequest = $this->returnRequestRepository->create([
                     'return_code' => $this->generateReturnCode(),
                     'order_id' => $order->order_id,
@@ -147,11 +158,11 @@ class ReturnRequestService
                     ]);
                 }
 
-                $oldStatus = $order->fulfillment_status;
-                $order->update(['fulfillment_status' => OrderStatus::RETURN_REQUESTED->value]);
+                $oldStatus = $orderLocked->fulfillment_status;
+                $orderLocked->update(['fulfillment_status' => OrderStatus::RETURN_REQUESTED->value]);
 
                 $this->orderRepository->createStatusHistory([
-                    'order_id' => $order->order_id,
+                    'order_id' => $orderLocked->order_id,
                     'old_status' => $oldStatus,
                     'new_status' => OrderStatus::RETURN_REQUESTED->value,
                     'note' => 'Khách hàng gửi yêu cầu hoàn hàng: ' . $returnRequest->reason,
@@ -163,7 +174,12 @@ class ReturnRequestService
 
             return $this->success('Đã gửi yêu cầu hoàn hàng thành công.', $created);
         } catch (OrderException $e) {
+            $this->cleanupFiles($storedImages, $storedVideos);
             return $this->error($e->getMessage(), 422);
+        } catch (\Exception $e) {
+            $this->cleanupFiles($storedImages, $storedVideos);
+            Log::error('Return Request creation failed: '.$e->getMessage());
+            return $this->error('Đã xảy ra lỗi hệ thống, vui lòng thử lại sau.', 500);
         }
     }
 
@@ -703,6 +719,26 @@ class ReturnRequestService
             'new_status' => $newStatus,
             'note' => $note,
         ]);
+    }
+
+    private function cleanupFiles(array $images, array $videos): void
+    {
+        try {
+            foreach ($images as $img) {
+                $path = str_replace(Storage::url(''), '', $img);
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+            foreach ($videos as $vid) {
+                $path = str_replace(Storage::url(''), '', $vid);
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('ReturnRequest cleanupFiles failed: ' . $e->getMessage());
+        }
     }
 
     private function success(string $message, $data = null, int $statusCode = 200): array

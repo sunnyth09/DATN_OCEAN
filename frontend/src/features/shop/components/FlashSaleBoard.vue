@@ -307,14 +307,14 @@ watch(() => props.flashSaleId, async () => {
    FLASH SALE BOARD — Ocean Blue, Zero Animation
 ════════════════════════════════════════════════ */
 .flash-board {
-  background: var(--card-bg);
-  border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  padding: 24px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-subtle, #F1F3F5);
+  border-radius: var(--radius-lg, 16px);
+  padding: 32px 24px;
   position: relative;
   max-width: 520px;
   width: 100%;
-  box-shadow: 0 4px 20px rgba(15, 76, 92, 0.08);
+  box-shadow: var(--shadow-card, 0 4px 15px rgba(0,0,0,0.08));
 }
 .flash-board::before {
   content: '';

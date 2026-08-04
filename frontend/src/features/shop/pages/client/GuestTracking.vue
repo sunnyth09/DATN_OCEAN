@@ -161,9 +161,9 @@ onMounted(loadByToken);
             <span>Số điện thoại</span>
             <strong>{{ tracking.receiver_phone || 'Đã ẩn' }}</strong>
           </div>
-          <div class="info-box" v-if="tracking.ghn_order_code">
+          <div class="info-box" v-if="tracking.tracking_number">
             <span>Mã GHN</span>
-            <strong>{{ tracking.ghn_order_code }}</strong>
+            <strong>{{ tracking.tracking_number }}</strong>
           </div>
         </div>
 

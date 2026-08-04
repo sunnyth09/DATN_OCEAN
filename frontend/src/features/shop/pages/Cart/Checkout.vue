@@ -284,21 +284,22 @@ const formatFullAddress = (addr) => {
     if (addr.ward) parts.push(addr.ward);
     if (addr.district) parts.push(addr.district);
     if (addr.province) parts.push(addr.province);
-    return parts.join(', ') || 'Chưa có thông tin địa chỉ cụ thể';
+    return [...new Set(parts)].join(', ') || 'Chưa có thông tin địa chỉ cụ thể';
 };
 
 // Xử lý tạo địa chỉ mới
 const onAddressChange = (data) => {
     formAddress.value.province = data.province_name;
     formAddress.value.province_code = data.province_code;
-    formAddress.value.district = data.district_name;
-    formAddress.value.district_code = data.district_code;
+    // Ocean Express không có Quận/Huyện — district_name rỗng, district_code = province_code
+    formAddress.value.district = data.district_name || '';
+    formAddress.value.district_code = data.district_code || data.province_code;
     formAddress.value.ward = data.ward_name;
     formAddress.value.ward_code = data.ward_code;
     formAddress.value.address_line = data.address_detail;
 
-    if (data.district_code && data.ward_code) {
-        getShippingFee(data.district_code, data.ward_code);
+    if (data.ward_code) {
+        getShippingFee(data.ward_code);
     } else {
         shippingFee.value = 0;
     }
@@ -323,8 +324,8 @@ const useSavedAddresses = () => {
     if (!selectedAddressId.value) return;
 
     const savedAddress = addresses.value.find((addr) => addr.address_id === selectedAddressId.value);
-    if (savedAddress?.district_code && savedAddress?.ward_code) {
-        getShippingFee(savedAddress.district_code, savedAddress.ward_code);
+    if (savedAddress?.ward_code) {
+        getShippingFee(savedAddress.ward_code);
     }
 };
 
@@ -379,32 +380,18 @@ const shippingWeight = computed(() => {
     );
 });
 
-const getShippingFee = async (district_id, ward_code) => {
-    if (!district_id || !ward_code) return;
+const getShippingFee = async (ward_code) => {
+    if (!ward_code) return;
     isCalculatingFee.value = true;
     try {
         shippingFee.value = await addressService.getShippingFee({
-            districtCode: district_id,
             wardCode: ward_code,
             weight: shippingWeight.value,
         });
-
-        // Lấy leadtime
-        const res = await api.post('/ghn/leadtime', {
-            to_district_id: Number(district_id),
-            to_ward_code: String(ward_code),
-        });
-
-        if (res.data.code === 200 && res.data.data) {
-            const timestamp = res.data.data.leadtime * 1000;
-            const date = new Date(timestamp);
-            leadtimeDate.value = date.toLocaleDateString('vi-VN');
-        } else {
-            leadtimeDate.value = null;
-        }
-
+        // Ocean Express không có leadtime endpoint — ẩn estimated delivery
+        leadtimeDate.value = null;
     } catch (error) {
-        console.error("Lỗi tính phí vận chuyển GHN:", error.response?.data || error.message);
+        console.error('Lỗi tính phí vận chuyển Ocean Express:', error.response?.data || error.message);
         shippingFee.value = 0;
         leadtimeDate.value = null;
     } finally {
@@ -414,15 +401,15 @@ const getShippingFee = async (district_id, ward_code) => {
 
 // Watch for address selection change in the list
 // Debounced — tránh gọi GHN API liên tiếp khi user đang chọn địa chỉ
-const debouncedGetShippingFee = debounce((districtId, wardCode) => {
-    getShippingFee(districtId, wardCode);
+const debouncedGetShippingFee = debounce((wardCode) => {
+    getShippingFee(wardCode);
 }, 300);
 
 watch(selectedAddressId, (newVal) => {
     if (newVal && !showAddAddressForm.value) {
         const addr = addresses.value.find(a => a.address_id === newVal);
-        if (addr && addr.district_code && addr.ward_code) {
-            debouncedGetShippingFee(addr.district_code, addr.ward_code);
+        if (addr?.ward_code) {
+            debouncedGetShippingFee(addr.ward_code);
         } else {
             shippingFee.value = 0;
         }
@@ -627,7 +614,7 @@ const placeOrder = async () => {
         let res;
         if (isFlashSale.value) {
             const fsAddress = showAddAddressForm.value
-                ? `${payload.address_line}, ${payload.ward}, ${payload.district}, ${payload.province}`
+                ? formatFullAddress(payload)
                 : formatFullAddress(addresses.value.find(a => a.address_id === payload.address_id));
 
             const fsPhone = showAddAddressForm.value ? payload.phone : (addresses.value.find(a => a.address_id === payload.address_id)?.phone);
