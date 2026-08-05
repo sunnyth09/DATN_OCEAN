@@ -8,6 +8,7 @@ Broadcast::routes(['middleware' => ['api', 'auth:api,admin']]);
 
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\Admin\AdminChatController;
+use App\Http\Controllers\PostCommentController;
 use App\Http\Controllers\AdminAffiliateController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
@@ -166,6 +167,8 @@ Route::middleware('auth:api,admin')->group(function () {
     // Chat (CSKH)
     Route::get('/chat/messages', [App\Http\Controllers\Api\ChatController::class, 'getMessages']);
     Route::post('/chat/messages', [App\Http\Controllers\Api\ChatController::class, 'sendMessage']);
+
+    Route::post('/posts/{postId}/comments', [PostCommentController::class, 'store']);
 });
 
 // Customer Profile routes (Protected - cần JWT token user/admin)
@@ -395,6 +398,11 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::put('/reviews/{id}/reject', [ProductCommentController::class, 'reject']);
     Route::delete('/reviews/{id}', [ProductCommentController::class, 'destroy']);
 
+    // Quản lý Bình luận bài viết (Duyệt)
+    Route::get('/post-comments', [PostCommentController::class, 'adminIndex']);
+    Route::put('/post-comments/{id}/approve', [PostCommentController::class, 'approve']);
+    Route::delete('/post-comments/{id}', [PostCommentController::class, 'destroy']);
+
     // Quản lý Liên hệ (Xem và trả lời)
     Route::get('/contacts', [ContactController::class, 'index']);
     Route::post('/contacts/{id}/reply', [ContactController::class, 'reply']);
@@ -561,6 +569,7 @@ Route::prefix('location')->group(function () {
 });
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{idOrSlug}', [PostController::class, 'show']);
+Route::get('/posts/{postId}/comments', [PostCommentController::class, 'getByPost']);
 
 // AI Chatbot (Public — tự detect auth nếu có JWT token, có rate limit chống abuse AI)
 Route::middleware('throttle:20,1')->post('/chatbot/message', [ChatbotController::class, 'sendMessage']);
