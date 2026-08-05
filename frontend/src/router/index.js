@@ -76,6 +76,7 @@ const routes = [
                 ],
             },
             // Static pages
+            { path: "about", name: "about", component: () => import("@/features/content/pages/static/BrandStory.vue"), meta: { title: 'Về chúng tôi' } },
             { path: "brand-story", name: "brand-story", component: () => import("@/features/content/pages/static/BrandStory.vue"), meta: { title: 'Câu chuyện thương hiệu' } },
             { path: "careers", name: "careers", component: () => import("@/features/content/pages/static/Careers.vue"), meta: { title: 'Tuyển dụng' } },
             { path: "contact", name: "contact", component: () => import("@/features/content/pages/static/Contact.vue"), meta: { title: 'Liên hệ' } },

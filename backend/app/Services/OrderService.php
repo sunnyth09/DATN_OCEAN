@@ -127,7 +127,8 @@ class OrderService
             $shippingFee = $this->shippingService->calculateShippingFee(
                 $address,
                 $subtotal,
-                $couponResult['coupon']
+                $couponResult['coupon'],
+                $this->shippingService->calculateWeight($cartItems)
             );
 
             $discountAmount = $couponResult['discount_amount'];
@@ -376,7 +377,7 @@ class OrderService
                 } catch (\Throwable $e) {
                     Log::error('Affiliate conversion failed (đơn đã được tạo thành công): '.$e->getMessage());
                 }
-                
+
                 unset($result['_order']);
                 unset($result['_payment_method']);
                 unset($result['_request']);
@@ -469,7 +470,9 @@ class OrderService
                 'recipient_name' => $data['recipient_name'],
                 'phone' => $data['phone'],
                 'province' => $data['province'],
-                'district' => $data['district'],
+                // district: cấp hành chính đã bị bỏ sau sáp nhập 2025 — client mới
+                // không gửi field này nữa, giữ lại chỉ để tương thích payload cũ.
+                'district' => $data['district'] ?? null,
                 'ward' => $data['ward'],
                 'address_line' => $data['address_line'],
                 'province_code' => $data['province_code'] ?? null,
@@ -480,7 +483,8 @@ class OrderService
             $shippingFee = $this->shippingService->calculateShippingFee(
                 $addressObj,
                 $subtotal,
-                $couponResult['coupon']
+                $couponResult['coupon'],
+                $this->shippingService->calculateWeight($cartItems)
             );
 
             $discountAmount = $couponResult['discount_amount'];
@@ -732,7 +736,8 @@ class OrderService
             'recipient_name' => $data['recipient_name'],
             'phone' => $data['phone'],
             'province' => $data['province'],
-            'district' => $data['district'],
+            // district: cấp hành chính đã bỏ sau sáp nhập 2025 — client mới không gửi.
+            'district' => $data['district'] ?? null,
             'ward' => $data['ward'],
             'address_line' => $data['address_line'],
             'province_code' => $data['province_code'] ?? null,
@@ -781,7 +786,7 @@ class OrderService
         $subtotal = 0;
 
         foreach ($cartItems as $item) {
-            if (!$item->variant || !$item->variant->product) {
+            if (! $item->variant || ! $item->variant->product) {
                 throw new OrderException('Một trong các sản phẩm trong giỏ hàng không còn tồn tại hoặc đã bị xóa.');
             }
 
@@ -828,7 +833,7 @@ class OrderService
         return implode(', ', array_unique(array_filter([
             $address->address_line,
             $address->ward,
-            $address->district,
+            $address->district ?? null,
             $address->province,
         ])));
     }

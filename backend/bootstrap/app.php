@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureCustomerOnly;
 use App\Http\Middleware\FilterProfanity;
 use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\VerifyCarrierWebhook;
 use App\Http\Middleware\XssSanitizer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -31,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'customer.only' => EnsureCustomerOnly::class,
             'profanity' => FilterProfanity::class,
+            'carrier.webhook' => VerifyCarrierWebhook::class,
         ]);
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? abort(response()->json(['message' => 'Unauthenticated.'], 401)) : route('login'));
     })
@@ -44,11 +47,11 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         // Tùy chỉnh thông báo lỗi 429 Too Many Requests sang tiếng Việt
-        $exceptions->render(function (\Illuminate\Http\Exceptions\ThrottleRequestsException $e, \Illuminate\Http\Request $request) {
+        $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
                 $retryAfter = $e->getHeaders()['Retry-After'] ?? null;
-                $message = 'Bạn đã thao tác quá nhiều lần. Vui lòng thử lại sau' . ($retryAfter ? " {$retryAfter} giây." : '.');
-                
+                $message = 'Bạn đã thao tác quá nhiều lần. Vui lòng thử lại sau'.($retryAfter ? " {$retryAfter} giây." : '.');
+
                 return response()->json([
                     'message' => $message,
                 ], 429);

@@ -2,10 +2,14 @@
 
 namespace App\Jobs;
 
+use App\Events\OrderCreatedAdmin;
 use App\Models\FlashSaleItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OrderStatusHistory;
 use App\Models\ProductVariant;
+use App\Models\User;
+use App\Notifications\SystemNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
@@ -14,6 +18,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Redis;
 
 class OrderProcessingJob implements ShouldQueue
@@ -126,7 +131,7 @@ class OrderProcessingJob implements ShouldQueue
                 $variant->decrement('stock', $this->quantity);
 
                 // 5. Tạo lịch sử trạng thái đơn hàng
-                \App\Models\OrderStatusHistory::create([
+                OrderStatusHistory::create([
                     'order_id' => $order->order_id,
                     'new_status' => 'pending',
                     'note' => 'Khách hàng đặt đơn hàng Flash Sale mới',
@@ -134,39 +139,39 @@ class OrderProcessingJob implements ShouldQueue
 
                 // 6. Phát sự kiện và gửi thông báo
                 try {
-                    event(new \App\Events\OrderCreatedAdmin($order));
+                    event(new OrderCreatedAdmin($order));
 
                     // Nạp relation user nếu cần
                     $order->loadMissing('user');
 
                     // Notify Customer
                     if ($order->user) {
-                        \Illuminate\Support\Facades\Notification::sendNow($order->user, new \App\Notifications\SystemNotification(
+                        Notification::sendNow($order->user, new SystemNotification(
                             'Đặt hàng thành công',
-                            'Đơn hàng ' . $order->order_code . ' của bạn đã được đặt thành công.',
-                            '/profile/orders/' . $order->order_id,
+                            'Đơn hàng '.$order->order_code.' của bạn đã được đặt thành công.',
+                            '/profile/orders/'.$order->order_id,
                             'order',
                             ['is_flash_sale' => true]
                         ));
                     }
 
                     // Notify Admins
-                    $admins = \App\Models\User::whereIn('role', ['admin', 'seller'])->get();
+                    $admins = User::whereIn('role', ['admin', 'seller'])->get();
                     if ($admins->count() > 0) {
-                        \Illuminate\Support\Facades\Notification::sendNow($admins, new \App\Notifications\SystemNotification(
+                        Notification::sendNow($admins, new SystemNotification(
                             'Đơn hàng mới',
-                            'Khách hàng vừa đặt đơn hàng ' . $order->order_code,
-                            '/admin/order/' . $order->order_id,
+                            'Khách hàng vừa đặt đơn hàng '.$order->order_code,
+                            '/admin/order/'.$order->order_id,
                             'order',
                             [
                                 'payment_status' => $order->payment_status,
                                 'fulfillment_status' => $order->fulfillment_status,
-                                'is_flash_sale' => true
+                                'is_flash_sale' => true,
                             ]
                         ));
                     }
                 } catch (\Exception $ex) {
-                    Log::error("[OrderProcessingJob] Lỗi gửi thông báo: " . $ex->getMessage());
+                    Log::error('[OrderProcessingJob] Lỗi gửi thông báo: '.$ex->getMessage());
                 }
 
                 Log::info("[OrderProcessingJob] Tạo đơn #{$this->orderCode} thành công cho user #{$this->userId}, flash_sale #{$this->flashSaleId}.");

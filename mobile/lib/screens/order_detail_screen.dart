@@ -461,7 +461,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                             const SizedBox(height: 2),
                             Text(address['phone'] ?? '', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
                             const SizedBox(height: 2),
-                            Text('${address['address_line'] ?? ''}, ${address['ward'] ?? ''}, ${address['district'] ?? ''}, ${address['province'] ?? ''}', style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4)),
+                            Text('${address['address_line'] ?? ''}, ${address['ward'] ?? ''}, ${address['province'] ?? ''}', style: const TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.4)),
                           ],
                         ),
                       ),

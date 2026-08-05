@@ -85,9 +85,9 @@ return [
 
     // DeepSeek API — chuẩn OpenAI-compatible
     'deepseek' => [
-        'api_key'  => env('DEEPSEEK_API_KEY'),
+        'api_key' => env('DEEPSEEK_API_KEY'),
         'base_url' => env('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
-        'model'    => env('DEEPSEEK_MODEL', 'deepseek-v4-pro'),
+        'model' => env('DEEPSEEK_MODEL', 'deepseek-v4-pro'),
     ],
 
     // Face Verification Microservice (internal Docker network)

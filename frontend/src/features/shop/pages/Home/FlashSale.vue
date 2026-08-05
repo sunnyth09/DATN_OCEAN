@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import FlashSaleBoard from '@/features/shop/components/FlashSaleBoard.vue';
 import api from '@/axios.js';
 

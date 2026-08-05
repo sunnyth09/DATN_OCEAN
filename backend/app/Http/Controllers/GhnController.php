@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Services\GhnOrderStatusSyncService;
 use App\Services\GHNService;
+use App\Services\OceanExpressService;
 use Illuminate\Http\Request;
 
 class GhnController extends Controller
@@ -18,15 +19,15 @@ class GhnController extends Controller
     {
         $data = $request->validate([
             // Legacy GHN fields (kept for backward compat — ignored for Ocean Express)
-            'district_id'         => 'nullable',
-            'to_district_id'      => 'nullable',
-            'service_type_id'     => 'nullable|integer',
+            'district_id' => 'nullable',
+            'to_district_id' => 'nullable',
+            'service_type_id' => 'nullable|integer',
             // Ocean Express: ward_code is a string location ID like 'VN-01-00004'
-            'ward_code'           => 'required_without:to_ward_code|string',
-            'to_ward_code'        => 'required_without:ward_code|string',
+            'ward_code' => 'required_without:to_ward_code|string',
+            'to_ward_code' => 'required_without:ward_code|string',
             // Also accept receiver_location_id directly (preferred)
             'receiver_location_id' => 'nullable|string',
-            'weight'              => 'nullable|integer|min:10',
+            'weight' => 'nullable|integer|min:10',
         ]);
 
         // Priority: receiver_location_id > to_ward_code > ward_code
@@ -36,12 +37,12 @@ class GhnController extends Controller
 
         $weight = (int) ($data['weight'] ?? 500);
 
-        $fee = \App\Services\OceanExpressService::calculateRate($receiverLocationId, $weight);
+        $fee = OceanExpressService::calculateRate($receiverLocationId, $weight);
 
         return response()->json([
-            'code'    => 200,
+            'code' => 200,
             'message' => 'Success',
-            'data'    => [
+            'data' => [
                 'total' => $fee,
             ],
         ]);

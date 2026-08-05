@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Models\Product;
+use Carbon\Carbon;
 
 /**
  * ChatbotInfoService — các truy vấn tra cứu (read-only) cho chatbot:
@@ -30,7 +31,7 @@ class ChatbotInfoService
                 ->with(['items'])
                 ->orderByDesc('created_at');
 
-            if (!empty($args['order_code'])) {
+            if (! empty($args['order_code'])) {
                 $query->where('order_code', $args['order_code']);
             }
 
@@ -47,10 +48,10 @@ class ChatbotInfoService
             $data = $orders->map(fn ($order) => $this->formatOrderData($order))->toArray();
 
             return [
-                'status'  => 'success',
-                'count'   => count($data),
-                'message' => 'Tìm thấy ' . count($data) . ' đơn hàng.',
-                'data'    => $data,
+                'status' => 'success',
+                'count' => count($data),
+                'message' => 'Tìm thấy '.count($data).' đơn hàng.',
+                'data' => $data,
             ];
         }
 
@@ -59,19 +60,19 @@ class ChatbotInfoService
         $email = $args['email'] ?? null;
         $phone = $args['phone'] ?? null;
 
-        if (!$orderCode) {
+        if (! $orderCode) {
             return [
-                'status'  => 'need_info',
+                'status' => 'need_info',
                 'message' => 'Vui lòng cung cấp mã đơn hàng để tra cứu.',
-                'data'    => null,
+                'data' => null,
             ];
         }
 
-        if (!$email && !$phone) {
+        if (! $email && ! $phone) {
             return [
-                'status'  => 'need_verification',
+                'status' => 'need_verification',
                 'message' => 'Vui lòng cung cấp thêm email hoặc số điện thoại để xác minh đơn hàng.',
-                'data'    => null,
+                'data' => null,
             ];
         }
 
@@ -89,18 +90,18 @@ class ChatbotInfoService
             ->with(['items'])
             ->first();
 
-        if (!$order) {
+        if (! $order) {
             return [
-                'status'  => 'not_found',
+                'status' => 'not_found',
                 'message' => 'Không tìm thấy đơn hàng với thông tin đã cung cấp. Vui lòng kiểm tra lại mã đơn và email/SĐT.',
-                'data'    => null,
+                'data' => null,
             ];
         }
 
         return [
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Đã tìm thấy đơn hàng.',
-            'data'    => $this->formatOrderData($order),
+            'data' => $this->formatOrderData($order),
         ];
     }
 
@@ -125,33 +126,33 @@ class ChatbotInfoService
 
         if ($coupons->isEmpty()) {
             return [
-                'status'  => 'no_coupons',
+                'status' => 'no_coupons',
                 'message' => 'Hiện tại không có mã giảm giá nào.',
-                'data'    => [],
+                'data' => [],
             ];
         }
 
         $data = $coupons->map(function ($c) {
             $description = $c->type === 'percent'
-                ? "Giảm {$c->value}%" . ($c->max_discount_value ? " (tối đa " . number_format($c->max_discount_value, 0, ',', '.') . "đ)" : "")
+                ? "Giảm {$c->value}%".($c->max_discount_value ? ' (tối đa '.number_format($c->max_discount_value, 0, ',', '.').'đ)' : '')
                 : ($c->type === 'free_ship'
-                    ? "Miễn phí vận chuyển"
-                    : "Giảm " . number_format($c->value, 0, ',', '.') . "đ");
+                    ? 'Miễn phí vận chuyển'
+                    : 'Giảm '.number_format($c->value, 0, ',', '.').'đ');
 
             return [
-                'code'        => $c->code,
+                'code' => $c->code,
                 'description' => $description,
-                'type'        => $c->type,
-                'min_order'   => $c->min_order_value ? number_format($c->min_order_value, 0, ',', '.') . 'đ' : 'Không giới hạn',
-                'end_date'    => $c->end_date ? \Carbon\Carbon::parse($c->end_date)->format('d/m/Y') : 'Không thời hạn',
+                'type' => $c->type,
+                'min_order' => $c->min_order_value ? number_format($c->min_order_value, 0, ',', '.').'đ' : 'Không giới hạn',
+                'end_date' => $c->end_date ? Carbon::parse($c->end_date)->format('d/m/Y') : 'Không thời hạn',
             ];
         })->toArray();
 
         return [
-            'status'  => 'success',
-            'count'   => count($data),
-            'message' => 'Tìm thấy ' . count($data) . ' mã giảm giá.',
-            'data'    => $data,
+            'status' => 'success',
+            'count' => count($data),
+            'message' => 'Tìm thấy '.count($data).' mã giảm giá.',
+            'data' => $data,
         ];
     }
 
@@ -184,16 +185,16 @@ class ChatbotInfoService
             }
 
             return [
-                'name'          => $cat->name,
+                'name' => $cat->name,
                 'product_count' => $productCount,
-                'children'      => $children,
+                'children' => $children,
             ];
         })->toArray();
 
         return [
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Danh sách danh mục sản phẩm.',
-            'data'    => $data,
+            'data' => $data,
         ];
     }
 
@@ -206,7 +207,7 @@ class ChatbotInfoService
 
         $info = match ($topic) {
             'shipping' => [
-                'title'   => 'Chính sách vận chuyển',
+                'title' => 'Chính sách vận chuyển',
                 'content' => [
                     'Miễn phí vận chuyển cho đơn từ 500.000đ',
                     'Giao hàng toàn quốc qua Giao Hàng Nhanh (GHN)',
@@ -216,7 +217,7 @@ class ChatbotInfoService
                 ],
             ],
             'return_policy' => [
-                'title'   => 'Chính sách đổi trả',
+                'title' => 'Chính sách đổi trả',
                 'content' => [
                     'Đổi trả trong vòng 30 ngày kể từ ngày nhận hàng',
                     'Sản phẩm phải còn nguyên tem mác, chưa qua sử dụng',
@@ -226,7 +227,7 @@ class ChatbotInfoService
                 ],
             ],
             'payment' => [
-                'title'   => 'Phương thức thanh toán',
+                'title' => 'Phương thức thanh toán',
                 'content' => [
                     'COD — Thanh toán khi nhận hàng',
                     'Chuyển khoản ngân hàng',
@@ -234,7 +235,7 @@ class ChatbotInfoService
                 ],
             ],
             'contact' => [
-                'title'   => 'Thông tin liên hệ',
+                'title' => 'Thông tin liên hệ',
                 'content' => [
                     'Địa chỉ: 134 Nguyễn Thị Định, P.Buôn Ma Thuột, Tỉnh Đắk Lắk',
                     'Hotline: 1900-SPORT',
@@ -244,7 +245,7 @@ class ChatbotInfoService
                 ],
             ],
             default => [
-                'title'   => 'Về Ocean Sport',
+                'title' => 'Về Ocean Sport',
                 'content' => [
                     'Ocean Sport — Cửa hàng thời trang và phụ kiện trực tuyến',
                     'Sản phẩm chính hãng, đa dạng thương hiệu',
@@ -256,9 +257,9 @@ class ChatbotInfoService
         };
 
         return [
-            'status'  => 'success',
+            'status' => 'success',
             'message' => $info['title'],
-            'data'    => $info,
+            'data' => $info,
         ];
     }
 
@@ -268,36 +269,36 @@ class ChatbotInfoService
     private function formatOrderData(Order $order): array
     {
         $statusLabels = [
-            'pending'    => 'Chờ xác nhận',
-            'confirmed'  => 'Đã xác nhận',
-            'shipping'   => 'Đang giao hàng',
-            'delivered'  => 'Đã giao hàng',
-            'completed'  => 'Hoàn thành',
-            'cancelled'  => 'Đã hủy',
+            'pending' => 'Chờ xác nhận',
+            'confirmed' => 'Đã xác nhận',
+            'shipping' => 'Đang giao hàng',
+            'delivered' => 'Đã giao hàng',
+            'completed' => 'Hoàn thành',
+            'cancelled' => 'Đã hủy',
         ];
 
         $items = $order->items->map(fn ($item) => [
             'product_name' => $item->product_name,
-            'variant'      => $item->variant_name,
-            'quantity'     => $item->quantity,
-            'unit_price'   => number_format($item->unit_price, 0, ',', '.') . 'đ',
-            'line_total'   => number_format($item->line_total, 0, ',', '.') . 'đ',
+            'variant' => $item->variant_name,
+            'quantity' => $item->quantity,
+            'unit_price' => number_format($item->unit_price, 0, ',', '.').'đ',
+            'line_total' => number_format($item->line_total, 0, ',', '.').'đ',
         ])->toArray();
 
         return [
-            'order_code'        => $order->order_code,
-            'status'            => $statusLabels[$order->fulfillment_status] ?? $order->fulfillment_status,
-            'status_raw'        => $order->fulfillment_status,
-            'payment_method'    => $order->payment_method === 'cod' ? 'Thanh toán khi nhận hàng' : 'Chuyển khoản',
-            'payment_status'    => $order->payment_status,
-            'subtotal'          => number_format($order->subtotal, 0, ',', '.') . 'đ',
-            'discount'          => number_format($order->discount_amount, 0, ',', '.') . 'đ',
-            'shipping_fee'      => number_format($order->shipping_fee, 0, ',', '.') . 'đ',
-            'grand_total'       => number_format($order->grand_total, 0, ',', '.') . 'đ',
-            'recipient_name'    => $order->recipient_name,
-            'shipping_address'  => $order->shipping_address,
-            'items'             => $items,
-            'created_at'        => $order->created_at->format('d/m/Y H:i'),
+            'order_code' => $order->order_code,
+            'status' => $statusLabels[$order->fulfillment_status] ?? $order->fulfillment_status,
+            'status_raw' => $order->fulfillment_status,
+            'payment_method' => $order->payment_method === 'cod' ? 'Thanh toán khi nhận hàng' : 'Chuyển khoản',
+            'payment_status' => $order->payment_status,
+            'subtotal' => number_format($order->subtotal, 0, ',', '.').'đ',
+            'discount' => number_format($order->discount_amount, 0, ',', '.').'đ',
+            'shipping_fee' => number_format($order->shipping_fee, 0, ',', '.').'đ',
+            'grand_total' => number_format($order->grand_total, 0, ',', '.').'đ',
+            'recipient_name' => $order->recipient_name,
+            'shipping_address' => $order->shipping_address,
+            'items' => $items,
+            'created_at' => $order->created_at->format('d/m/Y H:i'),
         ];
     }
 }

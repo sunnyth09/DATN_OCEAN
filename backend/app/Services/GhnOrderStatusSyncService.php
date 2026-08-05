@@ -23,7 +23,7 @@ class GhnOrderStatusSyncService
     public function mapGhnStatus(string $status): ?string
     {
         return [
-            'ready_to_pick' => 'pending',
+            'ready_to_pick' => 'awaiting_pickup',
             'exception' => 'pending',
             'picking' => 'shipping',
             'money_collect_picking' => 'shipping',
@@ -214,6 +214,7 @@ class GhnOrderStatusSyncService
         'confirmed' => 20,
         'processing' => 30,
         'packing' => 40,
+        'awaiting_pickup' => 45,
         'shipping' => 50,
         'delivered' => 60,
         'completed' => 70,

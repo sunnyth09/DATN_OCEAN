@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
 import { orderService } from '@/services/orderService';
 import { returnRequestService } from '@/services/returnRequestService';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import {
   RETURN_REASON_OPTIONS,
   RETURN_REQUEST_REFUND_METHOD_OPTIONS,

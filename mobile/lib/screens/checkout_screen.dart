@@ -125,64 +125,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  /// Tính phí vận chuyển thực tế từ GHN API
+  /// Tính phí vận chuyển thực tế từ Backend API
   Future<void> _calculateShippingFee() async {
     if (defaultAddress == null) return;
-    final districtCode = defaultAddress!['district_code']?.toString() ?? '';
     final wardCode = defaultAddress!['ward_code']?.toString() ?? '';
-    if (districtCode.isEmpty || wardCode.isEmpty) return;
+    if (wardCode.isEmpty) return;
 
     if (!mounted) return;
     setState(() => _isCalculatingShip = true);
 
     try {
-      final ghnToken = AppConfig.ghnToken;
-      final ghnShopId = AppConfig.ghnShopId;
-      if (ghnToken.isEmpty || ghnShopId.isEmpty) {
-        if (mounted) setState(() => _isCalculatingShip = false);
-        return;
-      }
-
-      final ghnDio = Dio(
-        BaseOptions(
-          baseUrl: 'https://online-gateway.ghn.vn/shiip/public-api',
-          headers: {
-            'Token': ghnToken,
-            'ShopId': int.tryParse(ghnShopId) ?? ghnShopId,
-            'Content-Type': 'application/json',
-          },
-          connectTimeout: const Duration(seconds: 8),
-          receiveTimeout: const Duration(seconds: 8),
-        ),
-      );
-
-      final response = await ghnDio.get(
-        '/v2/shipping-order/fee',
-        queryParameters: {
-          'service_type_id': 2,
-          'to_district_id': int.tryParse(districtCode) ?? districtCode,
-          'to_ward_code': wardCode,
-          'weight': 3000,
-          'shop_id': int.tryParse(ghnShopId) ?? ghnShopId,
+      // API tính phí backend: POST /ghn/calculate-fee
+      final response = await ApiClient().dio.post(
+        '/ghn/calculate-fee',
+        data: {
+          'ward_code': wardCode,
+          'weight': 500, // Fixed weight or dynamic
         },
       );
 
-      final fee = response.data?['data']?['total'];
-      if (fee != null && mounted) {
-        setState(() {
-          shippingFee = int.tryParse(fee.toString()) ?? 35000;
-          _isCalculatingShip = false;
-        });
-      } else {
-        if (mounted) {
+      if (response.statusCode == 200 && response.data['data'] != null) {
+        final fee = response.data['data']['total'];
+        if (fee != null && mounted) {
           setState(() {
-             shippingFee = 35000;
-             _isCalculatingShip = false;
+            shippingFee = int.tryParse(fee.toString()) ?? 35000;
+            _isCalculatingShip = false;
           });
         }
+      } else {
+        throw Exception('Lỗi tính phí từ backend');
       }
     } on DioException catch (e) {
-      debugPrint('GHN DioException: ${e.response?.data}');
+      debugPrint('Backend Fee DioException: ${e.response?.data}');
       if (mounted) {
         setState(() {
            shippingFee = 35000;

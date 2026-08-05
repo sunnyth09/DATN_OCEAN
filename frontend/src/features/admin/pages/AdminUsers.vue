@@ -280,7 +280,7 @@
                     <span style="color:var(--text-muted)">{{ addr.phone }}</span>
                     <span v-if="addr.is_default" class="badge-status active" style="font-size:0.6rem; padding:2px 8px; margin-left:auto">Mặc định</span>
                   </div>
-                  <div class="addr-text">{{ addr.address_line }}, {{ addr.ward }}, {{ addr.district }}, {{ addr.city }}</div>
+                  <div class="addr-text">{{ addr.address_line }}, {{ addr.ward }}, {{ addr.province }}</div>
                 </div>
               </div>
             </div>

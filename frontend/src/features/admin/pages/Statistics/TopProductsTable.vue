@@ -57,7 +57,7 @@
 
 <script setup>
 import { getStorageUrl } from '@/utils/url';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const props = defineProps({
   products: {

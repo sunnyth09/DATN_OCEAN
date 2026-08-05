@@ -1,22 +1,100 @@
 name: Build and Deploy Laravel + Vue
 
+# ==============================================================================
+# TRIGGER: push trực tiếp lên `production`.
+#
+# LÝ DO KHÔNG DÙNG `workflow_run` NỮA (đây là nguyên nhân gốc của bug
+# "Actions báo xanh nhưng web vẫn hiển thị giao diện cũ"):
+#   GitHub LUÔN chạy phiên bản workflow `workflow_run` nằm trên DEFAULT BRANCH
+#   (repo này default = `Dev`). Vì vậy mọi sửa đổi deploy.yml commit vào nhánh
+#   `production` KHÔNG BAO GIỜ được thực thi, và bước checkout (không có `ref:`
+#   trong bản trên Dev) đã build frontend từ `Dev` thay vì `production`.
+#   => Backend deploy từ production, còn frontend build từ Dev = giao diện cũ.
+#
+#   Trigger `push` chạy đúng phiên bản file nằm trên chính commit được push,
+#   nên lỗi này không thể tái diễn.
+# ==============================================================================
 on:
-  workflow_run:
-    workflows: ["CI/CD Pipeline"]
-    types:
-      - completed
+  push:
     branches:
       - production
+  # Cho phép deploy lại thủ công từ tab Actions mà không cần commit mới
+  workflow_dispatch:
+
+# Không cho 2 lần deploy chạy song song (tránh race condition ghi đè dist/)
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # JOB 1: Test — phải PASS thì mới được deploy
+  # ---------------------------------------------------------------------------
+  test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, pdo_mysql, dom, filter, gd, json, pdo, redis
+
+      - name: Setup CI Environment
+        run: |
+          if [ -f .env.testing ]; then
+            cp .env.testing .env
+          else
+            cp ../.env.example .env
+            sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+            sed -i 's/DB_DATABASE=.*/DB_DATABASE=:memory:/' .env
+            sed -i 's/BROADCAST_CONNECTION=.*/BROADCAST_CONNECTION=log/' .env
+            sed -i 's/CACHE_DRIVER=.*/CACHE_DRIVER=array/' .env
+            sed -i 's/QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/' .env
+            sed -i 's/SESSION_DRIVER=.*/SESSION_DRIVER=array/' .env
+            sed -i 's/JWT_SECRET=.*/JWT_SECRET="testing-jwt-secret-key-for-ci-only"/' .env
+            sed -i 's/TURNSTILE_SECRET_KEY=.*/TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"/' .env
+          fi
+
+      - name: Install Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      - name: Generate key
+        run: php artisan key:generate
+
+      - name: Run Linting (Pint)
+        run: ./vendor/bin/pint --test
+        continue-on-error: true
+
+      - name: Run PHPUnit
+        run: php artisan test --env=testing
+
+  # ---------------------------------------------------------------------------
+  # JOB 2: Build frontend + Deploy
+  # ---------------------------------------------------------------------------
   build_and_deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: test
     runs-on: ubuntu-latest
     steps:
+      # Không cần `ref:` — trigger `push` đã checkout đúng commit vừa push.
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Show what we are deploying
+        run: |
+          echo "Branch : ${{ github.ref_name }}"
+          echo "Commit : ${{ github.sha }}"
+          git log -1 --pretty='%h %s'
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -33,6 +111,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
 
       - name: NPM Install (Frontend)
         working-directory: ./frontend
@@ -52,10 +132,23 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || '305541227432-7u1qt6nh7814p9qlv7bm8282fhp1163j.apps.googleusercontent.com' }}
         run: npm run build
 
+      # Ghi commit SHA vào build để verify được chính xác bản nào đang chạy trên web.
+      # Kiểm tra nhanh sau deploy: curl -s https://oceansport.bcbdev.id.vn/version.json
+      - name: Stamp build version
+        working-directory: ./frontend
+        run: |
+          printf '{"commit":"%s","ref":"%s","built_at":"%s","run_id":"%s"}\n' \
+            "${{ github.sha }}" "${{ github.ref_name }}" "$(date -u +%FT%TZ)" "${{ github.run_id }}" \
+            > dist/version.json
+          echo "--- dist/index.html ---"
+          cat dist/index.html
+          echo "--- version.json ---"
+          cat dist/version.json
+
       - name: Upload Frontend Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-build
+          name: frontend-build-${{ github.sha }}
           path: ./frontend/dist/
           retention-days: 7
 
@@ -78,36 +171,118 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
+          command_timeout: 30m
           script: |
+            set -e
             cd ${{ secrets.PROJECT_PATH }}
-            
-            # 1. Kéo code mới nhất từ Git (dùng fetch & reset để đảm bảo 100% không bị xung đột file cục bộ)
+
+            STAGE=/tmp/frontend_dist_${{ github.run_id }}
+            RELEASE=/var/www/oceansport/dist_${{ github.run_id }}
+
+            # Sanity check: build phải có index.html, nếu không thì dừng ngay,
+            # KHÔNG được xoá dist đang chạy (tránh sập site vì deploy rỗng).
+            if [ ! -f "$STAGE/index.html" ]; then
+              echo "FATAL: $STAGE/index.html khong ton tai — huy deploy frontend."
+              exit 1
+            fi
+
+            # ---------------------------------------------------------------
+            # 1. Kéo code mới nhất (backend) — reset hard để không kẹt xung đột
+            # ---------------------------------------------------------------
             git fetch origin production
-            git reset --hard origin/production
-            
-            # 2. Deploy Frontend & Nginx Configs (dùng quyền Docker để không bao giờ cần sudo)
-            # XÓA file cũ trước để dist sạch hoàn toàn — tránh tích lũy JS/CSS hash cũ từ nhiều lần build
-            # LƯU Ý: Dùng cp -rn (no clobber) khi copy cấu hình Nginx để KHÔNG ghi đè làm mất block SSL 443 do Certbot đã tạo trên VPS
-            docker run --rm --privileged -v /:/host -v /tmp/frontend_dist_${{ github.run_id }}:/dist -v $(pwd)/nginx/vps:/repo_vps alpine sh -c "mkdir -p /host/var/www/oceansport/dist && rm -rf /host/var/www/oceansport/dist/* && cp -rf /dist/* /host/var/www/oceansport/dist/ && chown -R 33:33 /host/var/www/oceansport/dist && cp -rn /repo_vps/* /host/etc/nginx/sites-available/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/apiocean.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && ln -sf /etc/nginx/sites-available/oceansport.conf /host/etc/nginx/sites-enabled/ 2>/dev/null || true && rm -f /host/etc/nginx/sites-enabled/default"
-            rm -rf /tmp/frontend_dist_${{ github.run_id }}
-            
-            # 3. Reload VPS Nginx để nhận file mới (dùng quyền Docker để không bao giờ cần sudo)
-            docker run --rm --privileged --pid=host alpine killall -HUP nginx 2>/dev/null || true
-            
-            # 4. Cập nhật và chạy lại các container Docker (Backend only)
+            git reset --hard ${{ github.sha }}
+
+            # ---------------------------------------------------------------
+            # 2. Deploy frontend theo kiểu ATOMIC SWAP
+            #    Copy sang thư mục release mới → đổi tên đè lên dist cũ.
+            #    Tránh khoảng thời gian dist rỗng (user gặp trang trắng/404)
+            #    như cách `rm -rf dist/* && cp` trước đây.
+            # ---------------------------------------------------------------
+            docker run --rm --privileged \
+              -v /:/host \
+              -v $STAGE:/dist \
+              -v $(pwd)/nginx/vps:/repo_vps \
+              alpine sh -c "
+                set -e
+                mkdir -p /host$RELEASE
+                cp -rf /dist/. /host$RELEASE/
+                chown -R 33:33 /host$RELEASE
+
+                # Đổi chỗ: dist hiện tại -> dist_old, release mới -> dist
+                rm -rf /host/var/www/oceansport/dist_old
+                if [ -d /host/var/www/oceansport/dist ]; then
+                  mv /host/var/www/oceansport/dist /host/var/www/oceansport/dist_old
+                fi
+                mv /host$RELEASE /host/var/www/oceansport/dist
+                rm -rf /host/var/www/oceansport/dist_old
+
+                # --- Nginx configs ---
+                # sites-available: cp -n (no-clobber) — KHÔNG ghi đè, để giữ
+                # nguyên block SSL 443 mà Certbot đã thêm trên VPS.
+                mkdir -p /host/etc/nginx/sites-available /host/etc/nginx/snippets
+                for f in /repo_vps/*.conf; do
+                  [ -f \"\$f\" ] && cp -n \"\$f\" /host/etc/nginx/sites-available/ || true
+                done
+
+                # snippets: cp -f (LUÔN ghi đè) — đây là nơi chứa policy cache,
+                # nhờ vậy mọi thay đổi cache thực sự được áp dụng lên VPS.
+                cp -f /repo_vps/snippets/*.conf /host/etc/nginx/snippets/
+
+                ln -sf /etc/nginx/sites-available/apiocean.conf /host/etc/nginx/sites-enabled/
+                ln -sf /etc/nginx/sites-available/oceansport.conf /host/etc/nginx/sites-enabled/
+                rm -f /host/etc/nginx/sites-enabled/default
+              "
+            rm -rf $STAGE
+
+            # ---------------------------------------------------------------
+            # 3. Test cấu hình Nginx TRƯỚC khi reload.
+            #    Trước đây `killall -HUP nginx || true` nuốt mọi lỗi: config sai
+            #    thì nginx giữ nguyên bản cũ mà CI vẫn báo xanh.
+            # ---------------------------------------------------------------
+            docker run --rm --privileged --pid=host --net=host \
+              -v /:/host alpine chroot /host nginx -t
+
+            docker run --rm --privileged --pid=host --net=host \
+              -v /:/host alpine chroot /host nginx -s reload
+
+            # ---------------------------------------------------------------
+            # 4. Backend containers
+            # ---------------------------------------------------------------
             docker compose up -d --build
-            
-            # 5. Xóa các image Docker cũ để giải phóng dung lượng VPS
             docker image prune -f
-            
-            # Đợi 10 giây để container backend khởi động xong entrypoint script (tránh race condition ghi đè cache/config)
-            sleep 10
-            
-            # Tối ưu hóa bộ nhớ đệm (Cache/Config/Route/View) một cách an toàn
+
+            # Đợi entrypoint chạy xong (tránh race khi ghi cache/config)
+            sleep 15
+
             docker compose exec -T backend php artisan optimize:clear || true
             docker compose exec -T backend php artisan optimize || true
-            
-            # Restart các dịch vụ nền (Reverb và Queue sẽ tự động khởi động lại nhờ auto-restart loop trong entrypoint)
+            docker compose exec -T backend php artisan migrate --force || true
             docker compose exec -T backend php artisan queue:restart || true
             docker compose exec -T backend php artisan reverb:restart || true
             docker compose exec -T backend php artisan horizon:terminate || true
+
+            echo "=== Deployed version on disk ==="
+            cat /var/www/oceansport/dist/version.json || true
+
+      # -----------------------------------------------------------------------
+      # Verify: gọi thẳng vào site public, so commit đang chạy với commit vừa build.
+      # Nếu lệch => job FAIL. Từ nay "Actions xanh" đồng nghĩa "web đã đúng bản mới".
+      # -----------------------------------------------------------------------
+      - name: Verify deployment is live
+        run: |
+          URL="${{ vars.FRONTEND_URL || 'https://oceansport.bcbdev.id.vn' }}"
+          echo "Checking $URL/version.json ..."
+          for i in 1 2 3 4 5; do
+            LIVE=$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$URL/version.json" | tr -d ' \n' || echo '')
+            echo "Attempt $i -> $LIVE"
+            case "$LIVE" in
+              *"${{ github.sha }}"*)
+                echo "OK: live site dang chay dung commit ${{ github.sha }}"
+                exit 0
+                ;;
+            esac
+            sleep 10
+          done
+          echo "FAIL: live site KHONG chay commit ${{ github.sha }}."
+          echo "Kiem tra: DNS/CDN cache, nginx root path, hoac buoc SCP."
+          exit 1

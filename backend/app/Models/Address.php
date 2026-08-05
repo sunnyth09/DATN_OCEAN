@@ -8,6 +8,8 @@ class Address extends Model
 {
     public const MAX_PER_USER = 10;
 
+    public $needs_saving = false;
+
     protected $primaryKey = 'address_id';
 
     protected $fillable = [

@@ -5,7 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import api from "../axios.js";
 import { broadcastLogout } from "../sessionSync.js";
 import Swal from "sweetalert2";
-import AppIcon from "@/icons/AppIcon.vue";
+import AppIcon from "@/components/AppIcon.vue";
 import { useCartStore } from "@/stores/cart";
 import { useCatalogStore } from "@/stores/catalog";
 import { useAuthStore } from "@/stores/auth";

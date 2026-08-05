@@ -42,11 +42,11 @@ class CourtBookingSeeder extends Seeder
         // --- Users (bảng users) ---
         $userIds = [];
         $userNames = [
-            ['Nguyễn Văn An',    'nguyen.an@demo.com',    '0911000001'],
-            ['Trần Thị Bình',    'tran.binh@demo.com',    '0911000002'],
-            ['Lê Hoàng Cường',   'le.cuong@demo.com',     '0911000003'],
-            ['Phạm Minh Đức',    'pham.duc@demo.com',     '0911000004'],
-            ['Võ Thanh Em',      'vo.em@demo.com',        '0911000005'],
+            ['Nguyễn Văn An',    'nguyen.an@demo.com',    '0998888001'],
+            ['Trần Thị Bình',    'tran.binh@demo.com',    '0998888002'],
+            ['Lê Hoàng Cường',   'le.cuong@demo.com',     '0998888003'],
+            ['Phạm Minh Đức',    'pham.duc@demo.com',     '0998888004'],
+            ['Võ Thanh Em',      'vo.em@demo.com',        '0998888005'],
         ];
 
         foreach ($userNames as $u) {

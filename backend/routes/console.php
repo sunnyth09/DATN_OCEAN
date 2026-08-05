@@ -43,7 +43,6 @@ Artisan::command('inspire', function () {
 // ██ SCHEDULED TASKS — CÁC TÁC VỤ TỰ ĐỘNG
 // =====================================================================
 
-
 /**
  * ── 2. Nhắc nhở giỏ hàng bỏ quên ──
  *
@@ -95,6 +94,11 @@ Schedule::command('court-bookings:mark-no-shows --grace=15')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
 
+Schedule::command('oceanexpress:sync-orders')
+    ->everyTenMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
+
 /**
  * ── 5. Expire điểm thưởng hết hạn ──
  *
@@ -133,12 +137,14 @@ Schedule::command('orders:cancel-expired-vnpay --minutes=30')
     ->appendOutputTo(storage_path('logs/scheduler.log'));
 
 /**
- * ── 6. Đồng bộ trạng thái GHN fallback ──
+ * ── 8. Đồng bộ trạng thái Ocean Express fallback ──
  *
- * Webhook là realtime path, command này là fallback polling khi webhook bị miss
- * hoặc môi trường dev chưa public backend bằng ngrok/Cloudflare Tunnel.
+ * Webhook là realtime path; command này là lưới an toàn khi webhook bị miss
+ * (hãng vận chuyển down, network lỗi, deploy trùng thời điểm). Không có nó thì
+ * một webhook rớt = đơn hàng kẹt trạng thái vĩnh viễn.
  */
-Schedule::command('ghn:sync-status --limit=50')
-    ->everyThirtyMinutes()
+Schedule::command('ocean-express:sync-status --limit=100')
+    ->everyFifteenMinutes()
     ->withoutOverlapping()
+    ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));

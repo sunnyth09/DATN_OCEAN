@@ -19,6 +19,7 @@ class AdminAffiliateController extends Controller
     public function affiliates(): JsonResponse
     {
         $result = $this->affiliateService->adminGetAffiliates();
+
         return response()->json($result['body'], $result['status_code']);
     }
 

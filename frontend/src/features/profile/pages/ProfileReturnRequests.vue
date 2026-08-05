@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { useReturnRequestStore } from '@/stores/returnRequestStore';
 import {
   getReturnRequestStatusLabel,

@@ -9,6 +9,7 @@ use App\Mail\OrderShippingMail;
 use App\Models\Order;
 use App\Notifications\SystemNotification;
 use App\Repositories\AdminOrderRepository;
+use App\StateMachines\OrderStateMachine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -19,25 +20,7 @@ use Illuminate\Support\Str;
 
 class AdminOrderService
 {
-    private const ALLOWED_TRANSITIONS = [
-        'pending' => ['confirmed', 'cancelled'],
-        'confirmed' => ['processing', 'packing', 'cancelled'],
-        'processing' => ['packing', 'shipping', 'cancelled'],
-        'packing' => ['shipping', 'cancelled'],
-        'shipping' => ['delivered', 'cancelled', 'return_requested'],
-        'delivered' => ['completed', 'return_requested'],
-        'completed' => ['return_requested'],
-        'cancelled' => [],
-        'return_requested' => ['return_approved', 'return_rejected'],
-        'return_approved' => ['returning'],
-        'returning' => ['warehouse_received'],
-        'warehouse_received' => ['inspected_ok', 'inspection_failed'],
-        'inspected_ok' => ['returned'],
-        'inspection_failed' => ['return_rejected'],
-        'return_rejected' => [],
-        'returned' => ['refunded'],
-        'refunded' => [],
-    ];
+    // ALLOWED_TRANSITIONS moved to OrderStateMachine
 
     private const STATUS_FIELD_MAP = [
         'confirmed' => 'confirmed_at',
@@ -71,6 +54,13 @@ class AdminOrderService
 
         $orders = $this->orderRepository->getFilteredOrders($filters, $request->per_page ?? 10);
 
+        // Append available_transitions
+        $orders->getCollection()->transform(function ($order) {
+            $order->available_transitions = OrderStateMachine::getAvailableTransitions($order, 'admin');
+
+            return $order;
+        });
+
         return ['status' => 'success', 'data' => $orders];
     }
 
@@ -84,6 +74,8 @@ class AdminOrderService
         if (! $order) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
         }
+
+        $order->available_transitions = OrderStateMachine::getAvailableTransitions($order, 'admin');
 
         return ['_status' => 200, 'status' => 'success', 'data' => $order];
     }
@@ -111,16 +103,50 @@ class AdminOrderService
             }
 
             // Kiểm tra luồng trạng thái hợp lệ
-            $allowed = self::ALLOWED_TRANSITIONS[$order->fulfillment_status] ?? [];
-            if (! in_array($newFulfillmentStatus, $allowed)) {
+            if (! OrderStateMachine::canTransition($order, $newFulfillmentStatus, 'admin')) {
                 return [
                     '_status' => 422,
                     'status' => 'error',
-                    'message' => "Không thể chuyển từ '{$order->fulfillment_status}' sang '{$newFulfillmentStatus}'. Vui lòng thực hiện theo đúng quy trình!",
+                    'message' => "Không thể chuyển từ '{$order->fulfillment_status}' sang '{$newFulfillmentStatus}' bởi Admin. Vui lòng thực hiện theo đúng quy trình!",
                 ];
             }
         }
 
+        return $this->processStatusUpdate($order, $newFulfillmentStatus, $data, false);
+    }
+
+    /**
+     * Cập nhật trạng thái đơn hàng (Bỏ qua StateMachine)
+     */
+    public function forceStatus(int $id, array $data): array
+    {
+        $order = $this->orderRepository->find($id);
+        if (! $order) {
+            return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
+        }
+
+        $newFulfillmentStatus = $data['fulfillment_status'] ?? null;
+
+        if ($newFulfillmentStatus && $newFulfillmentStatus === $order->fulfillment_status) {
+            return [
+                '_status' => 422,
+                'status' => 'error',
+                'message' => "Đơn hàng đang ở trạng thái '{$order->fulfillment_status}' rồi.",
+            ];
+        }
+
+        // Bỏ qua validate của StateMachine
+        // Mọi logic cập nhật bên trong giống như updateStatus
+
+        // Gọi lại logic chung cập nhật
+        return $this->processStatusUpdate($order, $newFulfillmentStatus, $data, true);
+    }
+
+    /**
+     * Logic dùng chung cho updateStatus và forceStatus (tránh lặp code)
+     */
+    private function processStatusUpdate(Order $order, ?string $newFulfillmentStatus, array $data, bool $isForce = false): array
+    {
         DB::beginTransaction();
         try {
             $oldFulfillmentStatus = $order->fulfillment_status;
@@ -130,12 +156,10 @@ class AdminOrderService
             if ($newFulfillmentStatus) {
                 $updates['fulfillment_status'] = $newFulfillmentStatus;
 
-                // Tự động set thời gian
                 if (isset(self::STATUS_FIELD_MAP[$newFulfillmentStatus])) {
                     $updates[self::STATUS_FIELD_MAP[$newFulfillmentStatus]] = now();
                 }
 
-                // Auto payment status updates
                 if (in_array($newFulfillmentStatus, [OrderStatus::DELIVERED->value, OrderStatus::COMPLETED->value], true)
                     && $order->payment_method === 'cod'
                     && $order->payment_status === PaymentStatus::UNPAID->value) {
@@ -147,7 +171,7 @@ class AdminOrderService
                 }
 
                 if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
-                    $updates['cancel_reason'] = $data['note'] ?? 'Hủy bởi Admin';
+                    $updates['cancel_reason'] = $data['note'] ?? ($isForce ? 'Ép hủy bởi Admin' : 'Hủy bởi Admin');
 
                     if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
@@ -167,9 +191,6 @@ class AdminOrderService
                         }
                     }
 
-                    // Hoàn ví GIẢM GIÁ (cột độc lập với wallet_spent; áp được cho mọi
-                    // payment method — COD/vnpay vẫn có thể dùng ví giảm giá). Không gate
-                    // theo payment_method='wallet' như khối trên.
                     $walletDeposit = (float) ($order->wallet_deposit_discount ?? 0);
                     $walletCommission = (float) ($order->wallet_commission_discount ?? 0);
                     if (($walletDeposit + $walletCommission) > 0 && $order->user_id) {
@@ -181,10 +202,8 @@ class AdminOrderService
                         );
                     }
 
-                    // Hoàn tồn kho
                     $this->orderRepository->restoreStock($order->items);
 
-                    // Gửi email thông báo hủy đơn
                     if ($order->user && $order->user->email) {
                         Mail::to($order->user->email)->queue(new OrderCancelledMail($order, 'admin', $updates['cancel_reason']));
                     }
@@ -199,7 +218,7 @@ class AdminOrderService
                         'order_id' => $order->order_id,
                         'old_status' => $oldFulfillmentStatus,
                         'new_status' => $updates['fulfillment_status'],
-                        'note' => $data['note'] ?? 'Chuyển trạng thái bởi Admin',
+                        'note' => $data['note'] ?? ($isForce ? 'Ép chuyển trạng thái bởi Admin' : 'Chuyển trạng thái bởi Admin'),
                     ]);
 
                     if ($order->user) {
@@ -222,11 +241,9 @@ class AdminOrderService
 
             DB::commit();
 
-            // Đồng bộ affiliate
             if (isset($updates['fulfillment_status'])) {
                 $this->affiliateService->updateConversionOnStatusChange($order, $updates['fulfillment_status']);
 
-                // Tích điểm loyalty khi đơn DELIVERED hoặc COMPLETED
                 if (in_array($updates['fulfillment_status'], [
                     OrderStatus::DELIVERED->value,
                     OrderStatus::COMPLETED->value,
@@ -234,7 +251,6 @@ class AdminOrderService
                     try {
                         $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
 
-                        // Bonus đơn đầu tiên
                         $isFirstOrder = Order::where('user_id', $order->user_id)
                             ->where('fulfillment_status', OrderStatus::COMPLETED->value)
                             ->count() === 1;
@@ -243,7 +259,6 @@ class AdminOrderService
                             $this->loyaltyService->earnFirstOrder($order->user, $order->fresh());
                         }
 
-                        // Thưởng điểm giỏ hàng bỏ quên nếu có
                         $freshOrder = $order->fresh();
                         if ($freshOrder->is_abandoned_checkout) {
                             $this->loyaltyService->earnAbandonedCart($order->user, $freshOrder->order_id);
@@ -281,9 +296,8 @@ class AdminOrderService
         $invalidOrders = [];
         foreach ($orders as $order) {
             if ($newFulfillmentStatus && $newFulfillmentStatus !== $order->fulfillment_status) {
-                $allowed = self::ALLOWED_TRANSITIONS[$order->fulfillment_status] ?? [];
-                if (! in_array($newFulfillmentStatus, $allowed)) {
-                    $invalidOrders[] = "#{$order->order_code} (Chuyển Giao hàng không hợp lệ)";
+                if (! OrderStateMachine::canTransition($order, $newFulfillmentStatus, 'admin')) {
+                    $invalidOrders[] = "#{$order->order_code} (Chuyển trạng thái không hợp lệ)";
                 }
             }
         }
@@ -458,13 +472,13 @@ class AdminOrderService
         }
 
         try {
-            $order = Order::with(['items.product', 'address'])->where('order_id', $id)->first();
+            $order = Order::with(['items.variant.product', 'address'])->where('order_id', $id)->first();
             if (! $order) {
                 return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy đơn hàng!'];
             }
 
             if ($order->tracking_number) {
-                return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã được đồng bộ vận chuyển (Tracking: ' . $order->tracking_number . ')!'];
+                return ['_status' => 409, 'status' => 'error', 'message' => 'Đơn hàng đã được đồng bộ vận chuyển (Tracking: '.$order->tracking_number.')!'];
             }
 
             // receiver_location_id = ward_code (Ocean Express location ID, e.g. 'VN-01-00004')
@@ -474,33 +488,31 @@ class AdminOrderService
                 return ['_status' => 422, 'status' => 'error', 'message' => 'Đơn hàng thiếu thông tin địa chỉ (ward_code). Không thể tạo vận đơn!'];
             }
 
-            // Tính tổng trọng lượng: mặc định 500g/sản phẩm nếu chưa có product weight
-            $totalWeight = $order->items->sum(function ($item) {
-                return ($item->variant?->product?->weight ?? 500) * $item->quantity;
-            });
-            $totalWeight = max($totalWeight, 100); // tối thiểu 100g
+            // Trọng lượng dùng CHUNG công thức với ShippingService để phí báo cho
+            // khách ở checkout và phí vận đơn thực tế không lệch nhau.
+            $totalWeight = app(ShippingService::class)->calculateWeight($order->items);
 
             // Ocean Express API spec: POST /api/v1/orders
             $orderData = [
-                'receiver_name'           => $order->recipient_name,
-                'receiver_phone'          => $order->recipient_phone,
-                'receiver_location_id'    => $receiverLocationId,
+                'receiver_name' => $order->recipient_name,
+                'receiver_phone' => $order->recipient_phone,
+                'receiver_location_id' => $receiverLocationId,
                 'receiver_address_detail' => $order->shipping_address,
-                'weight'                  => (int) $totalWeight,
+                'weight' => (int) $totalWeight,
                 // cod_amount: số tiền thu hộ — 0 nếu đã thanh toán trước
-                'cod_amount'              => $order->payment_status === 'paid'
+                'cod_amount' => $order->payment_status === 'paid'
                     ? 0
                     : (int) $order->grand_total,
             ];
 
-            $result = \App\Services\OceanExpressService::createOrder($orderData);
+            $result = OceanExpressService::createOrder($orderData);
 
             if (isset($result['tracking_number'])) {
                 $oldStatus = $order->fulfillment_status;
                 $order->tracking_number = $result['tracking_number'];
 
                 if (! $order->tracking_token) {
-                    $order->tracking_token = hash('sha256', $order->order_code . Str::random(40) . microtime(true));
+                    $order->tracking_token = hash('sha256', $order->order_code.Str::random(40).microtime(true));
                 }
 
                 // Tự động chuyển sang trạng thái shipping
@@ -512,12 +524,12 @@ class AdminOrderService
                 $this->sendOrderShippingMail($order->fresh(['address']));
 
                 $this->orderRepository->createStatusHistory([
-                    'order_id'    => $order->order_id,
-                    'old_status'  => $oldStatus,
-                    'new_status'  => $order->fulfillment_status,
-                    'note'        => 'Đã đồng bộ đơn hàng sang Ocean Express',
-                    'source'      => 'system',
-                    'description' => 'Vận đơn: ' . $result['tracking_number'] . ' — Đơn hàng chuyển sang trạng thái Giao hàng',
+                    'order_id' => $order->order_id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $order->fulfillment_status,
+                    'note' => 'Đã đồng bộ đơn hàng sang Ocean Express',
+                    'source' => 'system',
+                    'description' => 'Vận đơn: '.$result['tracking_number'].' — Đơn hàng chuyển sang trạng thái Giao hàng',
                     'happened_at' => now(),
                 ]);
             } else {
@@ -526,12 +538,12 @@ class AdminOrderService
 
             return [
                 '_status' => 200,
-                'status'  => 'success',
+                'status' => 'success',
                 'message' => 'Đã tạo đơn hàng trên Ocean Express thành công!',
-                'data'    => $result,
+                'data' => $result,
             ];
         } catch (\Throwable $e) {
-            Log::error('Lỗi syncOceanExpress: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            Log::error('Lỗi syncOceanExpress: '.$e->getMessage()."\n".$e->getTraceAsString());
 
             return ['_status' => 400, 'status' => 'error', 'message' => $e->getMessage()];
         } finally {

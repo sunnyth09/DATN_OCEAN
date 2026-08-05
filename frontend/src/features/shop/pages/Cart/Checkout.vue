@@ -12,7 +12,7 @@ import { walletService } from '@/services/walletService';
 import { loyaltyService } from '@/services/loyaltyService';
 import { useAuthStore } from '@/stores/auth';
 import { sanitizeAddressPayload, validateAddressPayload } from '@/utils/addressValidation';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 // Debounce helper — tránh gửi quá nhiều request liên tiếp gây rate-limit 429
 const debounce = (fn, delay) => {

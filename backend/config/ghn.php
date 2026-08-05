@@ -27,5 +27,14 @@ return [
     // Shared secret gắn vào URL webhook GHN (?token=... hoặc header X-Webhook-Token)
     'webhook_token' => env('GHN_WEBHOOK_TOKEN'),
 
+    // HMAC-SHA256 raw body qua header X-Signature (tuỳ chọn, mạnh hơn token)
+    'webhook_secret' => env('GHN_WEBHOOK_SECRET'),
+
+    // Fail-closed: từ chối webhook nếu chưa cấu hình token/secret
+    'webhook_require_auth' => filter_var(
+        env('GHN_WEBHOOK_REQUIRE_AUTH', true),
+        FILTER_VALIDATE_BOOLEAN
+    ),
+
     'tracking_url' => env('GHN_TRACKING_URL', 'https://donhang.ghn.vn'),
 ];

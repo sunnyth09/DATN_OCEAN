@@ -24,7 +24,7 @@ class OrderShippingMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '[Ocean Sport] Đơn hàng #' . $this->order->order_code . ' đã được tạo vận đơn GHN',
+            subject: '[Ocean Sport] Đơn hàng #'.$this->order->order_code.' đã được tạo vận đơn GHN',
         );
     }
 
@@ -40,9 +40,9 @@ class OrderShippingMail extends Mailable implements ShouldQueue
                 'orderCode' => $this->order->order_code,
                 'ghnOrderCode' => $this->order->ghn_order_code,
                 'customerName' => $this->order->recipient_name ?: ($this->order->address?->recipient_name ?? $this->order->address?->name ?? 'Quý khách'),
-                'trackingUrl' => $trackingToken ? $frontendUrl . '/tracking/' . $trackingToken : null,
+                'trackingUrl' => $trackingToken ? $frontendUrl.'/tracking/'.$trackingToken : null,
                 'ghnTrackingUrl' => $this->order->ghn_order_code
-                    ? rtrim((string) config('ghn.tracking_url', 'https://donhang.ghn.vn'), '/') . '/?order_code=' . urlencode($this->order->ghn_order_code)
+                    ? rtrim((string) config('ghn.tracking_url', 'https://donhang.ghn.vn'), '/').'/?order_code='.urlencode($this->order->ghn_order_code)
                     : null,
             ],
         );

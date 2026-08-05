@@ -15,7 +15,6 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
 import ClientHeader from '../components/ClientHeader.vue';
 import ClientFooter from '../components/ClientFooter.vue';
 import ChatbotWidget from '../components/ChatbotWidget.vue';
@@ -26,9 +25,9 @@ import ChatbotWidget from '../components/ChatbotWidget.vue';
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-primary);
   color: var(--text-main);
-  background: var(--bg-gray);
+  background: var(--background);
 }
 
 /* site-main không cần max-width riêng —

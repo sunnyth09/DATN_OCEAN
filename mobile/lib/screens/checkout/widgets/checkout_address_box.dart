@@ -106,7 +106,7 @@ class CheckoutAddressBox extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    '${address!['address_line']}, ${address!['ward']}, ${address!['district']}, ${address!['province']}',
+                    '${address!['address_line']}, ${address!['ward']}, ${address!['province']}',
                     style: const TextStyle(
                       fontSize: 13,
                       color: Color(0xFF475569),
