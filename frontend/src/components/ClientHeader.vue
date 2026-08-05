@@ -1026,6 +1026,16 @@ watch(
     height: 2px;
     background-color: var(--primary);
     border-radius: 2px;
+    opacity: 1;
+    transform: scaleX(1);
+    transform-origin: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.site-header.is-scrolled .nav-link.active::after {
+    bottom: 12px;
+    opacity: 0;
+    transform: scaleX(0);
 }
 
 /* HEADER ACTIONS */
