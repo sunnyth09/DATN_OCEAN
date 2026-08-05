@@ -12,7 +12,7 @@ return new class extends Migration
         Schema::disableForeignKeyConstraints();
 
         Schema::table('order_items', function (Blueprint $table) {
-            if (!Schema::hasColumn('order_items', 'returned_quantity')) {
+            if (! Schema::hasColumn('order_items', 'returned_quantity')) {
                 $table->integer('returned_quantity')->default(0)->after('quantity');
             }
         });
@@ -43,41 +43,41 @@ return new class extends Migration
         }
 
         Schema::table('return_requests', function (Blueprint $table) {
-            if (!Schema::hasColumn('return_requests', 'return_code')) {
+            if (! Schema::hasColumn('return_requests', 'return_code')) {
                 $table->string('return_code', 40)->nullable()->unique()->after('id');
             }
-            if (!Schema::hasColumn('return_requests', 'reject_reason')) {
+            if (! Schema::hasColumn('return_requests', 'reject_reason')) {
                 $table->text('reject_reason')->nullable()->after('admin_note');
             }
-            if (!Schema::hasColumn('return_requests', 'inspection_note')) {
+            if (! Schema::hasColumn('return_requests', 'inspection_note')) {
                 $table->text('inspection_note')->nullable()->after('reject_reason');
             }
-            if (!Schema::hasColumn('return_requests', 'return_tracking_code')) {
+            if (! Schema::hasColumn('return_requests', 'return_tracking_code')) {
                 $table->string('return_tracking_code', 100)->nullable()->after('inspection_note');
             }
-            if (!Schema::hasColumn('return_requests', 'return_carrier')) {
+            if (! Schema::hasColumn('return_requests', 'return_carrier')) {
                 $table->string('return_carrier', 100)->nullable()->after('return_tracking_code');
             }
-            if (!Schema::hasColumn('return_requests', 'idempotency_key')) {
+            if (! Schema::hasColumn('return_requests', 'idempotency_key')) {
                 $table->string('idempotency_key', 120)->nullable()->after('return_carrier');
                 $table->unique(['user_id', 'order_id', 'idempotency_key'], 'return_requests_user_order_idempotency_unique');
             }
-            if (!Schema::hasColumn('return_requests', 'returning_at')) {
+            if (! Schema::hasColumn('return_requests', 'returning_at')) {
                 $table->timestamp('returning_at')->nullable()->after('rejected_at');
             }
-            if (!Schema::hasColumn('return_requests', 'warehouse_received_at')) {
+            if (! Schema::hasColumn('return_requests', 'warehouse_received_at')) {
                 $table->timestamp('warehouse_received_at')->nullable()->after('returning_at');
             }
-            if (!Schema::hasColumn('return_requests', 'inspected_at')) {
+            if (! Schema::hasColumn('return_requests', 'inspected_at')) {
                 $table->timestamp('inspected_at')->nullable()->after('warehouse_received_at');
             }
-            if (!Schema::hasColumn('return_requests', 'refund_started_at')) {
+            if (! Schema::hasColumn('return_requests', 'refund_started_at')) {
                 $table->timestamp('refund_started_at')->nullable()->after('inspected_at');
             }
-            if (!Schema::hasColumn('return_requests', 'refund_failed_at')) {
+            if (! Schema::hasColumn('return_requests', 'refund_failed_at')) {
                 $table->timestamp('refund_failed_at')->nullable()->after('refund_started_at');
             }
-            if (!Schema::hasColumn('return_requests', 'completed_at')) {
+            if (! Schema::hasColumn('return_requests', 'completed_at')) {
                 $table->timestamp('completed_at')->nullable()->after('refund_failed_at');
             }
         });
@@ -112,7 +112,7 @@ return new class extends Migration
         DB::table('return_requests')->where('status', 'received')->update(['status' => 'warehouse_received']);
         DB::table('return_requests')->where('status', 'refunded')->update(['status' => 'return_completed']);
 
-        if (!Schema::hasTable('return_request_items')) {
+        if (! Schema::hasTable('return_request_items')) {
             Schema::create('return_request_items', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('return_request_id')->constrained('return_requests')->cascadeOnDelete();
@@ -136,7 +136,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('refund_transactions')) {
+        if (! Schema::hasTable('refund_transactions')) {
             Schema::create('refund_transactions', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('return_request_id')->constrained('return_requests')->cascadeOnDelete();

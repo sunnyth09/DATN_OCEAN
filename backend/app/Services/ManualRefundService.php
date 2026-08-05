@@ -29,7 +29,7 @@ class ManualRefundService implements PaymentGatewayRefundInterface
                     'metadata' => [
                         'order_code' => $order->order_code,
                         'return_request_id' => $payload['return_request_id'] ?? null,
-                    ]
+                    ],
                 ]
             );
 

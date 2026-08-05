@@ -264,7 +264,6 @@ function formatFullAddress(addr) {
   const parts = [];
   if (addr.address_line) parts.push(addr.address_line);
   if (addr.ward) parts.push(addr.ward);
-  if (addr.district) parts.push(addr.district);
   if (addr.province) parts.push(addr.province);
   return parts.join(', ') || 'Chưa có địa chỉ';
 }

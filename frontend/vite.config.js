@@ -18,6 +18,7 @@ export default defineConfig({
       usePolling: true,
       // Giảm polling interval → giảm CPU usage trong Docker
       interval: 1000,
+      ignored: ['**/.env', '**/node_modules/**'],
     },
     host: true,
     strictPort: true,

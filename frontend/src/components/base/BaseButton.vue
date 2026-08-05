@@ -1,10 +1,11 @@
 <script setup>
 // Nút dùng chung dựa trên design token (var(--primary)...), tự hỗ trợ dark mode admin.
-// Dùng cho code MỚI. Không thay các .btn-* scoped hiện có.
+// Storefront dùng variant 'hero' / 'on-dark'. Các .btn-* scoped cũ ở trang chưa
+// refactor vẫn giữ nguyên; refactor dần theo từng trang.
 import { computed } from 'vue';
 
 const props = defineProps({
-  // primary | secondary | outline | danger | ghost
+  // primary | secondary | outline | danger | ghost | hero | on-dark
   variant: { type: String, default: 'primary' },
   // sm | md | lg
   size: { type: String, default: 'md' },
@@ -121,6 +122,32 @@ const isNativeButton = computed(() => props.as === 'button');
 .base-btn--ghost:hover {
   background: var(--hover-bg);
   color: var(--primary);
+}
+
+/* CTA chính của storefront — gradient thương hiệu.
+   Thay cho .btn-primary-hero / .btn-buy-now / .btn-community / .promo-banner-btn. */
+.base-btn--hero {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: var(--shadow-md);
+}
+.base-btn--hero:hover {
+  filter: brightness(1.06);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Nút phụ trên nền tối (hero, flash sale, community).
+   Thay cho .btn-outline-hero. */
+.base-btn--on-dark {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-on-dark, #f8fafc);
+  border-color: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+}
+.base-btn--on-dark:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 .base-btn__spinner {

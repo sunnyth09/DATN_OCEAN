@@ -1,5 +1,5 @@
 <script setup>
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const props = defineProps({
     category: { type: Object, required: true },

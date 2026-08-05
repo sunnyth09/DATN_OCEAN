@@ -3,7 +3,6 @@
 namespace App\Exports;
 
 use App\Repositories\StatisticsRepository;
-use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -14,6 +13,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class StaffSalesExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
     protected $startDate;
+
     protected $endDate;
 
     public function __construct($startDate, $endDate)
@@ -25,6 +25,7 @@ class StaffSalesExport implements FromCollection, ShouldAutoSize, WithHeadings, 
     public function collection()
     {
         $statisticsRepository = app(StatisticsRepository::class);
+
         return $statisticsRepository->getStaffSales($this->startDate, $this->endDate);
     }
 

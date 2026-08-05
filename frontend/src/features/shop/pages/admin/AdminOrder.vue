@@ -3,7 +3,7 @@ import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastNotify = (message, type = 'success') => {
@@ -61,31 +61,7 @@ statuses.push(
 );
 const fulfillmentOptions = statuses.filter(s => s.value !== 'all');
 
-// Luồng trạng thái tuần tự: không cho nhảy cóc
-const statusTransitions = {
-  'pending': ['pending', 'confirmed', 'cancelled'],
-  'confirmed': ['confirmed', 'processing', 'packing', 'cancelled'],
-  'processing': ['processing', 'packing', 'shipping', 'cancelled'],
-  'packing': ['packing', 'shipping', 'cancelled'],
-  'shipping': ['shipping', 'delivered', 'cancelled', 'return_requested'],
-  'delivered': ['delivered', 'completed', 'return_requested'],
-  'completed': ['completed', 'return_requested'],
-  'cancelled': ['cancelled'],
-  'return_requested': ['return_requested', 'return_approved', 'return_rejected'],
-  'return_approved': ['return_approved', 'returning'],
-  'returning': ['returning', 'warehouse_received'],
-  'warehouse_received': ['warehouse_received', 'inspected_ok', 'inspection_failed'],
-  'inspected_ok': ['inspected_ok', 'returned'],
-  'inspection_failed': ['inspection_failed', 'return_rejected'],
-  'return_rejected': ['return_rejected'],
-  'returned': ['returned', 'refunded'],
-  'refunded': ['refunded']
-};
-
-const getAllowedFulfillmentOptions = (currentStatus) => {
-  const allowed = statusTransitions[currentStatus] || [currentStatus];
-  return fulfillmentOptions.filter(s => allowed.includes(s.value));
-};
+// Removed statusTransitions because we use backend available_transitions now
 
 const isLockedFulfillmentStatus = (status) => {
   return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returning', 'warehouse_received', 'inspection_failed', 'inspected_ok', 'returned', 'refunded'].includes(status);
@@ -211,6 +187,7 @@ const statusActionDefinitions = {
   confirmed: { icon: 'check', label: 'Duyệt đơn', success: 'Đã duyệt đơn hàng thành công!' },
   processing: { icon: 'clock', label: 'Chuyển sang đang xử lý', success: 'Đã chuyển đơn sang đang xử lý!' },
   packing: { icon: 'clipboard-list', label: 'Chuyển sang đóng gói', success: 'Đã chuyển đơn sang đóng gói!' },
+  awaiting_pickup: { icon: 'package', label: 'Chờ lấy hàng', success: 'Đã chuyển đơn sang chờ lấy hàng!' },
   shipping: { icon: 'truck', label: 'Chuyển sang đang giao', success: 'Đã chuyển đơn sang đang giao!' },
   delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
   completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
@@ -227,8 +204,7 @@ const statusActionDefinitions = {
 };
 
 const getOrderStatusActions = (order) => {
-  const current = order.fulfillment_status;
-  const allowed = (statusTransitions[current] || []).filter(status => status !== current);
+  const allowed = order.available_transitions || [];
   return allowed
     .filter((status) => {
       if (status === 'delivered' && order.tracking_number) return false;
@@ -329,7 +305,7 @@ const applyBulkStatus = async () => {
 
     // Kiểm tra tính hợp lệ của luồng trạng thái
     const invalidTransitions = selectedOrdersList.filter(o => {
-        const allowed = statusTransitions[o.fulfillment_status] || [o.fulfillment_status];
+        const allowed = o.available_transitions || [];
         return !allowed.includes(bulkFulfillmentStatus.value);
     });
 
@@ -770,6 +746,7 @@ onUnmounted(() => {
 .btn-status-action.completed { background: #dcfce7; color: #15803d; }
 .btn-status-action.processing { background: #e0f2fe; color: #0369a1; }
 .btn-status-action.packing { background: #ede9fe; color: #6d28d9; }
+.btn-status-action.awaiting_pickup { background: #fef3c7; color: #b45309; }
 .btn-status-action.shipping,
 .btn-status-action.delivered { background: #dbeafe; color: #1d4ed8; }
 .btn-status-action.cancelled { background: #fee2e2; color: #b91c1c; }
@@ -779,7 +756,7 @@ onUnmounted(() => {
 /* Colors for Fulfillment */
 .f-pending { background: rgba(255, 167, 38, 0.15); color: #e65100; }
 .f-confirmed { background: rgba(230, 59, 111, 0.1); color: var(--primary); }
-.f-packing, .f-shipping { background: rgba(0, 188, 212, 0.15); color: #0097a7; }
+.f-packing, .f-awaiting_pickup, .f-shipping { background: rgba(0, 188, 212, 0.15); color: #0097a7; }
 .f-delivered, .f-completed { background: rgba(38, 166, 154, 0.15); color: #167a70; }
 .f-cancelled { background: rgba(239, 83, 80, 0.15); color: #c62828; }
 .f-return_requested, .f-return_approved { background: rgba(245, 158, 11, 0.15); color: #b45309; }

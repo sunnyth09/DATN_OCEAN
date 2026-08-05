@@ -46,7 +46,7 @@ class ReturnRequestService
                 ->where('user_id', $userId)
                 ->first();
 
-            if (!$order) {
+            if (! $order) {
                 throw new OrderException('Không tìm thấy đơn hàng hoặc đơn hàng không thuộc về bạn.');
             }
 
@@ -95,7 +95,7 @@ class ReturnRequestService
                 foreach ($itemsPayload as $orderItemId => $quantity) {
                     /** @var OrderItem|null $orderItem */
                     $orderItem = $orderItems->get((int) $orderItemId);
-                    if (!$orderItem) {
+                    if (! $orderItem) {
                         throw new OrderException('Sản phẩm hoàn hàng không thuộc đơn hàng này.');
                     }
 
@@ -165,7 +165,7 @@ class ReturnRequestService
                     'order_id' => $orderLocked->order_id,
                     'old_status' => $oldStatus,
                     'new_status' => OrderStatus::RETURN_REQUESTED->value,
-                    'note' => 'Khách hàng gửi yêu cầu hoàn hàng: ' . $returnRequest->reason,
+                    'note' => 'Khách hàng gửi yêu cầu hoàn hàng: '.$returnRequest->reason,
                     'changed_by' => $userId,
                 ]);
 
@@ -175,10 +175,12 @@ class ReturnRequestService
             return $this->success('Đã gửi yêu cầu hoàn hàng thành công.', $created);
         } catch (OrderException $e) {
             $this->cleanupFiles($storedImages, $storedVideos);
+
             return $this->error($e->getMessage(), 422);
         } catch (\Exception $e) {
             $this->cleanupFiles($storedImages, $storedVideos);
             Log::error('Return Request creation failed: '.$e->getMessage());
+
             return $this->error('Đã xảy ra lỗi hệ thống, vui lòng thử lại sau.', 500);
         }
     }
@@ -192,7 +194,7 @@ class ReturnRequestService
     {
         $returnRequest = $this->returnRequestRepository->findUserRequest($userId, $id);
 
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -208,7 +210,7 @@ class ReturnRequestService
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
 
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -218,7 +220,7 @@ class ReturnRequestService
     public function approve(int $id, array $data): array
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -237,7 +239,7 @@ class ReturnRequestService
                 'approved_at' => now(),
             ]);
 
-            if ($returnRequest->return_shipping_method === 'pickup_original_address' && !$returnRequest->return_tracking_code) {
+            if ($returnRequest->return_shipping_method === 'pickup_original_address' && ! $returnRequest->return_tracking_code) {
                 try {
                     $ghnResponse = GHNService::createReturnOrder($returnRequest->fresh(['items.orderItem.product', 'items.product', 'order']));
                     $ghnOrderCode = data_get($ghnResponse, 'data.order_code')
@@ -273,7 +275,7 @@ class ReturnRequestService
     public function reject(int $id, array $data): array
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -299,7 +301,7 @@ class ReturnRequestService
     public function markReturning(int $id, array $data = []): array
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -325,11 +327,11 @@ class ReturnRequestService
     public function markReceived(int $id, array $data = []): array
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
-        if (!in_array($this->normalizeStatus($returnRequest->status), [
+        if (! in_array($this->normalizeStatus($returnRequest->status), [
             ReturnRequestStatus::APPROVED->value,
             ReturnRequestStatus::RETURNING->value,
         ], true)) {
@@ -359,7 +361,7 @@ class ReturnRequestService
     public function inspect(int $id, array $data): array
     {
         $returnRequest = $this->returnRequestRepository->findForAdmin($id);
-        if (!$returnRequest) {
+        if (! $returnRequest) {
             return $this->error('Không tìm thấy yêu cầu hoàn hàng.', 404);
         }
 
@@ -380,7 +382,7 @@ class ReturnRequestService
 
                 foreach ($returnRequest->items as $item) {
                     $payload = $payloadById->get($item->id);
-                    if (!$payload) {
+                    if (! $payload) {
                         throw new OrderException('Vui lòng nhập kết quả QC cho tất cả sản phẩm hoàn.');
                     }
 
@@ -410,7 +412,7 @@ class ReturnRequestService
                         'refundable_amount' => $itemRefund,
                     ]);
 
-                    if ($pass > 0 && !$item->inventory_updated_at) {
+                    if ($pass > 0 && ! $item->inventory_updated_at) {
                         $this->restoreInventoryForReturnItem($item, $pass);
                     }
 
@@ -453,7 +455,7 @@ class ReturnRequestService
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                if (!in_array($this->normalizeStatus($returnRequest->status), ReturnRequestStatus::refundableValues(), true)) {
+                if (! in_array($this->normalizeStatus($returnRequest->status), ReturnRequestStatus::refundableValues(), true)) {
                     throw new OrderException('Chỉ có thể hoàn tiền sau khi QC đạt hoặc khi retry hoàn tiền.');
                 }
 
@@ -462,7 +464,7 @@ class ReturnRequestService
                 }
 
                 $order = Order::whereKey($returnRequest->order_id)->lockForUpdate()->firstOrFail();
-                if (!in_array($order->payment_status, PaymentStatus::refundableValues(), true)) {
+                if (! in_array($order->payment_status, PaymentStatus::refundableValues(), true)) {
                     throw new OrderException('Đơn hàng hiện không ở trạng thái có thể hoàn tiền.');
                 }
 
@@ -477,7 +479,7 @@ class ReturnRequestService
                     ->sum('amount');
                 $remaining = (float) $order->grand_total - $alreadyRefunded;
                 if ($refundAmount > $remaining) {
-                    throw new OrderException('Số tiền hoàn vượt quá phần còn lại có thể hoàn (' . number_format($remaining) . 'đ).');
+                    throw new OrderException('Số tiền hoàn vượt quá phần còn lại có thể hoàn ('.number_format($remaining).'đ).');
                 }
 
                 $method = $data['refund_method'] ?? $returnRequest->refund_method;
@@ -537,7 +539,7 @@ class ReturnRequestService
                     'return_request_id' => $returnRequest->id,
                 ]);
 
-                if (!$refundResult['success']) {
+                if (! $refundResult['success']) {
                     $transaction->update([
                         'status' => 'failed',
                         'failure_reason' => $refundResult['message'] ?? 'Hoàn tiền thất bại.',
@@ -574,7 +576,7 @@ class ReturnRequestService
                     : PaymentStatus::PARTIALLY_REFUNDED->value;
 
                 $this->updateOrderStatus($order, OrderStatus::REFUNDED->value, 'Admin xác nhận hoàn tiền thủ công.');
-                $this->updatePaymentStatus($order, $paymentStatus, '[Thanh toán] Đã hoàn tiền thủ công qua ' . $method . '.');
+                $this->updatePaymentStatus($order, $paymentStatus, '[Thanh toán] Đã hoàn tiền thủ công qua '.$method.'.');
 
                 $payment = Payment::where('order_id', $order->order_id)->latest('payment_id')->first();
                 if ($payment && $paymentStatus === PaymentStatus::REFUNDED->value) {
@@ -605,7 +607,7 @@ class ReturnRequestService
 
     private function validateReturnEligibility(Order $order, bool $checkAnyAvailableItem = false): ?string
     {
-        if (!in_array($order->fulfillment_status, OrderStatus::returnEligibleValues(), true)) {
+        if (! in_array($order->fulfillment_status, OrderStatus::returnEligibleValues(), true)) {
             return 'Chỉ có thể gửi yêu cầu hoàn hàng cho đơn đã hoàn thành hoặc đã giao.';
         }
 
@@ -618,7 +620,7 @@ class ReturnRequestService
         if ($checkAnyAvailableItem) {
             $order->loadMissing('items');
             $hasAvailable = $order->items->contains(fn (OrderItem $item) => $this->getAvailableReturnQuantity($item) > 0);
-            if (!$hasAvailable) {
+            if (! $hasAvailable) {
                 return 'Đơn hàng không còn sản phẩm có thể hoàn.';
             }
         }
@@ -639,7 +641,7 @@ class ReturnRequestService
 
     private function restoreInventoryForReturnItem(ReturnRequestItem $item, int $quantity): void
     {
-        if (!$item->variant_id || $quantity <= 0) {
+        if (! $item->variant_id || $quantity <= 0) {
             return;
         }
 
@@ -651,7 +653,7 @@ class ReturnRequestService
             'quantity' => $quantity,
             'reference_type' => 'order',
             'reference_id' => $item->return_request_id,
-            'note' => 'Cộng tồn kho từ hoàn hàng #' . $item->returnRequest?->return_code,
+            'note' => 'Cộng tồn kho từ hoàn hàng #'.$item->returnRequest?->return_code,
             'created_by' => $item->returnRequest?->user_id,
         ]);
 
@@ -662,7 +664,7 @@ class ReturnRequestService
     private function storeEvidenceFiles(Request $request, string $field, string $directory): array
     {
         $paths = [];
-        if (!$request->hasFile($field)) {
+        if (! $request->hasFile($field)) {
             return $paths;
         }
 
@@ -678,7 +680,7 @@ class ReturnRequestService
     private function generateReturnCode(): string
     {
         do {
-            $code = 'RR' . now()->format('ymdHis') . strtoupper(Str::random(4));
+            $code = 'RR'.now()->format('ymdHis').strtoupper(Str::random(4));
         } while (ReturnRequest::where('return_code', $code)->exists());
 
         return $code;
@@ -737,7 +739,7 @@ class ReturnRequestService
                 }
             }
         } catch (\Throwable $e) {
-            Log::warning('ReturnRequest cleanupFiles failed: ' . $e->getMessage());
+            Log::warning('ReturnRequest cleanupFiles failed: '.$e->getMessage());
         }
     }
 

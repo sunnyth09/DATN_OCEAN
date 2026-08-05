@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -14,7 +15,7 @@ class ContactTest extends TestCase
     {
         parent::setUp();
         // Disable ThrottleRequests middleware for these tests to avoid 429
-        $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+        $this->withoutMiddleware(ThrottleRequests::class);
     }
 
     public function test_submit_contact_fails_without_turnstile()

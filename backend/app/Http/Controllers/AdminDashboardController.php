@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
 use App\Models\ChatSession;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\ReturnRequest;
 use App\Models\Ticket;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
 {
@@ -208,10 +207,10 @@ class AdminDashboardController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
-                'pending_orders'   => $pendingOrders,
-                'pending_returns'  => $pendingReturns,
-                'open_tickets'     => $openTickets,
-                'unreplied_chats'  => $unrepliedChats,
+                'pending_orders' => $pendingOrders,
+                'pending_returns' => $pendingReturns,
+                'open_tickets' => $openTickets,
+                'unreplied_chats' => $unrepliedChats,
             ],
         ]);
     }

@@ -13,22 +13,22 @@ class FavoriteController extends Controller
     public function index()
     {
         $user = auth('api')->user() ?? auth('admin')->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
         $favorites = Favorite::with(['product' => function ($query) {
-            $query->with(['mainImage', 'lowestPriceVariant']); 
+            $query->with(['mainImage', 'lowestPriceVariant']);
         }])
-        ->whereHas('product')
-        ->where('user_id', $user->getKey())
-        ->orderBy('created_at', 'desc')
-        ->get();
+            ->whereHas('product')
+            ->where('user_id', $user->getKey())
+            ->orderBy('created_at', 'desc')
+            ->get();
 
         return response()->json([
             'status' => 'success',
-            'data' => $favorites
+            'data' => $favorites,
         ]);
     }
 
@@ -38,8 +38,8 @@ class FavoriteController extends Controller
     public function getFavoriteIds()
     {
         $user = auth('api')->user() ?? auth('admin')->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
@@ -49,7 +49,7 @@ class FavoriteController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $ids
+            'data' => $ids,
         ]);
     }
 
@@ -59,8 +59,8 @@ class FavoriteController extends Controller
     public function toggle(Request $request)
     {
         $user = auth('api')->user() ?? auth('admin')->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return response()->json(['message' => 'Vui lòng đăng nhập để yêu thích sản phẩm'], 401);
         }
 
@@ -77,10 +77,11 @@ class FavoriteController extends Controller
         if ($favorite) {
             // Đã thích -> Xóa
             $favorite->delete();
+
             return response()->json([
                 'status' => 'success',
                 'action' => 'removed',
-                'message' => 'Đã bỏ yêu thích sản phẩm' // Optional msg
+                'message' => 'Đã bỏ yêu thích sản phẩm', // Optional msg
             ]);
         } else {
             // Chưa thích -> Thêm
@@ -88,10 +89,11 @@ class FavoriteController extends Controller
                 'user_id' => $user->getKey(),
                 'product_id' => $productId,
             ]);
+
             return response()->json([
                 'status' => 'success',
                 'action' => 'added',
-                'message' => 'Đã thêm vào danh sách yêu thích' // Optional msg
+                'message' => 'Đã thêm vào danh sách yêu thích', // Optional msg
             ]);
         }
     }

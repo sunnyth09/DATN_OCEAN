@@ -2,13 +2,16 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class GeminiService
 {
     private string $apiKey;
+
     private string $baseUrl;
+
     private string $model;
 
     /**
@@ -96,9 +99,9 @@ PROMPT;
 
     public function __construct()
     {
-        $this->apiKey  = config('services.deepseek.api_key', '');
+        $this->apiKey = config('services.deepseek.api_key', '');
         $this->baseUrl = rtrim(config('services.deepseek.base_url', 'https://api.deepseek.com'), '/');
-        $this->model   = config('services.deepseek.model', 'deepseek-v4-pro');
+        $this->model = config('services.deepseek.model', 'deepseek-v4-pro');
     }
 
     /**
@@ -200,7 +203,7 @@ PROMPT;
                     'description' => 'Lấy danh sách địa chỉ giao hàng của khách hàng đã đăng nhập để chọn khi chuẩn bị đặt hàng.',
                     'parameters' => [
                         'type' => 'object',
-                        'properties' => new \stdClass(),
+                        'properties' => new \stdClass,
                     ],
                 ],
             ],
@@ -282,7 +285,7 @@ PROMPT;
                     'description' => 'Lấy danh sách mã giảm giá đang có hiệu lực. Dùng khi khách hỏi về voucher, mã giảm giá, khuyến mãi.',
                     'parameters' => [
                         'type' => 'object',
-                        'properties' => new \stdClass(),
+                        'properties' => new \stdClass,
                     ],
                 ],
             ],
@@ -293,7 +296,7 @@ PROMPT;
                     'description' => 'Lấy danh sách tất cả danh mục sản phẩm của shop',
                     'parameters' => [
                         'type' => 'object',
-                        'properties' => new \stdClass(),
+                        'properties' => new \stdClass,
                     ],
                 ],
             ],
@@ -410,14 +413,15 @@ PROMPT;
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type'  => 'application/json',
+                'Authorization' => 'Bearer '.$this->apiKey,
+                'Content-Type' => 'application/json',
             ])->timeout(20)->post($url, $payload);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::warning('DeepSeek product filter extraction failed', [
                     'status' => $response->status(),
                 ]);
+
                 return ['error' => true];
             }
 
@@ -426,13 +430,14 @@ PROMPT;
             $text = trim(preg_replace('/^```json|```$/m', '', $text));
             $filters = json_decode($text, true);
 
-            if (!is_array($filters)) {
+            if (! is_array($filters)) {
                 return ['error' => true];
             }
 
             return $filters;
         } catch (\Throwable $e) {
             Log::warning('DeepSeek product filter extraction exception', ['error' => $e->getMessage()]);
+
             return ['error' => true];
         }
     }
@@ -440,14 +445,15 @@ PROMPT;
     /**
      * Gửi tin nhắn đến DeepSeek API với function calling (tool_choice: auto)
      *
-     * @param array $conversationHistory  Lịch sử hội thoại [{role, parts}] (format Gemini từ frontend)
-     * @param bool  $isAuthenticated      User đã đăng nhập chưa
-     * @return array  Response chuẩn hoá (giữ nguyên interface cho Controller)
+     * @param  array  $conversationHistory  Lịch sử hội thoại [{role, parts}] (format Gemini từ frontend)
+     * @param  bool  $isAuthenticated  User đã đăng nhập chưa
+     * @return array Response chuẩn hoá (giữ nguyên interface cho Controller)
      */
     public function sendMessage(array $conversationHistory, bool $isAuthenticated = false): array
     {
-        $cacheKey = 'deepseek_resp_' . md5(json_encode($conversationHistory) . '_' . ($isAuthenticated ? '1' : '0'));
-        return \Illuminate\Support\Facades\Cache::remember($cacheKey, 3600, function () use ($conversationHistory, $isAuthenticated) {
+        $cacheKey = 'deepseek_resp_'.md5(json_encode($conversationHistory).'_'.($isAuthenticated ? '1' : '0'));
+
+        return Cache::remember($cacheKey, 3600, function () use ($conversationHistory, $isAuthenticated) {
             $url = "{$this->baseUrl}/chat/completions";
 
             // Thêm thông tin auth vào system prompt
@@ -459,13 +465,13 @@ PROMPT;
             $messages = $this->convertHistoryToOpenAI($conversationHistory, $authContext);
 
             $payload = [
-                'model'       => $this->model,
-                'messages'    => $messages,
-                'tools'       => $this->getToolDeclarations(),
+                'model' => $this->model,
+                'messages' => $messages,
+                'tools' => $this->getToolDeclarations(),
                 'tool_choice' => 'auto',
                 'temperature' => 0.7,
-                'top_p'       => 0.95,
-                'max_tokens'  => 1024,
+                'top_p' => 0.95,
+                'max_tokens' => 1024,
             ];
 
             try {
@@ -474,35 +480,36 @@ PROMPT;
 
                 for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
                     $response = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . $this->apiKey,
-                        'Content-Type'  => 'application/json',
+                        'Authorization' => 'Bearer '.$this->apiKey,
+                        'Content-Type' => 'application/json',
                     ])->timeout(60)->post($url, $payload);
 
                     if ($response->status() === 429 && $attempt < $maxRetries) {
                         // Rate limit — exponential backoff
                         $wait = 2 + $attempt * 2; // 2s, 4s, 6s
-                        Log::warning("DeepSeek rate limit hit, retry attempt " . ($attempt + 1) . " after {$wait}s");
+                        Log::warning('DeepSeek rate limit hit, retry attempt '.($attempt + 1)." after {$wait}s");
                         sleep($wait);
+
                         continue;
                     }
                     break;
                 }
 
-                if (!$response->successful()) {
+                if (! $response->successful()) {
                     Log::error('DeepSeek API error', [
                         'status' => $response->status(),
-                        'body'   => $response->body(),
+                        'body' => $response->body(),
                     ]);
 
                     if ($response->status() === 429) {
                         return [
-                            'error'   => true,
+                            'error' => true,
                             'message' => 'Ocean Sport AI đang bận, vui lòng thử lại sau vài giây!',
                         ];
                     }
 
                     return [
-                        'error'   => true,
+                        'error' => true,
                         'message' => 'Ocean Sport AI đang gặp lỗi kết nối AI. Bạn có thể dùng các nút gợi ý nhanh hoặc nhập rõ hơn như: sản phẩm bán chạy, mã giảm giá, chính sách đổi trả, xem đơn hàng.',
                     ];
                 }
@@ -510,9 +517,9 @@ PROMPT;
                 $data = $response->json();
                 $choice = $data['choices'][0] ?? null;
 
-                if (!$choice) {
+                if (! $choice) {
                     return [
-                        'error'   => true,
+                        'error' => true,
                         'message' => 'Không nhận được phản hồi từ AI.',
                     ];
                 }
@@ -520,29 +527,30 @@ PROMPT;
                 $message = $choice['message'] ?? [];
 
                 // Check nếu DeepSeek muốn gọi function (tool_calls)
-                if (!empty($message['tool_calls'])) {
+                if (! empty($message['tool_calls'])) {
                     $toolCall = $message['tool_calls'][0]; // Lấy tool call đầu tiên
                     $functionName = $toolCall['function']['name'] ?? '';
                     $arguments = json_decode($toolCall['function']['arguments'] ?? '{}', true) ?? [];
 
                     return [
-                        'type'          => 'function_call',
+                        'type' => 'function_call',
                         'function_name' => $functionName,
-                        'arguments'     => $arguments,
+                        'arguments' => $arguments,
                         '_tool_call_id' => $toolCall['id'] ?? null, // Lưu lại để dùng khi gửi function result
                     ];
                 }
 
                 // Trả về text response thông thường
                 return [
-                    'type'    => 'text',
+                    'type' => 'text',
                     'message' => $message['content'] ?? '',
                 ];
 
             } catch (\Exception $e) {
                 Log::error('DeepSeek API exception', ['error' => $e->getMessage()]);
+
                 return [
-                    'error'   => true,
+                    'error' => true,
                     'message' => 'Kết nối đến AI bị gián đoạn. Vui lòng thử lại!',
                 ];
             }
@@ -552,12 +560,11 @@ PROMPT;
     /**
      * Gửi kết quả function call về DeepSeek để nhận response cuối cùng
      *
-     * @param array  $conversationHistory  Lịch sử hội thoại (format Gemini từ frontend)
-     * @param string $functionName         Tên function đã gọi
-     * @param array  $functionResult       Kết quả trả về từ function
-     * @param bool   $isAuthenticated      User đã đăng nhập chưa
-     * @param array  $functionArgs         Arguments gốc đã gọi function
-     * @return array
+     * @param  array  $conversationHistory  Lịch sử hội thoại (format Gemini từ frontend)
+     * @param  string  $functionName  Tên function đã gọi
+     * @param  array  $functionResult  Kết quả trả về từ function
+     * @param  bool  $isAuthenticated  User đã đăng nhập chưa
+     * @param  array  $functionArgs  Arguments gốc đã gọi function
      */
     public function sendFunctionResult(
         array $conversationHistory,
@@ -576,19 +583,20 @@ PROMPT;
         $messages = $this->convertHistoryToOpenAI($conversationHistory, $authContext);
 
         // Tạo unique tool_call_id cho lần gọi này
-        $toolCallId = 'call_' . md5($functionName . json_encode($functionArgs) . microtime(true));
+        $toolCallId = 'call_'.md5($functionName.json_encode($functionArgs).microtime(true));
 
         // Thêm assistant message với tool_calls (model muốn gọi function)
         $messages[] = [
-            'role'       => 'assistant',
-            'content'    => null,
+            'role' => 'assistant',
+            'content' => '',
+            'reasoning_content' => '',
             'tool_calls' => [
                 [
-                    'id'       => $toolCallId,
-                    'type'     => 'function',
+                    'id' => $toolCallId,
+                    'type' => 'function',
                     'function' => [
-                        'name'      => $functionName,
-                        'arguments' => json_encode($functionArgs ?: new \stdClass()),
+                        'name' => $functionName,
+                        'arguments' => json_encode($functionArgs ?: new \stdClass),
                     ],
                 ],
             ],
@@ -596,18 +604,18 @@ PROMPT;
 
         // Thêm tool response (kết quả thực thi function)
         $messages[] = [
-            'role'         => 'tool',
+            'role' => 'tool',
             'tool_call_id' => $toolCallId,
-            'content'      => json_encode($functionResult, JSON_UNESCAPED_UNICODE),
+            'content' => json_encode($functionResult, JSON_UNESCAPED_UNICODE),
         ];
 
         $payload = [
-            'model'       => $this->model,
-            'messages'    => $messages,
-            'tools'       => $this->getToolDeclarations(),
+            'model' => $this->model,
+            'messages' => $messages,
+            'tools' => $this->getToolDeclarations(),
             'temperature' => 0.7,
-            'top_p'       => 0.95,
-            'max_tokens'  => 1024,
+            'top_p' => 0.95,
+            'max_tokens' => 1024,
         ];
 
         try {
@@ -616,26 +624,28 @@ PROMPT;
 
             for ($attempt = 0; $attempt <= $maxRetries; $attempt++) {
                 $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
-                    'Content-Type'  => 'application/json',
+                    'Authorization' => 'Bearer '.$this->apiKey,
+                    'Content-Type' => 'application/json',
                 ])->timeout(60)->post($url, $payload);
 
                 if ($response->status() === 429 && $attempt < $maxRetries) {
-                    Log::warning("DeepSeek function result rate limit, retry attempt " . ($attempt + 1));
+                    Log::warning('DeepSeek function result rate limit, retry attempt '.($attempt + 1));
                     sleep(2 + $attempt * 2); // 2s, 4s backoff
+
                     continue;
                 }
                 break;
             }
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 Log::error('DeepSeek function result error', [
                     'status' => $response->status(),
-                    'body'   => $response->body(),
+                    'body' => $response->body(),
                 ]);
+
                 return [
-                    'error'   => true,
-                    'type'    => 'text',
+                    'error' => true,
+                    'type' => 'text',
                     'message' => '',
                 ];
             }
@@ -645,15 +655,16 @@ PROMPT;
             $text = $choice['message']['content'] ?? '';
 
             return [
-                'type'    => 'text',
+                'type' => 'text',
                 'message' => $text,
             ];
 
         } catch (\Exception $e) {
             Log::error('DeepSeek function result exception', ['error' => $e->getMessage()]);
+
             return [
-                'error'   => true,
-                'type'    => 'text',
+                'error' => true,
+                'type' => 'text',
                 'message' => '',
             ];
         }
@@ -675,8 +686,8 @@ PROMPT;
 
         // System message luôn đặt ở đầu
         $messages[] = [
-            'role'    => 'system',
-            'content' => $this->systemPrompt . $authContext,
+            'role' => 'system',
+            'content' => $this->systemPrompt.$authContext,
         ];
 
         foreach ($geminiHistory as $entry) {
@@ -702,10 +713,16 @@ PROMPT;
             // OpenAI: "user", "assistant"
             $openAIRole = ($role === 'model') ? 'assistant' : 'user';
 
-            $messages[] = [
-                'role'    => $openAIRole,
+            $msg = [
+                'role' => $openAIRole,
                 'content' => $text,
             ];
+
+            if ($openAIRole === 'assistant') {
+                $msg['reasoning_content'] = '';
+            }
+
+            $messages[] = $msg;
         }
 
         return $messages;

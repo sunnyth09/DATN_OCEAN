@@ -31,11 +31,11 @@ class OceanExpressWebhookController extends Controller
         }
 
         $result = $this->statusSyncService->syncFromWebhookPayload($order, $payload);
-        
+
         if (! $result['mapped_status']) {
             Log::info('Ocean Express webhook ignored unknown status', [
-                'tracking_number' => $trackingNumber, 
-                'status' => $status
+                'tracking_number' => $trackingNumber,
+                'status' => $status,
             ]);
         }
 

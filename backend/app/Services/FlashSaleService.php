@@ -144,14 +144,14 @@ class FlashSaleService
         }
 
         $stockKey = "flash_sale_{$flashSaleId}_product_{$productId}_stock";
-        
+
         // Initialize stock in Redis if it doesn't exist (e.g., Redis restart, expiration, or missing sync)
-        if (!Redis::exists($stockKey)) {
+        if (! Redis::exists($stockKey)) {
             $remainingStock = max(0, $item->campaign_stock - $item->sold);
             Redis::set($stockKey, $remainingStock);
             Redis::expire($stockKey, $ttl);
         }
-        
+
         $remaining = Redis::decrby($stockKey, $quantity);
 
         if ($remaining < 0) {
@@ -176,7 +176,7 @@ class FlashSaleService
         }
 
         if (app()->environment('local') || config('queue.default') === 'sync') {
-            \App\Jobs\OrderProcessingJob::dispatchSync(
+            OrderProcessingJob::dispatchSync(
                 $flashSaleId,
                 $productId,
                 $userId,
@@ -189,7 +189,7 @@ class FlashSaleService
                 $orderCode
             );
         } else {
-            \App\Jobs\OrderProcessingJob::dispatch(
+            OrderProcessingJob::dispatch(
                 $flashSaleId,
                 $productId,
                 $userId,

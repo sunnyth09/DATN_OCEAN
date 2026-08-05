@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { getApiBaseUrl, getAppBaseUrl } from '@/utils/url';
 import QRCode from 'qrcode';
 import { sanitizeHtml } from '@/utils/sanitize';

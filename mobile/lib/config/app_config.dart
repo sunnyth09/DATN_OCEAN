@@ -16,8 +16,7 @@ class AppConfig {
   static const String _apiIpOverride = String.fromEnvironment('API_IP');
 
   static const bool isProduction = bool.fromEnvironment('IS_PRODUCTION');
-  static const String ghnToken = String.fromEnvironment('TOKEN_GHN', defaultValue: 'aca8eb35-5c9d-11f0-9ca3-d63c9cb9975d');
-  static const String ghnShopId = String.fromEnvironment('GHN_SHOP_ID', defaultValue: '5881673');
+  // Removed GHN fields
 
   static String get _localIp {
     if (kIsWeb) {

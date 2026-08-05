@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Mews\Purifier\Facades\Purifier;
 
 class XssSanitizer
 {
@@ -47,8 +48,8 @@ class XssSanitizer
 
     private function sanitizeHtml(string $value): string
     {
-        if (class_exists(\Mews\Purifier\Facades\Purifier::class)) {
-            return \Mews\Purifier\Facades\Purifier::clean($value);
+        if (class_exists(Purifier::class)) {
+            return Purifier::clean($value);
         }
 
         return strip_tags($value);
