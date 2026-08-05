@@ -1,3 +1,4 @@
+
 <script setup>
 import { computed, onMounted, ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
@@ -270,6 +271,9 @@ const handleLogout = async () => {
         <div v-if="openMenus.content" class="nav-submenu">
           <router-link to="/admin/post" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Bài viết</span>
+          </router-link>
+          <router-link to="/admin/post-comments" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Bình luận bài viết</span>
           </router-link>
           <router-link to="/admin/post-category" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Danh mục bài viết</span>
