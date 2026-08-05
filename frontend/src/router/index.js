@@ -112,13 +112,13 @@ const routes = [
     },
     // OAuth Callback routes
     {
-        path: "/client/auth/google/callback",
+        path: "/api/auth/google/callback",
         name: "google-callback",
         component: GoogleCallback,
         meta: { title: 'Đăng nhập Google' },
     },
     {
-        path: "/client/auth/facebook/callback",
+        path: "/api/auth/facebook/callback",
         name: "facebook-callback",
         component: FacebookCallback,
         meta: { title: 'Đăng nhập Facebook' },
@@ -436,7 +436,7 @@ router.afterEach((to) => {
     const isAdmin = to.matched.some(record => record.path === '/admin');
 
     if (title) {
-        document.title = isAdmin ? `${title} | OS Admin` : `${title} | Ocean Sport`;
+        document.title = isAdmin ? `${title} | QS Admin` : `${title} | Ocean Sport`;
     } else {
         document.title = 'Ocean Sport';
     }

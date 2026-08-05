@@ -455,16 +455,6 @@ class OrderService
                 'coupon' => null,
                 'discount_amount' => 0,
             ];
-            if (! empty($data['coupon_applied'])) {
-                $couponResult = $this->couponService->applyCoupon(
-                    0,
-                    $data['coupon_applied'],
-                    $subtotal
-                );
-                if (! $couponResult['success']) {
-                    return $this->error($couponResult['message'], 400);
-                }
-            }
 
             $addressObj = (object) [
                 'recipient_name' => $data['recipient_name'],

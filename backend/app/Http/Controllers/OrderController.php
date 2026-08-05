@@ -82,7 +82,7 @@ class OrderController extends Controller
      */
     public function storeGuest(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'recipient_name' => 'required|string|max:255',
             'phone' => 'required|string|max:20',
             'email' => 'required|email|max:255',
@@ -94,7 +94,7 @@ class OrderController extends Controller
             'district_code' => 'nullable',
             'ward_code' => 'nullable',
             'payment_method' => 'required|string|in:cod,vnpay,momo,bank_transfer',
-            'coupon_applied' => 'nullable|string',
+            'coupon_applied' => 'prohibited',
             'note' => 'nullable|string|max:500',
             'referral_code' => 'nullable|string|max:20',
             'items' => 'required|array|min:1',
@@ -103,6 +103,7 @@ class OrderController extends Controller
         ], [
             'payment_method.required' => 'Vui lòng chọn phương thức thanh toán.',
             'payment_method.in' => 'Phương thức thanh toán không hợp lệ.',
+            'coupon_applied.prohibited' => 'Vui lòng đăng nhập để sử dụng mã giảm giá.',
             'recipient_name.required' => 'Vui lòng nhập họ tên người nhận.',
             'phone.required' => 'Vui lòng nhập số điện thoại.',
             'email.required' => 'Vui lòng nhập email để nhận xác nhận đơn hàng.',
@@ -124,7 +125,7 @@ class OrderController extends Controller
 
         try {
             $result = $this->orderService->createGuestOrder(
-                $request->all(),
+                $validated,
                 $request
             );
 

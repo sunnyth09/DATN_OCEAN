@@ -796,11 +796,6 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <div class="coupon-section" style="display: flex; gap: 8px;">
-                        <BaseInput placeholder="Mã giảm giá" style="flex: 1; margin-bottom: 0;" />
-                        <BaseButton variant="secondary" size="md">Áp dụng</BaseButton>
-                    </div>
-
                     <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0">
                         Thanh toán
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"

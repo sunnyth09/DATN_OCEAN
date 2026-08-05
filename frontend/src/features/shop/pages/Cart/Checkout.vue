@@ -192,6 +192,12 @@ const fetchLoyaltyPoints = async () => {
 watch(() => authStore.isAuthenticated, (val) => {
     if (val) {
         fetchLoyaltyPoints();
+    } else {
+        appliedCoupon.value = null;
+        couponCode.value = '';
+        showCouponModal.value = false;
+        useWallet.value = false;
+        if (paymentMethod.value === 'wallet') paymentMethod.value = 'cod';
     }
 }, { immediate: true });
 
@@ -506,35 +512,40 @@ watch(useWallet, (val) => {
     if (val && !walletPreview.value) debouncedFetchWalletPreview();
 });
 
-// Appy coupon (Mã cứng mockup cho UI: OCEAN10)
+const promptLoginForCoupon = () => {
+    showToast('Vui lòng đăng nhập để sử dụng mã giảm giá.', 'warning');
+    router.push({ name: 'login', query: { redirect: route.fullPath || '/checkout' } });
+};
+
 const applyCoupon = () => {
+    if (!authStore.isAuthenticated) {
+        promptLoginForCoupon();
+        return;
+    }
     if (!couponCode.value.trim()) return;
 
-    // Tìm trong danh sách available xem có mã nào trùng không
     const found = availableCoupons.value.find(c => c.code.toUpperCase() === couponCode.value.trim().toUpperCase());
     if (found) {
         selectCoupon(found);
     } else {
-        // Fake apply cho OCEAN10 nếu backend chưa có data để test UI
-        checkingCoupon.value = true;
-        setTimeout(() => {
-            checkingCoupon.value = false;
-            if (couponCode.value.toUpperCase() === 'OCEAN10') {
-                appliedCoupon.value = { code: 'OCEAN10', type: 'percent', value: 10 };
-                showToast('Đã áp dụng mã giảm giá 10% (OCEAN10)!', 'success');
-            } else {
-                showToast('Mã giảm giá không hợp lệ hoặc đã hết hạn', 'error');
-                appliedCoupon.value = null;
-            }
-        }, 800);
+        showToast('Mã giảm giá không hợp lệ hoặc chưa được lưu', 'error');
+        appliedCoupon.value = null;
     }
 };
 
 const openCouponModal = () => {
+    if (!authStore.isAuthenticated) {
+        promptLoginForCoupon();
+        return;
+    }
     showCouponModal.value = true;
 };
 
 const selectCoupon = (coupon) => {
+    if (!authStore.isAuthenticated) {
+        promptLoginForCoupon();
+        return;
+    }
     if (coupon.type === 'free_ship' && subtotal.value >= (upsellState.freeshipThreshold || 500000)) {
         showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển!', 'warning');
         return;
@@ -569,10 +580,10 @@ const placeOrder = async () => {
     const payload = {
         payment_method: paymentMethod.value,
         note: note.value,
-        coupon_applied: appliedCoupon.value?.code || null,
+        coupon_applied: authStore.isAuthenticated ? (appliedCoupon.value?.code || null) : null,
         referral_code: localStorage.getItem('affiliate_ref') || null,
-        use_wallet: useWallet.value && walletDiscount.value > 0,
-        wallet_amount: useWallet.value ? walletDiscount.value : 0,
+        use_wallet: authStore.isAuthenticated && useWallet.value && walletDiscount.value > 0,
+        wallet_amount: authStore.isAuthenticated && useWallet.value ? walletDiscount.value : 0,
         reward_points_used: useLoyaltyPoints.value ? inputPoints.value : 0,
     };
 
@@ -1077,7 +1088,7 @@ onMounted(async () => {
                                     </div>
                                 </label>
 
-                                <label class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'wallet', 'is-disabled': walletBalance < total }">
+                                <label v-if="authStore.isAuthenticated" class="payment-card-simple" :class="{ 'is-selected': paymentMethod === 'wallet', 'is-disabled': walletBalance < total }">
                                     <input type="radio" v-model="paymentMethod" value="wallet" :disabled="walletBalance < total" class="hidden-radio" />
                                     <div class="ac-left">
                                         <div class="radio-indicator">
@@ -1138,25 +1149,37 @@ onMounted(async () => {
                                 </div>
 
                                 <div class="coupon-section">
-                                    <div class="coupon-input-group" v-if="!appliedCoupon">
-                                        <input type="text" v-model="couponCode" placeholder="Nhập mã khuyến mãi"
-                                            class="coupon-input" @keyup.enter="applyCoupon" />
-                                        <button class="btn-apply-coupon" @click="applyCoupon"
-                                            :disabled="checkingCoupon || !couponCode">
-                                            <span v-if="checkingCoupon" class="small-spinner"></span>
-                                            <span v-else>Áp dụng</span>
-                                        </button>
-                                    </div>
-                                    <div v-else class="coupon-applied-box">
-                                        <div class="coupon-tag">
-                                            <AppIcon name="voucher" size="20" color="#111" class="me-1" />{{
-                                            appliedCoupon.code }}
+                                    <template v-if="authStore.isAuthenticated">
+                                        <div class="coupon-input-group" v-if="!appliedCoupon">
+                                            <input type="text" v-model="couponCode" placeholder="Nhập mã khuyến mãi"
+                                                class="coupon-input" @keyup.enter="applyCoupon" />
+                                            <button class="btn-apply-coupon" @click="applyCoupon"
+                                                :disabled="checkingCoupon || !couponCode">
+                                                <span v-if="checkingCoupon" class="small-spinner"></span>
+                                                <span v-else>Áp dụng</span>
+                                            </button>
                                         </div>
-                                        <button class="btn-remove-coupon" @click="removingCoupon">Gỡ bỏ</button>
-                                    </div>
-                                    <div v-if="authStore.isAuthenticated" class="text-right mt-1">
-                                        <button class="btn-select-coupon" @click="openCouponModal">Chọn mã có
-                                            sẵn</button>
+                                        <div v-else class="coupon-applied-box">
+                                            <div class="coupon-tag">
+                                                <AppIcon name="voucher" size="20" color="#111" class="me-1" />{{
+                                                appliedCoupon.code }}
+                                            </div>
+                                            <button class="btn-remove-coupon" @click="removingCoupon">Gỡ bỏ</button>
+                                        </div>
+                                        <div class="text-right mt-1">
+                                            <button class="btn-select-coupon" @click="openCouponModal">Chọn mã có
+                                                sẵn</button>
+                                        </div>
+                                    </template>
+                                    <div v-else class="coupon-login-required">
+                                        <div class="coupon-input-group">
+                                            <input type="text" placeholder="Đăng nhập để sử dụng mã khuyến mãi"
+                                                class="coupon-input" disabled />
+                                            <button class="btn-apply-coupon" @click="promptLoginForCoupon">
+                                                Đăng nhập
+                                            </button>
+                                        </div>
+                                        <p class="coupon-login-note">Bạn vẫn có thể đặt hàng không cần tài khoản, nhưng cần đăng nhập để dùng voucher.</p>
                                     </div>
                                 </div>
 
@@ -2243,6 +2266,19 @@ textarea.note-input {
     cursor: not-allowed;
     background: #cbd5e1;
     color: white;
+}
+
+.coupon-login-required .coupon-input {
+    color: #94a3b8;
+    background: #f8fafc;
+    text-transform: none;
+}
+
+.coupon-login-note {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 0.78rem;
+    line-height: 1.45;
 }
 
 .coupon-applied-box {
