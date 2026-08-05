@@ -278,7 +278,7 @@ const routes = [
             {
                 path: "post-comments",
                 name: "admin-post-comments",
-                component: () => import("../Pages/admin/AdminPostComments.vue"),
+                component: () => import("@/features/shop/pages/admin/AdminPostComments.vue"),
                 meta: { roles: ['admin', 'seller'], title: 'Duyệt bình luận bài viết' },
             },
             {

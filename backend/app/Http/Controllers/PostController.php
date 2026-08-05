@@ -211,7 +211,7 @@ class PostController extends Controller
         $post->title = $request->title;
         $post->slug = $slug;
         $post->summary = $request->summary;
-        $post->content = $request->content;
+        $post->content = $request->input('content');
         $post->post_category_id = $request->post_category_id;
         $post->post_type = $request->post_type ?? 'news';
         $post->status = $request->status ?? 'draft';
