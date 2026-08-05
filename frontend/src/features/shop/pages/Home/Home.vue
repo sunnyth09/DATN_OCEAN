@@ -4,9 +4,11 @@ import { storeToRefs } from "pinia";
 import ProductCard from "@/components/ProductCard.vue";
 import ProductSkeleton from "@/components/ProductSkeleton.vue";
 import AppIcon from "@/components/AppIcon.vue";
+import CouponDetailModal from "@/features/shop/components/CouponDetailModal.vue";
 import { useCatalogStore } from "@/stores/catalog";
 import { catalogService, extractCollection } from "@/services/catalogService";
 import { getAppBaseUrl, getStorageUrl } from '@/utils/url';
+import api from "@/axios";
 
 import HeroSection from './sections/HeroSection.vue';
 import BenefitsBar from './sections/BenefitsBar.vue';
@@ -17,6 +19,8 @@ import PromoBannersSection from './sections/PromoBannersSection.vue';
 import TestimonialsSection from './sections/TestimonialsSection.vue';
 import BlogSection from './sections/BlogSection.vue';
 import CommunitySection from './sections/CommunitySection.vue';
+import VoucherSection from './sections/VoucherSection.vue';
+import PostsSection from './sections/PostsSection.vue';
 
 
 const BASE_URL = getAppBaseUrl();
@@ -25,6 +29,9 @@ const Products = ref([]);
 const Categories = ref([]);
 const isLoadingFeatured = ref(true);
 const isLoadingCategories = ref(true);
+const publicCoupons = ref([]);
+const selectedCoupon = ref(null);
+const copiedCouponCode = ref('');
 const isPageReady = computed(() => !isLoadingFeatured.value && !isLoadingCategories.value);
 
 const catalogStore = useCatalogStore();
@@ -152,7 +159,6 @@ const fetchCategories = async () => {
     } else {
         isLoadingCategories.value = true;
     }
-
     try {
         await catalogStore.fetchCategories();
         const data = storeCategories.value || [];
@@ -188,6 +194,59 @@ const fetchProducts = async () => {
     }
 };
 
+const fetchPublicCoupons = async () => {
+    try {
+        const res = await api.get('/coupons/public');
+        if (res.data?.status === 'success') {
+            publicCoupons.value = (res.data.data || []).filter(c => c.is_active).slice(0, 4);
+        }
+    } catch (e) {
+        console.error('Lỗi tải voucher:', e);
+    }
+};
+
+const formatCurrency = (val) => {
+    if (!val) return '0₫';
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+};
+
+const formatCouponValue = (coupon) => {
+    if (coupon.type === 'percent') return `Giảm ${coupon.value}%`;
+    if (coupon.type === 'free_ship') return 'Miễn phí vận chuyển';
+    return `Giảm ${formatCurrency(coupon.value)}`;
+};
+
+const getCouponIcon = (coupon) => {
+    if (coupon.type === 'free_ship') return 'shipping';
+    if (coupon.type === 'percent') return 'percent';
+    return 'tag';
+};
+
+const copyCouponCode = async (code) => {
+    try {
+        await navigator.clipboard.writeText(code);
+        copiedCouponCode.value = code;
+        setTimeout(() => {
+            if (copiedCouponCode.value === code) copiedCouponCode.value = '';
+        }, 1600);
+    } catch (e) {
+        console.error('Không thể sao chép voucher:', e);
+    }
+};
+
+const openCouponDetail = (coupon) => {
+    selectedCoupon.value = coupon;
+};
+
+const closeCouponDetail = () => {
+    selectedCoupon.value = null;
+};
+
+const goToCouponPage = () => {
+    closeCouponDetail();
+    window.location.href = '/coupon';
+};
+
 const sideCategories = computed(() => Categories.value.slice(1, 3));
 const featuredProduct = computed(() =>
     Products.value.find(p => p.badge === 'Hot' || p.is_on_sale) || Products.value[0] || null
@@ -214,12 +273,67 @@ const testimonials = [
 
 // ── Brands ──
 const brands = [
-    { name: 'Nike', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Logo_NIKE.svg' }, { name: 'Adidas', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/20/Adidas_Logo.svg' },
+    { name: 'Nike', logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Logo_NIKE.svg' },
+    { name: 'Adidas', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/20/Adidas_Logo.svg' },
     { name: 'Puma', logo: 'https://cdn.simpleicons.org/puma' },
     { name: 'Under Armour', logo: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Under_armour_logo.svg' },
     { name: 'Asics', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/Asics_Logo.svg' },
     { name: 'New Balance', logo: 'https://cdn.simpleicons.org/newbalance' },
 ];
+
+// ── Public Posts ──
+const homePosts = ref([]);
+const fetchHomePosts = async () => {
+    try {
+        const res = await api.get('/posts', { params: { status: 'published', limit: 4 } });
+        homePosts.value = res.data || [];
+    } catch (e) {
+        console.error('Lỗi tải bài viết:', e);
+    }
+};
+
+const featuredHomePost = computed(() => {
+    const feat = homePosts.value.find(p => p.is_featured);
+    return feat || homePosts.value[0] || null;
+});
+
+const sideHomePosts = computed(() => {
+    if (!featuredHomePost.value) return homePosts.value.slice(0, 3);
+    return homePosts.value.filter(p => p.post_id !== featuredHomePost.value.post_id).slice(0, 3);
+});
+
+const getHomePostImage = (url) => {
+    if (!url || url === '0') return 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
+    return getStorageUrl(url);
+};
+
+const getHomeAuthorName = (author) => {
+    if (!author) return 'Ban Biên Tập';
+    return author.full_name || author.name || 'Ban Biên Tập';
+};
+
+const getHomeAuthorFallbackAvatar = (author) => {
+    const name = encodeURIComponent(getHomeAuthorName(author));
+    return `https://ui-avatars.com/api/?name=${name}&background=e63b6f&color=fff&size=80&bold=true`;
+};
+
+const getHomeAuthorAvatar = (author) => {
+    if (!author?.avatar_url) return getHomeAuthorFallbackAvatar(author);
+    return getStorageUrl(author.avatar_url);
+};
+
+const getHomePostSummary = (post, limit = 96) => {
+    const text = post?.summary || post?.excerpt || post?.content || '';
+    const plainText = String(text).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    if (!plainText) return '';
+    return plainText.length > limit ? `${plainText.slice(0, limit).trim()}...` : plainText;
+};
+
+const formatPostDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
 
 const revealElements = ref([]);
 
@@ -239,6 +353,8 @@ const initScrollReveal = () => {
 onMounted(() => {
     fetchCategories();
     fetchProducts();
+    fetchPublicCoupons();
+    fetchHomePosts();
     updateCountdown();
     countdownTimer = setInterval(updateCountdown, 1000);
     // Initialize reveal slightly after mount to ensure DOM is ready
@@ -253,8 +369,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <Transition name="splash">
             <div v-if="showSplash && !isPageReady" class="splash-screen">
                 <div class="splash-logo-container">
-                    <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Ocean Sport Logo"
-                        class="splash-logo pulse-animation" />
+                    <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Ocean Sport Logo" class="splash-logo pulse-animation" />
                 </div>
             </div>
         </Transition>
@@ -262,6 +377,15 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
         <main class="home-main" :class="{ 'page-ready': isPageReady }">
             <HeroSection />
             <BenefitsBar />
+            <VoucherSection
+                :publicCoupons="publicCoupons"
+                :copiedCouponCode="copiedCouponCode"
+                :selectedCoupon="selectedCoupon"
+                @copy="copyCouponCode"
+                @open="openCouponDetail"
+                @close="closeCouponDetail"
+                @view-all="goToCouponPage"
+            />
             <FlashSaleSection :flashSaleProducts="flashSaleProducts" :isLoadingFeatured="isLoadingFeatured"
                 :countdown="countdown" />
             <CategoriesSection :Categories="Categories" :isLoadingCategories="isLoadingCategories"
@@ -270,9 +394,11 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 :isLoadingFeatured="isLoadingFeatured" @update:activeTab="activeTab = $event" />
             <PromoBannersSection />
             <TestimonialsSection :brands="brands" />
+            <PostsSection :homePosts="homePosts" />
             <BlogSection :testimonials="testimonials" />
             <CommunitySection />
         </main>
+
     </div>
 </template>
 
@@ -291,7 +417,6 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 .splash-leave-active {
     transition: opacity 0.6s ease, transform 0.6s ease;
 }
-
 .splash-leave-to {
     opacity: 0;
     transform: scale(1.05);
@@ -338,7 +463,6 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
     opacity: 1;
     transform: translateY(0);
 }
-
 /* ============================================
    HOME WRAPPER
 ============================================ */
