@@ -10,8 +10,8 @@ class ShippingService
     {
         $shippingFee = 30000;
 
-        if (config('ghn.token') && config('ghn.shop_id') && $address->district_code && $address->ward_code) {
-            $shippingFee = $this->getGHNFee($address);
+        if ($address->district_code && $address->ward_code) {
+            $shippingFee = $this->getOceanExpressFee($address);
         }
 
         $freeshipThreshold = (int) config('shop.freeship_threshold', 500000);
@@ -27,20 +27,15 @@ class ShippingService
         return $shippingFee;
     }
 
-    private function getGHNFee($address): int
+    private function getOceanExpressFee($address): int
     {
         try {
-            $json = GHNService::calculateFee([
-                'district_id' => (int) $address->district_code,
-                'ward_code' => (string) $address->ward_code,
-                'weight' => (int) config('ghn.default_weight', 500),
-            ]);
-
-            if (isset($json['data']['total'])) {
-                return (int) $json['data']['total'];
-            }
+            return \App\Services\OceanExpressService::calculateRate(
+                $address->ward_code,
+                config('ghn.default_weight', 500)
+            );
         } catch (\Exception $e) {
-            Log::error('GHN fee API error: '.$e->getMessage());
+            Log::error('Ocean Express fee API error: '.$e->getMessage());
         }
 
         return 30000;

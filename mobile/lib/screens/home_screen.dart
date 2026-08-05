@@ -508,6 +508,8 @@ class _HomeScreenState extends State<HomeScreen>
                     final colors = _colorsForIndex(index);
                     final iconColor = _iconColors[index % _iconColors.length];
                     final icon = _iconForCategory(catName);
+                    final catImageUrl = cat['image']?.toString();
+                    final hasImage = catImageUrl != null && catImageUrl.isNotEmpty;
 
                     return GestureDetector(
                       onTap: () => Navigator.push(
@@ -544,7 +546,20 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                 ],
                               ),
-                              child: Icon(icon, color: iconColor, size: 30),
+                              child: hasImage
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: Image.network(
+                                        catImageUrl,
+                                        width: 64,
+                                        height: 64,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Icon(icon, color: iconColor, size: 30);
+                                        },
+                                      ),
+                                    )
+                                  : Icon(icon, color: iconColor, size: 30),
                             ),
                             const SizedBox(height: 8),
                             SizedBox(

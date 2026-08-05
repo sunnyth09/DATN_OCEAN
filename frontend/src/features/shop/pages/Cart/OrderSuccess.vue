@@ -16,9 +16,9 @@ const orderId = ref(null);
 const fetchRelatedProducts = async () => {
     loading.value = true;
     try {
-        // Lấy 8 sản phẩm thay vì 4 để lấp đầy grid đẹp hơn
+        // Lấy 10 sản phẩm thay vì 8 để lấp đầy grid 5 cột
         const res = await catalogService.listProducts({
-            limit: 8,
+            limit: 10,
             sort: "newest",
         });
         if (res.data.status === "success") {
@@ -54,7 +54,7 @@ onMounted(() => {
 
 <template>
     <div class="order-success-page theme-brown">
-      <div class="container d-flex flex-column align-items-center">
+      <div class="order-success-container d-flex flex-column align-items-center">
         <!-- Khu vực thông báo thành công -->
         <div class="success-banner animate-in">
             <div class="success-icon-wrapper">
@@ -135,10 +135,17 @@ onMounted(() => {
     font-family: 'Plus Jakarta Sans', sans-serif;
     background-color: #f8fafc;
     min-height: 100vh;
-    padding: 60px 20px;
+    padding: 60px 0;
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+
+.order-success-container {
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 40px;
 }
 
 /* Success Banner */
@@ -257,7 +264,7 @@ onMounted(() => {
 
 /* Related Products Section */
 .related-products-section {
-    max-width: 1200px;
+    max-width: 100%;
     width: 100%;
 }
 
@@ -283,7 +290,7 @@ onMounted(() => {
 
 .products-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 24px;
 }
 

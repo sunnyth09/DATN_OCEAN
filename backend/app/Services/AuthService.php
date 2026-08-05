@@ -20,12 +20,32 @@ class AuthService
     // ─── CAPTCHA ───────────────────────────────────────────────────────
 
     /**
-     * Xác thực Cloudflare Turnstile token
+     * Kiểm tra xem request có phải từ Mobile App thật không.
+     * Chỉ nhận diện qua User-Agent chính xác của Flutter OceanShop.
+     * Không dùng flag `is_mobile` để tránh bị giả mạo bằng Postman/curl.
      */
-    public function verifyTurnstile(?string $token): bool
+    public function isMobileRequest(): bool
     {
-        // Tắt CAPTCHA khi đang ở môi trường local/dev
-        if (app()->environment('local')) {
+        $userAgent = request()->header('User-Agent', '');
+
+        return str_contains($userAgent, 'Flutter OceanShop');
+    }
+
+    /**
+     * Xác thực Cloudflare Turnstile token.
+     * Bỏ qua hoàn toàn nếu request đến từ Mobile App thật (User-Agent Flutter OceanShop).
+     */
+    public function verifyTurnstile(?string $token, array $data = []): bool
+    {
+        // Bỏ qua CAPTCHA chỉ khi User-Agent khớp với Mobile App thật
+        if ($this->isMobileRequest()) {
+            \Log::info('verifyTurnstile: skipped for mobile request (UA match)');
+            return true;
+        }
+
+        \Log::info('verifyTurnstile called', ['env' => app()->environment(), 'token' => $token]);
+        // Tắt CAPTCHA khi đang ở môi trường local/dev, NHƯNG KHÔNG BAO GỒM TESTING
+        if (app()->environment('local') && !class_exists(\PHPUnit\Framework\TestCase::class)) {
             return true;
         }
 
@@ -46,7 +66,7 @@ class AuthService
 
             return $response->json('success', false);
         } catch (\Exception $e) {
-            Log::error('Turnstile verification failed: '.$e->getMessage());
+            Log::error('Turnstile verification failed: ' . $e->getMessage());
 
             return false;
         }
@@ -91,7 +111,8 @@ class AuthService
         }
 
         // Turnstile
-        if (! $this->verifyTurnstile($data['turnstile_token'] ?? null)) {
+        \Log::info('Register called', ['turnstile' => $data['turnstile_token'] ?? 'NOT_SET', 'is_mobile' => $data['is_mobile'] ?? 'NOT_SET']);
+        if (! $this->verifyTurnstile($data['turnstile_token'] ?? null, $data)) {
             return ['_status' => 422, 'status' => 'error', 'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'];
         }
 
@@ -153,7 +174,7 @@ class AuthService
         }
 
         // Turnstile
-        if (! $this->verifyTurnstile($data['turnstile_token'] ?? null)) {
+        if (! $this->verifyTurnstile($data['turnstile_token'] ?? null, $data)) {
             return ['_status' => 422, 'status' => 'error', 'message' => 'Xác thực CAPTCHA thất bại! Vui lòng thử lại.'];
         }
 
@@ -258,7 +279,7 @@ class AuthService
             ]);
 
             if ($tokenResponse->failed()) {
-                Log::error('Google token exchange failed: '.$tokenResponse->body());
+                Log::error('Google token exchange failed: ' . $tokenResponse->body());
 
                 return ['_status' => 401, 'status' => 'error', 'message' => 'Xác thực Google thất bại! Vui lòng thử lại.'];
             }
@@ -322,7 +343,7 @@ class AuthService
                 'user' => clone $user,
             ];
         } catch (\Exception $e) {
-            Log::error('Google login error: '.$e->getMessage());
+            Log::error('Google login error: ' . $e->getMessage());
 
             return ['_status' => 500, 'status' => 'error', 'message' => 'Đăng nhập Google thất bại! Vui lòng thử lại.'];
         }
@@ -342,7 +363,7 @@ class AuthService
             ]);
 
             if ($tokenResponse->failed()) {
-                Log::error('Facebook token exchange failed: '.$tokenResponse->body());
+                Log::error('Facebook token exchange failed: ' . $tokenResponse->body());
 
                 return ['_status' => 401, 'status' => 'error', 'message' => 'Xác thực Facebook thất bại! Vui lòng thử lại.'];
             }
@@ -359,7 +380,7 @@ class AuthService
 
             $fbUser = $userResponse->json();
             $fbId = $fbUser['id'];
-            $fbEmail = $fbUser['email'] ?? ($fbId.'@facebook.local');
+            $fbEmail = $fbUser['email'] ?? ($fbId . '@facebook.local');
             $fbName = $fbUser['name'] ?? 'Facebook User';
             $fbAvatar = $fbUser['picture']['data']['url'] ?? null;
 
@@ -409,7 +430,7 @@ class AuthService
                 'user' => clone $user,
             ];
         } catch (\Exception $e) {
-            Log::error('Facebook login error: '.$e->getMessage());
+            Log::error('Facebook login error: ' . $e->getMessage());
 
             return ['_status' => 500, 'status' => 'error', 'message' => 'Đăng nhập Facebook thất bại! Vui lòng thử lại.'];
         }

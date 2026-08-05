@@ -107,21 +107,23 @@ onMounted(async () => {
 }
 .flash-sale-page {
   min-height: 100vh;
-  background: #fff;
+  background: var(--background, #fff);
 }
 
 /* ── HERO ── */
 .hero {
-  background: linear-gradient(135deg, #e63b6f, #a0204e);
+  /* Banner thể thao */
+  background: linear-gradient(135deg, rgba(230, 59, 111, 0.85), rgba(160, 32, 78, 0.9)), url('https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=2070&auto=format&fit=crop') center/cover no-repeat;
   color: #fff;
-  border-radius: 16px;
-  padding: 32px;
-  margin: 24px auto 28px;
+  border-radius: var(--radius-lg, 16px);
+  padding: 40px 32px;
+  margin: 32px auto 40px;
   max-width: 1140px;
   width: calc(100% - 40px);
   position: relative;
   overflow: hidden;
   text-align: left;
+  box-shadow: var(--shadow-md);
 }
 
 .hero::after {
@@ -201,22 +203,23 @@ onMounted(async () => {
 
 /* ── RULES CARD ── */
 .rules-card {
-  background: #fff;
-  border: 1px solid #F1F3F5;
-  border-radius: 14px;
-  padding: 24px 22px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-subtle, #F1F3F5);
+  border-radius: var(--radius-lg, 16px);
+  padding: 32px 28px;
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
+  box-shadow: var(--shadow-sm);
 }
 
 .rules-title {
-  color: #E63B6F;
-  font-size: 13px;
+  color: var(--primary, #E63B6F);
+  font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -228,15 +231,15 @@ onMounted(async () => {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .rules-list li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  font-size: 13px;
-  color: #636E72;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-secondary, #636E72);
   line-height: 1.5;
 }
 
@@ -245,14 +248,14 @@ onMounted(async () => {
   width: 20px;
   height: 20px;
   line-height: 1.5;
-  color: #E63B6F;
+  color: var(--primary, #E63B6F);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .rules-list li strong {
-  color: #E63B6F;
+  color: var(--primary, #E63B6F);
   font-weight: 700;
 }
 

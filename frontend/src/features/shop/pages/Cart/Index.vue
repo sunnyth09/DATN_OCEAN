@@ -8,7 +8,8 @@ import QuickAddSlider from '@/features/shop/components/QuickAddSlider.vue';
 import { useCartUpsell } from '@/composables/useCartUpsell';
 import { productService } from '@/services/productService';
 import ProductCard from '@/components/ProductCard.vue';
-
+import BaseInput from '@/components/base/BaseInput.vue';
+import BaseButton from '@/components/base/BaseButton.vue';
 import { getStorageUrl } from '@/utils/url';
 import { pinia } from '@/stores';
 import { useAuthStore } from '@/stores/auth';
@@ -793,11 +794,6 @@ onUnmounted(() => {
                                 }}</strong>
                             <div class="vat-note">(Đã bao gồm VAT nếu có)</div>
                         </div>
-                    </div>
-
-                    <div class="coupon-section" style="display: flex; gap: 8px;">
-                        <BaseInput placeholder="Mã giảm giá" style="flex: 1; margin-bottom: 0;" />
-                        <BaseButton variant="secondary" size="md">Áp dụng</BaseButton>
                     </div>
 
                     <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0">

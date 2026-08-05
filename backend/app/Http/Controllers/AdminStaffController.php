@@ -15,6 +15,21 @@ class AdminStaffController extends Controller
     {
         $search = $request->input('search', '');
 
+        // TEMPORARY SYNC FIX: Find all users with staff roles that are missing in admins table and create them.
+        $unsynced = \App\Models\User::whereIn('role', ['admin', 'staff', 'seller'])->get();
+        foreach ($unsynced as $u) {
+            if (!\App\Models\Admin::where('email', $u->email)->exists()) {
+                \App\Models\Admin::create([
+                    'full_name' => $u->full_name,
+                    'email' => $u->email,
+                    'password' => $u->password ?? bcrypt('123456'),
+                    'role' => $u->role,
+                    'status' => $u->status ?? 'active',
+                    'phone' => $u->phone ?? '0000000000',
+                ]);
+            }
+        }
+
         $query = Admin::query();
 
         if ($search) {

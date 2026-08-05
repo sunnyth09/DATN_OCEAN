@@ -39,7 +39,7 @@ class AdminOrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,shipping,delivered,completed,cancelled,return_requested,return_approved,return_rejected,returned,refunded',
+            'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,shipping,delivered,completed,cancelled,return_requested,return_approved,return_rejected,returning,warehouse_received,inspection_failed,inspected_ok,returned,refunded',
             'note' => 'nullable|string|max:500',
         ]);
 
@@ -58,7 +58,7 @@ class AdminOrderController extends Controller
         $request->validate([
             'order_ids' => 'required|array',
             'order_ids.*' => 'integer',
-            'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,shipping,delivered,completed,cancelled,return_requested,return_approved,return_rejected,returned,refunded',
+            'fulfillment_status' => 'nullable|string|in:pending,confirmed,processing,packing,shipping,delivered,completed,cancelled,return_requested,return_approved,return_rejected,returning,warehouse_received,inspection_failed,inspected_ok,returned,refunded',
             'note' => 'nullable|string|max:500',
         ]);
 

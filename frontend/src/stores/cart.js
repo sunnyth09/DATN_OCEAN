@@ -17,7 +17,7 @@ export const useCartStore = defineStore('cart', () => {
   const fetchCount = async () => {
     const authStore = useAuthStore(pinia);
 
-    if (!authStore.isAuthenticated) {
+    if (!authStore.isAuthenticated || authStore.isAdminUser) {
       const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
       count.value = localItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
       return count.value;
@@ -47,7 +47,7 @@ export const useCartStore = defineStore('cart', () => {
   const addItem = async ({ variantId, quantity = 1 }) => {
     const authStore = useAuthStore(pinia);
 
-    if (!authStore.isAuthenticated) {
+    if (!authStore.isAuthenticated || authStore.isAdminUser) {
       return { status: 'unauthenticated' };
     }
 
@@ -63,7 +63,7 @@ export const useCartStore = defineStore('cart', () => {
 
   const syncCart = async () => {
     const authStore = useAuthStore(pinia);
-    if (!authStore.isAuthenticated) return;
+    if (!authStore.isAuthenticated || authStore.isAdminUser) return;
 
     const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
     if (localItems.length === 0) return;

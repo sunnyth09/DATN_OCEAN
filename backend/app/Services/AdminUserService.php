@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\Admin;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -24,7 +25,7 @@ class AdminUserService
      */
     public function paginate(?string $search, int $perPage = 20)
     {
-        $query = User::query();
+        $query = User::where('role', 'customer');
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -93,6 +94,8 @@ class AdminUserService
             return null;
         }
 
+        $oldEmail = $user->email;
+
         $fillable = array_filter([
             'full_name' => $data['full_name'] ?? null,
             'email' => $data['email'] ?? null,
@@ -118,6 +121,23 @@ class AdminUserService
 
         $user->save();
 
+        if (in_array($user->role, ['admin', 'staff', 'seller'])) {
+            $admin = Admin::where('email', $oldEmail)->first();
+            if ($admin) {
+                $adminData = [
+                    'full_name' => $user->full_name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'status' => $user->status,
+                    'role' => $user->role,
+                ];
+                if (! empty($data['password'])) {
+                    $adminData['password'] = $data['password'];
+                }
+                $admin->update($adminData);
+            }
+        }
+
         return $user->fresh();
     }
 
@@ -136,12 +156,37 @@ class AdminUserService
             return ['ok' => false, 'code' => 403, 'message' => 'Bạn không thể đổi role của chính mình!'];
         }
 
-        $affected = User::where('user_id', (int) $id)->update(['role' => $role, 'updated_at' => now()]);
-        if ($affected === 0) {
+        $user = User::find($id);
+        if (! $user) {
             return ['ok' => false, 'code' => 404, 'message' => 'Không tìm thấy user!'];
         }
 
-        return ['ok' => true, 'code' => 200, 'message' => "Đã cập nhật role thành '{$role}' thành công!"];
+        try {
+            $user->forceFill(['role' => $role])->save();
+
+            if (in_array($role, ['admin', 'staff', 'seller'])) {
+                $admin = Admin::where('email', $user->email)->first();
+                if ($admin) {
+                    $admin->update(['role' => $role]);
+                } else {
+                    Admin::create([
+                        'full_name' => $user->full_name,
+                        'email' => $user->email,
+                        'password' => $user->password ?? bcrypt('123456'), // Default password if null
+                        'role' => $role,
+                        'status' => $user->status ?? 'active',
+                        'phone' => $user->phone ?? '0000000000', // Default phone if null
+                    ]);
+                }
+            } else {
+                Admin::where('email', $user->email)->delete();
+            }
+
+            return ['ok' => true, 'code' => 200, 'message' => "Đã cập nhật role thành '{$role}' thành công!"];
+        } catch (\Exception $e) {
+            \Log::error('Update Role Error: ' . $e->getMessage());
+            return ['ok' => false, 'code' => 500, 'message' => 'Lỗi hệ thống: ' . $e->getMessage()];
+        }
     }
 
     /**
@@ -159,9 +204,15 @@ class AdminUserService
             return ['ok' => false, 'code' => 403, 'message' => 'Bạn không thể đổi status của chính mình!'];
         }
 
-        $affected = User::where('user_id', (int) $id)->update(['status' => $status, 'updated_at' => now()]);
-        if ($affected === 0) {
+        $user = User::find($id);
+        if (! $user) {
             return ['ok' => false, 'code' => 404, 'message' => 'Không tìm thấy user!'];
+        }
+
+        $user->forceFill(['status' => $status])->save();
+
+        if (in_array($user->role, ['admin', 'staff', 'seller'])) {
+            Admin::where('email', $user->email)->update(['status' => $status]);
         }
 
         return ['ok' => true, 'code' => 200, 'message' => "Đã cập nhật status thành '{$status}' thành công!"];
@@ -183,7 +234,14 @@ class AdminUserService
             return ['ok' => false, 'code' => 403, 'message' => 'Bạn không thể xóa chính mình!'];
         }
 
+        $email = $user->email;
+        $role = $user->role;
+        
         $user->delete();
+
+        if (in_array($role, ['admin', 'staff', 'seller'])) {
+            Admin::where('email', $email)->delete();
+        }
 
         return ['ok' => true, 'code' => 200, 'message' => 'Đã xóa khách hàng thành công!'];
     }

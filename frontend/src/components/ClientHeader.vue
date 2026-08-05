@@ -37,12 +37,7 @@ const headerRewardPoints = ref(0);
 const isScrolled = ref(false);
 
 const handleScroll = () => {
-    const scrollTop = window.scrollY;
-    if (scrollTop > 50) {
-        isScrolled.value = true;
-    } else if (scrollTop < 30) {
-        isScrolled.value = false;
-    }
+    isScrolled.value = window.scrollY > 50;
 };
 
 const notifPage = ref(1);
@@ -509,9 +504,8 @@ watch(
             <div class="header-left">
                 <!-- Logo -->
                 <router-link to="/" class="logo">
-                    <div class="logo-container">
-                        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Logo" class="logo-img" />
-                    </div>
+                    <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png'" alt="Logo" class="logo-img"
+                        width="70" height="auto" />
                 </router-link>
 
                 <!-- Navigation Links -->
@@ -528,7 +522,7 @@ watch(
                     <router-link
                         to="/courts"
                         class="nav-link"
-                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
+                        :class="{ active: isRouteActive('courts') }"
                     >
                         Sân thể thao
                     </router-link>
@@ -869,14 +863,6 @@ watch(
                         {{ cat.name }}
                     </router-link>
                     <router-link
-                        to="/courts"
-                        class="mobile-nav-link"
-                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
-                        @click="closeMobileMenu"
-                    >
-                        Sân thể thao
-                    </router-link>
-                    <router-link
                         to="/contact"
                         class="mobile-nav-link"
                         :class="{ active: isRouteActive('contact') }"
@@ -925,7 +911,7 @@ watch(
     <div class="floating-flash-sale" @click="handleFlashSaleClick">
         <div class="flash-sale-badge">
             <AppIcon name="zap" class="flash-sale-icon" size="24" />
-            <span class="flash-sale-text">FLASH SALE</span>
+            <span>FLASH SALE</span>
         </div>
     </div>
 </template>
@@ -980,28 +966,13 @@ watch(
     align-items: center;
 }
 
-.logo-container {
-    width: 60px;
-    height: 50px; /* Adjust height to crop the text at the bottom */
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
-}
-
 .logo-img {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 70px;
     height: auto;
 }
 
-.site-header.is-scrolled .logo-container {
-    width: 50px;
-    height: 42px;
-}
-
 .site-header.is-scrolled .logo-img {
-    width: 60px !important;
+    width: 50px !important;
 }
 
 /* NAVIGATION */
@@ -1686,61 +1657,35 @@ watch(
 .floating-flash-sale {
     position: fixed;
     z-index: 9999;
-    bottom: 120px; 
+    bottom: 120px; /* Nằm cách chatbox một khoảng an toàn để không bị lẹm hiệu ứng */
     right: 20px;
     cursor: pointer;
     user-select: none;
-    /* transition: transform 0.2s ease, opacity 0.2s ease; */
+    transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .floating-flash-sale:hover {
-    transform: translateY(-3px);
+    transform: scale(1.05);
 }
 
 .floating-flash-sale:active {
-    transform: translateY(0) scale(0.95);
+    transform: scale(0.95);
 }
 
 .flash-sale-badge {
     display: flex;
     align-items: center;
-    background: var(--primary);
+    gap: 6px;
+    background: linear-gradient(135deg, #f43f5e, #e11d48);
     color: #fff;
-    height: 60px;
-    width: 60px;
+    padding: 10px 18px;
     border-radius: 30px;
-    padding: 0 18px; /* 18px + 18px + 24px icon = 60px */
-    overflow: hidden;
-    white-space: nowrap;
-    box-shadow: 0 4px 15px rgba(230, 59, 111, 0.4); 
+    box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
     position: relative;
     z-index: 1;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy effect */
-}
-
-.floating-flash-sale:hover .flash-sale-badge {
-    width: 170px;
-    box-shadow: 0 8px 25px rgba(230, 59, 111, 0.5); 
-}
-
-.flash-sale-icon {
-    flex-shrink: 0;
-}
-
-.flash-sale-text {
-    font-weight: 800;
-    font-size: 0.9rem;
-    letter-spacing: 0.5px;
-    margin-left: 12px;
-    opacity: 0;
-    transform: translateX(-15px);
-    transition: all 0.3s ease;
-}
-
-.floating-flash-sale:hover .flash-sale-text {
-    opacity: 1;
-    transform: translateX(0);
-    transition-delay: 0.05s;
 }
 
 /* Vòng tròn sóng lan tỏa (Sonar Ping) */
@@ -1752,8 +1697,7 @@ watch(
     right: 0;
     bottom: 0;
     border-radius: 30px;
-    background: var(--primary);
-    opacity: 0.6;
+    background: rgba(225, 29, 72, 0.6);
     z-index: -1;
     animation: sonar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
