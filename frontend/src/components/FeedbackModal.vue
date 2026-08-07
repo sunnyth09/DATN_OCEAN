@@ -37,7 +37,8 @@ const initForms = () => {
             reviewForms.value[item.order_item_id] = {
                 rating: 0,
                 content: '',
-                images: []
+                images: [],
+                errorMessage: ''
             };
         });
     }
@@ -131,9 +132,10 @@ const submitFeedback = async () => {
     }
 
     try {
-        let lastError = null;
+        let hasError = false;
         for (const itemId of itemsToSubmit) {
             const form = reviewForms.value[itemId];
+            form.errorMessage = ''; // Xóa lỗi cũ
             const itemOriginal = props.order.items.find(i => i.order_item_id == itemId);
             if (!itemOriginal) continue;
 
@@ -157,16 +159,20 @@ const submitFeedback = async () => {
                submittedCount++;
             } catch (err) {
                console.error('Lỗi khi submit item ' + itemId, err.response?.data || err);
-               lastError = err.response?.data?.message || 'Lỗi không xác định từ server';
+               form.errorMessage = err.response?.data?.message || 'Lỗi không xác định từ server';
+               hasError = true;
             }
         }
 
         if (submittedCount > 0) {
-            showToast('Các đánh giá hợp lệ đã được ghi nhận. Cảm ơn bạn!', 'success');
             emit('feedback-submitted');
+        }
+
+        if (hasError) {
+            // Không đóng modal nếu có lỗi, để user sửa lại
+        } else if (submittedCount > 0) {
+            showToast('Các đánh giá hợp lệ đã được ghi nhận. Cảm ơn bạn!', 'success');
             closeModal();
-        } else {
-            showToast(lastError ? lastError : 'Có thể bạn đã đánh giá toàn bộ sản phẩm trong đơn này rồi.', 'danger');
         }
     } catch (error) {
         console.error(error);
@@ -228,9 +234,13 @@ const getImageUrl = (path) => {
                 <textarea 
                   v-model="reviewForms[item.order_item_id].content"
                   class="review-textarea" 
+                  :class="{ 'border-danger': reviewForms[item.order_item_id].errorMessage }"
                   placeholder="Hãy chia sẻ những điều bạn thích về sản phẩm này nhé."
                   rows="3"
                 ></textarea>
+                <div v-if="reviewForms[item.order_item_id].errorMessage" class="error-message">
+                  {{ reviewForms[item.order_item_id].errorMessage }}
+                </div>
 
                 <div class="image-upload-section">
                   <div class="upload-btn-wrapper">
@@ -324,6 +334,14 @@ const getImageUrl = (path) => {
   font-family: inherit; font-size: 0.95rem; resize: vertical; outline: none; background: var(--card-bg);
 }
 .review-textarea:focus { border-color: var(--primary); }
+.review-textarea.border-danger { border-color: #ef4444; }
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin-top: 6px;
+  font-weight: 500;
+}
 
 .image-upload-section { margin-top: 12px; }
 .upload-btn-wrapper {

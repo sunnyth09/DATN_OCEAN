@@ -1452,7 +1452,7 @@ onMounted(async () => {
 }
 
 .checkout-page {
-    padding: 40px 0 80px;
+    padding: 16px 0 80px;
     font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
     color: var(--text-main);
     min-height: 80vh;
@@ -1498,9 +1498,8 @@ onMounted(async () => {
 }
 
 .page-header {
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 2px dashed #e2e8f0;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
 }
 
 .back-link {
