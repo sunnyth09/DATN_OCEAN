@@ -248,7 +248,6 @@ jobs:
             # ---------------------------------------------------------------
             # 4. Backend containers
             # ---------------------------------------------------------------
-            docker compose build backend queue_worker
             docker compose up -d
             docker image prune -f
 
