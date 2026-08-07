@@ -8,7 +8,7 @@ const BASE_URL = getAppBaseUrl();
         <div class="container">
             <div class="promo-banners-grid">
                 <!-- Left Banner -->
-                <div class="promo-card promo-dark" style="background-image: url('https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=800'); background-size: cover; background-position: center;">
+                <div class="promo-card promo-dark" style="background-image: url('/banners/promo-left.jpg'); background-size: cover; background-position: center;">
                     <div class="promo-overlay-dark"></div>
                     <div class="promo-content">
                         <span class="promo-badge">GIẢM GIÁ ĐẶC BIỆT</span>
@@ -21,7 +21,7 @@ const BASE_URL = getAppBaseUrl();
                 </div>
 
                 <!-- Right Banner -->
-                <div class="promo-card promo-light" style="background-image: url('https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=800'); background-size: cover; background-position: center;">
+                <div class="promo-card promo-light" style="background-image: url('/banners/promo-right.jpg'); background-size: cover; background-position: center;">
                     <div class="promo-overlay-light"></div>
                     <div class="promo-content">
                         <span class="promo-badge-sale">SẮP DIỄN RA</span>

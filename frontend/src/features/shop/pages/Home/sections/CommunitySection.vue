@@ -1,9 +1,14 @@
 <script setup>
 </script>
 <template>
-    <section class="community-section py-5">
-        <div class="container">
-            <div class="row g-4">
+    <section class="community-section py-0 position-relative">
+        <div class="community-image-bg d-none d-lg-block">
+            <img src="https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=800&q=80"
+                alt="community" class="community-img" />
+        </div>
+
+        <div class="container position-relative" style="z-index: 1;">
+            <div class="row">
                 <!-- Left content -->
                 <div class="col-lg-6">
                     <div class="community-content h-100">
@@ -20,9 +25,9 @@
                         <h2 class="community-title mb-0">Hơn cả một cửa hàng.<br />Chúng tôi là <em>đam mê</em>.</h2>
 
                         <!-- Stats row -->
-                        <div class="d-flex gap-4 py-4 my-3 community-stats-row">
+                        <div class="d-flex gap-5 py-4 my-3 community-stats-row">
                             <div>
-                                <div class="community-stat-num">10K+</div>
+                                <div class="community-stat-num">10,000+</div>
                                 <div class="community-stat-label">Thành viên</div>
                             </div>
                             <div>
@@ -38,6 +43,30 @@
                         <p class="community-desc mb-4">Tham gia câu lạc bộ của chúng tôi để nhận ưu đãi độc quyền, kết
                             nối với cộng đồng yêu thể thao và nâng cao kỹ năng qua các buổi giao lưu.</p>
 
+                        <ul class="community-benefits mb-4 list-unstyled">
+                            <li class="d-flex align-items-center gap-2 mb-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="9 12 12 15 16 9"></polyline>
+                                </svg>
+                                <span>Giảm giá 10% cho mọi đơn hàng.</span>
+                            </li>
+                            <li class="d-flex align-items-center gap-2 mb-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="9 12 12 15 16 9"></polyline>
+                                </svg>
+                                <span>Tham gia các buổi workshop nâng cao kỹ năng miễn phí.</span>
+                            </li>
+                            <li class="d-flex align-items-center gap-2 mb-2">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="9 12 12 15 16 9"></polyline>
+                                </svg>
+                                <span>Cập nhật sản phẩm mới nhất trước mọi người.</span>
+                            </li>
+                        </ul>
+
                         <router-link to="/client/register" class="btn-community">
                             Đăng ký tham gia ngay
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -48,11 +77,11 @@
                     </div>
                 </div>
 
-                <!-- Right image -->
-                <div class="col-lg-6">
-                    <div class="community-images h-100">
+                <!-- Mobile image -->
+                <div class="col-12 d-lg-none px-0">
+                    <div class="community-images-mobile">
                         <img src="https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=800&q=80"
-                            alt="community" class="community-img" />
+                            alt="community" class="community-img-mobile w-100 h-100 object-fit-cover" />
                     </div>
                 </div>
             </div>
@@ -63,13 +92,32 @@
 <style scoped>
 .community-section {
     width: 100%;
+    background: #111827;
+    position: relative;
+}
+
+.community-image-bg {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.community-image-bg .community-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .6s;
+}
+
+.community-image-bg:hover .community-img {
+    transform: scale(1.04);
 }
 
 .community-content {
-    background: #111827;
-    /* Dark background */
-    border-radius: 24px;
-    padding: 60px 48px;
+    padding: 60px 48px 60px 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -105,7 +153,7 @@
 .community-stat-num {
     font-size: 1.8rem;
     font-weight: 800;
-    color: #fff;
+    color: var(--primary);
     line-height: 1;
 }
 
@@ -123,12 +171,21 @@
     max-width: 480px;
 }
 
+.community-benefits {
+    color: #94a3b8;
+    font-size: .95rem;
+}
+
+.community-benefits span {
+    color: #cbd5e1;
+}
+
 .btn-community {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: #fff;
-    color: #111827;
+    background: var(--primary);
+    color: #fff;
     border: none;
     padding: 13px 30px;
     border-radius: 99px;
@@ -138,41 +195,31 @@
     transition: all .3s;
     text-decoration: none;
     width: fit-content;
+    box-shadow: 0 4px 15px rgba(240, 62, 101, 0.4);
 }
 
 .btn-community:hover {
     transform: translateY(-3px);
-    background: #f1f5f9;
+    background: var(--primary);
+    box-shadow: 0 6px 20px rgba(240, 62, 101, 0.6);
 }
 
-.community-images {
-    border-radius: 24px;
+.community-images-mobile {
+    height: 300px;
     overflow: hidden;
-    position: relative;
-    min-height: 400px;
 }
 
-.community-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+.community-img-mobile {
     transition: transform .6s;
-    position: absolute;
-    top: 0;
-    left: 0;
 }
 
-.community-images:hover .community-img {
+.community-images-mobile:hover .community-img-mobile {
     transform: scale(1.04);
 }
 
 @media (max-width: 991px) {
     .community-content {
-        padding: 40px 30px;
-    }
-
-    .community-images {
-        min-height: 300px;
+        padding: 40px 15px;
     }
 }
 </style>

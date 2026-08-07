@@ -248,7 +248,7 @@ jobs:
             # ---------------------------------------------------------------
             # 4. Backend containers
             # ---------------------------------------------------------------
-            docker compose up -d --build
+            docker compose up -d
             docker image prune -f
 
             # Đợi entrypoint chạy xong (tránh race khi ghi cache/config)

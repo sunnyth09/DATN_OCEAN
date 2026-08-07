@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import '../config/app_config.dart';
 import '../services/api_client.dart';
 import '../widgets/network_image_widget.dart';
 import '../utils/format_utils.dart';
@@ -285,15 +286,8 @@ class _SearchScreenState extends State<SearchScreen> {
       itemBuilder: (context, index) {
         final product = _searchResults[index];
         final name = product['name'] ?? 'Không có tên';
-        final price = product['price'];
-        
-        String imageUrl = '';
-        if (product['thumbnail'] != null) {
-          imageUrl = ApiClient.getStorageUrl(product['thumbnail']);
-        } else if (product['images'] != null && (product['images'] as List).isNotEmpty) {
-          final firstImage = (product['images'] as List).first;
-          imageUrl = ApiClient.getStorageUrl(firstImage['image_path']);
-        }
+        final price = product['min_price'] ?? product['price'] ?? 0;
+        String imageUrl = AppConfig.productImageUrl(product);
 
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

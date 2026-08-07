@@ -68,13 +68,17 @@ const clearFilters = () => {
                 </p>
                 <!-- Legend -->
                 <div class="d-flex flex-wrap gap-2 mt-3">
-                    <span class="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill" style="background: rgba(255,255,255,0.15); font-size: 0.8rem;">
+                    <span class="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill"
+                        style="background: rgba(255,255,255,0.15); font-size: 0.8rem;">
                         <span style="width: 8px; height: 8px; border-radius: 50%; background: #4ade80;"></span> Trống
                     </span>
-                    <span class="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill" style="background: rgba(255,255,255,0.15); font-size: 0.8rem;">
-                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #f87171;"></span> Đang chơi
+                    <span class="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill"
+                        style="background: rgba(255,255,255,0.15); font-size: 0.8rem;">
+                        <span style="width: 8px; height: 8px; border-radius: 50%; background: #f87171;"></span> Đang
+                        chơi
                     </span>
-                    <span class="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill" style="background: rgba(255,255,255,0.15); font-size: 0.8rem;">
+                    <span class="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill"
+                        style="background: rgba(255,255,255,0.15); font-size: 0.8rem;">
                         <span style="width: 8px; height: 8px; border-radius: 50%; background: #fbbf24;"></span> Bảo trì
                     </span>
                 </div>
@@ -89,15 +93,17 @@ const clearFilters = () => {
                         <h5 class="filter-sidebar__title">
                             <i class="bi bi-funnel me-2"></i>Bộ Lọc Sân
                         </h5>
-                        
+
                         <div class="mb-4">
                             <label class="filter-sidebar__label">Ngày đặt</label>
-                            <input type="date" class="form-control filter-sidebar__input" v-model="searchParams.date" @change="fetchCourts">
+                            <input type="date" class="form-control filter-sidebar__input" v-model="searchParams.date"
+                                @change="fetchCourts">
                         </div>
 
                         <div class="mb-4">
                             <label class="filter-sidebar__label">Loại sân</label>
-                            <select class="form-select filter-sidebar__input" v-model="searchParams.type" @change="fetchCourts">
+                            <select class="form-select filter-sidebar__input" v-model="searchParams.type"
+                                @change="fetchCourts">
                                 <option value="">Tất cả loại sân</option>
                                 <option value="standard">Tiêu chuẩn</option>
                                 <option value="vip">VIP</option>
@@ -109,7 +115,8 @@ const clearFilters = () => {
                         <button class="btn w-100 py-3 fw-bold rounded-3 filter-sidebar__apply" @click="fetchCourts">
                             <i class="bi bi-search me-2"></i>Áp Dụng Lọc
                         </button>
-                        <button class="btn btn-link w-100 mt-2 text-muted" style="font-size: 0.85rem;" @click="clearFilters">
+                        <button class="btn btn-link w-100 mt-2 text-muted" style="font-size: 0.85rem;"
+                            @click="clearFilters">
                             <i class="bi bi-x-circle me-1"></i>Xóa bộ lọc
                         </button>
                     </div>
@@ -121,7 +128,8 @@ const clearFilters = () => {
                 <!-- Loading -->
                 <div v-if="store.loading" class="row g-4">
                     <div v-for="n in 6" :key="n" class="col-md-6 col-xl-4">
-                        <div class="card border-0 rounded-4 overflow-hidden" style="box-shadow: var(--court-ambient-shadow);">
+                        <div class="card border-0 rounded-4 overflow-hidden"
+                            style="box-shadow: var(--court-ambient-shadow);">
                             <div class="court-skeleton" style="height: 180px;"></div>
                             <div class="p-4">
                                 <div class="court-skeleton mb-2" style="height: 20px; width: 70%;"></div>
@@ -131,13 +139,14 @@ const clearFilters = () => {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Empty State -->
                 <div v-else-if="store.courts.length === 0" class="court-empty-state">
                     <div class="court-empty-state__icon"><i class="bi bi-calendar-x"></i></div>
                     <div class="court-empty-state__title">Không tìm thấy sân nào phù hợp</div>
                     <div class="court-empty-state__text">Vui lòng thử thay đổi điều kiện lọc hoặc chọn ngày khác.</div>
-                    <button class="btn btn-outline-primary rounded-pill px-4 mt-3" @click="clearFilters">Xóa bộ lọc</button>
+                    <button class="btn btn-outline-primary rounded-pill px-4 mt-3" @click="clearFilters">Xóa bộ
+                        lọc</button>
                 </div>
 
                 <!-- Court Cards -->
@@ -146,27 +155,30 @@ const clearFilters = () => {
                         <div class="client-court-card card h-100" @click="goToDetail(court.court_id)">
                             <!-- Image -->
                             <div class="client-court-card__img-wrap">
-                                <img 
-                                    :src="court.image_url || 'https://placehold.co/600x400/1a1a2e/e63b6f?text=San+' + (court.court_name || '')" 
-                                    class="client-court-card__img" 
-                                    :alt="court.court_name"
-                                    onerror="this.src='https://placehold.co/600x400/1a1a2e/e63b6f?text=San+Cau+Long'"
-                                >
+                                <img :src="court.image_url || 'https://placehold.co/600x400/1a1a2e/e63b6f?text=San+' + (court.court_name || '')"
+                                    class="client-court-card__img" :alt="court.court_name"
+                                    onerror="this.src='https://placehold.co/600x400/1a1a2e/e63b6f?text=San+Cau+Long'">
                                 <!-- Status Badge Overlay -->
-                                <div class="position-absolute top-0 start-0 w-100 p-3 d-flex justify-content-between align-items-start">
-                                    <span v-if="court.status === 'active'" class="status-badge status-badge--active" style="background: rgba(25, 135, 84, 0.9); color: #fff; border: none;">
-                                        <span class="pulse-dot pulse-dot--active" style="background: #fff;"></span> Đang trống
+                                <div
+                                    class="position-absolute top-0 start-0 w-100 p-3 d-flex justify-content-between align-items-start">
+                                    <span v-if="court.status === 'active'" class="status-badge status-badge--active"
+                                        style="background: rgba(25, 135, 84, 0.9); color: #fff; border: none;">
+                                        <span class="pulse-dot pulse-dot--active" style="background: #fff;"></span> Đang
+                                        trống
                                     </span>
-                                    <span v-else-if="court.status === 'maintenance'" class="status-badge status-badge--maintenance" style="background: rgba(253, 126, 20, 0.9); color: #fff; border: none;">
+                                    <span v-else-if="court.status === 'maintenance'"
+                                        class="status-badge status-badge--maintenance"
+                                        style="background: rgba(253, 126, 20, 0.9); color: #fff; border: none;">
                                         Bảo trì
                                     </span>
-                                    <span v-else class="status-badge status-badge--closed" style="background: rgba(220, 53, 69, 0.9); color: #fff; border: none;">
+                                    <span v-else class="status-badge status-badge--closed"
+                                        style="background: rgba(220, 53, 69, 0.9); color: #fff; border: none;">
                                         Đóng cửa
                                     </span>
-                                    
+
                                     <!-- Type Badge -->
-                                    <span class="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill" 
-                                          style="background: rgba(0,0,0,0.5); color: #fff; font-size: 0.7rem; font-weight: 600; backdrop-filter: blur(4px);">
+                                    <span class="d-inline-flex align-items-center gap-1 px-2 py-1 rounded-pill"
+                                        style="background: rgba(0,0,0,0.5); color: #fff; font-size: 0.7rem; font-weight: 600; backdrop-filter: blur(4px);">
                                         <i :class="getTypeIcon(court.type)" style="font-size: 0.6rem;"></i>
                                         {{ getTypeLabel(court.type) }}
                                     </span>
@@ -176,18 +188,22 @@ const clearFilters = () => {
                             <!-- Card Body -->
                             <div class="card-body p-4 d-flex flex-column">
                                 <h5 class="fw-bold mb-2" style="font-size: 1.05rem;">{{ court.court_name }}</h5>
-                                <p v-if="court.description" class="text-muted mb-0 flex-grow-1" style="font-size: 0.85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                <p v-if="court.description" class="text-muted mb-0 flex-grow-1"
+                                    style="font-size: 0.85rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                                     {{ court.description }}
                                 </p>
 
-                                <div class="mt-auto pt-3 d-flex justify-content-between align-items-center" style="border-top: 1px solid rgba(0,0,0,0.06);">
+                                <div class="mt-auto pt-3 d-flex justify-content-between align-items-center"
+                                    style="border-top: 1px solid rgba(0,0,0,0.06);">
                                     <div>
-                                        <span style="color: var(--court-primary); font-weight: 700; font-size: 1rem;">Linh hoạt</span>
+                                        <span
+                                            style="color: var(--court-primary); font-weight: 700; font-size: 1rem;">Linh
+                                            hoạt</span>
                                         <span class="text-muted" style="font-size: 0.8rem;"> / giờ</span>
                                     </div>
-                                    <button class="btn btn-sm px-3 py-2 fw-semibold rounded-pill" 
-                                            style="background: var(--court-primary); color: #fff; font-size: 0.8rem; border: none;"
-                                            @click.stop="goToDetail(court.court_id)">
+                                    <button class="btn btn-sm px-3 py-2 fw-semibold rounded-pill"
+                                        style="background: var(--court-primary); color: #fff; font-size: 0.8rem; border: none;"
+                                        @click.stop="goToDetail(court.court_id)">
                                         Đặt Sân <i class="bi bi-arrow-right ms-1"></i>
                                     </button>
                                 </div>
@@ -207,7 +223,7 @@ const clearFilters = () => {
     border-radius: 16px;
     padding: 24px;
     box-shadow: var(--court-ambient-shadow);
-    border: 1px solid rgba(0,0,0,0.04);
+    border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .filter-sidebar__title {
@@ -227,7 +243,7 @@ const clearFilters = () => {
 .filter-sidebar__input {
     border-radius: 10px;
     padding: 10px 14px;
-    border-color: rgba(0,0,0,0.08);
+    border-color: rgba(0, 0, 0, 0.08);
     background: #f8f9fb;
     transition: all 0.2s;
     font-size: 0.9rem;
@@ -235,7 +251,7 @@ const clearFilters = () => {
 
 .filter-sidebar__input:focus {
     border-color: var(--court-primary);
-    box-shadow: 0 0 0 3px var(--court-primary-soft, rgba(230,59,111,0.08));
+    box-shadow: 0 0 0 3px var(--court-primary-soft, rgba(230, 59, 111, 0.08));
     background: var(--card-bg);
 }
 
@@ -244,12 +260,13 @@ const clearFilters = () => {
     color: #fff;
     border: none;
     transition: all 0.3s;
-    box-shadow: 0 4px 12px rgba(230,59,111,0.2);
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.2);
 }
 
 .filter-sidebar__apply:hover {
-    box-shadow: 0 6px 20px rgba(230,59,111,0.35);
+    box-shadow: 0 6px 20px rgba(230, 59, 111, 0.35);
     transform: translateY(-1px);
     color: #fff;
 }
 </style>
+

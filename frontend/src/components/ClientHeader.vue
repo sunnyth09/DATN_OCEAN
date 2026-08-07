@@ -510,7 +510,7 @@ watch(
                 <!-- Logo -->
                 <router-link to="/" class="logo">
                     <div class="logo-container">
-                        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png?v=2'" alt="Logo"
+                        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png?v=2'" alt="Logo"
                             class="logo-img" />
                     </div>
                 </router-link>
@@ -997,28 +997,24 @@ watch(
 }
 
 .logo-container {
-    width: 60px;
-    height: 50px;
-    /* Adjust height to crop the text at the bottom */
-    overflow: hidden;
+    width: 65px;
+    height: 65px;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .logo-img {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    width: 70px;
-    height: auto;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 
 .site-header.is-scrolled .logo-container {
     width: 50px;
-    height: 42px;
-}
-
-.site-header.is-scrolled .logo-img {
-    width: 60px !important;
+    height: 50px;
 }
 
 /* NAVIGATION */

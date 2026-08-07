@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed } from 'vue';
 import { useCartUpsell } from '@/composables/useCartUpsell';
 
@@ -67,12 +67,12 @@ const barStyle = computed(() => ({
 
 <style scoped>
 .freeship-bar-wrapper {
-    background: var(--card-bg);
+    background: #fff;
     border: 1px solid #e8ecf1;
-    border-radius: 14px;
-    padding: 14px 20px;
-    margin-bottom: 16px;
-    box-shadow: 0 2px 12px rgba(230, 59, 111, 0.06);
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
 /* ── Header row ── */
@@ -143,7 +143,7 @@ const barStyle = computed(() => ({
 /* ── Progress track ── */
 .freeship-track {
     position: relative;
-    height: 10px;
+    height: 6px;
     background: #e2e8f0;
     border-radius: 999px;
     overflow: visible;
