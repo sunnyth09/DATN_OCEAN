@@ -27,7 +27,6 @@ const STATUS_MAP = {
 const METHOD_MAP = {
   bank_transfer: 'Chuyển khoản',
   vnpay: 'VNPay',
-  momo: 'MoMo',
 };
 
 const summaryPending = computed(() => deposits.value.filter(d => d.status === 'pending').length);

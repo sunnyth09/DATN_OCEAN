@@ -48,7 +48,6 @@ use App\Http\Controllers\GhnController;
 use App\Http\Controllers\GhnWebhookController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\LoyaltyController;
-use App\Http\Controllers\MoMoController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OceanExpressWebhookController;
 use App\Http\Controllers\OrderController;
@@ -594,10 +593,6 @@ Route::middleware('throttle:30,1')->group(function () {
 // IPN là server-to-server từ VNPay — không throttle, return URL tăng lên 60 cho user retry
 Route::middleware('throttle:60,1')->get('/payment/vnpay-return', [VNPayController::class, 'vnpayReturn']);
 Route::post('/payment/vnpay-ipn', [VNPayController::class, 'vnpayIpn']);
-
-// MoMo Payment Gateway
-Route::middleware('throttle:60,1')->get('/payment/momo-return', [MoMoController::class, 'momoReturn']);
-Route::post('/payment/momo-ipn', [MoMoController::class, 'momoIpn']);
 
 // SePay Webhook — server-to-server, không throttle
 Route::post('/payment/sepay-webhook', [SepayController::class, 'handleWebhook']);

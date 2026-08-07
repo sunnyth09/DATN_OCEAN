@@ -148,7 +148,7 @@ class OceanExpressOrderStatusSyncService
                     $updates['cancelled_at'] = $happenedAt;
                     $updates['cancel_reason'] = $description ?: 'Canceled by Ocean Express';
 
-                    if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
+                    if (in_array($order->payment_method, ['vnpay', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 

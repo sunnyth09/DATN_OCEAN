@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '@/axios';
@@ -41,8 +41,7 @@ const verifyPayment = async () => {
         let endpoint = '';
         if (queryString.includes('vnp_')) {
             endpoint = '/payment/vnpay-return' + queryString;
-        } else if (queryString.includes('partnerCode=') && queryString.includes('orderId=')) {
-            endpoint = '/payment/momo-return' + queryString;
+
         } else {
             error.value = 'Đường dẫn thanh toán không hợp lệ.';
             loading.value = false;

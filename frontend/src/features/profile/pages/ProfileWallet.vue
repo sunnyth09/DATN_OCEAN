@@ -492,13 +492,7 @@ onMounted(async () => {
                   </svg>
                   <span>VNPay</span>
                 </label>
-                <label class="dep-method" :class="{ active: depositMethod === 'momo' }">
-                  <input type="radio" v-model="depositMethod" value="momo" />
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d82d8b" stroke-width="2">
-                    <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
-                  </svg>
-                  <span>MoMo</span>
-                </label>
+
               </div>
 
               <button class="btn-confirm-deposit" @click="initDeposit" :disabled="depositLoading || !depositAmount">

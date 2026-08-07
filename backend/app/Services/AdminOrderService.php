@@ -173,7 +173,7 @@ class AdminOrderService
                 if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
                     $updates['cancel_reason'] = $data['note'] ?? ($isForce ? 'Ép hủy bởi Admin' : 'Hủy bởi Admin');
 
-                    if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
+                    if (in_array($order->payment_method, ['vnpay', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 
@@ -341,7 +341,7 @@ class AdminOrderService
                     if ($newFulfillmentStatus === OrderStatus::CANCELLED->value) {
                         $updates['cancel_reason'] = $data['note'] ?? 'Hủy hàng loạt bởi Admin';
 
-                        if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
+                        if (in_array($order->payment_method, ['vnpay', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
                             $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                         }
 
