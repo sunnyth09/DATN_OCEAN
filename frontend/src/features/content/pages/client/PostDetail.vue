@@ -3,7 +3,6 @@ import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import DOMPurify from 'dompurify';
-import AppIcon from '@/icons/AppIcon.vue';
 import { getStorageUrl } from '@/utils/url';
 
 const route = useRoute();
