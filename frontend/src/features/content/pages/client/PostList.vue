@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import api from '@/axios';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { getStorageUrl } from '@/utils/url';
 
 const posts = ref([]);

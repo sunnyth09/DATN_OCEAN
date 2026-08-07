@@ -481,7 +481,7 @@ class _CategoryScreenState extends State<CategoryScreen>
           itemBuilder: (_, i) {
             if (i == 0) {
               final sel = context.watch<CategoryProvider>().selectedCategoryId == null;
-              return _chip('Tất cả', sel, () => context.watch<CategoryProvider>().selectCategory(null, null));
+              return _chip('Tất cả', sel, () => context.read<CategoryProvider>().selectCategory(null, null));
             }
             final cat = context.watch<CategoryProvider>().categories[i - 1];
             final id = cat['category_id'] ?? cat['id'];
@@ -492,7 +492,7 @@ class _CategoryScreenState extends State<CategoryScreen>
             return _chip(
               name,
               sel,
-              () => context.watch<CategoryProvider>().selectCategory(int.tryParse(id.toString()), name),
+              () => context.read<CategoryProvider>().selectCategory(int.tryParse(id.toString()), name),
             );
           },
         ),

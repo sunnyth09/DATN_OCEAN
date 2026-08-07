@@ -1055,3 +1055,21 @@ option {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ===== CUSTOM LOGO SPINNER ===== */
+.spinner {
+  width: 60px !important;
+  height: 60px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background-image: url('./images/OCEAN_SPORT_LOGO_v0_tranperant.png') !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  animation: logo-pulse 1.2s infinite alternate ease-in-out !important;
+}
+
+@keyframes logo-pulse {
+  0% { transform: scale(0.9); opacity: 0.7; filter: drop-shadow(0 0 5px rgba(230, 59, 111, 0.2)); }
+  100% { transform: scale(1.1); opacity: 1; filter: drop-shadow(0 0 15px rgba(230, 59, 111, 0.5)); }
+}

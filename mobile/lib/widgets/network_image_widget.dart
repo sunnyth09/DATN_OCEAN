@@ -74,11 +74,23 @@ class NetworkImageWidget extends StatelessWidget {
         placeholderBuilder: (ctx) => _buildPlaceholder(ctx),
       );
     } else {
+      int? memCacheWidth;
+      int? memCacheHeight;
+      if (width != null && width!.isFinite) {
+        memCacheWidth = (width! * 2.5).toInt();
+      }
+      if (height != null && height!.isFinite) {
+        memCacheHeight = (height! * 2.5).toInt();
+      }
+
       image = CachedNetworkImage(
         imageUrl: imageUrl,
         width: width,
         height: height,
         fit: fit,
+        memCacheWidth: memCacheWidth,
+        memCacheHeight: memCacheHeight,
+        fadeInDuration: const Duration(milliseconds: 150),
         placeholder: (ctx, url) => _buildPlaceholder(ctx),
         errorWidget: (ctx, url, err) => _buildErrorWidget(ctx),
       );

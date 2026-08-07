@@ -76,8 +76,8 @@ const routes = [
                 ],
             },
             // Blog/Posts pages
-            { path: "posts", name: "post-list", component: () => import("../Pages/Client/Home/PostList.vue"), meta: { title: 'Tin tức' } },
-            { path: "posts/:id", name: "post-detail", component: () => import("../Pages/Client/Home/PostDetail.vue"), meta: { title: 'Chi tiết bài viết' } },
+            { path: "posts", name: "post-list", component: () => import("../features/content/pages/client/PostList.vue"), meta: { title: 'Tin tức' } },
+            { path: "posts/:id", name: "post-detail", component: () => import("../features/content/pages/client/PostDetail.vue"), meta: { title: 'Chi tiết bài viết' } },
             // Static pages
             { path: "about", name: "about", component: () => import("@/features/content/pages/static/BrandStory.vue"), meta: { title: 'Về chúng tôi' } },
             { path: "brand-story", name: "brand-story", component: () => import("@/features/content/pages/static/BrandStory.vue"), meta: { title: 'Câu chuyện thương hiệu' } },
@@ -439,8 +439,8 @@ router.beforeEach((to, from) => {
     }
 });
 
-// ==================== Dynamic Page Title ====================
-router.afterEach((to) => {
+// ==================== Dynamic Page Title & Global States ====================
+router.afterEach((to, from) => {
     const title = to.meta.title;
     const isAdmin = to.matched.some(record => record.path === '/admin');
 

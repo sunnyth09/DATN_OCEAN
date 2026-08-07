@@ -401,6 +401,9 @@ const changeQuantity = (item, rawQuantity) => {
         item.line_total = item.variant.price * newQuantity;
     }
 
+    // Debounce xử lý
+    clearQuantityInputTimer(item);
+
     // Nếu là khách vãng lai
     if (!authStore.isAuthenticated) {
         let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
@@ -409,13 +412,18 @@ const changeQuantity = (item, rawQuantity) => {
             localItems[idx].quantity = newQuantity;
             localStorage.setItem('cart_items', JSON.stringify(localItems));
         }
-        window.dispatchEvent(new Event('cart-updated'));
+        
+        const timer = setTimeout(() => {
+            window.dispatchEvent(new Event('cart-updated'));
+            quantityInputTimers.delete(key);
+        }, QUANTITY_INPUT_DEBOUNCE_MS);
+        
+        quantityInputTimers.set(key, timer);
         originalQuantities.delete(key);
         return;
     }
 
-    // Debounce API call
-    clearQuantityInputTimer(item);
+    // Dành cho user đã đăng nhập
     const timer = setTimeout(() => {
         submitQuantityUpdate(item, newQuantity);
         quantityInputTimers.delete(key);
@@ -540,6 +548,11 @@ const hasInvalidStockSelected = computed(() => {
     });
 });
 
+const isAnyItemUpdating = computed(() => {
+    const hasUpdating = Object.values(updating.value).some(val => val);
+    return hasUpdating || loading.value;
+});
+
 // Chuyển tới trang thanh toán
 const proceedToCheckout = () => {
     if (selectedItems.value.length === 0) return;
@@ -618,10 +631,42 @@ onUnmounted(() => {
             <h1>Giỏ hàng của bạn</h1>
         </div>
 
-        <!-- Loading State -->
-        <div v-if="loading" class="loading-state">
-            <div class="spinner"></div>
-            <p>Đang tải giỏ hàng...</p>
+        <!-- Loading State (Skeleton) -->
+        <div v-if="loading" class="cart-layout skeleton-layout">
+            <!-- Left: Skeleton Items -->
+            <div class="cart-items-section">
+                <!-- Action bar skeleton -->
+                <div class="cart-action-bar skeleton-box" style="height: 54px; border-radius: 12px;"></div>
+                
+                <!-- Items list skeleton -->
+                <div class="items-list">
+                    <div class="cart-item-card skeleton-item" v-for="i in 3" :key="i">
+                        <div class="skeleton-checkbox skeleton-box"></div>
+                        <div class="skeleton-image skeleton-box"></div>
+                        <div class="skeleton-details">
+                            <div class="skeleton-text skeleton-box" style="width: 70%; height: 20px; margin-bottom: 8px;"></div>
+                            <div class="skeleton-text skeleton-box" style="width: 40%; height: 14px; margin-bottom: 16px;"></div>
+                            <div class="skeleton-text skeleton-box" style="width: 30%; height: 18px;"></div>
+                        </div>
+                        <div class="skeleton-qty skeleton-box"></div>
+                        <div class="skeleton-btn skeleton-box"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right: Skeleton Summary -->
+            <div class="order-summary">
+                <div class="summary-card">
+                    <div class="skeleton-text skeleton-box" style="width: 60%; height: 24px; margin-bottom: 24px;"></div>
+                    <div class="skeleton-text skeleton-box" style="width: 100%; height: 16px; margin-bottom: 16px;"></div>
+                    <div class="skeleton-text skeleton-box" style="width: 100%; height: 16px; margin-bottom: 16px;"></div>
+                    <div class="skeleton-text skeleton-box" style="width: 100%; height: 16px; margin-bottom: 24px;"></div>
+                    <div class="summary-divider"></div>
+                    <div class="skeleton-text skeleton-box" style="width: 100%; height: 24px; margin-bottom: 24px;"></div>
+                    <div class="skeleton-box" style="width: 100%; height: 50px; border-radius: 12px; margin-bottom: 12px;"></div>
+                    <div class="skeleton-box" style="width: 100%; height: 50px; border-radius: 12px;"></div>
+                </div>
+            </div>
         </div>
 
         <!-- Empty Cart -->
@@ -652,33 +697,35 @@ onUnmounted(() => {
         <div v-if="!loading && cartItems.length > 0" class="cart-layout animate-in" style="animation-delay: 0.1s">
             <!-- Cột trái: Danh sách sản phẩm -->
             <div class="cart-items-section">
-                <!-- Action Bar -->
-
+                <!-- Thanh Freeship độc lập -->
                 <FreeshipBar v-if="!loading && cartItems.length > 0" />
-                <div class="cart-action-bar">
-                    <label class="checkbox-wrapper" @click.prevent="toggleSelectAll">
-                        <div class="custom-checkbox" :class="{ checked: selectAll }">
-                            <svg v-if="selectAll" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white"
-                                stroke-width="4">
-                                <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                        </div>
-                        <span>Chọn tất cả ({{ cartItems.length }})</span>
-                    </label>
-                    <button class="btn-clear" @click="clearCart" v-if="cartItems.length > 0">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                        </svg>
-                        Xóa đã chọn
-                    </button>
-                </div>
 
-                <!-- Cart Items List -->
-                <TransitionGroup name="cart-item" tag="div" class="items-list">
-                    <div v-for="item in cartItems" :key="item.cart_item_id" class="cart-item-card"
-                        :class="{ 'item-unavailable': item.variant?.status !== 'active' }">
+                <!-- Vùng chứa khối liền mạch -->
+                <div class="seamless-cart-container">
+                    <div class="cart-action-bar">
+                        <label class="checkbox-wrapper" @click.prevent="toggleSelectAll">
+                            <div class="custom-checkbox" :class="{ checked: selectAll }">
+                                <svg v-if="selectAll" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white"
+                                    stroke-width="4">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                            </div>
+                            <span>Chọn tất cả ({{ cartItems.length }})</span>
+                        </label>
+                        <button class="btn-clear" @click="clearCart" v-if="cartItems.length > 0">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                            </svg>
+                            Xóa đã chọn
+                        </button>
+                    </div>
+    
+                    <!-- Cart Items List -->
+                    <TransitionGroup name="cart-item" tag="div" class="items-list">
+                        <div v-for="item in cartItems" :key="item.cart_item_id" class="cart-item-card"
+                            :class="{ 'item-unavailable': item.variant?.status !== 'active' }">
                         <!-- Checkbox -->
                         <div class="item-checkbox" @click="toggleSelect(item)">
                             <div class="custom-checkbox" :class="{ checked: item.selected }">
@@ -722,11 +769,13 @@ onUnmounted(() => {
                             <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
                                 Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
                             </div>
-                        </div>
+                            
+                            <!-- Moved price inside details -->
                             <div class="item-price">{{ formatPrice(item.variant?.price) }}</div>
+                        </div>
 
-                        <!-- Spacer to push quantity to the right -->
-                        <div style="flex: 1"></div>
+                        <!-- Spacer -->
+                        <div class="item-spacer"></div>
 
                         <!-- Quantity -->
                         <div class="quantity-control">
@@ -762,6 +811,7 @@ onUnmounted(() => {
                         </button>
                     </div>
                 </TransitionGroup>
+                </div> <!-- END seamless-cart-container -->
 
                 <!-- ── Quick Add Slider ── -->
                 <QuickAddSlider />
@@ -796,12 +846,18 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0">
-                        Thanh toán
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" style="margin-left: 4px; vertical-align: -3px">
-                            <path d="M5 12h14M12 5l7 7-7 7" />
-                        </svg>
+                    <button class="btn-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0 || isAnyItemUpdating">
+                        <span v-if="isAnyItemUpdating" style="display: flex; align-items: center; justify-content: center; gap: 8px">
+                            <span class="vmodal-spinner" style="width: 16px; height: 16px; border-width: 2px; border-top-color: #fff"></span>
+                            Đang xử lý...
+                        </span>
+                        <template v-else>
+                            Thanh toán
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" style="margin-left: 4px; vertical-align: -3px">
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
+                        </template>
                     </button>
 
                     <router-link to="/product" class="btn-continue">
@@ -921,7 +977,7 @@ onUnmounted(() => {
         <div v-if="productRelated.length">
             <div class="row mt-3">
                 <div class="col-lg-3 mt-4" v-for="product in productRelated" :key="product.id">
-                    <ProductCard :product="product" :rows="3" />
+                    <ProductCard :product="product" />
                 </div>
             </div>
         </div>
@@ -972,34 +1028,45 @@ onUnmounted(() => {
 }
 
 .page-header h1 {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 800;
     color: #102a43;
     margin-bottom: 8px;
 }
 
-/* Loading */
-.loading-state {
-    text-align: center;
-    padding: 80px 20px;
-    color: #627d98;
+/* Skeleton Loading */
+.skeleton-box {
+    background: linear-gradient(90deg, #f0f2f5 25%, #e6e8eb 50%, #f0f2f5 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite linear;
+    border-radius: 4px;
 }
 
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #e8ecf1;
-    border-top-color: #E63B6F;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 16px;
+@keyframes skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+.skeleton-layout {
+    opacity: 0.8;
+    pointer-events: none;
 }
+
+.skeleton-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border: 1px solid #e8ecf1;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.skeleton-checkbox { width: 20px; height: 20px; border-radius: 5px; flex-shrink: 0; }
+.skeleton-image { width: 90px; height: 90px; border-radius: 8px; flex-shrink: 0; }
+.skeleton-details { flex: 1; display: flex; flex-direction: column; }
+.skeleton-qty { width: 100px; height: 36px; border-radius: 8px; flex-shrink: 0; margin-left: auto; }
+.skeleton-btn { width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0; margin-left: 16px; }
 
 /* Empty Cart */
 .empty-cart {
@@ -1049,17 +1116,24 @@ onUnmounted(() => {
     width: calc(66.666% - 16px);
 }
 
+/* Seamless Container */
+.seamless-cart-container {
+    background: #fff;
+    border: 1px solid #e8ecf1;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
 /* Action Bar */
 .cart-action-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px;
+    padding: 8px 16px;
     background: #fff;
-    border-radius: 12px;
-    border: 1px solid #e8ecf1;
-    margin-bottom: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid #e8ecf1;
 }
 
 .checkbox-wrapper {
@@ -1074,10 +1148,10 @@ onUnmounted(() => {
 }
 
 .custom-checkbox {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border: 2px solid #c8d6e0;
-    border-radius: 5px;
+    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1094,7 +1168,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 0;
+    padding: 4px 0;
     border: none;
     background: transparent;
     color: #E63B6F;
@@ -1113,25 +1187,25 @@ onUnmounted(() => {
 .items-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 24px;
+    /* Remove gap to use border-bottom instead */
 }
 
 .cart-item-card {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px 20px;
+    gap: 12px;
+    padding: 12px 16px;
     background: #fff;
-    border-radius: 12px;
-    border: 1px solid #e8ecf1;
+    border-bottom: 1px solid #e8ecf1;
     transition: all 0.25s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.cart-item-card:last-child {
+    border-bottom: none;
 }
 
 .cart-item-card:hover {
-    border-color: rgba(230, 59, 111, 0.25);
-    box-shadow: 0 4px 16px rgba(230, 59, 111, 0.06);
+    background: #fafbfc;
 }
 
 .cart-item-card.item-unavailable {
@@ -1151,8 +1225,8 @@ onUnmounted(() => {
 }
 
 .item-image {
-    width: 90px;
-    height: 90px;
+    width: 70px;
+    height: 70px;
     object-fit: cover;
     border-radius: 10px;
     border: 1px solid #eef2f6;
@@ -1170,7 +1244,7 @@ onUnmounted(() => {
 }
 
 .item-name {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 700;
     color: #1a2b4a;
     text-decoration: none;
@@ -1231,10 +1305,14 @@ onUnmounted(() => {
 
 /* Price & Quantity */
 .item-price {
-    font-size: 1.3rem;
+    font-size: 1.05rem;
     font-weight: 800;
     color: #E63B6F;
-    margin-top: 12px;
+    margin-top: 4px;
+}
+
+.item-spacer {
+    flex: 1;
 }
 
 .quantity-control {
@@ -1247,8 +1325,8 @@ onUnmounted(() => {
 }
 
 .qty-btn {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     border: none;
     background: transparent;
     cursor: pointer;
@@ -1270,16 +1348,16 @@ onUnmounted(() => {
 }
 
 .qty-display {
-    width: 48px;
-    height: 34px;
+    width: 36px;
+    height: 28px;
     text-align: center;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 700;
     color: #102a43;
     border: 0;
     border-left: 1px solid #e8ecf1;
     border-right: 1px solid #e8ecf1;
-    line-height: 34px;
+    line-height: 28px;
     outline: none;
     background: #fff;
 }
@@ -1296,21 +1374,24 @@ onUnmounted(() => {
 
 /* Remove Button */
 .btn-remove {
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     border: none;
-    background: transparent;
+    background: #f8fafc;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #a0aec0;
+    color: #94a3b8;
     transition: all 0.2s;
     flex-shrink: 0;
+    margin-left: 8px;
 }
 
 .btn-remove:hover {
     color: #E63B6F;
+    background: #fff5f8;
 }
 
 /* Order Summary */
@@ -1323,9 +1404,9 @@ onUnmounted(() => {
 
 .summary-card {
     background: #fff;
-    border-radius: 14px;
+    border-radius: 12px;
     border: 1px solid #e8ecf1;
-    padding: 24px;
+    padding: 16px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
@@ -1363,7 +1444,7 @@ onUnmounted(() => {
 }
 
 .total-price {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     font-weight: 800;
     color: #E63B6F !important;
 }
@@ -1415,13 +1496,13 @@ onUnmounted(() => {
 
 .btn-checkout {
     width: 100%;
-    padding: 14px;
+    padding: 10px;
     background: #E63B6F;
     color: #fff;
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     font-weight: 700;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
     font-family: inherit;
     transition: all 0.25s;
@@ -1445,14 +1526,14 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     width: 100%;
-    padding: 13px;
-    margin-top: 10px;
+    padding: 8px;
+    margin-top: 8px;
     color: #E63B6F;
     border: 1px solid #E63B6F;
-    border-radius: 10px;
+    border-radius: 8px;
     text-decoration: none;
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 0.9rem;
     background: #fff;
     transition: all 0.2s;
 }
