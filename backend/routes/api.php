@@ -199,6 +199,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::put('/orders/{id}/cancel', [OrderController::class, 'cancel']);
     // Đánh giá sản phẩm
     Route::middleware(['throttle:5,1', 'profanity'])->post('/orders/feedback', [ProductCommentController::class, 'store']);
+    Route::middleware(['throttle:5,1', 'profanity'])->post('/orders/feedback/batch', [ProductCommentController::class, 'storeBatch']);
 
     // ── Notifications (Thông báo inbox) ──
     Route::get('/notifications', [NotificationController::class, 'index']);

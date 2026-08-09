@@ -115,9 +115,63 @@ const closeModal = () => {
     emit('update:modelValue', false);
 };
 
+const compressImage = (file, maxWidth = 1024, maxHeight = 1024, quality = 0.7) => {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(file);
+              return;
+            }
+            const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
+
 const submitFeedback = async () => {
     submitting.value = true;
-    let submittedCount = 0;
     
     // Thu thập các items đã được rate
     const itemsToSubmit = Object.keys(reviewForms.value).filter(
@@ -130,47 +184,84 @@ const submitFeedback = async () => {
         return;
     }
 
+    // Xóa lỗi cũ
+    itemsToSubmit.forEach(itemId => {
+        if (reviewForms.value[itemId]) {
+            reviewForms.value[itemId].errorMessage = '';
+        }
+    });
+
     try {
-        let lastError = null;
-        for (const itemId of itemsToSubmit) {
+        const formData = new FormData();
+        
+        for (let idx = 0; idx < itemsToSubmit.length; idx++) {
+            const itemId = itemsToSubmit[idx];
             const form = reviewForms.value[itemId];
             const itemOriginal = props.order.items.find(i => i.order_item_id == itemId);
             if (!itemOriginal) continue;
 
-            try {
-               const formData = new FormData();
-               formData.append('order_item_id', Number(itemId));
-               formData.append('product_id', itemOriginal.product_id);
-               formData.append('rating', form.rating);
-               formData.append('content', form.content);
-               if (form.images && form.images.length > 0) {
-                   form.images.forEach((file, index) => {
-                       formData.append(`images[${index}]`, file);
-                   });
-               }
+            formData.append(`items[${idx}][order_item_id]`, Number(itemId));
+            formData.append(`items[${idx}][product_id]`, itemOriginal.product_id);
+            formData.append(`items[${idx}][rating]`, form.rating);
+            formData.append(`items[${idx}][content]`, form.content);
 
-               await api.post('/profile/orders/feedback', formData, {
-                   headers: {
-                       'Content-Type': 'multipart/form-data'
-                   }
-               });
-               submittedCount++;
-            } catch (err) {
-               console.error('Lỗi khi submit item ' + itemId, err.response?.data || err);
-               lastError = err.response?.data?.message || 'Lỗi không xác định từ server';
+            if (form.images && form.images.length > 0) {
+                for (let imgIdx = 0; imgIdx < form.images.length; imgIdx++) {
+                    const file = form.images[imgIdx];
+                    // Nén ảnh trước khi append vào FormData
+                    const compressedFile = await compressImage(file, 1024, 1024, 0.7);
+                    formData.append(`items[${idx}][images][${imgIdx}]`, compressedFile);
+                }
             }
         }
 
-        if (submittedCount > 0) {
-            showToast('Các đánh giá hợp lệ đã được ghi nhận. Cảm ơn bạn!', 'success');
-            emit('feedback-submitted');
-            closeModal();
+        const response = await api.post('/profile/orders/feedback/batch', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+
+        // Cập nhật comment trong local items
+        if (response.data?.status === 'success' && Array.isArray(response.data.data)) {
+            response.data.data.forEach(comment => {
+                const itemOriginal = props.order.items.find(i => i.order_item_id == comment.order_item_id);
+                if (itemOriginal) {
+                    itemOriginal.comment = comment;
+                }
+            });
         } else {
-            showToast(lastError ? lastError : 'Có thể bạn đã đánh giá toàn bộ sản phẩm trong đơn này rồi.', 'danger');
+            // Fallback: nếu không trả về chi tiết, đánh dấu đã review cho các item đã gửi
+            itemsToSubmit.forEach(itemId => {
+                const itemOriginal = props.order.items.find(i => i.order_item_id == itemId);
+                if (itemOriginal) {
+                    itemOriginal.comment = true;
+                }
+            });
         }
-    } catch (error) {
-        console.error(error);
-        showToast('Không thể gửi đánh giá lúc này.', 'danger');
+
+        emit('feedback-submitted');
+        showToast('Các đánh giá đã được ghi nhận. Cảm ơn bạn!', 'success');
+        closeModal();
+    } catch (err) {
+        console.error('Lỗi khi submit feedback:', err.response?.data || err);
+        const msg = err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại sau.';
+        showToast(msg, 'danger');
+
+        // Hiển thị lỗi validate chi tiết cho từng item (nếu có từ Laravel validation)
+        if (err.response?.data?.errors) {
+            const errors = err.response.data.errors;
+            Object.keys(errors).forEach(key => {
+                // Ví dụ key: "items.0.content" hoặc "items.0.images.1"
+                const match = key.match(/^items\.(\d+)\.(.+)$/);
+                if (match) {
+                    const index = Number(match[1]);
+                    const itemId = itemsToSubmit[index];
+                    if (itemId && reviewForms.value[itemId]) {
+                        reviewForms.value[itemId].errorMessage = errors[key][0];
+                    }
+                }
+            });
+        }
     } finally {
         submitting.value = false;
     }
