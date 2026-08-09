@@ -38,16 +38,34 @@ const { categories: storeCategories } = storeToRefs(catalogStore);
 
 // ── Tab filter ──
 const activeTab = ref('all');
+const saleProducts = ref([]);
+const isLoadingSale = ref(false);
+let hasFetchedSale = false;
 
 const filteredProducts = computed(() => {
-    if (activeTab.value === 'sale') {
-        return Products.value.filter(p =>
-            p.is_on_sale ||
-            (p.discount_percent && p.discount_percent > 0) ||
-            (p.original_price && p.original_price > p.min_price)
-        );
-    }
+    if (activeTab.value === 'sale') return saleProducts.value;
     return Products.value;
+});
+
+const fetchSaleProducts = async () => {
+    if (hasFetchedSale) return;
+    isLoadingSale.value = true;
+    try {
+        const res = await catalogStore.fetchOnSaleProducts();
+        const rawData = extractCollection(res);
+        saleProducts.value = (Array.isArray(rawData) ? rawData : []).map(mapProduct);
+        hasFetchedSale = true;
+    } catch (e) {
+        console.error('Lỗi tải sản phẩm sale:', e);
+    } finally {
+        isLoadingSale.value = false;
+    }
+};
+
+watch(activeTab, (tab) => {
+    if (tab === 'sale' && !hasFetchedSale) {
+        fetchSaleProducts();
+    }
 });
 
 // ── Flash Sale Countdown ──
@@ -114,13 +132,35 @@ const getCategoryImage = (cat) => {
 const mapProduct = (item) => {
     const lowest = item.lowest_price_variant || item.lowestPriceVariant || null;
     const currentPrice = lowest?.effective_price ?? (item.min_price || 0);
+
+    // Xác định giá gốc (để gạch ngang)
     let originalPrice = null;
-    if (lowest?.is_on_sale) originalPrice = lowest.price;
-    else if (lowest?.compare_at_price > lowest?.price) originalPrice = lowest.compare_at_price;
-    let maxDiscount = lowest?.discount_percent || 0;
-    if (item.variants?.length) {
-        maxDiscount = Math.max(...item.variants.map(v => v.discount_percent || 0), maxDiscount);
+    if (lowest?.is_on_sale) {
+        originalPrice = lowest.price; // Sale từ sale_price
+    } else if (lowest?.compare_at_price > lowest?.price) {
+        originalPrice = lowest.compare_at_price; // Sale từ compare_at_price
     }
+
+    // Tính phần trăm giảm giá từ cả 2 nguồn
+    let maxDiscount = lowest?.discount_percent || 0; // Từ sale_price (model accessor)
+    if (!maxDiscount && lowest?.compare_at_price > lowest?.price && lowest?.price > 0) {
+        // Tính từ compare_at_price nếu chưa có discount từ sale_price
+        maxDiscount = Math.round((lowest.compare_at_price - lowest.price) / lowest.compare_at_price * 100);
+    }
+    if (item.variants?.length) {
+        const variantDiscounts = item.variants.map(v => {
+            let d = v.discount_percent || 0;
+            if (!d && v.compare_at_price > v.price && v.price > 0) {
+                d = Math.round((v.compare_at_price - v.price) / v.compare_at_price * 100);
+            }
+            return d;
+        });
+        maxDiscount = Math.max(maxDiscount, ...variantDiscounts);
+    }
+
+    // Sản phẩm coi là "đang sale" nếu có sale_price active hoặc compare_at_price > price
+    const isOnSale = lowest?.is_on_sale || (lowest?.compare_at_price > lowest?.price) || false;
+
     return {
         id: item.product_id, name: item.name,
         price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(currentPrice),
@@ -128,15 +168,16 @@ const mapProduct = (item) => {
         originalPrice: originalPrice ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(originalPrice) : null,
         original_price: originalPrice,
         discount_percent: maxDiscount,
-        is_on_sale: lowest?.is_on_sale || false,
+        is_on_sale: isOnSale,
         image: getImageUrl(item.thumbnail_url || item.mainImage?.image_url || null),
-        badge: item.is_featured ? "Hot" : (maxDiscount > 0 ? "Sale" : null),
+        badge: item.is_featured ? "Hot" : (maxDiscount > 0 ? `-${maxDiscount}%` : null),
         slug: item.slug,
         category_name: item.category_name || '',
         variants_sum_stock: item.variants_sum_stock ?? null,
         variants: item.variants ?? [],
     };
 };
+
 
 const fetchCategories = async () => {
     if (catalogStore.hasFetchedCategories) {
@@ -367,7 +408,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
             <CategoriesSection :Categories="Categories" :isLoadingCategories="isLoadingCategories"
                 :getCatIcon="getCatIcon" :getCatGradient="getCatGradient" />
             <BannerSection :activeTab="activeTab" :filteredProducts="filteredProducts"
-                :isLoadingFeatured="isLoadingFeatured" @update:activeTab="activeTab = $event" />
+                :isLoadingFeatured="isLoadingFeatured" :isLoadingSale="isLoadingSale"
+                @update:activeTab="activeTab = $event" />
             <PromoBannersSection />
             <TestimonialsSection :brands="brands" />
             <PostsSection :homePosts="homePosts" />

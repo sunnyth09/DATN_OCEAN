@@ -1,7 +1,7 @@
 <script setup>
 import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
-defineProps(['activeTab', 'filteredProducts', 'isLoadingFeatured']);
+defineProps(['activeTab', 'filteredProducts', 'isLoadingFeatured', 'isLoadingSale']);
 defineEmits(['update:activeTab']);
 </script>
 <template>
@@ -28,7 +28,7 @@ defineEmits(['update:activeTab']);
             </div>
             <!-- Products Bootstrap row -->
             <div class="row g-4">
-                <template v-if="isLoadingFeatured">
+                <template v-if="isLoadingFeatured || (activeTab === 'sale' && isLoadingSale)">
                     <div v-for="i in 8" :key="i" class="col-6 col-md-4 col-lg-3">
                         <ProductSkeleton />
                     </div>
