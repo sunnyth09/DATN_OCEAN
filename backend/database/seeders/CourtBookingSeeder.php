@@ -42,11 +42,11 @@ class CourtBookingSeeder extends Seeder
         // --- Users (bảng users) ---
         $userIds = [];
         $userNames = [
-            ['Nguyễn Văn An',    'nguyen.an@demo.com',    '0911000001'],
-            ['Trần Thị Bình',    'tran.binh@demo.com',    '0911000002'],
-            ['Lê Hoàng Cường',   'le.cuong@demo.com',     '0911000003'],
-            ['Phạm Minh Đức',    'pham.duc@demo.com',     '0911000004'],
-            ['Võ Thanh Em',      'vo.em@demo.com',        '0911000005'],
+            ['Nguyễn Văn An',    'nguyen.an@demo.com',    '0998888001'],
+            ['Trần Thị Bình',    'tran.binh@demo.com',    '0998888002'],
+            ['Lê Hoàng Cường',   'le.cuong@demo.com',     '0998888003'],
+            ['Phạm Minh Đức',    'pham.duc@demo.com',     '0998888004'],
+            ['Võ Thanh Em',      'vo.em@demo.com',        '0998888005'],
         ];
 
         foreach ($userNames as $u) {
@@ -121,7 +121,7 @@ class CourtBookingSeeder extends Seeder
                     'deposit_amount' => 0,
                     'paid_amount' => $price,
                     'payment_status' => 'paid',
-                    'payment_method' => ['cash', 'vnpay', 'momo', 'bank_transfer'][array_rand(['cash', 'vnpay', 'momo', 'bank_transfer'])],
+                    'payment_method' => ['cash', 'vnpay', 'bank_transfer'][array_rand(['cash', 'vnpay', 'bank_transfer'])],
                     'checked_in_at' => $date->copy()->setHour($startHour),
                     'checked_out_at' => $date->copy()->setHour($endHour),
                     'confirmed_at' => $date->copy()->setHour($startHour)->subMinutes(30),
@@ -385,7 +385,7 @@ class CourtBookingSeeder extends Seeder
                     'deposit_amount' => 0,
                     'paid_amount' => 0,
                     'payment_status' => 'unpaid',
-                    'payment_method' => ['cash', 'vnpay', 'momo', 'bank_transfer'][array_rand(['cash', 'vnpay', 'momo', 'bank_transfer'])],
+                    'payment_method' => ['cash', 'vnpay', 'bank_transfer'][array_rand(['cash', 'vnpay', 'bank_transfer'])],
                     'source' => 'web',
                     'confirmed_at' => $status === 'confirmed' ? $now : null,
                     'created_at' => $now->copy()->subHours(rand(1, 24)),

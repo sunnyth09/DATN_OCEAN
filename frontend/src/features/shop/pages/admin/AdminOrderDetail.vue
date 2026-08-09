@@ -6,7 +6,7 @@ import { Toast, Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
 import { getStorageUrl } from '@/utils/url';
 import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline.vue';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -50,21 +50,7 @@ statuses.push(
   { value: 'refunded', label: 'Đã hoàn tiền' },
 );
 
-const statusTransitions = {
-  'pending': ['pending', 'confirmed', 'cancelled'],
-  'confirmed': ['confirmed', 'processing', 'packing', 'cancelled'],
-  'processing': ['processing', 'packing', 'shipping', 'cancelled'],
-  'packing': ['packing', 'shipping', 'cancelled'],
-  'shipping': ['shipping', 'delivered', 'cancelled', 'return_requested'],
-  'delivered': ['delivered', 'completed', 'return_requested'],
-  'completed': ['completed', 'return_requested'],
-  'cancelled': ['cancelled'],
-  'return_requested': ['return_requested', 'return_approved', 'return_rejected'],
-  'return_approved': ['return_approved', 'returned', 'refunded'],
-  'return_rejected': ['return_rejected'],
-  'returned': ['returned', 'refunded'],
-  'refunded': ['refunded']
-};
+// statusTransitions was removed because we use backend available_transitions now
 
 const isLockedFulfillmentStatus = (status) => {
   return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returned', 'refunded'].includes(status);
@@ -74,6 +60,7 @@ const statusActionDefinitions = {
   confirmed: { icon: 'check', label: 'Duyệt đơn', success: 'Đã duyệt đơn hàng thành công!' },
   processing: { icon: 'clock', label: 'Chuyển sang đang xử lý', success: 'Đã chuyển đơn sang đang xử lý!' },
   packing: { icon: 'clipboard-list', label: 'Chuyển sang đóng gói', success: 'Đã chuyển đơn sang đóng gói!' },
+  awaiting_pickup: { icon: 'package', label: 'Chờ lấy hàng', success: 'Đã chuyển đơn sang chờ lấy hàng!' },
   shipping: { icon: 'truck', label: 'Chuyển sang đang giao', success: 'Đã chuyển đơn sang đang giao!' },
   delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
   completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
@@ -83,12 +70,15 @@ const statusActionDefinitions = {
   return_rejected: { icon: 'x', label: 'Từ chối hoàn trả', success: 'Đã từ chối yêu cầu hoàn trả!' },
   returned: { icon: 'package-check', label: 'Đã nhận hàng hoàn', success: 'Đã xác nhận nhận hàng hoàn!' },
   refunded: { icon: 'corner-down-left', label: 'Đã hoàn tiền', success: 'Đã hoàn tiền thành công!' },
+  returning: { icon: 'truck', label: 'Khách đang gửi trả', success: 'Khách hàng đang gửi trả sản phẩm!' },
+  warehouse_received: { icon: 'box', label: 'Kho đã nhận', success: 'Kho đã nhận sản phẩm hoàn trả!' },
+  inspection_failed: { icon: 'x-circle', label: 'Không đạt kiểm tra', success: 'Hàng hoàn trả không đạt yêu cầu!' },
+  inspected_ok: { icon: 'check-circle', label: 'Đạt kiểm tra', success: 'Hàng hoàn trả đạt yêu cầu!' },
 };
 
 const getCurrentOrderStatusActions = () => {
   if (!order.value) return [];
-  const current = order.value.fulfillment_status;
-  const allowed = (statusTransitions[current] || []).filter(status => status !== current);
+  const allowed = order.value.available_transitions || [];
   return allowed
     .filter((status) => {
       if (status === 'delivered' && order.value.tracking_number) return false;
@@ -120,7 +110,6 @@ const paymentLabels = {
 const paymentMethodLabels = {
   cod: 'Thanh toán khi nhận hàng (COD)',
   vnpay: 'VNPay',
-  momo: 'Ví MoMo',
   bank_transfer: 'Chuyển khoản ngân hàng',
 };
 

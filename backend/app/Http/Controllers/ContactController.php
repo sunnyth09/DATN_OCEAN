@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\UserNotificationEvent;
+use App\Helpers\ProfanityFilter;
 use App\Models\Contact;
 use App\Models\User;
 use Carbon\Carbon;
@@ -121,9 +122,9 @@ class ContactController extends Controller
         ]);
 
         $validator->after(function ($validator) use ($request) {
-            if (\App\Helpers\ProfanityFilter::hasProfanity($request->name) || 
-                \App\Helpers\ProfanityFilter::hasProfanity($request->subject) || 
-                \App\Helpers\ProfanityFilter::hasProfanity($request->message)) {
+            if (ProfanityFilter::hasProfanity($request->name) ||
+                ProfanityFilter::hasProfanity($request->subject) ||
+                ProfanityFilter::hasProfanity($request->message)) {
                 $validator->errors()->add('message', 'Nội dung chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.');
             }
         });
@@ -150,7 +151,7 @@ class ContactController extends Controller
         RateLimiter::hit($ipKey, 3600);
         RateLimiter::hit($emailKey, 3600);
 
-        $filteredMessage = \App\Helpers\ProfanityFilter::filter($request->message);
+        $filteredMessage = ProfanityFilter::filter($request->message);
 
         Contact::create([
             'name' => $request->name,

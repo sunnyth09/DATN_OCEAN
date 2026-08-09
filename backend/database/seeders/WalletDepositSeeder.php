@@ -24,7 +24,7 @@ class WalletDepositSeeder extends Seeder
             return;
         }
 
-        $methods = ['vnpay', 'bank_transfer', 'momo'];
+        $methods = ['vnpay', 'bank_transfer'];
         $statuses = ['pending', 'completed', 'failed'];
 
         $deposits = [];

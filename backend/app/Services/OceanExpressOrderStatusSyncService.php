@@ -2,13 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Repositories\AdminOrderRepository;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use App\Enums\OrderStatus;
 
 class OceanExpressOrderStatusSyncService
 {
@@ -23,7 +24,7 @@ class OceanExpressOrderStatusSyncService
     {
         return [
             'pending' => OrderStatus::PENDING->value,
-            'picking' => OrderStatus::PACKING->value,
+            'picking' => OrderStatus::AWAITING_PICKUP->value,
             'shipping' => OrderStatus::SHIPPING->value,
             'delivering' => OrderStatus::SHIPPING->value,
             'delivered' => OrderStatus::DELIVERED->value,
@@ -56,7 +57,65 @@ class OceanExpressOrderStatusSyncService
             ];
         }
 
-        return $this->applyStatus($order, $mappedStatus, $oeStatus, 'ocean_express_webhook', $happenedAt, $description, $latitude, $longitude);
+        // Cache lock để chống race condition khi webhook gọi đồng thời
+        $lockKey = 'oe_webhook_sync_'.$order->order_id.'_'.$oeStatus;
+        $lock = Cache::lock($lockKey, 10);
+
+        if (! $lock->get()) {
+            return [
+                'changed' => false,
+                'history_created' => false,
+                'old_status' => $order->fulfillment_status,
+                'new_status' => $order->fulfillment_status,
+                'mapped_status' => $mappedStatus,
+                'ghn_status' => $oeStatus,
+                'happened_at' => $happenedAt->toIso8601String(),
+                'description' => $description,
+                'message' => 'Hệ thống đang xử lý webhook này (lock) — bỏ qua.',
+            ];
+        }
+
+        try {
+            // Idempotency: hãng vận chuyển gửi lại webhook khi không nhận được 2xx.
+            // Bỏ qua payload đã xử lý để không tạo dòng lịch sử trùng (và không chạy
+            // lại nhánh cancelled → hoàn tiền ví / hoàn tồn kho).
+            if ($this->isDuplicate($order, $oeStatus, $payload)) {
+                return [
+                    'changed' => false,
+                    'history_created' => false,
+                    'old_status' => $order->fulfillment_status,
+                    'new_status' => $order->fulfillment_status,
+                    'mapped_status' => $mappedStatus,
+                    'ghn_status' => $oeStatus,
+                    'happened_at' => $happenedAt->toIso8601String(),
+                    'description' => $description,
+                    'message' => 'Webhook đã được xử lý trước đó (duplicate) — bỏ qua.',
+                ];
+            }
+
+            return $this->applyStatus($order, $mappedStatus, $oeStatus, 'ocean_express_webhook', $happenedAt, $description, $latitude, $longitude);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Đã có bản ghi lịch sử cùng trạng thái + cùng mốc thời gian từ hãng vận chuyển?
+     *
+     * Chỉ chống trùng khi payload CÓ `timestamp`. Nếu thiếu timestamp thì
+     * parseHappenedAt() trả về now(), không thể dùng làm khoá so sánh — khi đó
+     * cho đi tiếp và dựa vào shouldUpdateOrder() để không đổi trạng thái sai.
+     */
+    private function isDuplicate(Order $order, string $oeStatus, array $payload): bool
+    {
+        if (empty($payload['timestamp'])) {
+            return false;
+        }
+
+        return OrderStatusHistory::where('order_id', $order->order_id)
+            ->where('ghn_status', $oeStatus)
+            ->where('happened_at', $this->parseHappenedAt($payload))
+            ->exists();
     }
 
     private function applyStatus(
@@ -72,7 +131,7 @@ class OceanExpressOrderStatusSyncService
         return DB::transaction(function () use ($order, $mappedStatus, $oeStatus, $source, $happenedAt, $description, $latitude, $longitude) {
             $oldStatus = $order->fulfillment_status;
             $shouldUpdateOrder = $this->shouldUpdateOrder($oldStatus, $mappedStatus);
-            
+
             if ($shouldUpdateOrder) {
                 $updates = ['fulfillment_status' => $mappedStatus];
 
@@ -89,7 +148,7 @@ class OceanExpressOrderStatusSyncService
                     $updates['cancelled_at'] = $happenedAt;
                     $updates['cancel_reason'] = $description ?: 'Canceled by Ocean Express';
 
-                    if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
+                    if (in_array($order->payment_method, ['vnpay', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 
@@ -157,6 +216,7 @@ class OceanExpressOrderStatusSyncService
         'confirmed' => 20,
         'processing' => 30,
         'packing' => 40,
+        'awaiting_pickup' => 45,
         'shipping' => 50,
         'delivered' => 60,
         'completed' => 70,

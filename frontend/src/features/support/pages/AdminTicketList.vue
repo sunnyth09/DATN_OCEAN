@@ -199,7 +199,7 @@
 import { ref, onMounted } from 'vue';
 import Swal from 'sweetalert2';
 import api from '@/axios';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { getStorageUrl } from '@/utils/url';
 
 const tickets = ref([]);

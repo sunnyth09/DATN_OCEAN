@@ -3,7 +3,7 @@
 import { computed, onMounted, ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import { getAbsoluteUrl, getAppBaseUrl } from '@/utils/url';
@@ -92,10 +92,10 @@ const handleLogout = async () => {
   <aside class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
     <!-- Brand -->
     <div class="sidebar-brand">
-      <div class="brand-icon" v-show="!collapsed">
-        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png'" alt="logo-ocean" width="45" >
-      </div>
-      <h2 class="brand-title"> Quản trị </h2>
+      <router-link to="/admin" class="logo">
+        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="logo-ocean" width="45" >
+        <span class="logo-text">Ocean Sport</span>
+      </router-link>
       <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">
         <svg v-if="collapsed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="13 17 18 12 13 7"></polyline>
@@ -321,6 +321,19 @@ const handleLogout = async () => {
 </template>
 
 <style scoped>
+.logo {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+.logo-text {
+  margin-left: 10px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #64748b;
+}
 .sidebar {
   width: 250px;
   height: 100vh;
@@ -447,6 +460,8 @@ const handleLogout = async () => {
   font-weight: 500;
   transition: all 0.2s ease;
   margin-bottom: 4px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .nav-icon {
@@ -514,6 +529,8 @@ const handleLogout = async () => {
   font-weight: 500;
   transition: all 0.2s;
   border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .submenu-dot {

@@ -8,6 +8,12 @@ enum OrderStatus: string
     case CONFIRMED = 'confirmed';
     case PROCESSING = 'processing';
     case PACKING = 'packing';
+    /**
+     * Đã tạo vận đơn ở hãng vận chuyển, đang chờ hãng đến lấy hàng.
+     * Tạo vận đơn KHÔNG đồng nghĩa hàng đã lên đường — trạng thái SHIPPING chỉ
+     * được đặt khi hãng vận chuyển thực sự báo đã nhận hàng qua webhook.
+     */
+    case AWAITING_PICKUP = 'awaiting_pickup';
     case SHIPPING = 'shipping';
     case DELIVERED = 'delivered';
     case COMPLETED = 'completed';
@@ -29,6 +35,7 @@ enum OrderStatus: string
             self::CONFIRMED => 'Đã xác nhận',
             self::PROCESSING,
             self::PACKING => 'Đang xử lý',
+            self::AWAITING_PICKUP => 'Chờ hãng vận chuyển lấy hàng',
             self::SHIPPING => 'Đang giao hàng',
             self::DELIVERED => 'Đã giao hàng',
             self::COMPLETED => 'Hoàn thành',

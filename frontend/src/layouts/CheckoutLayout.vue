@@ -2,9 +2,9 @@
   <div class="page-wrapper checkout-layout">
     <!-- Minimal Header without Search/Cart/Flash Sale widgets -->
     <header class="checkout-header shadow-sm">
-      <div class="container py-3 d-flex align-items-center justify-content-between">
+      <div class="container py-2 d-flex align-items-center justify-content-between">
         <router-link to="/" class="checkout-logo">
-          <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0.png'" alt="Logo" class="logo-img" width="70" height="auto" />
+          <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="Logo" class="logo-img" width="70" height="auto" />
         </router-link>
         <div class="header-right d-flex align-items-center gap-4">
           <div v-if="!authStore.isAuthenticated" class="auth-links">

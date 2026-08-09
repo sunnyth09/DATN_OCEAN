@@ -114,41 +114,29 @@ class _AddressScreenState extends State<AddressScreen> {
           builder: (BuildContext ctx, StateSetter setModal) {
             // Load provinces on first build
             if (provinces.isEmpty) {
-              ApiClient().dio.get('https://provinces.open-api.vn/api/?depth=1').then((res) {
+              ApiClient().dio.get('/location/provinces').then((res) {
                 if (res.statusCode == 200) {
-                  setModal(() => provinces = res.data is List ? res.data : []);
+                  setModal(() => provinces = res.data['data'] is List ? res.data['data'] : []);
                 }
               }).catchError((_) {});
             }
 
-            // Load districts when province selected
+            // Load wards when province selected
             void onProvChanged(dynamic val) {
-              final pv = provinces.firstWhere((p) => p['code'].toString() == val.toString(), orElse: () => {});
+              final pv = provinces.firstWhere((p) => p['id'].toString() == val.toString(), orElse: () => {});
               setModal(() {
                 selectedProvCode = val.toString();
                 selectedProvName = pv['name'] ?? val.toString();
-                districts = []; wards = [];
-                selectedDistCode = null; selectedWardCode = null;
+                wards = [];
+                selectedWardCode = null;
               });
-              ApiClient().dio.get('https://provinces.open-api.vn/api/p/$val?depth=2').then((res) {
-                if (res.statusCode == 200) setModal(() => districts = res.data['districts'] ?? []);
-              }).catchError((_) {});
-            }
-
-            void onDistChanged(dynamic val) {
-              final dt = districts.firstWhere((d) => d['code'].toString() == val.toString(), orElse: () => {});
-              setModal(() {
-                selectedDistCode = val.toString();
-                selectedDistName = dt['name'] ?? val.toString();
-                wards = []; selectedWardCode = null;
-              });
-              ApiClient().dio.get('https://provinces.open-api.vn/api/d/$val?depth=2').then((res) {
-                if (res.statusCode == 200) setModal(() => wards = res.data['wards'] ?? []);
+              ApiClient().dio.get('/location/wards/$val').then((res) {
+                if (res.statusCode == 200) setModal(() => wards = res.data['data'] ?? []);
               }).catchError((_) {});
             }
 
             void onWardChanged(dynamic val) {
-              final wd = wards.firstWhere((w) => w['code'].toString() == val.toString(), orElse: () => {});
+              final wd = wards.firstWhere((w) => w['id'].toString() == val.toString(), orElse: () => {});
               setModal(() {
                 selectedWardCode = val.toString();
                 selectedWardName = wd['name'] ?? val.toString();
@@ -175,21 +163,14 @@ class _AddressScreenState extends State<AddressScreen> {
                     _dropdown(
                       label: 'Tỉnh/Thành phố',
                       value: selectedProvCode,
-                      items: provinces.map((p) => DropdownMenuItem(value: p['code'].toString(), child: Text(p['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
+                      items: provinces.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
                       onChanged: onProvChanged,
-                    ),
-                    const SizedBox(height: 12),
-                    _dropdown(
-                      label: 'Quận/Huyện',
-                      value: selectedDistCode,
-                      items: districts.map((d) => DropdownMenuItem(value: d['code'].toString(), child: Text(d['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
-                      onChanged: districts.isEmpty ? null : onDistChanged,
                     ),
                     const SizedBox(height: 12),
                     _dropdown(
                       label: 'Phường/Xã',
                       value: selectedWardCode,
-                      items: wards.map((w) => DropdownMenuItem(value: w['code'].toString(), child: Text(w['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
+                      items: wards.map((w) => DropdownMenuItem(value: w['id'].toString(), child: Text(w['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
                       onChanged: wards.isEmpty ? null : onWardChanged,
                     ),
                     const SizedBox(height: 12),
@@ -226,10 +207,8 @@ class _AddressScreenState extends State<AddressScreen> {
                               'recipient_name': nameCtrl.text.trim(),
                               'phone': phoneCtrl.text.trim(),
                               'province': selectedProvName ?? '',
-                              'district': selectedDistName ?? '',
-                              'ward': selectedWardName ?? '',
                               'province_code': selectedProvCode ?? '',
-                              'district_code': selectedDistCode ?? '',
+                              'ward': selectedWardName ?? '',
                               'ward_code': selectedWardCode ?? '',
                               'address_line': addressCtrl.text.trim(),
                               'is_default': false,
@@ -291,7 +270,7 @@ class _AddressScreenState extends State<AddressScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: DropdownButtonFormField<String>(
         decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF64748B)), border: InputBorder.none, isDense: true),
-        initialValue: value,
+        value: value,
         isExpanded: true,
         items: items,
         onChanged: onChanged,
@@ -391,7 +370,7 @@ class _AddressScreenState extends State<AddressScreen> {
                           Text(addr['phone'] ?? '', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
                           const SizedBox(height: 6),
                           Text(
-                            '${addr['address_line']}, ${addr['ward']}, ${addr['district']}, ${addr['province']}',
+                            '${addr['address_line']}, ${addr['ward']}, ${addr['province']}',
                             style: const TextStyle(color: Color(0xFF334155), height: 1.5, fontSize: 13),
                           ),
                           if (!isDefault) ...[

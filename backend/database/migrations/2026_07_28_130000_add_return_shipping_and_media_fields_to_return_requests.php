@@ -9,37 +9,37 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('return_requests', function (Blueprint $table) {
-            if (!Schema::hasColumn('return_requests', 'return_shipping_method')) {
+            if (! Schema::hasColumn('return_requests', 'return_shipping_method')) {
                 $table->string('return_shipping_method', 30)->nullable()->after('refund_method');
             }
-            if (!Schema::hasColumn('return_requests', 'return_pickup_name')) {
+            if (! Schema::hasColumn('return_requests', 'return_pickup_name')) {
                 $table->string('return_pickup_name')->nullable()->after('return_shipping_method');
             }
-            if (!Schema::hasColumn('return_requests', 'return_pickup_phone')) {
+            if (! Schema::hasColumn('return_requests', 'return_pickup_phone')) {
                 $table->string('return_pickup_phone', 30)->nullable()->after('return_pickup_name');
             }
-            if (!Schema::hasColumn('return_requests', 'return_pickup_address')) {
+            if (! Schema::hasColumn('return_requests', 'return_pickup_address')) {
                 $table->text('return_pickup_address')->nullable()->after('return_pickup_phone');
             }
-            if (!Schema::hasColumn('return_requests', 'return_pickup_province_code')) {
+            if (! Schema::hasColumn('return_requests', 'return_pickup_province_code')) {
                 $table->string('return_pickup_province_code', 30)->nullable()->after('return_pickup_address');
             }
-            if (!Schema::hasColumn('return_requests', 'return_pickup_district_code')) {
+            if (! Schema::hasColumn('return_requests', 'return_pickup_district_code')) {
                 $table->string('return_pickup_district_code', 30)->nullable()->after('return_pickup_province_code');
             }
-            if (!Schema::hasColumn('return_requests', 'return_pickup_ward_code')) {
+            if (! Schema::hasColumn('return_requests', 'return_pickup_ward_code')) {
                 $table->string('return_pickup_ward_code', 30)->nullable()->after('return_pickup_district_code');
             }
-            if (!Schema::hasColumn('return_requests', 'videos')) {
+            if (! Schema::hasColumn('return_requests', 'videos')) {
                 $table->json('videos')->nullable()->after('images');
             }
-            if (!Schema::hasColumn('return_requests', 'return_ghn_order_code')) {
+            if (! Schema::hasColumn('return_requests', 'return_ghn_order_code')) {
                 $table->string('return_ghn_order_code', 100)->nullable()->after('return_carrier');
             }
-            if (!Schema::hasColumn('return_requests', 'return_ghn_response')) {
+            if (! Schema::hasColumn('return_requests', 'return_ghn_response')) {
                 $table->json('return_ghn_response')->nullable()->after('return_ghn_order_code');
             }
-            if (!Schema::hasColumn('return_requests', 'return_label_created_at')) {
+            if (! Schema::hasColumn('return_requests', 'return_label_created_at')) {
                 $table->timestamp('return_label_created_at')->nullable()->after('return_ghn_response');
             }
         });

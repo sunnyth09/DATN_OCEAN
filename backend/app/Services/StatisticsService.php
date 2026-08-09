@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exports\LastMonthRevenueExport;
+use App\Exports\StaffSalesExport;
 use App\Models\Product;
 use App\Repositories\StatisticsRepository;
 use Carbon\Carbon;
@@ -232,10 +233,10 @@ class StatisticsService
     public function exportStaffSales(Request $request)
     {
         [$startDate, $endDate] = $this->getDateRange($request);
-        
+
         $fileName = 'Doanh_Thu_Nhan_Vien_'.Carbon::now()->format('Y_m_d_His').'.xlsx';
 
-        return Excel::download(new \App\Exports\StaffSalesExport($startDate, $endDate), $fileName);
+        return Excel::download(new StaffSalesExport($startDate, $endDate), $fileName);
     }
 
     public function getStaffSales(Request $request): array

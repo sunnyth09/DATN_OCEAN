@@ -1,8 +1,12 @@
 name: CI/CD Pipeline
 
+# LƯU Ý: nhánh `production` đã được BỎ ra khỏi trigger `push` ở đây.
+# Deploy workflow (.github/workflows/deploy.yml) tự chạy job `test` riêng rồi mới
+# deploy, nên nếu để `production` ở đây thì mỗi lần push sẽ chạy test 2 lần trùng lặp.
+# PR nhắm vào `production` thì vẫn được test đầy đủ (xem mục pull_request bên dưới).
 on:
   push:
-    branches: [ "main", "production", "release/*" ]
+    branches: [ "main", "release/*" ]
     paths:
       - 'backend/**'
       - 'frontend/**'

@@ -2,27 +2,53 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
 
 class OceanExpressService
 {
     /**
+     * Base URL đọc từ config (KHÔNG dùng env() trực tiếp — env() trả null khi
+     * production đã chạy `php artisan config:cache`).
+     */
+    private static function url(string $path): string
+    {
+        return config('ocean_express.api_url').'/'.ltrim($path, '/');
+    }
+
+    /**
+     * HTTP client dùng chung: có API key + timeout để một request treo không
+     * kéo theo cả worker queue/web.
+     */
+    private static function client(bool $withApiKey = true): PendingRequest
+    {
+        $client = Http::timeout((int) config('ocean_express.timeout', 5))
+            ->acceptJson();
+
+        if ($withApiKey) {
+            $client = $client->withHeaders([
+                'X-API-Key' => config('ocean_express.api_key'),
+            ]);
+        }
+
+        return $client;
+    }
+
+    /**
      * Get locations from Ocean Express API.
      * Uses query params type & parent_id as per API spec.
      *
-     * @param  string|null  $type      'province', 'district', 'ward'
+     * @param  string|null  $type  'province', 'district', 'ward'
      * @param  string|null  $parentId  Parent location ID (e.g. 'VN-01')
      */
     public static function getLocations(?string $type = null, ?string $parentId = null): array
     {
         // Build a specific cache key so each unique filter combination is cached separately
-        $cacheKey = 'ocean_express_locations_' . ($type ?? 'all') . '_' . ($parentId ?? 'root');
+        $cacheKey = 'ocean_express_locations_'.($type ?? 'all').'_'.($parentId ?? 'root');
 
         return Cache::remember($cacheKey, 86400, function () use ($type, $parentId) {
-            $url = env('OCEAN_EXPRESS_API_URL') . '/locations';
-
             $params = [];
             if ($type) {
                 $params['type'] = $type;
@@ -32,13 +58,13 @@ class OceanExpressService
             }
 
             try {
-                $response = Http::get($url, $params);
+                $response = self::client(false)->get(self::url('locations'), $params);
                 if ($response->successful()) {
                     return $response->json('data', []);
                 }
-                Log::warning('OceanExpress getLocations non-200: ' . $response->status() . ' ' . $response->body());
-            } catch (\Exception $e) {
-                Log::error('OceanExpress getLocations error: ' . $e->getMessage());
+                Log::warning('OceanExpress getLocations non-200: '.$response->status().' '.$response->body());
+            } catch (\Throwable $e) {
+                Log::error('OceanExpress getLocations error: '.$e->getMessage());
             }
 
             return [];
@@ -48,30 +74,43 @@ class OceanExpressService
     /**
      * Calculate shipping rate via Ocean Express.
      * receiver_location_id must be a valid Ocean Express location ID (e.g. 'VN-01-00004').
+     *
+     * @return array{fee: int}
      */
-    public static function calculateRate(string $receiverLocationId, int $weight): int
+    public static function calculateRateDetailed(string $receiverLocationId, int $weight): array
     {
-        $url = env('OCEAN_EXPRESS_API_URL') . '/rates/calculate';
+        $fallbackFee = (int) config('ocean_express.fallback_fee', 30000);
 
         try {
-            $response = Http::withHeaders([
-                'X-API-Key'    => env('OCEAN_EXPRESS_API_KEY'),
-                'Content-Type' => 'application/json',
-            ])->post($url, [
+            $response = self::client()->post(self::url('rates/calculate'), [
                 'receiver_location_id' => $receiverLocationId,
-                'weight'               => $weight,
+                'weight' => $weight,
             ]);
 
             if ($response->successful()) {
-                return (int) $response->json('data.fee', 30000);
-            }
+                $fee = $response->json('data.fee');
 
-            Log::warning('OceanExpress calculateRate failed: ' . $response->body());
-        } catch (\Exception $e) {
-            Log::error('OceanExpress calculateRate error: ' . $e->getMessage());
+                if ($fee !== null && is_numeric($fee)) {
+                    return ['fee' => (int) $fee];
+                }
+
+                Log::warning('OceanExpress calculateRate: response thiếu data.fee — '.$response->body());
+            } else {
+                Log::warning('OceanExpress calculateRate failed: '.$response->body());
+            }
+        } catch (\Throwable $e) {
+            Log::error('OceanExpress calculateRate error: '.$e->getMessage());
         }
 
-        return 30000; // Fallback fee
+        return ['fee' => $fallbackFee];
+    }
+
+    /**
+     * Phiên bản chỉ trả về số tiền — giữ cho các nơi gọi cũ.
+     */
+    public static function calculateRate(string $receiverLocationId, int $weight): int
+    {
+        return self::calculateRateDetailed($receiverLocationId, $weight)['fee'];
     }
 
     /**
@@ -82,22 +121,17 @@ class OceanExpressService
      */
     public static function createOrder(array $orderData): ?array
     {
-        $url = env('OCEAN_EXPRESS_API_URL') . '/orders';
-
         try {
-            $response = Http::withHeaders([
-                'X-API-Key'    => env('OCEAN_EXPRESS_API_KEY'),
-                'Content-Type' => 'application/json',
-            ])->post($url, $orderData);
+            $response = self::client()->post(self::url('orders'), $orderData);
 
             if ($response->successful()) {
                 // Returns: { id, tracking_number, status, shipping_fee, estimated_delivery_time }
                 return $response->json('data');
             }
 
-            Log::error('OceanExpress createOrder failed: ' . $response->body());
-        } catch (\Exception $e) {
-            Log::error('OceanExpress createOrder error: ' . $e->getMessage());
+            Log::error('OceanExpress createOrder failed: '.$response->body());
+        } catch (\Throwable $e) {
+            Log::error('OceanExpress createOrder error: '.$e->getMessage());
         }
 
         return null;
@@ -112,18 +146,16 @@ class OceanExpressService
      */
     public static function getTracking(string $trackingNumber): ?array
     {
-        $url = env('OCEAN_EXPRESS_API_URL') . '/public/tracking/' . urlencode($trackingNumber);
-
         try {
-            $response = Http::get($url);
+            $response = self::client(false)->get(self::url('public/tracking/'.urlencode($trackingNumber)));
 
             if ($response->successful()) {
                 return $response->json('data');
             }
 
-            Log::warning('OceanExpress getTracking failed: ' . $response->body());
-        } catch (\Exception $e) {
-            Log::error('OceanExpress getTracking error: ' . $e->getMessage());
+            Log::warning('OceanExpress getTracking failed: '.$response->body());
+        } catch (\Throwable $e) {
+            Log::error('OceanExpress getTracking error: '.$e->getMessage());
         }
 
         return null;

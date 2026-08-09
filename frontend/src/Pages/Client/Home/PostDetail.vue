@@ -3,8 +3,8 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { useAuthStore } from '@/stores/auth';
-import AppIcon from '@/icons/AppIcon.vue';
-import { getStorageUrl } from '@/utils/url';
+import AppIcon from '@/icons/AppIcon.vue';  
+import { getStorageUrl } from '@/utils/url'; 
 
 const route = useRoute();
 const router = useRouter();
@@ -98,7 +98,13 @@ const submitComment = async () => {
 
 const getImageUrl = (path) => {
     if (!path || path === '0') return 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
-    return getStorageUrl(path);
+    const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
+    if (path.startsWith('http')) return path;
+    if (path.startsWith('/storage/') || path.startsWith('storage/')) {
+        const cleanPath = path.startsWith('/') ? path : `/${path}`;
+        return `${BASE_URL}${cleanPath}`;
+    }
+    return `${BASE_URL}/storage/${path}`;
 };
 
 const formatDate = (dateString) => {

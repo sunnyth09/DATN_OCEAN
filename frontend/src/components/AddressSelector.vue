@@ -41,17 +41,17 @@ const loadingWards = ref(false);
 // Computed - Tên đầy đủ
 const selectedProvinceName = computed(() => {
     const p = provinces.value.find(
-        (item) => item.ProvinceID == selectedProvince.value,
+        (item) => item.id == selectedProvince.value,
     );
-    return p ? p.ProvinceName : "";
+    return p ? p.name : "";
 });
 
 // districtName không hiển thị trực tiếp nhưng giữ cho emitChange compat
 const selectedDistrictName = computed(() => "");
 
 const selectedWardName = computed(() => {
-    const w = wards.value.find((item) => item.WardCode == selectedWard.value);
-    return w ? w.WardName : "";
+    const w = wards.value.find((item) => item.id == selectedWard.value);
+    return w ? w.name : "";
 });
 
 const fullAddress = computed(() => {
@@ -185,10 +185,10 @@ onMounted(async () => {
                         <option value="">-- Chọn Tỉnh/Thành phố --</option>
                         <option
                             v-for="province in provinces"
-                            :key="province.ProvinceID"
-                            :value="province.ProvinceID"
+                            :key="province.id"
+                            :value="province.id"
                         >
-                            {{ province.ProvinceName }}
+                            {{ province.name }}
                         </option>
                     </select>
                     <div
@@ -215,10 +215,10 @@ onMounted(async () => {
                         <option value="">-- Chọn Phường/Xã --</option>
                         <option
                             v-for="ward in wards"
-                            :key="ward.WardCode"
-                            :value="ward.WardCode"
+                            :key="ward.id"
+                            :value="ward.id"
                         >
-                            {{ ward.WardName }}
+                            {{ ward.name }}
                         </option>
                     </select>
                     <div

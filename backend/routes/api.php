@@ -46,11 +46,10 @@ use App\Http\Controllers\FlashSaleController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\GhnController;
 use App\Http\Controllers\GhnWebhookController;
-use App\Http\Controllers\OceanExpressWebhookController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\LoyaltyController;
-use App\Http\Controllers\MoMoController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OceanExpressWebhookController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderTrackingController;
 use App\Http\Controllers\PosController;
@@ -415,6 +414,8 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::put('/orders/bulk-status', [AdminOrderController::class, 'bulkUpdateStatus']);
     Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
     Route::put('/orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
+    Route::put('/orders/{id}/force-status', [AdminOrderController::class, 'forceStatus']);
+    Route::get('/orders/{id}/available-transitions', [AdminOrderController::class, 'availableTransitions']);
     Route::post('/orders/{id}/ghn-sync', [AdminOrderController::class, 'syncGHN']);
 
     // POS - Bán hàng trực tiếp
@@ -596,10 +597,6 @@ Route::middleware('throttle:30,1')->group(function () {
 Route::middleware('throttle:60,1')->get('/payment/vnpay-return', [VNPayController::class, 'vnpayReturn']);
 Route::post('/payment/vnpay-ipn', [VNPayController::class, 'vnpayIpn']);
 
-// MoMo Payment Gateway
-Route::middleware('throttle:60,1')->get('/payment/momo-return', [MoMoController::class, 'momoReturn']);
-Route::post('/payment/momo-ipn', [MoMoController::class, 'momoIpn']);
-
 // SePay Webhook — server-to-server, không throttle
 Route::post('/payment/sepay-webhook', [SepayController::class, 'handleWebhook']);
 // =====================================================================
@@ -682,8 +679,8 @@ Route::middleware(['auth:api,admin', 'role:admin'])->group(function () {
             ->map(function ($order) {
                 return [
                     'order_code' => $order->order_code,
-                    'user' => $order->user ? $order->user->full_name . ' (' . $order->user->email . ')' : 'N/A',
-                    'grand_total' => number_format($order->grand_total, 0, ',', '.') . 'đ',
+                    'user' => $order->user ? $order->user->full_name.' ('.$order->user->email.')' : 'N/A',
+                    'grand_total' => number_format($order->grand_total, 0, ',', '.').'đ',
                     'status' => $order->fulfillment_status,
                     'created_at' => $order->created_at->format('H:i:s d/m'),
                     'minutes_ago' => now()->diffInMinutes($order->created_at),
@@ -720,10 +717,10 @@ Route::get('image-proxy', function (Request $request) {
 
     // Resolve absolute path và verify nằm trong storage boundary
     $storagePath = realpath(storage_path('app/public'));
-    $absolutePath = realpath(storage_path('app/public/' . $path));
+    $absolutePath = realpath(storage_path('app/public/'.$path));
 
     // realpath trả false nếu file không tồn tại
-    if (! $absolutePath || ! str_starts_with($absolutePath, $storagePath . DIRECTORY_SEPARATOR)) {
+    if (! $absolutePath || ! str_starts_with($absolutePath, $storagePath.DIRECTORY_SEPARATOR)) {
         abort(404);
     }
 
@@ -779,11 +776,13 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
 
 // ==========================================
 // GHN Integration routes
-// GHN Webhook — server-to-server, 120req/min
-Route::middleware('throttle:120,1')->post('/ghn-webhook', [GhnWebhookController::class, 'handle']);
+// GHN Webhook — server-to-server, xác thực token/HMAC + IP whitelist qua middleware
+Route::middleware(['throttle:120,1', 'carrier.webhook:ghn'])
+    ->post('/ghn-webhook', [GhnWebhookController::class, 'handle']);
 
-// Ocean Express Webhook — server-to-server, 120req/min
-Route::middleware('throttle:120,1')->post('/ocean-express-webhook', [OceanExpressWebhookController::class, 'handle']);
+// Ocean Express Webhook — server-to-server, xác thực token/HMAC + IP whitelist qua middleware
+Route::middleware(['throttle:120,1', 'carrier.webhook:ocean_express'])
+    ->post('/ocean-express-webhook', [OceanExpressWebhookController::class, 'handle']);
 
 Route::prefix('ghn')->group(function () {
     Route::middleware('throttle:120,1')->post('/calculate-fee', [GhnController::class, 'calculateFee']);

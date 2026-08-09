@@ -42,7 +42,7 @@ const timelineWrapper = ref(null);
 
 const scrollToCurrentTime = () => {
     if (!timelineWrapper.value || availableSlots.value.length === 0) return;
-    
+
     // Chỉ cuộn nếu đang xem ngày hôm nay
     if (selectedDate.value !== toLocalDateString(new Date())) return;
 
@@ -50,7 +50,7 @@ const scrollToCurrentTime = () => {
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
 
     let targetIndex = availableSlots.value.findIndex(slot => slot.start_time >= currentTimeStr);
-    
+
     if (targetIndex === -1) {
         targetIndex = availableSlots.value.length - 1;
     } else if (targetIndex > 0) {
@@ -124,7 +124,7 @@ watch(selectedDate, async (newVal, oldVal) => {
         isRevertingDate = false;
         return;
     }
-    
+
     if (oldVal && newVal !== oldVal && activeLock.value?.lock_token) {
         const result = await Swal.fire({
             title: 'Đổi ngày?',
@@ -143,7 +143,7 @@ watch(selectedDate, async (newVal, oldVal) => {
         }
         await releaseActiveLock();
     }
-    selectedSlots.value = []; 
+    selectedSlots.value = [];
     await fetchAvailableSlots();
 });
 
@@ -168,7 +168,7 @@ const fetchAvailableSlots = async (silent = false) => {
         const res = await store.checkAvailability(courtId, { date: selectedDate.value });
         if (res && res.data) {
             availableSlots.value = res.data;
-            
+
             // Khôi phục trạng thái giữ chỗ nếu tải lại trang
             if (selectedSlots.value.length === 0 && !silent) {
                 const myLockedSlots = res.data.filter(s => s.is_my_lock);
@@ -249,7 +249,7 @@ const releaseActiveLock = async () => {
     clearLockTimer();
     try {
         await store.releaseLock({ lock_token: token });
-    } catch (e) {}
+    } catch (e) { }
 };
 
 const ensureAuthenticated = () => {
@@ -306,7 +306,7 @@ const toggleSlot = (slot) => {
 
     const index = selectedSlots.value.findIndex(s => s.start_time === slot.start_time);
     const wasAdded = index === -1;
-    
+
     if (wasAdded) {
         selectedSlots.value.push(slot);
     } else {
@@ -315,7 +315,7 @@ const toggleSlot = (slot) => {
 
     // Sắp xếp lại theo thời gian
     selectedSlots.value.sort((a, b) => a.start_time.localeCompare(b.start_time));
-    
+
     // 1. Kiểm tra tính liền kề ngay lập tức
     if (selectedSlots.value.length > 1 && !hasContinuousSlots()) {
         toast.warning("Vui lòng chọn các khung giờ liền kề nhau!");
@@ -328,10 +328,10 @@ const toggleSlot = (slot) => {
         }
         return; // Không cho phép chọn nên không cần gọi API
     }
-    
+
     // 2. Sử dụng debounce để tránh gọi API liên tục gây lag UI
     if (lockTimeout) clearTimeout(lockTimeout);
-    
+
     lockTimeout = setTimeout(async () => {
         try {
             await lockSelectedSlots();
@@ -517,7 +517,7 @@ const confirmReleaseLock = async () => {
 const handleBeforeUnload = (e) => {
     if (activeLock.value?.lock_token) {
         // Send a synchronous request or fire-and-forget to release lock when closing tab
-        store.releaseLock({ lock_token: activeLock.value.lock_token }).catch(() => {});
+        store.releaseLock({ lock_token: activeLock.value.lock_token }).catch(() => { });
     }
 };
 
@@ -533,9 +533,11 @@ onUnmounted(() => {
 
 <template>
     <!-- Full Page Loading -->
-    <div v-if="store.loading && !store.currentCourt" class="d-flex justify-content-center align-items-center py-5" style="min-height: 400px;">
+    <div v-if="store.loading && !store.currentCourt" class="d-flex justify-content-center align-items-center py-5"
+        style="min-height: 400px;">
         <div class="text-center">
-            <div class="spinner-border mb-3" style="color: var(--court-primary); width: 2.5rem; height: 2.5rem;" role="status"></div>
+            <div class="spinner-border mb-3" style="color: var(--court-primary); width: 2.5rem; height: 2.5rem;"
+                role="status"></div>
             <p class="text-muted">Đang tải thông tin sân...</p>
         </div>
     </div>
@@ -543,14 +545,17 @@ onUnmounted(() => {
     <div v-else-if="store.currentCourt" class="container py-4">
         <!-- Header -->
         <div class="d-flex align-items-center mb-4 flex-wrap gap-2">
-            <button class="btn btn-light rounded-circle p-2 me-2" style="width: 40px; height: 40px; box-shadow: var(--court-ambient-shadow);" @click="router.back()">
+            <button class="btn btn-light rounded-circle p-2 me-2"
+                style="width: 40px; height: 40px; box-shadow: var(--court-ambient-shadow);" @click="router.back()">
                 <i class="bi bi-arrow-left"></i>
             </button>
             <div>
                 <h2 class="fw-bold mb-0" style="color: var(--court-primary);">{{ courtName }}</h2>
                 <div class="d-flex align-items-center gap-2 mt-1">
-                    <span class="status-badge" :class="store.currentCourt.status === 'active' ? 'status-badge--active' : 'status-badge--maintenance'">
-                        <span class="pulse-dot" :class="store.currentCourt.status === 'active' ? 'pulse-dot--active' : 'pulse-dot--maintenance'"></span>
+                    <span class="status-badge"
+                        :class="store.currentCourt.status === 'active' ? 'status-badge--active' : 'status-badge--maintenance'">
+                        <span class="pulse-dot"
+                            :class="store.currentCourt.status === 'active' ? 'pulse-dot--active' : 'pulse-dot--maintenance'"></span>
                         {{ store.currentCourt.status === 'active' ? 'Đang hoạt động' : 'Bảo trì' }}
                     </span>
                     <span class="text-muted" style="font-size: 0.8rem;">•</span>
@@ -563,19 +568,29 @@ onUnmounted(() => {
             <!-- Left Content -->
             <div class="col-lg-8 mb-4">
                 <!-- Court Image & Info -->
-                <div class="card border-0 rounded-4 overflow-hidden mb-4" style="box-shadow: var(--court-ambient-shadow);">
-                    <img :src="store.currentCourt.image_url || 'https://placehold.co/800x400/1a1a2e/e63b6f?text=' + courtName" class="card-img-top" style="height: 280px; object-fit: cover;" :alt="courtName">
+                <div class="card border-0 rounded-4 overflow-hidden mb-4"
+                    style="box-shadow: var(--court-ambient-shadow);">
+                    <img :src="store.currentCourt.image_url || 'https://placehold.co/800x400/1a1a2e/e63b6f?text=' + courtName"
+                        class="card-img-top" style="height: 280px; object-fit: cover;" :alt="courtName">
                     <div class="card-body p-4" style="background: var(--court-section-bg, #f8f9fb);">
-                        <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2" style="color: var(--court-primary);"></i>Thông tin sân</h5>
+                        <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"
+                                style="color: var(--court-primary);"></i>Thông tin sân</h5>
                         <div class="d-flex flex-wrap gap-2 mb-3">
-                            <span class="d-inline-flex align-items-center gap-1 px-3 py-2 rounded-pill" style="background: var(--court-card-bg, #fff); font-size: 0.8rem; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                            <span class="d-inline-flex align-items-center gap-1 px-3 py-2 rounded-pill"
+                                style="background: var(--court-card-bg, #fff); font-size: 0.8rem; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
                                 <i class="bi bi-layers" style="color: var(--court-primary);"></i> {{ courtType }}
                             </span>
-                            <span v-if="store.currentCourt.surface" class="d-inline-flex align-items-center gap-1 px-3 py-2 rounded-pill" style="background: var(--court-card-bg, #fff); font-size: 0.8rem; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                                <i class="bi bi-grid-3x3" style="color: var(--court-playing);"></i> {{ store.currentCourt.surface }}
+                            <span v-if="store.currentCourt.surface"
+                                class="d-inline-flex align-items-center gap-1 px-3 py-2 rounded-pill"
+                                style="background: var(--court-card-bg, #fff); font-size: 0.8rem; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                                <i class="bi bi-grid-3x3" style="color: var(--court-playing);"></i> {{
+                                store.currentCourt.surface }}
                             </span>
-                            <span v-if="store.currentCourt.max_players" class="d-inline-flex align-items-center gap-1 px-3 py-2 rounded-pill" style="background: var(--court-card-bg, #fff); font-size: 0.8rem; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                                <i class="bi bi-people" style="color: var(--court-available);"></i> Tối đa {{ store.currentCourt.max_players }} người
+                            <span v-if="store.currentCourt.max_players"
+                                class="d-inline-flex align-items-center gap-1 px-3 py-2 rounded-pill"
+                                style="background: var(--court-card-bg, #fff); font-size: 0.8rem; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                                <i class="bi bi-people" style="color: var(--court-available);"></i> Tối đa {{
+                                    store.currentCourt.max_players }} người
                             </span>
                         </div>
                         <p class="text-muted mb-0" style="font-size: 0.9rem; line-height: 1.6;">
@@ -589,35 +604,41 @@ onUnmounted(() => {
                     <div class="card-body p-4">
                         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                             <h5 class="fw-bold mb-0">
-                                <i class="bi bi-calendar-check me-2" style="color: var(--court-primary);"></i>Chọn Ngày & Giờ
+                                <i class="bi bi-calendar-check me-2" style="color: var(--court-primary);"></i>Chọn Ngày
+                                & Giờ
                             </h5>
-                            <input type="date" class="form-control w-auto fw-semibold" v-model="selectedDate" 
-                                   :min="toLocalDateString()"
-                                   style="border-radius: 10px; border-color: rgba(0,0,0,0.08); background: var(--court-section-bg, #f8f9fb);">
+                            <input type="date" class="form-control w-auto fw-semibold" v-model="selectedDate"
+                                :min="toLocalDateString()"
+                                style="border-radius: 10px; border-color: rgba(0,0,0,0.08); background: var(--court-section-bg, #f8f9fb);">
                         </div>
 
                         <!-- Quick Date Selector -->
                         <div class="d-flex gap-2 mb-4 overflow-auto pb-2" style="scrollbar-width: thin;">
                             <button v-for="qd in quickDates" :key="qd.value"
-                                    class="btn flex-shrink-0 d-flex flex-column align-items-center px-3 py-2 rounded-3"
-                                    :class="selectedDate === qd.value ? 'quick-date--selected' : 'quick-date'"
-                                    @click="selectedDate = qd.value">
-                                <span style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">{{ qd.day }}</span>
+                                class="btn flex-shrink-0 d-flex flex-column align-items-center px-3 py-2 rounded-3"
+                                :class="selectedDate === qd.value ? 'quick-date--selected' : 'quick-date'"
+                                @click="selectedDate = qd.value">
+                                <span
+                                    style="font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;">{{
+                                    qd.day }}</span>
                                 <span style="font-size: 1.1rem; font-weight: 800;">{{ qd.date }}</span>
                             </button>
                         </div>
 
                         <!-- Loading Slots -->
                         <div v-if="loadingSlots" class="text-center py-4">
-                            <div class="spinner-border spinner-border-sm me-2" style="color: var(--court-primary);" role="status"></div>
+                            <div class="spinner-border spinner-border-sm me-2" style="color: var(--court-primary);"
+                                role="status"></div>
                             <span class="text-muted" style="font-size: 0.9rem;">Đang tải lịch...</span>
                         </div>
 
                         <!-- Empty Slots -->
-                        <div v-else-if="availableSlots.length === 0" class="court-empty-state" style="padding: 32px 20px;">
+                        <div v-else-if="availableSlots.length === 0" class="court-empty-state"
+                            style="padding: 32px 20px;">
                             <div class="court-empty-state__icon"><i class="bi bi-calendar-x"></i></div>
                             <div class="court-empty-state__title">Không có khung giờ nào</div>
-                            <div class="court-empty-state__text">Vui lòng chọn ngày khác hoặc liên hệ quản trị viên để thiết lập lịch.</div>
+                            <div class="court-empty-state__text">Vui lòng chọn ngày khác hoặc liên hệ quản trị viên để
+                                thiết lập lịch.</div>
                         </div>
 
                         <!-- Time Slots Grid -->
@@ -625,27 +646,36 @@ onUnmounted(() => {
                             <!-- Legend -->
                             <div class="d-flex gap-3 mb-3 flex-wrap">
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-available);"></span> Trống
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-available);"></span>
+                                    Trống
                                 </span>
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-primary);"></span> Đã chọn
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-primary);"></span>
+                                    Đã chọn
                                 </span>
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-closed);"></span> Đã đặt
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-closed);"></span>
+                                    Đã đặt
                                 </span>
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-pending);"></span> Đang giữ
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 4px; background: var(--court-pending);"></span>
+                                    Đang giữ
                                 </span>
                                 <span class="d-flex align-items-center gap-1" style="font-size: 0.78rem;">
-                                    <span style="width: 12px; height: 12px; border-radius: 4px; background: #adb5bd;"></span> Không khả dụng
+                                    <span
+                                        style="width: 12px; height: 12px; border-radius: 4px; background: #adb5bd;"></span>
+                                    Không khả dụng
                                 </span>
                             </div>
 
                             <div class="client-timeline-wrapper" ref="timelineWrapper">
                                 <div class="client-timeline">
                                     <div v-for="slot in availableSlots" :key="slot.start_time"
-                                        class="client-timeline-slot"
-                                        :class="{
+                                        class="client-timeline-slot" :class="{
                                             'slot--selected': isSlotSelected(slot),
                                             'slot--available': slot.status === 'available',
                                             'slot--booked': slot.status === 'booked',
@@ -653,8 +683,7 @@ onUnmounted(() => {
                                             'slot--unavailable': ['maintenance', 'past', 'closed'].includes(slot.status)
                                         }"
                                         @click="(slot.status === 'available' || slot.is_my_lock) && toggleSlot(slot)"
-                                        :title="getSlotStatusLabel(slot.status) + (slot.price && slot.status === 'available' ? ' - ' + formatCurrency(slot.price) : '')"
-                                    >
+                                        :title="getSlotStatusLabel(slot.status) + (slot.price && slot.status === 'available' ? ' - ' + formatCurrency(slot.price) : '')">
                                         <div class="slot-time-label">{{ formatTime(slot.start_time) }}</div>
                                         <div class="slot-bar">
                                             <i v-if="slot.status === 'booked'" class="bi bi-x"></i>
@@ -663,8 +692,10 @@ onUnmounted(() => {
                                         </div>
                                     </div>
                                     <!-- End label for the last slot -->
-                                    <div class="client-timeline-slot client-timeline-slot--end" v-if="availableSlots.length > 0">
-                                        <div class="slot-time-label">{{ formatTime(availableSlots[availableSlots.length - 1].end_time) }}</div>
+                                    <div class="client-timeline-slot client-timeline-slot--end"
+                                        v-if="availableSlots.length > 0">
+                                        <div class="slot-time-label">{{ formatTime(availableSlots[availableSlots.length
+                                            - 1].end_time) }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -673,9 +704,11 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Additional Services -->
-                <div v-if="services.length > 0" class="card border-0 rounded-4" style="box-shadow: var(--court-ambient-shadow);">
+                <div v-if="services.length > 0" class="card border-0 rounded-4"
+                    style="box-shadow: var(--court-ambient-shadow);">
                     <div class="card-body p-4">
-                        <h5 class="fw-bold mb-4"><i class="bi bi-bag-plus me-2" style="color: var(--court-primary);"></i>Dịch Vụ Mua Thêm</h5>
+                        <h5 class="fw-bold mb-4"><i class="bi bi-bag-plus me-2"
+                                style="color: var(--court-primary);"></i>Dịch Vụ Mua Thêm</h5>
                         <div class="row g-3">
                             <div v-for="service in services" :key="service.service_id || service.id" class="col-md-6">
                                 <div class="service-item">
@@ -684,19 +717,34 @@ onUnmounted(() => {
                                             <i class="bi bi-box-seam"></i>
                                         </div>
                                         <div>
-                                            <h6 class="fw-bold mb-1" style="font-size: 0.9rem;">{{ service.service_name }}</h6>
-                                            <span style="color: var(--court-primary); font-weight: 600; font-size: 0.8rem;">
+                                            <h6 class="fw-bold mb-1" style="font-size: 0.9rem;">{{ service.service_name
+                                                }}</h6>
+                                            <span
+                                                style="color: var(--court-primary); font-weight: 600; font-size: 0.8rem;">
                                                 {{ formatCurrency(service.unit_price) }} / {{ service.unit || 'lần' }}
                                             </span>
                                         </div>
                                     </div>
                                     <div class="service-item__qty-control">
-                                        <button class="btn btn-sm btn-link text-dark text-decoration-none px-2 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;" @click="decreaseService(service)">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        <button
+                                            class="btn btn-sm btn-link text-dark text-decoration-none px-2 d-flex align-items-center justify-content-center"
+                                            style="width: 28px; height: 28px;" @click="decreaseService(service)">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
                                         </button>
-                                        <span class="fw-bold px-2" style="min-width: 20px; text-align: center;">{{ service.quantity }}</span>
-                                        <button class="btn btn-sm btn-link text-decoration-none px-2 d-flex align-items-center justify-content-center" style="color: var(--court-primary); width: 28px; height: 28px;" @click="increaseService(service)">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                        <span class="fw-bold px-2" style="min-width: 20px; text-align: center;">{{
+                                            service.quantity }}</span>
+                                        <button
+                                            class="btn btn-sm btn-link text-decoration-none px-2 d-flex align-items-center justify-content-center"
+                                            style="color: var(--court-primary); width: 28px; height: 28px;"
+                                            @click="increaseService(service)">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
                                         </button>
                                     </div>
                                 </div>
@@ -723,9 +771,11 @@ onUnmounted(() => {
                             <div class="d-flex justify-content-between mb-2">
                                 <span><i class="bi bi-clock me-1"></i> Thời gian</span>
                                 <strong class="text-dark" v-if="selectedSlots.length > 0">
-                                    {{ formatTime(selectedSlots[0].start_time) }} - {{ formatTime(selectedSlots[selectedSlots.length - 1].end_time) }}
+                                    {{ formatTime(selectedSlots[0].start_time) }} - {{
+                                        formatTime(selectedSlots[selectedSlots.length - 1].end_time) }}
                                 </strong>
-                                <span v-else style="color: var(--court-maintenance); font-size: 0.8rem;">Chưa chọn giờ</span>
+                                <span v-else style="color: var(--court-maintenance); font-size: 0.8rem;">Chưa chọn
+                                    giờ</span>
                             </div>
                             <div class="d-flex justify-content-between">
                                 <span><i class="bi bi-building me-1"></i> Sân</span>
@@ -749,12 +799,14 @@ onUnmounted(() => {
 
                         <!-- Payment method -->
                         <div>
-                            <label class="form-label fw-semibold" style="font-size: 0.8rem; color: #6c757d;">Phương thức thanh toán</label>
-                            <select class="form-select" v-model="paymentMethod" style="border-radius: 10px; border-color: rgba(0,0,0,0.08);">
+                            <label class="form-label fw-semibold" style="font-size: 0.8rem; color: #6c757d;">Phương thức
+                                thanh toán</label>
+                            <select class="form-select" v-model="paymentMethod"
+                                style="border-radius: 10px; border-color: rgba(0,0,0,0.08);">
                                 <option value="cash">Tiền mặt tại quầy</option>
                                 <option value="bank_transfer">Chuyển khoản ngân hàng</option>
                                 <option value="vnpay">VNPay</option>
-                                <option value="momo">MoMo</option>
+
                             </select>
                         </div>
 
@@ -765,18 +817,20 @@ onUnmounted(() => {
                                 <span class="booking-summary__total">{{ formatCurrency(bookingSummary.total) }}</span>
                             </div>
 
-                            <div v-if="activeLock && lockCountdown > 0" class="d-flex justify-content-between align-items-center mb-3 px-3 py-2 rounded-3" style="background: rgba(25,135,84,0.08); color: var(--court-available); font-size: 0.82rem; font-weight: 700;">
-                                <span>Đang giữ chỗ: {{ Math.floor(lockCountdown / 60) }}:{{ String(lockCountdown % 60).padStart(2, '0') }}</span>
-                                <button @click="confirmReleaseLock" class="btn btn-sm btn-link text-danger p-0 fw-semibold text-decoration-none" style="font-size: 0.8rem;">
+                            <div v-if="activeLock && lockCountdown > 0"
+                                class="d-flex justify-content-between align-items-center mb-3 px-3 py-2 rounded-3"
+                                style="background: rgba(25,135,84,0.08); color: var(--court-available); font-size: 0.82rem; font-weight: 700;">
+                                <span>Đang giữ chỗ: {{ Math.floor(lockCountdown / 60) }}:{{ String(lockCountdown %
+                                    60).padStart(2, '0') }}</span>
+                                <button @click="confirmReleaseLock"
+                                    class="btn btn-sm btn-link text-danger p-0 fw-semibold text-decoration-none"
+                                    style="font-size: 0.8rem;">
                                     Hủy giữ chỗ
                                 </button>
                             </div>
 
-                            <button
-                                class="booking-summary__cta"
-                                :disabled="selectedSlots.length === 0 || bookingInProgress"
-                                @click="proceedBooking"
-                            >
+                            <button class="booking-summary__cta"
+                                :disabled="selectedSlots.length === 0 || bookingInProgress" @click="proceedBooking">
                                 <span v-if="bookingInProgress" class="spinner-border spinner-border-sm me-2"></span>
                                 Đặt Sân Ngay <i class="bi bi-arrow-right ms-2"></i>
                             </button>
@@ -797,7 +851,7 @@ onUnmounted(() => {
 /* Quick Date Selector */
 .quick-date {
     background: var(--court-section-bg, #f8f9fb);
-    border: 1.5px solid rgba(0,0,0,0.06);
+    border: 1.5px solid rgba(0, 0, 0, 0.06);
     color: var(--text-main, #212529);
     min-width: 56px;
     transition: all 0.2s;
@@ -822,24 +876,29 @@ onUnmounted(() => {
     padding: 20px 0 10px 0;
     scrollbar-width: thin;
 }
+
 .client-timeline {
     display: flex;
     align-items: flex-start;
     min-width: max-content;
     padding: 0 10px;
 }
+
 .client-timeline-slot {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    width: 60px; /* Thinner for 30 min slots */
+    width: 60px;
+    /* Thinner for 30 min slots */
     position: relative;
     cursor: pointer;
 }
+
 .client-timeline-slot--end {
     width: auto;
     cursor: default;
 }
+
 .slot-time-label {
     font-size: 0.75rem;
     color: var(--text-muted, #6c757d);
@@ -847,14 +906,16 @@ onUnmounted(() => {
     margin-bottom: 8px;
     transform: translateX(-50%);
 }
+
 .client-timeline-slot--end .slot-time-label {
     transform: translateX(-50%);
 }
+
 .slot-bar {
     height: 40px;
     width: 100%;
     background: #e9ecef;
-    border-right: 1px solid rgba(255,255,255,0.5);
+    border-right: 1px solid rgba(255, 255, 255, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -862,10 +923,12 @@ onUnmounted(() => {
     font-size: 1.2rem;
     color: white;
 }
+
 .client-timeline-slot:first-child .slot-bar {
     border-top-left-radius: 8px;
     border-bottom-left-radius: 8px;
 }
+
 .client-timeline-slot:nth-last-child(2) .slot-bar {
     border-top-right-radius: 8px;
     border-bottom-right-radius: 8px;
@@ -873,8 +936,10 @@ onUnmounted(() => {
 }
 
 .slot--available .slot-bar {
-    background: rgba(25, 135, 84, 0.15); /* light green */
+    background: rgba(25, 135, 84, 0.15);
+    /* light green */
 }
+
 .slot--available:hover .slot-bar {
     background: rgba(25, 135, 84, 0.3);
 }
@@ -886,7 +951,8 @@ onUnmounted(() => {
 }
 
 .slot--booked .slot-bar {
-    background: rgba(220, 53, 69, 0.15); /* light red */
+    background: rgba(220, 53, 69, 0.15);
+    /* light red */
     color: #dc3545;
     cursor: not-allowed;
 }
@@ -901,5 +967,4 @@ onUnmounted(() => {
     background: #e9ecef;
     cursor: not-allowed;
 }
-
 </style>

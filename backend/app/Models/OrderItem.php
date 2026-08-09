@@ -24,15 +24,15 @@ class OrderItem extends Model
         'unit_price',
         'discount_amount',
         'line_total',
-        'created_at'
+        'created_at',
     ];
 
     protected $casts = [
-        'quantity'        => 'integer',
+        'quantity' => 'integer',
         'returned_quantity' => 'integer',
-        'unit_price'      => 'decimal:2',
+        'unit_price' => 'decimal:2',
         'discount_amount' => 'decimal:2',
-        'line_total'      => 'decimal:2',
+        'line_total' => 'decimal:2',
     ];
 
     public function order()

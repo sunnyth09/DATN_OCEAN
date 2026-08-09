@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
     "@mediapipe/tasks-vision": "^0.10.35",
     "@meilisearch/instant-meilisearch": "^0.19.3",
     "@unhead/vue": "^2.1.12",

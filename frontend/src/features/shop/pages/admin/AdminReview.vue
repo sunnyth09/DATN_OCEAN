@@ -3,7 +3,7 @@ import { ref, nextTick, onMounted, watch } from 'vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
-import AppIcon from '@/icons/AppIcon.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import { getAbsoluteUrl, getStorageUrl } from '@/utils/url';
 import { sanitizeHtml } from '@/utils/sanitize';
 

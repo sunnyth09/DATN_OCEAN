@@ -23,7 +23,7 @@ class GhnOrderStatusSyncService
     public function mapGhnStatus(string $status): ?string
     {
         return [
-            'ready_to_pick' => 'pending',
+            'ready_to_pick' => 'awaiting_pickup',
             'exception' => 'pending',
             'picking' => 'shipping',
             'money_collect_picking' => 'shipping',
@@ -136,7 +136,7 @@ class GhnOrderStatusSyncService
                     $updates['cancelled_at'] = $happenedAt;
                     $updates['cancel_reason'] = $description ?: 'Canceled by GHN';
 
-                    if (in_array($order->payment_method, ['vnpay', 'momo', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
+                    if (in_array($order->payment_method, ['vnpay', 'bank_transfer'], true) && $order->payment_status === PaymentStatus::PAID->value) {
                         $updates['payment_status'] = PaymentStatus::REFUNDED->value;
                     }
 
@@ -214,6 +214,7 @@ class GhnOrderStatusSyncService
         'confirmed' => 20,
         'processing' => 30,
         'packing' => 40,
+        'awaiting_pickup' => 45,
         'shipping' => 50,
         'delivered' => 60,
         'completed' => 70,

@@ -137,7 +137,6 @@ export const RETURN_REQUEST_REFUND_METHOD_OPTIONS = [
   { value: 'bank_transfer', label: 'Chuyển khoản' },
   { value: 'cash', label: 'Tiền mặt' },
   { value: 'vnpay', label: 'VNPay' },
-  { value: 'momo', label: 'MoMo' },
   { value: 'other', label: 'Khác' },
 ];
 

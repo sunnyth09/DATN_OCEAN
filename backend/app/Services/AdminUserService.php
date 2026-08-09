@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Models\Admin;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
@@ -184,8 +184,9 @@ class AdminUserService
 
             return ['ok' => true, 'code' => 200, 'message' => "Đã cập nhật role thành '{$role}' thành công!"];
         } catch (\Exception $e) {
-            \Log::error('Update Role Error: ' . $e->getMessage());
-            return ['ok' => false, 'code' => 500, 'message' => 'Lỗi hệ thống: ' . $e->getMessage()];
+            \Log::error('Update Role Error: '.$e->getMessage());
+
+            return ['ok' => false, 'code' => 500, 'message' => 'Lỗi hệ thống: '.$e->getMessage()];
         }
     }
 
@@ -236,7 +237,7 @@ class AdminUserService
 
         $email = $user->email;
         $role = $user->role;
-        
+
         $user->delete();
 
         if (in_array($role, ['admin', 'staff', 'seller'])) {
