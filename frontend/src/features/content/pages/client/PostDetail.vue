@@ -153,7 +153,7 @@ const getAuthorRole = (author) => {
 
           <!-- Banner / Featured Image -->
           <div class="article-banner">
-            <img :src="getImageUrl(post.banner_url || post.thumbnail_url)" :alt="post.title" />
+            <img :src="getImageUrl(post.banner_url || post.thumbnail_url)" :alt="post.title" @error="e => e.target.src = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80'" />
           </div>
 
           <!-- Rich Text Content (Quill Render) -->
@@ -204,7 +204,7 @@ const getAuthorRole = (author) => {
             <div v-else class="widget-posts">
               <div v-for="rp in relatedPosts" :key="rp.post_id" class="widget-post-item">
                 <router-link :to="'/posts/' + (rp.slug || rp.post_id)" class="widget-post-img">
-                  <img :src="getImageUrl(rp.thumbnail_url)" :alt="rp.title" />
+                  <img :src="getImageUrl(rp.thumbnail_url)" :alt="rp.title" @error="e => e.target.src = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80'" />
                 </router-link>
                 <div class="widget-post-info">
                   <span class="widget-post-date">{{ formatDate(rp.published_at).split(' ')[0] }}</span>

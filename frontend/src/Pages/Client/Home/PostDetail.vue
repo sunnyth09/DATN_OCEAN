@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { useAuthStore } from '@/stores/auth';
 import AppIcon from '@/icons/AppIcon.vue';
+import { getStorageUrl } from '@/utils/url';
 
 const route = useRoute();
 const router = useRouter();
@@ -96,14 +97,8 @@ const submitComment = async () => {
 };
 
 const getImageUrl = (path) => {
-    const BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8383/api').replace('/api', '');
-    if (!path || path === '0') return 'https://placehold.co/800x450?text=QS+Sport';
-    if (path.startsWith('http')) return path;
-    if (path.startsWith('/storage/') || path.startsWith('storage/')) {
-        const cleanPath = path.startsWith('/') ? path : `/${path}`;
-        return `${BASE_URL}${cleanPath}`;
-    }
-    return `${BASE_URL}/storage/${path}`;
+    if (!path || path === '0') return 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
+    return getStorageUrl(path);
 };
 
 const formatDate = (dateString) => {
@@ -155,7 +150,7 @@ watch(slug, (newSlug, oldSlug) => {
           </header>
 
           <div class="article-banner" v-if="post.banner_url || post.thumbnail_url">
-            <img :src="getImageUrl(post.banner_url || post.thumbnail_url)" :alt="post.title" />
+            <img :src="getImageUrl(post.banner_url || post.thumbnail_url)" :alt="post.title" @error="e => e.target.src = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80'" />
           </div>
 
           <div class="article-content" v-html="post.content"></div>
@@ -228,6 +223,7 @@ watch(slug, (newSlug, oldSlug) => {
                   :src="comment.user?.avatar_url ? getImageUrl(comment.user.avatar_url) : 'https://placehold.co/48x48?text=U'" 
                   class="comment-avatar"
                   :alt="comment.user?.full_name"
+                  @error="e => e.target.src = 'https://placehold.co/48x48?text=U'"
                 />
                 <div class="comment-body">
                   <div class="comment-head">

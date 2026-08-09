@@ -134,7 +134,7 @@ const getAuthorAvatarUrl = (author) => {
     <section class="page-content container">
       <!-- Search & Category Filters -->
       <div class="filter-section">
-        <div class="category-tabs">
+        <div v-if="categories.length <= 5" class="category-tabs">
           <button class="filter-tab" :class="{ active: selectedCategory === 'all' }" @click="selectedCategory = 'all'">
             Tất cả
           </button>
@@ -143,6 +143,14 @@ const getAuthorAvatarUrl = (author) => {
             @click="selectedCategory = cat.post_category_id">
             {{ cat.name }}
           </button>
+        </div>
+        <div v-else class="category-select-wrapper">
+          <select v-model="selectedCategory" class="category-select">
+            <option value="all">Tất cả danh mục</option>
+            <option v-for="cat in categories" :key="cat.post_category_id" :value="cat.post_category_id">
+              {{ cat.name }}
+            </option>
+          </select>
         </div>
 
         <div class="search-bar">
@@ -168,7 +176,7 @@ const getAuthorAvatarUrl = (author) => {
         <!-- Featured Post (only on page 1 of All/Category) -->
         <div v-if="featuredPost && currentPage === 1" class="featured-post-card">
           <router-link :to="'/posts/' + (featuredPost.slug || featuredPost.post_id)" class="featured-img-wrap">
-            <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img" />
+            <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img" @error="e => e.target.src = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80'" />
           </router-link>
           <div class="featured-info">
             <div class="post-meta">
@@ -218,7 +226,7 @@ const getAuthorAvatarUrl = (author) => {
         <div v-if="regularPosts.length > 0" class="posts-grid">
           <article v-for="post in visiblePosts" :key="post.post_id" class="post-card">
             <router-link :to="'/posts/' + (post.slug || post.post_id)" class="post-img-wrap">
-              <img :src="getImageUrl(post.thumbnail_url)" :alt="post.title" class="post-img" />
+              <img :src="getImageUrl(post.thumbnail_url)" :alt="post.title" class="post-img" @error="e => e.target.src = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80'" />
               <span class="post-card-tag">{{ post.category?.name || 'Tin tức' }}</span>
             </router-link>
             <div class="post-card-content">
@@ -394,6 +402,47 @@ const getAuthorAvatarUrl = (author) => {
   background: var(--primary);
   color: #fff;
   box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25);
+}
+
+.category-select-wrapper {
+  position: relative;
+  min-width: 220px;
+}
+
+.category-select {
+  width: 100%;
+  padding: 10px 36px 10px 18px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #475569;
+  outline: none;
+  background: #f1f5f9;
+  cursor: pointer;
+  appearance: none;
+  transition: all 0.25s ease;
+  font-family: inherit;
+}
+
+.category-select:focus {
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+}
+
+.category-select-wrapper::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #64748b;
+  pointer-events: none;
 }
 
 .search-bar {

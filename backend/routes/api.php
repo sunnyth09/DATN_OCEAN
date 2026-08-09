@@ -144,6 +144,8 @@ Route::middleware('auth:api,admin')->group(function () {
 
     // Posts routes (Admin & Staff only)
     Route::middleware('role:admin,staff')->group(function () {
+        Route::get('/admin/posts', [PostController::class, 'adminIndex']);
+        Route::delete('/admin/posts/{id}', [PostController::class, 'destroy']);
         Route::post('/posts', [PostController::class, 'create']);
         Route::post('/posts/upload-image', [PostController::class, 'uploadImage']);
         Route::put('/posts/{id}', [PostController::class, 'update']);
