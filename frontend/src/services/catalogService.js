@@ -26,6 +26,14 @@ export const catalogService = {
     });
   },
 
+  getBestSelling(limit = 8) {
+    return api.get('/products/home/best-selling', { params: { limit } });
+  },
+
+  getOnSale(limit = 8) {
+    return api.get('/products/home/on-sale', { params: { limit } });
+  },
+
   viewProduct(productId) {
     return api.post('/tracking/view-product', { product_id: productId });
   },

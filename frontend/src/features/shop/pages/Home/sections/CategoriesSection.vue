@@ -6,7 +6,7 @@ defineProps(['Categories', 'isLoadingCategories', 'getCatIcon', 'getCatGradient'
         <div class="container">
 
             <!-- Quick filters (Trang mục biệt yêu) -->
-            <div class="quick-filters-wrap mb-5">
+            <!-- <div class="quick-filters-wrap mb-5">
                 <div class="text-center mb-4">
                     <h2 class="section-title mb-1">TRANG PHỤC BẠN YÊU</h2>
                     <p class="section-subtitle mb-0">Tìm kiếm trang phục theo phong cách của bạn.</p>
@@ -26,7 +26,7 @@ defineProps(['Categories', 'isLoadingCategories', 'getCatIcon', 'getCatGradient'
                         <span>Tennis</span>
                     </router-link>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Categories Grid -->
             <div class="categories-grid-wrap mt-5">

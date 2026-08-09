@@ -100,6 +100,32 @@ class ProductController extends Controller
     }
 
     /**
+     * Sản phẩm bán chạy nhất (home page)
+     */
+    public function bestSelling(Request $request)
+    {
+        $limit = (int) $request->query('limit', 8);
+        $limit = max(1, min($limit, 20)); // Giới hạn an toàn: 1-20
+
+        return response()->json(
+            $this->productService->getBestSelling($limit)
+        );
+    }
+
+    /**
+     * Sản phẩm đang sale (home page)
+     */
+    public function onSale(Request $request)
+    {
+        $limit = (int) $request->query('limit', 8);
+        $limit = max(1, min($limit, 20));
+
+        return response()->json(
+            $this->productService->getOnSale($limit)
+        );
+    }
+
+    /**
      * GET /products/{id}/variants — Lấy danh sách biến thể
      */
     public function getVariants($id)

@@ -170,9 +170,9 @@ onMounted(() => {
                             </div>
                         </td>
                         <td>
-                            <div class="post-cell">
+                            <router-link :to="`/posts/${c.post?.slug}`" class="post-cell">
                                 <span class="post-title" :title="c.post?.title">{{ c.post?.title || 'Bài viết đã bị xóa' }}</span>
-                            </div>
+                            </router-link>
                         </td>
                         <td>
                             <div class="comment-content-cell">
@@ -341,16 +341,25 @@ onMounted(() => {
 }
 
 .post-cell {
-    max-width: 200px;
+    display: block;
+    max-width: 420px;
+    color: var(--text-main);
+    text-decoration: none;
 }
 .post-title {
-    font-weight: 600;
-    font-size: 0.88rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    line-height: 1.45;
     color: var(--text-main);
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    word-break: break-word;
+}
+.post-cell:hover .post-title {
+    color: var(--primary);
 }
 
 .comment-content-cell {

@@ -143,6 +143,8 @@ Route::middleware('auth:api,admin')->group(function () {
 
     // Posts routes (Admin & Staff only)
     Route::middleware('role:admin,staff')->group(function () {
+        Route::get('/admin/posts', [PostController::class, 'adminIndex']);
+        Route::delete('/admin/posts/{id}', [PostController::class, 'destroy']);
         Route::post('/posts', [PostController::class, 'create']);
         Route::post('/posts/upload-image', [PostController::class, 'uploadImage']);
         Route::put('/posts/{id}', [PostController::class, 'update']);
@@ -198,6 +200,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::put('/orders/{id}/cancel', [OrderController::class, 'cancel']);
     // Đánh giá sản phẩm
     Route::middleware(['throttle:5,1', 'profanity'])->post('/orders/feedback', [ProductCommentController::class, 'store']);
+    Route::middleware(['throttle:5,1', 'profanity'])->post('/orders/feedback/batch', [ProductCommentController::class, 'storeBatch']);
 
     // ── Notifications (Thông báo inbox) ──
     Route::get('/notifications', [NotificationController::class, 'index']);
@@ -483,6 +486,8 @@ Route::middleware(['auth:api,admin', 'role:admin,staff'])->group(function () {
 // Public resources (Chỉ cho phép GET public, các thao tác khác cần admin)
 Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
+Route::get('products/home/best-selling', [ProductController::class, 'bestSelling']);
+Route::get('products/home/on-sale', [ProductController::class, 'onSale']);
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/{id}', [ProductController::class, 'show']);
 Route::get('products/{id}/variants', [ProductController::class, 'getVariants']);

@@ -7,6 +7,14 @@ import Swal from 'sweetalert2';
 const posts = ref([]);
 const isLoading = ref(true);
 const searchQuery = ref('');
+const selectedStatus = ref('all');
+
+const statusTabs = [
+    { value: 'all', label: 'Tất cả' },
+    { value: 'published', label: 'Đã đăng' },
+    { value: 'draft', label: 'Bản nháp' },
+    { value: 'hidden', label: 'Đang ẩn' },
+];
 
 const toastObj = ref({ message: '', type: 'success' });
 const deletingPostId = ref(null);
@@ -22,7 +30,7 @@ const showToast = (message, type = 'success') => {
 const fetchPosts = async () => {
     try {
         isLoading.value = true;
-        const response = await api.get('/posts');
+        const response = await api.get('/admin/posts');
         if(response.data && response.data.data) {
              posts.value = response.data.data;
         } else if (Array.isArray(response.data)) {
@@ -35,17 +43,33 @@ const fetchPosts = async () => {
     }
 };
 
+const statusCounts = computed(() => ({
+    all: posts.value.length,
+    published: posts.value.filter(p => p.status === 'published').length,
+    draft: posts.value.filter(p => p.status === 'draft').length,
+    hidden: posts.value.filter(p => p.status === 'hidden').length,
+}));
+
 const filteredPosts = computed(() => {
-    if (!searchQuery.value) return posts.value;
-    const q = searchQuery.value.toLowerCase();
-    return posts.value.filter(p => p.title && p.title.toLowerCase().includes(q));
+    let result = posts.value;
+
+    if (selectedStatus.value !== 'all') {
+        result = result.filter(p => p.status === selectedStatus.value);
+    }
+
+    if (searchQuery.value) {
+        const q = searchQuery.value.toLowerCase();
+        result = result.filter(p => p.title && p.title.toLowerCase().includes(q));
+    }
+
+    return result;
 });
 
 // Pagination
 const currentPage = ref(1);
 const itemsPerPage = ref(10); 
 
-watch(searchQuery, () => {
+watch([searchQuery, selectedStatus], () => {
     currentPage.value = 1;
 });
 
@@ -143,6 +167,20 @@ const getStatusLabel = (status) => {
             </div>
         </div>
 
+        <!-- Status Tabs -->
+        <div class="status-tabs ocean-card animate-in" style="animation-delay: 0.15s">
+            <button
+                v-for="tab in statusTabs"
+                :key="tab.value"
+                class="status-tab"
+                :class="{ active: selectedStatus === tab.value }"
+                @click="selectedStatus = tab.value"
+            >
+                <span>{{ tab.label }}</span>
+                <strong>{{ statusCounts[tab.value] || 0 }}</strong>
+            </button>
+        </div>
+
         <!-- Posts Table -->
         <div class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
             <div class="table-header">
@@ -176,7 +214,9 @@ const getStatusLabel = (status) => {
                                 </td>
                                 <td>
                                     <div class="post-title-cell">
-                                        <span class="post-title" :title="p.title">{{ p.title }}</span>
+                                        <router-link :to="`/admin/post/edit/${p.post_id}`" class="post-title" :title="p.title">
+                                            {{ p.title }}
+                                        </router-link>
                                         <span class="badge-featured" v-if="p.is_featured">Hot</span>
                                     </div>
                                 </td>
@@ -276,6 +316,7 @@ const getStatusLabel = (status) => {
 .btn-primary:hover {
     background: var(--ocean-bright); transform: translateY(-2px); color: white;
     box-shadow: 0 6px 14px rgba(3, 169, 244, 0.3);
+    color: black;
 }
 
 /* Filters */
@@ -309,6 +350,28 @@ const getStatusLabel = (status) => {
     font-size: 0.8rem; font-weight: 600;
 }
 .stat-pill svg { color: var(--primary); }
+
+.status-tabs {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px; margin-bottom: 24px; overflow-x: auto;
+}
+.status-tab {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px; border: 1px solid var(--border-color);
+    border-radius: 999px; background: var(--ocean-deepest);
+    color: var(--text-muted); font-size: 0.88rem; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.status-tab strong {
+    min-width: 24px; padding: 2px 7px; border-radius: 999px;
+    background: var(--card-bg); color: var(--primary); font-size: 0.78rem;
+}
+.status-tab:hover,
+.status-tab.active {
+    border-color: var(--primary); background: rgba(230, 59, 111, 0.08);
+    color: var(--primary); box-shadow: 0 4px 12px rgba(230, 59, 111, 0.12);
+}
+.status-tab.active strong { background: var(--primary); color: white; }
 
 /* Pagination */
 .pagination-controls {
@@ -358,8 +421,13 @@ const getStatusLabel = (status) => {
 .thumbnail-cell img { width: 100%; height: 100%; object-fit: cover; }
 .img-placeholder { color: #a0a0a0; }
 
-.post-title-cell { display: flex; align-items: center; gap: 8px; }
-.post-title { font-weight: 600; color: var(--text-main); font-size: 0.95rem; max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
+.post-title-cell { display: flex; align-items: flex-start; gap: 8px; max-width: 420px; }
+.post-title {
+    font-weight: 700; color: var(--text-main); font-size: 0.95rem; line-height: 1.45;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; word-break: break-word; text-decoration: none;
+}
+.post-title:hover { color: var(--primary); }
 .badge-featured { background: #fee2e2; color: #ef4444; font-size: 0.7rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
 
 .status-badge {

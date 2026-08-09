@@ -35,7 +35,7 @@ class ProductCommentController extends Controller
             'product_id' => 'required|exists:products,product_id',
             'order_item_id' => 'required|exists:order_items,order_item_id',
             'images' => 'nullable|array|max:5',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
         ], [
             'rating.required' => 'Vui lòng nhập đánh giá',
             'rating.integer' => 'Đánh giá phải là số nguyên',
@@ -49,7 +49,7 @@ class ProductCommentController extends Controller
             'images.max' => 'Chỉ được tải lên tối đa 5 ảnh',
             'images.*.image' => 'Ảnh phải là định dạng ảnh',
             'images.*.mimes' => 'Ảnh phải có định dạng jpeg, png, jpg, gif, webp',
-            'images.*.max' => 'Ảnh không được vượt quá 2MB',
+            'images.*.max' => 'Ảnh không được vượt quá 5MB',
         ]);
 
         $userId = auth('api')->user()?->user_id;
@@ -318,6 +318,173 @@ class ProductCommentController extends Controller
         $this->recalculateProductRating($productId);
 
         return response()->json(['status' => 'success', 'message' => 'Đã xóa đánh giá.']);
+    }
+
+    /**
+     * Store multiple comments in a single transaction (batch).
+     */
+    public function storeBatch(Request $request)
+    {
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.rating' => 'required|integer|min:1|max:5',
+            'items.*.content' => 'nullable|string|max:1000',
+            'items.*.product_id' => 'required|exists:products,product_id',
+            'items.*.order_item_id' => 'required|exists:order_items,order_item_id',
+            'items.*.images' => 'nullable|array|max:5',
+            'items.*.images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+        ], [
+            'items.*.rating.required' => 'Vui lòng nhập đánh giá cho tất cả sản phẩm.',
+            'items.*.rating.integer' => 'Đánh giá phải là số nguyên.',
+            'items.*.rating.min' => 'Đánh giá phải từ 1 đến 5 sao.',
+            'items.*.rating.max' => 'Đánh giá phải từ 1 đến 5 sao.',
+            'items.*.content.max' => 'Nội dung đánh giá không được vượt quá 1000 ký tự.',
+            'items.*.product_id.required' => 'Vui lòng chọn sản phẩm.',
+            'items.*.product_id.exists' => 'Sản phẩm không tồn tại.',
+            'items.*.order_item_id.required' => 'Vui lòng chọn đơn hàng.',
+            'items.*.order_item_id.exists' => 'Đơn hàng không tồn tại.',
+            'items.*.images.max' => 'Mỗi sản phẩm chỉ được tải lên tối đa 5 ảnh.',
+            'items.*.images.*.image' => 'Ảnh phải là định dạng ảnh.',
+            'items.*.images.*.mimes' => 'Ảnh phải có định dạng jpeg, png, jpg, gif, webp.',
+            'items.*.images.*.max' => 'Ảnh không được vượt quá 5MB.',
+        ]);
+
+        $userId = auth('api')->user()?->user_id;
+        if (! $userId) {
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
+        }
+
+        // Validate all items before database transaction (all-or-nothing check)
+        $itemsData = $request->input('items');
+        $validatedItems = [];
+
+        foreach ($itemsData as $index => $item) {
+            $orderItemId = $item['order_item_id'];
+            $productId = $item['product_id'];
+
+            $orderItem = OrderItem::with('order')->find($orderItemId);
+            if (! $orderItem) {
+                return response()->json(['status' => 'error', 'message' => 'Không tìm thấy chi tiết đơn hàng.'], 404);
+            }
+
+            // Check ownership
+            if ($orderItem->order->user_id !== $userId) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Bạn không có quyền đánh giá sản phẩm này.',
+                ], 403);
+            }
+
+            // Check duplicate review
+            $alreadyReviewed = ProductComment::where('order_item_id', $orderItemId)
+                ->where('user_id', $userId)
+                ->exists();
+            if ($alreadyReviewed) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Bạn đã đánh giá sản phẩm này rồi.',
+                ], 409);
+            }
+
+            // Check product matches item
+            if ($orderItem->product_id != $productId) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Sản phẩm không khớp với đơn hàng.',
+                ], 400);
+            }
+
+            // Profanity filter validation
+            if (ProfanityFilter::hasProfanity($item['content'] ?? '')) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Nội dung đánh giá chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.',
+                ], 422);
+            }
+
+            $validatedItems[] = [
+                'orderItem' => $orderItem,
+                'data' => $item,
+                'index' => $index,
+            ];
+        }
+
+        DB::beginTransaction();
+        try {
+            $comments = [];
+            foreach ($validatedItems as $itemInfo) {
+                $orderItem = $itemInfo['orderItem'];
+                $data = $itemInfo['data'];
+                $index = $itemInfo['index'];
+
+                // Retrieve files for this nested item index
+                $files = $request->file("items.{$index}.images") ?? [];
+
+                $imagePaths = [];
+                if (! empty($files)) {
+                    foreach ($files as $image) {
+                        if ($image && $image->isValid()) {
+                            $path = $image->store('product_comments', 'public');
+                            $imagePaths[] = $path;
+                        }
+                    }
+                }
+
+                $filteredContent = ProfanityFilter::filter($data['content'] ?? '');
+
+                $comment = ProductComment::create([
+                    'product_id' => $data['product_id'],
+                    'user_id' => $userId,
+                    'commenter_type' => 'user',
+                    'order_item_id' => $data['order_item_id'],
+                    'rating' => $data['rating'],
+                    'content' => $filteredContent,
+                    'is_approved' => ($data['rating'] >= 3 && empty($imagePaths)) ? 1 : 0,
+                    'images' => ! empty($imagePaths) ? $imagePaths : null,
+                ]);
+
+                // Create ticket if rating <= 3
+                if ($data['rating'] <= 3) {
+                    Ticket::create([
+                        'user_id' => $userId,
+                        'order_id' => $orderItem->order_id,
+                        'product_id' => $data['product_id'],
+                        'reason' => 'Phản hồi đánh giá thấp ('.$data['rating'].' sao)',
+                        'description' => $filteredContent ?? 'Khách hàng đánh giá chất lượng sản phẩm thấp.',
+                        'status' => 'pending',
+                    ]);
+                }
+
+                // Loyalty points
+                $user = auth('api')->user();
+                if ($user) {
+                    if (! empty(trim($data['content'] ?? ''))) {
+                        $this->loyaltyService->earnFromReview($user, $comment->comment_id);
+                    }
+                    if (! empty($imagePaths)) {
+                        $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
+                    }
+                }
+
+                // Recalculate rating
+                $this->recalculateProductRating($data['product_id']);
+
+                $comments[] = $comment->load('user:user_id,full_name,avatar_url');
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đánh giá sản phẩm thành công.',
+                'data' => $comments,
+            ], 201);
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Product comment batch store failed', ['error' => $e->getMessage()]);
+
+            return response()->json(['status' => 'error', 'message' => 'Đã xảy ra lỗi, vui lòng thử lại sau.'], 500);
+        }
     }
 
     /**

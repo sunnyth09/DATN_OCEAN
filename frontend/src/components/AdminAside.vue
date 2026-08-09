@@ -94,7 +94,7 @@ const handleLogout = async () => {
     <div class="sidebar-brand">
       <router-link to="/admin" class="logo">
         <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="logo-ocean" width="45" >
-        <h3 class="logo-text">Ocean Sport</h3>
+        <span class="logo-text">Ocean Sport</span>
       </router-link>
       <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">
         <svg v-if="collapsed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -195,14 +195,6 @@ const handleLogout = async () => {
           </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/affiliate" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Quản lý Affiliate</span>
-          </router-link>
-          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/post" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span>
-            <span>Bài viết</span>
-          </router-link>
-          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/post-category" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span>
-            <span>Danh mục bài viết</span>
           </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
@@ -329,6 +321,19 @@ const handleLogout = async () => {
 </template>
 
 <style scoped>
+.logo {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+.logo-text {
+  margin-left: 10px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #64748b;
+}
 .sidebar {
   width: 250px;
   height: 100vh;
@@ -455,6 +460,8 @@ const handleLogout = async () => {
   font-weight: 500;
   transition: all 0.2s ease;
   margin-bottom: 4px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .nav-icon {
@@ -522,6 +529,8 @@ const handleLogout = async () => {
   font-weight: 500;
   transition: all 0.2s;
   border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .submenu-dot {
