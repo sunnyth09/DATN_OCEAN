@@ -10,9 +10,9 @@ use Carbon\Carbon;
 class ProductCommentSeeder extends Seeder
 {
     /**
-     * Tạo đánh giá sản phẩm thực tế cho 20 sản phẩm.
-     * - Mỗi sản phẩm được đánh giá bởi 3–6 user khác nhau.
-     * - user_id từ 3–9 (người dùng thật, không phải Super Admin).
+     * Tạo đánh giá sản phẩm thực tế cho các sản phẩm từ ID 166 đến 246.
+     * - Mỗi sản phẩm được đánh giá bởi đúng 5 user khác nhau.
+     * - user_id lấy động từ bảng users (hoặc fallback từ 3-9 nếu bảng trống).
      * - commenter_type = 'user', is_approved = 1, images = null.
      * - rating và content đa dạng, phù hợp với từng loại sản phẩm thể thao.
      */
@@ -29,6 +29,10 @@ class ProductCommentSeeder extends Seeder
                 'Đúng như mô tả, chất lượng cao. Đội ngũ hỗ trợ nhiệt tình. Rất đáng mua!',
                 'Dùng được 2 tuần vẫn rất tốt. Không bị phai màu, bền hơn hàng tôi từng mua.',
                 'Hàng chính hãng, tem nhãn rõ ràng. Cực kỳ hài lòng với lần mua này.',
+                'Vợt dùng rất êm, căng sẵn lực tốt, đập cầu rất đầm tay!',
+                'Giày đi vừa vặn, êm chân, bám sân cực tốt không bị trơn trượt.',
+                'Áo co giãn tốt, thấm hút mồ hôi nhanh, mặc rất mát khi vận động mạnh.',
+                'Bóng nảy tốt, da mềm, đường may chắc chắn. Rất đáng tiền.'
             ],
             4 => [
                 'Sản phẩm tốt, đúng với mô tả. Giao hàng hơi chậm một chút nhưng nhìn chung OK.',
@@ -39,6 +43,9 @@ class ProductCommentSeeder extends Seeder
                 'Mua tặng bạn, bạn dùng thấy rất thích. Chất liệu tốt, thiết kế đẹp.',
                 'Hàng nhận được ổn, đóng gói kỹ. Trừ 1 sao vì ship hơi lâu so với dự kiến.',
                 'Chất lượng vừa phải với giá tiền. Nhìn chung dùng được, không có gì để phàn nàn.',
+                'Sản phẩm tốt, đúng mô tả. Giao hàng hơi chậm chút nhưng bù lại chất lượng rất ổn.',
+                'Form giày hơi ôm so với chân mình, nhưng chất lượng da và đế thì không có gì chê.',
+                'Chất liệu vải mát, co giãn tốt. Chỉ tiếc là màu ngoài đời tối hơn trong ảnh một tí.'
             ],
             3 => [
                 'Sản phẩm tạm ổn, nhưng chưa đáp ứng hoàn toàn kỳ vọng. Chất liệu khá ổn.',
@@ -46,46 +53,58 @@ class ProductCommentSeeder extends Seeder
                 'Hàng nhận đúng nhưng size hơi nhỏ hơn so với thông số. Vẫn dùng được.',
                 'Chất lượng trung bình cho tầm giá. Giao hàng bình thường, không có gì đặc biệt.',
                 'Mua về dùng thử thấy chấp nhận được. Nhưng kỳ vọng cao hơn một chút.',
+                'Sản phẩm tạm ổn, nhưng vải hơi mỏng so với hình dung của mình.',
+                'Đế giày hơi cứng, cần đi vài hôm cho mềm ra. Giao hàng nhanh.',
+                'Bình thường thôi, không có gì quá nổi bật. Dùng được ở mức cơ bản.'
             ],
         ];
 
-        // Dữ liệu: product_id => [rating_avg để định hướng rating]
-        // Dựa theo rating_avg đã seeded từ CurrentSportsCatalogSeeder
-        $productRatings = [
-            1  => 4.7, // Vợt cầu lông BR 100
-            2  => 4.6, // Giày pickleball Essential White
-            3  => 4.7, // Vợt BR 500 White
-            4  => 4.8, // Vợt BR Discover
-            5  => 4.6, // Giày BS 500 White
-            6  => 4.5, // Vợt Sensation 980 Purple
-            7  => 4.7, // Vợt Sensation 190 Blue
-            8  => 4.8, // Vợt Sensation 530 Green Black
-            9  => 4.5, // Giày BS Lite 350 White Sea Blue
-            10 => 4.9, // Bóng chuyền bãi biển BV100 Classic Turquoise
-            11 => 4.6, // Bộ lưới bóng chuyền bãi biển BV300 Yellow
-            12 => 4.7, // Bộ cần bóng chuyền BV300 Official
-            13 => 4.5, // Pickleball Elitex 16MM Blue
-            14 => 4.7, // Vợt Pickleball Kulima Open Blue
-            15 => 4.6, // Giày tennis/pickleball All Court Light Grey Blue
-            16 => 4.8, // Pickleball Paddle 100 Black
-            17 => 4.6, // Bó 2 vợt pickleball Fun Play
-            18 => 4.7, // Bóng chuyền VB300 Classic White Blue
-            19 => 4.8, // Giày BS Sensation 500 White Blue
-            20 => 4.5, // Giày cầu lông BS Lite 560 Crystal Orange
-        ];
+        // Lấy danh sách sản phẩm từ 166 đến 246
+        $products = \DB::table('products')
+            ->whereBetween('product_id', [166, 246])
+            ->get();
 
-        $userIds = [3, 4, 5, 6, 7, 8, 9]; // user_id thật từ bảng users
+        if ($products->isEmpty()) {
+            $this->command->warn('⚠️ Không tìm thấy sản phẩm nào trong khoảng ID từ 166 đến 246 trong DB. Sử dụng danh sách ID giả lập.');
+            $productRatings = [];
+            for ($id = 166; $id <= 246; $id++) {
+                $productRatings[$id] = round(rand(40, 50) / 10, 1); // target rating từ 4.0 đến 5.0
+            }
+        } else {
+            $productRatings = [];
+            foreach ($products as $product) {
+                $productRatings[$product->product_id] = $product->rating_avg ?: 4.5;
+            }
+        }
+
+        // Lấy danh sách user_id thật từ bảng users
+        $userIds = \DB::table('users')->pluck('user_id')->toArray();
+        if (empty($userIds)) {
+            $userIds = [3, 4, 5, 6, 7, 8, 9]; // fallback user_ids
+        }
+
+        // Xóa các bình luận cũ của các sản phẩm từ 166 đến 246 trước khi seed để tránh trùng lặp
+        \DB::table('product_comments')
+            ->whereBetween('product_id', [166, 246])
+            ->delete();
 
         $comments = [];
+        $numComments = 5; // Số lượng feedback cho mỗi sản phẩm
 
         foreach ($productRatings as $productId => $avgRating) {
-            // Mỗi sản phẩm có 4–6 đánh giá
-            $numComments = rand(4, 6);
-
             // Phân bổ rating để trung bình gần với avgRating
             $ratingPool = $this->generateRatingPool($avgRating, $numComments);
-            shuffle($userIds); // Xáo trộn để mỗi sản phẩm có user khác nhau
-            $usedUsers = array_slice($userIds, 0, $numComments);
+            
+            // Xáo trộn và lấy ra các user khác nhau không bị trùng lặp trong cùng 1 sản phẩm
+            $usedUsers = [];
+            $tempUsers = $userIds;
+            for ($i = 0; $i < $numComments; $i++) {
+                if (empty($tempUsers)) {
+                    $tempUsers = $userIds;
+                }
+                shuffle($tempUsers);
+                $usedUsers[] = array_pop($tempUsers);
+            }
 
             // Spread created_at trong 6 tháng gần đây
             $baseDate = Carbon::now()->subMonths(6);
@@ -118,7 +137,7 @@ class ProductCommentSeeder extends Seeder
         // Cập nhật lại rating_count và rating_avg cho từng sản phẩm
         $this->updateProductRatings();
 
-        $this->command->info('✅ ProductCommentSeeder: Đã tạo ' . count($comments) . ' đánh giá cho 20 sản phẩm.');
+        $this->command->info('✅ ProductCommentSeeder: Đã tạo ' . count($comments) . ' đánh giá cho ' . count($productRatings) . ' sản phẩm (IDs 166 -> 246).');
     }
 
     /**
