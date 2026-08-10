@@ -173,6 +173,10 @@ class PosService
                 ]);
 
                 $v->decrement('stock', $row['quantity']);
+                if ($v->product_id) {
+                    Product::where('product_id', $v->product_id)
+                        ->increment('sold_count', $row['quantity']);
+                }
             }
 
             OrderStatusHistory::create([
