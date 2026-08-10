@@ -649,19 +649,6 @@ const selectedCategoryNames = computed(() => {
                 </div>
             </div>
         </Transition>
-
-        <!-- Bootstrap Toast -->
-        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-            <div class="toast align-items-center border-0 border-start border-4" :class="toast.type === 'success' ? 'text-bg-white border-success' : 'text-bg-white border-danger'" id="couponToast" role="alert">
-                <div class="d-flex align-items-center p-2">
-                    <svg v-if="toast.type === 'success'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2.5" stroke-linecap="round" class="mx-2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c62828" stroke-width="2.5" stroke-linecap="round" class="mx-2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                    
-                    <div class="toast-body fw-bold text-dark fs-6">{{ toast.message }}</div>
-                    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 

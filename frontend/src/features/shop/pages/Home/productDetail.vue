@@ -118,7 +118,15 @@ const fetchProduct = async (currentSlug) => {
     if (product.value.product_id) {
       fetchReviews(product.value.product_id);
       // Ghi nhận lịch sử xem sản phẩm
-      api.post('/tracking/view-product', { product_id: product.value.product_id }).catch(() => { });
+      let sessionId = localStorage.getItem('guest_session_id');
+      if (!sessionId) {
+          sessionId = 'sess_' + Math.random().toString(36).substring(2, 15);
+          localStorage.setItem('guest_session_id', sessionId);
+      }
+      api.post('/tracking/view-product', { 
+          product_id: product.value.product_id,
+          session_id: sessionId
+      }).catch(() => { });
     }
     fetchRelatedProducts(currentSlug);
 
@@ -1036,7 +1044,7 @@ onBeforeUnmount(() => {
   </Transition>
 
   <!-- Virtual Try-On Modal -->
-  <VirtualTryOnModal :show="showTryOn" :product-id="product?.product_id" :product-name="product?.name"
+  <VirtualTryOnModal v-if="product?.product_id" :show="showTryOn" :product-id="product?.product_id" :product-name="product?.name"
     :product-image-url="mainImageUrl" @close="showTryOn = false" />
 
   <!-- Modal Bảng Size -->
