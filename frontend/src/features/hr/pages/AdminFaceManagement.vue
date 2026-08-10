@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import { getAbsoluteUrl } from '@/utils/url';
@@ -174,10 +175,7 @@ onMounted(() => fetchData());
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="text-center py-5">
-      <div class="spinner-border text-primary" role="status"></div>
-      <p class="text-muted mt-2">Đang tải dữ liệu...</p>
-    </div>
+    <AdminTableSkeleton v-if="loading" :columns="6" :rows="5" />
 
     <!-- Staff List -->
     <div v-else-if="filteredList.length > 0" class="staff-list">
@@ -287,7 +285,7 @@ onMounted(() => fetchData());
 }
 .stat-card:hover { transform: translateY(-2px); }
 .stat-active { border-color: currentColor !important; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-.stat-total { background: #eef2ff; color: #4f46e5; }
+.stat-total { background: #fdf2f5; color: var(--primary); }
 .stat-registered { background: #dcfce7; color: #16a34a; }
 .stat-pending { background: #fef3c7; color: #d97706; }
 .stat-icon { font-size: 1.6rem; opacity: 0.8; }
@@ -304,7 +302,7 @@ onMounted(() => fetchData());
 .avatar-img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; }
 .avatar-placeholder {
   width: 44px; height: 44px; border-radius: 50%;
-  background: #eef2ff; color: #4f46e5;
+  background: #fdf2f5; color: var(--primary);
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 1.1rem;
 }
@@ -318,8 +316,8 @@ onMounted(() => fetchData());
   font-weight: 600; white-space: nowrap;
 }
 .role-admin { background: #fce7f3; color: #be185d; }
-.role-seller { background: #dbeafe; color: #1d4ed8; }
-.role-staff { background: #e0e7ff; color: #4338ca; }
+.role-seller { background: #fff3e0; color: #e65100; }
+.role-staff { background: #fdf2f5; color: var(--primary); }
 
 /* Face badge */
 .face-badge {
@@ -367,7 +365,7 @@ onMounted(() => fetchData());
     background: var(--card-bg, #fff); color: var(--text-main, #333);
     font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
 }
-.btn-page:hover:not(:disabled) { background: var(--hover-bg, #f4f6f8); border-color: var(--primary, #1d4ed8); color: var(--primary, #1d4ed8); }
+.btn-page:hover:not(:disabled) { background: var(--hover-bg, #f4f6f8); border-color: var(--primary); color: var(--primary); }
 .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
 .page-numbers { display: flex; gap: 6px; }
 .btn-page-number {
@@ -378,6 +376,6 @@ onMounted(() => fetchData());
 }
 .btn-page-number:hover:not(.active) { background: var(--hover-bg, #f4f6f8); }
 .btn-page-number.active {
-    background: var(--primary, #1d4ed8); color: white; border-color: var(--primary, #1d4ed8);
+    background: var(--primary); color: white; border-color: var(--primary);
 }
 </style>

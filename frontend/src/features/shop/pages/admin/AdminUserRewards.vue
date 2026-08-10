@@ -5,9 +5,7 @@
     </div>
 
     <div class="admin-content mt-4">
-      <div v-if="isLoading" class="text-center p-5">
-        <div class="spinner-border text-primary"></div>
-      </div>
+      <AdminTableSkeleton v-if="isLoading" :columns="7" :rows="5" />
       <div v-else class="table-responsive">
         <table class="table table-hover align-middle">
           <thead>
@@ -71,6 +69,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 

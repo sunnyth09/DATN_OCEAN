@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import { storeToRefs } from 'pinia';
 import { useReturnRequestStore } from '@/stores/returnRequestStore';
 import {
@@ -75,10 +76,7 @@ onMounted(() => {
       </select>
     </div>
 
-    <div v-if="adminLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải yêu cầu hoàn hàng...</p>
-    </div>
+    <AdminTableSkeleton v-if="adminLoading" :columns="6" :rows="5" />
 
     <div v-else class="table-card">
       <table class="data-table">

@@ -776,8 +776,9 @@ class OrderService
         $subtotal = 0;
 
         foreach ($cartItems as $item) {
-            if (! $item->variant || ! $item->variant->product) {
-                throw new OrderException('Một trong các sản phẩm trong giỏ hàng không còn tồn tại hoặc đã bị xóa.');
+            if (! $item->variant || ! $item->variant->product || $item->variant->product->trashed() || $item->variant->status !== 'active') {
+                $productName = $item->variant && $item->variant->product ? $item->variant->product->name : 'Một số sản phẩm';
+                throw new OrderException("Sản phẩm {$productName} đã ngừng kinh doanh hoặc tạm ẩn. Vui lòng quay lại giỏ hàng và xóa khỏi danh sách.");
             }
 
             if ($item->variant->stock < $item->quantity) {

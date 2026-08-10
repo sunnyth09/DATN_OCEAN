@@ -120,21 +120,21 @@ const fetchCart = async () => {
         if (authStore.isAuthenticated) {
             const response = await api.get('/cart');
             if (response.data.status === 'success') {
-                cartItems.value = (response.data.data.items || []).filter(i => i.selected);
+                cartItems.value = (response.data.data.items || []).filter(i => i.selected && i.is_available !== false);
                 if (cartItems.value.length === 0) {
                     router.push('/cart');
                 }
             }
         } else {
             const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
-            const selectedLocalItems = localItems.filter(i => i.selected !== false);
+            const selectedLocalItems = localItems.filter(i => i.selected !== false && i.is_available !== false);
             if (selectedLocalItems.length === 0) {
                 router.push('/cart');
                 return;
             }
             const response = await api.post('/cart/guest-details', { items: selectedLocalItems });
             if (response.data.status === 'success') {
-                cartItems.value = response.data.data.items || [];
+                cartItems.value = (response.data.data.items || []).filter(i => i.is_available !== false);
                 if (response.data.data.freeship_threshold) {
                     upsellState.freeshipThreshold = response.data.data.freeship_threshold;
                 }

@@ -124,9 +124,9 @@ const getAuthorAvatarUrl = (author) => {
     <!-- Hero Banner -->
     <section class="page-hero">
       <div class="container">
+        <div class="hero-pill">OCEAN SPORT NEWS</div>
         <h1>Tin Tức & Sự Kiện</h1>
-        <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ
-          Ocean Sport</p>
+        <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ Ocean Sport</p>
       </div>
     </section>
 
@@ -268,7 +268,6 @@ const getAuthorAvatarUrl = (author) => {
 <style scoped>
 .static-page {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  padding-top: 24px;
 }
 
 /* Author elements */
@@ -315,40 +314,49 @@ const getAuthorAvatarUrl = (author) => {
 
 /* Hero Section */
 .page-hero {
-  max-width: 1160px;
-  margin: 0 auto;
-  padding: 0 24px;
+  width: 100%;
   color: #fff;
-  text-align: center;
-}
-
-.page-hero .container {
-  max-width: 100%;
-  padding: 54px 24px;
-  border: 1px solid rgba(230, 59, 111, 0.18);
-  border-radius: 24px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
     linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
-  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+  padding: 70px 0;
+  margin-bottom: 20px;
+}
+
+.page-hero .container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  text-align: left;
+}
+
+.hero-pill {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
 }
 
 .page-hero h1 {
-  font-size: 1.75rem;
+  font-size: 2.5rem;
   font-weight: 800;
-  margin: 0 0 8px;
+  margin: 0 0 12px;
   position: relative;
   z-index: 1;
 }
 
 .hero-sub {
-  opacity: 0.85;
-  font-size: 0.95rem;
-  max-width: 500px;
-  margin: 5px auto 0;
+  opacity: 0.9;
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0;
   z-index: 1;
   line-height: 1.6;
-  text-align: center;
 }
 
 .page-content {
@@ -770,16 +778,19 @@ const getAuthorAvatarUrl = (author) => {
 
 @media (max-width: 768px) {
   .static-page {
-    padding-top: 16px;
+    padding-top: 0;
   }
 
   .page-hero {
-    padding: 0 16px;
+    padding: 40px 0;
   }
 
   .page-hero .container {
-    padding: 40px 18px;
-    border-radius: 18px;
+    padding: 0 20px;
+  }
+
+  .page-hero h1 {
+    font-size: 1.8rem;
   }
 
   .page-content {

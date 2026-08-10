@@ -43,10 +43,7 @@
     <!-- Filter -->
     <StatisticsFilter v-model="filters" @apply="fetchData" />
 
-    <div v-if="loading" class="loading-state text-center py-5">
-      <div class="spinner-border text-primary" role="status"></div>
-      <p class="mt-3 text-muted">Đang tải dữ liệu báo cáo...</p>
-    </div>
+    <AdminTableSkeleton v-if="loading" :columns="6" :rows="5" />
 
     <div v-else class="dashboard-content" id="printable-dashboard">
       <!-- 8 Cards Overview -->
@@ -92,6 +89,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '@/axios';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import StatisticsFilter from './Statistics/StatisticsFilter.vue';
 import StatisticsOverviewCards from './Statistics/StatisticsOverviewCards.vue';
 import RevenueChart from './Statistics/RevenueChart.vue';

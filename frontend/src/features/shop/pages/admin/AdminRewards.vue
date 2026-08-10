@@ -106,6 +106,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import { Modal } from 'bootstrap';
 import Swal from 'sweetalert2';

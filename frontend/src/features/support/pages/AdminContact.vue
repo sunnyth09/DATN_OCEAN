@@ -25,7 +25,8 @@
     </div>
 
     <!-- Table -->
-    <div class="ocean-card table-wrapper">
+    <AdminTableSkeleton v-if="isLoading" :columns="5" :rows="5" />
+    <div v-else class="ocean-card table-wrapper">
       <table class="contact-table">
         <thead>
           <tr>
@@ -146,9 +147,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 
 const contacts = ref([]);
+const isLoading = ref(true);
 const searchQuery = ref('');
 const statusFilter = ref('');
 const isReplying = ref(false);
@@ -182,14 +185,16 @@ const filterByStatus = (status) => {
 };
 
 const fetchContacts = async () => {
+  isLoading.value = true;
   try {
-    const params = {};
-    if (searchQuery.value) params.search = searchQuery.value;
-    if (statusFilter.value) params.status = statusFilter.value;
-    const response = await api.get('/admin/contacts', { params });
-    contacts.value = response.data.data;
+    const res = await api.get('/admin/contacts', {
+      params: { search: searchQuery.value, status: statusFilter.value }
+    });
+    contacts.value = res.data.data;
   } catch (error) {
     showToast('Lỗi tải danh sách liên hệ!', 'error');
+  } finally {
+    isLoading.value = false;
   }
 };
 

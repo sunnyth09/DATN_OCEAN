@@ -93,8 +93,8 @@ const handleLogout = async () => {
     <!-- Brand -->
     <div class="sidebar-brand">
       <router-link to="/admin" class="logo">
-        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="logo-ocean" width="45" >
-        <h3 class="logo-text">Ocean Sport</h3>
+        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="logo-ocean" width="36" >
+        <span class="logo-text">Ocean Sport</span>
       </router-link>
       <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">
         <svg v-if="collapsed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -398,6 +398,27 @@ const handleLogout = async () => {
   flex-shrink: 0;
 }
 
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.logo-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main, #1a1a1a);
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+  margin: 0;
+  padding: 0;
+  line-height: 1.2;
+}
+
 .brand-icon {
   width: auto;
   height: auto;
@@ -481,7 +502,7 @@ const handleLogout = async () => {
 }
 
 .nav-item--active {
-  background: var(--ocean-blue, #1d4ed8) !important;
+  background: var(--primary) !important;
   color: white !important;
   font-weight: 600;
 }

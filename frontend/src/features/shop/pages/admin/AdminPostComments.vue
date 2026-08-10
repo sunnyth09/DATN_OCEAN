@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, nextTick } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
@@ -138,12 +139,7 @@ onMounted(() => {
     </div>
 
     <!-- Comments Table -->
-    <div v-if="isLoading" class="loading-state">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p class="mt-2 text-muted">Đang tải danh sách bình luận...</p>
-    </div>
+    <AdminTableSkeleton v-if="isLoading" :columns="6" :rows="5" />
 
     <div v-else class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
         <div class="table-wrapper">

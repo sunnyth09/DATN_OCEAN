@@ -4,6 +4,7 @@ import api from '@/axios';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastNotify = (message, type = 'success') => {
@@ -447,10 +448,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Đang tải đơn hàng...</p>
-    </div>
+    <AdminTableSkeleton v-if="loading" :columns="7" :rows="6" />
 
     <div v-else>
         <!-- Bulk Actions -->
@@ -687,9 +685,7 @@ onUnmounted(() => {
 .filter-btn.active { background: rgba(230, 59, 111, 0.1); border-color: var(--primary); color: var(--primary); box-shadow: 0 4px 10px rgba(230, 59, 111, 0.15); }
  
 /* Loading */
-.loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
-.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.loading-state { text-align: center; padding: 60px 20px; }
  
 /* Table */
 .table-wrapper { overflow-x: auto; }

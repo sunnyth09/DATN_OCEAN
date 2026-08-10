@@ -1,14 +1,9 @@
 <template>
   <div class="dashboard">
-    <!-- Welcome -->
-    <!-- <div class="welcome-card ocean-card animate-in">
-      <div>
-        <h1 class="welcome-title">Chào mừng trở lại, <span class="highlight">Admin</span> 🌊</h1>
-      </div>
-    </div> -->
-
-    <!-- Stat Cards -->
-    <div class="stats-grid">
+    <AdminTableSkeleton v-if="isLoading" :columns="4" :rows="4" />
+    <div v-else>
+      <!-- Stat Cards -->
+      <div class="stats-grid">
       <div class="stat-card ocean-card animate-in" v-for="(stat, i) in stats" :key="stat.title" :style="{ animationDelay: `${i * 0.08}s` }">
         <div class="stat-icon" :style="{ background: stat.iconBg }">
           <span v-html="stat.icon"></span>
@@ -90,7 +85,7 @@
           </div>
           <span>Tin nhắn</span>
         </router-link>
-        <router-link to="/admin/report" class="action-item ocean-card">
+        <router-link to="/admin/stats" class="action-item ocean-card">
           <div class="action-icon" style="background: #ffb300">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </div>
@@ -98,12 +93,16 @@
         </router-link>
       </div>
     </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import api from '@/axios'; // Use configured axios instance
+import { ref, onMounted, computed } from 'vue';
+import api from '@/axios';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
+
+const isLoading = ref(true);
 
 const stats = ref([
   {
@@ -158,7 +157,9 @@ onMounted(async () => {
             orders.value = data.recent_orders;
         }
     } catch (error) {
-        console.error('Lỗi khi lấy dữ liệu dashboard:', error);
+        console.error('Error loading dashboard data:', error);
+    } finally {
+        isLoading.value = false;
     }
 });
 </script>
