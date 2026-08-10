@@ -187,36 +187,36 @@ class ProductRepository
             ->whereNull('deleted_at')
             ->whereHas('variants', function ($q) use ($now) {
                 $q->where('status', 'active')
-                  ->where(function ($q2) use ($now) {
-                      // Trường hợp 1: Có sale_price active
-                      $q2->where(function ($q3) use ($now) {
-                          $q3->whereNotNull('sale_price')
-                             ->where('sale_price', '>', 0)
-                             ->where(function ($q4) use ($now) {
-                                 // Không có thời hạn → sale vô thời hạn
-                                 $q4->where(function ($q5) {
-                                     $q5->whereNull('sale_starts_at')
-                                        ->whereNull('sale_ends_at');
-                                 })
-                                 // Hoặc đang trong khoảng thời gian sale
-                                 ->orWhere(function ($q5) use ($now) {
-                                     $q5->where('sale_starts_at', '<=', $now)
-                                        ->where('sale_ends_at', '>=', $now);
-                                 })
-                                 // Hoặc chỉ có starts_at (chưa hết hạn)
-                                 ->orWhere(function ($q5) use ($now) {
-                                     $q5->whereNotNull('sale_starts_at')
-                                        ->whereNull('sale_ends_at')
-                                        ->where('sale_starts_at', '<=', $now);
-                                 });
-                             });
-                      })
-                      // Trường hợp 2: compare_at_price > price (giá so sánh)
-                      ->orWhere(function ($q3) {
-                          $q3->whereNotNull('compare_at_price')
-                             ->whereColumn('compare_at_price', '>', 'price');
-                      });
-                  });
+                    ->where(function ($q2) use ($now) {
+                        // Trường hợp 1: Có sale_price active
+                        $q2->where(function ($q3) use ($now) {
+                            $q3->whereNotNull('sale_price')
+                                ->where('sale_price', '>', 0)
+                                ->where(function ($q4) use ($now) {
+                                    // Không có thời hạn → sale vô thời hạn
+                                    $q4->where(function ($q5) {
+                                        $q5->whereNull('sale_starts_at')
+                                            ->whereNull('sale_ends_at');
+                                    })
+                                    // Hoặc đang trong khoảng thời gian sale
+                                        ->orWhere(function ($q5) use ($now) {
+                                            $q5->where('sale_starts_at', '<=', $now)
+                                                ->where('sale_ends_at', '>=', $now);
+                                        })
+                                    // Hoặc chỉ có starts_at (chưa hết hạn)
+                                        ->orWhere(function ($q5) use ($now) {
+                                            $q5->whereNotNull('sale_starts_at')
+                                                ->whereNull('sale_ends_at')
+                                                ->where('sale_starts_at', '<=', $now);
+                                        });
+                                });
+                        })
+                        // Trường hợp 2: compare_at_price > price (giá so sánh)
+                            ->orWhere(function ($q3) {
+                                $q3->whereNotNull('compare_at_price')
+                                    ->whereColumn('compare_at_price', '>', 'price');
+                            });
+                    });
             })
             ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
             ->orderBy('sold_count', 'desc')

@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\PostComment;
 use App\Models\Post;
+use App\Models\PostComment;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Exception;
 
 class PostCommentController extends Controller
 {
@@ -23,7 +21,7 @@ class PostCommentController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $comments
+            'data' => $comments,
         ]);
     }
 
@@ -38,13 +36,13 @@ class PostCommentController extends Controller
         ]);
 
         $post = Post::find($postId);
-        if (!$post) {
+        if (! $post) {
             return response()->json(['status' => 'error', 'message' => 'Không tìm thấy bài viết.'], 404);
         }
 
         // Get authenticated user
         $userId = auth('api')->id() ?? auth('admin')->id();
-        if (!$userId) {
+        if (! $userId) {
             return response()->json(['status' => 'error', 'message' => 'Bạn phải đăng nhập mới được bình luận.'], 401);
         }
 
@@ -54,7 +52,7 @@ class PostCommentController extends Controller
         if (preg_match('/(https?:\/\/[^\s]+|www\.[^\s]+)/i', $content)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Nội dung bình luận không được chứa liên kết (link).'
+                'message' => 'Nội dung bình luận không được chứa liên kết (link).',
             ], 422);
         }
 
@@ -64,7 +62,7 @@ class PostCommentController extends Controller
             if (stripos($content, $word) !== false) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Bình luận chứa từ ngữ không hợp lệ.'
+                    'message' => 'Bình luận chứa từ ngữ không hợp lệ.',
                 ], 422);
             }
         }
@@ -80,7 +78,7 @@ class PostCommentController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Đăng bình luận thành công.',
-            'data' => $comment->load('user:user_id,full_name,avatar_url')
+            'data' => $comment->load('user:user_id,full_name,avatar_url'),
         ], 201);
     }
 
@@ -91,7 +89,7 @@ class PostCommentController extends Controller
     {
         $query = PostComment::with([
             'user:user_id,full_name,email,avatar_url',
-            'post:post_id,title,slug'
+            'post:post_id,title,slug',
         ]);
 
         if ($request->has('status') && $request->status !== 'all') {
@@ -99,11 +97,11 @@ class PostCommentController extends Controller
         }
 
         if ($request->filled('search')) {
-            $search = '%' . $request->search . '%';
+            $search = '%'.$request->search.'%';
             $query->where(function ($q) use ($search) {
-                $q->whereHas('post', fn($p) => $p->where('title', 'like', $search))
-                  ->orWhereHas('user', fn($u) => $u->where('full_name', 'like', $search))
-                  ->orWhere('content', 'like', $search);
+                $q->whereHas('post', fn ($p) => $p->where('title', 'like', $search))
+                    ->orWhereHas('user', fn ($u) => $u->where('full_name', 'like', $search))
+                    ->orWhere('content', 'like', $search);
             });
         }
 
@@ -111,7 +109,7 @@ class PostCommentController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'data' => $comments
+            'data' => $comments,
         ]);
     }
 

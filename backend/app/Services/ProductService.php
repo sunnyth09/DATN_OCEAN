@@ -187,7 +187,6 @@ class ProductService
         ];
     }
 
-
     /**
      * Chi tiết sản phẩm theo slug/ID (cached)
      */
@@ -196,7 +195,6 @@ class ProductService
         $product = Cache::remember("product:identifier:{$identifier}", 1800, function () use ($identifier) {
             return $this->productRepository->findByIdentifier($identifier);
         });
-
 
         if (! $product) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Product not found'];

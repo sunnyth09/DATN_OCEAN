@@ -2,10 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\ProductComment;
-use App\Models\Product;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class ProductCommentSeeder extends Seeder
 {
@@ -32,7 +30,7 @@ class ProductCommentSeeder extends Seeder
                 'Vợt dùng rất êm, căng sẵn lực tốt, đập cầu rất đầm tay!',
                 'Giày đi vừa vặn, êm chân, bám sân cực tốt không bị trơn trượt.',
                 'Áo co giãn tốt, thấm hút mồ hôi nhanh, mặc rất mát khi vận động mạnh.',
-                'Bóng nảy tốt, da mềm, đường may chắc chắn. Rất đáng tiền.'
+                'Bóng nảy tốt, da mềm, đường may chắc chắn. Rất đáng tiền.',
             ],
             4 => [
                 'Sản phẩm tốt, đúng với mô tả. Giao hàng hơi chậm một chút nhưng nhìn chung OK.',
@@ -45,7 +43,7 @@ class ProductCommentSeeder extends Seeder
                 'Chất lượng vừa phải với giá tiền. Nhìn chung dùng được, không có gì để phàn nàn.',
                 'Sản phẩm tốt, đúng mô tả. Giao hàng hơi chậm chút nhưng bù lại chất lượng rất ổn.',
                 'Form giày hơi ôm so với chân mình, nhưng chất lượng da và đế thì không có gì chê.',
-                'Chất liệu vải mát, co giãn tốt. Chỉ tiếc là màu ngoài đời tối hơn trong ảnh một tí.'
+                'Chất liệu vải mát, co giãn tốt. Chỉ tiếc là màu ngoài đời tối hơn trong ảnh một tí.',
             ],
             3 => [
                 'Sản phẩm tạm ổn, nhưng chưa đáp ứng hoàn toàn kỳ vọng. Chất liệu khá ổn.',
@@ -55,7 +53,7 @@ class ProductCommentSeeder extends Seeder
                 'Mua về dùng thử thấy chấp nhận được. Nhưng kỳ vọng cao hơn một chút.',
                 'Sản phẩm tạm ổn, nhưng vải hơi mỏng so với hình dung của mình.',
                 'Đế giày hơi cứng, cần đi vài hôm cho mềm ra. Giao hàng nhanh.',
-                'Bình thường thôi, không có gì quá nổi bật. Dùng được ở mức cơ bản.'
+                'Bình thường thôi, không có gì quá nổi bật. Dùng được ở mức cơ bản.',
             ],
         ];
 
@@ -94,7 +92,7 @@ class ProductCommentSeeder extends Seeder
         foreach ($productRatings as $productId => $avgRating) {
             // Phân bổ rating để trung bình gần với avgRating
             $ratingPool = $this->generateRatingPool($avgRating, $numComments);
-            
+
             // Xáo trộn và lấy ra các user khác nhau không bị trùng lặp trong cùng 1 sản phẩm
             $usedUsers = [];
             $tempUsers = $userIds;
@@ -115,16 +113,16 @@ class ProductCommentSeeder extends Seeder
                 $createdAt = $baseDate->copy()->addDays(rand(0, 180))->addHours(rand(7, 22));
 
                 $comments[] = [
-                    'product_id'      => $productId,
-                    'user_id'         => $userId,
-                    'commenter_type'  => 'user',
-                    'order_item_id'   => null,
-                    'rating'          => $rating,
-                    'content'         => $content,
-                    'images'          => null,
-                    'is_approved'     => 1,
-                    'created_at'      => $createdAt,
-                    'updated_at'      => $createdAt,
+                    'product_id' => $productId,
+                    'user_id' => $userId,
+                    'commenter_type' => 'user',
+                    'order_item_id' => null,
+                    'rating' => $rating,
+                    'content' => $content,
+                    'images' => null,
+                    'is_approved' => 1,
+                    'created_at' => $createdAt,
+                    'updated_at' => $createdAt,
                 ];
             }
         }
@@ -137,7 +135,7 @@ class ProductCommentSeeder extends Seeder
         // Cập nhật lại rating_count và rating_avg cho từng sản phẩm
         $this->updateProductRatings();
 
-        $this->command->info('✅ ProductCommentSeeder: Đã tạo ' . count($comments) . ' đánh giá cho ' . count($productRatings) . ' sản phẩm (IDs 166 -> 246).');
+        $this->command->info('✅ ProductCommentSeeder: Đã tạo '.count($comments).' đánh giá cho '.count($productRatings).' sản phẩm (IDs 166 -> 246).');
     }
 
     /**
@@ -178,6 +176,7 @@ class ProductCommentSeeder extends Seeder
         // Fallback về 4 nếu rating không có template
         $key = isset($templates[$rating]) ? $rating : 4;
         $list = $templates[$key];
+
         return $list[($productId + $rating) % count($list)];
     }
 
@@ -191,8 +190,11 @@ class ProductCommentSeeder extends Seeder
         $cumulative = 0;
         foreach ($weights as $value => $weight) {
             $cumulative += $weight;
-            if ($rand <= $cumulative) return $value;
+            if ($rand <= $cumulative) {
+                return $value;
+            }
         }
+
         return array_key_last($weights);
     }
 
@@ -212,10 +214,10 @@ class ProductCommentSeeder extends Seeder
                 ->where('product_id', $stat->product_id)
                 ->update([
                     'rating_count' => $stat->cnt,
-                    'rating_avg'   => round($stat->avg_rating, 1),
+                    'rating_avg' => round($stat->avg_rating, 1),
                 ]);
         }
 
-        $this->command->info('✅ Đã cập nhật rating_count và rating_avg cho ' . $stats->count() . ' sản phẩm.');
+        $this->command->info('✅ Đã cập nhật rating_count và rating_avg cho '.$stats->count().' sản phẩm.');
     }
 }

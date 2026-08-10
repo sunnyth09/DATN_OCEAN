@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class PostComment extends Model
 {
     protected $table = 'post_comments';
+
     protected $primaryKey = 'comment_id';
 
     protected $fillable = [

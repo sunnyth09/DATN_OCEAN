@@ -8,7 +8,6 @@ Broadcast::routes(['middleware' => ['api', 'auth:api,admin']]);
 
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\Admin\AdminChatController;
-use App\Http\Controllers\PostCommentController;
 use App\Http\Controllers\AdminAffiliateController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
@@ -54,6 +53,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderTrackingController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\PostCategoryController;
+use App\Http\Controllers\PostCommentController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProductCommentController;
 use App\Http\Controllers\ProductController;

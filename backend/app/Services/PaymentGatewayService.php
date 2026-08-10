@@ -18,7 +18,6 @@ class PaymentGatewayService
             return $this->handleVNPay($order, $request);
         }
 
-
         if ($paymentMethod === 'bank_transfer') {
             return $this->handleBanking($order);
         }
@@ -70,7 +69,6 @@ class PaymentGatewayService
             ];
         }
     }
-
 
     private function handleBanking($order): array
     {

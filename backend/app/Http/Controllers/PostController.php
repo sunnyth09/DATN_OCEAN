@@ -155,7 +155,7 @@ class PostController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Thêm bài viết thành công',
-            'data' => $post
+            'data' => $post,
         ]);
     }
 
@@ -174,15 +174,15 @@ class PostController extends Controller
     {
         $post = Post::with(['category', 'author'])
             ->where('status', 'published')
-            ->where(function($query) use ($idOrSlug) {
+            ->where(function ($query) use ($idOrSlug) {
                 $query->where('post_id', $idOrSlug)
-                      ->orWhere('slug', $idOrSlug);
+                    ->orWhere('slug', $idOrSlug);
             })
             ->firstOrFail();
 
         // Redis-based view count throttle: 5-minute cooldown per IP
         $ip = request()->ip();
-        $cacheKey = 'post_viewed:' . $post->post_id . ':' . $ip;
+        $cacheKey = 'post_viewed:'.$post->post_id.':'.$ip;
 
         try {
             if (Redis::setnx($cacheKey, 1)) {
@@ -206,6 +206,7 @@ class PostController extends Controller
     public function edit($id)
     {
         $post = Post::findOrFail($id);
+
         return response()->json($post);
     }
 
@@ -271,7 +272,7 @@ class PostController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật bài viết thành công',
-            'data' => $post
+            'data' => $post,
         ]);
     }
 

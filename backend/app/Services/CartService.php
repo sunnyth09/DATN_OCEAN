@@ -86,10 +86,10 @@ class CartService
             $variant = $item->variant;
             $product = $variant ? $variant->product : null;
             $mainImage = $product ? $product->images->first() : null;
-            
+
             $isAvailable = true;
             $errorMessage = '';
-            
+
             if (! $variant || ! $product || $product->trashed() || $variant->status !== 'active') {
                 $isAvailable = false;
                 $errorMessage = 'Sản phẩm đã ngừng kinh doanh hoặc tạm ẩn';
@@ -209,12 +209,12 @@ class CartService
         }
 
         $updateData = [];
-        
+
         $variant = ProductVariant::with('product')->find($cartItem->variant_id);
-        $isAvailable = $variant && $variant->product && !$variant->product->trashed() && $variant->status === 'active';
+        $isAvailable = $variant && $variant->product && ! $variant->product->trashed() && $variant->status === 'active';
 
         if (isset($data['quantity'])) {
-            if (!$isAvailable) {
+            if (! $isAvailable) {
                 return ['_status' => 422, 'status' => 'error', 'message' => 'Sản phẩm này hiện không khả dụng hoặc đã bị xóa.'];
             }
             if ($variant && $data['quantity'] > $variant->stock) {
@@ -229,7 +229,7 @@ class CartService
         }
 
         if (isset($data['selected'])) {
-            if ($data['selected'] && !$isAvailable) {
+            if ($data['selected'] && ! $isAvailable) {
                 return ['_status' => 422, 'status' => 'error', 'message' => 'Không thể chọn sản phẩm không khả dụng để thanh toán.'];
             }
             $updateData['selected'] = $data['selected'];
