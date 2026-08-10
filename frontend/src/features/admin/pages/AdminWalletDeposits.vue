@@ -69,10 +69,10 @@ const confirmDeposit = async (deposit) => {
 
   try {
     const res = await api.post(`/admin/wallets/deposits/${deposit.id}/confirm`);
-    await Swal.fire({ title: 'Thành công!', text: res.data?.message || 'Đã duyệt', icon: 'success', timer: 2000 });
-    fetchDeposits();
+    Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data?.message || 'Đã duyệt', icon: 'success', showConfirmButton: false, timer: 3000 });
+    fetchDeposits(pagination.value?.current_page || 1);
   } catch (e) {
-    Swal.fire({ title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error' });
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
   }
 };
 
@@ -90,10 +90,10 @@ const rejectDeposit = async (deposit) => {
 
   try {
     const res = await api.post(`/admin/wallets/deposits/${deposit.id}/reject`);
-    await Swal.fire({ title: 'Đã từ chối', text: res.data?.message, icon: 'success', timer: 2000 });
-    fetchDeposits();
+    Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data?.message || 'Đã từ chối', icon: 'success', showConfirmButton: false, timer: 3000 });
+    fetchDeposits(pagination.value?.current_page || 1);
   } catch (e) {
-    Swal.fire({ title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error' });
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
   }
 };
 

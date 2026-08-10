@@ -1167,7 +1167,7 @@ onMounted(async () => {
                                         <span style="font-size: 0.9rem; color: #ef4444; font-weight: 600;">Bạn có: {{ loyaltyPoints }} điểm</span>
                                     </div>
                                     <div v-if="useLoyaltyPoints" style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
-                                        <input type="number" v-model="inputPoints" :max="maxPointsCanUse" min="0" style="width: 100px; padding: 6px; border: 1px solid #fca5a5; border-radius: 4px; text-align: center; outline: none;" />
+                                        <input type="number" v-model="inputPoints" :max="maxPointsCanUse" min="0" style="width: 100px; padding: 8px 10px; border: 1.5px solid #fca5a5; border-radius: 6px; font-size: 0.9rem; text-align: center; outline: none;" />
                                         <span style="font-size: 0.9rem; color: #666;">điểm = <strong style="color: #ef4444;">-{{ formatPrice(loyaltyDiscount) }}</strong></span>
                                     </div>
                                     <div style="font-size: 0.75rem; color: #f59e0b; margin-top: 8px; padding-top: 8px; border-top: 1px solid #fca5a5; line-height: 1.4;">
@@ -1666,11 +1666,11 @@ h2 {
 .form-input {
     width: 100%;
     box-sizing: border-box;
-    padding: 14px 16px;
+    padding: 10px 14px;
     border: 1.5px solid transparent;
-    border-radius: 12px;
+    border-radius: 6px;
     font-family: inherit;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     outline: none;
     transition: all 0.2s ease;
     background: #f1f5f9;
@@ -2204,11 +2204,11 @@ textarea.note-input {
 .coupon-input {
     flex: 1;
     min-width: 0;
-    padding: 12px 14px;
-    border: 1px solid #e2e8f0;
+    padding: 10px 14px;
+    border: 1.5px solid #e2e8f0;
     border-radius: 6px;
     font-family: inherit;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     outline: none;
     transition: all 0.2s;
     text-transform: uppercase;
@@ -2392,9 +2392,9 @@ textarea.note-input {
     /* Deep elegant ocean blue */
     color: white;
     border: none;
-    border-radius: 5px;
-    padding: 14px;
-    font-size: 1.15rem;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 1.05rem;
     font-weight: 700;
     letter-spacing: 0.5px;
     cursor: pointer;

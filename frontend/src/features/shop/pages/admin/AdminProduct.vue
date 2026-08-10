@@ -2,7 +2,6 @@
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
-import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
 import { getApiBaseUrl, getAppBaseUrl } from '@/utils/url';
@@ -12,10 +11,14 @@ import BaseSelect from '@/components/base/BaseSelect.vue';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToastMsg = (message, type = 'success') => {
-  toastData.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('productToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : type,
+    showConfirmButton: false,
+    timer: 3000
   });
 };
 

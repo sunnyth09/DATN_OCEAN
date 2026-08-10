@@ -21,10 +21,14 @@ const toastObj = ref({ message: '', type: 'success' });
 const deletingPostId = ref(null);
 
 const showToast = (message, type = 'success') => {
-  toastObj.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('postListToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 2500 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : type,
+    showConfirmButton: false,
+    timer: 3000
   });
 };
 

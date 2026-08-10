@@ -2,7 +2,6 @@
 import { ref, nextTick, onMounted, watch } from 'vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
-import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
 import { getAbsoluteUrl, getStorageUrl } from '@/utils/url';
@@ -10,10 +9,14 @@ import { sanitizeHtml } from '@/utils/sanitize';
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
-  toastData.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('reviewToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : type,
+    showConfirmButton: false,
+    timer: 3000
   });
 };
 const toast = {

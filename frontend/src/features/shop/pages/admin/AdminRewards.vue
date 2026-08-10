@@ -158,15 +158,15 @@ const saveReward = async () => {
   try {
     if (isEditing.value) {
       await api.put(`/admin/rewards/${form.value.id}`, form.value);
-      Swal.fire('Thành công', 'Cập nhật thành công', 'success');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: 'Cập nhật thành công', icon: 'success', showConfirmButton: false, timer: 3000 });
     } else {
       await api.post('/admin/rewards', form.value);
-      Swal.fire('Thành công', 'Thêm mới thành công', 'success');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: 'Thêm mới thành công', icon: 'success', showConfirmButton: false, timer: 3000 });
     }
     modalInstance.hide();
     fetchRewards();
   } catch (error) {
-    Swal.fire('Lỗi', 'Có lỗi xảy ra', 'error');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
   } finally {
     isSubmitting.value = false;
   }
@@ -186,10 +186,10 @@ const deleteReward = async (id) => {
   if (result.isConfirmed) {
     try {
       await api.delete(`/admin/rewards/${id}`);
-      Swal.fire('Đã xóa', 'Quà tặng đã bị xóa', 'success');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Đã xóa', text: 'Quà tặng đã bị xóa', icon: 'success', showConfirmButton: false, timer: 3000 });
       fetchRewards();
     } catch (error) {
-      Swal.fire('Lỗi', 'Không thể xóa', 'error');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Không thể xóa', icon: 'error', showConfirmButton: false, timer: 3000 });
     }
   }
 };

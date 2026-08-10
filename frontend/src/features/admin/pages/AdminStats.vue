@@ -89,6 +89,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '@/axios';
+import Swal from 'sweetalert2';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import StatisticsFilter from './Statistics/StatisticsFilter.vue';
 import StatisticsOverviewCards from './Statistics/StatisticsOverviewCards.vue';
@@ -177,7 +178,15 @@ const handleExportExcel = async () => {
     link.parentNode.removeChild(link);
   } catch (error) {
     console.error("Lỗi xuất Excel:", error);
-    alert("Không thể xuất file Excel. Vui lòng kiểm tra lại quyền hoặc dữ liệu.");
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'error',
+      title: 'Lỗi',
+      text: 'Không thể xuất file Excel. Vui lòng kiểm tra lại quyền hoặc dữ liệu.',
+      showConfirmButton: false,
+      timer: 3000
+    });
   }
 };
 
@@ -198,7 +207,15 @@ const handleExportStaffSales = async () => {
     link.parentNode.removeChild(link);
   } catch (error) {
     console.error("Lỗi xuất Excel:", error);
-    alert("Không thể xuất file Excel báo cáo nhân viên.");
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'error',
+      title: 'Lỗi',
+      text: 'Không thể xuất file Excel báo cáo nhân viên.',
+      showConfirmButton: false,
+      timer: 3000
+    });
   }
 };
 

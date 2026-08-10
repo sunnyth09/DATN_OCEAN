@@ -27,10 +27,14 @@ const form = ref(defaultForm());
 const toast = ref({ message: '', type: 'success' });
 
 const showToast = (message, type = 'success') => {
-  toast.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('categoryToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 2500 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : type,
+    showConfirmButton: false,
+    timer: 3000
   });
 };
 
@@ -122,10 +126,10 @@ const handleSubmit = async () => {
     try {
         if (isEditing.value) {
             const res = await api.put(`/post-categories/${data.post_category_id}`, data);
-            Swal.fire('Thành công', res.data?.message || 'Cập nhật thành công!', 'success');
+            Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data?.message || 'Cập nhật thành công!', icon: 'success', showConfirmButton: false, timer: 3000 });
         } else {
             const res = await api.post('/post-categories', data);
-            Swal.fire('Thành công', res.data?.message || 'Thêm danh mục thành công!', 'success');
+            Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data?.message || 'Thêm danh mục thành công!', icon: 'success', showConfirmButton: false, timer: 3000 });
         }
         await fetchCategories();
         closeModal();

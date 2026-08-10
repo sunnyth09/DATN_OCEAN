@@ -118,10 +118,10 @@ const approveConversion = async (conv) => {
 
   try {
     const res = await api.put(`/admin/affiliate/conversions/${conv.id}/approve`);
-    Swal.fire('Thành công', res.data.message || 'Đã duyệt hoa hồng', 'success');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data.message || 'Đã duyệt hoa hồng', icon: 'success', showConfirmButton: false, timer: 3000 });
     fetchConversions(paginationConv.value?.current_page || 1);
   } catch (e) {
-    Swal.fire('Lỗi', e.response?.data?.message || 'Có lỗi xảy ra', 'error');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
   }
 };
 
@@ -139,10 +139,10 @@ const cancelConversion = async (conv) => {
 
   try {
     const res = await api.put(`/admin/affiliate/conversions/${conv.id}/cancel`);
-    Swal.fire('Đã hủy', res.data.message || 'Đã hủy hoa hồng', 'success');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Đã hủy', text: res.data.message || 'Đã hủy hoa hồng', icon: 'success', showConfirmButton: false, timer: 3000 });
     fetchConversions(paginationConv.value?.current_page || 1);
   } catch (e) {
-    Swal.fire('Lỗi', e.response?.data?.message || 'Có lỗi xảy ra', 'error');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
   }
 };
 
@@ -159,10 +159,10 @@ const approveWithdrawal = async (w) => {
   if (result.isConfirmed) {
     try {
       const res = await api.put(`/admin/affiliate/withdrawals/${w.id}/approve`);
-      Swal.fire('Thành công', res.data.message || 'Đã duyệt yêu cầu', 'success');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data.message || 'Đã duyệt yêu cầu', icon: 'success', showConfirmButton: false, timer: 3000 });
       fetchWithdrawals(paginationWith.value?.current_page || 1);
     } catch (e) {
-      Swal.fire('Lỗi', e.response?.data?.message || 'Có lỗi xảy ra', 'error');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
     }
   }
 };
@@ -181,10 +181,10 @@ const rejectWithdrawal = async (w) => {
   if (note !== undefined) {
     try {
       const res = await api.put(`/admin/affiliate/withdrawals/${w.id}/reject`, { note });
-      Swal.fire('Đã từ chối', res.data.message || 'Đã từ chối yêu cầu', 'success');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Đã từ chối', text: res.data.message || 'Đã từ chối yêu cầu', icon: 'success', showConfirmButton: false, timer: 3000 });
       fetchWithdrawals(paginationWith.value?.current_page || 1);
     } catch (e) {
-      Swal.fire('Lỗi', e.response?.data?.message || 'Có lỗi xảy ra', 'error');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
     }
   }
 };
@@ -201,10 +201,10 @@ const markPaidWithdrawal = async (w) => {
   if (result.isConfirmed) {
     try {
       const res = await api.put(`/admin/affiliate/withdrawals/${w.id}/paid`);
-      Swal.fire('Thành công', res.data.message || 'Đã chuyển trạng thái Đã thanh toán', 'success');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data.message || 'Đã chuyển trạng thái Đã thanh toán', icon: 'success', showConfirmButton: false, timer: 3000 });
       fetchWithdrawals(paginationWith.value?.current_page || 1);
     } catch (e) {
-      Swal.fire('Lỗi', e.response?.data?.message || 'Có lỗi xảy ra', 'error');
+      Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
     }
   }
 };

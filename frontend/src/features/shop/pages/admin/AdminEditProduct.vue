@@ -192,7 +192,7 @@ const fetchProduct = async () => {
         }
     } catch (e) {
         console.error("Error fetching product:", e);
-        Swal.fire('Lỗi', 'Không thể tải thông tin sản phẩm.', 'error');
+        Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Không thể tải thông tin sản phẩm.', icon: 'error', showConfirmButton: false, timer: 3000 });
     } finally {
         isLoading.value = false;
         nextTick(() => initQuill());
@@ -367,7 +367,7 @@ const handleSubmit = async () => {
 
     try {
         await api.post(`/products/${productId.value}`, fd, { headers: { "Content-Type": "multipart/form-data" } });
-        Swal.fire('Thành công', 'Cập nhật sản phẩm thành công!', 'success');
+        Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: 'Cập nhật sản phẩm thành công!', icon: 'success', showConfirmButton: false, timer: 3000 });
         
         // Pass query params and edited_id to retain state
         router.push({ 
@@ -377,7 +377,7 @@ const handleSubmit = async () => {
     } catch (e) {
         console.error("Error:", e.response?.data || e);
         if (e.response?.data?.errors) errors.value = e.response.data.errors;
-        Swal.fire('Lỗi', e.response?.data?.message || "Có lỗi xảy ra khi cập nhật.", 'error');
+        Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || "Có lỗi xảy ra khi cập nhật.", icon: 'error', showConfirmButton: false, timer: 3000 });
     } finally {
         isSaving.value = false;
     }

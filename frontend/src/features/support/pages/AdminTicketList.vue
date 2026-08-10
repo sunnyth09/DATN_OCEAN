@@ -234,7 +234,7 @@ const fetchTickets = async () => {
     }
   } catch (error) {
     console.error("Lỗi lấy danh sách khiếu nại:", error);
-    Swal.fire('Lỗi', 'Không thể lấy danh sách khiếu nại', 'error');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Không thể lấy danh sách khiếu nại', icon: 'error', showConfirmButton: false, timer: 3000 });
   } finally {
     loading.value = false;
   }
@@ -305,7 +305,7 @@ const submitReply = async () => {
     }
   } catch (error) {
     console.error("Lỗi cập nhật:", error);
-    Swal.fire('Lỗi', 'Có lỗi xảy ra khi cập nhật', 'error');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Có lỗi xảy ra khi cập nhật', icon: 'error', showConfirmButton: false, timer: 3000 });
   } finally {
     actionLoading.value = false;
   }

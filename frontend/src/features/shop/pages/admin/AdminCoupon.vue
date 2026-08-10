@@ -43,10 +43,14 @@ const form = ref(defaultForm());
 const toast = ref({ message: '', type: 'success' });
 
 const showToast = (message, type = 'success') => {
-  toast.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('couponToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 2500 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : type,
+    showConfirmButton: false,
+    timer: 3000
   });
 };
 

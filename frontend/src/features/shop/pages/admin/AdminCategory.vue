@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import api from '@/axios';
-import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AdminCategoryFormTree from '@/components/AdminCategoryFormTree.vue';
 import AdminCategoryRow from '@/components/AdminCategoryRow.vue';
@@ -35,10 +34,14 @@ const isDeletingImage = ref(false);
 
 const toast = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
-  toast.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('categoryToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 2500 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : type,
+    showConfirmButton: false,
+    timer: 3000
   });
 };
 
@@ -196,12 +199,12 @@ const handleSubmit = async () => {
             const res = await api.post(`/categories/${form.value.category_id}`, fd, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            Swal.fire('Thành công', res.data.message || 'Cập nhật thành công!', 'success');
+            Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data.message || 'Cập nhật thành công!', icon: 'success', showConfirmButton: false, timer: 3000 });
         } else {
             const res = await api.post('/categories', fd, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            Swal.fire('Thành công', res.data.message || 'Thêm danh mục thành công!', 'success');
+            Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data.message || 'Thêm danh mục thành công!', icon: 'success', showConfirmButton: false, timer: 3000 });
         }
         await fetchCategories();
         closeModal();

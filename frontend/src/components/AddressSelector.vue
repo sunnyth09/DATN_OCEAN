@@ -182,7 +182,7 @@ onMounted(async () => {
                         class="address-selector__select"
                         :disabled="loadingProvinces"
                     >
-                        <option value="">-- Chọn Tỉnh/Thành phố --</option>
+                        <option value="">Chọn Tỉnh/Thành phố</option>
                         <option
                             v-for="province in provinces"
                             :key="province.id"
@@ -212,7 +212,7 @@ onMounted(async () => {
                         class="address-selector__select"
                         :disabled="!selectedProvince || loadingWards"
                     >
-                        <option value="">-- Chọn Phường/Xã --</option>
+                        <option value="">Chọn Phường/Xã</option>
                         <option
                             v-for="ward in wards"
                             :key="ward.id"
@@ -260,7 +260,7 @@ onMounted(async () => {
 
 .address-selector__row {
     display: grid;
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: 1fr 1fr;
     gap: 16px;
 }
 
@@ -309,7 +309,7 @@ onMounted(async () => {
     width: 100%;
     padding: 10px 14px;
     border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
+    border-radius: 6px;
     font-size: 0.9rem;
     color: var(--text-main);
     background: var(--card-bg);

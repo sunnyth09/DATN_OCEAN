@@ -72,10 +72,10 @@ const completeWithdrawal = async (withdrawal) => {
 
   try {
     const res = await api.put(`/admin/wallets/withdrawals/${withdrawal.id}/complete`);
-    await Swal.fire({ title: 'Thành công!', text: res.data?.message || 'Đã duyệt', icon: 'success', timer: 2000 });
-    fetchWithdrawals();
+    Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data?.message || 'Đã duyệt', icon: 'success', showConfirmButton: false, timer: 3000 });
+    fetchWithdrawals(pagination.value?.current_page || 1);
   } catch (e) {
-    Swal.fire({ title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error' });
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
   }
 };
 
@@ -104,10 +104,10 @@ const rejectWithdrawal = async (withdrawal) => {
 
   try {
     const res = await api.put(`/admin/wallets/withdrawals/${withdrawal.id}/reject`, { note });
-    await Swal.fire({ title: 'Đã từ chối', text: res.data?.message, icon: 'success', timer: 2000 });
-    fetchWithdrawals();
+    Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data?.message || 'Đã từ chối', icon: 'success', showConfirmButton: false, timer: 3000 });
+    fetchWithdrawals(pagination.value?.current_page || 1);
   } catch (e) {
-    Swal.fire({ title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error' });
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
   }
 };
 

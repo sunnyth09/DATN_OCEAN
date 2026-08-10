@@ -31,7 +31,6 @@ const isLoadingCategories = ref(true);
 const publicCoupons = ref([]);
 const selectedCoupon = ref(null);
 const copiedCouponCode = ref('');
-const isPageReady = computed(() => !isLoadingFeatured.value && !isLoadingCategories.value);
 
 const catalogStore = useCatalogStore();
 const { categories: storeCategories } = storeToRefs(catalogStore);
@@ -391,7 +390,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 
 <template>
     <div class="home-wrapper">
-        <main class="home-main" :class="{ 'page-ready': isPageReady }">
+        <main class="home-main">
             <HeroSection />
             <BenefitsBar />
             <VoucherSection
@@ -421,17 +420,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 </template>
 
 <style scoped>
-/* PAGE CONTENT REVEAL */
-.home-main {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.8s ease 0.2s, transform 0.8s ease 0.2s;
-}
 
-.home-main.page-ready {
-    opacity: 1;
-    transform: translateY(0);
-}
 /* ============================================
    HOME WRAPPER
 ============================================ */

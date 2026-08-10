@@ -1,10 +1,10 @@
 <script setup>
+import Swal from 'sweetalert2';
 import { reactive, ref, onMounted, nextTick, watch } from "vue";
 import api from '@/axios';
 import { useRouter, useRoute } from 'vue-router';
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
-import { Toast } from 'bootstrap';
 import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
@@ -23,10 +23,14 @@ const SUMMARY_MAX_LENGTH = 500;
 const SEO_DESCRIPTION_MAX_LENGTH = 500;
 
 const showToast = (message, type = 'success') => {
-  toastObj.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('postToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 2500 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : type,
+    showConfirmButton: false,
+    timer: 3000
   });
 };
 
