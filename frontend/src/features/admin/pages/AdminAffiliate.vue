@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import api from '@/axios.js';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 
 const activeTab = ref('affiliates'); // 'affiliates', 'conversions' or 'withdrawals'
 const affiliates = ref([]);
@@ -261,10 +262,7 @@ onMounted(() => {
     </div>
 
     <!-- Loading -->
-    <div v-if="isLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải dữ liệu...</p>
-    </div>
+    <AdminTableSkeleton v-if="isLoading" :columns="7" :rows="5" />
 
     <!-- Tab: Affiliates -->
     <div v-else-if="activeTab === 'affiliates'" class="table-card">

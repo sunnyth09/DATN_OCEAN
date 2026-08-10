@@ -3,6 +3,7 @@ import { ref, onMounted, computed, nextTick } from 'vue';
 import api from '@/axios';
 import { Toast, Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 
 const coupons = ref([]);
 const isLoading = ref(true);
@@ -320,8 +321,11 @@ const selectedCategoryNames = computed(() => {
             </div>
         </div>
 
+        <!-- Loading State -->
+        <AdminTableSkeleton v-if="isLoading" :columns="7" :rows="6" />
+
         <!-- Coupon Table -->
-        <div class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
+        <div v-else class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
             <div class="table-header">
                 <span class="table-count">
                     <strong>{{ filteredCoupons.length }}</strong> mã giảm giá được tìm thấy
@@ -341,13 +345,7 @@ const selectedCategoryNames = computed(() => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="isLoading">
-                            <td colspan="7" class="loading-state">
-                                <div class="spinner"></div>
-                                Đang tải dữ liệu...
-                            </td>
-                        </tr>
-                        <tr v-else-if="filteredCoupons.length === 0">
+                        <tr v-if="filteredCoupons.length === 0">
                             <td colspan="7" class="empty-cell" style="text-align:center; padding: 40px; color:#9fb3c8;">Không có mã giảm giá nào.</td>
                         </tr>
                         <tr v-for="coupon in filteredCoupons" :key="coupon.id">

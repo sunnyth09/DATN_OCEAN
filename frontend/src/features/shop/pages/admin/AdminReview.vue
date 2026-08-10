@@ -1,5 +1,6 @@
 <script setup>
 import { ref, nextTick, onMounted, watch } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
@@ -352,10 +353,7 @@ onMounted(() => {
     <!--                 REVIEW VIEW                -->
     <!-- ========================================== -->
     <div v-show="viewMode === 'reviews'">
-      <div v-if="reviewLoading" class="loading-state">
-        <div class="spinner"></div>
-        <span>Đang tải đánh giá...</span>
-      </div>
+      <AdminTableSkeleton v-if="reviewLoading" :columns="6" :rows="5" />
 
       <div v-else class="table-wrap">
         <table class="review-table">

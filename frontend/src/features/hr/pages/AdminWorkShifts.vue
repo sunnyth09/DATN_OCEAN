@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 
@@ -190,8 +191,8 @@ onMounted(() => { fetchShifts(); });
           Thêm ca
         </button>
       </div>
-
-      <div class="ocean-card table-wrapper">
+      <AdminTableSkeleton v-if="loadingShifts" :columns="7" :rows="5" />
+      <div v-else class="ocean-card table-wrapper">
         <table class="ws-table">
           <thead>
             <tr>
@@ -205,10 +206,7 @@ onMounted(() => { fetchShifts(); });
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loadingShifts">
-              <td colspan="7" class="empty-cell"><div class="ws-spinner"></div></td>
-            </tr>
-            <tr v-else-if="shifts.length === 0">
+            <tr v-if="shifts.length === 0">
               <td colspan="7" class="empty-cell">Chưa có ca nào.</td>
             </tr>
             <tr v-else v-for="s in shifts" :key="s.id" class="ws-row">
@@ -248,10 +246,7 @@ onMounted(() => { fetchShifts(); });
 
     <!-- ===== TAB 2: PHÂN CA NHÂN VIÊN ===== -->
     <div v-if="activeTab === 'assign'">
-      <div v-if="loadingAssign" class="loading-state">
-        <div class="ws-spinner"></div>
-        <p>Đang tải bảng phân ca...</p>
-      </div>
+      <AdminTableSkeleton v-if="loadingAssign" :columns="6" :rows="5" />
       <div v-else>
         <div class="ocean-card table-wrapper">
           <table class="ws-table schedule-table">

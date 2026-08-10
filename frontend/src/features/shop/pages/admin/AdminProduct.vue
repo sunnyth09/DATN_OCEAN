@@ -24,6 +24,31 @@ const router = useRouter();
 
 const products = ref([]);
 const isLoading = ref(true);
+const isInitialLoad = ref(true);
+
+// Bulk Actions State
+const selectedProducts = ref([]);
+const selectAll = ref(false);
+
+watch(selectAll, (val) => {
+    if (val) {
+        selectedProducts.value = products.value.map(p => p.product_id);
+    } else if (selectedProducts.value.length === products.value.length) {
+        // Only clear if all were selected by the checkbox, not if user manually unselected one
+        selectedProducts.value = [];
+    }
+});
+
+watch(selectedProducts, (val) => {
+    if (val.length === 0) {
+        selectAll.value = false;
+    } else if (val.length === products.value.length && products.value.length > 0) {
+        selectAll.value = true;
+    } else {
+        selectAll.value = false;
+    }
+});
+
 const searchQuery = ref(route.query.search || '');
 const statusFilter = ref(route.query.status || '');
 const categoryFilter = ref(route.query.category_id || '');
@@ -74,6 +99,7 @@ const currentPage = ref(parseInt(route.query.page) || 1);
 const totalProducts = ref(0);
 const limit = 10;
 
+
 const storageUrl = import.meta.env.VITE_API_STORAGE || `${getAppBaseUrl()}/storage`;
 
 // Chuẩn hóa URL ảnh: DB có thể lưu path đã kèm '/storage/' (vd '/storage/products/x.webp'),
@@ -91,6 +117,7 @@ const buildMedia = (path) => {
 const fetchProducts = async () => {
     isLoading.value = true;
     try {
+        selectedProducts.value = [];
         const params = new URLSearchParams({
             page: currentPage.value,
             limit: limit,
@@ -109,6 +136,7 @@ const fetchProducts = async () => {
         console.error('Error fetching products:', error);
     } finally {
         isLoading.value = false;
+        isInitialLoad.value = false;
     }
 };
 
@@ -182,6 +210,7 @@ const getImageUrl = (product) => {
     return null;
 };
 
+let filterTimeout;
 const updateRouteAndFetch = () => {
     const query = { ...route.query };
     
@@ -200,7 +229,19 @@ const updateRouteAndFetch = () => {
     if (priceFilter.value) query.price_range = priceFilter.value; else delete query.price_range;
     
     router.replace({ query }).catch(() => {});
-    fetchProducts();
+    
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => {
+        fetchProducts();
+    }, 400); // 400ms debounce
+};
+
+let searchTimeout;
+const handleSearchInput = () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        handleSearch();
+    }, 500);
 };
 
 const handleSearch = () => {
@@ -222,6 +263,21 @@ const handleFilterStatus = (status) => {
     }
     updateRouteAndFetch();
 };
+
+const resetFilters = () => {
+    searchQuery.value = '';
+    statusFilter.value = '';
+    categoryFilter.value = '';
+    brandFilter.value = '';
+    sortByFilter.value = '';
+    priceFilter.value = '';
+    currentPage.value = 1;
+    updateRouteAndFetch();
+};
+
+const hasActiveFilters = computed(() => {
+    return searchQuery.value || statusFilter.value || categoryFilter.value || brandFilter.value || sortByFilter.value || priceFilter.value;
+});
 
 const handleDelete = async (productId, isDeleted) => {
     const confirmMsg = isDeleted 
@@ -246,6 +302,66 @@ const handleDelete = async (productId, isDeleted) => {
     } catch (error) {
         console.error('Error deleting product:', error);
         showToastMsg('Không thể xóa sản phẩm.', 'danger');
+    }
+};
+
+const handleBulkDelete = async () => {
+    if (selectedProducts.value.length === 0) return;
+    
+    const result = await Swal.fire({
+        title: 'Xác nhận xóa hàng loạt',
+        text: `Bạn có chắc chắn muốn xóa ${selectedProducts.value.length} sản phẩm đã chọn?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Xóa',
+        cancelButtonText: 'Hủy'
+    });
+    
+    if (!result.isConfirmed) return;
+    
+    try {
+        // Implement bulk delete - calling delete sequentially for now if no bulk API exists
+        // Ideally there should be a bulk API like api.post('/products/bulk-delete', { ids: selectedProducts.value })
+        const promises = selectedProducts.value.map(id => api.delete(`/products/${id}`));
+        await Promise.all(promises);
+        
+        showToastMsg(`Đã xóa thành công ${selectedProducts.value.length} sản phẩm.`, 'success');
+        selectedProducts.value = [];
+        fetchProducts();
+    } catch (error) {
+        console.error('Error bulk deleting products:', error);
+        showToastMsg('Có lỗi xảy ra khi xóa hàng loạt.', 'danger');
+    }
+};
+
+const handleBulkStatusChange = async (newStatus) => {
+    if (selectedProducts.value.length === 0) return;
+    
+    const statusText = newStatus === 'active' ? 'Đang bán' : (newStatus === 'inactive' ? 'Tạm ẩn' : newStatus);
+    
+    const result = await Swal.fire({
+        title: 'Cập nhật trạng thái',
+        text: `Chuyển ${selectedProducts.value.length} sản phẩm sang trạng thái "${statusText}"?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Cập nhật',
+        cancelButtonText: 'Hủy'
+    });
+    
+    if (!result.isConfirmed) return;
+    
+    try {
+        const promises = selectedProducts.value.map(id => api.put(`/products/${id}`, { status: newStatus }));
+        await Promise.all(promises);
+        
+        showToastMsg(`Đã cập nhật trạng thái cho ${selectedProducts.value.length} sản phẩm.`, 'success');
+        selectedProducts.value = [];
+        fetchProducts();
+    } catch (error) {
+        console.error('Error bulk updating status:', error);
+        showToastMsg('Có lỗi xảy ra khi cập nhật trạng thái.', 'danger');
     }
 };
 
@@ -543,12 +659,29 @@ const qvSelectedImage = ref('');
 const qvSafeShortDescription = computed(() => sanitizeHtml(quickViewProduct.value?.short_description));
 const qvSafeDescription = computed(() => sanitizeHtml(quickViewProduct.value?.description));
 
+const quickViewCache = ref({});
+
 const openQuickView = async (slug) => {
-    isLoadingQuickView.value = true;
     showQuickViewModal.value = true;
+    
+    // Kiểm tra cache
+    if (quickViewCache.value[slug]) {
+        quickViewProduct.value = quickViewCache.value[slug];
+        if (quickViewProduct.value.thumbnail_url) {
+            qvSelectedImage.value = buildMedia(quickViewProduct.value.thumbnail_url);
+        } else if (quickViewProduct.value.images && quickViewProduct.value.images.length > 0) {
+            qvSelectedImage.value = buildMedia(quickViewProduct.value.images[0].image_url);
+        } else {
+            qvSelectedImage.value = '';
+        }
+        return;
+    }
+
+    isLoadingQuickView.value = true;
     try {
         const response = await api.get(`/products/${slug}`);
         const productData = response.data.data || response.data;
+        quickViewCache.value[slug] = productData; // Lưu vào cache
         quickViewProduct.value = productData;
         // Set preview ảnh ban đầu
         if (productData.thumbnail_url) {
@@ -603,13 +736,21 @@ const formatDate = (dateString) => {
                 <p class="page-subtitle">Quản lý kho hàng cửa hàng Ocean</p>
             </div>
             <div class="header-btns">
-                <button class="btn-import" id="import-excel-btn" @click="openImportModal">
+                <button class="btn-import" id="export-excel-btn" @click="showToastMsg('Chức năng Xuất Excel đang phát triển', 'info')">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
                         <line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
-                    Nhập từ Excel
+                    Xuất
+                </button>
+                <button class="btn-import" id="import-excel-btn" @click="openImportModal">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Nhập
                 </button>
                 <router-link to="/admin/product/create" class="btn-primary" id="add-product-btn">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -622,70 +763,147 @@ const formatDate = (dateString) => {
         </div>
 
         <!-- Filters & Search -->
-        <div class="filters-bar ocean-card animate-in" style="animation-delay: 0.1s">
-            <div class="filters-top" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%;">
-                <div class="search-box">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="8"/>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-                <input 
-                    type="text" 
-                    v-model="searchQuery"
-                    @keyup.enter="handleSearch"
-                    placeholder="Tìm kiếm sản phẩm theo tên..." 
-                    class="search-input"
-                />
+        <div class="filters-bar ocean-card animate-in" style="animation-delay: 0.1s; padding: 0;">
+            <!-- Status Tabs -->
+            <div class="status-tabs-container">
+                <div class="status-pills">
+                    <button class="status-pill" :class="{ active: !statusFilter }" @click="handleFilterStatus('')">Tất cả</button>
+                    <button class="status-pill" :class="{ active: statusFilter === 'active' }" @click="handleFilterStatus('active')">Đang bán</button>
+                    <button class="status-pill" :class="{ active: statusFilter === 'draft' }" @click="handleFilterStatus('draft')">Nháp</button>
+                    <button class="status-pill" :class="{ active: statusFilter === 'inactive' }" @click="handleFilterStatus('inactive')">Tạm ẩn</button>
+                    <button class="status-pill" :class="{ active: statusFilter === 'out_of_stock' }" @click="handleFilterStatus('out_of_stock')">Hết hàng</button>
+                    <button class="status-pill danger" :class="{ active: statusFilter === 'deleted' }" @click="handleFilterStatus('deleted')">Đã xóa</button>
+                </div>
             </div>
-            <div class="filter-actions">
-                <button class="filter-btn" :class="{ active: !statusFilter }" @click="handleFilterStatus('')">Tất cả</button>
-                <button class="filter-btn" :class="{ active: statusFilter === 'active' }" @click="handleFilterStatus('active')">Đang bán</button>
-                <button class="filter-btn" :class="{ active: statusFilter === 'draft' }" @click="handleFilterStatus('draft')">Nháp</button>
-                <button class="filter-btn" :class="{ active: statusFilter === 'inactive' }" @click="handleFilterStatus('inactive')">Tạm ẩn</button>
-                <button class="filter-btn" :class="{ active: statusFilter === 'out_of_stock' }" @click="handleFilterStatus('out_of_stock')">Hết hàng</button>
-                <button class="filter-btn btn-danger" :class="{ active: statusFilter === 'deleted' }" @click="handleFilterStatus('deleted')">Đã xóa</button>
-            </div>
-            </div>
-            <div class="advanced-filters" style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap; padding-top: 15px; border-top: 1px dashed var(--border-color, #e2e8f0);">
-                <BaseSelect 
-                    v-model="categoryFilter" 
-                    @change="handleAdvancedFilter" 
-                    :options="categoryOptions"
-                    placeholder="-- Danh mục --"
-                    style="min-width: 150px; flex: 1;"
-                />
-                <BaseSelect 
-                    v-model="brandFilter" 
-                    @change="handleAdvancedFilter" 
-                    :options="brandOptions"
-                    placeholder="-- Thương hiệu --"
-                    style="min-width: 150px; flex: 1;"
-                />
-                <BaseSelect 
-                    v-model="priceFilter" 
-                    @change="handleAdvancedFilter" 
-                    :options="priceOptions"
-                    placeholder="-- Khoảng giá --"
-                    style="min-width: 150px; flex: 1;"
-                />
-                <BaseSelect 
-                    v-model="sortByFilter" 
-                    @change="handleAdvancedFilter" 
-                    :options="sortOptions"
-                    placeholder="-- Sắp xếp --"
-                    style="min-width: 150px; flex: 1;"
-                />
+
+            <div class="filters-inner" style="padding: 16px 20px;">
+                <div class="filters-top" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%;">
+                    <div class="search-box" style="flex: 2; min-width: 280px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                        <input 
+                            type="text" 
+                            v-model="searchQuery"
+                            @input="handleSearchInput"
+                            @keyup.enter="handleSearch"
+                            placeholder="Tìm kiếm theo mã, tên sản phẩm..." 
+                            class="search-input"
+                        />
+                    </div>
+                    
+                    <div class="advanced-filters" style="display: flex; gap: 12px; flex: 2; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
+                        <BaseSelect 
+                            v-model="categoryFilter" 
+                            @change="handleAdvancedFilter" 
+                            :options="categoryOptions"
+                            placeholder="Danh mục"
+                            style="min-width: 140px;"
+                        />
+                        <BaseSelect 
+                            v-model="brandFilter" 
+                            @change="handleAdvancedFilter" 
+                            :options="brandOptions"
+                            placeholder="Thương hiệu"
+                            style="min-width: 140px;"
+                        />
+                        <BaseSelect 
+                            v-model="priceFilter" 
+                            @change="handleAdvancedFilter" 
+                            :options="priceOptions"
+                            placeholder="Mức giá"
+                            style="min-width: 120px;"
+                        />
+                        <BaseSelect 
+                            v-model="sortByFilter" 
+                            @change="handleAdvancedFilter" 
+                            :options="sortOptions"
+                            placeholder="Sắp xếp"
+                            style="min-width: 120px;"
+                        />
+                    </div>
+                </div>
+
+                <div v-if="hasActiveFilters" style="margin-top: 12px; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 0.85rem; color: var(--text-light);">Đang lọc dữ liệu</span>
+                    <button class="btn-clear-filters" @click="resetFilters">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        Xóa bộ lọc
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Loading State -->
-        <div v-if="isLoading" class="loading-state">
-            <div class="spinner"></div>
-            <p>Đang tải sản phẩm...</p>
+        <!-- Modern Skeleton Loading State -->
+        <div v-if="isInitialLoad" class="table-container ocean-card" style="position: relative;">
+            <div class="table-header">
+                <div class="skeleton-text" style="width: 150px; height: 20px; margin-top: 4px;"></div>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px"></th>
+                        <th>Sản phẩm</th>
+                        <th>Phân loại</th>
+                        <th>Giá</th>
+                        <th>Kho</th>
+                        <th>Trạng thái</th>
+                        <th style="text-align: right;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="i in 5" :key="i">
+                        <td><div class="skeleton-box" style="width: 20px; height: 20px; border-radius: 4px;"></div></td>
+                        <td>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <div class="skeleton-box" style="width: 48px; height: 48px; border-radius: 8px;"></div>
+                                <div>
+                                    <div class="skeleton-text" style="width: 220px; height: 16px; margin-bottom: 8px;"></div>
+                                    <div class="skeleton-text" style="width: 120px; height: 12px;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><div class="skeleton-text" style="width: 80px; height: 22px; border-radius: 12px;"></div></td>
+                        <td><div class="skeleton-text" style="width: 90px; height: 16px;"></div></td>
+                        <td><div class="skeleton-text" style="width: 60px; height: 22px; border-radius: 6px;"></div></td>
+                        <td><div class="skeleton-text" style="width: 70px; height: 22px; border-radius: 6px;"></div></td>
+                        <td>
+                            <div class="actions-cell" style="justify-content: flex-end;">
+                                <div class="skeleton-box" style="width: 36px; height: 36px; border-radius: 10px;"></div>
+                                <div class="skeleton-box" style="width: 36px; height: 36px; border-radius: 10px;"></div>
+                                <div class="skeleton-box" style="width: 36px; height: 36px; border-radius: 10px;"></div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <!-- Products Table -->
-        <div v-else class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
+        <div v-else class="table-container ocean-card animate-in" :class="{ 'table-loading': isLoading && !isInitialLoad }" style="animation-delay: 0.2s; position: relative;">
+            
+            <!-- Bulk Actions Bar -->
+            <div v-if="selectedProducts.length > 0" class="bulk-actions-bar animate-in">
+                <div class="bulk-info">
+                    <span class="bulk-count">{{ selectedProducts.length }}</span> sản phẩm được chọn
+                </div>
+                <div class="bulk-buttons">
+                    <button class="btn-bulk btn-bulk-success" @click="handleBulkStatusChange('active')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        Đăng bán
+                    </button>
+                    <button class="btn-bulk btn-bulk-warning" @click="handleBulkStatusChange('inactive')">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        Tạm ẩn
+                    </button>
+                    <button class="btn-bulk btn-bulk-danger" @click="handleBulkDelete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        Xóa
+                    </button>
+                </div>
+            </div>
+
             <div class="table-header">
                 <span class="table-count">
                     <strong>{{ totalProducts }}</strong> sản phẩm
@@ -695,6 +913,9 @@ const formatDate = (dateString) => {
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th style="width: 40px; text-align: center;">
+                                <input type="checkbox" v-model="selectAll" class="custom-checkbox" />
+                            </th>
                             <th>ID</th>
                             <th>Ảnh</th>
                             <th>Tên sản phẩm</th>
@@ -706,7 +927,10 @@ const formatDate = (dateString) => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="p in products" :key="p.product_id" :id="`product-${p.product_id}`">
+                        <tr v-for="p in products" :key="p.product_id" :id="`product-${p.product_id}`" :class="{ 'row-selected': selectedProducts.includes(p.product_id) }">
+                            <td style="text-align: center;">
+                                <input type="checkbox" :value="p.product_id" v-model="selectedProducts" class="custom-checkbox" />
+                            </td>
                             <td><span class="badge-id">#{{ p.product_id }}</span></td>
                             <td>
                                 <div class="prod-thumb">
@@ -720,12 +944,7 @@ const formatDate = (dateString) => {
                             </td>
                             <td>
                                 <div class="prod-cell">
-                                    <div>
-                                        <router-link :to="`/product/${p.slug}`" class="prod-name text-decoration-none">{{ p.name }}</router-link> <br class="m-0">
-                                        <span class="prod-slug">{{ p.slug }}</span> <br class="m-0">
-                                        <span class="prod-slug">Ngày tạo: {{ formatDate(p.created_at) }}</span>
-
-                                    </div>
+                                    <router-link :to="`/product/${p.slug}`" class="prod-name text-decoration-none">{{ p.name }}</router-link>
                                 </div>
                             </td>
                             <td><span class="badge-type" :class="p.product_type">{{ getTypeLabel(p.product_type) }}</span></td>
@@ -735,8 +954,8 @@ const formatDate = (dateString) => {
                             </td>
                             <td>
                                 <span class="badge-stock" :class="{ 
-                                    'good': (p.variants_sum_stock || 0) > 20, 
-                                    'low': (p.variants_sum_stock || 0) <= 20 && (p.variants_sum_stock || 0) > 0, 
+                                    'good': (p.variants_sum_stock || 0) > 5, 
+                                    'low': (p.variants_sum_stock || 0) <= 5 && (p.variants_sum_stock || 0) > 0, 
                                     'out': (p.variants_sum_stock || 0) === 0 
                                 }">
                                     {{ p.variants_sum_stock ?? 0 }}
@@ -821,10 +1040,27 @@ const formatDate = (dateString) => {
                         <button class="qv-close" @click="closeQuickView">×</button>
                     </div>
 
-                    <!-- Loading -->
-                    <div v-if="isLoadingQuickView" class="qv-loading">
-                        <div class="spinner"></div>
-                        <p>Đang tải...</p>
+                    <!-- Loading Skeleton -->
+                    <div v-if="isLoadingQuickView" class="qv-body p-4">
+                        <div class="qv-top">
+                            <div class="qv-gallery" style="flex: 0 0 320px;">
+                                <div class="skeleton-box" style="width: 100%; height: 320px; border-radius: 12px;"></div>
+                                <div class="d-flex gap-2 mt-3">
+                                    <div class="skeleton-box" style="width: 60px; height: 60px; border-radius: 8px;"></div>
+                                    <div class="skeleton-box" style="width: 60px; height: 60px; border-radius: 8px;"></div>
+                                    <div class="skeleton-box" style="width: 60px; height: 60px; border-radius: 8px;"></div>
+                                </div>
+                            </div>
+                            <div class="qv-details" style="flex: 1;">
+                                <div class="skeleton-text mb-3" style="width: 80%; height: 32px;"></div>
+                                <div class="skeleton-text mb-4" style="width: 40%; height: 24px;"></div>
+                                <div class="skeleton-text mb-2" style="width: 100%; height: 16px;"></div>
+                                <div class="skeleton-text mb-2" style="width: 100%; height: 16px;"></div>
+                                <div class="skeleton-text mb-4" style="width: 60%; height: 16px;"></div>
+                                
+                                <div class="skeleton-box mt-4" style="width: 100%; height: 160px; border-radius: 12px;"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Body -->
@@ -1120,7 +1356,7 @@ const formatDate = (dateString) => {
 /* Buttons */
 .btn-primary {
     display: flex; align-items: center; gap: 8px;
-    padding: 10px 22px; border-radius: 8px; border: none;
+    padding: 8px 18px; border-radius: 8px; border: none;
     background: var(--primary); color: white;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s; text-decoration: none;
@@ -1132,82 +1368,135 @@ const formatDate = (dateString) => {
     box-shadow: 0 6px 14px rgba(230, 59, 111, 0.28);
 }
 .btn-outline {
-    padding: 10px 22px; border-radius: 8px; border: 1px solid var(--border-color);
+    padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border-color);
     background: var(--card-bg); color: var(--text-muted);
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s; text-decoration: none;
 }
 .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
 
-/* Filters */
+/* Filters & Search */
 .filters-bar {
     display: flex; flex-direction: column;
-    padding: 16px 20px; margin-bottom: 24px;
-}
-.search-box {
-    display: flex; align-items: center; gap: 10px;
-    background: var(--ocean-deepest); border: 1px solid var(--border-color);
-    border-radius: 8px; padding: 10px 16px; flex: 1; max-width: 350px;
-    transition: all 0.2s;
-}
-.search-box:focus-within {
-    border-color: var(--primary); background: var(--card-bg);
-    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
-}
-.search-box svg { color: var(--text-light); }
-.search-input {
-    background: none; border: none; outline: none;
-    color: var(--text-main); font-family: var(--font-inter);
-    font-size: 0.9rem; width: 100%;
-}
-.search-input::placeholder { color: var(--text-light); }
-.filter-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.filter-btn {
-    padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border-color);
-    background: var(--ocean-deepest); color: var(--text-muted);
-    font-family: var(--font-inter); font-size: 0.8rem; font-weight: 600;
-    cursor: pointer; transition: all 0.2s;
-    display: flex; align-items: center; gap: 6px;
-}
-.filter-btn:hover { border-color: var(--primary); color: var(--primary); }
-.filter-btn.active {
-    background: rgba(230, 59, 111, 0.1); border-color: rgba(230, 59, 111, 0.3);
-    color: var(--primary);
+    margin-bottom: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-radius: 16px;
+    overflow: hidden;
 }
 
-/* Loading */
-.loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600;}
-.spinner {
-    width: 30px; height: 30px; border: 3px solid var(--border-color);
-    border-top-color: var(--primary); border-radius: 50%;
-    animation: spin 1s linear infinite; margin: 0 auto 16px;
+/* Premium Status Tabs (Pill Toggles) */
+.status-tabs-container {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+    background: white;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.status-pills {
+    display: inline-flex; gap: 8px; padding: 6px;
+    background: #f1f5f9; border-radius: 12px;
+}
+.status-pill {
+    background: transparent !important; border: none !important; outline: none !important;
+    padding: 6px 14px !important; margin: 0 !important;
+    font-size: 0.85rem !important; font-weight: 600 !important; color: #64748b !important;
+    border-radius: 8px !important; cursor: pointer !important; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    line-height: 1.5 !important; font-family: var(--font-inter) !important;
+}
+.status-pill:hover { color: var(--text-main) !important; }
+.status-pill.active {
+    background: white !important; color: var(--primary) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+.status-pill.danger.active { color: #dc3545 !important; }
+
+.filters-inner {
+    background: white;
+}
+.search-box { position: relative; max-width: 380px; width: 100%; }
+.search-box svg {
+    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    color: #94a3b8;
+}
+.search-input {
+    width: 100%; padding: 10px 14px 10px 40px; border-radius: 30px;
+    border: 1px solid var(--border-color); background: #f8fafc;
+    font-family: inherit; font-size: 0.85rem; transition: all 0.25s;
+    color: var(--text-main);
+}
+.search-input:focus { outline: none; border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+
+/* Override BaseSelect inside advanced filters for alignment */
+.advanced-filters :deep(.base-select) {
+    margin-bottom: 0 !important;
+}
+.advanced-filters :deep(.base-select__field) {
+    padding: 10px 30px 10px 14px !important;
+    font-size: 0.85rem !important;
+    border-radius: 8px !important;
+    height: 40.5px !important; /* Force exact height to match search input */
+    line-height: 1.5 !important;
+}
+
+.btn-clear-filters {
+    background: none; border: none; padding: 4px 8px; color: var(--primary);
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;
+    border-radius: 6px; transition: background 0.2s;
+}
+.btn-clear-filters:hover { background: rgba(230, 59, 111, 0.1); }
 
 /* Table */
-.table-header { padding: 16px 24px; border-bottom: 1px solid var(--border-color); }
-.table-count { font-size: 0.85rem; color: var(--text-muted); font-weight: 500;}
-.table-count strong { color: var(--text-main); font-weight: 800;}
-.table-wrapper { overflow-x: auto; }
-.data-table { width: 100%; min-width: 900px; border-collapse: collapse; text-align: left; }
+.table-header {
+    padding: 20px 24px; border-bottom: 1px solid var(--border-color);
+}
+.table-count { font-size: 0.95rem; color: var(--text-light); }
+.table-count strong { color: var(--text-main); font-weight: 800; font-size: 1.1rem; }
+
+.data-table { width: 100%; border-collapse: collapse; }
 .data-table th {
-    padding: 14px 24px; font-size: 0.72rem; font-weight: 700;
-    color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
-    border-bottom: 1px solid var(--border-color);
-    background: var(--ocean-deepest);
+    padding: 16px 24px; text-align: left; font-size: 0.75rem; font-weight: 700;
+    color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;
+    background: #f8fafc; border-bottom: 1px solid var(--border-color);
 }
 .data-table td {
-    padding: 16px 24px; border-bottom: 1px solid var(--border-color);
+    padding: 18px 24px; border-bottom: 1px solid #f1f5f9;
     transition: background 0.15s; vertical-align: middle;
 }
-.data-table tbody tr:hover td { background: var(--hover-bg); }
+.data-table tbody tr { transition: background 0.2s; }
+.data-table tbody tr:hover { background: #f8fafc; }
+.data-table tbody tr.row-selected { background: rgba(230, 59, 111, 0.04); }
+
+/* Bulk Actions Bar */
+.bulk-actions-bar {
+    position: absolute; top: 0; left: 0; width: 100%; height: 60px;
+    background: white; z-index: 10; border-bottom: 1px solid var(--border-color);
+    border-radius: 16px 16px 0 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+.bulk-info { font-size: 0.95rem; font-weight: 600; color: var(--text-main); display: flex; align-items: center; gap: 8px;}
+.bulk-count { background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.85rem;}
+.bulk-buttons { display: flex; gap: 10px; }
+.btn-bulk {
+    display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px;
+    font-size: 0.85rem; font-weight: 700; cursor: pointer; border: 1px solid transparent; transition: 0.2s;
+}
+.btn-bulk-success { background: rgba(38, 166, 154, 0.1); color: #167a70; }
+.btn-bulk-success:hover { background: #167a70; color: white; }
+.btn-bulk-warning { background: rgba(255, 167, 38, 0.1); color: #e65100; }
+.btn-bulk-warning:hover { background: #e65100; color: white; }
+.btn-bulk-danger { background: rgba(239, 83, 80, 0.1); color: #c62828; }
+.btn-bulk-danger:hover { background: #c62828; color: white; }
+
+/* Custom Checkbox */
+.custom-checkbox {
+    width: 16px; height: 16px; cursor: pointer;
+    accent-color: var(--primary); outline: none; border: none;
+    margin: 0; padding: 0; vertical-align: middle;
+}
 
 /* Badges */
 .badge-id {
-    padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;
-    font-weight: 700; background: rgba(230, 59, 111, 0.1); color: var(--primary);
+    padding: 6px 10px; border-radius: 8px; font-size: 0.85rem;
+    font-weight: 700; background: #f1f5f9; color: #475569;
 }
-.prod-cell { display: flex; flex-direction: column; gap: 2px; }
+.prod-cell { display: flex; flex-direction: column; gap: 4px; justify-content: center; height: 100%;}
 .prod-thumb {
     width: 48px; height: 100%; border-radius: 8px;
     background: var(--ocean-deepest); border: 1px solid var(--border-color);
@@ -1246,17 +1535,18 @@ const formatDate = (dateString) => {
 .badge-status.deleted { background: rgba(239, 83, 80, 0.15); color: #c62828; }
 
 /* Actions */
-.actions-cell { display: flex; gap: 6px; }
+.actions-cell { display: flex; gap: 8px; }
 .btn-icon {
-    width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border-color);
-    background: var(--ocean-deepest); color: var(--text-muted);
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: all 0.2s; text-decoration: none;
+    width: 36px; height: 36px; border-radius: 10px; border: none !important; outline: none !important;
+    background: transparent !important; color: #94a3b8 !important;
+    cursor: pointer !important; display: flex; align-items: center; justify-content: center;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important; text-decoration: none;
 }
-.btn-icon:hover { border-color: currentColor; background: var(--card-bg);}
-.edit:hover { color: var(--seafoam); border-color: var(--seafoam); background: rgba(38, 166, 154, 0.05); }
-.del:hover { color: var(--coral); border-color: var(--coral); background: rgba(239, 83, 80, 0.05); }
-.view:hover { color: #8e24aa; border-color: #8e24aa; background: rgba(142, 36, 170, 0.05); }
+.btn-icon:hover { transform: translateY(-2px); }
+.edit:hover { color: var(--primary) !important; background: rgba(230, 59, 111, 0.1) !important; }
+.del:hover { color: #dc3545 !important; background: rgba(220, 53, 69, 0.1) !important; }
+.view:hover { color: #8e24aa !important; background: rgba(142, 36, 170, 0.1) !important; }
+.btn-icon[title="In Tem Giá"]:hover { color: #f59e0b !important; background: rgba(245, 158, 11, 0.1) !important; }
 
 /* ===== Quick View Modal ===== */
 .qv-backdrop {
@@ -1389,7 +1679,7 @@ const formatDate = (dateString) => {
 /* ===== Import Excel Button ===== */
 .btn-import {
     display: flex; align-items: center; gap: 8px;
-    padding: 10px 20px; border-radius: 8px; border: 1.5px solid #2e7d32;
+    padding: 8px 18px; border-radius: 8px; border: 1.5px solid #2e7d32;
     background: rgba(46, 125, 50, 0.08); color: #2e7d32;
     font-family: var(--font-inter); font-size: 0.85rem; font-weight: 700;
     cursor: pointer; transition: all 0.2s;
@@ -1517,5 +1807,33 @@ const formatDate = (dateString) => {
 .data-table th, .data-table td {
     padding: 12px 16px;
     vertical-align: middle;
+}
+
+/* ===== Premium Skeleton Loader ===== */
+.skeleton-box, .skeleton-text {
+    background: #e2e8f0;
+    position: relative;
+    overflow: hidden;
+}
+.skeleton-text { border-radius: 4px; }
+.skeleton-box::after, .skeleton-text::after {
+    content: ''; position: absolute;
+    top: 0; right: 0; bottom: 0; left: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0.4) 20%,
+        rgba(255, 255, 255, 0.7) 60%,
+        rgba(255, 255, 255, 0)
+    );
+    animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+.table-loading {
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
 }
 </style>

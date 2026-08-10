@@ -45,11 +45,11 @@ const getImageUrl = (path) => {
 
 // ── Dynamic Banner Info ──
 const bannerInfo = computed(() => {
-    // Default banner
+    const overlay = 'linear-gradient(90deg, rgba(15, 23, 42, 0.75) 0%, rgba(15, 23, 42, 0.4) 40%, transparent 80%)';
     const defaultBanner = {
         title: "Tất Cả Sản Phẩm",
         sub: "Nâng tầm cuộc chơi với trang thiết bị chuyên nghiệp",
-        bg: "linear-gradient(90deg, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.2) 100%), url('/banners/general.png') center/cover no-repeat"
+        bg: `${overlay}, url('/banners/general.png') center/cover no-repeat`
     };
 
     if (selectedCategories.value.length === 1) {
@@ -75,7 +75,7 @@ const bannerInfo = computed(() => {
             return {
                 title: `Sản Phẩm ${category.name}`,
                 sub: `Trang thiết bị chuyên nghiệp cho môn ${category.name}`,
-                bg: `linear-gradient(90deg, rgba(15, 23, 42, 0.7) 0%, rgba(15, 23, 42, 0.2) 100%), url('${bgImage}') center/cover no-repeat`
+                bg: `${overlay}, url('${bgImage}') center/cover no-repeat`
             };
         }
     }
@@ -348,13 +348,18 @@ onUnmounted(() => {
 
 <template>
     <div class="product-page">
-        <!-- ══ MAIN CONTENT ══ -->
-        <div class="product-container">
-            <!-- ══ HERO BANNER ══ -->
-            <section class="page-hero" :style="{ background: bannerInfo.bg }">
+        <!-- ══ HERO BANNER ══ -->
+        <section class="page-hero" :style="{ background: bannerInfo.bg }">
+            <div class="hero-inner-container">
+                <div class="hero-pill">OCEAN SPORT DEALS</div>
                 <h1>{{ bannerInfo.title }}</h1>
                 <p class="hero-sub">{{ bannerInfo.sub }}</p>
-            </section>
+            </div>
+        </section>
+
+        <!-- ══ MAIN CONTENT ══ -->
+        <div class="product-container">
+
             <!-- Info bar -->
             <div class="product-toolbar">
                 <div class="toolbar-left">
@@ -531,16 +536,33 @@ onUnmounted(() => {
 .page-hero {
   background: linear-gradient(135deg, #e63b6f, #a0204e);
   color: #fff;
-  border-radius: var(--radius-md, 12px); /* Reduced border radius */
-  padding: 56px 40px; /* Increased padding to make it larger */
+  border-radius: 0;
+  padding: 85px 0;
   margin: 0 0 28px 0;
   position: relative;
   overflow: hidden;
   text-align: left;
-  min-height: 180px; /* Ensure a minimum height for the banner */
+  min-height: 250px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+.hero-inner-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 40px;
+  width: 100%;
+}
+.hero-pill {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
 }
 .page-hero::after {
   content: '';
@@ -559,7 +581,7 @@ onUnmounted(() => {
 .product-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 32px 40px 60px;
+    padding: 0 40px 60px;
 }
 
 /* ── TOOLBAR ── */

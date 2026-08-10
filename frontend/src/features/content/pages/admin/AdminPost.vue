@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import api from '@/axios';
-import { Toast } from 'bootstrap';
+import { Toast, Modal } from 'bootstrap';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import Swal from 'sweetalert2';
 
 const posts = ref([]);
@@ -121,11 +122,7 @@ const getStatusLabel = (status) => {
 </script>
 
 <template>
-    <div v-if="isLoading">
-        <div class="spinner-border text-primary text-center" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-    </div>
+    <AdminTableSkeleton v-if="isLoading" :columns="7" :rows="6" />
     <div v-else class="post-page">
         <!-- Page Header -->
         <div class="page-header animate-in">

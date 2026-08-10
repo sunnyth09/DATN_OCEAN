@@ -3,7 +3,8 @@ import { ref, onMounted, nextTick, watch } from 'vue';
 import api from '@/axios.js';
 import { getStorageUrl } from '@/utils/url';
 import Swal from 'sweetalert2';
-import { Toast } from 'bootstrap';
+import { Toast, Modal } from 'bootstrap';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 
 // -- States --
 const flashSales = ref([]);
@@ -220,7 +221,8 @@ onMounted(fetchFlashSales);
     </div>
 
     <!-- LIST VIEW -->
-    <div class="ocean-card table-wrapper">
+    <AdminTableSkeleton v-if="isLoading" :columns="6" :rows="5" />
+    <div v-else class="ocean-card table-wrapper">
       <table class="ws-table">
         <thead>
           <tr>
@@ -233,10 +235,7 @@ onMounted(fetchFlashSales);
           </tr>
         </thead>
         <tbody>
-          <tr v-if="isLoading">
-            <td colspan="6" class="empty-cell"><div class="ws-spinner"></div></td>
-          </tr>
-          <tr v-else-if="flashSales.length === 0">
+          <tr v-if="flashSales.length === 0">
             <td colspan="6" class="empty-cell">Chưa có chiến dịch Flash Sale nào.</td>
           </tr>
           <tr v-else v-for="fs in flashSales" :key="fs.id" class="ws-row">

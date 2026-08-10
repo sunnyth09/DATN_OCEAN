@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import { Toast, Modal } from 'bootstrap';
 import AdminCategoryFormTree from '@/components/AdminCategoryFormTree.vue';
@@ -204,7 +205,8 @@ const deleteCategory = async (id) => {
         </div>
 
         <!-- Category Table -->
-        <div class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
+        <AdminTableSkeleton v-if="isLoading" :columns="5" :rows="5" />
+        <div v-else class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
             <div class="table-header">
                 <span class="table-count">
                     <strong>{{ filteredCategories.length }}</strong> danh mục gốc tìm thấy

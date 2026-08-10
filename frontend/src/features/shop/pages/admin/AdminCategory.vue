@@ -5,6 +5,7 @@ import { Toast } from 'bootstrap';
 import Swal from 'sweetalert2';
 import AdminCategoryFormTree from '@/components/AdminCategoryFormTree.vue';
 import AdminCategoryRow from '@/components/AdminCategoryRow.vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 
 const categories = ref([]);
 const isLoading = ref(true);
@@ -286,10 +287,11 @@ const deleteCategory = async (id) => {
             </div>
         </div>
 
-
+        <!-- Loading State -->
+        <AdminTableSkeleton v-if="isLoading" :columns="5" :rows="5" />
 
         <!-- Category Table -->
-        <div class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
+        <div v-else class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
             <div class="table-header">
                 <span class="table-count">
                     <strong>{{ filteredCategories.length }}</strong> danh mục gốc tìm thấy
@@ -543,15 +545,6 @@ const deleteCategory = async (id) => {
     font-size: 0.8rem; font-weight: 600;
 }
 .stat-pill svg { color: var(--primary); }
-
-/* Loading */
-.loading-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-weight: 600; }
-.spinner {
-    width: 30px; height: 30px; border: 3px solid var(--border-color);
-    border-top-color: var(--primary); border-radius: 50%;
-    animation: spin 1s linear infinite; margin: 0 auto 16px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Pagination */
 .pagination-controls {

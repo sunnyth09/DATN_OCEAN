@@ -24,7 +24,9 @@
     </div>
 
     <!-- Table -->
-    <div class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
+    <AdminTableSkeleton v-if="loading" :columns="9" :rows="8" />
+
+    <div v-else class="table-container ocean-card animate-in" style="animation-delay: 0.2s">
       <div class="table-wrapper">
         <table class="data-table">
           <thead>
@@ -41,10 +43,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading">
-              <td colspan="9" class="loading-cell"><div class="spinner"></div><p>Đang tải...</p></td>
-            </tr>
-            <tr v-else-if="users.length === 0">
+            <tr v-if="users.length === 0">
               <td colspan="9" class="empty-cell">
                 <span class="empty-emoji">👥</span>
                 <h3>Không tìm thấy khách hàng</h3>
@@ -369,8 +368,11 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
+import { Toast, Modal } from 'bootstrap';
+import Swal from 'sweetalert2';
 import api from '@/axios';
-import { Toast } from 'bootstrap';
+import AppIcon from '@/components/AppIcon.vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 
 const users = ref([]);
 const loading = ref(true);
@@ -804,9 +806,7 @@ onMounted(fetchUsers);
 .loading-cell { text-align: center; padding: 60px 20px !important; color: var(--text-muted); }
 .empty-cell { text-align: center; padding: 60px 20px !important; }
 .empty-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
-.empty-cell h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px; }
-.spinner { width: 30px; height: 30px; border: 3px solid var(--border-color); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.empty-cell h3 { font-size: 1rem; color: #64748b; margin: 0; } 
 .animate-in { animation: fadeSlideUp 0.35s ease both; }
 @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 
 const staff = ref([]);
@@ -167,7 +168,8 @@ onMounted(fetchStaff);
     </div>
 
     <!-- Table -->
-    <div class="ocean-card table-wrapper">
+    <AdminTableSkeleton v-if="loading" :columns="7" :rows="5" />
+    <div v-else class="ocean-card table-wrapper">
       <table class="user-table">
         <thead>
           <tr>

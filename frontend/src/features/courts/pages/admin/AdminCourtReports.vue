@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useCourtBookingStore } from '@/features/courts/stores/useCourtBookingStore';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import '@/features/courts/assets/court-management.css';
 
 const store = useCourtBookingStore();
@@ -83,10 +84,7 @@ const chartData = computed(() => {
             </div>
         </div>
 
-        <div v-if="store.loading" class="text-center py-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p class="text-muted mt-2">Đang tải dữ liệu thống kê...</p>
-        </div>
+        <AdminTableSkeleton v-if="store.loading" :columns="5" :rows="5" />
 
         <template v-else-if="store.courtStats">
             <!-- KPI Cards -->

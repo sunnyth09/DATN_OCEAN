@@ -46,8 +46,8 @@ class AuthService
         }
 
         \Log::info('verifyTurnstile called', ['env' => app()->environment(), 'token' => $token]);
-        // Tắt CAPTCHA khi đang ở môi trường local/dev, NHƯNG KHÔNG BAO GỒM TESTING
-        if (app()->environment('local') && ! class_exists(TestCase::class)) {
+        // Tắt CAPTCHA khi đang ở môi trường local/dev (không phải testing qua phpunit)
+        if (app()->environment('local') && PHP_SAPI !== 'cli') {
             return true;
         }
 

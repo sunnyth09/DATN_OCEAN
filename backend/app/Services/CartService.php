@@ -73,21 +73,35 @@ class CartService
             }
         }
 
+        // Bỏ việc xóa, chỉ update selected = false để người dùng không thể thanh toán
         if (! empty($invalidItemIds)) {
-            CartItem::whereIn('cart_item_id', $invalidItemIds)->delete();
-            $cart->setRelation('items', $cart->items->whereNotIn('cart_item_id', $invalidItemIds));
+            CartItem::whereIn('cart_item_id', $invalidItemIds)->update(['selected' => false]);
+            // Cập nhật lại relation trong bộ nhớ
+            $cart->items->whereIn('cart_item_id', $invalidItemIds)->each(function ($item) {
+                $item->selected = false;
+            });
         }
 
         $items = $cart->items->map(function ($item) {
             $variant = $item->variant;
             $product = $variant ? $variant->product : null;
             $mainImage = $product ? $product->images->first() : null;
+            
+            $isAvailable = true;
+            $errorMessage = '';
+            
+            if (! $variant || ! $product || $product->trashed() || $variant->status !== 'active') {
+                $isAvailable = false;
+                $errorMessage = 'Sản phẩm đã ngừng kinh doanh hoặc tạm ẩn';
+            }
 
             return [
                 'cart_item_id' => $item->cart_item_id,
                 'variant_id' => $item->variant_id,
                 'quantity' => $item->quantity,
-                'selected' => $item->selected,
+                'selected' => (bool) $item->selected,
+                'is_available' => $isAvailable,
+                'error_message' => $errorMessage,
                 'variant' => $variant ? [
                     'variant_id' => $variant->variant_id,
                     'variant_name' => $variant->variant_name,
@@ -194,8 +208,15 @@ class CartService
             return ['_status' => 404, 'status' => 'error', 'message' => 'Không tìm thấy sản phẩm trong giỏ hàng.'];
         }
 
+        $updateData = [];
+        
+        $variant = ProductVariant::with('product')->find($cartItem->variant_id);
+        $isAvailable = $variant && $variant->product && !$variant->product->trashed() && $variant->status === 'active';
+
         if (isset($data['quantity'])) {
-            $variant = ProductVariant::find($cartItem->variant_id);
+            if (!$isAvailable) {
+                return ['_status' => 422, 'status' => 'error', 'message' => 'Sản phẩm này hiện không khả dụng hoặc đã bị xóa.'];
+            }
             if ($variant && $data['quantity'] > $variant->stock) {
                 return [
                     '_status' => 422,
@@ -204,13 +225,13 @@ class CartService
                     'available_stock' => $variant->stock,
                 ];
             }
-        }
-
-        $updateData = [];
-        if (isset($data['quantity'])) {
             $updateData['quantity'] = $data['quantity'];
         }
+
         if (isset($data['selected'])) {
+            if ($data['selected'] && !$isAvailable) {
+                return ['_status' => 422, 'status' => 'error', 'message' => 'Không thể chọn sản phẩm không khả dụng để thanh toán.'];
+            }
             $updateData['selected'] = $data['selected'];
         }
 

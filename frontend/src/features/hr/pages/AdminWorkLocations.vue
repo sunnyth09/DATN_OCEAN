@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 
@@ -165,7 +166,8 @@ onMounted(() => {
     </div>
 
     <!-- Table -->
-    <div class="ocean-card table-wrapper">
+    <AdminTableSkeleton v-if="loading" :columns="7" :rows="5" />
+    <div v-else class="ocean-card table-wrapper">
       <table class="wl-table">
         <thead>
           <tr>
@@ -179,12 +181,7 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading">
-            <td colspan="7" class="empty-cell">
-              <div class="wl-spinner"></div>
-            </td>
-          </tr>
-          <tr v-else-if="locations.length === 0">
+          <tr v-if="locations.length === 0">
             <td colspan="7" class="empty-cell">Chưa có chi nhánh nào.</td>
           </tr>
           <tr v-else v-for="loc in locations" :key="loc.id" class="wl-row">

@@ -102,16 +102,13 @@
       </div>
       
       <!-- Empty State -->
-      <div v-else-if="!loading && tickets.length === 0" class="empty-state">
+      <div v-if="!loading && tickets.length === 0" class="empty-state">
         <AppIcon name="inbox" size="48" class="empty-icon" />
         <p>Không có khiếu nại nào phù hợp</p>
       </div>
       
       <!-- Loading State -->
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Đang tải dữ liệu...</p>
-      </div>
+      <AdminTableSkeleton v-if="loading" :columns="6" :rows="5" />
     </div>
 
     <!-- Detail/Reply Modal -->
@@ -197,6 +194,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import Swal from 'sweetalert2';
 import api from '@/axios';
 import AppIcon from '@/components/AppIcon.vue';

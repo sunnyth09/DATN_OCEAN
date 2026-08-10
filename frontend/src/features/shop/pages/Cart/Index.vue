@@ -272,17 +272,26 @@ const toggleSelectAll = async () => {
     if (!authStore.isAuthenticated) {
         let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
         localItems.forEach(item => {
-            item.selected = newState;
+            // Ignore unavailable items (assumes local items could be fetched and verified first, but guest cart logic is similar)
+            if (item.is_available !== false) {
+                item.selected = newState;
+            }
         });
         localStorage.setItem('cart_items', JSON.stringify(localItems));
         cartItems.value.forEach(item => {
-            item.selected = newState;
+            if (item.is_available !== false) {
+                item.selected = newState;
+            }
         });
         return;
     }
     
     // Cập nhật UI lập tức
-    cartItems.value.forEach(item => { item.selected = newState; });
+    cartItems.value.forEach(item => { 
+        if (item.is_available !== false) {
+            item.selected = newState; 
+        }
+    });
 
     // Gửi 1 request batch duy nhất thay vì N request song song (tránh vượt rate limit)
     try {
@@ -297,6 +306,11 @@ const toggleSelectAll = async () => {
 
 // Toggle chọn 1 item
 const toggleSelect = async (item) => {
+    if (item.is_available === false) {
+        showToast('Không thể chọn sản phẩm không khả dụng.', 'error');
+        return;
+    }
+    
     item.selected = !item.selected;
     updateSelectAllState();
 
@@ -367,6 +381,11 @@ const submitQuantityUpdate = async (item, targetQuantity) => {
 
 // Cập nhật số lượng tại giao diện lập tức và lên lịch gửi API sau 600ms
 const changeQuantity = (item, rawQuantity) => {
+    if (item.is_available === false) {
+        showToast('Sản phẩm không khả dụng.', 'error');
+        return;
+    }
+    
     const newQuantity = normalizeQuantity(rawQuantity);
 
     if (newQuantity === null || newQuantity < 1) {
@@ -544,7 +563,7 @@ const showToast = (message, type = 'success') => {
 
 const hasInvalidStockSelected = computed(() => {
     return selectedItems.value.some(item => {
-        return !item.variant || item.variant.stock <= 0 || item.quantity > item.variant.stock || item.variant.status !== 'active';
+        return item.is_available === false || !item.variant || item.variant.stock <= 0 || item.quantity > item.variant.stock || item.variant.status !== 'active';
     });
 });
 
@@ -725,10 +744,10 @@ onUnmounted(() => {
                     <!-- Cart Items List -->
                     <TransitionGroup name="cart-item" tag="div" class="items-list">
                         <div v-for="item in cartItems" :key="item.cart_item_id" class="cart-item-card"
-                            :class="{ 'item-unavailable': item.variant?.status !== 'active' }">
+                            :class="{ 'item-unavailable': item.is_available === false || item.variant?.status !== 'active' }">
                         <!-- Checkbox -->
-                        <div class="item-checkbox" @click="toggleSelect(item)">
-                            <div class="custom-checkbox" :class="{ checked: item.selected }">
+                        <div class="item-checkbox" @click="toggleSelect(item)" :style="item.is_available === false ? 'cursor: not-allowed; opacity: 0.5;' : ''">
+                            <div class="custom-checkbox" :class="{ checked: item.selected, disabled: item.is_available === false }">
                                 <svg v-if="item.selected" width="12" height="12" viewBox="0 0 24 24" fill="none"
                                     stroke="white" stroke-width="4">
                                     <polyline points="20 6 9 17 4 12" />
@@ -756,11 +775,15 @@ onUnmounted(() => {
                                 </span>
                             </div>
 
-                            <div class="item-stock" v-if="item.variant?.stock <= 5 && item.variant?.stock > 0 && item.quantity <= item.variant.stock">
+                            <div class="item-stock" v-if="item.variant?.stock <= 5 && item.variant?.stock > 0 && item.quantity <= item.variant.stock && item.is_available !== false">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                                 Chỉ còn {{ item.variant.stock }} sản phẩm
                             </div>
-                            <div class="item-unavailable-badge" v-if="item.variant?.status !== 'active'">
+                            
+                            <div class="item-unavailable-badge" v-if="item.is_available === false">
+                                {{ item.error_message || 'Sản phẩm ngừng kinh doanh' }}
+                            </div>
+                            <div class="item-unavailable-badge" v-else-if="item.variant?.status !== 'active'">
                                 Sản phẩm ngừng kinh doanh
                             </div>
                             <div class="item-unavailable-badge out-of-stock" v-else-if="item.variant?.stock <= 0">
@@ -778,9 +801,9 @@ onUnmounted(() => {
                         <div class="item-spacer"></div>
 
                         <!-- Quantity -->
-                        <div class="quantity-control">
+                        <div class="quantity-control" :style="item.is_available === false ? 'opacity: 0.5; pointer-events: none;' : ''">
                             <button class="qty-btn" @click="changeQuantity(item, item.quantity - 1)"
-                                :disabled="item.quantity <= 1 || updating[item.cart_item_id]">
+                                :disabled="item.quantity <= 1 || updating[item.cart_item_id] || item.is_available === false">
                                 -
                             </button>
                             <input
@@ -790,13 +813,13 @@ onUnmounted(() => {
                                 inputmode="numeric"
                                 autocomplete="off"
                                 :value="item.quantity"
-                                :disabled="updating[item.cart_item_id]"
+                                :disabled="updating[item.cart_item_id] || item.is_available === false"
                                 @input="scheduleQuantityInputUpdate(item, $event)"
                                 @keydown.enter.prevent="scheduleQuantityInputUpdate(item, $event)"
                                 @blur="handleQuantityInputBlur(item, $event)"
                             />
                             <button class="qty-btn" @click="changeQuantity(item, item.quantity + 1)"
-                                :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id]">
+                                :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id] || item.is_available === false">
                                 +
                             </button>
                         </div>

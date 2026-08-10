@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import { getAbsoluteUrl } from '@/utils/url';
 
@@ -160,7 +161,8 @@ onMounted(() => { fetchAttendances(); });
     </div>
 
     <!-- Table -->
-    <div class="ocean-card table-wrapper">
+    <AdminTableSkeleton v-if="loading" :columns="11" :rows="5" />
+    <div v-else class="ocean-card table-wrapper">
       <table class="al-table">
         <thead>
           <tr>
@@ -178,10 +180,7 @@ onMounted(() => { fetchAttendances(); });
           </tr>
         </thead>
         <tbody>
-          <tr v-if="loading">
-            <td colspan="11" class="empty-cell"><div class="al-spinner"></div></td>
-          </tr>
-          <tr v-else-if="attendances.length === 0">
+          <tr v-if="attendances.length === 0">
             <td colspan="11" class="empty-cell">Chưa có dữ liệu chấm công.</td>
           </tr>
           <tr v-else v-for="item in attendances" :key="item.id" class="al-row" :class="{ 'row-flagged': item.is_flagged }">

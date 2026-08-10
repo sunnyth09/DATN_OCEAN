@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios.js';
 import Swal from 'sweetalert2';
 
@@ -163,10 +164,7 @@ onMounted(() => fetchDeposits());
     </div>
 
     <!-- Loading -->
-    <div v-if="isLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải danh sách nạp tiền...</p>
-    </div>
+    <AdminTableSkeleton v-if="isLoading" :columns="6" :rows="5" />
 
     <!-- Table -->
     <div v-else class="table-card">

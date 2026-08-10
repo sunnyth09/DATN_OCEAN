@@ -22,6 +22,8 @@ const cartStore = useCartStore();
 // slug là computed để watch được khi route thay đổi (route param là :id, có thể là slug hoặc id)
 const slug = computed(() => route.params.id);
 const product = ref(null);
+const isLoading = ref(true);
+const isNotFound = ref(false);
 const safeDescription = computed(() => sanitizeHtml(product.value?.description));
 const safeShortDescription = computed(() => sanitizeHtml(product.value?.short_description));
 const productImageRef = ref(null);
@@ -102,6 +104,8 @@ const allImages = computed(() => {
 });
 
 const fetchProduct = async (currentSlug) => {
+  isLoading.value = true;
+  isNotFound.value = false;
   try {
     const response = await api.get(`/products/${currentSlug}`);
     product.value = response.data.data;
@@ -133,6 +137,9 @@ const fetchProduct = async (currentSlug) => {
     }
   } catch (error) {
     console.error("Error fetching product:", error);
+    isNotFound.value = true;
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -688,7 +695,24 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="pd-wrapper container" v-if="product">
+  <main class="pd-wrapper container" v-if="isLoading">
+    <!-- Skeleton Loading -->
+    <div style="padding: 40px 0;">
+      <ProductSkeleton />
+    </div>
+  </main>
+  
+  <main class="pd-wrapper container" v-else-if="isNotFound">
+    <!-- 404 State -->
+    <div class="empty-state text-center" style="padding: 100px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+       <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:24px; opacity: 0.9;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+       <h2 style="font-weight: 800; font-size: 2rem; margin-bottom: 12px; color: var(--text-main);">Sản phẩm không tồn tại</h2>
+       <p style="color: #636E72; margin-bottom: 32px; font-size: 1.1rem; max-width: 500px;">Sản phẩm này có thể đã bị xóa, tạm ẩn hoặc đường dẫn không chính xác. Bạn vui lòng kiểm tra lại nhé!</p>
+       <router-link to="/" style="display: inline-flex; align-items: center; background-color: var(--primary); color: white; padding: 12px 28px; border-radius: 12px; font-size: 1rem; font-weight: 600; text-decoration: none; transition: 0.2s; box-shadow: 0 4px 12px rgba(230, 59, 111, 0.2);">Quay lại Trang chủ</router-link>
+    </div>
+  </main>
+
+  <main class="pd-wrapper container" v-else-if="product">
     <!-- Breadcrumb -->
     <nav class="pd-breadcrumb">
       <router-link to="/">Trang chủ</router-link>
