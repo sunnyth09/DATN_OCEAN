@@ -196,14 +196,6 @@ const handleLogout = async () => {
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/affiliate" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Quản lý Affiliate</span>
           </router-link>
-          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/post" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span>
-            <span>Bài viết</span>
-          </router-link>
-          <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/post-category" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span>
-            <span>Danh mục bài viết</span>
-          </router-link>
           <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/stats" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span>
             <span>Thống kê</span>
@@ -329,6 +321,19 @@ const handleLogout = async () => {
 </template>
 
 <style scoped>
+.logo {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+.logo-text {
+  margin-left: 10px;
+  font-size: 15px;
+  font-weight: bold;
+  color: #64748b;
+}
 .sidebar {
   width: 250px;
   height: 100vh;
@@ -476,6 +481,8 @@ const handleLogout = async () => {
   font-weight: 500;
   transition: all 0.2s ease;
   margin-bottom: 4px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .nav-icon {
@@ -543,6 +550,8 @@ const handleLogout = async () => {
   font-weight: 500;
   transition: all 0.2s;
   border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
 }
 
 .submenu-dot {

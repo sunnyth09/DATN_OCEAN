@@ -15,8 +15,6 @@ class PostController extends Controller
 
     private const SEO_DESCRIPTION_MAX_LENGTH = 500;
 
-    private const PUBLIC_POST_LIMIT_DEFAULT = 12;
-
     private const PUBLIC_POST_LIMIT_MAX = 50;
 
     private function generateUniqueSlug(string $source, ?int $ignorePostId = null): string
@@ -62,7 +60,40 @@ class PostController extends Controller
 
         $posts = $query
             ->orderBy('published_at', 'desc')
-            ->limit($validated['limit'] ?? self::PUBLIC_POST_LIMIT_DEFAULT)
+            ->when(! empty($validated['limit']), fn ($query) => $query->limit($validated['limit']))
+            ->get();
+
+        return response()->json(PostResource::collection($posts)->resolve());
+    }
+
+    public function adminIndex(Request $request)
+    {
+        $validated = $request->validate([
+            'status' => 'nullable|in:published,draft,hidden',
+            'limit' => 'nullable|integer|min:1|max:100',
+            'post_type' => 'nullable|string|max:50',
+            'is_featured' => 'nullable|boolean',
+        ]);
+
+        $query = Post::with(['category', 'author']);
+
+        if (! empty($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
+
+        if (! empty($validated['post_type'])) {
+            $query->where('post_type', $validated['post_type']);
+        }
+
+        if ($request->has('is_featured')) {
+            $query->where('is_featured', $request->boolean('is_featured'));
+        }
+
+        $posts = $query
+            ->orderByRaw('published_at IS NULL')
+            ->orderBy('published_at', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->when(! empty($validated['limit']), fn ($query) => $query->limit($validated['limit']))
             ->get();
 
         return response()->json(PostResource::collection($posts)->resolve());

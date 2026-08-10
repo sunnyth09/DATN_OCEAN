@@ -806,7 +806,7 @@ onUnmounted(() => {
                                 <option value="cash">Tiền mặt tại quầy</option>
                                 <option value="bank_transfer">Chuyển khoản ngân hàng</option>
                                 <option value="vnpay">VNPay</option>
-                                <option value="momo">MoMo</option>
+
                             </select>
                         </div>
 

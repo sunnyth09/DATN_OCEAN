@@ -77,7 +77,7 @@ const routes = [
             },
             // Blog/Posts pages
             { path: "posts", name: "post-list", component: () => import("../features/content/pages/client/PostList.vue"), meta: { title: 'Tin tức' } },
-            { path: "posts/:id", name: "post-detail", component: () => import("../features/content/pages/client/PostDetail.vue"), meta: { title: 'Chi tiết bài viết' } },
+            { path: "posts/:idOrSlug", name: "post-detail", component: () => import("../features/content/pages/client/PostDetail.vue"), meta: { title: 'Chi tiết bài viết' } },
             // Static pages
             { path: "about", name: "about", component: () => import("@/features/content/pages/static/BrandStory.vue"), meta: { title: 'Về chúng tôi' } },
             { path: "brand-story", name: "brand-story", component: () => import("@/features/content/pages/static/BrandStory.vue"), meta: { title: 'Câu chuyện thương hiệu' } },

@@ -13,7 +13,7 @@ export const getApiBaseUrl = () => {
 export const getAppBaseUrl = () => {
   const configuredUrl = import.meta.env.VITE_BASE_URL || import.meta.env.VITE_APP_URL;
 
-  if (configuredUrl) {
+  if (configuredUrl && /^https?:\/\//i.test(configuredUrl)) {
     return trimTrailingSlash(configuredUrl.replace(/\/api$/, ''));
   }
 

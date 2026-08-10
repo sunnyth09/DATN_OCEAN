@@ -158,6 +158,37 @@ class ProductService
     }
 
     /**
+     * Sản phẩm bán chạy nhất (theo sold_count — cached)
+     */
+    public function getBestSelling(int $limit = 8): array
+    {
+        $products = Cache::remember("products:best-selling:{$limit}", 1800, function () use ($limit) {
+            return $this->productRepository->getBestSellingProducts($limit);
+        });
+
+        return [
+            'status' => 'success',
+            'data' => $products,
+        ];
+    }
+
+    /**
+     * Sản phẩm đang sale (sale_price active — cached)
+     */
+    public function getOnSale(int $limit = 8): array
+    {
+        $products = Cache::remember("products:on-sale:{$limit}", 900, function () use ($limit) {
+            return $this->productRepository->getOnSaleProducts($limit);
+        });
+
+        return [
+            'status' => 'success',
+            'data' => $products,
+        ];
+    }
+
+
+    /**
      * Chi tiết sản phẩm theo slug/ID (cached)
      */
     public function showProduct($identifier): array
@@ -165,6 +196,7 @@ class ProductService
         $product = Cache::remember("product:identifier:{$identifier}", 1800, function () use ($identifier) {
             return $this->productRepository->findByIdentifier($identifier);
         });
+
 
         if (! $product) {
             return ['_status' => 404, 'status' => 'error', 'message' => 'Product not found'];

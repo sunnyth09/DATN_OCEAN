@@ -69,7 +69,7 @@ const leadtimeDate = ref(null);
 
 
 // --- Thanh toán & Khác ---
-const paymentMethod = ref('cod'); // cod, vnpay, momo, banking, wallet
+const paymentMethod = ref('cod'); // cod, vnpay, banking, wallet
 const walletBalance = ref(0);
 const note = ref('');
 
@@ -686,14 +686,6 @@ const placeOrder = async () => {
                 return; // Không set placingOrder = false, giữ loading state
             }
 
-            // === MoMo: redirect sang cổng thanh toán ===
-            if (res.data.payment_method === 'momo' && res.data.momo_url) {
-                showToast('Đang chuyển đến cổng thanh toán MoMo...', 'success');
-                setTimeout(() => {
-                    window.location.href = res.data.momo_url;
-                }, 500);
-                return; // Không set placingOrder = false, giữ loading state
-            }
 
             // === Banking: hiển thị QR code chuyển khoản ===
             if (res.data.payment_method === 'bank_transfer' && res.data.banking_info) {
@@ -1048,24 +1040,6 @@ onMounted(async () => {
                                     </div>
                                 </label>
 
-                                <label v-if="!isFlashSale" class="payment-card-simple"
-                                    :class="{ 'is-selected': paymentMethod === 'momo' }">
-                                    <input type="radio" v-model="paymentMethod" value="momo" class="hidden-radio" />
-                                    <div class="ac-left">
-                                        <div class="radio-indicator">
-                                            <div class="radio-dot"></div>
-                                        </div>
-                                    </div>
-                                    <div class="payment-info-simple">
-                                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d82d8b"
-                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                            class="method-icon">
-                                            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
-                                            <line x1="2" y1="10" x2="22" y2="10"></line>
-                                        </svg>
-                                        <span class="payment-name-simple">Ví MoMo</span>
-                                    </div>
-                                </label>
 
                                 <label v-if="!isFlashSale" class="payment-card-simple"
                                     :class="{ 'is-selected': paymentMethod === 'vnpay' }">
@@ -1478,7 +1452,7 @@ onMounted(async () => {
 }
 
 .checkout-page {
-    padding: 40px 0 80px;
+    padding: 16px 0 80px;
     font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
     color: var(--text-main);
     min-height: 80vh;
@@ -1524,9 +1498,8 @@ onMounted(async () => {
 }
 
 .page-header {
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 2px dashed #e2e8f0;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
 }
 
 .back-link {

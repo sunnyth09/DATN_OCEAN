@@ -56,7 +56,6 @@ const paymentLabels = {
 const paymentMethodLabels = {
   cod: 'Thanh toán khi nhận hàng (COD)',
   vnpay: 'VNPay',
-  momo: 'Ví MoMo',
   bank_transfer: 'Chuyển khoản ngân hàng',
 };
 

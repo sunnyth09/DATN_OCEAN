@@ -265,14 +265,17 @@ const formatDate = (dateStr) => {
 
 /* Side posts */
 .home-news-side {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
     gap: 16px;
+    height: 480px;
 }
 
 .home-post-card {
-    display: flex;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: 4fr 8fr;
+    gap: 0;
+    min-height: 0;
     background: #fff;
     border: 1px solid #f1f5f9;
     border-radius: 14px;
@@ -287,8 +290,8 @@ const formatDate = (dateStr) => {
 
 .home-post-img-wrap {
     position: relative;
-    width: 110px;
-    flex-shrink: 0;
+    width: 100%;
+    min-width: 0;
     overflow: hidden;
 }
 
@@ -317,11 +320,12 @@ const formatDate = (dateStr) => {
 }
 
 .home-post-content {
-    flex: 1;
-    padding: 14px 14px 14px 0;
+    min-width: 0;
+    overflow: hidden;
+    padding: 12px 16px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 4px;
 }
 
@@ -356,7 +360,7 @@ const formatDate = (dateStr) => {
     color: #64748b;
     line-height: 1.5;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
     margin: 0;
@@ -366,7 +370,8 @@ const formatDate = (dateStr) => {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-top: 6px;
+    margin-top: auto;
+    padding-top: 4px;
 }
 
 .home-post-author-name {
@@ -383,15 +388,18 @@ const formatDate = (dateStr) => {
     .home-news-featured {
         height: 320px;
     }
+
+    .home-news-side {
+        height: auto;
+    }
 }
 
 @media (max-width: 576px) {
     .home-post-card {
-        flex-direction: column;
+        grid-template-columns: 1fr;
     }
 
     .home-post-img-wrap {
-        width: 100%;
         height: 160px;
     }
 

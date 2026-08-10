@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import api from '@/axios';
-import AppIcon from '@/components/AppIcon.vue';
+import AppIcon from '@/icons/AppIcon.vue';
 import { getStorageUrl } from '@/utils/url';
 
 const posts = ref([]);
@@ -124,9 +124,9 @@ const getAuthorAvatarUrl = (author) => {
     <!-- Hero Banner -->
     <section class="page-hero">
       <div class="container">
-        <div class="hero-pill">OCEAN SPORT NEWS</div>
         <h1>Tin Tức & Sự Kiện</h1>
-        <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ Ocean Sport</p>
+        <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ
+          Ocean Sport</p>
       </div>
     </section>
 
@@ -134,9 +134,19 @@ const getAuthorAvatarUrl = (author) => {
     <section class="page-content container">
       <!-- Search & Category Filters -->
       <div class="filter-section">
-        <div class="category-select-wrap">
-          <select id="post-category-filter" v-model="selectedCategory" class="category-select" aria-label="Lọc bài viết theo danh mục">
-            <option value="all">Tất cả</option>
+        <div v-if="categories.length <= 5" class="category-tabs">
+          <button class="filter-tab" :class="{ active: selectedCategory === 'all' }" @click="selectedCategory = 'all'">
+            Tất cả
+          </button>
+          <button v-for="cat in categories" :key="cat.post_category_id" class="filter-tab"
+            :class="{ active: selectedCategory === cat.post_category_id }"
+            @click="selectedCategory = cat.post_category_id">
+            {{ cat.name }}
+          </button>
+        </div>
+        <div v-else class="category-select-wrapper">
+          <select v-model="selectedCategory" class="category-select">
+            <option value="all">Tất cả danh mục</option>
             <option v-for="cat in categories" :key="cat.post_category_id" :value="cat.post_category_id">
               {{ cat.name }}
             </option>
@@ -166,7 +176,7 @@ const getAuthorAvatarUrl = (author) => {
         <!-- Featured Post (only on page 1 of All/Category) -->
         <div v-if="featuredPost && currentPage === 1" class="featured-post-card">
           <router-link :to="'/posts/' + (featuredPost.slug || featuredPost.post_id)" class="featured-img-wrap">
-            <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img" />
+            <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img" @error="e => e.target.src = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80'" />
           </router-link>
           <div class="featured-info">
             <div class="post-meta">
@@ -216,7 +226,7 @@ const getAuthorAvatarUrl = (author) => {
         <div v-if="regularPosts.length > 0" class="posts-grid">
           <article v-for="post in visiblePosts" :key="post.post_id" class="post-card">
             <router-link :to="'/posts/' + (post.slug || post.post_id)" class="post-img-wrap">
-              <img :src="getImageUrl(post.thumbnail_url)" :alt="post.title" class="post-img" />
+              <img :src="getImageUrl(post.thumbnail_url)" :alt="post.title" class="post-img" @error="e => e.target.src = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80'" />
               <span class="post-card-tag">{{ post.category?.name || 'Tin tức' }}</span>
             </router-link>
             <div class="post-card-content">
@@ -266,6 +276,7 @@ const getAuthorAvatarUrl = (author) => {
 <style scoped>
 .static-page {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  padding-top: 24px;
 }
 
 /* Author elements */
@@ -312,49 +323,40 @@ const getAuthorAvatarUrl = (author) => {
 
 /* Hero Section */
 .page-hero {
-  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 24px;
   color: #fff;
-  background:
-    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
-    linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
-  padding: 70px 0;
-  margin-bottom: 20px;
+  text-align: center;
 }
 
 .page-hero .container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
-  text-align: left;
-}
-
-.hero-pill {
-  display: inline-block;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin-bottom: 16px;
+  max-width: 100%;
+  padding: 54px 24px;
+  border: 1px solid rgba(230, 59, 111, 0.18);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
+  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
 }
 
 .page-hero h1 {
-  font-size: 2.5rem;
+  font-size: 1.75rem;
   font-weight: 800;
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   position: relative;
   z-index: 1;
 }
 
 .hero-sub {
-  opacity: 0.9;
-  font-size: 1.1rem;
-  max-width: 600px;
-  margin: 0;
+  opacity: 0.85;
+  font-size: 0.95rem;
+  max-width: 500px;
+  margin: 5px auto 0;
   z-index: 1;
   line-height: 1.6;
+  text-align: center;
 }
 
 .page-content {
@@ -371,38 +373,76 @@ const getAuthorAvatarUrl = (author) => {
   margin-bottom: 40px;
 }
 
-.category-select-wrap {
+.category-tabs {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
-.category-select-label {
+.filter-tab {
+  background: #f1f5f9;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 20px;
   font-size: 0.9rem;
-  font-weight: 700;
-  color: #334155;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.25s ease;
+}
+
+.filter-tab:hover {
+  background: #e2e8f0;
+  color: var(--primary);
+}
+
+.filter-tab.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25);
+}
+
+.category-select-wrapper {
+  position: relative;
+  min-width: 220px;
 }
 
 .category-select {
-  min-width: 220px;
-  max-width: 100%;
-  padding: 10px 42px 10px 16px;
+  width: 100%;
+  padding: 10px 36px 10px 18px;
   border: 1.5px solid #e2e8f0;
   border-radius: 24px;
-  background-color: #fff;
-  color: #334155;
-  font-family: inherit;
   font-size: 0.9rem;
   font-weight: 600;
+  color: #475569;
   outline: none;
+  background: #f1f5f9;
   cursor: pointer;
-  transition: all 0.2s ease;
+  appearance: none;
+  transition: all 0.25s ease;
+  font-family: inherit;
 }
 
 .category-select:focus {
   border-color: var(--primary);
+  background: #fff;
   box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+}
+
+.category-select-wrapper::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #64748b;
+  pointer-events: none;
 }
 
 .search-bar {
@@ -779,19 +819,16 @@ const getAuthorAvatarUrl = (author) => {
 
 @media (max-width: 768px) {
   .static-page {
-    padding-top: 0;
+    padding-top: 16px;
   }
 
   .page-hero {
-    padding: 40px 0;
+    padding: 0 16px;
   }
 
   .page-hero .container {
-    padding: 0 20px;
-  }
-
-  .page-hero h1 {
-    font-size: 1.8rem;
+    padding: 40px 18px;
+    border-radius: 18px;
   }
 
   .page-content {

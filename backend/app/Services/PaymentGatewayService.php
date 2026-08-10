@@ -18,9 +18,6 @@ class PaymentGatewayService
             return $this->handleVNPay($order, $request);
         }
 
-        if ($paymentMethod === 'momo') {
-            return $this->handleMoMo($order);
-        }
 
         if ($paymentMethod === 'bank_transfer') {
             return $this->handleBanking($order);
@@ -74,47 +71,6 @@ class PaymentGatewayService
         }
     }
 
-    private function handleMoMo($order): array
-    {
-        $this->paymentRepository->create([
-            'order_id' => $order->order_id,
-            'payment_method' => 'momo',
-            'amount' => $order->grand_total,
-            'status' => 'pending',
-        ]);
-
-        try {
-            $momoUrl = MoMoService::createPaymentUrl($order);
-
-            return [
-                'type' => 'redirect',
-                'body' => [
-                    'status' => 'success',
-                    'message' => 'Đơn hàng đã tạo. Đang chuyển đến cổng thanh toán MoMo...',
-                    'payment_method' => 'momo',
-                    'momo_url' => $momoUrl,
-                    'data' => [
-                        'order_code' => $order->order_code,
-                        'grand_total' => $order->grand_total,
-                    ],
-                ],
-            ];
-        } catch (\Exception $e) {
-            Log::error('MoMo URL generation failed: '.$e->getMessage());
-
-            return [
-                'type' => 'redirect',
-                'body' => [
-                    'status' => 'warning',
-                    'message' => 'Đơn hàng đã tạo nhưng không thể kết nối MoMo. Vui lòng thử thanh toán lại sau.',
-                    'data' => [
-                        'order_code' => $order->order_code,
-                        'grand_total' => $order->grand_total,
-                    ],
-                ],
-            ];
-        }
-    }
 
     private function handleBanking($order): array
     {
