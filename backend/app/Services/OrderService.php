@@ -7,6 +7,7 @@ use App\Events\OrderCreatedAdmin;
 use App\Exceptions\OrderException;
 use App\Models\Address;
 use App\Models\Order;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\SystemNotification;
@@ -286,7 +287,14 @@ class OrderService
                         $cartItem->variant_id,
                         $cartItem->quantity
                     );
+
+                    if ($cartItem->variant->product_id) {
+                        Product::where('product_id', $cartItem->variant->product_id)
+                            ->increment('sold_count', $cartItem->quantity);
+                    }
                 }
+
+                Cache::tags(['products:best-selling'])->flush();
 
                 $this->orderRepository->createStatusHistory([
                     'order_id' => $order->order_id,
@@ -542,7 +550,14 @@ class OrderService
                         $cartItem->variant_id,
                         $cartItem->quantity
                     );
+
+                    if ($cartItem->variant->product_id) {
+                        Product::where('product_id', $cartItem->variant->product_id)
+                            ->increment('sold_count', $cartItem->quantity);
+                    }
                 }
+
+                Cache::tags(['products:best-selling'])->flush();
 
                 $this->orderRepository->createStatusHistory([
                     'order_id' => $order->order_id,
