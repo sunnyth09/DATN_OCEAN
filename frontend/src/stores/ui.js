@@ -57,6 +57,9 @@ export const useUiStore = defineStore('ui', () => {
 
   const adminUnreadNotificationCount = ref(0);
   const setAdminUnreadNotificationCount = (count) => {
+    if (count > adminUnreadNotificationCount.value) {
+      window.dispatchEvent(new Event('play-notif-sound'));
+    }
     adminUnreadNotificationCount.value = count;
   };
   const decrementAdminUnreadNotificationCount = (amount = 1) => {
@@ -64,6 +67,7 @@ export const useUiStore = defineStore('ui', () => {
   };
   const incrementAdminUnreadNotificationCount = (amount = 1) => {
     adminUnreadNotificationCount.value += amount;
+    window.dispatchEvent(new Event('play-notif-sound'));
   };
 
   const adminUnreadChatCount = ref(0);

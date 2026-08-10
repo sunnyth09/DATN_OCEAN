@@ -1,12 +1,13 @@
 
 <script setup>
-import { computed, onMounted, ref, reactive } from 'vue';
+import { computed, onMounted, onBeforeUnmount, ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import { getAbsoluteUrl, getAppBaseUrl } from '@/utils/url';
+import api from '@/axios';
 
 const BASE_URL = getAppBaseUrl();
 
@@ -73,6 +74,42 @@ onMounted(() => {
   }
 });
 
+onBeforeUnmount(() => {
+  if (badgeTimer) clearInterval(badgeTimer);
+  window.removeEventListener('admin-notification-received', fetchBadges);
+  window.removeEventListener('admin-order-updated', fetchBadges);
+});
+
+// ─── Sidebar Badges ────────────────────────────────────────────────
+const badges = reactive({
+  pending_orders: 0,
+  pending_returns: 0,
+  open_tickets: 0,
+  pending_contacts: 0,
+  unreplied_chats: 0,
+});
+
+let badgeTimer = null;
+
+const fetchBadges = async () => {
+  try {
+    const res = await api.get('/admin/sidebar-badges');
+    if (res.data?.data) {
+      badges.pending_orders   = res.data.data.pending_orders   || 0;
+      badges.pending_returns  = res.data.data.pending_returns  || 0;
+      badges.open_tickets     = res.data.data.open_tickets     || 0;
+      badges.pending_contacts = res.data.data.pending_contacts || 0;
+      badges.unreplied_chats  = res.data.data.unreplied_chats  || 0;
+    }
+  } catch {
+    // Fail silently — badges are non-critical UI
+  }
+};
+
+// Tổng badge cho nhóm Kinh doanh (hiển thị trên tên nhóm khi submenu đóng)
+const totalBusinessBadge = computed(() => badges.pending_orders + badges.pending_returns);
+// Tổng badge cho nhóm Chăm sóc Khách hàng
+const totalCareBadge = computed(() => badges.unreplied_chats + badges.open_tickets + badges.pending_contacts);
 const handleLogout = async () => {
   const result = await Swal.fire({
       title: 'Xác nhận',
@@ -244,7 +281,7 @@ const handleLogout = async () => {
             <div style="display: flex; align-items: center; gap: 12px;">
               <span class="submenu-dot"></span><span>Đánh giá & Khiếu nại</span>
             </div>
-            <span v-if="(uiStore.adminPendingReviewCount + uiStore.adminPendingTicketCount) > 0" style="background-color: #ef4444; color: white; border-radius: 12px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; margin-left: 8px;">{{ (uiStore.adminPendingReviewCount + uiStore.adminPendingTicketCount) > 99 ? '99+' : (uiStore.adminPendingReviewCount + uiStore.adminPendingTicketCount) }}</span>
+            <span v-if="(uiStore.adminPendingReviewCount + uiStore.adminPendingTicketCount + (badges?.open_tickets || 0)) > 0" style="background-color: #ef4444; color: white; border-radius: 12px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; margin-left: 8px;">{{ ((uiStore.adminPendingReviewCount || 0) + (uiStore.adminPendingTicketCount || 0) + (badges?.open_tickets || 0)) > 99 ? '99+' : ((uiStore.adminPendingReviewCount || 0) + (uiStore.adminPendingTicketCount || 0) + (badges?.open_tickets || 0)) }}</span>
           </router-link>
           <router-link to="/admin/chat" class="submenu-item" active-class="submenu-item--active" style="display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -256,7 +293,7 @@ const handleLogout = async () => {
             <div style="display: flex; align-items: center; gap: 12px;">
               <span class="submenu-dot"></span><span>Liên hệ</span>
             </div>
-            <span v-if="uiStore.adminPendingContactCount > 0" style="background-color: #ef4444; color: white; border-radius: 12px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; margin-left: 8px;">{{ uiStore.adminPendingContactCount > 99 ? '99+' : uiStore.adminPendingContactCount }}</span>
+            <span v-if="(uiStore.adminPendingContactCount + (badges?.pending_contacts || 0)) > 0" style="background-color: #ef4444; color: white; border-radius: 12px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; margin-left: 8px;">{{ ((uiStore.adminPendingContactCount || 0) + (badges?.pending_contacts || 0)) > 99 ? '99+' : ((uiStore.adminPendingContactCount || 0) + (badges?.pending_contacts || 0)) }}</span>
           </router-link>
         </div>
       </transition>
