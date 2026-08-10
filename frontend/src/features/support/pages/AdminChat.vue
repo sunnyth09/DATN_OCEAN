@@ -235,7 +235,7 @@ const sendReply = async () => {
     }
   } catch (err) {
     console.error(err);
-    Swal.fire('Lỗi', 'Không thể gửi!', 'error');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Không thể gửi!', icon: 'error', showConfirmButton: false, timer: 3000 });
     const idx = currentMessages.value.findIndex(m => m._tempId === tempMsg._tempId);
     if (idx !== -1) {
       currentMessages.value.splice(idx, 1);
@@ -261,7 +261,7 @@ const closeSession = async () => {
          await api.post(`/admin/live-chats/${activeSession.value.id}/close`);
          activeSession.value.status = 'closed';
          fetchSessions();
-         Swal.fire('Thành công', 'Đã kết thúc phiên!', 'success');
+         Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: 'Đã kết thúc phiên!', icon: 'success', showConfirmButton: false, timer: 3000 });
       } catch (e) {}
    }
 }

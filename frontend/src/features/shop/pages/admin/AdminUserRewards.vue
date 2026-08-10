@@ -91,10 +91,10 @@ const fetchUserRewards = async () => {
 const updateStatus = async (id, status) => {
   try {
     await api.put(`/admin/user-rewards/${id}/status`, { status });
-    Swal.fire('Thành công', 'Cập nhật trạng thái thành công', 'success');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: 'Cập nhật trạng thái thành công', icon: 'success', showConfirmButton: false, timer: 3000 });
     fetchUserRewards();
   } catch (error) {
-    Swal.fire('Lỗi', 'Có lỗi xảy ra', 'error');
+    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
   }
 };
 

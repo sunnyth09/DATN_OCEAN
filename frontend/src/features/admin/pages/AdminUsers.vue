@@ -352,23 +352,13 @@
       </div>
     </Teleport>
 
-    <!-- Toast -->
-    <Teleport to="body">
-      <div class="toast-container position-fixed admin-users-toast-host" style="z-index: 1080">
-        <div class="toast align-items-center border-0" :class="toast.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="usersToast" role="alert">
-          <div class="d-flex">
-            <div class="toast-body">{{ toast.message }}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <!-- Removed Inline Toast HTML -->
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
-import { Toast, Modal } from 'bootstrap';
+import { Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
 import api from '@/axios';
 import AppIcon from '@/components/AppIcon.vue';
@@ -380,7 +370,7 @@ const searchQuery = ref('');
 let searchTimer = null;
 const pagination = ref(null);
 const currentPage = ref(1);
-const toast = ref({ message: '', type: 'success' });
+
 
 const isFormModalOpen = ref(false);
 const isEditing = ref(false);
@@ -434,10 +424,14 @@ const isDeleteModalOpen = ref(false);
 const deleteTarget = ref(null);
 
 const showToast = (message, type = 'success') => {
-  toast.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('usersToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 2500 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    icon: type === 'danger' ? 'error' : type,
+    title: type === 'danger' ? 'Lỗi' : (type === 'success' ? 'Thành công' : 'Thông báo'),
+    text: message,
+    showConfirmButton: false,
+    timer: 3000
   });
 };
 
@@ -583,13 +577,7 @@ onMounted(fetchUsers);
 </script>
 
 <style scoped>
-/* Toast */
-:global(.admin-users-toast-host) {
-  top: 20px !important;
-  right: 20px !important;
-  left: auto !important;
-  padding: 0 !important;
-}
+
 
 /* Header */
 .page-header {

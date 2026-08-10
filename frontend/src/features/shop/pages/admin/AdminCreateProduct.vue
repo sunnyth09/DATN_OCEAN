@@ -499,7 +499,7 @@ const handleSubmit = async () => {
 
     try {
         const response = await api.post("/products", formData);
-        Swal.fire('Thành công', 'Thêm sản phẩm thành công!', 'success');
+        Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: 'Thêm sản phẩm thành công!', icon: 'success', showConfirmButton: false, timer: 3000 });
         router.push("/admin/product");
     } catch (error) {
         const responseData = error.response?.data;

@@ -229,9 +229,10 @@ const deleteNotification = async (id) => {
     if (result.isConfirmed) {
         try {
             await api.delete(`/admin/notifications/${id}`);
+            Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: 'Đã xóa thông báo', icon: 'success', showConfirmButton: false, timer: 3000 });
             fetchNotifications();
         } catch (error) {
-            Swal.fire('Lỗi', 'Không thể xóa thông báo', 'error');
+            Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Không thể xóa thông báo', icon: 'error', showConfirmButton: false, timer: 3000 });
         }
     }
 };

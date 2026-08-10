@@ -517,10 +517,15 @@ watch(
 
                 <!-- Navigation Links -->
                 <nav class="main-nav">
-                    <router-link v-for="cat in topCategories" :key="getCategoryId(cat)" :to="getCategoryRoute(cat)"
-                        class="nav-link" :class="{ active: isCategoryActive(cat) }">
-                        {{ cat.name }}
-                    </router-link>
+                    <template v-if="catalogStore.isFetchingCategories && topCategories.length === 0">
+                        <div v-for="i in 4" :key="i" class="nav-link skeleton-nav-link"></div>
+                    </template>
+                    <template v-else>
+                        <router-link v-for="cat in topCategories" :key="getCategoryId(cat)" :to="getCategoryRoute(cat)"
+                            class="nav-link" :class="{ active: isCategoryActive(cat) }">
+                            {{ cat.name }}
+                        </router-link>
+                    </template>
                     <router-link
                         to="/courts"
                         class="nav-link"
@@ -1325,9 +1330,32 @@ watch(
     align-items: center;
     justify-content: center;
     font-size: 0.8rem;
-    font-weight: 700;
+    font-weight: 600;
 }
 
+/* SKELETON LINK IN NAV */
+.skeleton-nav-link {
+    width: 80px;
+    height: 20px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    animation: shimmer 1.5s infinite linear;
+    background-image: linear-gradient(
+        90deg,
+        #f0f0f0 0px,
+        #f8f8f8 40px,
+        #f0f0f0 80px
+    );
+    background-size: 200px 100%;
+}
+@keyframes shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: 200px 0; }
+}
+
+/* ============================================
+   HEADER ACTIONS (RIGHT SIDE)
+============================================ */
 /* NOTIFICATION DROPDOWN */
 .notif-dropdown {
     position: relative;
