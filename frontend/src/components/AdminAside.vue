@@ -232,6 +232,7 @@ const handleLogout = async () => {
       <div v-if="['admin', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('care')" :class="{ 'nav-item--open': openMenus.care }">
         <div class="nav-icon"><AppIcon name="chat" /></div>
         <span>Chăm sóc Khách hàng</span>
+        <span v-if="(uiStore.adminUnreadChatCount + uiStore.adminPendingReviewCount + uiStore.adminPendingTicketCount + uiStore.adminPendingContactCount) > 0" style="width: 8px; height: 8px; border-radius: 50%; background-color: #ef4444; margin-left: 6px;"></span>
         <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.care }" size="14" />
       </div>
       <transition name="slide-fade">
@@ -239,14 +240,23 @@ const handleLogout = async () => {
           <router-link to="/admin/users" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Khách hàng</span>
           </router-link>
-          <router-link to="/admin/review" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Đánh giá & Khiếu nại</span>
+          <router-link to="/admin/review" class="submenu-item" active-class="submenu-item--active" style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span class="submenu-dot"></span><span>Đánh giá & Khiếu nại</span>
+            </div>
+            <span v-if="(uiStore.adminPendingReviewCount + uiStore.adminPendingTicketCount) > 0" style="background-color: #ef4444; color: white; border-radius: 12px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; margin-left: 8px;">{{ (uiStore.adminPendingReviewCount + uiStore.adminPendingTicketCount) > 99 ? '99+' : (uiStore.adminPendingReviewCount + uiStore.adminPendingTicketCount) }}</span>
           </router-link>
-          <router-link to="/admin/chat" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Chat</span>
+          <router-link to="/admin/chat" class="submenu-item" active-class="submenu-item--active" style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span class="submenu-dot"></span><span>Chat</span>
+            </div>
+            <span v-if="uiStore.adminUnreadChatCount > 0" style="background-color: #ef4444; color: white; border-radius: 12px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; margin-left: 8px;">{{ uiStore.adminUnreadChatCount > 99 ? '99+' : uiStore.adminUnreadChatCount }}</span>
           </router-link>
-          <router-link to="/admin/contact" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Liên hệ</span>
+          <router-link to="/admin/contact" class="submenu-item" active-class="submenu-item--active" style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span class="submenu-dot"></span><span>Liên hệ</span>
+            </div>
+            <span v-if="uiStore.adminPendingContactCount > 0" style="background-color: #ef4444; color: white; border-radius: 12px; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; margin-left: 8px;">{{ uiStore.adminPendingContactCount > 99 ? '99+' : uiStore.adminPendingContactCount }}</span>
           </router-link>
         </div>
       </transition>

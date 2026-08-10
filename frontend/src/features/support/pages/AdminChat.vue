@@ -128,60 +128,58 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (window.Echo) {
-    window.Echo.leave('admin.chats');
-  }
+  window.removeEventListener('admin-chat-message', handleAdminChatMessage);
 });
 
-const setupEcho = () => {
-  if (window.Echo && !isConnectedEcho) {
-    window.Echo.leave('admin.chats');
-    window.Echo.channel('admin.chats')
-      .listen('.message.sent', (e) => {
-        // Có tin nhắn mới từ bất kỳ ai
-        const sessionId = e.message.chat_session_id;
+const handleAdminChatMessage = (event) => {
+  const e = event.detail;
+  // Có tin nhắn mới từ bất kỳ ai
+  const sessionId = e.message.chat_session_id;
 
-        if (e.senderType === 'admin') {
-           const existingSession = sessions.value.find(s => s.id === sessionId);
-           if (existingSession) {
-             existingSession.last_message_at = new Date().toISOString();
-             sessions.value.sort((a,b) => new Date(b.last_message_at) - new Date(a.last_message_at));
-           }
+  if (e.senderType === 'admin') {
+     const existingSession = sessions.value.find(s => s.id === sessionId);
+     if (existingSession) {
+       existingSession.last_message_at = new Date().toISOString();
+       sessions.value.sort((a,b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+     }
 
-           if (activeSession.value && activeSession.value.id === sessionId) {
-               const exists = currentMessages.value.some(m => m.id === e.message.id);
-               const isPending = currentMessages.value.some(m => m._tempId && m.message === e.message.message);
-               if (!exists && !isPending && e.message.id) {
-                   currentMessages.value.push(e.message);
-                   scrollToBottom();
-               }
-           }
-           return;
-        }
-
-        // Tính năng: tin nhắn mới từ User
-        const existingSession = sessions.value.find(s => s.id === sessionId);
-        
-        if (existingSession) {
-          existingSession.last_message_at = new Date().toISOString();
-          
-          if (activeSession.value && activeSession.value.id === sessionId) {
-             // Đang mở cuộc trò chuyện này, mark as read luôn phía Backend + đẩy tin nhắn vào UI
+     if (activeSession.value && activeSession.value.id === sessionId) {
+         const exists = currentMessages.value.some(m => m.id === e.message.id);
+         const isPending = currentMessages.value.some(m => m._tempId && m.message === e.message.message);
+         if (!exists && !isPending && e.message.id) {
              currentMessages.value.push(e.message);
              scrollToBottom();
-             api.get(`/admin/live-chats/${sessionId}`); // Gọi nhỏ lẻ để đánh dấu đã đọc
-          } else {
-             // Tăng số chưa đọc
-             existingSession.unread_count = (existingSession.unread_count || 0) + 1;
-          }
-          
-          sessions.value.sort((a,b) => new Date(b.last_message_at) - new Date(a.last_message_at));
-        } else {
-          // New session! Refresh session list
-          fetchSessions();
-        }
-      });
-      
+         }
+     }
+     return;
+  }
+
+  // Tính năng: tin nhắn mới từ User
+  const existingSession = sessions.value.find(s => s.id === sessionId);
+  
+  if (existingSession) {
+    existingSession.last_message_at = new Date().toISOString();
+    
+    if (activeSession.value && activeSession.value.id === sessionId) {
+       // Đang mở cuộc trò chuyện này, mark as read luôn phía Backend + đẩy tin nhắn vào UI
+       currentMessages.value.push(e.message);
+       scrollToBottom();
+       api.get(`/admin/live-chats/${sessionId}`); // Gọi nhỏ lẻ để đánh dấu đã đọc
+    } else {
+       // Tăng số chưa đọc
+       existingSession.unread_count = (existingSession.unread_count || 0) + 1;
+    }
+    
+    sessions.value.sort((a,b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+  } else {
+    // New session! Refresh session list
+    fetchSessions();
+  }
+};
+
+const setupEcho = () => {
+  if (!isConnectedEcho) {
+    window.addEventListener('admin-chat-message', handleAdminChatMessage);
     isConnectedEcho = true;
   }
 };
@@ -190,6 +188,7 @@ const fetchSessions = async () => {
   try {
     const res = await api.get('/admin/live-chats');
     sessions.value = res.data;
+    window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
   } catch (error) {
     console.error("Lỗi khi tải danh sách chat", error);
   }
@@ -202,6 +201,7 @@ const selectSession = async (session) => {
     const res = await api.get(`/admin/live-chats/${session.id}`);
     currentMessages.value = res.data.messages;
     scrollToBottom();
+    window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
   } catch (error) {
     console.error(error);
   }

@@ -216,6 +216,7 @@ const submitReply = async () => {
     await api.post(`/admin/contacts/${replyingContact.value.id}/reply`, { reply: replyContent.value });
     showReplyModal.value = false;
     showToast('Đã gửi phản hồi thành công!', 'success');
+    window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     fetchContacts();
   } catch (error) {
     replyError.value = error.response?.data?.message || 'Gửi phản hồi thất bại.';
@@ -235,6 +236,7 @@ const confirmDelete = async () => {
     await api.delete(`/admin/contacts/${deletingContact.value.id}`);
     showDeleteModal.value = false;
     showToast('Đã xóa liên hệ thành công!', 'success');
+    window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     fetchContacts();
   } catch (error) {
     showDeleteModal.value = false;

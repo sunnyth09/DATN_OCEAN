@@ -66,6 +66,32 @@ export const useUiStore = defineStore('ui', () => {
     adminUnreadNotificationCount.value += amount;
   };
 
+  const adminUnreadChatCount = ref(0);
+  const setAdminUnreadChatCount = (count) => {
+    adminUnreadChatCount.value = count;
+  };
+  const decrementAdminUnreadChatCount = (amount = 1) => {
+    adminUnreadChatCount.value = Math.max(0, adminUnreadChatCount.value - amount);
+  };
+  const incrementAdminUnreadChatCount = (amount = 1) => {
+    adminUnreadChatCount.value += amount;
+  };
+
+  const adminPendingReviewCount = ref(0);
+  const setAdminPendingReviewCount = (count) => {
+    adminPendingReviewCount.value = count;
+  };
+
+  const adminPendingTicketCount = ref(0);
+  const setAdminPendingTicketCount = (count) => {
+    adminPendingTicketCount.value = count;
+  };
+
+  const adminPendingContactCount = ref(0);
+  const setAdminPendingContactCount = (count) => {
+    adminPendingContactCount.value = count;
+  };
+
   return {
     isSearchModalOpen,
     isBackofficeDarkMode,
@@ -73,6 +99,10 @@ export const useUiStore = defineStore('ui', () => {
     isAdminStoreMenuOpen,
     isAdminStaffMenuOpen,
     adminUnreadNotificationCount,
+    adminUnreadChatCount,
+    adminPendingReviewCount,
+    adminPendingTicketCount,
+    adminPendingContactCount,
     setSearchModalOpen,
     toggleSearchModal,
     setBackofficeDarkMode,
@@ -87,6 +117,12 @@ export const useUiStore = defineStore('ui', () => {
     setAdminUnreadNotificationCount,
     decrementAdminUnreadNotificationCount,
     incrementAdminUnreadNotificationCount,
+    setAdminUnreadChatCount,
+    decrementAdminUnreadChatCount,
+    incrementAdminUnreadChatCount,
+    setAdminPendingReviewCount,
+    setAdminPendingTicketCount,
+    setAdminPendingContactCount,
   };
 });
 

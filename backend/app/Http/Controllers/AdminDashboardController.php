@@ -204,6 +204,24 @@ class AdminDashboardController extends Controller
         // Live chat session chưa được xử lý (status = open)
         $unrepliedChats = ChatSession::where('status', 'open')->count();
 
+        // Tổng số tin nhắn chưa đọc
+        $unreadChats = 0;
+        if (class_exists('\App\Models\ChatMessage')) {
+            $unreadChats = \App\Models\ChatMessage::where('sender_type', 'user')->where('is_read', false)->count();
+        }
+
+        // Đánh giá chờ duyệt
+        $pendingReviews = 0;
+        if (class_exists('\App\Models\ProductComment')) {
+            $pendingReviews = \App\Models\ProductComment::where('is_approved', false)->count();
+        }
+
+        // Liên hệ chưa xử lý
+        $pendingContacts = 0;
+        if (class_exists('\App\Models\Contact')) {
+            $pendingContacts = \App\Models\Contact::where('status', 'pending')->count();
+        }
+
         return response()->json([
             'status' => 'success',
             'data' => [
@@ -211,6 +229,9 @@ class AdminDashboardController extends Controller
                 'pending_returns' => $pendingReturns,
                 'open_tickets' => $openTickets,
                 'unreplied_chats' => $unrepliedChats,
+                'unread_chats' => $unreadChats,
+                'pending_reviews' => $pendingReviews,
+                'pending_contacts' => $pendingContacts,
             ],
         ]);
     }

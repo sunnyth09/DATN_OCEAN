@@ -229,11 +229,27 @@ const fetchUnreadCount = async () => {
   }
 };
 
+const fetchSidebarBadges = async () => {
+  try {
+    const response = await api.get('/admin/sidebar-badges');
+    if (response.data.status === 'success') {
+      const data = response.data.data;
+      uiStore.setAdminUnreadChatCount(data.unread_chats || 0);
+      uiStore.setAdminPendingReviewCount(data.pending_reviews || 0);
+      uiStore.setAdminPendingTicketCount(data.open_tickets || 0);
+      uiStore.setAdminPendingContactCount(data.pending_contacts || 0);
+    }
+  } catch (error) {
+    console.error('Failed to fetch sidebar badges', error);
+  }
+};
+
 onMounted(() => {
   syncSidebarForViewport();
   window.addEventListener('resize', syncSidebarForViewport);
   
   fetchUnreadCount();
+  fetchSidebarBadges();
 
   if (window.Echo) {
     const handleNotification = (e, eventType) => {
@@ -300,11 +316,21 @@ onMounted(() => {
             }
           });
       });
+
+    // Listen to chat messages globally to update sidebar badges
+    window.Echo.channel('admin.chats')
+      .listen('.message.sent', (e) => {
+        fetchSidebarBadges();
+        window.dispatchEvent(new CustomEvent('admin-chat-message', { detail: e }));
+      });
+
+    window.addEventListener('update-sidebar-badges', fetchSidebarBadges);
   }
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', syncSidebarForViewport);
+  window.removeEventListener('update-sidebar-badges', fetchSidebarBadges);
   if (window.Echo) {
     window.Echo.leave('admin-notifications');
   }

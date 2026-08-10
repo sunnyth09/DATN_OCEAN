@@ -139,6 +139,7 @@ const toggleApprove = async (review) => {
   try {
     await api.put(`/admin/reviews/${review.comment_id}/${endpoint}`);
     review.is_approved = review.is_approved ? 0 : 1;
+    window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     toast.success(`Đã ${label.toLowerCase()} đánh giá thành công!`);
   } catch (e) {
     toast.error(e.response?.data?.message || 'Thao tác thất bại');
@@ -161,6 +162,7 @@ const deleteReview = async (review) => {
     await api.delete(`/admin/reviews/${review.comment_id}`);
     reviews.value = reviews.value.filter(r => r.comment_id !== review.comment_id);
     reviewPagination.value.total = Math.max(0, reviewPagination.value.total - 1);
+    window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     toast.success('Đã xóa đánh giá!');
   } catch (e) {
     toast.error(e.response?.data?.message || 'Xóa thất bại');
@@ -244,6 +246,7 @@ const submitReply = async () => {
 
     if (res.data.status === 'success') {
       toast.success('Đã cập nhật khiếu nại');
+      window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
       closeTicketModal();
       fetchTickets();
     }
