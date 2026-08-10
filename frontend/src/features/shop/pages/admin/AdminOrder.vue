@@ -599,16 +599,6 @@ onUnmounted(() => {
         </div>
       </div>
     </Transition>
-
-    <!-- Bootstrap Toast -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-      <div class="toast align-items-center border-0" :class="{ 'text-bg-success': toastData.type === 'success', 'text-bg-danger': toastData.type === 'danger', 'text-bg-info': toastData.type === 'info' }" id="orderToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body">{{ toastData.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
