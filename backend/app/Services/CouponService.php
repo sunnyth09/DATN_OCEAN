@@ -8,6 +8,12 @@ use App\Models\UserCoupon;
 use App\Repositories\CouponRepository;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * CouponService — Xử lý áp dụng và validate mã giảm giá.
+ *
+ * Kiểm tra điều kiện sử dụng coupon: hạn dùng, số lần sử dụng,
+ * giá trị đơn hàng tối thiểu, và tính toán số tiền giảm.
+ */
 class CouponService
 {
     public function __construct(
