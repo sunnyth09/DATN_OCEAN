@@ -12,6 +12,10 @@ import { pinia } from './stores';
 import { useAuthStore } from './stores/auth';
 import { useCartStore } from './stores/cart';
 import { useUiStore } from './stores/ui';
+import { initTitleNotifier } from './utils/titleNotifier';
+
+// Khởi tạo notification title notifier
+initTitleNotifier();
 
 // Khởi tạo session sync trước khi mount app
 // Đảm bảo tab mới có thể nhận session từ tab cũ trong ~150ms

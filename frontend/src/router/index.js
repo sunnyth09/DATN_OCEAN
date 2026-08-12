@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { pinia } from '@/stores';
 import { useAuthStore } from '@/stores/auth';
+import { setOriginalTitle } from '@/utils/titleNotifier';
 
 // ==================== CORE LAYOUTS (eager load) ====================
 import ClientLayout from "../layouts/ClientLayout.vue";
@@ -444,11 +445,8 @@ router.afterEach((to, from) => {
     const title = to.meta.title;
     const isAdmin = to.matched.some(record => record.path === '/admin');
 
-    if (title) {
-        document.title = isAdmin ? `${title} | QS Admin` : `${title} | Ocean Sport`;
-    } else {
-        document.title = 'Ocean Sport';
-    }
+    const pageTitle = title ? (isAdmin ? `${title} | QS Admin` : `${title} | Ocean Sport`) : 'Ocean Sport';
+    setOriginalTitle(pageTitle);
 });
 
 export default router;

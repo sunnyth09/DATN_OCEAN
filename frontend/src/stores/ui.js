@@ -58,16 +58,34 @@ export const useUiStore = defineStore('ui', () => {
   const adminUnreadNotificationCount = ref(0);
   const setAdminUnreadNotificationCount = (count) => {
     if (count > adminUnreadNotificationCount.value) {
-      window.dispatchEvent(new Event('play-notif-sound'));
+      window.dispatchEvent(new CustomEvent('play-notif-sound', {
+        detail: { count, message: `(${count}) Bạn có ${count} thông báo mới!` }
+      }));
+    } else if (count === 0) {
+      window.dispatchEvent(new Event('stop-title-notification'));
     }
     adminUnreadNotificationCount.value = count;
   };
   const decrementAdminUnreadNotificationCount = (amount = 1) => {
     adminUnreadNotificationCount.value = Math.max(0, adminUnreadNotificationCount.value - amount);
+    const count = adminUnreadNotificationCount.value;
+    if (count === 0) {
+      window.dispatchEvent(new Event('stop-title-notification'));
+    } else {
+      window.dispatchEvent(new CustomEvent('new-title-notification', {
+        detail: { count, message: `(${count}) Bạn có ${count} thông báo mới!` }
+      }));
+    }
   };
   const incrementAdminUnreadNotificationCount = (amount = 1) => {
     adminUnreadNotificationCount.value += amount;
-    window.dispatchEvent(new Event('play-notif-sound'));
+    const count = adminUnreadNotificationCount.value;
+    window.dispatchEvent(new CustomEvent('play-notif-sound', {
+      detail: {
+        count,
+        message: `(${count}) Bạn có ${count} thông báo mới!`
+      }
+    }));
   };
 
   const adminUnreadChatCount = ref(0);

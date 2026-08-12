@@ -165,6 +165,9 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await authService.fetchProfileNotifications();
       const newCount = response.data?.unread_count || 0;
       if (newCount > unreadNotificationCount.value) {
+        window.dispatchEvent(new CustomEvent('play-notif-sound', {
+          detail: { count: newCount, message: `(${newCount}) Bạn có ${newCount} thông báo mới!` }
+        }));
         window.dispatchEvent(new CustomEvent('has-new-unread-notifications', { detail: { count: newCount } }));
       }
       unreadNotificationCount.value = newCount;
@@ -177,15 +180,30 @@ export const useAuthStore = defineStore('auth', () => {
 
   const incrementUnreadNotificationCount = (amount = 1) => {
     unreadNotificationCount.value += amount;
-    window.dispatchEvent(new Event('play-notif-sound'));
+    const count = unreadNotificationCount.value;
+    window.dispatchEvent(new CustomEvent('play-notif-sound', {
+      detail: {
+        count,
+        message: `(${count}) Bạn có ${count} thông báo mới!`
+      }
+    }));
   };
 
   const decrementUnreadNotificationCount = (amount = 1) => {
     unreadNotificationCount.value = Math.max(0, unreadNotificationCount.value - amount);
+    const count = unreadNotificationCount.value;
+    if (count === 0) {
+      window.dispatchEvent(new Event('stop-title-notification'));
+    } else {
+      window.dispatchEvent(new CustomEvent('new-title-notification', {
+        detail: { count, message: `(${count}) Bạn có ${count} thông báo mới!` }
+      }));
+    }
   };
 
   const resetUnreadNotificationCount = () => {
     unreadNotificationCount.value = 0;
+    window.dispatchEvent(new Event('stop-title-notification'));
   };
 
   return {
