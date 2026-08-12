@@ -11,12 +11,6 @@ use App\Models\ProductVariant;
 use App\Repositories\CartRepository;
 use Illuminate\Support\Facades\DB;
 
-/**
- * CartService — Business logic xử lý giỏ hàng.
- *
- * Quản lý thêm/sửa/xoá cart items, merge giỏ hàng guest vào user,
- * validate tồn kho và trạng thái sản phẩm trước khi checkout.
- */
 class CartService
 {
     public function __construct(

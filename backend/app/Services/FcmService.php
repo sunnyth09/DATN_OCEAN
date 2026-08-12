@@ -7,12 +7,6 @@ use Kreait\Firebase\Factory;
 use Kreait\Firebase\Messaging\CloudMessage;
 use Kreait\Firebase\Messaging\Notification;
 
-/**
- * FcmService — Gửi push notification qua Firebase Cloud Messaging.
- *
- * Hỗ trợ gửi thông báo realtime đến thiết bị mobile/web
- * khi có sự kiện đơn hàng, khuyến mãi, hoặc tin nhắn hệ thống.
- */
 class FcmService
 {
     protected $messaging;

@@ -6,12 +6,6 @@ use App\Models\ProductVariant;
 use App\Services\CartService;
 use Illuminate\Http\Request;
 
-/**
- * CartController — Quản lý giỏ hàng của khách hàng.
- *
- * Hỗ trợ thêm, sửa, xoá sản phẩm trong giỏ hàng,
- * đồng bộ giỏ hàng giữa guest và user đã đăng nhập.
- */
 class CartController extends Controller
 {
     public function __construct(

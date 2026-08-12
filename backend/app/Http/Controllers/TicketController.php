@@ -11,12 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
-/**
- * TicketController — API hệ thống hỗ trợ khách hàng (ticket).
- *
- * Quản lý tạo ticket, phản hồi, đóng ticket,
- * và thông báo realtime khi có cập nhật mới.
- */
 class TicketController extends Controller
 {
     // ====== ADMIN METHODS ======

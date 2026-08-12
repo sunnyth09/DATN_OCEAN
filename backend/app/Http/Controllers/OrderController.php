@@ -20,12 +20,6 @@ use Illuminate\Support\Facades\Gate;
  *   - CancelOrderRequest::authorize() kiểm tra ownership.
  *   - show() dùng OrderPolicy::view() via $this->authorize().
  */
-/**
- * OrderController — API đặt hàng cho khách hàng.
- *
- * Xử lý tạo đơn hàng mới, tra cứu trạng thái đơn,
- * huỷ đơn và xem lịch sử mua hàng.
- */
 class OrderController extends Controller
 {
     public function __construct(

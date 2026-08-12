@@ -7,12 +7,6 @@ use App\Services\AdminOrderService;
 use App\StateMachines\OrderStateMachine;
 use Illuminate\Http\Request;
 
-/**
- * AdminOrderController — API quản lý đơn hàng cho admin.
- *
- * Cung cấp endpoints duyệt, cập nhật trạng thái, xuất hoá đơn,
- * xử lý đơn trả hàng và thống kê doanh thu đơn hàng.
- */
 class AdminOrderController extends Controller
 {
     public function __construct(

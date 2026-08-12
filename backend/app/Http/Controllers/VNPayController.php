@@ -6,12 +6,6 @@ use App\Services\PaymentProcessingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
-/**
- * VNPayController — Xử lý callback thanh toán từ VNPay.
- *
- * Nhận IPN và return URL từ cổng thanh toán VNPay,
- * verify chữ ký HMAC-SHA512 và cập nhật trạng thái đơn hàng.
- */
 class VNPayController extends Controller
 {
     public function __construct(
