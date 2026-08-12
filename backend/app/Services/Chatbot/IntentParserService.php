@@ -2,12 +2,6 @@
 
 namespace App\Services\Chatbot;
 
-/**
- * IntentParserService — Phân tích ý định người dùng từ tin nhắn.
- *
- * Map các từ khoá tiếng Việt không dấu sang danh mục sản phẩm,
- * hỗ trợ chatbot hiểu đúng intent của khách hàng.
- */
 class IntentParserService
 {
     private array $categoryMap = [

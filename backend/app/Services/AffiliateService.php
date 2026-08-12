@@ -21,12 +21,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-/**
- * AffiliateService — Quản lý hệ thống Affiliate Marketing.
- *
- * Xử lý tracking clicks, tính hoa hồng cho affiliator,
- * quản lý yêu cầu rút tiền và thống kê doanh thu affiliate.
- */
 class AffiliateService
 {
     public function __construct(

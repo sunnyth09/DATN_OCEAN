@@ -9,12 +9,6 @@ use App\Services\GHNService;
 use App\Services\OceanExpressService;
 use Illuminate\Http\Request;
 
-/**
- * GhnController — Tích hợp API Giao Hàng Nhanh (GHN).
- *
- * Cung cấp proxy endpoints cho frontend tra cứu tỉnh/huyện/xã,
- * tính phí vận chuyển và theo dõi vận đơn GHN.
- */
 class GhnController extends Controller
 {
     public function __construct(

@@ -5,12 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Favorite;
 use Illuminate\Http\Request;
 
-/**
- * FavoriteController — API danh sách yêu thích.
- *
- * Cho phép user thêm/xoá sản phẩm khỏi danh sách yêu thích
- * và lấy danh sách sản phẩm đã lưu.
- */
 class FavoriteController extends Controller
 {
     /**

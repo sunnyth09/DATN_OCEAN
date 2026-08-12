@@ -109,14 +109,6 @@ PROMPT;
      * Khai báo các function (tools) theo chuẩn OpenAI
      * DeepSeek sẽ phân tích intent của user và tự quyết định gọi function nào
      */
-    /**
-     * Khai báo danh sách function tools cho DeepSeek API.
-     *
-     * Mỗi tool tương ứng với một action mà chatbot có thể thực hiện:
-     * search, detail, cart, order, coupon, address, store info.
-     *
-     * @return array<int, array{type: string, function: array}>
-     */
     private function getToolDeclarations(): array
     {
         return [

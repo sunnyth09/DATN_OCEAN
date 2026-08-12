@@ -19,12 +19,6 @@ use Illuminate\Support\Str;
  * POST /admin/combos/flash-sale   → Tạo Flash Sale Combo (Admin)
  * POST /admin/combos/voucher      → Tạo Combo Voucher auto-apply (Admin)
  */
-/**
- * ComboController — API quản lý combo/bundle khuyến mãi.
- *
- * Hỗ trợ admin tạo combo sản phẩm với giá ưu đãi,
- * và cung cấp API public cho client hiển thị combo.
- */
 class ComboController extends Controller
 {
     public function __construct(

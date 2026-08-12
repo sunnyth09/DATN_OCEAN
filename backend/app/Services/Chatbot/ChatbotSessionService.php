@@ -5,12 +5,6 @@ namespace App\Services\Chatbot;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
-/**
- * ChatbotSessionService — Quản lý phiên hội thoại chatbot.
- *
- * Tạo và duy trì session_id cho mỗi cuộc trò chuyện,
- * hỗ trợ cả user đã đăng nhập và khách vãng lai.
- */
 class ChatbotSessionService
 {
     /**

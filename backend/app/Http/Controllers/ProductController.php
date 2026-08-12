@@ -6,12 +6,6 @@ use App\Models\SearchHistory;
 use App\Services\ProductService;
 use Illuminate\Http\Request;
 
-/**
- * ProductController — API quản lý sản phẩm.
- *
- * Cung cấp endpoints CRUD cho admin và API public cho client:
- * danh sách, chi tiết, tìm kiếm, lọc theo danh mục và giá.
- */
 class ProductController extends Controller
 {
     public function __construct(

@@ -11,12 +11,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
-/**
- * PosService — Xử lý đơn hàng tại quầy (Point of Sale).
- *
- * Hỗ trợ nhân viên tạo đơn hàng trực tiếp tại cửa hàng,
- * quản lý thanh toán tại chỗ và xuất hoá đơn.
- */
 class PosService
 {
     /**

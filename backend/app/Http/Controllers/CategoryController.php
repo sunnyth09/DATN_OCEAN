@@ -9,12 +9,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
-/**
- * CategoryController — API quản lý danh mục sản phẩm.
- *
- * Hỗ trợ CRUD danh mục, sắp xếp thứ tự hiển thị,
- * và cung cấp danh mục dạng cây cho frontend.
- */
 class CategoryController extends Controller
 {
     private function buildTree(array $elements, $parentId = 0)

@@ -7,12 +7,6 @@ use App\Services\FlashSaleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/**
- * FlashSaleController — API quản lý chương trình Flash Sale.
- *
- * Hỗ trợ admin tạo/sửa/xoá Flash Sale,
- * và cung cấp API public cho client hiển thị sản phẩm giảm giá.
- */
 class FlashSaleController extends Controller
 {
     public function __construct(
