@@ -12,11 +12,6 @@
           <span v-if="product.compare_at_price" class="product-card-compare-price">{{ product.compare_at_price }}</span>
         </div>
         <span v-if="product.category" class="product-card-cat">{{ product.category }}</span>
-        <div class="chatbot-actions">
-          <button class="chatbot-action-btn outline" @click="$emit('go-to-product', product.slug)">Xem chi tiết</button>
-          <button v-if="product.variants?.length === 1" class="chatbot-action-btn primary" @click="$emit('add-variant', product, product.variants[0])">+ Giỏ hàng</button>
-          <button v-else-if="product.variants?.length > 1" class="chatbot-action-btn" @click="$emit('show-variant-picker', product)">Chọn màu/size</button>
-        </div>
       </div>
     </div>
   </div>

@@ -37,6 +37,7 @@ class ChatbotActionService
             'get_product_detail' => $this->getProductDetail($arguments),
             'add_to_cart' => $this->addToCart($arguments, $customer),
             'get_my_addresses' => $this->getMyAddresses($customer),
+            'add_shipping_address' => $this->addShippingAddress($arguments, $customer),
             'prepare_order' => $this->prepareOrder($arguments, $customer),
             'confirm_order' => $this->confirmOrder($arguments, $customer, $request),
             'quick_order' => $this->quickOrder($arguments, $customer),
@@ -149,6 +150,41 @@ class ChatbotActionService
             'message' => 'Danh sách địa chỉ giao hàng của bạn.',
             'data' => $addresses,
         ];
+    }
+
+    public function addShippingAddress(array $arguments, $customer = null): array
+    {
+        if (!$customer) {
+            return $this->requiresLogin('Bạn cần đăng nhập để thêm địa chỉ giao hàng.');
+        }
+
+        try {
+            $address = \App\Models\Address::create([
+                'user_id' => $customer->user_id,
+                'recipient_name' => $arguments['recipient_name'] ?? $customer->name ?? 'Khách hàng',
+                'phone' => $arguments['phone'] ?? $customer->phone ?? '',
+                'province' => $arguments['province'] ?? '',
+                'district' => $arguments['district'] ?? '',
+                'ward' => $arguments['ward'] ?? '',
+                'address_line' => $arguments['address_line'] ?? '',
+                'is_default' => true, // Set as default for auto order
+                'address_type' => 'home',
+            ]);
+
+            // Unset default for other addresses
+            \App\Models\Address::where('user_id', $customer->user_id)
+                ->where('address_id', '!=', $address->address_id)
+                ->update(['is_default' => false]);
+
+            return [
+                'status' => 'success',
+                'message' => 'Đã lưu địa chỉ giao hàng thành công.',
+                'data' => $this->formatAddress($address),
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Chatbot add shipping address failed', ['user_id' => $customer->user_id, 'error' => $e->getMessage()]);
+            return $this->error('Không thể lưu địa chỉ lúc này. Vui lòng thử lại.', 'save_address_error');
+        }
     }
 
     public function prepareOrder(array $arguments, $customer = null): array
@@ -334,14 +370,11 @@ class ChatbotActionService
         $keywordLen = mb_strlen($keyword);
         $product = Product::query()
             ->select(['product_id', 'category_id', 'name', 'slug', 'short_description', 'thumbnail_url', 'status', 'min_price', 'max_price', 'sold_count'])
-            ->where('status', 'active')
-            ->where(function ($q) use ($keyword, $keywordLen) {
-                $q->where('name', 'LIKE', "%{$keyword}%");
-                if ($keywordLen > 3) {
-                    $q->orWhere('short_description', 'LIKE', "%{$keyword}%");
-                }
-            })
-            ->with(['category:category_id,name', 'mainImage', 'variants' => function ($q) {
+            ->where('status', 'active');
+
+        $this->applyKeywordSearch($product, $keyword);
+
+        $product = $product->with(['category:category_id,name', 'mainImage', 'variants' => function ($q) {
                 $q->where('status', 'active')->where('stock', '>', 0)->orderBy('price', 'asc');
             }])
             ->orderByDesc('sold_count')
@@ -361,71 +394,72 @@ class ChatbotActionService
         }
 
         // ── Step 2: Chọn variant thông minh ──────────────────────────
-        // Ưu tiên: khớp đúng color+size → color only → size only → bất kỳ còn hàng
-        $selected = null;
+        // Nếu sản phẩm chỉ có 1 variant, lấy luôn (bỏ qua khớp màu/size vì không có lựa chọn nào khác)
+        if ($variants->count() === 1) {
+            $selected = $variants->first();
+        } else {
+            // Ưu tiên: khớp đúng color+size → color only → size only → bất kỳ còn hàng
+            $selected = null;
 
-        if ($color && $size) {
-            $selected = $variants->first(fn ($v) =>
-                mb_stripos($v->color ?? '', $color) !== false &&
-                mb_stripos($v->size  ?? '', $size)  !== false
-            );
-        }
-        if (!$selected && $color) {
-            $colorMatched = $variants->filter(fn ($v) => mb_stripos($v->color ?? '', $color) !== false);
-            if ($colorMatched->isEmpty()) {
-                // Màu không tồn tại trong hệ thống → báo rõ
-                $availableColors = $variants->pluck('color')->filter()->unique()->values()->implode(', ');
-                return [
-                    'status'  => 'color_not_found',
-                    'message' => "Sản phẩm {$product->name} không có màu \"{$color}\". Các màu hiện có: {$availableColors}.",
-                    'data'    => [
-                        'product_id'  => $product->product_id,
-                        'name'        => $product->name,
-                        'available_colors' => $variants->pluck('color')->filter()->unique()->values()->toArray(),
-                    ],
-                ];
+            if ($color && $size) {
+                $selected = $variants->first(fn ($v) =>
+                    mb_stripos($v->color ?? '', $color) !== false &&
+                    mb_stripos($v->size  ?? '', $size)  !== false
+                );
             }
-            // Có màu, thiếu size → chọn size bán chạy nhất (sold_count cao nhất variant)
-            $selected = $size
-                ? $colorMatched->first(fn ($v) => mb_stripos($v->size ?? '', $size) !== false) ?? $colorMatched->sortByDesc('sold_count')->first()
-                : $colorMatched->sortByDesc('sold_count')->first();
-        }
-        if (!$selected && $size) {
-            $sizeMatched = $variants->filter(fn ($v) => mb_stripos($v->size ?? '', $size) !== false);
-            if ($sizeMatched->isEmpty()) {
-                $availableSizes = $variants->pluck('size')->filter()->unique()->values()->implode(', ');
-                return [
-                    'status'  => 'size_not_found',
-                    'message' => "Sản phẩm {$product->name} không có size \"{$size}\". Các size hiện có: {$availableSizes}.",
-                    'data'    => [
-                        'product_id'     => $product->product_id,
-                        'name'           => $product->name,
-                        'available_sizes' => $variants->pluck('size')->filter()->unique()->values()->toArray(),
-                    ],
-                ];
+            if (!$selected && $color) {
+                $colorMatched = $variants->filter(fn ($v) => mb_stripos($v->color ?? '', $color) !== false);
+                if ($colorMatched->isEmpty()) {
+                    // Màu không tồn tại trong hệ thống → báo rõ
+                    $availableColors = $variants->pluck('color')->filter()->unique()->values()->implode(', ');
+                    return [
+                        'status'  => 'color_not_found',
+                        'message' => "Sản phẩm {$product->name} không có màu \"{$color}\". Các màu hiện có: " . ($availableColors ?: 'Mặc định') . ".",
+                        'data'    => [
+                            'product_id'  => $product->product_id,
+                            'name'        => $product->name,
+                            'available_colors' => $variants->pluck('color')->filter()->unique()->values()->toArray(),
+                        ],
+                    ];
+                }
+                // Có màu, thiếu size → chọn size bán chạy nhất (sold_count cao nhất variant)
+                $selected = $size
+                    ? $colorMatched->first(fn ($v) => mb_stripos($v->size ?? '', $size) !== false) ?? $colorMatched->sortByDesc('sold_count')->first()
+                    : $colorMatched->sortByDesc('sold_count')->first();
             }
-            $selected = $sizeMatched->sortByDesc('sold_count')->first();
+            if (!$selected && $size) {
+                $sizeMatched = $variants->filter(fn ($v) => mb_stripos($v->size ?? '', $size) !== false);
+                if ($sizeMatched->isEmpty()) {
+                    $availableSizes = $variants->pluck('size')->filter()->unique()->values()->implode(', ');
+                    return [
+                        'status'  => 'size_not_found',
+                        'message' => "Sản phẩm {$product->name} không có size \"{$size}\". Các size hiện có: " . ($availableSizes ?: 'Mặc định') . ".",
+                        'data'    => [
+                            'product_id'     => $product->product_id,
+                            'name'           => $product->name,
+                            'available_sizes' => $variants->pluck('size')->filter()->unique()->values()->toArray(),
+                        ],
+                    ];
+                }
+                $selected = $sizeMatched->sortByDesc('sold_count')->first();
+            }
         }
-        // Không có color/size → hỏi lại nếu nhiều lựa chọn, tự chọn nếu chỉ 1
+        // Không có color/size → hỏi lại nếu nhiều lựa chọn
         if (!$selected) {
-            if ($variants->count() === 1) {
-                $selected = $variants->first();
-            } else {
-                $availableColors = $variants->pluck('color')->filter()->unique()->values()->toArray();
-                $availableSizes  = $variants->pluck('size')->filter()->unique()->values()->toArray();
-                return [
-                    'status'  => 'need_variant_info',
-                    'message' => "Sản phẩm {$product->name} có nhiều lựa chọn. Bạn muốn màu và size nào?",
-                    'data'    => [
-                        'product_id'      => $product->product_id,
-                        'name'            => $product->name,
-                        'thumbnail'       => $product->mainImage?->image_url ?? $product->thumbnail_url,
-                        'available_colors' => $availableColors,
-                        'available_sizes'  => $availableSizes,
-                        'variants'        => $variants->map(fn ($v) => $this->formatVariant($v))->values()->toArray(),
-                    ],
-                ];
-            }
+            $availableColors = $variants->pluck('color')->filter()->unique()->values()->toArray();
+            $availableSizes  = $variants->pluck('size')->filter()->unique()->values()->toArray();
+            return [
+                'status'  => 'need_variant_info',
+                'message' => "Sản phẩm {$product->name} có nhiều lựa chọn. Bạn muốn màu và size nào?",
+                'data'    => [
+                    'product_id'      => $product->product_id,
+                    'name'            => $product->name,
+                    'thumbnail'       => $product->mainImage?->image_url ?? $product->thumbnail_url,
+                    'available_colors' => $availableColors,
+                    'available_sizes'  => $availableSizes,
+                    'variants'        => $variants->map(fn ($v) => $this->formatVariant($v))->values()->toArray(),
+                ],
+            ];
         }
 
         // ── Step 3: Validate tồn kho + giới hạn đơn ─────────────────
@@ -454,7 +488,7 @@ class ChatbotActionService
         if (!$address) {
             return [
                 'status'  => 'no_address',
-                'message' => 'Bạn chưa có địa chỉ giao hàng. Vui lòng thêm địa chỉ trong phần Tài khoản trước khi đặt hàng tự động.',
+                'message' => 'Bạn chưa có địa chỉ giao hàng. Vui lòng cung cấp Họ tên, Số điện thoại và Địa chỉ chi tiết (Số nhà, Đường, Xã/Phường, Quận/Huyện, Tỉnh/Thành) ngay tại đây để mình tạo đơn cho bạn nhé!',
                 'data'    => null,
             ];
         }
@@ -527,7 +561,8 @@ class ChatbotActionService
                 'variant_label'  => trim(($selected->color ?? '') . ' / ' . ($selected->size ?? ''), ' /'),
                 'quantity'       => $quantity,
                 'unit_price'     => $this->formatMoney($selected->price),
-                'grand_total'    => $totals['grand_total_formatted'] ?? $this->formatMoney($lineTotal),
+                'grand_total'    => $totals['grand_total'] ?? $lineTotal,
+                'grand_total_formatted' => $totals['grand_total_formatted'] ?? $this->formatMoney($lineTotal),
                 'shipping_fee'   => $totals['shipping_fee_formatted'] ?? '—',
                 'payment_method' => $this->paymentMethodLabel($paymentMethod),
                 'address'        => $this->formatAddress($address),
@@ -563,14 +598,13 @@ class ChatbotActionService
         $quantity = max(1, min((int) ($args['quantity'] ?? 1), 20));
 
         // Step 1: Tìm sản phẩm best match
-        $product = Product::query()
+        $productQuery = Product::query()
             ->select(['product_id', 'category_id', 'name', 'slug', 'short_description', 'thumbnail_url', 'status', 'min_price', 'max_price', 'sold_count'])
-            ->where('status', 'active')
-            ->where(function ($q) use ($keyword) {
-                $q->where('name', 'LIKE', "%{$keyword}%")
-                  ->orWhere('short_description', 'LIKE', "%{$keyword}%");
-            })
-            ->with(['category:category_id,name', 'mainImage', 'variants' => function ($q) {
+            ->where('status', 'active');
+
+        $this->applyKeywordSearch($productQuery, $keyword);
+
+        $product = $productQuery->with(['category:category_id,name', 'mainImage', 'variants' => function ($q) {
                 $q->where('status', 'active')->where('stock', '>', 0)->orderBy('price', 'asc');
             }])
             ->orderByDesc('sold_count')
@@ -701,7 +735,7 @@ class ChatbotActionService
         if (!$address) {
             return [
                 'status' => 'no_address',
-                'message' => 'Bạn chưa có địa chỉ giao hàng. Vui lòng thêm địa chỉ trong tài khoản trước khi đặt hàng nhanh.',
+                'message' => 'Bạn chưa có địa chỉ giao hàng. Vui lòng cung cấp Họ tên, Số điện thoại và Địa chỉ chi tiết ngay tại đây để mình tạo đơn cho bạn nhé!',
                 'data' => [
                     'product_name' => $product->name,
                     'variant' => $this->formatVariant($variant),
@@ -780,6 +814,58 @@ class ChatbotActionService
         return $safe;
     }
 
+    /**
+     * Áp dụng logic tìm kiếm tokenized linh hoạt cho câu truy vấn sản phẩm.
+     */
+    private function applyKeywordSearch($query, string $keyword): void
+    {
+        $keyword = trim($keyword);
+        if ($keyword === '') {
+            return;
+        }
+
+        $keywordLen = mb_strlen($keyword);
+        
+        // Bỏ qua các từ khóa chung chung do AI đôi khi trích xuất nhầm
+        $genericKeywords = ['bán chạy', 'hot', 'mới nhất', 'giá rẻ', 'đẹp', 'gợi ý', 'sản phẩm'];
+        foreach ($genericKeywords as $gk) {
+            if (mb_stripos($keyword, $gk) !== false) {
+                return; // Không filter bằng tên nếu toàn chứa từ khóa chung chung
+            }
+        }
+
+        // Chia nhỏ từ khóa thành các token để tìm kiếm linh hoạt hơn
+        // Ví dụ: "áo thun nam" -> ['áo', 'thun', 'nam']
+        $tokens = array_filter(explode(' ', $keyword), fn($t) => mb_strlen($t) > 0);
+        
+        $query->where(function ($q) use ($keyword, $keywordLen, $tokens) {
+            // Cố gắng tìm chuỗi liền kề trước (ưu tiên)
+            $q->where('name', 'LIKE', "%{$keyword}%");
+            
+            // Nếu không, tìm theo các token rời rạc trong name
+            if (count($tokens) > 1) {
+                $q->orWhere(function ($subQ) use ($tokens) {
+                    foreach ($tokens as $token) {
+                        $subQ->where('name', 'LIKE', "%{$token}%");
+                    }
+                });
+            }
+
+            // Tìm trong description nếu keyword dài
+            if ($keywordLen > 3) {
+                $q->orWhere('short_description', 'LIKE', "%{$keyword}%");
+                
+                if (count($tokens) > 1) {
+                    $q->orWhere(function ($subQ) use ($tokens) {
+                        foreach ($tokens as $token) {
+                            $subQ->where('short_description', 'LIKE', "%{$token}%");
+                        }
+                    });
+                }
+            }
+        });
+    }
+
     public function searchProducts(array $args): array
     {
         $args = $this->sanitizeSearchArgs($args);
@@ -798,50 +884,7 @@ class ChatbotActionService
 
         if (!empty($args['keyword'])) {
             $keyword = trim((string) $args['keyword']);
-            $keywordLen = mb_strlen($keyword);
-            
-            // Bỏ qua các từ khóa chung chung do AI đôi khi trích xuất nhầm
-            $genericKeywords = ['bán chạy', 'hot', 'mới nhất', 'giá rẻ', 'đẹp', 'gợi ý', 'sản phẩm'];
-            $isGeneric = false;
-            foreach ($genericKeywords as $gk) {
-                if (mb_stripos($keyword, $gk) !== false) {
-                    $isGeneric = true;
-                    break;
-                }
-            }
-
-            if (!$isGeneric) {
-                // Chia nhỏ từ khóa thành các token để tìm kiếm linh hoạt hơn
-            // Ví dụ: "áo thun nam" -> ['áo', 'thun', 'nam']
-            $tokens = array_filter(explode(' ', $keyword), fn($t) => mb_strlen($t) > 0);
-            
-            $query->where(function ($q) use ($keyword, $keywordLen, $tokens) {
-                // Cố gắng tìm chuỗi liền kề trước (ưu tiên)
-                $q->where('name', 'LIKE', "%{$keyword}%");
-                
-                // Nếu không, tìm theo các token rời rạc trong name
-                if (count($tokens) > 1) {
-                    $q->orWhere(function ($subQ) use ($tokens) {
-                        foreach ($tokens as $token) {
-                            $subQ->where('name', 'LIKE', "%{$token}%");
-                        }
-                    });
-                }
-
-                // Tìm trong description nếu keyword dài
-                if ($keywordLen > 3) {
-                    $q->orWhere('short_description', 'LIKE', "%{$keyword}%");
-                    
-                    if (count($tokens) > 1) {
-                        $q->orWhere(function ($subQ) use ($tokens) {
-                            foreach ($tokens as $token) {
-                                $subQ->where('short_description', 'LIKE', "%{$token}%");
-                            }
-                        });
-                    }
-                }
-            });
-            }
+            $this->applyKeywordSearch($query, $keyword);
         }
 
         if (!empty($args['categories'])) {
@@ -878,8 +921,25 @@ class ChatbotActionService
         if ($color || $size || !empty($args['min_price']) || !empty($args['max_price'])) {
             $query->whereHas('variants', function ($q) use ($color, $size, $args) {
                 $q->where('status', 'active')->where('stock', '>', 0);
-                if ($color) $q->where('color', 'LIKE', "%{$color}%");
-                if ($size) $q->where('size', 'LIKE', "%{$size}%");
+                
+                if ($color) {
+                    $colors = array_map('trim', explode(',', $color));
+                    $q->where(function ($subQ) use ($colors) {
+                        foreach ($colors as $c) {
+                            $subQ->orWhere('color', 'LIKE', "%{$c}%");
+                        }
+                    });
+                }
+                
+                if ($size) {
+                    $sizes = array_map('trim', explode(',', $size));
+                    $q->where(function ($subQ) use ($sizes) {
+                        foreach ($sizes as $s) {
+                            $subQ->orWhere('size', 'LIKE', "%{$s}%");
+                        }
+                    });
+                }
+                
                 if (!empty($args['min_price'])) $q->where('price', '>=', (float) $args['min_price']);
                 if (!empty($args['max_price'])) $q->where('price', '<=', (float) $args['max_price']);
             });
@@ -927,8 +987,20 @@ class ChatbotActionService
                 if (is_numeric($identifier)) {
                     $q->where('product_id', (int) $identifier);
                 }
-                $q->orWhere('slug', $identifier)
-                  ->orWhere('name', 'LIKE', "%{$identifier}%");
+                $q->orWhere('slug', $identifier);
+                
+                // Ưu tiên chuỗi liền kề
+                $q->orWhere('name', 'LIKE', "%{$identifier}%");
+                
+                // Sau đó tìm theo từng token rời rạc (nếu identifier dài hơn 1 từ)
+                $tokens = array_filter(explode(' ', $identifier), fn($t) => mb_strlen($t) > 0);
+                if (count($tokens) > 1) {
+                    $q->orWhere(function ($subQ) use ($tokens) {
+                        foreach ($tokens as $token) {
+                            $subQ->where('name', 'LIKE', "%{$token}%");
+                        }
+                    });
+                }
             })
             ->with(['category:category_id,name', 'variants' => function ($q) {
                 $q->where('status', 'active')->orderBy('price', 'asc');
