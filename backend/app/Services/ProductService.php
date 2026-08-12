@@ -157,12 +157,17 @@ class ProductService
         ];
     }
 
+    public function clearBestSellingCache(): void
+    {
+        Cache::tags(['products:best-selling'])->flush();
+    }
+
     /**
      * Sản phẩm bán chạy nhất (theo sold_count — cached)
      */
     public function getBestSelling(int $limit = 8): array
     {
-        $products = Cache::remember("products:best-selling:{$limit}", 1800, function () use ($limit) {
+        $products = Cache::tags(['products:best-selling'])->remember("products:best-selling:{$limit}", 1800, function () use ($limit) {
             return $this->productRepository->getBestSellingProducts($limit);
         });
 

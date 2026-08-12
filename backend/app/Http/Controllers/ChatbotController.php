@@ -151,10 +151,9 @@ class ChatbotController extends Controller
                 };
             }
 
-            // Map auto_order status → frontend type
             if ($functionName === 'auto_order') {
                 $responseType = match ($functionResult['status'] ?? 'error') {
-                    'auto_order_success' => 'auto_order',
+                    'auto_order_success' => 'order_confirmation',
                     'need_variant_info' => 'need_variant_info',
                     'color_not_found' => 'color_not_found',
                     'size_not_found' => 'size_not_found',
@@ -366,6 +365,7 @@ class ChatbotController extends Controller
             'get_product_detail',
             'add_to_cart',
             'get_my_addresses',
+            'add_shipping_address',
             'prepare_order',
             'confirm_order',
             'auto_order',
@@ -447,30 +447,12 @@ class ChatbotController extends Controller
             return 'Không tìm thấy đơn hàng.';
         }
 
-        // Single order
-        if (isset($data['order_code'])) {
-            return "Đơn hàng {$data['order_code']} - Trạng thái: {$data['status']} - Tổng: {$data['grand_total']}";
-        }
-
-        // Multiple orders
-        $count = count($data);
-        $lines = ["Tìm thấy {$count} đơn hàng:"];
-        foreach (array_slice($data, 0, 5) as $order) {
-            $lines[] = "- {$order['order_code']}: {$order['status']} - {$order['grand_total']}";
-        }
-
-        return implode("\n", $lines);
+        return 'Dạ đây là thông tin đơn hàng của bạn ạ.';
     }
 
     private function buildCouponFallback(array $data): string
     {
-        $count = count($data);
-        $lines = ["Hiện có {$count} mã giảm giá:"];
-        foreach ($data as $c) {
-            $lines[] = "- {$c['code']}: {$c['description']} (Đơn tối thiểu: {$c['min_order']})";
-        }
-
-        return implode("\n", $lines);
+        return 'Dạ đây là các mã giảm giá đang có hiệu lực tại shop:';
     }
 
     private function buildCategoryFallback(array $data): string

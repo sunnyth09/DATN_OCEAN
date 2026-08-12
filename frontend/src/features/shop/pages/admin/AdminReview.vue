@@ -141,6 +141,7 @@ const toggleApprove = async (review) => {
     review.is_approved = review.is_approved ? 0 : 1;
     window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     toast.success(`Đã ${label.toLowerCase()} đánh giá thành công!`);
+    window.dispatchEvent(new Event('admin-notification-received'));
   } catch (e) {
     toast.error(e.response?.data?.message || 'Thao tác thất bại');
   }
@@ -164,6 +165,7 @@ const deleteReview = async (review) => {
     reviewPagination.value.total = Math.max(0, reviewPagination.value.total - 1);
     window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     toast.success('Đã xóa đánh giá!');
+    window.dispatchEvent(new Event('admin-notification-received'));
   } catch (e) {
     toast.error(e.response?.data?.message || 'Xóa thất bại');
   }
@@ -247,6 +249,7 @@ const submitReply = async () => {
     if (res.data.status === 'success') {
       toast.success('Đã cập nhật khiếu nại');
       window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
+      window.dispatchEvent(new Event('admin-notification-received'));
       closeTicketModal();
       fetchTickets();
     }

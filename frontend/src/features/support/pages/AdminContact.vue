@@ -217,6 +217,7 @@ const submitReply = async () => {
     showReplyModal.value = false;
     showToast('Đã gửi phản hồi thành công!', 'success');
     window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
+    window.dispatchEvent(new Event('admin-notification-received'));
     fetchContacts();
   } catch (error) {
     replyError.value = error.response?.data?.message || 'Gửi phản hồi thất bại.';
@@ -237,6 +238,7 @@ const confirmDelete = async () => {
     showDeleteModal.value = false;
     showToast('Đã xóa liên hệ thành công!', 'success');
     window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
+    window.dispatchEvent(new Event('admin-notification-received'));
     fetchContacts();
   } catch (error) {
     showDeleteModal.value = false;

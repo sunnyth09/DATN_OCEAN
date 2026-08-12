@@ -102,10 +102,6 @@
                     <button v-if="v.stock > 0" class="mini-add-btn" @click="addVariantToCart(msg.data, v)">Thêm</button>
                   </div>
                 </div>
-                <div class="chatbot-actions">
-                  <button v-if="msg.data.slug" class="pd-view-btn" @click="goToProduct(msg.data.slug)">Xem chi tiết sản phẩm</button>
-                  <button class="chatbot-action-btn" @click="getAddressesForOrder">Đặt hàng từ giỏ</button>
-                </div>
               </div>
 
               <!-- Variant Picker -->
