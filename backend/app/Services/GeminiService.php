@@ -38,8 +38,9 @@ PHÂN BIỆT QUAN TRỌNG — `get_product_detail` vs `search_products`:
   Ví dụ: "Giày Nike Air có size 42 không?" → get_product_detail(product_name="Giày Nike Air")
   Ví dụ: "Áo polo xanh size L còn không?" → get_product_detail(product_name="Áo polo xanh")
   Ví dụ: "Sản phẩm X giá bao nhiêu?" → get_product_detail(product_name="Sản phẩm X")
-- Dùng `search_products` khi: user MUỐN TÌM / KHÁM PHÁ / ĐƯỢC GỢI Ý sản phẩm (chưa biết chính xác muốn mua cái gì).
-  Ví dụ: "Tìm áo thun thể thao", "Gợi ý giày chạy bộ", "Có áo polo màu đen không?"
+  TUYỆT ĐỐI KHÔNG dùng get_product_detail khi khách hàng đang nhờ tư vấn, chọn giúp hoặc gợi ý (như "nên chọn loại nào", "gợi ý cho tôi").
+- Dùng `search_products` khi: user MUỐN TÌM / KHÁM PHÁ / ĐƯỢC GỢI Ý sản phẩm (chưa biết chính xác muốn mua cái gì) hoặc nhờ tư vấn chọn lựa.
+  Ví dụ: "Tìm áo thun thể thao", "Gợi ý giày chạy bộ", "Có áo polo màu đen không?", "Mới chơi thì nên chọn vợt nào?"
 - TUYỆT ĐỐI KHÔNG dùng `search_products` khi user đã nêu TÊN SẢN PHẨM CỤ THỂ và hỏi về màu/size/tồn kho/chi tiết của nó.
 
 - Khi user yêu cầu CHUNG CHUNG (ví dụ: "Tìm quần áo", "Tư vấn đồ đi tiệc", "Mua quà sinh nhật"): KHÔNG ĐƯỢC gọi function ngay. Hãy ĐẶT 1-2 CÂU HỎI LÀM RÕ (VD: về giới tính, độ tuổi, sở thích màu sắc, form dáng, khoảng giá).
@@ -121,19 +122,19 @@ PROMPT;
                         'properties' => [
                             'keyword' => [
                                 'type' => 'string',
-                                'description' => 'Từ khoá tìm kiếm sản phẩm (tên, loại, thương hiệu...)',
+                                'description' => 'Từ khoá tìm kiếm sản phẩm. TUYỆT ĐỐI CHỈ dùng 1-2 từ RẤT NGẮN GỌN (VD: "giày", "áo", "vợt", "tạ", "nike"). KHÔNG ĐƯỢC đưa giới tính (nam, nữ) hay mục đích (chạy bộ, tập gym, cho người mới) vào keyword vì hệ thống sẽ trả về 0 kết quả. Nếu khách hỏi chung chung, hãy bỏ trống keyword và dùng category thay thế.',
                             ],
                             'category' => [
                                 'type' => 'string',
-                                'description' => 'Tên danh mục sản phẩm (áo, quần, giày, phụ kiện...)',
+                                'description' => 'Tên danh mục sản phẩm. CHỈ lấy danh từ ngắn gọn (VD: "quần áo", "giày", "dụng cụ", "cầu lông", "pickleball"). TUYỆT ĐỐI không đưa mục đích sử dụng, giới tính hay mô tả dài dòng vào đây.',
                             ],
                             'color' => [
                                 'type' => 'string',
-                                'description' => 'Màu sắc sản phẩm (đen, trắng, đỏ, xanh, nâu, hồng, xám...)',
+                                'description' => 'Màu sắc sản phẩm. CHỈ DÙNG khi khách chủ động yêu cầu màu cụ thể (VD: "áo màu đen"). TUYỆT ĐỐI KHÔNG tự động suy luận màu (VD: khách hỏi mệnh phong thuỷ) để điền vào đây, vì database có thể không lưu màu của một số dụng cụ (vợt, bóng) dẫn đến 0 kết quả.',
                             ],
                             'size' => [
                                 'type' => 'string',
-                                'description' => 'Kích thước sản phẩm (S, M, L, XL, XXL, 38, 39, 40...)',
+                                'description' => 'Kích thước sản phẩm (S, M, L, XL, XXL, 38, 39, 40...). Nếu nhiều size, phân cách bằng phẩy.',
                             ],
                             'min_price' => [
                                 'type' => 'number',

@@ -576,7 +576,7 @@ Route::get('/posts/{idOrSlug}', [PostController::class, 'show']);
 Route::get('/posts/{postId}/comments', [PostCommentController::class, 'getByPost']);
 
 // AI Chatbot (Public — tự detect auth nếu có JWT token, có rate limit chống abuse AI)
-Route::middleware('throttle:20,1')->post('/chatbot/message', [ChatbotController::class, 'sendMessage']);
+Route::middleware('throttle:10,1')->post('/chatbot/message', [ChatbotController::class, 'sendMessage']);
 
 // Chatbot transactional actions (Customer only — không cho admin/staff đặt hàng qua AI)
 Route::middleware(['auth:api', 'throttle:30,1'])->prefix('chatbot')->group(function () {

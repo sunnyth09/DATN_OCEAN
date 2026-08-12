@@ -7,6 +7,7 @@ use App\Models\FlashSaleItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\User;
 use App\Notifications\SystemNotification;
@@ -129,6 +130,12 @@ class OrderProcessingJob implements ShouldQueue
 
                 // 4. Trừ tồn kho trong bảng product_variants (đã khóa + validate ở trên)
                 $variant->decrement('stock', $this->quantity);
+                if ($variant->product_id) {
+                    Product::where('product_id', $variant->product_id)
+                        ->increment('sold_count', $this->quantity);
+                }
+
+                Cache::tags(['products:best-selling'])->flush();
 
                 // 5. Tạo lịch sử trạng thái đơn hàng
                 OrderStatusHistory::create([
