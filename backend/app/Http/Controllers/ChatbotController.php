@@ -10,6 +10,14 @@ use App\Services\Chatbot\IntentParserService;
 use App\Services\GeminiService;
 use Illuminate\Http\Request;
 
+/**
+ * ChatbotController — Xử lý giao tiếp giữa frontend chatbot và AI backend.
+ *
+ * Chịu trách nhiệm:
+ *   - Nhận tin nhắn từ user, gọi DeepSeek API qua GeminiService
+ *   - Dispatch function calls đến ChatbotActionService / ChatbotInfoService
+ *   - Quản lý session chatbot qua ChatbotSessionService
+ */
 class ChatbotController extends Controller
 {
     private GeminiService $gemini;
