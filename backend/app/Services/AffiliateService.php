@@ -13,8 +13,6 @@ use App\Models\WalletTransaction;
 use App\Repositories\AffiliateClickRepository;
 use App\Repositories\AffiliateConversionRepository;
 use App\Repositories\AffiliateRepository;
-
-use Illuminate\Support\Facades\Log;
 use App\Repositories\AffiliateWithdrawalRepository;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
