@@ -6,6 +6,12 @@ use App\Models\Admin;
 use App\Models\User;
 use Illuminate\Http\Request;
 
+/**
+ * AdminStaffController — API quản lý nhân viên.
+ *
+ * Hỗ trợ CRUD tài khoản nhân viên, phân quyền,
+ * và thống kê hiệu suất bán hàng theo nhân viên.
+ */
 class AdminStaffController extends Controller
 {
     /**
