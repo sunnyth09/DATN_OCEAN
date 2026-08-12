@@ -151,13 +151,12 @@ class ProductCommentController extends Controller
             // ── Tích điểm Loyalty ──────────────────────────────────────────
             $user = auth('api')->user();
             if ($user) {
-                // +20 điểm khi viết nhận xét có nội dung
-                if (! empty(trim($request->content ?? ''))) {
-                    $this->loyaltyService->earnFromReview($user, $comment->comment_id);
-                }
-                // +50 điểm bonus khi đính kèm hình ảnh
                 if (! empty($imagePaths)) {
+                    // +50 điểm bonus khi đính kèm hình ảnh
                     $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
+                } elseif (! empty(trim($request->content ?? ''))) {
+                    // +20 điểm khi viết nhận xét có nội dung
+                    $this->loyaltyService->earnFromReview($user, $comment->comment_id);
                 }
             }
             // ───────────────────────────────────────────────────────────────
@@ -398,7 +397,10 @@ class ProductCommentController extends Controller
             if (ProfanityFilter::hasProfanity($item['content'] ?? '')) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Nội dung đánh giá chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.',
+                    'message' => 'Dữ liệu không hợp lệ.',
+                    'errors' => [
+                        "items.{$index}.content" => ['Nội dung đánh giá chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.']
+                    ]
                 ], 422);
             }
 
@@ -458,11 +460,10 @@ class ProductCommentController extends Controller
                 // Loyalty points
                 $user = auth('api')->user();
                 if ($user) {
-                    if (! empty(trim($data['content'] ?? ''))) {
-                        $this->loyaltyService->earnFromReview($user, $comment->comment_id);
-                    }
                     if (! empty($imagePaths)) {
                         $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
+                    } elseif (! empty(trim($data['content'] ?? ''))) {
+                        $this->loyaltyService->earnFromReview($user, $comment->comment_id);
                     }
                 }
 
