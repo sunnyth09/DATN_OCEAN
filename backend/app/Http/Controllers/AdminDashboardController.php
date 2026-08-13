@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ChatMessage;
 use App\Models\ChatSession;
 use App\Models\Order;
 use App\Models\Product;
@@ -216,7 +217,7 @@ class AdminDashboardController extends Controller
         // Tổng số tin nhắn chưa đọc
         $unreadChats = 0;
         if (class_exists('\App\Models\ChatMessage')) {
-            $unreadChats = \App\Models\ChatMessage::where('sender_type', 'user')->where('is_read', false)->count();
+            $unreadChats = ChatMessage::where('sender_type', 'user')->where('is_read', false)->count();
         }
 
         // Đánh giá chờ duyệt
@@ -234,13 +235,13 @@ class AdminDashboardController extends Controller
         return response()->json([
             'status' => 'success',
             'data' => [
-                'pending_orders'   => $pendingOrders,
-                'pending_returns'  => $pendingReturns,
-                'open_tickets'     => $openTickets,
+                'pending_orders' => $pendingOrders,
+                'pending_returns' => $pendingReturns,
+                'open_tickets' => $openTickets,
                 'pending_contacts' => $pendingContacts,
-                'unreplied_chats'  => $unrepliedChats,
-                'unread_chats'     => $unreadChats,
-                'pending_reviews'  => $pendingReviews,
+                'unreplied_chats' => $unrepliedChats,
+                'unread_chats' => $unreadChats,
+                'pending_reviews' => $pendingReviews,
             ],
         ]);
     }

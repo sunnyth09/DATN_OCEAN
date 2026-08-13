@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TicketCreatedAdmin;
 use App\Helpers\ProfanityFilter;
 use App\Models\Admin;
 use App\Models\OrderItem;
@@ -138,23 +139,23 @@ class ProductCommentController extends Controller
 
             // Nếu rating <= 3, tự động tạo Ticket (Khiếu nại) cho admin
             if ($request->rating <= 3) {
-                $autoTicket = \App\Models\Ticket::create([
-                    'user_id'     => $userId,
-                    'order_id'    => $orderItem->order_id,
-                    'product_id'  => $request->product_id,
-                    'reason'      => 'Phản hồi đánh giá thấp (' . $request->rating . ' sao)',
+                $autoTicket = Ticket::create([
+                    'user_id' => $userId,
+                    'order_id' => $orderItem->order_id,
+                    'product_id' => $request->product_id,
+                    'reason' => 'Phản hồi đánh giá thấp ('.$request->rating.' sao)',
                     'description' => $filteredContent ?? 'Khách hàng đánh giá chất lượng sản phẩm thấp.',
                     'status' => 'pending',
                 ]);
-                event(new \App\Events\TicketCreatedAdmin($autoTicket));
-            } else if ($comment->is_approved == 0) {
+                event(new TicketCreatedAdmin($autoTicket));
+            } elseif ($comment->is_approved == 0) {
                 // Đánh giá mới chờ duyệt (ví dụ: đánh giá có hình ảnh)
-                $dummyTicket = new \App\Models\Ticket([
+                $dummyTicket = new Ticket([
                     'ticket_id' => $comment->comment_id,
-                    'reason'    => 'Đánh giá sản phẩm mới chờ duyệt',
-                    'status'    => 'pending',
+                    'reason' => 'Đánh giá sản phẩm mới chờ duyệt',
+                    'status' => 'pending',
                 ]);
-                event(new \App\Events\TicketCreatedAdmin($dummyTicket));
+                event(new TicketCreatedAdmin($dummyTicket));
             }
 
             // ── Tích điểm Loyalty ──────────────────────────────────────────
