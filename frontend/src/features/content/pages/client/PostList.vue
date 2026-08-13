@@ -164,7 +164,7 @@ const getAuthorAvatarUrl = (author) => {
 
       <template v-else>
         <!-- Featured Post (only on page 1 of All/Category) -->
-        <div v-if="featuredPost && currentPage === 1" class="featured-post-card">
+        <div v-if="featuredPost" class="featured-post-card">
           <router-link :to="'/posts/' + (featuredPost.slug || featuredPost.post_id)" class="featured-img-wrap">
             <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img" />
           </router-link>
@@ -210,7 +210,7 @@ const getAuthorAvatarUrl = (author) => {
           </div>
         </div>
 
-        <hr v-if="featuredPost && currentPage === 1 && regularPosts.length > 0" class="section-divider" />
+        <hr v-if="featuredPost && regularPosts.length > 0" class="section-divider" />
 
         <!-- Regular Posts Grid -->
         <div v-if="regularPosts.length > 0" class="posts-grid">
