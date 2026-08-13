@@ -46,12 +46,12 @@ const fetchRelatedPosts = async (categoryId, excludeId) => {
 };
 
 onMounted(() => {
-  fetchPostDetail(route.params.id);
+  fetchPostDetail(route.params.idOrSlug);
 });
 
 // Refetch if the route changes (e.g. clicking related post)
 watch(
-  () => route.params.id,
+  () => route.params.idOrSlug,
   (newVal) => {
     if (newVal) {
       fetchPostDetail(newVal);
