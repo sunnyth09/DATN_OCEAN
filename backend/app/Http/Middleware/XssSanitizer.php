@@ -32,8 +32,11 @@ class XssSanitizer
         $input = $request->all();
         $touched = false;
 
-        array_walk_recursive($input, function (&$value, $key) use (&$touched) {
+        array_walk_recursive($input, function (&$value, $key) use (&$touched, $request) {
             if (is_string($value) && in_array($key, self::HTML_FIELDS, true)) {
+                if ($this->shouldSkipPurification($request, $key)) {
+                    return;
+                }
                 $value = $this->sanitizeHtml($value);
                 $touched = true;
             }
@@ -44,6 +47,27 @@ class XssSanitizer
         }
 
         return $next($request);
+    }
+
+    private function shouldSkipPurification(Request $request, string $key): bool
+    {
+        if ($key === 'content') {
+            if ($request->is('api/posts/*/comments') 
+                || $request->is('api/orders/feedback*') 
+                || $request->is('api/chat/*') 
+                || $request->is('api/live-chat/*') 
+                || $request->is('api/chatbot/*')) {
+                return true;
+            }
+        }
+
+        if ($key === 'description') {
+            if ($request->is('api/tickets')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function sanitizeHtml(string $value): string
