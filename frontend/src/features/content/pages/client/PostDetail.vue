@@ -4,13 +4,23 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import DOMPurify from 'dompurify';
 import { getStorageUrl } from '@/utils/url';
+import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 
 const post = ref(null);
 const relatedPosts = ref([]);
 const isLoading = ref(true);
+
+const comments = ref([]);
+const commentsTotal = ref(0);
+const commentsLoading = ref(false);
+const newComment = ref('');
+const isSubmitting = ref(false);
+const commentsPage = ref(1);
+const commentsLastPage = ref(1);
 
 const sanitizedContent = computed(() => DOMPurify.sanitize(post.value?.content || '', {
   USE_PROFILES: { html: true },
@@ -23,6 +33,7 @@ const fetchPostDetail = async (idOrSlug) => {
     post.value = res.data;
     if (post.value) {
       fetchRelatedPosts(post.value.post_category_id, post.value.post_id);
+      fetchComments(post.value.post_id, 1);
     }
   } catch (e) {
     console.error('Lỗi tải chi tiết bài viết:', e);
@@ -42,6 +53,70 @@ const fetchRelatedPosts = async (categoryId, excludeId) => {
       .slice(0, 3);
   } catch (e) {
     console.error('Lỗi tải bài viết liên quan:', e);
+  }
+};
+
+const fetchComments = async (postId, page = 1) => {
+  try {
+    if (page === 1) {
+      commentsLoading.value = true;
+    }
+    const res = await api.get(`/posts/${postId}/comments`, { params: { page } });
+    if (res.data && res.data.data) {
+      const commentData = res.data.data;
+      if (page === 1) {
+        comments.value = commentData.data || [];
+      } else {
+        comments.value = [...comments.value, ...(commentData.data || [])];
+      }
+      commentsPage.value = commentData.current_page || 1;
+      commentsLastPage.value = commentData.last_page || 1;
+      commentsTotal.value = commentData.total || 0;
+    }
+  } catch (e) {
+    console.error('Lỗi tải bình luận:', e);
+  } finally {
+    commentsLoading.value = false;
+  }
+};
+
+const loadMoreComments = () => {
+  if (commentsPage.value < commentsLastPage.value) {
+    fetchComments(post.value.post_id, commentsPage.value + 1);
+  }
+};
+
+const submitComment = async () => {
+  if (!newComment.value.trim()) return;
+
+  if (!authStore.token || !authStore.user) {
+    alert('Bạn phải đăng nhập mới có thể bình luận.');
+    router.push({ name: 'login', query: { redirect: route.fullPath } });
+    return;
+  }
+
+  try {
+    isSubmitting.value = true;
+    const res = await api.post(`/posts/${post.value.post_id}/comments`, {
+      content: newComment.value.trim(),
+    });
+
+    if (res.data && res.data.status === 'success') {
+      newComment.value = '';
+      if (res.data.data) {
+        comments.value.unshift(res.data.data);
+        commentsTotal.value += 1;
+      } else {
+        fetchComments(post.value.post_id, 1);
+      }
+      alert('Đăng bình luận thành công!');
+    }
+  } catch (e) {
+    console.error('Lỗi đăng bình luận:', e);
+    const msg = e.response?.data?.message || 'Có lỗi xảy ra khi gửi bình luận.';
+    alert(msg);
+  } finally {
+    isSubmitting.value = false;
   }
 };
 
@@ -100,6 +175,21 @@ const getAuthorRole = (author) => {
   if (!author) return 'Biên tập viên';
   const roleMap = { admin: 'Quản trị viên', staff: 'Biên tập viên', seller: 'Cộng tác viên' };
   return roleMap[author.role] || 'Biên tập viên';
+};
+
+const getUserName = (user) => {
+  if (!user) return 'Thành viên';
+  return user.full_name || user.name || 'Thành viên';
+};
+
+const getUserFallbackAvatar = (user) => {
+  const name = encodeURIComponent(getUserName(user));
+  return `https://ui-avatars.com/api/?name=${name}&background=e63b6f&color=fff&size=96&bold=true`;
+};
+
+const getUserAvatarUrl = (user) => {
+  if (!user?.avatar_url) return getUserFallbackAvatar(user);
+  return getStorageUrl(user.avatar_url);
 };
 </script>
 
@@ -191,6 +281,85 @@ const getAuthorRole = (author) => {
               </div>
             </div>
           </footer>
+
+          <!-- Comments Section -->
+          <section class="comments-section">
+            <h3 class="comments-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="title-icon"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Bình luận ({{ commentsTotal }})
+            </h3>
+
+            <!-- Comment Input Form -->
+            <div class="comment-form">
+              <div v-if="authStore.token && authStore.user" class="form-logged-in">
+                <div class="user-meta">
+                  <img
+                    :src="getUserAvatarUrl(authStore.user)"
+                    :alt="getUserName(authStore.user)"
+                    class="comment-avatar"
+                    @error="e => e.target.src = getUserFallbackAvatar(authStore.user)"
+                  />
+                  <span class="user-name">{{ getUserName(authStore.user) }}</span>
+                </div>
+                <div class="input-wrapper">
+                  <textarea
+                    v-model="newComment"
+                    placeholder="Chia sẻ ý kiến của bạn về bài viết này..."
+                    rows="3"
+                    maxlength="1000"
+                    :disabled="isSubmitting"
+                  ></textarea>
+                  <div class="form-actions">
+                    <span class="char-count">{{ newComment.length }}/1000</span>
+                    <button
+                      @click="submitComment"
+                      :disabled="isSubmitting || !newComment.trim()"
+                      class="btn-submit-comment"
+                    >
+                      <span v-if="isSubmitting" class="mini-spinner"></span>
+                      {{ isSubmitting ? 'Đang gửi...' : 'Gửi bình luận' }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="form-guest">
+                <p>Bạn cần <router-link :to="{ name: 'login', query: { redirect: route.fullPath } }" class="login-link">Đăng nhập</router-link> để tham gia thảo luận.</p>
+              </div>
+            </div>
+
+            <!-- Comments List -->
+            <div v-if="commentsLoading && comments.length === 0" class="comments-loading">
+              <div class="spinner-sm"></div>
+              <p>Đang tải bình luận...</p>
+            </div>
+            <div v-else-if="comments.length === 0" class="no-comments">
+              <p>Chưa có bình luận nào cho bài viết này. Hãy là người đầu tiên chia sẻ cảm nghĩ!</p>
+            </div>
+            <div v-else class="comments-list">
+              <div v-for="comment in comments" :key="comment.comment_id" class="comment-item">
+                <img
+                  :src="getUserAvatarUrl(comment.user)"
+                  :alt="getUserName(comment.user)"
+                  class="comment-item-avatar"
+                  @error="e => e.target.src = getUserFallbackAvatar(comment.user)"
+                />
+                <div class="comment-item-content">
+                  <div class="comment-item-header">
+                    <span class="comment-author-name">{{ getUserName(comment.user) }}</span>
+                    <span class="comment-date">{{ formatDate(comment.created_at) }}</span>
+                  </div>
+                  <p class="comment-text">{{ comment.content }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Load More Comments Button -->
+            <div v-if="commentsPage < commentsLastPage" class="load-more-comments-wrap">
+              <button @click="loadMoreComments" class="btn-load-more-comments">
+                Xem thêm bình luận
+              </button>
+            </div>
+          </section>
         </article>
 
         <!-- Sidebar (Related / Latest Posts) -->
@@ -683,5 +852,240 @@ const getAuthorRole = (author) => {
   .featured-info {
     padding: 24px;
   }
+}
+
+/* Comments Section */
+.comments-section {
+  margin-top: 48px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 32px;
+}
+
+.comments-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comments-title .title-icon {
+  color: var(--primary);
+}
+
+.comment-form {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 32px;
+}
+
+.form-logged-in {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.user-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid #fde8d8;
+}
+
+.user-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-wrapper textarea {
+  width: 100%;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  background: #fff;
+  transition: border-color 0.2s ease;
+}
+
+.input-wrapper textarea:focus {
+  border-color: var(--primary);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.char-count {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.btn-submit-comment {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.btn-submit-comment:hover:not(:disabled) {
+  background: #d92f66;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.2);
+}
+
+.btn-submit-comment:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-guest {
+  text-align: center;
+  padding: 12px 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.login-link {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.comments-loading, .no-comments {
+  text-align: center;
+  padding: 32px 0;
+  color: #64748b;
+}
+
+.spinner-sm {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid #f3f3f3;
+  border-top: 2.5px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 12px;
+}
+
+.comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.comment-item-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #fde8d8;
+  flex-shrink: 0;
+}
+
+.comment-item-content {
+  flex: 1;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.comment-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.comment-author-name {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #0f172a;
+}
+
+.comment-date {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.comment-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #334155;
+  margin: 0;
+  word-break: break-word;
+}
+
+.load-more-comments-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.btn-load-more-comments {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.88rem;
+  padding: 8px 24px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-load-more-comments:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #fff0f3;
+}
+
+.mini-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
 }
 </style>
