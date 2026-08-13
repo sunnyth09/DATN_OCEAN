@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, nextTick, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import api from '@/axios';
 import { useRouter } from 'vue-router';
 import { Toast } from 'bootstrap';
@@ -157,7 +157,14 @@ const saveCoupon = async (couponId) => {
   }
 };
 
-onMounted(fetchPublicCoupons);
+onMounted(() => {
+  fetchPublicCoupons();
+  window.addEventListener('coupon-saved', fetchPublicCoupons);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('coupon-saved', fetchPublicCoupons);
+});
 </script>
 
 <template>
