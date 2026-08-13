@@ -180,13 +180,13 @@ class PostController extends Controller
             })
             ->firstOrFail();
 
-        // Redis-based view count throttle: 5-minute cooldown per IP
+        // Redis-based view count throttle: 3-minute cooldown per IP
         $ip = request()->ip();
         $cacheKey = 'post_viewed:'.$post->post_id.':'.$ip;
 
         try {
             if (Redis::setnx($cacheKey, 1)) {
-                Redis::expire($cacheKey, 300);
+                Redis::expire($cacheKey, 180);
                 $post->increment('view_count');
             }
         } catch (\Exception $e) {

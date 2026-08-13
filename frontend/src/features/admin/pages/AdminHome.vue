@@ -29,15 +29,12 @@
             <button class="tab" :class="{ active: currentTab === 'month' }" @click="currentTab = 'month'">Tháng</button>
           </div>
         </div>
-        <div class="bar-chart">
-          <div class="bar-col" v-for="bar in displayedRevenue" :key="bar.label">
-            <div class="bar-track">
-              <div class="bar-fill" :style="{ height: bar.h + '%' }">
-                <span class="bar-tip">{{ bar.val }}</span>
-              </div>
-            </div>
-            <span class="bar-lbl">{{ bar.label }}</span>
+        <div class="chart-container">
+          <div v-if="chartLoading" class="chart-loading-spinner">
+            <span class="spinner-small"></span>
           </div>
+          <Line v-else-if="hasChartData" :data="revenueChartData" :options="chartOptions" />
+          <div v-else class="empty-state">Không có dữ liệu trong khoảng thời gian này</div>
         </div>
       </div>
 
@@ -63,8 +60,14 @@
       </div>
     </div>
 
+    <!-- Top Products & Top Customers -->
+    <div class="stats-tables-grid">
+      <TopCustomersTable :customers="topCustomers" class="animate-in" style="animation-delay: 0.38s" />
+      <TopProductsTable :products="topProducts" class="animate-in" style="animation-delay: 0.39s" />
+    </div>
+
     <!-- Quick Actions -->
-    <div class="animate-in" style="animation-delay: 0.4s">
+    <div class="animate-in" style="animation-delay: 0.42s">
       <h3 class="section-title">Thao tác nhanh</h3>
       <div class="actions-grid">
         <router-link to="/admin/product" class="action-item ocean-card">
@@ -98,9 +101,34 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import api from '@/axios';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
+import TopProductsTable from './Statistics/TopProductsTable.vue';
+import TopCustomersTable from './Statistics/TopCustomersTable.vue';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { Line } from 'vue-chartjs';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 const isLoading = ref(true);
 
@@ -128,20 +156,125 @@ const stats = ref([
 ]);
 
 const currentTab = ref('week');
-const revenueWeek = ref([]);
-const revenueMonth = ref([]);
+const revenueChartData = ref({ labels: [], datasets: [] });
+const chartLoading = ref(false);
 
-const displayedRevenue = computed(() => {
-    return currentTab.value === 'week' ? revenueWeek.value : revenueMonth.value;
+const hasChartData = computed(() => {
+  return revenueChartData.value && revenueChartData.value.labels && revenueChartData.value.labels.length > 0;
 });
 
 const orders = ref([]);
+const topProducts = ref([]);
+const topCustomers = ref([]);
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: false
+    },
+    tooltip: {
+      backgroundColor: '#0f172a',
+      titleColor: '#ffffff',
+      bodyColor: '#cbd5e1',
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+      borderWidth: 1,
+      padding: 12,
+      displayColors: false,
+      callbacks: {
+        label: function(context) {
+          let label = context.dataset.label || '';
+          if (label) {
+            label += ': ';
+          }
+          if (context.parsed.y !== null) {
+            label += new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(context.parsed.y);
+          }
+          return label;
+        }
+      }
+    }
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      grid: {
+        color: 'rgba(148, 163, 184, 0.08)',
+        drawBorder: false,
+      },
+      ticks: {
+        color: '#94a3b8',
+        callback: function(value) {
+          if (value === 0) return '0';
+          return new Intl.NumberFormat('vi-VN', { notation: 'compact', compactDisplay: 'short' }).format(value);
+        }
+      }
+    },
+    x: {
+      grid: {
+        display: false,
+        drawBorder: false,
+      },
+      ticks: {
+        color: '#94a3b8',
+        maxRotation: 45,
+        minRotation: 0
+      }
+    }
+  },
+  elements: {
+    line: {
+      tension: 0.4
+    },
+    point: {
+      radius: 0,
+      hitRadius: 10,
+      hoverRadius: 6,
+      backgroundColor: '#E63B6F',
+      borderWidth: 2,
+      borderColor: '#fff'
+    }
+  }
+};
+
+const fetchRevenueChart = async () => {
+  try {
+    chartLoading.value = true;
+    const preset = currentTab.value === 'week' ? '7days' : '30days';
+    const res = await api.get('/admin/statistics/revenue', { params: { preset } });
+    if (res.data && res.data.status === 'success') {
+      const apiData = res.data.data;
+      if (apiData.datasets && apiData.datasets.length > 0) {
+        apiData.datasets[0].borderColor = '#E63B6F';
+        apiData.datasets[0].backgroundColor = 'rgba(230, 59, 111, 0.06)';
+        apiData.datasets[0].fill = true;
+      }
+      revenueChartData.value = apiData;
+    }
+  } catch (error) {
+    console.error('Error fetching revenue chart:', error);
+  } finally {
+    chartLoading.value = false;
+  }
+};
+
+watch(currentTab, () => {
+  fetchRevenueChart();
+});
 
 onMounted(async () => {
     try {
-        const response = await api.get('/admin/dashboard');
-        if (response.data && response.data.status === 'success') {
-            const data = response.data.data;
+        const preset = currentTab.value === 'week' ? '7days' : '30days';
+        const [dashboardRes, topProductsRes, topCustomersRes, revenueRes] = await Promise.all([
+            api.get('/admin/dashboard'),
+            api.get('/admin/statistics/top-products', { params: { preset: 'this_year' } }),
+            api.get('/admin/statistics/top-customers', { params: { preset: 'this_year' } }),
+            api.get('/admin/statistics/revenue', { params: { preset } })
+        ]);
+
+        if (dashboardRes.data && dashboardRes.data.status === 'success') {
+            const data = dashboardRes.data.data;
             
             // Cập nhật stats
             stats.value[0].value = data.stats.revenue;
@@ -149,12 +282,26 @@ onMounted(async () => {
             stats.value[2].value = data.stats.products;
             stats.value[3].value = data.stats.customers;
 
-            // Cập nhật biểu đồ doanh thu
-            revenueWeek.value = data.revenue_chart;
-            revenueMonth.value = data.revenue_chart_month;
-
             // Cập nhật đơn hàng gần đây
             orders.value = data.recent_orders;
+        }
+
+        if (topProductsRes.data && topProductsRes.data.status === 'success') {
+            topProducts.value = topProductsRes.data.data.slice(0, 5); // Show top 5
+        }
+
+        if (topCustomersRes.data && topCustomersRes.data.status === 'success') {
+            topCustomers.value = topCustomersRes.data.data.slice(0, 5); // Show top 5
+        }
+
+        if (revenueRes.data && revenueRes.data.status === 'success') {
+            const apiData = revenueRes.data.data;
+            if (apiData.datasets && apiData.datasets.length > 0) {
+                apiData.datasets[0].borderColor = '#E63B6F';
+                apiData.datasets[0].backgroundColor = 'rgba(230, 59, 111, 0.06)';
+                apiData.datasets[0].fill = true;
+            }
+            revenueChartData.value = apiData;
         }
     } catch (error) {
         console.error('Error loading dashboard data:', error);
@@ -254,54 +401,35 @@ onMounted(async () => {
 .tab.active { background: var(--primary); color: white; }
 .tab:hover:not(.active) { color: var(--text-main); }
 
-/* Bar chart */
-.bar-chart {
-  display: flex; align-items: flex-end; justify-content: space-around;
-  height: 180px;
+/* ChartJS container */
+.chart-container {
+  flex: 1;
+  min-height: 220px;
+  position: relative;
 }
-.bar-col { display: flex; flex-direction: column; align-items: center; gap: 8px; flex: 1; }
-.bar-track { height: 160px; display: flex; align-items: flex-end; width: 100%; justify-content: center; }
-.bar-fill {
-  width: 32px; border-radius: 6px 6px 2px 2px;
-  background: var(--primary);
-  position: relative; transition: all 0.2s; cursor: pointer;
-  min-height: 12px;
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.95rem;
 }
-.bar-fill:hover { background: var(--ocean-bright); }
-.bar-tip {
-  position: absolute; 
-  bottom: 100%; 
-  margin-bottom: 8px;
-  left: 50%; 
-  transform: translateX(-50%) scale(0.8);
-  background: var(--text-main); 
-  border-radius: 6px; 
-  padding: 5px 10px;
-  font-size: 0.75rem; 
-  font-weight: 700; 
-  color: white;
-  white-space: nowrap; 
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s; 
-  pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 10;
-  opacity: 0;
+.chart-loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
 }
-.bar-tip::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 5px;
-  border-style: solid;
-  border-color: var(--text-main) transparent transparent transparent;
+.spinner-small {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(230, 59, 111, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
-.bar-fill:hover .bar-tip { 
-  transform: translateX(-50%) scale(1); 
-  opacity: 1;
-}
-.bar-lbl { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); }
 
 /* Orders */
 .order-list { display: flex; flex-direction: column; gap: 8px; }
@@ -349,8 +477,17 @@ onMounted(async () => {
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
+/* Stats Tables Grid */
+.stats-tables-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
 /* Responsive */
 @media (max-width: 1100px) {
+  .stats-tables-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .row-two { grid-template-columns: 1fr; }
   .actions-grid { grid-template-columns: repeat(2, 1fr); }

@@ -2,6 +2,9 @@
 import { ref, reactive, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import AuthLayout from '@/layouts/AuthLayout.vue';
+import { getAppBaseUrl } from '@/utils/url';
+
+const BASE_URL = getAppBaseUrl();
 import { useToast } from '@/composables/useToast';
 import { authService } from '@/services/authService';
 import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth';
@@ -166,15 +169,10 @@ const login = async () => {
           <div class="auth-form-card">
 
             <div class="brand">
-              <div class="brand-logo">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path fill="#E63B6F"
-                    d="M2.5 12c0-5.25 4.25-9.5 9.5-9.5s9.5 4.25 9.5 9.5c0 4.14-2.65 7.63-6.38 8.97a1 1 0 0 1-1.25-.66 1 1 0 0 1 .66-1.25 7.5 7.5 0 1 0-10.02 0 1 1 0 0 1-1.25.66A9.46 9.46 0 0 1 2.5 12z" />
-                  <path fill="#ff8fa3"
-                    d="M12 4.5a7.5 7.5 0 0 0-7.39 8.78 1 1 0 0 1-1.94.44A9.5 9.5 0 0 1 21.5 12a9.5 9.5 0 0 1-5.18 8.44 1 1 0 0 1-1.87-.71A7.5 7.5 0 0 0 12 4.5z" />
-                </svg>
-              </div>
-              <span class="brand-text">Ocean Sport </span>
+              <router-link to="/" class="brand-logo-link">
+                <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="Ocean Sport" class="brand-logo-img" />
+              </router-link>
+              <span class="brand-text">Ocean Sport</span>
             </div>
 
             <div class="auth-header">
@@ -250,7 +248,7 @@ const login = async () => {
 
               <!-- Action -->
               <button type="submit" class="btn-primary" :disabled="!isFormValid || isSubmitting || !turnstileToken">
-                <span v-if="isSubmitting" class="spinner"></span>
+                <span v-if="isSubmitting"></span>
                 <span>{{ isSubmitting ? 'ĐANG TIẾN HÀNH...' : 'ĐĂNG NHẬP' }}</span>
                 <svg v-if="!isSubmitting" class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -344,14 +342,15 @@ const login = async () => {
   margin-bottom: 32px;
 }
 
-.brand-logo {
-  background: linear-gradient(135deg, #fce4ec, #ffd9de);
-  padding: 12px;
-  border-radius: 14px;
+.brand-logo-link {
   display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 10px rgba(255, 217, 222, 0.5);
+}
+
+.brand-logo-img {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
 }
 
 .brand-text {
