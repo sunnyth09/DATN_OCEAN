@@ -1,5 +1,8 @@
 <script setup>
+import { ref, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
+import api from '@/axios';
 
 const props = defineProps({
   coupon: {
@@ -9,6 +12,14 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'copy', 'viewAll']);
+
+const router = useRouter();
+const route = useRoute();
+
+const localIsSaved = ref(false);
+const isSaving = ref(false);
+
+const isLoggedIn = computed(() => sessionStorage.getItem('user') !== null);
 
 const formatCurrency = (val) => {
   if (!val) return '0₫';
@@ -40,6 +51,47 @@ const getCouponIcon = (coupon) => {
   if (coupon.type === 'percent') return 'percent';
   return 'tag';
 };
+
+const checkSavedStatus = async () => {
+  if (!isLoggedIn.value || !props.coupon) return;
+  try {
+    const res = await api.get('/profile/coupons');
+    if (res.data?.status === 'success') {
+      const savedList = res.data.data || [];
+      localIsSaved.value = savedList.some(c => c.id === props.coupon.id);
+    }
+  } catch (e) {
+    console.error('Lỗi kiểm tra trạng thái lưu coupon:', e);
+  }
+};
+
+const handleSaveCoupon = async () => {
+  if (!props.coupon || isSaving.value || localIsSaved.value) return;
+  isSaving.value = true;
+  try {
+    const res = await api.post('/profile/coupons/save', { coupon_id: props.coupon.id });
+    if (res.data?.status === 'success' || res.data?.status === 'info') {
+      localIsSaved.value = true;
+      window.dispatchEvent(new Event('coupon-saved'));
+    }
+  } catch (e) {
+    console.error('Lỗi lưu coupon:', e);
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+const goToLogin = () => {
+  emit('close');
+  router.push('/client/login?redirect=' + route.fullPath);
+};
+
+watch(() => props.coupon, (newVal) => {
+  if (newVal) {
+    localIsSaved.value = false;
+    checkSavedStatus();
+  }
+}, { immediate: true });
 </script>
 
 <template>
@@ -94,8 +146,22 @@ const getCouponIcon = (coupon) => {
             </div>
 
             <div class="coupon-modal-actions">
-              <button class="btn-copy" type="button" @click="emit('copy', coupon.code)">Sao chép mã</button>
-              <button class="btn-view" type="button" @click="emit('viewAll')">Xem tất cả voucher</button>
+              <template v-if="isLoggedIn">
+                <button 
+                  class="btn-copy" 
+                  type="button" 
+                  :disabled="localIsSaved || isSaving" 
+                  @click="handleSaveCoupon"
+                >
+                  <span v-if="isSaving" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                  {{ localIsSaved ? 'Đã lưu mã' : 'Lưu mã' }}
+                </button>
+              </template>
+              <template v-else>
+                <button class="btn-copy" type="button" @click="goToLogin">Đăng nhập để lưu</button>
+              </template>
+
+              <button class="btn-view" type="button" @click="emit('viewAll')">Xem tất cả mã</button>
             </div>
           </section>
         </Transition>
