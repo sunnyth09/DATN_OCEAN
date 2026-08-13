@@ -517,4 +517,19 @@ class ProductCommentController extends Controller
         $product->rating_count = $countRating;
         $product->save();
     }
+
+    /**
+     * Đếm số đánh giá chưa được duyệt từ user (dùng cho badge sidebar)
+     */
+    public function pendingCount()
+    {
+        $count = ProductComment::where('is_approved', 0)
+            ->where('commenter_type', 'user')
+            ->count();
+
+        return response()->json([
+            'status' => 'success',
+            'count'  => $count,
+        ]);
+    }
 }

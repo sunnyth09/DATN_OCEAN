@@ -396,6 +396,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
 
     // Quản lý Đánh giá sản phẩm (Duyệt)
     Route::get('/reviews', [ProductCommentController::class, 'adminIndex']);
+    Route::get('/reviews/pending-count', [ProductCommentController::class, 'pendingCount']);
     Route::put('/reviews/{id}/approve', [ProductCommentController::class, 'approve']);
     Route::put('/reviews/{id}/reject', [ProductCommentController::class, 'reject']);
     Route::delete('/reviews/{id}', [ProductCommentController::class, 'destroy']);
@@ -407,6 +408,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
 
     // Quản lý Liên hệ (Xem và trả lời)
     Route::get('/contacts', [ContactController::class, 'index']);
+    Route::get('/contacts/pending-count', [ContactController::class, 'pendingCount']);
     Route::post('/contacts/{id}/reply', [ContactController::class, 'reply']);
 
     // Quản lý Đơn hàng
@@ -427,6 +429,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
 
     // Admin Live Chat
     Route::get('/live-chats', [AdminChatController::class, 'getSessions']);
+    Route::get('/live-chats/pending-count', [AdminChatController::class, 'pendingCount']);
     Route::get('/live-chats/{id}', [AdminChatController::class, 'getMessages']);
     Route::post('/live-chats/{id}/reply', [AdminChatController::class, 'replyMessage']);
     Route::post('/live-chats/{id}/close', [AdminChatController::class, 'closeSession']);

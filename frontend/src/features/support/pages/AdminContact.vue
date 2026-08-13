@@ -149,6 +149,9 @@
 import { ref, onMounted } from 'vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
+import { useUiStore } from '@/stores/ui';
+
+const uiStore = useUiStore();
 
 const contacts = ref([]);
 const isLoading = ref(true);
@@ -219,6 +222,7 @@ const submitReply = async () => {
     window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     window.dispatchEvent(new Event('admin-notification-received'));
     fetchContacts();
+    refreshPendingCount();
   } catch (error) {
     replyError.value = error.response?.data?.message || 'Gửi phản hồi thất bại.';
   } finally {
@@ -240,6 +244,7 @@ const confirmDelete = async () => {
     window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     window.dispatchEvent(new Event('admin-notification-received'));
     fetchContacts();
+    refreshPendingCount();
   } catch (error) {
     showDeleteModal.value = false;
     showToast(error.response?.data?.message || 'Xóa thất bại.', 'error');
@@ -250,6 +255,17 @@ const formatDate = (dateStr) => {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
   return d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
+const refreshPendingCount = async () => {
+  try {
+    const res = await api.get('/admin/contacts/pending-count');
+    if (res.data.status === 'success') {
+      uiStore.setPendingContactCount(res.data.count || 0);
+    }
+  } catch (e) {
+    // Silently fail
+  }
 };
 
 onMounted(fetchContacts);
