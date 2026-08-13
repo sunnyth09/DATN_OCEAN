@@ -189,6 +189,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::middleware('customer.only')->group(function () {
         Route::middleware('throttle:60,1')->get('/coupons', [CouponController::class, 'getUserCoupons']);
         Route::middleware('throttle:10,1')->post('/coupons/save', [CouponController::class, 'saveCoupon']);
+        Route::middleware('throttle:30,1')->post('/coupons/check', [CouponController::class, 'checkCoupon']);
     });
 
     // Đơn hàng của tôi

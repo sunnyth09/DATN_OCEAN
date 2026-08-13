@@ -148,6 +148,34 @@ class CouponController extends Controller
     }
 
     /**
+     * Khách hàng kiểm tra/áp dụng mã giảm giá nhập tay
+     */
+    public function checkCoupon(Request $request)
+    {
+        $user = auth('api')->user();
+        $userId = $user ? $user->user_id : 0;
+
+        $validated = $request->validate([
+            'code' => 'required|string',
+            'subtotal' => 'required|numeric|min:0',
+        ]);
+
+        $result = $this->couponService->checkCoupon($userId, $validated['code'], (float) $validated['subtotal']);
+
+        if (! $result['success']) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $result['message'],
+            ], 400);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $result['coupon'],
+        ]);
+    }
+
+    /**
      * Lấy danh sách mã giảm giá của tôi (đã lưu)
      */
     public function getUserCoupons()

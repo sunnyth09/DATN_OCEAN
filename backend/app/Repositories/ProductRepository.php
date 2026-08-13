@@ -106,6 +106,7 @@ class ProductRepository
 
         $total = $query->count();
         $products = $query->offset($offset)->limit($limit)->get();
+        $maxPriceLimit = Product::where('status', 'active')->max('max_price') ?? 10000000;
 
         return [
             'data' => $products,
@@ -113,6 +114,7 @@ class ProductRepository
             'total_pages' => ceil($total / $limit),
             'page' => $page,
             'limit' => $limit,
+            'max_price_limit' => (float) $maxPriceLimit,
         ];
     }
 
