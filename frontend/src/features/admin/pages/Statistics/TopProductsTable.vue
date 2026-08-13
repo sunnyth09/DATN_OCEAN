@@ -85,6 +85,9 @@ const formatCurrency = (val) => {
   box-shadow: 0 4px 24px rgba(15, 23, 42, 0.04);
   border: 1px solid var(--border-color, #f1f5f9);
   transition: box-shadow 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .table-card:hover {
@@ -92,38 +95,39 @@ const formatCurrency = (val) => {
 }
 
 .card-header {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .card-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--text-main, #1e293b);
-  letter-spacing: -0.01em;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-main);
 }
 
 .table-responsive {
   overflow-x: auto;
+  flex: 1;
 }
 
 .ocean-table {
   width: 100%;
   min-width: 550px;
   border-collapse: collapse;
+  height: 100%;
 }
 
 .ocean-table th {
   text-align: left;
   font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-muted, #64748b);
+  font-weight: 700;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  border-bottom: 1px solid var(--border-color);
   background: transparent;
   position: sticky;
   top: 0;
@@ -225,9 +229,9 @@ const formatCurrency = (val) => {
 }
 
 .product-name {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-main, #334155);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-main);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -244,16 +248,16 @@ const formatCurrency = (val) => {
 /* Values */
 .sold-count {
   font-weight: 700;
-  color: var(--text-main, #475569);
-  font-size: 0.95rem;
+  color: var(--text-main);
+  font-size: 0.9rem;
 }
 
 .text-right { text-align: right; }
 .text-center { text-align: center; }
 
 .text-ocean { 
-  color: var(--primary, #0ea5e9); 
-  font-size: 0.95rem;
+  color: var(--primary); 
+  font-size: 0.9rem;
 }
 
 /* Badges */
