@@ -250,7 +250,7 @@ const login = async () => {
 
               <!-- Action -->
               <button type="submit" class="btn-primary" :disabled="!isFormValid || isSubmitting || !turnstileToken">
-                <span v-if="isSubmitting" class="spinner"></span>
+                <span v-if="isSubmitting"></span>
                 <span>{{ isSubmitting ? 'ĐANG TIẾN HÀNH...' : 'ĐĂNG NHẬP' }}</span>
                 <svg v-if="!isSubmitting" class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
