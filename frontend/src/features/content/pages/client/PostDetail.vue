@@ -5,10 +5,12 @@ import api from '@/axios';
 import DOMPurify from 'dompurify';
 import { getStorageUrl } from '@/utils/url';
 import { useAuthStore } from '@/stores/auth';
+import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
+const { showToast } = useToast();
 
 const post = ref(null);
 const relatedPosts = ref([]);
@@ -90,7 +92,7 @@ const submitComment = async () => {
   if (!newComment.value.trim()) return;
 
   if (!authStore.token || !authStore.user) {
-    alert('Bạn phải đăng nhập mới có thể bình luận.');
+    showToast('Bạn phải đăng nhập mới có thể bình luận.', 'danger');
     router.push({ name: 'login', query: { redirect: route.fullPath } });
     return;
   }
@@ -109,12 +111,12 @@ const submitComment = async () => {
       } else {
         fetchComments(post.value.post_id, 1);
       }
-      alert('Đăng bình luận thành công!');
+      showToast('Đăng bình luận thành công!', 'success');
     }
   } catch (e) {
     console.error('Lỗi đăng bình luận:', e);
     const msg = e.response?.data?.message || 'Có lỗi xảy ra khi gửi bình luận.';
-    alert(msg);
+    showToast(msg, 'danger');
   } finally {
     isSubmitting.value = false;
   }
@@ -153,7 +155,7 @@ const shareOnFacebook = () => {
 
 const copyLink = () => {
   navigator.clipboard.writeText(window.location.href);
-  alert('Đã sao chép đường dẫn bài viết!');
+  showToast('Đã sao chép đường dẫn bài viết!', 'success');
 };
 
 const getAuthorName = (author) => {
