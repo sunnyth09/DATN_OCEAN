@@ -72,6 +72,11 @@ onMounted(() => {
       console.error("Failed to parse user data", e);
     }
   }
+
+  fetchBadges();
+  badgeTimer = setInterval(fetchBadges, 60000); // Cập nhật mỗi 1 phút
+  window.addEventListener('admin-notification-received', fetchBadges);
+  window.addEventListener('admin-order-updated', fetchBadges);
 });
 
 onBeforeUnmount(() => {
@@ -100,6 +105,12 @@ const fetchBadges = async () => {
       badges.open_tickets     = res.data.data.open_tickets     || 0;
       badges.pending_contacts = res.data.data.pending_contacts || 0;
       badges.unreplied_chats  = res.data.data.unreplied_chats  || 0;
+
+      // Cập nhật cả uiStore để trigger các v-if dùng uiStore trên template
+      uiStore.setAdminUnreadChatCount(res.data.data.unread_chats || res.data.data.unreplied_chats || 0);
+      uiStore.setAdminPendingReviewCount(res.data.data.pending_reviews || 0);
+      uiStore.setAdminPendingTicketCount(res.data.data.open_tickets || 0);
+      uiStore.setAdminPendingContactCount(res.data.data.pending_contacts || 0);
     }
   } catch {
     // Fail silently — badges are non-critical UI
