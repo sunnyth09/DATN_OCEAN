@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import ProductCard from "@/components/ProductCard.vue";
 import { catalogService } from "@/services/catalogService";
@@ -12,11 +12,12 @@ const authStore = useAuthStore();
 const relatedProducts = ref([]);
 const loading = ref(true);
 const orderId = ref(null);
+const paymentStatus = ref(null); // null = chưa biết, 'paid' = đã thanh toán, 'pending' = chờ
+const paymentPollingTimer = ref(null);
 
 const fetchRelatedProducts = async () => {
     loading.value = true;
     try {
-        // Lấy 10 sản phẩm thay vì 8 để lấp đầy grid 5 cột
         const res = await catalogService.listProducts({
             limit: 10,
             sort: "newest",
@@ -27,11 +28,12 @@ const fetchRelatedProducts = async () => {
             relatedProducts.value = res.data.data;
         }
     } catch (e) {
-        console.error("Không thể tải sản phẩm gợi ý:", e);
+        // silent
     } finally {
         loading.value = false;
     }
 };
+
 const fetchOrderId = async () => {
     try {
         const res = await orderService.resolveOrderId(orderCode);
@@ -39,16 +41,64 @@ const fetchOrderId = async () => {
             orderId.value = res.data.data.order_id;
         }
     } catch (e) {
-        console.error("Không thể tải mã đơn hàng:", e);
+        // silent
+    }
+};
+
+// Polling payment status cho đơn chuyển khoản ngân hàng
+// Tối đa 3 phút (36 lần x 5 giây), dừng khi đã paid
+let pollCount = 0;
+const MAX_POLLS = 36;
+
+const checkPaymentStatus = async () => {
+    if (!orderCode) return;
+    try {
+        const res = await orderService.getOrderByCode(orderCode);
+        const order = res.data?.data;
+        if (order?.payment_status === 'paid') {
+            paymentStatus.value = 'paid';
+            stopPaymentPolling();
+        } else {
+            paymentStatus.value = order?.payment_status || 'pending';
+        }
+    } catch (e) {
+        // silent — giữ trạng thái cũ
+    }
+};
+
+const startPaymentPolling = () => {
+    if (!orderCode) return;
+    // Kiểm tra ngay lập tức
+    checkPaymentStatus();
+    paymentPollingTimer.value = setInterval(async () => {
+        pollCount++;
+        if (pollCount >= MAX_POLLS) {
+            stopPaymentPolling();
+            return;
+        }
+        await checkPaymentStatus();
+    }, 5000);
+};
+
+const stopPaymentPolling = () => {
+    if (paymentPollingTimer.value) {
+        clearInterval(paymentPollingTimer.value);
+        paymentPollingTimer.value = null;
     }
 };
 
 if (orderCode && authStore.isAuthenticated) {
     fetchOrderId();
 }
+
 onMounted(() => {
-    // fetchOrderId();
     fetchRelatedProducts();
+    // Bắt đầu polling để phát hiện payment thành công (bank transfer)
+    startPaymentPolling();
+});
+
+onUnmounted(() => {
+    stopPaymentPolling();
 });
 </script>
 
@@ -83,6 +133,18 @@ onMounted(() => {
             <div v-if="orderCode" class="order-code-box">
                 <span class="label">Mã đơn hàng:</span>
                 <span class="code">#{{ orderCode }}</span>
+            </div>
+
+            <!-- Badge trạng thái thanh toán (chỉ hiển thị khi có kết quả polling) -->
+            <div v-if="paymentStatus === 'paid'" class="payment-status-badge paid">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Thanh toán đã được xác nhận!
+            </div>
+            <div v-else-if="paymentStatus && paymentStatus !== 'paid'" class="payment-status-badge pending">
+                <span class="spinner-dot"></span>
+                Đang chờ xác nhận thanh toán...
             </div>
 
             <p class="email-notice">
@@ -133,6 +195,45 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* Payment status badges */
+.payment-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 40px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+    animation: fadeInBadge 0.4s ease;
+}
+.payment-status-badge.paid {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1.5px solid #86efac;
+}
+.payment-status-badge.pending {
+    background: #fffbeb;
+    color: #d97706;
+    border: 1.5px solid #fcd34d;
+}
+.spinner-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    display: inline-block;
+    animation: pulseDot 1.2s ease-in-out infinite;
+}
+@keyframes pulseDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+}
+@keyframes fadeInBadge {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 .order-success-page {
     font-family: 'Plus Jakarta Sans', sans-serif;
     background-color: #f8fafc;

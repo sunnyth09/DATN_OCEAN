@@ -186,25 +186,29 @@ class OrderController extends Controller
     }
 
     /**
-     * GET /api/orders/by-code/{orderCode} — Tra cứu order_id từ order_code.
+     * GET /api/orders/{orderCode}/order-id — Tra cứu order_id và payment_status từ order_code.
      */
     public function getOrderIdByCode(string $orderCode): JsonResponse
     {
-        $orderId = $this->orderService->getOrderIdByCode(
+        $order = $this->orderService->getOrderByCode(
             auth('api')->user()->user_id,
             $orderCode
         );
 
-        if (! $orderId) {
+        if (! $order) {
             return response()->json([
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => 'Không tìm thấy đơn hàng!',
             ], 404);
         }
 
         return response()->json([
             'status' => 'success',
-            'data' => ['order_id' => $orderId],
+            'data'   => [
+                'order_id'       => $order->order_id,
+                'payment_status' => $order->payment_status,
+                'payment_method' => $order->payment_method,
+            ],
         ]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\OrderPaymentUpdated;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Services\PaymentProcessingService;
@@ -144,6 +145,17 @@ class SepayController extends Controller
                     // Không throw — payment đã thành công, side-effects sẽ được
                     // bù bởi Scheduler polling job nếu cần.
                     Log::error('SePay Webhook: Post-payment side-effects failed (payment still recorded)', [
+                        'order_code' => $order->order_code,
+                        'error'      => $e->getMessage(),
+                    ]);
+                }
+
+                // Broadcast riêng để AdminOrder.vue cập nhật payment_status đúng row
+                // (khác OrderCreatedAdmin — không tạo row mới, chỉ update existing)
+                try {
+                    event(new OrderPaymentUpdated($order));
+                } catch (\Throwable $e) {
+                    Log::warning('SePay Webhook: OrderPaymentUpdated broadcast failed', [
                         'order_code' => $order->order_code,
                         'error'      => $e->getMessage(),
                     ]);
