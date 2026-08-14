@@ -6,7 +6,7 @@ export const extractCollection = (response) => {
 
 export const catalogService = {
   listProducts(params = {}, config = {}) {
-    return api.get('/products', { ...config, params });
+    return api.get('/products', { ...config, params: { ...params, status: 'active' } });
   },
 
   listCategories() {
@@ -22,6 +22,7 @@ export const catalogService = {
       params: {
         ...params,
         search,
+        status: 'active'
       },
     });
   },

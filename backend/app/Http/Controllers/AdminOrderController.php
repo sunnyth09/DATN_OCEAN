@@ -86,6 +86,18 @@ class AdminOrderController extends Controller
     }
 
     /**
+     * POST — Xác nhận Shop tự giao hàng
+     */
+    public function selfDelivery($id)
+    {
+        $result = $this->adminOrderService->selfDelivery($id);
+        $status = $result['_status'] ?? 200;
+        unset($result['_status']);
+
+        return response()->json($result, $status);
+    }
+
+    /**
      * PUT — Ép chuyển trạng thái đơn hàng (bỏ qua StateMachine)
      */
     public function forceStatus(Request $request, $id)

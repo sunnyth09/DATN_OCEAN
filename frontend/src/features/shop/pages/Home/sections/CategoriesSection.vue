@@ -164,12 +164,11 @@ defineProps(['Categories', 'isLoadingCategories', 'getCatIcon', 'getCatGradient'
     background-size: cover;
     background-position: center;
     transition: transform 0.6s ease;
-    opacity: 0.8;
+    /* Loại bỏ opacity để hình ảnh không bị tối/mờ */
 }
 
 .cat-card-modern:hover .cat-card-img {
     transform: scale(1.08);
-    opacity: 0.9;
 }
 
 .cat-card-overlay {

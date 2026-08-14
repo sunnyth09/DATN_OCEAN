@@ -362,24 +362,28 @@ watch(isLoggedIn, (val) => {
                     if (showNotifDropdown.value) {
                         fetchNotificationsList(); // Refresh list if open
                     }
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'info',
-                        title: e.title || e.notification?.title || 'Thông báo mới',
-                        text: e.message || e.notification?.message || 'Bạn có thông báo mới',
-                        showConfirmButton: false,
-                        timer: 5000,
-                        timerProgressBar: true,
-                        didOpen: (toast) => {
-                            toast.addEventListener('mouseenter', Swal.stopTimer)
-                            toast.addEventListener('mouseleave', Swal.resumeTimer)
-                        }
-                    });
-                    showNotificationPopup.value = true;
-                    setTimeout(() => {
-                        showNotificationPopup.value = false;
-                    }, 4000);
+                    const notifType = e.type || e.notification?.type;
+                    
+                    if (notifType) {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'info',
+                            title: notifTitle || 'Thông báo mới',
+                            text: e.message || e.notification?.message || 'Bạn có thông báo mới',
+                            showConfirmButton: false,
+                            timer: 5000,
+                            timerProgressBar: true,
+                            didOpen: (toast) => {
+                                toast.addEventListener('mouseenter', Swal.stopTimer)
+                                toast.addEventListener('mouseleave', Swal.resumeTimer)
+                            }
+                        });
+                        showNotificationPopup.value = true;
+                        setTimeout(() => {
+                            showNotificationPopup.value = false;
+                        }, 4000);
+                    }
                 });
         }
     } else {
@@ -518,7 +522,9 @@ watch(
                 <!-- Navigation Links -->
                 <nav class="main-nav">
                     <template v-if="catalogStore.isFetchingCategories && topCategories.length === 0">
-                        <div v-for="i in 4" :key="i" class="nav-link skeleton-nav-link"></div>
+                        <div v-for="i in 4" :key="i" class="nav-link" style="pointer-events: none;">
+                            <div class="skeleton-nav-text"></div>
+                        </div>
                     </template>
                     <template v-else>
                         <router-link v-for="cat in topCategories" :key="getCategoryId(cat)" :to="getCategoryRoute(cat)"
@@ -678,7 +684,17 @@ watch(
                                     class="notif-view-all">Xem
                                     tất cả</router-link>
                             </div>
-                            <div class="notif-list" v-if="notificationsList.length > 0">
+                            <div class="notif-list" v-if="isFetchingNotif && notificationsList.length === 0">
+                                <div class="notif-item" v-for="i in 3" :key="'skeleton-' + i">
+                                    <div class="notif-icon-circle skeleton-pulse" style="width:36px;height:36px;background:#e2e8f0;flex-shrink:0;"></div>
+                                    <div class="notif-content" style="width:100%">
+                                        <div class="skeleton-pulse" style="height:14px;width:70%;margin-bottom:6px;border-radius:4px;background:#e2e8f0;"></div>
+                                        <div class="skeleton-pulse" style="height:12px;width:90%;margin-bottom:6px;border-radius:4px;background:#e2e8f0;"></div>
+                                        <div class="skeleton-pulse" style="height:10px;width:40%;border-radius:4px;background:#e2e8f0;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="notif-list" v-else-if="notificationsList.length > 0">
                                 <div v-for="notif in notificationsList" :key="notif.id" class="notif-item"
                                     :class="{ unread: !notif.read_at }" @click="markAsRead(notif)">
                                     <div class="notif-icon-circle">
@@ -1334,17 +1350,17 @@ watch(
 }
 
 /* SKELETON LINK IN NAV */
-.skeleton-nav-link {
-    width: 80px;
-    height: 20px;
-    background: #f0f0f0;
+.skeleton-nav-text {
+    width: 70px;
+    height: 16px;
+    background: #e2e8f0;
     border-radius: 4px;
     animation: shimmer 1.5s infinite linear;
     background-image: linear-gradient(
         90deg,
-        #f0f0f0 0px,
-        #f8f8f8 40px,
-        #f0f0f0 80px
+        #e2e8f0 0px,
+        #f8fafc 40px,
+        #e2e8f0 80px
     );
     background-size: 200px 100%;
 }

@@ -22,7 +22,7 @@ class ProductRepository
                 $q->select('image_id', 'image_url', 'product_id');
             },
             'lowestPriceVariant' => function ($q) {
-                $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'stock', 'product_id');
+                $q->select('product_variants.variant_id', 'product_variants.price', 'product_variants.compare_at_price', 'product_variants.sale_price', 'product_variants.sale_starts_at', 'product_variants.sale_ends_at', 'product_variants.stock', 'product_variants.product_id');
             },
             'variants' => function ($q) {
                 $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'product_id');
@@ -51,7 +51,7 @@ class ProductRepository
         if ($matchedIds !== null) {
             $query->whereIn('product_id', $matchedIds);
         } elseif (! empty($filters['search_like'])) {
-            $search = $filters['search_like'];
+            $search = str_replace(['%', '_'], ['\%', '\_'], $filters['search_like']);
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('slug', 'like', "%{$search}%");
@@ -74,12 +74,25 @@ class ProductRepository
 
         // Price range
         if (! empty($filters['price_range'])) {
-            match ($filters['price_range']) {
-                'under-500k' => $query->where('min_price', '<', 500000),
-                '500k-1m' => $query->whereBetween('min_price', [500000, 1000000]),
-                'above-1m' => $query->where('min_price', '>', 1000000),
-                default => null,
-            };
+            $rangeParts = explode('-', $filters['price_range']);
+            if (count($rangeParts) === 2) {
+                $minPrice = $rangeParts[0] !== '' ? (int)$rangeParts[0] : null;
+                $maxPrice = $rangeParts[1] !== '' ? (int)$rangeParts[1] : null;
+                if ($minPrice !== null && $maxPrice !== null) {
+                    $query->whereBetween('min_price', [$minPrice, $maxPrice]);
+                } elseif ($minPrice !== null) {
+                    $query->where('min_price', '>=', $minPrice);
+                } elseif ($maxPrice !== null) {
+                    $query->where('min_price', '<=', $maxPrice);
+                }
+            } else {
+                match ($filters['price_range']) {
+                    'under-500k' => $query->where('min_price', '<', 500000),
+                    '500k-1m' => $query->whereBetween('min_price', [500000, 1000000]),
+                    'above-1m' => $query->where('min_price', '>', 1000000),
+                    default => null,
+                };
+            }
         }
 
         // Max price slider
@@ -93,6 +106,8 @@ class ProductRepository
             $query->whereIn('brand_id', $brandIds);
         }
 
+        $total = (clone $query)->count();
+
         // Push out-of-stock items to the bottom
         $query->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC');
 
@@ -104,7 +119,6 @@ class ProductRepository
             default => $query->orderBy('product_id', 'desc'),
         };
 
-        $total = $query->count();
         $products = $query->offset($offset)->limit($limit)->get();
 
         return [
@@ -128,7 +142,7 @@ class ProductRepository
                 $q->select('image_id', 'image_url', 'product_id');
             },
             'lowestPriceVariant' => function ($q) {
-                $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'stock', 'product_id');
+                $q->select('product_variants.variant_id', 'product_variants.price', 'product_variants.compare_at_price', 'product_variants.sale_price', 'product_variants.sale_starts_at', 'product_variants.sale_ends_at', 'product_variants.stock', 'product_variants.product_id');
             },
         ])
             ->withSum('variants', 'stock')
@@ -234,7 +248,7 @@ class ProductRepository
                 $q->select('image_id', 'image_url', 'product_id');
             },
             'lowestPriceVariant' => function ($q) {
-                $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'stock', 'product_id');
+                $q->select('product_variants.variant_id', 'product_variants.price', 'product_variants.compare_at_price', 'product_variants.sale_price', 'product_variants.sale_starts_at', 'product_variants.sale_ends_at', 'product_variants.stock', 'product_variants.product_id');
             },
         ])
             ->withSum('variants', 'stock')
@@ -287,14 +301,17 @@ class ProductRepository
     /**
      * Sản phẩm liên quan (cùng category, loại trừ SP hiện tại)
      */
-    public function getRelatedProducts(int $productId, int $categoryId, int $limit = 4)
+    public function getRelatedProducts(int $productId, int $categoryId, int $limit = 8)
     {
+        $currentProduct = Product::find($productId);
+        $brandId = $currentProduct ? $currentProduct->brand_id : null;
+
         return Product::with([
             'mainImage' => function ($q) {
                 $q->select('image_id', 'image_url', 'product_id');
             },
             'lowestPriceVariant' => function ($q) {
-                $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'stock', 'product_id');
+                $q->select('product_variants.variant_id', 'product_variants.price', 'product_variants.compare_at_price', 'product_variants.sale_price', 'product_variants.sale_starts_at', 'product_variants.sale_ends_at', 'product_variants.stock', 'product_variants.product_id');
             },
             'variants' => function ($q) {
                 $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'product_id');
@@ -302,10 +319,22 @@ class ProductRepository
             'category:category_id,name',
         ])
             ->withSum('variants', 'stock')
-            ->where('category_id', $categoryId)
+            ->where(function ($query) use ($categoryId, $brandId) {
+                $query->where('category_id', $categoryId);
+                if ($brandId) {
+                    $query->orWhere('brand_id', $brandId);
+                }
+            })
             ->where('product_id', '!=', $productId)
             ->where('status', 'active')
             ->whereNull('deleted_at')
+            // Ưu tiên 1: Cùng thương hiệu -> Sản phẩm tương tự sát nhất
+            ->orderByRaw($brandId ? "brand_id = {$brandId} DESC" : "1=1")
+            // Ưu tiên 2: Sản phẩm nổi bật (cần đẩy bán)
+            ->orderBy('is_featured', 'desc')
+            // Ưu tiên 3: Sản phẩm bán chạy (tăng doanh thu)
+            ->orderBy('sold_count', 'desc')
+            // Ưu tiên 4: Còn hàng
             ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
             ->orderBy('product_id', 'desc')
             ->limit($limit)

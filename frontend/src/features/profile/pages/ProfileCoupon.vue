@@ -8,9 +8,8 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="loading-state">
-      <div class="loading-spinner"></div>
-      <span>Đang tải mã giảm giá...</span>
+    <div v-if="loading" class="coupon-list-skeleton">
+      <div class="skeleton-pulse" style="height:100px; border-radius:12px; margin-bottom:15px;" v-for="i in 4" :key="i"></div>
     </div>
 
     <!-- Coupon List -->

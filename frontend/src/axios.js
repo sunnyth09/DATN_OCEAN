@@ -58,7 +58,7 @@ import { broadcastLogout } from '@/sessionSync';
 const redirectToLogin = () => {
     if (window.location.pathname !== '/client/login') {
         broadcastLogout();
-        window.dispatchEvent(new CustomEvent('auth-logout'));
+        authStore.clearSession({ notify: false }); cartStore.reset()
         window.location.href = '/client/login';
     }
 };
@@ -100,12 +100,12 @@ api.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
         }
 
-        let sessionId = localStorage.getItem('session_id');
-        if (!sessionId) {
-            sessionId = 'sess_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-            localStorage.setItem('session_id', sessionId);
+        let deviceId = localStorage.getItem('device_id');
+        if (!deviceId) {
+            deviceId = 'dev_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('device_id', deviceId);
         }
-        config.headers['X-Session-ID'] = sessionId;
+        config.headers['X-Device-ID'] = deviceId;
 
         if (config.data instanceof FormData) {
             delete config.headers['Content-Type'];

@@ -140,11 +140,17 @@ const login = async () => {
       router.push(resolveRedirectTarget(response.data.user));
     }
   } catch (error) {
-    let msg = error.response?.data?.message || 'Đăng nhập thất bại!';
-    if (error.response?.status === 429) {
-      msg = 'Bạn đã thử quá nhiều lần! Vui lòng đợi 1 phút rồi thử lại.';
+    if (error.validationErrors) {
+      Object.assign(fieldErrors, error.validationErrors);
+      showToast('Vui lòng kiểm tra lại thông tin nhập!', 'danger');
+    } else {
+      let msg = error.response?.data?.message || 'Đăng nhập thất bại!';
+      if (error.response?.status === 429) {
+        msg = 'Bạn đã thử quá nhiều lần! Vui lòng đợi 1 phút rồi thử lại.';
+      }
+      showToast(msg, 'danger');
     }
-    showToast(msg, 'danger');
+
     if (window.turnstile && turnstileWidgetId !== null) {
       window.turnstile.reset(turnstileWidgetId);
       turnstileToken.value = '';

@@ -1,4 +1,6 @@
 <script setup>
+import { useCartStore } from '@/stores/cart';
+const cartStore = useCartStore();
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '@/axios';
@@ -676,7 +678,7 @@ const placeOrder = async () => {
                 if (!authStore.isAuthenticated) {
                     localStorage.removeItem('cart_items');
                 }
-                window.dispatchEvent(new Event('cart-updated'));
+                cartStore.fetchCount()
             }
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {
                 showToast('Đang chuyển đến cổng thanh toán VNPay...', 'success');
@@ -824,9 +826,15 @@ onMounted(async () => {
             </div>
         </Teleport>
 
-        <div v-if="loading" class="loading-state">
-            <div class="spinner"></div>
-            <p>Đang chuẩn bị trang thanh toán...</p>
+        <div v-if="loading" class="checkout-skeleton-grid" style="margin-top: 30px;">
+            <div class="row" style="display:flex; gap: 30px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 300px;">
+                    <div class="skeleton-pulse" style="height:600px; border-radius:12px; margin-bottom:20px;"></div>
+                </div>
+                <div style="width: 400px; flex-shrink: 0;">
+                    <div class="skeleton-pulse" style="height:500px; border-radius:12px;"></div>
+                </div>
+            </div>
         </div>
 
         <div v-else class="checkout-wrapper">
@@ -1312,8 +1320,8 @@ onMounted(async () => {
                             </button>
                         </div>
                         <div class="modal-body">
-                            <div v-if="loadingCoupons" class="loading-state">
-                                <div class="spinner-small brown"></div>
+                            <div v-if="loadingCoupons" class="coupon-list-skeleton">
+                                <div class="skeleton-pulse" style="height:100px; border-radius:12px; margin-bottom:12px;" v-for="i in 3" :key="i"></div>
                             </div>
                             <div v-else-if="availableCoupons.length > 0" class="coupon-list">
                                 <div v-for="coupon in availableCoupons" :key="coupon.id" class="coupon-card" :class="{
