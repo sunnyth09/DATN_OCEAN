@@ -58,7 +58,7 @@ import { broadcastLogout } from '@/sessionSync';
 const redirectToLogin = () => {
     if (window.location.pathname !== '/client/login') {
         broadcastLogout();
-        authStore.clearSession({ notify: false }); cartStore.reset()
+        window.dispatchEvent(new CustomEvent('auth-logout'));
         window.location.href = '/client/login';
     }
 };

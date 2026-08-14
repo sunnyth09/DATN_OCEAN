@@ -36,8 +36,10 @@ class StaffSalesExport implements FromCollection, ShouldAutoSize, WithHeadings, 
             'Tên Nhân Viên',
             'Email',
             'Vai Trò',
-            'Tổng Số Đơn Hàng',
-            'Tổng Doanh Thu (VNĐ)',
+            'Tổng Số Đơn',
+            'Đơn Hoàn Thành',
+            'Đơn Hủy / Hoàn',
+            'Doanh Thu Thực Thu (VNĐ)',
         ];
     }
 
@@ -49,6 +51,8 @@ class StaffSalesExport implements FromCollection, ShouldAutoSize, WithHeadings, 
             $row->seller ? $row->seller->email : 'Không xác định',
             $row->seller ? $row->seller->role : 'Không xác định',
             $row->total_orders,
+            $row->completed_orders ?? 0,
+            $row->cancelled_orders ?? 0,
             $row->total_revenue,
         ];
     }

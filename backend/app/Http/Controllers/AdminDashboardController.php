@@ -18,11 +18,19 @@ class AdminDashboardController extends Controller
     {
         $totalCustomers = User::where('role', 'customer')->count();
         $totalProducts = Product::count();
-        $totalOrders = Order::whereNotIn('fulfillment_status', ['cancelled'])->count();
+        $totalOrders = Order::where(function ($q) {
+            $q->whereNull('is_abandoned_checkout')->orWhere('is_abandoned_checkout', 0);
+        })->whereNotIn('fulfillment_status', ['cancelled'])->count();
 
-        $totalRevenue = Order::where('payment_status', 'paid')
-            ->orWhere('fulfillment_status', 'completed')
-            ->sum('grand_total');
+        $totalRevenue = Order::where(function ($q) {
+            $q->where('payment_status', 'paid')
+                ->orWhere('fulfillment_status', 'completed');
+        })
+        ->whereNotIn('fulfillment_status', ['cancelled', 'refunded', 'returned', 'return_approved'])
+        ->where(function ($q) {
+            $q->whereNull('is_abandoned_checkout')->orWhere('is_abandoned_checkout', 0);
+        })
+        ->sum('grand_total');
 
         $last7Days = collect();
         for ($i = 6; $i >= 0; $i--) {
@@ -34,7 +42,12 @@ class AdminDashboardController extends Controller
                 ->where(function ($q) {
                     $q->where('payment_status', 'paid')
                         ->orWhere('fulfillment_status', 'completed');
-                })->sum('grand_total');
+                })
+                ->whereNotIn('fulfillment_status', ['cancelled', 'refunded', 'returned', 'return_approved'])
+                ->where(function ($q) {
+                    $q->whereNull('is_abandoned_checkout')->orWhere('is_abandoned_checkout', 0);
+                })
+                ->sum('grand_total');
 
             $last7Days->push([
                 'label' => $shortLabel,
@@ -120,7 +133,12 @@ class AdminDashboardController extends Controller
                 ->where(function ($q) {
                     $q->where('payment_status', 'paid')
                         ->orWhere('fulfillment_status', 'completed');
-                })->sum('grand_total');
+                })
+                ->whereNotIn('fulfillment_status', ['cancelled', 'refunded', 'returned', 'return_approved'])
+                ->where(function ($q) {
+                    $q->whereNull('is_abandoned_checkout')->orWhere('is_abandoned_checkout', 0);
+                })
+                ->sum('grand_total');
 
             $lastMonths->push([
                 'label' => $monthLabel,

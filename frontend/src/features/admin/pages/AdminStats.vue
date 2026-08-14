@@ -76,6 +76,17 @@
         </div>
       </div>
 
+      <!-- Slow Moving / Dead Stock Alert Table -->
+      <div class="row mt-4">
+        <div class="col-12">
+          <SlowMovingProductsTable 
+            :products="slowMovingData.products" 
+            :summary="slowMovingData.summary"
+            @threshold-change="fetchSlowMovingData"
+          />
+        </div>
+      </div>
+
       <!-- Staff Sales Table -->
       <div class="row mt-4 mb-5">
         <div class="col-12">
@@ -99,6 +110,7 @@ import TopProductsTable from './Statistics/TopProductsTable.vue';
 import TopCustomersTable from './Statistics/TopCustomersTable.vue';
 import RevenueReportTable from './Statistics/RevenueReportTable.vue';
 import StaffSalesTable from './Statistics/StaffSalesTable.vue';
+import SlowMovingProductsTable from './Statistics/SlowMovingProductsTable.vue';
 
 const filters = ref({
   preset: '30days',
@@ -115,6 +127,20 @@ const topProducts = ref([]);
 const topCustomers = ref([]);
 const revenueReport = ref([]);
 const staffSales = ref([]);
+const slowMovingData = ref({ summary: {}, products: [] });
+const slowMovingDays = ref(60);
+
+const fetchSlowMovingData = async (days = 60) => {
+  slowMovingDays.value = days;
+  try {
+    const res = await api.get('/admin/statistics/slow-moving-products', {
+      params: { days_threshold: days }
+    });
+    slowMovingData.value = res.data.data || { summary: {}, products: [] };
+  } catch (error) {
+    console.error('Lỗi tải dữ liệu hàng tồn lâu:', error);
+  }
+};
 
 const fetchData = async () => {
   loading.value = true;
@@ -128,7 +154,8 @@ const fetchData = async () => {
       api.get('/admin/statistics/top-products', { params }),
       api.get('/admin/statistics/top-customers', { params }),
       api.get('/admin/statistics/report', { params }),
-      api.get('/admin/statistics/staff-sales', { params })
+      api.get('/admin/statistics/staff-sales', { params }),
+      api.get('/admin/statistics/slow-moving-products', { params: { days_threshold: slowMovingDays.value } })
     ];
 
     const [
@@ -138,7 +165,8 @@ const fetchData = async () => {
       topProductsRes,
       topCustomersRes,
       reportRes,
-      staffSalesRes
+      staffSalesRes,
+      slowMovingRes
     ] = await Promise.all(urls);
 
     overviewData.value = overviewRes.data.data;
@@ -148,6 +176,7 @@ const fetchData = async () => {
     topCustomers.value = topCustomersRes.data.data;
     revenueReport.value = reportRes.data.data;
     staffSales.value = staffSalesRes.data.data;
+    slowMovingData.value = slowMovingRes.data.data || { summary: {}, products: [] };
 
   } catch (error) {
     console.error('Lỗi tải dữ liệu thống kê:', error);
