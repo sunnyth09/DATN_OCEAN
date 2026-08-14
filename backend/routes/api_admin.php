@@ -238,6 +238,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin'
     Route::get('/statistics/top-customers', [AdminStatisticsController::class, 'getTopCustomers']);
     Route::get('/statistics/report', [AdminStatisticsController::class, 'getRevenueReport']);
     Route::get('/statistics/staff-sales', [AdminStatisticsController::class, 'getStaffSales']);
+    Route::get('/statistics/slow-moving-products', [AdminStatisticsController::class, 'getSlowMovingProducts']);
     Route::get('/statistics/export-staff-sales', [AdminStatisticsController::class, 'exportStaffSales']);
     Route::get('/statistics/export-revenue-last-month', [AdminStatisticsController::class, 'exportLastMonthRevenue']);
 });

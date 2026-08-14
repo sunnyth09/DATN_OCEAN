@@ -57,6 +57,8 @@ export const useCartUpsellStore = defineStore('cart-upsell', () => {
     const quickAddToCart = async (variantId) => {
         const { useAuthStore } = await import('@/stores/auth');
         const authStore = useAuthStore(pinia);
+        const { useCartStore } = await import('@/stores/cart');
+        const cartStore = useCartStore(pinia);
 
         if (!authStore.isAuthenticated) {
             let cartItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
@@ -71,12 +73,12 @@ export const useCartUpsellStore = defineStore('cart-upsell', () => {
                 });
             }
             localStorage.setItem('cart_items', JSON.stringify(cartItems));
-            cartStore.fetchCount()
+            await cartStore.fetchCount();
             return { status: 'success', message: 'Đã thêm vào giỏ hàng (tạm thời)' };
         }
 
         const res = await api.post('/cart/items', { variant_id: variantId, quantity: 1 });
-        cartStore.fetchCount()
+        await cartStore.fetchCount();
         return res.data;
     };
 

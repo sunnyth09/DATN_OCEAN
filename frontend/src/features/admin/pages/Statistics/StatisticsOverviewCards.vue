@@ -28,13 +28,27 @@
       </div>
     </div>
 
+    <!-- AOV (Average Order Value) -->
+    <div class="stat-card ocean-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg, #00897b, #4db6ac)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><line x1="12" y1="6" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="18"/></svg>
+      </div>
+      <div class="stat-content">
+        <p class="stat-title">Giá trị TB / Đơn (AOV)</p>
+        <h3 class="stat-value">{{ formatCurrency(data.aov?.value) }}</h3>
+        <span class="stat-badge" :class="data.aov?.isUp ? 'up' : 'down'">
+          {{ data.aov?.isUp ? '↑' : '↓' }} {{ data.aov?.change }}
+        </span>
+      </div>
+    </div>
+
     <!-- Customers -->
     <div class="stat-card ocean-card">
       <div class="stat-icon" style="background: linear-gradient(135deg, #7e57c2, #b39ddb)">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
       </div>
       <div class="stat-content">
-        <p class="stat-title">Khách hàng</p>
+        <p class="stat-title">Khách hàng mới</p>
         <h3 class="stat-value">{{ data.total_customers?.value || 0 }}</h3>
         <span class="stat-badge" :class="data.total_customers?.isUp ? 'up' : 'down'">
           {{ data.total_customers?.isUp ? '↑' : '↓' }} {{ data.total_customers?.change }}
@@ -42,21 +56,10 @@
       </div>
     </div>
 
-    <!-- Products -->
-    <div class="stat-card ocean-card">
-      <div class="stat-icon" style="background: linear-gradient(135deg, #ffa726, #ffcc80)">
-         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-      </div>
-      <div class="stat-content">
-        <p class="stat-title">Sản phẩm</p>
-        <h3 class="stat-value">{{ data.total_products?.value || 0 }}</h3>
-      </div>
-    </div>
-
     <!-- Today's Special Cards -->
     <div class="stat-card-small ocean-card">
       <div class="sc-left">
-        <p>Hôm nay</p>
+        <p>Hôm nay (Thực thu)</p>
         <h4>{{ formatCurrency(data.today_revenue) }}</h4>
       </div>
       <div class="sc-right blue-text">
@@ -67,7 +70,7 @@
 
     <div class="stat-card-small ocean-card">
       <div class="sc-left">
-        <p>Chờ xác nhận</p>
+        <p>Chờ xử lý</p>
         <h4 class="orange-text">{{ data.pending_orders || 0 }}</h4>
       </div>
     </div>
@@ -76,6 +79,17 @@
       <div class="sc-left">
         <p>Đã Hủy</p>
         <h4 class="red-text">{{ data.cancelled_orders || 0 }}</h4>
+      </div>
+    </div>
+
+    <div class="stat-card-small ocean-card">
+      <div class="sc-left">
+        <p>Vốn đọng (>60 ngày)</p>
+        <h4 class="amber-text">{{ formatCurrency(data.tied_up_capital) }}</h4>
+      </div>
+      <div class="sc-right text-muted">
+        <span>Sản phẩm</span>
+        <strong>{{ data.slow_moving_count || 0 }}</strong>
       </div>
     </div>
   </div>
@@ -209,6 +223,7 @@ const formatCurrency = (val) => {
 .blue-text { color: var(--primary); }
 .orange-text { color: #f57c00; }
 .red-text { color: #d32f2f; }
+.amber-text { color: #d97706; }
 
 @media (max-width: 1400px) {
   .overview-grid {

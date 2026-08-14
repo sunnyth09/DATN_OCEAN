@@ -1,10 +1,13 @@
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import api from '@/axios.js';
 import { getStorageUrl } from '@/utils/url';
 import Swal from 'sweetalert2';
 import { Toast, Modal } from 'bootstrap';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
+
+const route = useRoute();
 
 // -- States --
 const flashSales = ref([]);
@@ -200,7 +203,64 @@ const handleDelete = async (id) => {
     }
 };
 
-onMounted(fetchFlashSales);
+const checkClearanceParam = () => {
+    if (route.query.auto_create === '1') {
+        const stored = sessionStorage.getItem('clearance_products');
+        let clearanceItems = [];
+        if (stored) {
+            try {
+                clearanceItems = JSON.parse(stored);
+                sessionStorage.removeItem('clearance_products');
+            } catch (e) {}
+        }
+
+        const now = new Date();
+        const end = new Date();
+        end.setDate(end.getDate() + 7); // 7 ngày xả kho
+
+        const nowStr = now.toISOString().slice(0, 16);
+        const endStr = end.toISOString().slice(0, 16);
+        const monthYear = `${now.getMonth() + 1}/${now.getFullYear()}`;
+
+        form.value = {
+            id: null,
+            name: `⚡ Xả Hàng Tồn Kho - Tháng ${monthYear}`,
+            start_time: nowStr,
+            end_time: endStr,
+            status: 'draft',
+            items: clearanceItems.map(p => {
+                const basePrice = p.base_price || p.min_price || 0;
+                // Đề xuất mức giảm giá xả hàng 40%
+                const discountPercent = 40;
+                const campaignPrice = Math.max(0, Math.round(basePrice * (1 - discountPercent / 100)));
+                return {
+                    product_id: p.id || p.product_id,
+                    product: {
+                        product_id: p.id || p.product_id,
+                        name: p.name,
+                        thumbnail: p.thumbnail_url || p.thumbnail,
+                        base_price: basePrice,
+                        stock: p.stock || 10
+                    },
+                    campaign_price: campaignPrice,
+                    discount_percent: discountPercent,
+                    campaign_stock: Math.max(1, p.stock || 5),
+                    sold: 0
+                };
+            })
+        };
+
+        isEditing.value = false;
+        errors.value = {};
+        isModalOpen.value = true;
+        showToast('Đã nạp danh sách sản phẩm tồn kho cần xả hàng với mức giảm đề xuất 40%!', 'success');
+    }
+};
+
+onMounted(async () => {
+    await fetchFlashSales();
+    checkClearanceParam();
+});
 </script>
 
 <template>

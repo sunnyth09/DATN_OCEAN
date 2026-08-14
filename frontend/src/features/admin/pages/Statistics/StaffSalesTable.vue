@@ -20,11 +20,13 @@
             <th>Nhân viên</th>
             <th>Vai trò</th>
             <th class="text-center sortable" @click="sortBy('total_orders')">
-              Số đơn hàng
+              Tổng số đơn
               <span class="sort-icon" v-if="sortKey === 'total_orders'">{{ sortAsc ? '↑' : '↓' }}</span>
             </th>
+            <th class="text-center">Hoàn thành</th>
+            <th class="text-center">Hủy / Hoàn</th>
             <th class="text-right sortable" @click="sortBy('total_revenue')">
-              Doanh thu
+              Doanh thu thực thu
               <span class="sort-icon" v-if="sortKey === 'total_revenue'">{{ sortAsc ? '↑' : '↓' }}</span>
             </th>
           </tr>
@@ -51,13 +53,19 @@
               <td class="text-center">
                 <span class="order-count">{{ staff.total_orders }}</span>
               </td>
+              <td class="text-center">
+                <span class="badge bg-success">{{ staff.completed_orders || 0 }}</span>
+              </td>
+              <td class="text-center">
+                <span class="badge" :class="(staff.cancelled_orders || 0) > 0 ? 'bg-danger' : 'bg-secondary'">{{ staff.cancelled_orders || 0 }}</span>
+              </td>
               <td class="text-right">
                 <strong class="revenue-val">{{ formatCurrency(staff.total_revenue) }}</strong>
               </td>
             </tr>
           </template>
           <tr v-else>
-            <td colspan="4" class="text-center empty-cell">Không có dữ liệu</td>
+            <td colspan="6" class="text-center empty-cell">Không có dữ liệu</td>
           </tr>
         </tbody>
       </table>

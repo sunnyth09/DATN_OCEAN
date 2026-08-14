@@ -513,7 +513,7 @@ const addToCart = async () => {
       }
       localStorage.setItem('cart_items', JSON.stringify(localItems));
       cartVersion.value++;
-      cartStore.fetchCount()
+      await cartStore.fetchCount();
       if (productImageRef.value) {
         await flyToCart(productImageRef.value, '#cart-icon');
       }
@@ -540,6 +540,7 @@ const addToCart = async () => {
       }
       showToast(response.message, 'cart', {
         name: product.value.name,
+        variant_id: selectedVariant.value.variant_id,
         variant: (selectedVariant.value.color || '') + ' ' + (selectedVariant.value.size || ''),
         qty: quantity.value,
         image: selectedVariant.value.image_url ? getImageUrl(selectedVariant.value.image_url) : getImageUrl(allImages.value[0]?.image_url)
