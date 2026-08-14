@@ -57,7 +57,7 @@ export const useCartStore = defineStore('cart', () => {
       quantity,
     });
 
-    cartStore.fetchCount()
+    await fetchCount();
     return response.data;
   };
 

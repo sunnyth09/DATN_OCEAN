@@ -62,6 +62,11 @@ class StatisticsService
         $allProducts = Product::count();
         $today = $this->statsRepository->getTodayStats();
         $pendingCancelled = $this->statsRepository->getPendingAndCancelledCounts($startDate, $endDate);
+        $slowMovingSummary = $this->statsRepository->getSlowMovingSummary(60, 2);
+
+        $aov = $totalOrders > 0 ? round($totalRevenue / $totalOrders, 0) : 0;
+        $prevAov = $prevTotalOrders > 0 ? round($prevTotalRevenue / $prevTotalOrders, 0) : 0;
+        $aovChange = $this->calculateChange($prevAov, $aov);
 
         return [
             'total_revenue' => [
@@ -79,11 +84,18 @@ class StatisticsService
                 'isUp' => $customersChange >= 0,
                 'change' => abs(round($customersChange, 1)).'%',
             ],
+            'aov' => [
+                'value' => $aov,
+                'isUp' => $aovChange >= 0,
+                'change' => abs(round($aovChange, 1)).'%',
+            ],
             'total_products' => ['value' => $allProducts],
             'today_revenue' => $today['revenue'],
             'today_orders' => $today['orders'],
             'pending_orders' => $pendingCancelled['pending'],
             'cancelled_orders' => $pendingCancelled['cancelled'],
+            'slow_moving_count' => $slowMovingSummary['slow_moving_count'],
+            'tied_up_capital' => $slowMovingSummary['tied_up_capital'],
         ];
     }
 
@@ -252,9 +264,52 @@ class StatisticsService
                 'staff_email' => $row->seller ? $row->seller->email : 'Unknown',
                 'role' => $row->seller ? $row->seller->role : 'Unknown',
                 'total_orders' => (int) $row->total_orders,
+                'completed_orders' => (int) ($row->completed_orders ?? 0),
+                'cancelled_orders' => (int) ($row->cancelled_orders ?? 0),
                 'total_revenue' => (float) $row->total_revenue,
             ];
         })->toArray();
+    }
+
+    /**
+     * Lấy danh sách và tóm tắt sản phẩm tồn kho lâu / bán chậm
+     */
+    public function getSlowMovingProducts(Request $request): array
+    {
+        $daysThreshold = (int) $request->input('days_threshold', 60);
+        $salesLimit = (int) $request->input('sales_limit', 2);
+        $limit = (int) $request->input('limit', 20);
+
+        $products = $this->statsRepository->getSlowMovingProducts($daysThreshold, $salesLimit, $limit);
+        $summary = $this->statsRepository->getSlowMovingSummary($daysThreshold, $salesLimit);
+
+        $formattedProducts = $products->map(function ($item) {
+            $publishDate = $item->published_at ? Carbon::parse($item->published_at) : Carbon::parse($item->created_at);
+            $daysInInventory = (int) Carbon::now()->diffInDays($publishDate);
+            $stock = (int) ($item->total_stock ?? 0);
+            $minPrice = (float) ($item->min_price ?? 0);
+            $tiedUpCapital = $stock * $minPrice;
+
+            return [
+                'id' => $item->product_id,
+                'name' => $item->name,
+                'slug' => $item->slug,
+                'thumbnail_url' => $item->thumbnail_url,
+                'category_name' => $item->category ? $item->category->name : 'Chưa phân loại',
+                'brand_name' => $item->brand ? $item->brand->name : 'N/A',
+                'base_price' => $minPrice,
+                'stock' => $stock,
+                'sold_last_30d' => (int) ($item->recent_sold ?? 0),
+                'days_in_inventory' => $daysInInventory,
+                'tied_up_capital' => $tiedUpCapital,
+                'published_at' => $publishDate->format('d/m/Y'),
+            ];
+        })->toArray();
+
+        return [
+            'summary' => $summary,
+            'products' => $formattedProducts,
+        ];
     }
 
     private function calculateChange(float $prev, float $current): float

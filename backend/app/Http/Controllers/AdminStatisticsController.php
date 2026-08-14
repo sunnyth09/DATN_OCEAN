@@ -103,4 +103,15 @@ class AdminStatisticsController extends Controller
             'data' => $this->statisticsService->getStaffSales($request),
         ]);
     }
+
+    /**
+     * Get slow-moving / dead stock products
+     */
+    public function getSlowMovingProducts(Request $request)
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->statisticsService->getSlowMovingProducts($request),
+        ]);
+    }
 }
