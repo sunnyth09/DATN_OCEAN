@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TicketCreatedAdmin;
 use App\Helpers\ProfanityFilter;
 use App\Models\Admin;
 use App\Models\OrderItem;
@@ -138,7 +139,7 @@ class ProductCommentController extends Controller
 
             // Nếu rating <= 3, tự động tạo Ticket (Khiếu nại) cho admin
             if ($request->rating <= 3) {
-                Ticket::create([
+                $autoTicket = Ticket::create([
                     'user_id' => $userId,
                     'order_id' => $orderItem->order_id,
                     'product_id' => $request->product_id,
@@ -146,18 +147,26 @@ class ProductCommentController extends Controller
                     'description' => $filteredContent ?? 'Khách hàng đánh giá chất lượng sản phẩm thấp.',
                     'status' => 'pending',
                 ]);
+                event(new TicketCreatedAdmin($autoTicket));
+            } elseif ($comment->is_approved == 0) {
+                // Đánh giá mới chờ duyệt (ví dụ: đánh giá có hình ảnh)
+                $dummyTicket = new Ticket([
+                    'ticket_id' => $comment->comment_id,
+                    'reason' => 'Đánh giá sản phẩm mới chờ duyệt',
+                    'status' => 'pending',
+                ]);
+                event(new TicketCreatedAdmin($dummyTicket));
             }
 
             // ── Tích điểm Loyalty ──────────────────────────────────────────
             $user = auth('api')->user();
             if ($user) {
-                // +20 điểm khi viết nhận xét có nội dung
-                if (! empty(trim($request->content ?? ''))) {
-                    $this->loyaltyService->earnFromReview($user, $comment->comment_id);
-                }
-                // +50 điểm bonus khi đính kèm hình ảnh
                 if (! empty($imagePaths)) {
+                    // +50 điểm bonus khi đính kèm hình ảnh
                     $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
+                } elseif (! empty(trim($request->content ?? ''))) {
+                    // +20 điểm khi viết nhận xét có nội dung
+                    $this->loyaltyService->earnFromReview($user, $comment->comment_id);
                 }
             }
             // ───────────────────────────────────────────────────────────────
@@ -398,7 +407,10 @@ class ProductCommentController extends Controller
             if (ProfanityFilter::hasProfanity($item['content'] ?? '')) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Nội dung đánh giá chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.',
+                    'message' => 'Dữ liệu không hợp lệ.',
+                    'errors' => [
+                        "items.{$index}.content" => ['Nội dung đánh giá chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.']
+                    ]
                 ], 422);
             }
 
@@ -458,11 +470,10 @@ class ProductCommentController extends Controller
                 // Loyalty points
                 $user = auth('api')->user();
                 if ($user) {
-                    if (! empty(trim($data['content'] ?? ''))) {
-                        $this->loyaltyService->earnFromReview($user, $comment->comment_id);
-                    }
                     if (! empty($imagePaths)) {
                         $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
+                    } elseif (! empty(trim($data['content'] ?? ''))) {
+                        $this->loyaltyService->earnFromReview($user, $comment->comment_id);
                     }
                 }
 
@@ -505,5 +516,20 @@ class ProductCommentController extends Controller
         $product->rating_avg = round($avgRating ?? 0, 1);
         $product->rating_count = $countRating;
         $product->save();
+    }
+
+    /**
+     * Đếm số đánh giá chưa được duyệt từ user (dùng cho badge sidebar)
+     */
+    public function pendingCount()
+    {
+        $count = ProductComment::where('is_approved', 0)
+            ->where('commenter_type', 'user')
+            ->count();
+
+        return response()->json([
+            'status' => 'success',
+            'count'  => $count,
+        ]);
     }
 }

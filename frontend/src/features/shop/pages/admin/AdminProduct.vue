@@ -9,7 +9,6 @@ import QRCode from 'qrcode';
 import { sanitizeHtml } from '@/utils/sanitize';
 import BaseSelect from '@/components/base/BaseSelect.vue';
 
-const toastData = ref({ message: '', type: 'success' });
 const showToastMsg = (message, type = 'success') => {
   Swal.fire({
     toast: true,
@@ -1359,16 +1358,6 @@ const formatDate = (dateString) => {
                 </div>
             </div>
         </Teleport>
-
-        <!-- Bootstrap Toast -->
-        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-            <div class="toast align-items-center border-0" :class="toastData.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="productToast" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">{{ toastData.message }}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 

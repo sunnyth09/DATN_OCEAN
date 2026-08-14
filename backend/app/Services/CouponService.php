@@ -236,6 +236,29 @@ class CouponService
         return true;
     }
 
+    public function checkCoupon(int $userId, string $couponCode, float $subtotal): array
+    {
+        $coupon = $this->couponRepository->findActiveByCode($couponCode);
+
+        if (! $coupon) {
+            return [
+                'success' => false,
+                'message' => 'Mã giảm giá không tồn tại hoặc đã hết hạn!',
+            ];
+        }
+
+        $validateResult = $this->validateCoupon($userId, $coupon, $subtotal);
+
+        if (! $validateResult['success']) {
+            return $validateResult;
+        }
+
+        return [
+            'success' => true,
+            'coupon' => $coupon,
+        ];
+    }
+
     public function applyCoupon(int $userId, ?string $couponCode, float $subtotal): array
     {
         if (! $couponCode) {

@@ -7,7 +7,6 @@ import AppIcon from '@/components/AppIcon.vue';
 import { getAbsoluteUrl, getStorageUrl } from '@/utils/url';
 import { sanitizeHtml } from '@/utils/sanitize';
 
-const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
   Swal.fire({
     toast: true,
@@ -140,7 +139,9 @@ const toggleApprove = async (review) => {
   try {
     await api.put(`/admin/reviews/${review.comment_id}/${endpoint}`);
     review.is_approved = review.is_approved ? 0 : 1;
+    window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     toast.success(`Đã ${label.toLowerCase()} đánh giá thành công!`);
+    window.dispatchEvent(new Event('admin-notification-received'));
   } catch (e) {
     toast.error(e.response?.data?.message || 'Thao tác thất bại');
   }
@@ -162,7 +163,9 @@ const deleteReview = async (review) => {
     await api.delete(`/admin/reviews/${review.comment_id}`);
     reviews.value = reviews.value.filter(r => r.comment_id !== review.comment_id);
     reviewPagination.value.total = Math.max(0, reviewPagination.value.total - 1);
+    window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     toast.success('Đã xóa đánh giá!');
+    window.dispatchEvent(new Event('admin-notification-received'));
   } catch (e) {
     toast.error(e.response?.data?.message || 'Xóa thất bại');
   }
@@ -245,6 +248,8 @@ const submitReply = async () => {
 
     if (res.data.status === 'success') {
       toast.success('Đã cập nhật khiếu nại');
+      window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
+      window.dispatchEvent(new Event('admin-notification-received'));
       closeTicketModal();
       fetchTickets();
     }
@@ -522,16 +527,6 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-
-    <!-- Bootstrap Toast -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-      <div class="toast align-items-center border-0" :class="toastData.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="reviewToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body">{{ toastData.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
       </div>
     </div>
 

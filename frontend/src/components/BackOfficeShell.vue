@@ -229,14 +229,93 @@ const fetchUnreadCount = async () => {
   }
 };
 
+const fetchSidebarBadges = async () => {
+  try {
+    const response = await api.get('/admin/sidebar-badges');
+    if (response.data.status === 'success') {
+      const data = response.data.data;
+      uiStore.setAdminUnreadChatCount(data.unread_chats || 0);
+      uiStore.setAdminPendingReviewCount(data.pending_reviews || 0);
+      uiStore.setAdminPendingTicketCount(data.open_tickets || 0);
+      uiStore.setAdminPendingContactCount(data.pending_contacts || 0);
+    }
+  } catch (error) {
+    console.error('Failed to fetch sidebar badges', error);
+  }
+};
+
+let globalAudioCtx = null;
+const initAudioContext = () => {
+  if (!globalAudioCtx) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      globalAudioCtx = new AudioCtx();
+    }
+  }
+  if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
+    globalAudioCtx.resume();
+  }
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('click', initAudioContext, { once: false });
+  window.addEventListener('keydown', initAudioContext, { once: false });
+}
+
+const playNotificationSound = () => {
+  try {
+    initAudioContext();
+    if (!globalAudioCtx) return;
+
+    const ctx = globalAudioCtx;
+    const now = ctx.currentTime;
+
+    // Tiếng Yahoo Messenger Chime huyền thoại (D5 -> A5 -> D6)
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const osc3 = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc2.type = 'sine';
+    osc3.type = 'sine';
+
+    osc1.frequency.setValueAtTime(587.33, now);        // D5
+    osc2.frequency.setValueAtTime(880.00, now + 0.08); // A5
+    osc3.frequency.setValueAtTime(1174.66, now + 0.16); // D6
+
+    gain.gain.setValueAtTime(0.7, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    osc3.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc1.start(now);
+    osc1.stop(now + 0.12);
+
+    osc2.start(now + 0.08);
+    osc2.stop(now + 0.20);
+
+    osc3.start(now + 0.16);
+    osc3.stop(now + 0.55);
+  } catch (e) {
+    console.warn('Không thể phát âm thanh thông báo:', e);
+  }
+};
+
 onMounted(() => {
   syncSidebarForViewport();
   window.addEventListener('resize', syncSidebarForViewport);
+  window.addEventListener('play-notif-sound', playNotificationSound);
   
   fetchUnreadCount();
+  fetchSidebarBadges();
 
   if (window.Echo) {
     const handleNotification = (e, eventType) => {
+        playNotificationSound();
         // Increment unread count
         uiStore.incrementAdminUnreadNotificationCount();
         
@@ -280,7 +359,50 @@ onMounted(() => {
               handleNotification(e, 'CourtBookingCancelled');
           }
       })
+      .listen('.OrderCreatedAdmin', (e) => {
+          playNotificationSound();
+          uiStore.incrementAdminUnreadNotificationCount();
+          window.dispatchEvent(new Event('admin-notification-received'));
+          window.dispatchEvent(new Event('admin-order-updated'));
+
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: '🛒 Đơn hàng mới!',
+            text: `Đơn hàng #${e.order_code || e.order_id} vừa được khởi tạo!`,
+            showConfirmButton: false,
+            timer: 5000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+              toast.addEventListener('mouseenter', Swal.stopTimer);
+              toast.addEventListener('mouseleave', Swal.resumeTimer);
+            }
+          });
+      })
+      .listen('.TicketCreatedAdmin', (e) => {
+          playNotificationSound();
+          uiStore.incrementAdminUnreadNotificationCount();
+          window.dispatchEvent(new Event('admin-notification-received'));
+          window.dispatchEvent(new Event('admin-order-updated'));
+
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: '📩 Yêu cầu hỗ trợ / khiếu nại mới!',
+            text: `Có khiếu nại mới #${e.ticket_id}: ${e.reason || ''}`,
+            showConfirmButton: false,
+            timer: 5000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+              toast.addEventListener('mouseenter', Swal.stopTimer);
+              toast.addEventListener('mouseleave', Swal.resumeTimer);
+            }
+          });
+      })
       .listen('.UserNotificationEvent', (e) => {
+          playNotificationSound();
           uiStore.incrementAdminUnreadNotificationCount();
           
           window.dispatchEvent(new Event('admin-notification-received'));
@@ -300,11 +422,21 @@ onMounted(() => {
             }
           });
       });
+
+    // Listen to chat messages globally to update sidebar badges
+    window.Echo.channel('admin.chats')
+      .listen('.message.sent', (e) => {
+        fetchSidebarBadges();
+        window.dispatchEvent(new CustomEvent('admin-chat-message', { detail: e }));
+      });
+
+    window.addEventListener('update-sidebar-badges', fetchSidebarBadges);
   }
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', syncSidebarForViewport);
+  window.removeEventListener('update-sidebar-badges', fetchSidebarBadges);
   if (window.Echo) {
     window.Echo.leave('admin-notifications');
   }

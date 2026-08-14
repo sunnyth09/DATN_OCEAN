@@ -519,19 +519,39 @@ const promptLoginForCoupon = () => {
     router.push({ name: 'login', query: { redirect: route.fullPath || '/checkout' } });
 };
 
-const applyCoupon = () => {
+const applyCoupon = async () => {
     if (!authStore.isAuthenticated) {
         promptLoginForCoupon();
         return;
     }
     if (!couponCode.value.trim()) return;
 
-    const found = availableCoupons.value.find(c => c.code.toUpperCase() === couponCode.value.trim().toUpperCase());
+    const code = couponCode.value.trim().toUpperCase();
+    const found = availableCoupons.value.find(c => c.code.toUpperCase() === code);
     if (found) {
         selectCoupon(found);
     } else {
-        showToast('Mã giảm giá không hợp lệ hoặc chưa được lưu', 'error');
-        appliedCoupon.value = null;
+        checkingCoupon.value = true;
+        try {
+            const response = await api.post('/profile/coupons/check', {
+                code: code,
+                subtotal: subtotal.value
+            });
+            if (response.data?.status === 'success') {
+                const couponData = response.data.data;
+                selectCoupon(couponData);
+            } else {
+                showToast(response.data?.message || 'Mã giảm giá không hợp lệ', 'error');
+                appliedCoupon.value = null;
+            }
+        } catch (error) {
+            console.error('Lỗi kiểm tra mã giảm giá:', error);
+            const msg = error.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn';
+            showToast(msg, 'error');
+            appliedCoupon.value = null;
+        } finally {
+            checkingCoupon.value = false;
+        }
     }
 };
 

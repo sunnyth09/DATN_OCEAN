@@ -38,6 +38,30 @@ onUnmounted(() => {
     leaveUserChannel();
 });
 
+const playNotificationSound = () => {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        const now = ctx.currentTime;
+        osc.frequency.setValueAtTime(587.33, now); // D5
+        osc.frequency.setValueAtTime(880, now + 0.12); // A5
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.35);
+    } catch (e) {}
+};
+
 // Subscribe WebSocket channel - nhận thông báo realtime khi admin xác nhận/hủy
 const subscribeUserChannel = () => {
     try {
@@ -46,6 +70,7 @@ const subscribeUserChannel = () => {
 
         userChannel = window.Echo.private(`user.${userId}`)
             .listen('.CourtBookingStatusChanged', (event) => {
+                playNotificationSound();
                 const statusLabels = {
                     confirmed: 'đã được xác nhận ✅',
                     cancelled: 'đã bị hủy ❌',
@@ -57,6 +82,7 @@ const subscribeUserChannel = () => {
                 store.fetchUserBookings();
             })
             .listen('.CourtBookingCancelled', (event) => {
+                playNotificationSound();
                 toast.warning(`Lịch đặt sân #${event.booking_code} đã bị hủy`);
                 store.fetchUserBookings();
             });

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\TicketCreatedAdmin;
 use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\User;
@@ -206,6 +207,7 @@ class TicketController extends Controller
             }
 
             $ticket->save();
+            event(new TicketCreatedAdmin($ticket));
 
             return response()->json([
                 'status' => 'success',

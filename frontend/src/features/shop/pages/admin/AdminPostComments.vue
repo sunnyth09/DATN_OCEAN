@@ -3,6 +3,7 @@ import { ref, onMounted, computed, nextTick } from 'vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
+import { getStorageUrl } from '@/utils/url';
 
 const comments = ref([]);
 const isLoading = ref(true);
@@ -97,6 +98,23 @@ const formatDate = (dateString) => {
     return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 };
 
+const getUserName = (user) => {
+  if (!user) return 'Thành viên';
+  return user.full_name || user.name || 'Thành viên';
+};
+
+const getUserFallbackAvatar = (user) => {
+  const name = encodeURIComponent(getUserName(user));
+  return `https://ui-avatars.com/api/?name=${name}&background=e63b6f&color=fff&size=96&bold=true`;
+};
+
+const getUserAvatarUrl = (user) => {
+  if (!user?.avatar_url || user.avatar_url === '0' || user.avatar_url === '') {
+    return getUserFallbackAvatar(user);
+  }
+  return getStorageUrl(user.avatar_url);
+};
+
 onMounted(() => {
     fetchComments(1);
 });
@@ -161,7 +179,7 @@ onMounted(() => {
                     <tr v-for="c in comments" :key="c.comment_id">
                         <td>
                             <div class="user-cell">
-                                <img :src="c.user?.avatar_url || 'https://placehold.co/40x40?text=U'" alt="avatar" class="user-avatar" />
+                                <img :src="getUserAvatarUrl(c.user)" alt="avatar" class="user-avatar" />
                                 <div class="user-info">
                                     <span class="user-name">{{ c.user?.full_name || 'Ẩn danh' }}</span>
                                     <span class="user-email">{{ c.user?.email || 'N/A' }}</span>
@@ -224,16 +242,6 @@ onMounted(() => {
             <button class="btn-page" :disabled="page === totalPages" @click="fetchComments(page + 1)">
                 Sau &gt;
             </button>
-        </div>
-    </div>
-
-    <!-- Bootstrap Toast -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-        <div class="toast align-items-center border-0" :class="toastObj.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="commentListToast" role="alert">
-            <div class="d-flex">
-                <div class="toast-body">{{ toastObj.message }}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
         </div>
     </div>
   </div>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed } from "vue";
+import { ref, onMounted, onUnmounted, onBeforeUnmount, watch, computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
 import api from "../axios.js";
@@ -347,51 +347,130 @@ const leaveNotificationChannel = () => {
     notificationUserId = null;
 };
 
+let globalUserAudioCtx = null;
+const initUserAudioContext = () => {
+  if (!globalUserAudioCtx) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      globalUserAudioCtx = new AudioCtx();
+    }
+  }
+  if (globalUserAudioCtx && globalUserAudioCtx.state === 'suspended') {
+    globalUserAudioCtx.resume();
+  }
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('click', initUserAudioContext, { once: false });
+  window.addEventListener('keydown', initUserAudioContext, { once: false });
+}
+
+const playNotificationSound = () => {
+    try {
+        initUserAudioContext();
+        if (!globalUserAudioCtx) return;
+
+        const ctx = globalUserAudioCtx;
+        const now = ctx.currentTime;
+
+        // Tiếng Yahoo Messenger Chime huyền thoại (D5 -> A5 -> D6)
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const osc3 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        osc3.type = 'sine';
+
+        osc1.frequency.setValueAtTime(587.33, now);        // D5
+        osc2.frequency.setValueAtTime(880.00, now + 0.08); // A5
+        osc3.frequency.setValueAtTime(1174.66, now + 0.16); // D6
+
+        gain.gain.setValueAtTime(0.7, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        osc3.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc1.stop(now + 0.12);
+
+        osc2.start(now + 0.08);
+        osc2.stop(now + 0.20);
+
+        osc3.start(now + 0.16);
+        osc3.stop(now + 0.55);
+    } catch (e) {
+        console.warn('Không thể phát âm thanh thông báo:', e);
+    }
+};
+
+const setupUserWebSocket = () => {
+    if (!window.Echo) return;
+    const userData = authStore.user || JSON.parse(sessionStorage.getItem("user") || "{}");
+    const userId = userData?.user_id || userData?.id;
+
+    if (userId) {
+        if (notificationUserId === userId) return;
+        leaveNotificationChannel();
+        notificationUserId = userId;
+
+        const handleUserNotif = (e) => {
+            playNotificationSound();
+            authStore.incrementUnreadNotificationCount();
+            if (showNotifDropdown.value) {
+                fetchNotificationsList(); // Refresh list if open
+            }
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: e.title || e.notification?.title || 'Thông báo mới',
+                text: e.message || e.notification?.message || 'Bạn có thông báo mới',
+                showConfirmButton: false,
+                timer: 5000,
+                timerProgressBar: true,
+                didOpen: (toast) => {
+                    toast.addEventListener('mouseenter', Swal.stopTimer)
+                    toast.addEventListener('mouseleave', Swal.resumeTimer)
+                }
+            });
+            showNotificationPopup.value = true;
+            setTimeout(() => {
+                showNotificationPopup.value = false;
+            }, 4000);
+        };
+
+        window.Echo.private('user.' + userId)
+            .listen('.UserNotificationEvent', handleUserNotif)
+            .notification(handleUserNotif);
+    }
+};
+
 watch(isLoggedIn, (val) => {
     if (val) {
         fetchUnreadNotificationCount();
         fetchHeaderRewardPoints();
-        const userData = JSON.parse(sessionStorage.getItem("user") || "{}");
-        if (window.Echo && userData && userData.user_id) {
-            if (notificationUserId === userData.user_id) return;
-            leaveNotificationChannel();
-            notificationUserId = userData.user_id;
-            window.Echo.private('user.' + userData.user_id)
-                .listen('.UserNotificationEvent', (e) => { // . means it ignores Broadcast namespace
-                    authStore.incrementUnreadNotificationCount();
-                    if (showNotifDropdown.value) {
-                        fetchNotificationsList(); // Refresh list if open
-                    }
-                    const notifType = e.type || e.notification?.type;
-                    
-                    if (notifType) {
-                        Swal.fire({
-                            toast: true,
-                            position: 'top-end',
-                            icon: 'info',
-                            title: notifTitle || 'Thông báo mới',
-                            text: e.message || e.notification?.message || 'Bạn có thông báo mới',
-                            showConfirmButton: false,
-                            timer: 5000,
-                            timerProgressBar: true,
-                            didOpen: (toast) => {
-                                toast.addEventListener('mouseenter', Swal.stopTimer)
-                                toast.addEventListener('mouseleave', Swal.resumeTimer)
-                            }
-                        });
-                        showNotificationPopup.value = true;
-                        setTimeout(() => {
-                            showNotificationPopup.value = false;
-                        }, 4000);
-                    }
-                });
-        }
+        setupUserWebSocket();
     } else {
         authStore.resetUnreadNotificationCount();
         headerRewardPoints.value = 0;
         leaveNotificationChannel();
     }
 }, { immediate: true });
+
+onMounted(() => {
+    window.addEventListener('has-new-unread-notifications', playNotificationSound);
+    window.addEventListener('play-notif-sound', playNotificationSound);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener('has-new-unread-notifications', playNotificationSound);
+    window.removeEventListener('play-notif-sound', playNotificationSound);
+});
 
 const handleLogout = async () => {
     try {
@@ -681,8 +760,7 @@ watch(
                             <div class="notif-header">
                                 <h3>Thông báo mới</h3>
                                 <router-link to="/profile/notifications" @click="showNotifDropdown = false"
-                                    class="notif-view-all">Xem
-                                    tất cả</router-link>
+                                    class="notif-view-all">Xem tất cả</router-link>
                             </div>
                             <div class="notif-list" v-if="isFetchingNotif && notificationsList.length === 0">
                                 <div class="notif-item" v-for="i in 3" :key="'skeleton-' + i">

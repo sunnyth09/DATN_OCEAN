@@ -246,8 +246,6 @@ const submitFeedback = async () => {
         closeModal();
     } catch (err) {
         console.error('Lỗi khi submit feedback:', err.response?.data || err);
-        const msg = err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại sau.';
-        showToast(msg, 'danger');
 
         // Hiển thị lỗi validate chi tiết cho từng item (nếu có từ Laravel validation)
         if (err.response?.data?.errors) {
@@ -263,6 +261,9 @@ const submitFeedback = async () => {
                     }
                 }
             });
+        } else {
+            const msg = err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại sau.';
+            showToast(msg, 'danger');
         }
     } finally {
         submitting.value = false;

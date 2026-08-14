@@ -25,6 +25,8 @@ const selectedBrands = ref([]);         // checkbox array
 const priceMin = ref(0);
 const priceMax = ref(10000000);
 const displayPriceMax = ref(10000000);
+const maxPriceLimit = ref(10000000);
+const hasUserSetPrice = ref(false);
 watch(priceMax, (newVal) => { displayPriceMax.value = newVal; });
 
 const sortBy = ref("newest");
@@ -156,6 +158,13 @@ const fetchProducts = async () => {
         });
         totalPages.value = response.data.total_pages || Math.ceil((response.data.total || Products.value.length) / perPage) || 1;
         totalProducts.value = response.data.total || Products.value.length;
+        if (response.data.max_price_limit) {
+            maxPriceLimit.value = Number(response.data.max_price_limit);
+            if (!hasUserSetPrice.value) {
+                priceMax.value = maxPriceLimit.value;
+                displayPriceMax.value = maxPriceLimit.value;
+            }
+        }
     } catch (error) {
         if (error.code === 'ERR_CANCELED') return;
         console.error("Error fetching products:", error);
@@ -283,6 +292,7 @@ watch(() => route.query.category, (val) => {
 
 const clearSearch = () => {
     searchQuery.value = '';
+    hasUserSetPrice.value = false;
     router.replace({ path: '/product', query: {} });
 };
 
@@ -468,10 +478,10 @@ onUnmounted(() => {
                             <div class="current-price-label">
                                 Dưới <strong>{{ formatPrice(displayPriceMax) }}</strong>
                             </div>
-                            <input type="range" min="0" max="10000000" step="100000" v-model.number="displayPriceMax" @change="priceMax = displayPriceMax" class="price-slider" />
+                            <input type="range" min="0" :max="maxPriceLimit" step="100000" v-model.number="displayPriceMax" @change="priceMax = displayPriceMax; hasUserSetPrice = true" class="price-slider" />
                             <div class="price-labels">
                                 <span>0đ</span>
-                                <span>10.000.000đ</span>
+                                <span>{{ formatPrice(maxPriceLimit) }}</span>
                             </div>
                         </div>
                     </div>

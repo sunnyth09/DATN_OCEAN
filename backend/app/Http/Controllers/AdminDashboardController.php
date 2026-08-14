@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ChatMessage;
 use App\Models\ChatSession;
 use App\Models\Order;
 use App\Models\Product;
@@ -195,14 +196,41 @@ class AdminDashboardController extends Controller
             $pendingReturns = ReturnRequest::where('status', 'return_pending')->count();
         }
 
-        // Ticket khiếu nại chưa giải quyết (pending hoặc đang xử lý)
+        // Ticket khiếu nại chưa giải quyết + Đánh giá sản phẩm chờ duyệt
         $openTickets = 0;
         if (class_exists('\\App\\Models\\Ticket')) {
-            $openTickets = Ticket::whereIn('status', ['pending', 'processing'])->count();
+            $openTickets += Ticket::whereIn('status', ['pending', 'processing'])->count();
+        }
+        if (class_exists('\\App\\Models\\ProductComment')) {
+            $openTickets += ProductComment::where('is_approved', 0)->count();
+        }
+
+        // Yêu cầu liên hệ chưa phản hồi (status = pending)
+        $pendingContacts = 0;
+        if (class_exists('\\App\\Models\\Contact')) {
+            $pendingContacts = Contact::where('status', 'pending')->count();
         }
 
         // Live chat session chưa được xử lý (status = open)
         $unrepliedChats = ChatSession::where('status', 'open')->count();
+
+        // Tổng số tin nhắn chưa đọc
+        $unreadChats = 0;
+        if (class_exists('\App\Models\ChatMessage')) {
+            $unreadChats = ChatMessage::where('sender_type', 'user')->where('is_read', false)->count();
+        }
+
+        // Đánh giá chờ duyệt
+        $pendingReviews = 0;
+        if (class_exists('\App\Models\ProductComment')) {
+            $pendingReviews = \App\Models\ProductComment::where('is_approved', false)->count();
+        }
+
+        // Liên hệ chưa xử lý
+        $pendingContacts = 0;
+        if (class_exists('\App\Models\Contact')) {
+            $pendingContacts = \App\Models\Contact::where('status', 'pending')->count();
+        }
 
         return response()->json([
             'status' => 'success',
@@ -210,7 +238,10 @@ class AdminDashboardController extends Controller
                 'pending_orders' => $pendingOrders,
                 'pending_returns' => $pendingReturns,
                 'open_tickets' => $openTickets,
+                'pending_contacts' => $pendingContacts,
                 'unreplied_chats' => $unrepliedChats,
+                'unread_chats' => $unreadChats,
+                'pending_reviews' => $pendingReviews,
             ],
         ]);
     }

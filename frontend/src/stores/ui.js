@@ -66,6 +66,21 @@ export const useUiStore = defineStore('ui', () => {
     adminUnreadNotificationCount.value += amount;
   };
 
+  const pendingContactCount = ref(0);
+  const setPendingContactCount = (count) => {
+    pendingContactCount.value = count;
+  };
+
+  const pendingChatCount = ref(0);
+  const setPendingChatCount = (count) => {
+    pendingChatCount.value = count;
+  };
+
+  const pendingReviewCount = ref(0);
+  const setPendingReviewCount = (count) => {
+    pendingReviewCount.value = count;
+  };
+
   return {
     isSearchModalOpen,
     isBackofficeDarkMode,
@@ -73,6 +88,9 @@ export const useUiStore = defineStore('ui', () => {
     isAdminStoreMenuOpen,
     isAdminStaffMenuOpen,
     adminUnreadNotificationCount,
+    pendingContactCount,
+    pendingChatCount,
+    pendingReviewCount,
     setSearchModalOpen,
     toggleSearchModal,
     setBackofficeDarkMode,
@@ -87,6 +105,9 @@ export const useUiStore = defineStore('ui', () => {
     setAdminUnreadNotificationCount,
     decrementAdminUnreadNotificationCount,
     incrementAdminUnreadNotificationCount,
+    setPendingContactCount,
+    setPendingChatCount,
+    setPendingReviewCount,
   };
 });
 

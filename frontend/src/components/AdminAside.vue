@@ -7,6 +7,7 @@ import AppIcon from '@/components/AppIcon.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
 import { getAbsoluteUrl, getAppBaseUrl } from '@/utils/url';
+import api from '@/axios';
 
 const BASE_URL = getAppBaseUrl();
 
@@ -71,6 +72,11 @@ onMounted(() => {
       console.error("Failed to parse user data", e);
     }
   }
+
+  // Fetch pending contact count
+  fetchPendingContactCount();
+  fetchPendingChatCount();
+  fetchPendingReviewCount();
 });
 
 const handleLogout = async () => {
@@ -87,13 +93,46 @@ const handleLogout = async () => {
     router.push('/client/login');
   }
 };
+
+const fetchPendingContactCount = async () => {
+  try {
+    const res = await api.get('/admin/contacts/pending-count');
+    if (res.data.status === 'success') {
+      uiStore.setPendingContactCount(res.data.count || 0);
+    }
+  } catch (e) {
+    // Silently fail - non-critical
+  }
+};
+
+const fetchPendingChatCount = async () => {
+  try {
+    const res = await api.get('/admin/live-chats/pending-count');
+    if (res.data.status === 'success') {
+      uiStore.setPendingChatCount(res.data.count || 0);
+    }
+  } catch (e) {
+    // Silently fail
+  }
+};
+
+const fetchPendingReviewCount = async () => {
+  try {
+    const res = await api.get('/admin/reviews/pending-count');
+    if (res.data.status === 'success') {
+      uiStore.setPendingReviewCount(res.data.count || 0);
+    }
+  } catch (e) {
+    // Silently fail
+  }
+};
 </script>
 <template>
   <aside class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
     <!-- Brand -->
     <div class="sidebar-brand">
       <router-link to="/admin" class="logo">
-        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="logo-ocean" width="36" >
+        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="logo-ocean" width="45" >
         <span class="logo-text">Ocean Sport</span>
       </router-link>
       <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">
@@ -232,6 +271,10 @@ const handleLogout = async () => {
       <div v-if="['admin', 'seller'].includes(userRoleRaw)" class="nav-item" @click="handleSubmenuClick('care')" :class="{ 'nav-item--open': openMenus.care }">
         <div class="nav-icon"><AppIcon name="chat" /></div>
         <span>Chăm sóc Khách hàng</span>
+        <span
+          v-if="uiStore.pendingContactCount > 0 || uiStore.pendingChatCount > 0 || uiStore.pendingReviewCount > 0"
+          class="nav-dot"
+        ></span>
         <AppIcon name="chevron-down" class="dropdown-arrow" :class="{ 'dropdown-arrow--open': openMenus.care }" size="14" />
       </div>
       <transition name="slide-fade">
@@ -240,13 +283,19 @@ const handleLogout = async () => {
             <span class="submenu-dot"></span><span>Khách hàng</span>
           </router-link>
           <router-link to="/admin/review" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Đánh giá & Khiếu nại</span>
+            <span class="submenu-dot"></span>
+            <span>Đánh giá &amp; Khiếu nại</span>
+            <span v-if="uiStore.pendingReviewCount > 0" class="submenu-badge">{{ uiStore.pendingReviewCount > 99 ? '99+' : uiStore.pendingReviewCount }}</span>
           </router-link>
           <router-link to="/admin/chat" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Chat</span>
+            <span class="submenu-dot"></span>
+            <span>Chat</span>
+            <span v-if="uiStore.pendingChatCount > 0" class="submenu-badge">{{ uiStore.pendingChatCount > 99 ? '99+' : uiStore.pendingChatCount }}</span>
           </router-link>
           <router-link to="/admin/contact" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Liên hệ</span>
+            <span class="submenu-dot"></span>
+            <span>Liên hệ</span>
+            <span v-if="uiStore.pendingContactCount > 0" class="submenu-badge">{{ uiStore.pendingContactCount > 99 ? '99+' : uiStore.pendingContactCount }}</span>
           </router-link>
         </div>
       </transition>
@@ -403,27 +452,6 @@ const handleLogout = async () => {
   flex-shrink: 0;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.logo-text {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-main, #1a1a1a);
-  white-space: nowrap;
-  letter-spacing: -0.2px;
-  margin: 0;
-  padding: 0;
-  line-height: 1.2;
-}
-
 .brand-icon {
   width: auto;
   height: auto;
@@ -509,7 +537,7 @@ const handleLogout = async () => {
 }
 
 .nav-item--active {
-  background: var(--primary) !important;
+  background: var(--ocean-blue, #1d4ed8) !important;
   color: white !important;
   font-weight: 600;
 }
@@ -644,5 +672,38 @@ const handleLogout = async () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Dot indicator on parent nav-item (no number, just a pulse dot) */
+.nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+  margin-left: 4px;
+  animation: dot-pulse 2s ease-in-out infinite;
+}
+
+/* Numbered badge on submenu items */
+.submenu-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-left: auto;
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(1.25); }
 }
 </style>

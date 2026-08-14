@@ -163,7 +163,11 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const response = await authService.fetchProfileNotifications();
-      unreadNotificationCount.value = response.data?.unread_count || 0;
+      const newCount = response.data?.unread_count || 0;
+      if (newCount > unreadNotificationCount.value) {
+        window.dispatchEvent(new CustomEvent('has-new-unread-notifications', { detail: { count: newCount } }));
+      }
+      unreadNotificationCount.value = newCount;
       return unreadNotificationCount.value;
     } catch {
       unreadNotificationCount.value = 0;
@@ -173,6 +177,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const incrementUnreadNotificationCount = (amount = 1) => {
     unreadNotificationCount.value += amount;
+    window.dispatchEvent(new Event('play-notif-sound'));
   };
 
   const decrementUnreadNotificationCount = (amount = 1) => {

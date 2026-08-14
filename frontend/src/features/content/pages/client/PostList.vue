@@ -134,7 +134,27 @@ const getAuthorAvatarUrl = (author) => {
     <section class="page-content container">
       <!-- Search & Category Filters -->
       <div class="filter-section">
-        <div class="category-select-wrap">
+        <div class="category-tabs" v-if="categories.length <= 4">
+          <button
+            type="button"
+            class="category-tab-btn"
+            :class="{ active: selectedCategory === 'all' }"
+            @click="selectedCategory = 'all'"
+          >
+            Tất cả
+          </button>
+          <button
+            v-for="cat in categories"
+            :key="cat.post_category_id"
+            type="button"
+            class="category-tab-btn"
+            :class="{ active: String(selectedCategory) === String(cat.post_category_id) }"
+            @click="selectedCategory = cat.post_category_id"
+          >
+            {{ cat.name }}
+          </button>
+        </div>
+        <div class="category-select-wrap" v-else>
           <select id="post-category-filter" v-model="selectedCategory" class="category-select" aria-label="Lọc bài viết theo danh mục">
             <option value="all">Tất cả</option>
             <option v-for="cat in categories" :key="cat.post_category_id" :value="cat.post_category_id">
@@ -172,7 +192,7 @@ const getAuthorAvatarUrl = (author) => {
 
       <template v-else>
         <!-- Featured Post (only on page 1 of All/Category) -->
-        <div v-if="featuredPost && currentPage === 1" class="featured-post-card">
+        <div v-if="featuredPost" class="featured-post-card">
           <router-link :to="'/posts/' + (featuredPost.slug || featuredPost.post_id)" class="featured-img-wrap">
             <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img" />
           </router-link>
@@ -218,7 +238,7 @@ const getAuthorAvatarUrl = (author) => {
           </div>
         </div>
 
-        <hr v-if="featuredPost && currentPage === 1 && regularPosts.length > 0" class="section-divider" />
+        <hr v-if="featuredPost && regularPosts.length > 0" class="section-divider" />
 
         <!-- Regular Posts Grid -->
         <div v-if="regularPosts.length > 0" class="posts-grid">
@@ -395,7 +415,7 @@ const getAuthorAvatarUrl = (author) => {
 .category-select {
   min-width: 220px;
   max-width: 100%;
-  padding: 10px 42px 10px 16px;
+  padding: 10px 36px 10px 16px;
   border: 1.5px solid #e2e8f0;
   border-radius: 24px;
   background-color: #fff;
@@ -406,11 +426,51 @@ const getAuthorAvatarUrl = (author) => {
   outline: none;
   cursor: pointer;
   transition: all 0.2s ease;
+
+  /* Custom dropdown arrow (size 8px) */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 8px 8px;
 }
 
 .category-select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+}
+
+/* Category Tabs */
+.category-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.category-tab-btn {
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.category-tab-btn:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.category-tab-btn.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.2);
 }
 
 .search-bar {

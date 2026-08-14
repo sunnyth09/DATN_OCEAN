@@ -11,6 +11,9 @@ export const useLoyaltyStore = defineStore('loyalty', () => {
     };
 
     const fetchBalance = async () => {
+        const token = sessionStorage.getItem("auth_token");
+        if (!token) return;
+        
         isLoading.value = true;
         try {
             const res = await loyaltyService.getSummary();
