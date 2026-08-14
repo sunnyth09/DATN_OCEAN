@@ -343,4 +343,17 @@ class ContactController extends Controller
             'message' => 'Đã xóa liên hệ thành công!',
         ]);
     }
+
+    /**
+     * Đếm số liên hệ chờ xử lý (pending)
+     */
+    public function pendingCount()
+    {
+        $count = Contact::where('status', 'pending')->count();
+
+        return response()->json([
+            'status' => 'success',
+            'count' => $count,
+        ]);
+    }
 }

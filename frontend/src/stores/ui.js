@@ -57,9 +57,6 @@ export const useUiStore = defineStore('ui', () => {
 
   const adminUnreadNotificationCount = ref(0);
   const setAdminUnreadNotificationCount = (count) => {
-    if (count > adminUnreadNotificationCount.value) {
-      window.dispatchEvent(new Event('play-notif-sound'));
-    }
     adminUnreadNotificationCount.value = count;
   };
   const decrementAdminUnreadNotificationCount = (amount = 1) => {
@@ -67,33 +64,21 @@ export const useUiStore = defineStore('ui', () => {
   };
   const incrementAdminUnreadNotificationCount = (amount = 1) => {
     adminUnreadNotificationCount.value += amount;
-    window.dispatchEvent(new Event('play-notif-sound'));
   };
 
-  const adminUnreadChatCount = ref(0);
-  const setAdminUnreadChatCount = (count) => {
-    adminUnreadChatCount.value = count;
-  };
-  const decrementAdminUnreadChatCount = (amount = 1) => {
-    adminUnreadChatCount.value = Math.max(0, adminUnreadChatCount.value - amount);
-  };
-  const incrementAdminUnreadChatCount = (amount = 1) => {
-    adminUnreadChatCount.value += amount;
+  const pendingContactCount = ref(0);
+  const setPendingContactCount = (count) => {
+    pendingContactCount.value = count;
   };
 
-  const adminPendingReviewCount = ref(0);
-  const setAdminPendingReviewCount = (count) => {
-    adminPendingReviewCount.value = count;
+  const pendingChatCount = ref(0);
+  const setPendingChatCount = (count) => {
+    pendingChatCount.value = count;
   };
 
-  const adminPendingTicketCount = ref(0);
-  const setAdminPendingTicketCount = (count) => {
-    adminPendingTicketCount.value = count;
-  };
-
-  const adminPendingContactCount = ref(0);
-  const setAdminPendingContactCount = (count) => {
-    adminPendingContactCount.value = count;
+  const pendingReviewCount = ref(0);
+  const setPendingReviewCount = (count) => {
+    pendingReviewCount.value = count;
   };
 
   return {
@@ -103,10 +88,9 @@ export const useUiStore = defineStore('ui', () => {
     isAdminStoreMenuOpen,
     isAdminStaffMenuOpen,
     adminUnreadNotificationCount,
-    adminUnreadChatCount,
-    adminPendingReviewCount,
-    adminPendingTicketCount,
-    adminPendingContactCount,
+    pendingContactCount,
+    pendingChatCount,
+    pendingReviewCount,
     setSearchModalOpen,
     toggleSearchModal,
     setBackofficeDarkMode,
@@ -121,12 +105,9 @@ export const useUiStore = defineStore('ui', () => {
     setAdminUnreadNotificationCount,
     decrementAdminUnreadNotificationCount,
     incrementAdminUnreadNotificationCount,
-    setAdminUnreadChatCount,
-    decrementAdminUnreadChatCount,
-    incrementAdminUnreadChatCount,
-    setAdminPendingReviewCount,
-    setAdminPendingTicketCount,
-    setAdminPendingContactCount,
+    setPendingContactCount,
+    setPendingChatCount,
+    setPendingReviewCount,
   };
 });
 

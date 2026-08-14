@@ -92,4 +92,21 @@ class AdminChatController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Đếm số session chat có tin nhắn chưa đọc từ user (dùng cho badge sidebar)
+     */
+    public function pendingCount()
+    {
+        $count = ChatSession::where('status', 'open')
+            ->whereHas('messages', function ($q) {
+                $q->where('sender_type', 'user')->where('is_read', false);
+            })
+            ->count();
+
+        return response()->json([
+            'status' => 'success',
+            'count'  => $count,
+        ]);
+    }
 }
