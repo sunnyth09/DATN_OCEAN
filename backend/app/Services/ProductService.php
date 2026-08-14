@@ -89,8 +89,21 @@ class ProductService
         ];
 
         if ($search) {
-            // Bypass Meilisearch and use SQL LIKE directly to ensure all products are searchable
-            $filters['search_like'] = $search;
+            try {
+                // Sử dụng Meilisearch thông qua Laravel Scout
+                $matchedIds = Product::search($search)->keys()->toArray();
+                Log::info('Admin Product Search: Sử dụng Meilisearch thành công', [
+                    'query' => $search,
+                    'results_count' => count($matchedIds)
+                ]);
+            } catch (\Exception $e) {
+                // Fallback nếu Meilisearch bị lỗi hoặc chưa khởi động
+                Log::warning('Admin Product Search: Meilisearch thất bại, dùng SQL LIKE làm dự phòng', [
+                    'error' => $e->getMessage(),
+                    'query' => $search
+                ]);
+                $filters['search_like'] = $search;
+            }
         }
 
         // Category filter (bao gồm con)

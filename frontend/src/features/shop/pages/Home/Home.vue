@@ -70,12 +70,16 @@ watch(activeTab, (tab) => {
 // ── Flash Sale Countdown ──
 const countdown = ref({ h: '00', m: '00', s: '00' });
 let countdownTimer = null;
+let flashSaleEndTime = null;
 
 const updateCountdown = () => {
+    if (!flashSaleEndTime) return;
     const now = new Date();
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
-    const diff = endOfDay - now;
+    const diff = flashSaleEndTime - now;
+    if (diff <= 0) {
+        countdown.value = { h: '00', m: '00', s: '00' };
+        return;
+    }
     const h = Math.floor(diff / 3_600_000);
     const m = Math.floor((diff % 3_600_000) / 60_000);
     const s = Math.floor((diff % 60_000) / 1_000);
@@ -86,15 +90,50 @@ const updateCountdown = () => {
     };
 };
 
-const flashSaleProducts = computed(() => {
-    return Products.value.filter(p => p.is_on_sale || p.discount_percent > 0).slice(0, 4).map(p => {
-        // Add fake sold stats for demo Scarcity UX
-        const total = 100;
-        const sold = Math.floor(Math.random() * 50) + 40; // 40-90
-        const percent = Math.floor((sold / total) * 100);
-        return { ...p, flash_sold: sold, flash_total: total, flash_percent: percent };
-    });
-});
+const flashSaleProducts = ref([]);
+const isLoadingFlashSale = ref(true);
+
+const fetchRealFlashSale = async () => {
+    try {
+        isLoadingFlashSale.value = true;
+        const { data } = await api.get('flash-sale');
+        if (data && data.data && data.data.length > 0) {
+            // Lấy danh sách sản phẩm và giới hạn 4 sản phẩm
+            flashSaleProducts.value = data.data.slice(0, 4).map(p => {
+                // Map the Flash Sale API properties to match the component's expectations
+                return {
+                    id: p.product_id,
+                    name: p.name,
+                    price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(p.flash_price),
+                    min_price: p.flash_price,
+                    originalPrice: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(p.original_price),
+                    original_price: p.original_price,
+                    discount_percent: Math.round((p.original_price - p.flash_price) / p.original_price * 100),
+                    is_on_sale: true,
+                    image: getImageUrl(p.image_url),
+                    badge: "Hot",
+                    slug: p.slug,
+                    category_name: p.category_name || '',
+                    flash_sold: p.sold,
+                    flash_total: p.total_quantity,
+                    flash_percent: Math.min(100, Math.floor((p.sold / p.total_quantity) * 100))
+                };
+            });
+            // Giả định API trả về chung 1 end_time cho flash sale
+            const endString = data.data[0].end_time;
+            if (endString) {
+                flashSaleEndTime = new Date(endString);
+            }
+        } else {
+            flashSaleProducts.value = [];
+        }
+    } catch (e) {
+        console.error('Lỗi tải Flash Sale:', e);
+        flashSaleProducts.value = [];
+    } finally {
+        isLoadingFlashSale.value = false;
+    }
+};
 
 // ── Category helpers (Updated with Line Art SVGs) ──
 const catIcons = [
@@ -187,9 +226,41 @@ const fetchCategories = async () => {
     try {
         await catalogStore.fetchCategories();
         const data = storeCategories.value || [];
-        Categories.value = (Array.isArray(data) ? data : []).map(cat => ({
+        
+        // Sử dụng Breadth-First Search (BFS) để ưu tiên các danh mục cha cấp cao nhất lên đầu
+        const flattenCategories = (topLevelCats) => {
+            let result = [];
+            let queue = topLevelCats.map(cat => ({ ...cat, parentName: '' }));
+            
+            while(queue.length > 0) {
+                const current = queue.shift();
+                
+                let displayName = current.name;
+                if (current.parentName) {
+                    const childLower = current.name.toLowerCase();
+                    const parentLower = current.parentName.toLowerCase();
+                    // Nếu tên con chưa chứa tên cha (VD: "Vợt" chưa có "Cầu lông")
+                    if (!childLower.includes(parentLower)) {
+                        displayName = `${current.name} ${current.parentName}`;
+                    }
+                }
+                
+                result.push({ ...current, displayName });
+                
+                if (current.children && current.children.length > 0) {
+                    for (const child of current.children) {
+                        queue.push({ ...child, parentName: current.name });
+                    }
+                }
+            }
+            return result;
+        };
+        
+        const flatData = flattenCategories(data);
+        
+        Categories.value = flatData.map(cat => ({
             id: cat.category_id || cat.id,
-            name: cat.name,
+            name: cat.displayName || cat.name,
             slug: cat.slug || '',
             image: getCategoryImage(cat),
             product_count: cat.products_count || cat.product_count || 0,
@@ -380,8 +451,10 @@ onMounted(() => {
     fetchProducts();
     fetchPublicCoupons();
     fetchHomePosts();
-    updateCountdown();
-    countdownTimer = setInterval(updateCountdown, 1000);
+    fetchRealFlashSale().then(() => {
+        updateCountdown();
+        countdownTimer = setInterval(updateCountdown, 1000);
+    });
     // Initialize reveal slightly after mount to ensure DOM is ready
     setTimeout(initScrollReveal, 300);
 });
@@ -402,7 +475,7 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
                 @close="closeCouponDetail"
                 @view-all="goToCouponPage"
             />
-            <FlashSaleSection :flashSaleProducts="flashSaleProducts" :isLoadingFeatured="isLoadingFeatured"
+            <FlashSaleSection :flashSaleProducts="flashSaleProducts" :isLoadingFlashSale="isLoadingFlashSale"
                 :countdown="countdown" />
             <CategoriesSection :Categories="Categories" :isLoadingCategories="isLoadingCategories"
                 :getCatIcon="getCatIcon" :getCatGradient="getCatGradient" />

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useToast } from '@/composables/useToast';
 
 const props = defineProps({
@@ -9,7 +10,25 @@ const props = defineProps({
   },
 });
 
+const router = useRouter();
 const { toast } = useToast(props.toastId);
+
+const handleBuyNow = () => {
+  if (toast.value.data && toast.value.data.variant_id) {
+    sessionStorage.setItem('buy_now_item', JSON.stringify({
+      variant_id: toast.value.data.variant_id,
+      quantity: toast.value.data.qty || 1,
+    }));
+  }
+  
+  const toastEl = document.getElementById(props.toastId);
+  if (toastEl) {
+    const bsToast = window.bootstrap?.Toast.getInstance(toastEl);
+    if (bsToast) bsToast.hide();
+  }
+  
+  router.push({ path: '/checkout', query: { buy_now: '1' } });
+};
 
 // Lấy màu và icon dựa trên loại thông báo
 const toastState = computed(() => {
@@ -32,6 +51,12 @@ const toastState = computed(() => {
         color: '#3b82f6',
         icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`,
         title: 'Thông tin'
+      };
+    case 'cart':
+      return {
+        color: '#22c55e',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
+        title: toast.value.message || 'Thêm vào giỏ thành công'
       };
     default: // success
       return {
@@ -88,28 +113,57 @@ onUnmounted(() => {
       aria-live="assertive"
       aria-atomic="true"
     >
-      <div class="toast-content-wrapper">
-        <!-- Icon Section -->
-        <div class="toast-icon" :style="{ color: toastState.color }" v-html="toastState.icon"></div>
+      <div class="toast-content-wrapper" :class="{'flex-column align-items-stretch': toast.type === 'cart'}">
         
-        <!-- Text Section -->
-        <div class="toast-text">
-          <span class="toast-title" :style="{ color: toastState.color }">{{ toastState.title }}</span>
-          <span class="toast-message">{{ toast.message }}</span>
-        </div>
-        
-        <!-- Close Button -->
-        <button
-          type="button"
-          class="toast-close"
-          data-bs-dismiss="toast"
-          aria-label="Close"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+        <!-- Trạng thái mặc định -->
+        <template v-if="toast.type !== 'cart'">
+          <!-- Icon Section -->
+          <div class="toast-icon" :style="{ color: toastState.color }" v-html="toastState.icon"></div>
+          
+          <!-- Text Section -->
+          <div class="toast-text">
+            <span class="toast-title" :style="{ color: toastState.color }">{{ toastState.title }}</span>
+            <span class="toast-message">{{ toast.message }}</span>
+          </div>
+          
+          <!-- Close Button -->
+          <button type="button" class="toast-close" data-bs-dismiss="toast" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </template>
+
+        <!-- Trạng thái Giỏ hàng hiện đại -->
+        <template v-else>
+          <div class="d-flex align-items-center">
+            <div class="toast-icon" :style="{ color: toastState.color }" v-html="toastState.icon"></div>
+            <span class="toast-title ms-2" :style="{ color: toastState.color }">{{ toastState.title }}</span>
+            <button type="button" class="toast-close ms-auto" data-bs-dismiss="toast" aria-label="Close">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="d-flex align-items-center mt-2" v-if="toast.data">
+            <img :src="toast.data.image" class="rounded object-fit-cover shadow-sm" style="width: 55px; height: 55px; border: 1px solid #f1f5f9;" v-if="toast.data.image" />
+            <div class="ms-3 flex-grow-1 overflow-hidden">
+              <div class="fw-bold text-truncate" style="font-size: 0.9rem; color: #1e293b;">{{ toast.data.name }}</div>
+              <div class="text-muted mt-1 d-flex align-items-center gap-2" style="font-size: 0.8rem;">
+                <span v-if="toast.data.variant" class="badge bg-light text-dark border">{{ toast.data.variant }}</span>
+                <span v-if="toast.data.qty">SL: <b>{{ toast.data.qty }}</b></span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="d-flex gap-2 mt-3 pt-3 border-top border-light">
+            <router-link to="/cart" class="btn btn-light btn-sm flex-grow-1 fw-medium" data-bs-dismiss="toast" style="font-size: 0.85rem;">Xem giỏ hàng</router-link>
+            <button @click="handleBuyNow" class="btn btn-primary btn-sm flex-grow-1 fw-medium text-white" style="font-size: 0.85rem;">Thanh toán ngay</button>
+          </div>
+        </template>
       </div>
       
       <!-- Progress Bar -->

@@ -80,7 +80,7 @@ class Product extends Model
 
     public function lowestPriceVariant()
     {
-        return $this->hasOne(ProductVariant::class, 'product_id')->orderBy('price', 'asc');
+        return $this->hasOne(ProductVariant::class, 'product_id')->ofMany('price', 'min');
     }
 
     // ─── Scout / Meilisearch ───────────────────────────────────────────────

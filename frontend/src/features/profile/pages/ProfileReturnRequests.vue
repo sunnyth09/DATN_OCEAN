@@ -45,9 +45,8 @@ onMounted(() => {
     </div>
 
 
-    <div v-if="myLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải yêu cầu hoàn hàng...</p>
+    <div v-if="myLoading" class="profile-returns-skeleton">
+      <div class="skeleton-pulse" style="height:120px; border-radius:12px; margin-bottom: 20px;" v-for="i in 3" :key="i"></div>
     </div>
 
     <div v-else-if="myRequests.length === 0" class="empty-state">

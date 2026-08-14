@@ -12,8 +12,8 @@ import AppIcon from '@/components/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
-import Swal from 'sweetalert2';
 import { sanitizeHtml } from '@/utils/sanitize';
+import { useToast } from '@/composables/useToast';
 
 const route = useRoute();
 const router = useRouter();
@@ -37,9 +37,9 @@ const relatedProducts = ref([]);
 const addingToCart = ref(false);
 const buyingNow = ref(false);
 const cartVersion = ref(0);
-const toast = ref({ show: false, message: '', type: 'success' });
 const showSizeGuide = ref(false);
 
+const { showToast } = useToast();
 const { isFavorited, toggleFavorite } = useFavorites();
 const handleToggleFav = async () => {
   if (!product.value || !product.value.product_id) return;
@@ -457,11 +457,6 @@ const syncCartVersion = () => {
   cartVersion.value++;
 };
 
-const showToast = (message, type = 'success') => {
-  toast.value = { show: true, message, type };
-  setTimeout(() => { toast.value.show = false; }, 3000);
-};
-
 const addToCart = async () => {
   if (addingToCart.value) return false;
 
@@ -518,11 +513,17 @@ const addToCart = async () => {
       }
       localStorage.setItem('cart_items', JSON.stringify(localItems));
       cartVersion.value++;
-      window.dispatchEvent(new Event('cart-updated'));
+      cartStore.fetchCount()
       if (productImageRef.value) {
         await flyToCart(productImageRef.value, '#cart-icon');
       }
-      showToast('Đã thêm vào giỏ hàng!', 'success');
+      showToast('Đã thêm vào giỏ hàng!', 'cart', {
+        name: product.value.name,
+        variant_id: selectedVariant.value.variant_id,
+        variant: (selectedVariant.value.color || '') + ' ' + (selectedVariant.value.size || ''),
+        qty: quantity.value,
+        image: selectedVariant.value.image_url ? getImageUrl(selectedVariant.value.image_url) : getImageUrl(allImages.value[0]?.image_url)
+      });
       return true;
     } finally {
       addingToCart.value = false;
@@ -537,7 +538,12 @@ const addToCart = async () => {
       if (productImageRef.value) {
         await flyToCart(productImageRef.value, '#cart-icon');
       }
-      showToast(response.message, 'success');
+      showToast(response.message, 'cart', {
+        name: product.value.name,
+        variant: (selectedVariant.value.color || '') + ' ' + (selectedVariant.value.size || ''),
+        qty: quantity.value,
+        image: selectedVariant.value.image_url ? getImageUrl(selectedVariant.value.image_url) : getImageUrl(allImages.value[0]?.image_url)
+      });
       return true;
     }
   } catch (error) {
@@ -1026,22 +1032,6 @@ onBeforeUnmount(() => {
       </div>
     </section>
   </main>
-
-  <!-- Toast -->
-  <Transition name="toast">
-    <div v-if="toast.show" class="toast-notification" :class="toast.type">
-      <svg v-if="toast.type === 'success'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="2.5">
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-      <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="15" y1="9" x2="9" y2="15" />
-        <line x1="9" y1="9" x2="15" y2="15" />
-      </svg>
-      <span>{{ toast.message }}</span>
-    </div>
-  </Transition>
 
   <!-- Virtual Try-On Modal -->
   <VirtualTryOnModal v-if="product?.product_id" :show="showTryOn" :product-id="product?.product_id" :product-name="product?.name"
@@ -1888,41 +1878,7 @@ onBeforeUnmount(() => {
   gap: 20px;
 }
 
-/* Toast */
-.toast-notification {
-  position: fixed;
-  top: 90px;
-  right: 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 22px;
-  border-radius: 10px;
-  font-size: 0.92rem;
-  font-weight: 600;
-  z-index: 999;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-}
 
-.toast-notification.success {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
-}
-
-.toast-notification.error {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-.toast-enter-active {
-  animation: slideInRight 0.3s ease;
-}
-
-.toast-leave-active {
-  animation: slideOutRight 0.3s ease;
-}
 
 /* Modal */
 .modal-overlay {
@@ -2102,6 +2058,11 @@ onBeforeUnmount(() => {
   .pd-main {
     grid-template-columns: 1fr;
     gap: 24px;
+  }
+
+  .pd-desc  .description-content img {
+    max-width: 100%;
+    height: auto;
   }
 
   .pd-desc-panel {

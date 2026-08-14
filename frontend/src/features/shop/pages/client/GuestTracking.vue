@@ -133,9 +133,9 @@ onMounted(loadByToken);
         </button>
       </form>
 
-      <div v-if="loading && token" class="loading-state">
-        <div class="spinner large"></div>
-        <p>Đang tải thông tin vận đơn...</p>
+      <div v-if="loading && token" class="tracking-skeleton" style="margin-top: 30px;">
+        <div class="skeleton-pulse" style="height:150px; border-radius:12px; margin-bottom: 20px;"></div>
+        <div class="skeleton-pulse" style="height:350px; border-radius:12px;"></div>
       </div>
 
       <p v-if="errorMessage" class="tracking-error">{{ errorMessage }}</p>

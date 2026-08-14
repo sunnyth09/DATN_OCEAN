@@ -277,6 +277,8 @@
 </template>
 
 <script setup>
+import { useCartStore } from '@/stores/cart';
+const cartStore = useCartStore();
 import { ref, nextTick, onMounted, watch, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../axios.js';
@@ -475,7 +477,7 @@ async function addVariantToCart(product, variant) {
     });
     const data = response.data;
     pushAssistantMessage(data.message || 'Đã thêm sản phẩm vào giỏ hàng.', data.type || 'cart_summary', data.data);
-    window.dispatchEvent(new Event('cart-updated'));
+    cartStore.fetchCount()
   } catch (error) {
     const message = getAuthFriendlyMessage(error, 'Sản phẩm hiện không khả dụng hoặc không thể thêm vào giỏ hàng.');
     const type = error.response?.status === 401 ? 'requires_login' : (error.response?.data?.type || 'error');
@@ -526,7 +528,7 @@ async function confirmOrder(token) {
     const response = await api.post('/chatbot/order/confirm', { confirmation_token: token });
     const data = response.data;
     pushAssistantMessage(data.message || 'Đặt hàng thành công!', data.type || 'order_confirmation', data.data);
-    window.dispatchEvent(new Event('cart-updated'));
+    cartStore.fetchCount()
   } catch (error) {
     const message = getAuthFriendlyMessage(error, 'Không thể xác nhận đơn hàng. Vui lòng tạo lại bản xem trước.');
     pushAssistantMessage(message, error.response?.status === 401 ? 'requires_login' : 'error', null);

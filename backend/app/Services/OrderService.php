@@ -854,19 +854,19 @@ class OrderService
         try {
             event(new OrderCreatedAdmin($order));
 
-            // Notify Customer
+            // Notify Customer via Queue to optimize performance
             if ($order->user) {
-                Notification::sendNow($order->user, new SystemNotification(
+                Notification::send($order->user, new SystemNotification(
                     'Đặt hàng thành công',
                     'Đơn hàng '.$order->order_code.' của bạn đã được đặt thành công.',
                     '/profile/orders/'.$order->order_id,
-                    'order'
+                    'bell'
                 ));
             }
 
             // Notify Admins
             $admins = User::whereIn('role', ['admin', 'seller'])->get();
-            Notification::sendNow($admins, new SystemNotification(
+            Notification::send($admins, new SystemNotification(
                 'Đơn hàng mới',
                 'Khách hàng vừa đặt đơn hàng '.$order->order_code,
                 '/admin/order/'.$order->order_id,

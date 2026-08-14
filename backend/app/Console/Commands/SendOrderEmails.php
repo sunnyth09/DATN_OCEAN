@@ -94,34 +94,9 @@ class SendOrderEmails extends Command
                 // ─── Bước 2: Gửi email qua SMTP ───
                 $this->sendEmail($order, $recipientEmail);
 
-                // --- Bước 2.1: Tạo thông báo in-app (chỉ cho khách đã đăng nhập) ---
-                if ($user) {
-                    try {
-                        $notificationData = [
-                            'title' => 'Đặt hàng thành công',
-                            'message' => 'Đơn hàng '.$order->order_code.' của bạn đã được ghi nhận.',
-                            'order_code' => $order->order_code,
-                            'grand_total' => $order->grand_total,
-                            'type' => 'order_created',
-                        ];
-
-                        DB::table('notifications')->insert([
-                            'id' => Str::uuid(),
-                            'type' => 'App\Notifications\OrderCreatedNotification',
-                            'notifiable_type' => User::class,
-                            'notifiable_id' => $user->user_id,
-                            'data' => json_encode($notificationData),
-                            'read_at' => null,
-                            'created_at' => Carbon::now(),
-                            'updated_at' => Carbon::now(),
-                        ]);
-
-                        // Broadcast realtime event
-                        event(new UserNotificationEvent($user->user_id, $notificationData));
-                    } catch (\Exception $ex) {
-                        Log::error("Save order notification failed for {$order->order_code}: ".$ex->getMessage());
-                    }
-                } // end if ($user)
+                // ─── LƯU Ý TỐI ƯU ───
+                // Notification in-app (lưu DB & báo Realtime) ĐÃ ĐƯỢC XỬ LÝ tại OrderService lúc tạo đơn.
+                // Để tránh bắn thông báo đúp, Cronjob này CHỈ làm nhiệm vụ gửi Email!
 
                 // ─── Bước 3: Đánh dấu đã gửi ───
                 $order->update(['email_sent' => true]);

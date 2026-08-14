@@ -646,6 +646,11 @@ class ReturnRequestService
         }
 
         ProductVariant::where('variant_id', $item->variant_id)->lockForUpdate()->increment('stock', $quantity);
+        $variant = ProductVariant::find($item->variant_id);
+        if ($variant && $variant->product_id) {
+            \App\Models\Product::where('product_id', $variant->product_id)->decrement('sold_count', $quantity);
+            \Illuminate\Support\Facades\Cache::tags(['products:best-selling'])->flush();
+        }
 
         InventoryTransaction::create([
             'variant_id' => $item->variant_id,

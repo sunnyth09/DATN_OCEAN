@@ -48,5 +48,20 @@ class ProductVariantRepository
              WHERE variant_id IN ({$ids})",
             $bindings
         );
+
+        $variants = DB::table('product_variants')->whereIn('variant_id', $variantIds)->pluck('product_id', 'variant_id');
+        $productQuantities = [];
+        foreach ($orderItems as $item) {
+            $variantId = $item->variant_id;
+            $quantity = $item->quantity;
+            if ($variantId && isset($variants[$variantId])) {
+                $productId = $variants[$variantId];
+                $productQuantities[$productId] = ($productQuantities[$productId] ?? 0) + $quantity;
+            }
+        }
+        foreach ($productQuantities as $productId => $qty) {
+            DB::table('products')->where('product_id', $productId)->decrement('sold_count', $qty);
+        }
+        \Illuminate\Support\Facades\Cache::tags(['products:best-selling'])->flush();
     }
 }

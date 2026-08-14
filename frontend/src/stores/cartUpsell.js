@@ -71,12 +71,12 @@ export const useCartUpsellStore = defineStore('cart-upsell', () => {
                 });
             }
             localStorage.setItem('cart_items', JSON.stringify(cartItems));
-            window.dispatchEvent(new Event('cart-updated'));
+            cartStore.fetchCount()
             return { status: 'success', message: 'Đã thêm vào giỏ hàng (tạm thời)' };
         }
 
         const res = await api.post('/cart/items', { variant_id: variantId, quantity: 1 });
-        window.dispatchEvent(new Event('cart-updated'));
+        cartStore.fetchCount()
         return res.data;
     };
 

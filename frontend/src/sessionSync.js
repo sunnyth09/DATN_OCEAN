@@ -66,7 +66,7 @@ function setupListener() {
 
             // Redirect về login nếu cần
             if (window.location.pathname !== '/client/login') {
-                window.dispatchEvent(new CustomEvent('auth-logout'));
+                authStore.clearSession({ notify: false }); cartStore.reset()
             }
         }
     });

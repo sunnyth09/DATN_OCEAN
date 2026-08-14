@@ -61,9 +61,10 @@ const goBack = () => {
         <span class="order-code">{{ detail.return_code || `#${detail.order?.order_code || detail.order_id}` }}</span>
       </div>
     </div>
-    <div v-if="detailLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải chi tiết yêu cầu hoàn hàng...</p>
+    <div v-if="detailLoading" class="profile-order-detail-skeleton">
+      <div class="skeleton-pulse" style="height:100px; border-radius:12px; margin-bottom:20px;"></div>
+      <div class="skeleton-pulse" style="height:300px; border-radius:12px; margin-bottom:20px;"></div>
+      <div class="skeleton-pulse" style="height:200px; border-radius:12px;"></div>
     </div>
 
     <div v-else-if="detail" class="detail-grid">

@@ -170,9 +170,17 @@ const getAuthorAvatarUrl = (author) => {
       </div>
 
       <!-- Loading State -->
-      <div v-if="isLoading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Đang tải bài viết...</p>
+      <div v-if="isLoading" class="post-list-skeleton">
+        <div class="posts-grid">
+          <div class="post-card-skeleton" v-for="i in 6" :key="i" style="background:#fff; border-radius:12px; overflow:hidden; border:1px solid #eee;">
+            <div class="skeleton-pulse" style="height:200px; width:100%;"></div>
+            <div style="padding: 20px;">
+              <div class="skeleton-pulse" style="height:24px; width:80%; margin-bottom:12px; border-radius:4px;"></div>
+              <div class="skeleton-pulse" style="height:16px; width:100%; margin-bottom:8px; border-radius:4px;"></div>
+              <div class="skeleton-pulse" style="height:16px; width:60%; border-radius:4px;"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Empty State -->

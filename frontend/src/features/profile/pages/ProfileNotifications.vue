@@ -8,8 +8,8 @@
     </div>
     
     <div class="profile-card-body p-0">
-      <div v-if="loading" class="notifications-loading">
-        <div class="spinner"></div>
+      <div v-if="loading" class="notifications-skeleton" style="padding:20px;">
+        <div class="skeleton-pulse" style="height:80px; border-radius:12px; margin-bottom: 12px;" v-for="i in 5" :key="i"></div>
       </div>
       
       <div v-else-if="notifications.length === 0" class="empty-state">

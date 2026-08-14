@@ -10,6 +10,9 @@ use App\Policies\ProductCommentPolicy;
 use App\Policies\ReturnRequestPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,5 +37,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Order::class, OrderPolicy::class);
         Gate::policy(ReturnRequest::class, ReturnRequestPolicy::class);
         Gate::policy(ProductComment::class, ProductCommentPolicy::class);
+
+        RateLimiter::for('strict_api', function (Request $request) {
+            $identifier = $request->user()?->id ?: $request->header('X-Device-ID') ?: $request->ip();
+            return Limit::perMinute(60)->by($identifier);
+        });
     }
 }

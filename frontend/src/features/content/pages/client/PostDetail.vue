@@ -199,9 +199,11 @@ const getUserAvatarUrl = (user) => {
   <div class="static-page">
     <section class="page-content container">
       <!-- Loading State -->
-      <div v-if="isLoading" class="loading-state">
-        <div class="spinner"></div>
-        <p>Đang tải bài viết...</p>
+      <div v-if="isLoading" class="post-detail-skeleton">
+        <div class="skeleton-pulse" style="height:30px; width:40%; margin-bottom:20px; border-radius:4px;"></div>
+        <div class="skeleton-pulse" style="height:50px; width:80%; margin-bottom:30px; border-radius:8px;"></div>
+        <div class="skeleton-pulse" style="height:400px; width:100%; margin-bottom:40px; border-radius:12px;"></div>
+        <div class="skeleton-pulse" style="height:20px; width:100%; margin-bottom:12px; border-radius:4px;" v-for="i in 5" :key="i"></div>
       </div>
 
       <div v-else-if="post" class="detail-layout">
