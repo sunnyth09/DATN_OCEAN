@@ -108,6 +108,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api, { getUser } from '@/axios.js';
+import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
 
@@ -160,11 +161,8 @@ const btnClass = computed(() => {
 const isEnded = computed(() => ended.value);
 const productThumb = computed(() => {
   const t = sale.value?.product_thumbnail;
-  if (!t) return 'https://placehold.co/400x400/E63B6F/FFF?text=Sale';
-  if (t.startsWith('http')) return t;
-  const apiUrl = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8383/api`;
-  const base = apiUrl.replace('/api', '');
-  return `${base}/storage/${t}`;
+  if (!t || t === '0') return 'https://placehold.co/400x400/E63B6F/FFF?text=Sale';
+  return getStorageUrl(t);
 });
 
 // ── Helpers ──

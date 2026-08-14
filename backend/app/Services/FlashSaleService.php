@@ -21,7 +21,7 @@ class FlashSaleService
         $data = Cache::remember('flash_sale_public_list', 5, function () {
             $campaigns = FlashSale::whereIn('status', ['active', 'draft'])
                 ->where('end_time', '>', now())
-                ->with(['items.product'])
+                ->with(['items.product.mainImage', 'items.product.images'])
                 ->orderBy('start_time', 'asc')
                 ->get();
 
@@ -35,13 +35,25 @@ class FlashSaleService
                     $redisStock = Redis::get($stockKey);
                     $remaining = $redisStock !== null ? (int) $redisStock : ($item->campaign_stock - $item->sold);
 
+                    $product = $item->product;
+                    $productThumbnail = null;
+                    if ($product) {
+                        if (!empty($product->thumbnail_url) && $product->thumbnail_url !== '0') {
+                            $productThumbnail = $product->thumbnail_url;
+                        } elseif ($product->mainImage && !empty($product->mainImage->image_url)) {
+                            $productThumbnail = $product->mainImage->image_url;
+                        } elseif ($product->relationLoaded('images') && $product->images && $product->images->isNotEmpty()) {
+                            $productThumbnail = $product->images->first()->image_url;
+                        }
+                    }
+
                     $formatted[] = [
                         'id' => $fs->id,
                         'item_id' => $item->id,
                         'product_id' => $item->product_id,
                         'title' => $fs->name,
                         'product_name' => $item->product->name ?? 'Sản phẩm Flash Sale',
-                        'product_thumbnail' => $item->product->thumbnail_url ?? null,
+                        'product_thumbnail' => $productThumbnail,
                         'sale_price' => (float) $item->campaign_price,
                         'original_price' => (float) $originalPrice,
                         'discount_percent' => $discountPct,
