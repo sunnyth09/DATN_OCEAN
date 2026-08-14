@@ -260,17 +260,28 @@ class SepayController extends Controller
     /**
      * Extract payment code từ nội dung chuyển khoản.
      * Hỗ trợ: WDP (wallet deposit), ORD (order), DH (legacy order)
+     *
+     * Lưu ý: SePay thường strip dấu '-' khỏi nội dung chuyển khoản,
+     * nên 'ORD-F8C62FC5-916' → 'ORDF8C62FC5916'.
+     * Hàm này chuẩn hoá lại về đúng format DB.
      */
     private function extractPaymentCode(string $content): ?string
     {
-        // Wallet deposit: WDP prefix
+        // Wallet deposit: WDP prefix (không cần normalize)
         if (preg_match('/(WDP[A-Za-z0-9]+)/i', $content, $matches)) {
             return strtoupper($matches[1]);
         }
-        // Order: ORD prefix
-        if (preg_match('/(ORD[A-F0-9]+\d*)/i', $content, $matches)) {
-            return strtoupper($matches[1]);
+
+        // Order: ORD prefix — có thể dạng ORD-XXXX-YYY (có hyphen) hoặc ORDXXXXYYYY (không hyphen)
+        // Dạng đầy đủ với hyphen: ORD-[8 hex]-[3 số]
+        if (preg_match('/ORD-([A-F0-9]{8})-(\d{3})/i', $content, $matches)) {
+            return 'ORD-'.strtoupper($matches[1]).'-'.$matches[2];
         }
+        // Dạng SePay đã strip hyphen: ORD[8 hex][3 số] = 14 ký tự sau ORD = 11 ký tự
+        if (preg_match('/ORD([A-F0-9]{8})(\d{3})/i', $content, $matches)) {
+            return 'ORD-'.strtoupper($matches[1]).'-'.$matches[2];
+        }
+
         // Legacy: DH + digits
         if (preg_match('/(DH\d+)/i', $content, $matches)) {
             return strtoupper($matches[1]);
