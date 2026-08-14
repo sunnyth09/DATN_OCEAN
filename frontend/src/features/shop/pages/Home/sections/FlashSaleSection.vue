@@ -1,10 +1,10 @@
 <script setup>
 import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
-defineProps(['flashSaleProducts', 'isLoadingFeatured', 'countdown']);
+defineProps(['flashSaleProducts', 'isLoadingFlashSale', 'countdown']);
 </script>
 <template>
-    <section class="flash-sale-section" v-if="flashSaleProducts.length > 0 || isLoadingFeatured">
+    <section class="flash-sale-section" v-if="flashSaleProducts.length > 0 || isLoadingFlashSale">
         <div class="container py-5">
             <!-- Header row -->
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
@@ -49,7 +49,7 @@ defineProps(['flashSaleProducts', 'isLoadingFeatured', 'countdown']);
             </div>
             <!-- Products grid Bootstrap row -->
             <div class="row g-4">
-                <template v-if="isLoadingFeatured">
+                <template v-if="isLoadingFlashSale">
                     <div v-for="i in 4" :key="i" class="col-6 col-md-4 col-lg-3">
                         <div class="skeleton-pulse" style="min-height:320px;border-radius:12px;"></div>
                     </div>

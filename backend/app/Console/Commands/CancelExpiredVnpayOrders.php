@@ -82,7 +82,13 @@ class CancelExpiredVnpayOrders extends Command
                 foreach ($orderItems as $item) {
                     ProductVariant::where('variant_id', $item->variant_id)
                         ->increment('stock', $item->quantity);
+                        
+                    $variant = ProductVariant::find($item->variant_id);
+                    if ($variant && $variant->product_id) {
+                        \App\Models\Product::where('product_id', $variant->product_id)->decrement('sold_count', $item->quantity);
+                    }
                 }
+                \Illuminate\Support\Facades\Cache::tags(['products:best-selling'])->flush();
 
                 // Hoàn coupon nếu có
                 if ($order->promotion_id) {

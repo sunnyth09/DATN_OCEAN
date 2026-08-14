@@ -12,9 +12,8 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="loading-state">
-      <div class="loading-spinner"></div>
-      <span>Đang tải địa chỉ...</span>
+    <div v-if="loading" class="address-list-skeleton">
+      <div class="skeleton-pulse" style="height:120px; border-radius:12px; margin-bottom:20px;" v-for="i in 3" :key="i"></div>
     </div>
 
     <!-- Address List -->

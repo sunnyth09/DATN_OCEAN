@@ -84,7 +84,16 @@ const getCurrentOrderStatusActions = () => {
   const allowed = order.value.available_transitions || [];
   return allowed
     .filter((status) => {
-      if (status === 'delivered' && order.value.tracking_number) return false;
+      if (status === 'shipping') return false; // Shipping is handled by dedicated UI now
+      
+      // Khóa toàn bộ các trạng thái thuộc về Vận chuyển (Carrier) nếu đang dùng đối tác thứ 3 (GHN/OceanExpress)
+      if (order.value.tracking_number && order.value.tracking_number !== 'SELF-DELIVERY') {
+        const carrierControlledStatuses = ['delivered', 'returning', 'returned', 'warehouse_received'];
+        if (carrierControlledStatuses.includes(status)) {
+          return false;
+        }
+      }
+      
       return Boolean(statusActionDefinitions[status]);
     })
     .map((status) => ({ value: status, ...statusActionDefinitions[status] }));
@@ -322,8 +331,39 @@ const syncGhn = async () => {
   }
 };
 
+const isSelfDelivering = ref(false);
+const confirmSelfDelivery = async () => {
+  if (!order.value) return;
+  const confirmResult = await Swal.fire({
+    title: 'Xác nhận tự giao hàng',
+    text: `Bạn sẽ tự đi giao đơn hàng này? Hệ thống sẽ chuyển sang trạng thái Đang giao.`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#28a745',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Đồng ý',
+    cancelButtonText: 'Hủy'
+  });
+  
+  if (!confirmResult.isConfirmed) return;
+
+  isSelfDelivering.value = true;
+  try {
+    const res = await api.post(`/admin/orders/${order.value.order_id}/self-delivery`);
+    if (res.data.status === 'success') {
+      toast.success(res.data.message || 'Đã chuyển sang tự giao hàng!');
+      window.dispatchEvent(new Event('admin-order-updated'));
+      await fetchOrder();
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Không thể cập nhật tự giao hàng');
+  } finally {
+    isSelfDelivering.value = false;
+  }
+};
+
 const lookupGhnStatus = async (sync = true) => {
-  if (!order.value?.tracking_number) return;
+  if (!order.value?.tracking_number || order.value.tracking_number === 'SELF-DELIVERY') return;
   isLookingUpGhn.value = true;
   try {
     const res = await api.post('/ghn/order-detail', {
@@ -541,21 +581,25 @@ onMounted(() => fetchOrder());
               Cập nhật trạng thái
             </h3>
             <div class="action-group">
-              <label class="action-label">Xử lý đơn hàng</label>
-              <div class="status-inline-row">
-                <span class="status-readonly-badge" :class="getStatusBadgeClass(order.fulfillment_status)">
-                  {{ getStatusLabel(order.fulfillment_status) }}
-                </span>
+              <label class="action-label mb-2">Thao tác khả dụng</label>
+              
+              <div v-if="order.tracking_number && order.tracking_number !== 'SELF-DELIVERY' && !getCurrentOrderStatusActions().length" class="alert alert-info py-2 px-3 mb-0" style="font-size: 0.85rem">
+                Trạng thái đang được đồng bộ tự động từ hãng vận chuyển.
+              </div>
+
+              <div class="status-action-buttons">
                 <button
                   v-for="action in getCurrentOrderStatusActions()"
                   :key="action.value"
-                  class="btn-status-action"
-                  :class="action.value"
+                  class="btn-status-large"
+                  :class="'btn-' + action.value"
                   @click="updateOrderStatus(action)"
                   :disabled="isStatusActionLoading"
                   :title="action.label"
-                  :aria-label="action.label"
-                ><AppIcon :name="action.icon" size="14" stroke-width="3" /></button>
+                >
+                  <AppIcon :name="action.icon" size="18" stroke-width="2.5" />
+                  <span>{{ action.label }}</span>
+                </button>
               </div>
             </div>
             <div class="action-group">
@@ -597,23 +641,37 @@ onMounted(() => fetchOrder());
 
           <!-- Thông tin giao hàng -->
           <div class="info-card">
-            <h3 class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
               <div style="display:flex; align-items:center; gap: 10px;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 Giao hàng
-                <span v-if="order.tracking_number" class="status-badge badge-success sm ms-2">Mã vận đơn: {{ order.tracking_number }}</span>
+                <span v-if="order.tracking_number === 'SELF-DELIVERY'" class="status-badge badge-success sm ms-2">
+                  <AppIcon name="user-check" size="14" class="me-1" /> Shop tự giao
+                </span>
+                <span v-else-if="order.tracking_number" class="status-badge badge-info sm ms-2">Mã vận đơn: {{ order.tracking_number }}</span>
               </div>
-              <div style="display: flex; gap: 8px;">
-                <button v-if="!order.tracking_number" class="btn-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
-                   {{ isSyncingGhn ? 'Đang đẩy...' : 'Đẩy đơn vận chuyển' }}
+              
+              <!-- Khối thao tác đẩy đơn/tự giao -->
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="order.available_transitions?.includes('shipping')">
+                <button class="btn-lookup-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
+                   <AppIcon name="truck" size="16" class="me-1" />
+                   {{ isSyncingGhn ? 'Đang đẩy...' : 'Giao qua đối tác' }}
                 </button>
-                <button v-if="order.tracking_number" class="btn-lookup-ghn" @click="lookupGhnStatus(true)" :disabled="isLookingUpGhn">
+                <button class="btn-print" style="background-color: #28a745" @click="confirmSelfDelivery" :disabled="isSelfDelivering || order.fulfillment_status === 'cancelled'">
+                   <AppIcon name="user" size="16" class="me-1" />
+                   {{ isSelfDelivering ? 'Đang xử lý...' : 'Shop tự đi giao' }}
+                </button>
+              </div>
+              
+              <!-- Khối tracking đối tác -->
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="order.tracking_number && order.tracking_number !== 'SELF-DELIVERY'">
+                <button class="btn-lookup-ghn" @click="lookupGhnStatus(true)" :disabled="isLookingUpGhn">
                    {{ isLookingUpGhn ? 'Đang tra...' : 'Tra cứu đơn' }}
                 </button>
-                <button v-if="order.tracking_number" class="btn-print" @click="printLabel" :disabled="isPrinting">
+                <button class="btn-print" @click="printLabel" :disabled="isPrinting">
                    {{ isPrinting ? 'Đang tạo...' : 'In vận đơn' }}
                 </button>
-                <button v-if="order.tracking_number" class="btn-cancel-ghn" @click="cancelGhnOrder" :disabled="isCanceling">
+                <button class="btn-cancel-ghn" @click="cancelGhnOrder" :disabled="isCanceling">
                    Hủy vận đơn
                 </button>
               </div>
@@ -1039,7 +1097,35 @@ onMounted(() => fetchOrder());
 .btn-status-action.delivered { background: #dbeafe; color: #1d4ed8; }
 .btn-status-action.cancelled { background: #fee2e2; color: #b91c1c; }
 .btn-status-action:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(0.96); }
-.btn-status-action:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.status-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.btn-status-large {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: var(--surface-container-low);
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+.btn-status-large.btn-confirmed,
+.btn-status-large.btn-completed { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.btn-status-large.btn-processing { background: #e0f2fe; color: #0369a1; border-color: #bae6fd; }
+.btn-status-large.btn-packing { background: #ede9fe; color: #6d28d9; border-color: #ddd6fe; }
+.btn-status-large.btn-shipping,
+.btn-status-large.btn-delivered { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+.btn-status-large.btn-cancelled { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+.btn-status-large:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); filter: brightness(0.96); }
+.btn-status-large:disabled { opacity: 0.6; cursor: not-allowed; }.btn-status-action:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 /* Info Rows */
 .info-rows { display: flex; flex-direction: column; gap: 14px; }

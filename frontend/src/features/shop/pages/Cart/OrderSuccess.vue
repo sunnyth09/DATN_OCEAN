@@ -113,9 +113,11 @@ onMounted(() => {
                 <div class="title-divider"></div>
             </div>
 
-            <div v-if="loading" class="loading-state">
-                <div class="small-spinner"></div>
-                <p>Đang tải sản phẩm gợi ý...</p>
+            <div v-if="loading" class="order-success-skeleton" style="text-align: center; padding: 40px 20px;">
+                <div class="skeleton-pulse" style="width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 20px;"></div>
+                <div class="skeleton-pulse" style="height: 30px; width: 60%; margin: 0 auto 16px; border-radius: 8px;"></div>
+                <div class="skeleton-pulse" style="height: 20px; width: 40%; margin: 0 auto 30px; border-radius: 8px;"></div>
+                <div class="skeleton-pulse" style="height: 150px; width: 100%; max-width: 500px; margin: 0 auto; border-radius: 12px;"></div>
             </div>
 
             <div v-else-if="relatedProducts.length > 0" class="products-grid">

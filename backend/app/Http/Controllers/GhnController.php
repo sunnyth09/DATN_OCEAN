@@ -68,42 +68,121 @@ class GhnController extends Controller
             'sync' => 'nullable|boolean',
         ]);
 
-        $detail = GHNService::getOrderDetail($data['order_code']);
-        if (empty($detail)) {
+        $order = Order::where('tracking_number', $data['order_code'])
+            ->orWhere('ghn_order_code', $data['order_code'])
+            ->first();
+
+        // 1. Nếu là Ocean Express
+        if ($order && $order->tracking_number === $data['order_code']) {
+            $detail = \App\Services\OceanExpressService::getTracking($data['order_code']);
+
+            if (empty($detail)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Không tìm thấy vận đơn Ocean Express hoặc chưa có dữ liệu hành trình.',
+                ], 404);
+            }
+
+            $oeStatus = $detail['status'] ?? null;
+            $mappedStatus = match ($oeStatus) {
+                'ready_to_pick' => 'confirmed',
+                'picking', 'in_hub', 'delivering' => 'shipping',
+                'delivered' => 'delivered',
+                'returned' => 'return_requested',
+                default => null,
+            };
+
+            // Tìm log mới nhất
+            $latestLog = collect($detail['logs'] ?? [])->sortByDesc('timestamp')->first();
+            
+            $syncResult = [
+                'changed' => false,
+                'history_created' => false,
+            ];
+
+            // Nếu cờ sync = true, cập nhật trạng thái vào cơ sở dữ liệu
+            if (!empty($data['sync']) && $mappedStatus && $mappedStatus !== $order->fulfillment_status) {
+                $oldStatus = $order->fulfillment_status;
+                $order->update(['fulfillment_status' => $mappedStatus]);
+                
+                \App\Models\OrderStatusHistory::create([
+                    'order_id' => $order->order_id,
+                    'old_status' => $oldStatus,
+                    'new_status' => $mappedStatus,
+                    'note' => 'Đồng bộ từ Ocean Express',
+                    'source' => 'carrier_api',
+                    'description' => $latestLog['note'] ?? $oeStatus,
+                    'happened_at' => $latestLog['timestamp'] ? \Carbon\Carbon::parse($latestLog['timestamp']) : now(),
+                    'location' => $detail['receiver_address'] ?? null,
+                    'ghn_status' => $oeStatus,
+                ]);
+
+                $syncResult['changed'] = true;
+                $syncResult['history_created'] = true;
+                $order->refresh();
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => $syncResult['changed'] ? 'Đã cập nhật trạng thái đơn hàng từ Ocean Express' : 'Lấy trạng thái vận chuyển thành công',
+                'data' => [
+                    'order_code' => $data['order_code'],
+                    'ghn_status' => $oeStatus, // Giữ tên key ghn_status cho FE tương thích
+                    'mapped_status' => $mappedStatus,
+                    'local_status' => $order->fulfillment_status,
+                    'changed' => $syncResult['changed'],
+                    'history_created' => $syncResult['history_created'],
+                    'happened_at' => $latestLog['timestamp'] ?? null,
+                    'location' => $detail['receiver_address'] ?? null,
+                    'description' => $latestLog['note'] ?? $oeStatus,
+                    'raw' => $detail,
+                ],
+            ]);
+        }
+
+        // 2. Fallback cho đơn GHN cũ (nếu có)
+        try {
+            $detail = GHNService::getOrderDetail($data['order_code']);
+            if (empty($detail)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Không tìm thấy vận đơn GHN hoặc GHN chưa trả dữ liệu.',
+                ], 404);
+            }
+
+            $syncResult = null;
+            if ($order && ! empty($data['sync'])) {
+                $syncResult = $this->statusSyncService->syncFromDetail($order, $detail);
+                $order->refresh();
+            }
+
+            $ghnStatus = $detail['status'] ?? $detail['Status'] ?? null;
+            $mappedStatus = $ghnStatus ? $this->statusSyncService->mapGhnStatus($ghnStatus) : null;
+
+            return response()->json([
+                'status' => 'success',
+                'message' => $syncResult
+                    ? ($syncResult['message'] ?? 'Đã đồng bộ trạng thái GHN')
+                    : 'Lấy trạng thái GHN thành công',
+                'data' => [
+                    'order_code' => $data['order_code'],
+                    'ghn_status' => $ghnStatus,
+                    'mapped_status' => $mappedStatus,
+                    'local_status' => $order?->fulfillment_status,
+                    'changed' => $syncResult['changed'] ?? false,
+                    'history_created' => $syncResult['history_created'] ?? false,
+                    'happened_at' => $syncResult['happened_at'] ?? ($detail['UpdatedDate'] ?? $detail['updated_date'] ?? null),
+                    'location' => $syncResult['location'] ?? ($detail['CurrentWarehouseName'] ?? $detail['current_warehouse_name'] ?? null),
+                    'description' => $syncResult['description'] ?? ($detail['status_name'] ?? $detail['StatusName'] ?? $ghnStatus),
+                    'raw' => $detail,
+                ],
+            ]);
+        } catch (\Throwable $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Không tìm thấy vận đơn GHN hoặc GHN chưa trả dữ liệu.',
-            ], 404);
+                'message' => $e->getMessage(),
+            ], 400);
         }
-
-        $order = Order::where('ghn_order_code', $data['order_code'])->first();
-        $syncResult = null;
-        if ($order && ! empty($data['sync'])) {
-            $syncResult = $this->statusSyncService->syncFromDetail($order, $detail);
-            $order->refresh();
-        }
-
-        $ghnStatus = $detail['status'] ?? $detail['Status'] ?? null;
-        $mappedStatus = $ghnStatus ? $this->statusSyncService->mapGhnStatus($ghnStatus) : null;
-
-        return response()->json([
-            'status' => 'success',
-            'message' => $syncResult
-                ? ($syncResult['message'] ?? 'Đã đồng bộ trạng thái GHN')
-                : 'Lấy trạng thái GHN thành công',
-            'data' => [
-                'order_code' => $data['order_code'],
-                'ghn_status' => $ghnStatus,
-                'mapped_status' => $mappedStatus,
-                'local_status' => $order?->fulfillment_status,
-                'changed' => $syncResult['changed'] ?? false,
-                'history_created' => $syncResult['history_created'] ?? false,
-                'happened_at' => $syncResult['happened_at'] ?? ($detail['UpdatedDate'] ?? $detail['updated_date'] ?? null),
-                'location' => $syncResult['location'] ?? ($detail['CurrentWarehouseName'] ?? $detail['current_warehouse_name'] ?? null),
-                'description' => $syncResult['description'] ?? ($detail['status_name'] ?? $detail['StatusName'] ?? $ghnStatus),
-                'raw' => $detail,
-            ],
-        ]);
     }
 
     public function cancelOrder(Request $request)
@@ -113,35 +192,66 @@ class GhnController extends Controller
             'reason' => 'required|string|max:255',
         ]);
 
-        $result = GHNService::cancelOrder($data['order_code']);
-
-        $order = Order::where('ghn_order_code', $data['order_code'])->first();
-        if ($order && (($result['code'] ?? 200) === 200)) {
-            $oldStatus = $order->fulfillment_status;
-            $order->update([
-                'fulfillment_status' => 'cancelled',
-                'cancelled_at' => now(),
-                'cancel_reason' => $data['reason'],
-            ]);
-
-            OrderStatusHistory::create([
-                'order_id' => $order->order_id,
-                'old_status' => $oldStatus,
-                'new_status' => 'cancelled',
-                'note' => $data['reason'],
-                'source' => 'manual',
-                'description' => $data['reason'],
-                'happened_at' => now(),
-            ]);
+        $order = Order::where('tracking_number', $data['order_code'])
+            ->orWhere('ghn_order_code', $data['order_code'])
+            ->first();
+            
+        if ($order && $order->tracking_number === $data['order_code']) {
+            return response()->json([
+                'code' => 400,
+                'status' => 'error',
+                'message' => 'Ocean Express hiện không hỗ trợ hủy đơn qua API. Vui lòng liên hệ tổng đài.'
+            ], 400);
         }
 
-        return response()->json($result);
+        try {
+            $result = GHNService::cancelOrder($data['order_code']);
+
+            if ($order && (($result['code'] ?? 200) === 200)) {
+                $oldStatus = $order->fulfillment_status;
+                $order->update([
+                    'fulfillment_status' => 'cancelled',
+                    'cancelled_at' => now(),
+                    'cancel_reason' => $data['reason'],
+                ]);
+
+                OrderStatusHistory::create([
+                    'order_id' => $order->order_id,
+                    'old_status' => $oldStatus,
+                    'new_status' => 'cancelled',
+                    'note' => $data['reason'],
+                    'source' => 'manual',
+                    'description' => $data['reason'],
+                    'happened_at' => now(),
+                ]);
+            }
+
+            return response()->json($result);
+        } catch (\Throwable $e) {
+            return response()->json(['code' => 400, 'message' => $e->getMessage()], 400);
+        }
     }
 
     public function printLabel(Request $request)
     {
         $request->validate(['order_code' => 'required|string']);
 
-        return response()->json(GHNService::printLabel($request->order_code));
+        $order = Order::where('tracking_number', $request->order_code)
+            ->orWhere('ghn_order_code', $request->order_code)
+            ->first();
+
+        if ($order && $order->tracking_number === $request->order_code) {
+            return response()->json([
+                'code' => 400,
+                'status' => 'error',
+                'message' => 'Ocean Express hiện không hỗ trợ in vận đơn qua API.'
+            ], 400);
+        }
+
+        try {
+            return response()->json(GHNService::printLabel($request->order_code));
+        } catch (\Throwable $e) {
+            return response()->json(['code' => 400, 'message' => $e->getMessage()], 400);
+        }
     }
 }

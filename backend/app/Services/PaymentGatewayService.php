@@ -79,11 +79,8 @@ class PaymentGatewayService
         $amount = (int) $order->grand_total;
         $orderCode = $order->order_code;
 
-        // VietQR API: https://img.vietqr.io/image/{BANK_BIN}-{ACCOUNT}-{template}.png
-        $qrUrl = "https://img.vietqr.io/image/{$bankBin}-{$bankAccount}-compact2.png"
-            ."?amount={$amount}"
-            .'&addInfo='.urlencode($orderCode)
-            .'&accountName='.urlencode($accountName);
+        // Sepay QR API
+        $qrUrl = "https://qr.sepay.vn/img?acc={$bankAccount}&bank={$bankBin}&amount={$amount}&des=".urlencode($orderCode);
 
         $this->paymentRepository->create([
             'order_id' => $order->order_id,

@@ -7,15 +7,15 @@ export const useToastStore = defineStore('toast', () => {
 
     const ensureToast = (toastId = 'appToast') => {
         if (!registry.value[toastId]) {
-            registry.value[toastId] = { message: '', type: 'success' };
+            registry.value[toastId] = { message: '', type: 'success', data: null };
         }
         return registry.value[toastId];
     };
 
     const getToast = (toastId = 'appToast') => computed(() => ensureToast(toastId));
 
-    const showToast = (toastId = 'appToast', message, type = 'success') => {
-        registry.value[toastId] = { message, type };
+    const showToast = (toastId = 'appToast', message, type = 'success', data = null) => {
+        registry.value[toastId] = { message, type, data };
 
         requestAnimationFrame(() => {
             const el = document.getElementById(toastId);

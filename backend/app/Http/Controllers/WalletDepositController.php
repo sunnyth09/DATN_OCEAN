@@ -150,10 +150,7 @@ class WalletDepositController extends Controller
         $bankAccount = config('services.bank.account_number');
         $accountName = config('services.bank.account_name');
 
-        $qrUrl = "https://img.vietqr.io/image/{$bankBin}-{$bankAccount}-compact2.png"
-            ."?amount={$amount}"
-            .'&addInfo='.urlencode($depositCode)
-            .'&accountName='.urlencode($accountName);
+        $qrUrl = "https://qr.sepay.vn/img?acc={$bankAccount}&bank={$bankBin}&amount={$amount}&des=".urlencode($depositCode);
 
         $this->storePendingDeposit($user->user_id, $depositCode, $amount, 'bank_transfer');
 

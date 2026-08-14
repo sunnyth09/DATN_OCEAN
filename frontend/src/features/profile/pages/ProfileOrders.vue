@@ -1,4 +1,6 @@
 <script setup>
+import { useCartStore } from '@/stores/cart';
+const cartStore = useCartStore();
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { orderService } from '@/services/orderService';
@@ -182,7 +184,7 @@ const buyAgain = async (orderId) => {
       } else {
         showToast('Thêm vào giỏ hàng thành công!', 'success');
       }
-      window.dispatchEvent(new Event('cart-updated'));
+      cartStore.fetchCount()
       router.push('/cart');
     }
   } catch (error) {
@@ -217,9 +219,8 @@ onMounted(() => {
       </button>
     </div>
 
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải danh sách đơn hàng...</p>
+    <div v-if="loading" class="profile-orders-skeleton">
+      <div class="skeleton-pulse" style="height:150px; border-radius:12px; margin-bottom: 20px;" v-for="i in 3" :key="i"></div>
     </div>
 
     <div v-else-if="orders.length === 0" class="empty-state">

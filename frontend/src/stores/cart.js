@@ -57,7 +57,7 @@ export const useCartStore = defineStore('cart', () => {
       quantity,
     });
 
-    window.dispatchEvent(new Event('cart-updated'));
+    cartStore.fetchCount()
     return response.data;
   };
 

@@ -482,9 +482,10 @@ watch(orderId, (newId) => {
       </div>
     </div>
 
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải chi tiết đơn hàng...</p>
+    <div v-if="loading" class="profile-order-detail-skeleton">
+      <div class="skeleton-pulse" style="height:100px; border-radius:12px; margin-bottom:20px;"></div>
+      <div class="skeleton-pulse" style="height:300px; border-radius:12px; margin-bottom:20px;"></div>
+      <div class="skeleton-pulse" style="height:200px; border-radius:12px;"></div>
     </div>
 
     <div v-else-if="order" class="order-content">

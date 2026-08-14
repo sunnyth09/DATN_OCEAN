@@ -155,6 +155,8 @@
 </template>
 
 <script setup>
+import { useAuthStore } from '@/stores/auth';
+const authStore = useAuthStore();
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
@@ -375,7 +377,7 @@ const updateProfile = async () => {
 
     syncUser(res.data.data);
     sessionStorage.setItem('user', JSON.stringify(res.data.data));
-    window.dispatchEvent(new Event('user-updated'));
+    authStore.hydrate()
 
     avatarFile.value   = null;
     // FIX M3: Revoke preview URL

@@ -1,4 +1,6 @@
 <script setup>
+import { useCartStore } from '@/stores/cart';
+const cartStore = useCartStore();
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
@@ -156,7 +158,7 @@ const confirmVariantChange = async () => {
             showToast('Đã cập nhật phân loại sản phẩm!', 'success');
             closeVariantModal();
             await fetchCart(false);
-            window.dispatchEvent(new Event('cart-updated'));
+            cartStore.fetchCount()
         }
         variantModal.value.confirming = false;
         return;
@@ -170,7 +172,7 @@ const confirmVariantChange = async () => {
             showToast('Đã cập nhật biến thể sản phẩm!', 'success');
             closeVariantModal();
             await fetchCart(false); // Cập nhật lại list ngầm, không hiện spinner toàn trang
-            window.dispatchEvent(new Event('cart-updated'));
+            cartStore.fetchCount()
         }
     } catch (e) {
         let msg = 'Không thể đổi biến thể. Vui lòng thử lại.';
@@ -433,7 +435,7 @@ const changeQuantity = (item, rawQuantity) => {
         }
         
         const timer = setTimeout(() => {
-            window.dispatchEvent(new Event('cart-updated'));
+            cartStore.fetchCount()
             quantityInputTimers.delete(key);
         }, QUANTITY_INPUT_DEBOUNCE_MS);
         
@@ -489,7 +491,7 @@ const removeItem = async (item) => {
         localStorage.setItem('cart_items', JSON.stringify(localItems));
         showToast('Đã xóa sản phẩm khỏi giỏ hàng!', 'success');
         updateSelectAllState();
-        window.dispatchEvent(new Event('cart-updated'));
+        cartStore.fetchCount()
         return;
     }
 
@@ -498,7 +500,7 @@ const removeItem = async (item) => {
         cartItems.value = cartItems.value.filter(i => i.cart_item_id !== item.cart_item_id);
         showToast('Đã xóa sản phẩm khỏi giỏ hàng!', 'success');
         updateSelectAllState();
-        window.dispatchEvent(new Event('cart-updated'));
+        cartStore.fetchCount()
     } catch (error) {
         showToast('Không thể xóa sản phẩm. Vui lòng thử lại.', 'error');
     }
@@ -520,7 +522,7 @@ const clearCart = async () => {
         cartItems.value = [];
         localStorage.removeItem('cart_items');
         showToast('Đã xóa toàn bộ giỏ hàng!', 'success');
-        window.dispatchEvent(new Event('cart-updated'));
+        cartStore.fetchCount()
         return;
     }
 
@@ -528,7 +530,7 @@ const clearCart = async () => {
         await api.delete('/cart');
         cartItems.value = [];
         showToast('Đã xóa toàn bộ giỏ hàng!', 'success');
-        window.dispatchEvent(new Event('cart-updated'));
+        cartStore.fetchCount()
     } catch (error) {
         showToast('Không thể xóa giỏ hàng. Vui lòng thử lại.', 'error');
     }

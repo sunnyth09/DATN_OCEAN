@@ -1,4 +1,6 @@
 ﻿<script setup>
+import { useCartStore } from '@/stores/cart';
+const cartStore = useCartStore();
 import { ref } from 'vue';
 import { useCartUpsell } from '@/composables/useCartUpsell';
 import { getStorageUrl } from '@/utils/url';
@@ -38,7 +40,7 @@ const handleQuickAdd = async (item) => {
         if (result.status === 'success') {
             addedIds.value.push(item.variant_id);
             // Dispatch để header badge + Index.vue biết cập nhật
-            window.dispatchEvent(new CustomEvent('cart-updated'));
+            cartStore.fetchCount()
             // Xóa trạng thái "added" sau 2.5s
             setTimeout(() => {
                 addedIds.value = addedIds.value.filter(id => id !== item.variant_id);

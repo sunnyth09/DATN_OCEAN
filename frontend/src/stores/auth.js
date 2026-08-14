@@ -99,7 +99,7 @@ export const useAuthStore = defineStore('auth', () => {
     isHydrated.value = true;
 
     if (notify) {
-      window.dispatchEvent(new Event('user-updated'));
+      hydrate()
     }
 
     if (token.value && user.value) {
@@ -121,7 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
     isHydrated.value = true;
 
     if (notify) {
-      window.dispatchEvent(new Event('user-updated'));
+      hydrate()
     }
   };
 
@@ -135,7 +135,7 @@ export const useAuthStore = defineStore('auth', () => {
     isHydrated.value = true;
 
     if (notify) {
-      window.dispatchEvent(new Event('user-updated'));
+      hydrate()
     }
   };
 

@@ -5,6 +5,28 @@ import { useToast } from '@/composables/useToast';
 
 const { showToast } = useToast();
 
+const copyToClipboard = async (text) => {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Đã sao chép thành công', 'success');
+  } catch (err) {
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast('Đã sao chép thành công', 'success');
+  }
+};
+
+const preventInvalidNumber = (e) => {
+  if (['e', 'E', '+', '-', '.'].includes(e.key)) {
+    e.preventDefault();
+  }
+};
+
 // State
 const loading = ref(true);
 const summary = ref(null);
@@ -207,6 +229,13 @@ const submitWithdraw = async () => {
     showToast('Số tiền rút tối thiểu 10,000₫', 'error');
     return;
   }
+  
+  const fee = 1000;
+  if ((amount + fee) > (summary.value?.deposit_balance || 0)) {
+    showToast(`Số dư không đủ. Cần tối thiểu ${formatPrice(amount + fee)} (đã bao gồm phí)`, 'error');
+    return;
+  }
+
   if (!selectedBank.value) {
     showToast('Vui lòng chọn tài khoản ngân hàng', 'error');
     return;
@@ -466,7 +495,7 @@ onMounted(async () => {
 
             <div class="dm-body">
               <label class="dm-label">Số tiền nạp</label>
-              <input type="number" v-model="depositAmount" class="dm-input" placeholder="Nhập số tiền (tối thiểu 10,000₫)" min="10000" />
+              <input type="number" v-model="depositAmount" class="dm-input" placeholder="Nhập số tiền (tối thiểu 10,000₫)" min="10000" @keydown="preventInvalidNumber" />
 
               <div class="preset-amounts">
                 <button v-for="amt in presetAmounts" :key="amt"
@@ -517,7 +546,10 @@ onMounted(async () => {
               <div class="deposit-info-rows">
                 <div class="dir-row">
                   <span>Số tài khoản</span>
-                  <strong>{{ depositResult.banking_info?.account_number }}</strong>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <strong>{{ depositResult.banking_info?.account_number }}</strong>
+                    <button class="btn-copy" @click="copyToClipboard(depositResult.banking_info?.account_number)" title="Sao chép">📋</button>
+                  </div>
                 </div>
                 <div class="dir-row">
                   <span>Chủ TK</span>
@@ -529,7 +561,10 @@ onMounted(async () => {
                 </div>
                 <div class="dir-row">
                   <span>Nội dung CK</span>
-                  <strong class="text-primary">{{ depositResult.deposit_code }}</strong>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <strong class="text-primary">{{ depositResult.deposit_code }}</strong>
+                    <button class="btn-copy" @click="copyToClipboard(depositResult.deposit_code)" title="Sao chép">📋</button>
+                  </div>
                 </div>
               </div>
               <div class="deposit-note">
@@ -565,7 +600,7 @@ onMounted(async () => {
               </div>
 
               <label class="dm-label">Số tiền rút</label>
-              <input type="number" v-model="withdrawAmount" class="dm-input" placeholder="Tối thiểu 10,000₫" min="10000" />
+              <input type="number" v-model="withdrawAmount" class="dm-input" placeholder="Tối thiểu 10,000₫" min="10000" @keydown="preventInvalidNumber" />
               <p class="withdraw-fee-note">Phí rút: <strong>1,000₫</strong>/lần · Thực nhận: <strong>{{ withdrawAmount ? formatPrice(Math.max(0, withdrawAmount)) : '—' }}</strong></p>
 
               <!-- Chọn TK ngân hàng -->
@@ -612,7 +647,13 @@ onMounted(async () => {
               <div class="withdraw-success-icon">✅</div>
               <h4 class="withdraw-success-title">Đã trừ số dư ví</h4>
               <div class="deposit-info-rows">
-                <div class="dir-row"><span>Mã rút tiền</span><strong class="text-primary">{{ withdrawResult.withdrawal_code }}</strong></div>
+                <div class="dir-row">
+                  <span>Mã rút tiền</span>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <strong class="text-primary">{{ withdrawResult.withdrawal_code }}</strong>
+                    <button class="btn-copy" @click="copyToClipboard(withdrawResult.withdrawal_code)" title="Sao chép">📋</button>
+                  </div>
+                </div>
                 <div class="dir-row"><span>Số tiền rút</span><strong>{{ formatPrice(withdrawResult.amount) }}</strong></div>
                 <div class="dir-row"><span>Phí rút</span><strong>{{ formatPrice(withdrawResult.fee) }}</strong></div>
                 <div class="dir-row"><span>Tổng trừ ví</span><strong class="text-red">{{ formatPrice(withdrawResult.total_deducted) }}</strong></div>
@@ -940,7 +981,7 @@ onMounted(async () => {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.5);
   backdrop-filter: blur(4px);
-  z-index: 1000;
+  z-index: 9999;
   display: flex; align-items: center; justify-content: center;
   padding: 16px;
 }
@@ -954,7 +995,7 @@ onMounted(async () => {
   box-shadow: 0 20px 60px rgba(0,0,0,0.15);
 }
 .dm-header {
-  padding: 20px 24px;
+  padding: 14px 20px;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid #f3f4f6;
 }
@@ -969,7 +1010,7 @@ onMounted(async () => {
   transition: background 0.2s;
 }
 .dm-close:hover { background: #e5e7eb; }
-.dm-body { padding: 24px; }
+.dm-body { padding: 16px 20px; }
 .dm-label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 8px; }
 .mt-16 { margin-top: 16px; }
 .dm-input {
@@ -1020,7 +1061,7 @@ onMounted(async () => {
 
 .btn-confirm-deposit {
   width: 100%;
-  padding: 14px;
+  padding: 12px;
   background: var(--primary);
   color: #fff;
   border: none;
@@ -1028,7 +1069,7 @@ onMounted(async () => {
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
-  margin-top: 20px;
+  margin-top: 12px;
   transition: all 0.2s;
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }
@@ -1037,11 +1078,11 @@ onMounted(async () => {
 
 /* QR body */
 .qr-body { text-align: center; }
-.deposit-qr { width: 220px; height: 220px; border-radius: 12px; margin-bottom: 16px; }
+.deposit-qr { width: 180px; height: 180px; border-radius: 12px; margin-bottom: 12px; }
 .deposit-info-rows { text-align: left; margin-bottom: 16px; }
 .dir-row {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #f3f4f6;
   font-size: 0.88rem;
 }
@@ -1049,6 +1090,8 @@ onMounted(async () => {
 .dir-row strong { color: #1f2937; }
 .text-green { color: #10b981 !important; }
 .text-primary { color: var(--primary) !important; }
+.btn-copy { background: none; border: none; cursor: pointer; font-size: 1.05rem; padding: 0; filter: grayscale(1); opacity: 0.6; transition: all 0.2s; }
+.btn-copy:hover { opacity: 1; filter: grayscale(0); transform: scale(1.1); }
 .deposit-note {
   display: flex; align-items: flex-start; gap: 8px;
   background: #fffbeb;

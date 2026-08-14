@@ -94,8 +94,8 @@ const priceOptions = [
 const sortOptions = [
     { value: 'latest', label: 'Mới nhất' },
     { value: 'oldest', label: 'Cũ nhất' },
-    { value: 'price_asc', label: 'Giá tăng dần' },
-    { value: 'price_desc', label: 'Giá giảm dần' }
+    { value: 'price-asc', label: 'Giá tăng dần' },
+    { value: 'price-desc', label: 'Giá giảm dần' }
 ];
 const currentPage = ref(parseInt(route.query.page) || 1);
 const totalProducts = ref(0);
@@ -116,6 +116,8 @@ const buildMedia = (path) => {
     return `${storageUrl}/${clean}`;
 };
 
+const productCache = new Map();
+
 const fetchProducts = async () => {
     isLoading.value = true;
     try {
@@ -130,10 +132,28 @@ const fetchProducts = async () => {
         if (brandFilter.value) params.append('brand_ids', brandFilter.value);
         if (sortByFilter.value) params.append('sort_by', sortByFilter.value);
         if (priceFilter.value) params.append('price_range', priceFilter.value);
+        
+        const cacheKey = params.toString();
+        
+        // Fast Cache Check
+        if (productCache.has(cacheKey)) {
+            const cached = productCache.get(cacheKey);
+            products.value = cached.products;
+            totalProducts.value = cached.total;
+            isLoading.value = false;
+            isInitialLoad.value = false;
+            return; // Exit early since we have cached data
+        }
 
-        const response = await api.get(`/products?${params.toString()}`);
+        const response = await api.get(`/products?${cacheKey}`);
         products.value = response.data.data || response.data;
         totalProducts.value = response.data.total || products.value.length;
+        
+        // Save to Cache
+        productCache.set(cacheKey, {
+            products: products.value,
+            total: totalProducts.value
+        });
     } catch (error) {
         console.error('Error fetching products:', error);
     } finally {
@@ -232,10 +252,26 @@ const updateRouteAndFetch = () => {
     
     router.replace({ query }).catch(() => {});
     
+    // Build cache key to check if we can load instantly
+    const params = new URLSearchParams({ page: currentPage.value, limit: limit });
+    if (searchQuery.value) params.append('search', searchQuery.value);
+    if (statusFilter.value) params.append('status', statusFilter.value);
+    if (categoryFilter.value) params.append('category_id', categoryFilter.value);
+    if (brandFilter.value) params.append('brand_ids', brandFilter.value);
+    if (sortByFilter.value) params.append('sort_by', sortByFilter.value);
+    if (priceFilter.value) params.append('price_range', priceFilter.value);
+    
+    if (productCache.has(params.toString())) {
+        clearTimeout(filterTimeout);
+        fetchProducts(); // Instant hit
+        return;
+    }
+    
+    isInitialLoad.value = true;
     clearTimeout(filterTimeout);
     filterTimeout = setTimeout(() => {
         fetchProducts();
-    }, 400); // 400ms debounce
+    }, 300); // 300ms debounce
 };
 
 let searchTimeout;
@@ -259,10 +295,6 @@ const handleAdvancedFilter = () => {
 const handleFilterStatus = (status) => {
     statusFilter.value = statusFilter.value === status ? '' : status;
     currentPage.value = 1;
-
-    if (status === 'deleted') {
-        statusFilter.value = 'deleted';
-    }
     updateRouteAndFetch();
 };
 
@@ -300,6 +332,7 @@ const handleDelete = async (productId, isDeleted) => {
     try {
         await api.delete(`/products/${productId}`);
         showToastMsg(isDeleted ? 'Xóa vĩnh viễn thành công.' : 'Xóa sản phẩm thành công.', 'success');
+        productCache.clear();
         fetchProducts();
     } catch (error) {
         console.error('Error deleting product:', error);
@@ -330,6 +363,7 @@ const handleBulkDelete = async () => {
         
         showToastMsg(`Đã xóa thành công ${selectedProducts.value.length} sản phẩm.`, 'success');
         selectedProducts.value = [];
+        productCache.clear();
         fetchProducts();
     } catch (error) {
         console.error('Error bulk deleting products:', error);
@@ -360,6 +394,7 @@ const handleBulkStatusChange = async (newStatus) => {
         
         showToastMsg(`Đã cập nhật trạng thái cho ${selectedProducts.value.length} sản phẩm.`, 'success');
         selectedProducts.value = [];
+        productCache.clear();
         fetchProducts();
     } catch (error) {
         console.error('Error bulk updating status:', error);
@@ -510,6 +545,7 @@ const handleRestore = async (productId) => {
     try {
         await api.put(`/products/${productId}/restore`);
         showToastMsg('Khôi phục sản phẩm thành công.', 'success');
+        productCache.clear();
         fetchProducts();
     } catch (error) {
         console.error('Error restoring product:', error);
@@ -621,6 +657,7 @@ const handleImportExcel = async () => {
         };
         closeImportModal();
         showImportResult.value = true;
+        productCache.clear();
         fetchProducts();
 
     } catch (error) {
