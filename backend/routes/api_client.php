@@ -89,6 +89,7 @@ Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'resetPa
 
 // OAuth callbacks (Public)
 Route::post('/auth/google/callback', [AuthController::class, 'googleCallback']);
+Route::post('/auth/google/mobile', [AuthController::class, 'googleMobileLogin']);
 Route::post('/auth/facebook/callback', [AuthController::class, 'facebookCallback']);
 Route::middleware('throttle:20,1')->post('/refresh', [AuthController::class, 'refresh']);
 

@@ -52,7 +52,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể chọn ảnh')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể chọn ảnh')));
+      }
     }
   }
   
@@ -98,13 +100,14 @@ class _ReviewScreenState extends State<ReviewScreen> {
         data: formData,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đánh giá thành công! Cảm ơn bạn.'), backgroundColor: Colors.green));
-        context.pop(true);
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đánh giá thành công! Cảm ơn bạn.'), backgroundColor: Colors.green));
+      context.pop(true);
     } on DioException catch (e) {
-      final message = e.response?.data is Map ? e.response?.data['message'] : null;
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message ?? 'Không thể gửi đánh giá!'), backgroundColor: Colors.red));
+      if (mounted) {
+        final message = e.response?.data is Map ? e.response?.data['message'] : null;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message ?? 'Không thể gửi đánh giá!'), backgroundColor: Colors.red));
+      }
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
     } finally {
@@ -208,7 +211,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F), width: 1.5)),
                     ),
                   ),
                   const SizedBox(height: 16),

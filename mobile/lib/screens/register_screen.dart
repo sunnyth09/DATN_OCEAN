@@ -1,6 +1,9 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_text_field.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,14 +13,43 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  bool _obscureText = true;
-  bool _obscureTextConfirm = true;
   bool _isLoading = false;
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
+
+  void _handleGoogleLogin() async {
+    setState(() => _isLoading = true);
+
+    final result = await context.read<AuthProvider>().loginWithGoogle(context: context);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đăng nhập bằng Google thành công!'),
+          backgroundColor: Color(0xFF10B981),
+        ),
+      );
+      if (mounted) {
+        context.go('/');
+      }
+    } else {
+      final msg = result['message']?.toString() ?? 'Đăng nhập Google thất bại!';
+      if (!msg.contains('hủy')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
+    }
+  }
 
   void _handleRegister() async {
     final name = _nameController.text.trim();
@@ -163,11 +195,82 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: const Color(0xFFE63B6F),
                         elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       child: _isLoading 
                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Đăng ký', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          : const Text('Đăng ký tài khoản', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Divider
+                  Row(
+                    children: [
+                      const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Hoặc tiếp tục với',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Google Sign-In Button
+                  InkWell(
+                    onTap: _isLoading ? null : _handleGoogleLogin,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      height: 50,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEA4335).withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.g_mobiledata_rounded,
+                              color: Color(0xFFEA4335),
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'Đăng ký với Google',
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   
@@ -188,38 +291,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required TextEditingController controller,
     bool isConfirmPass = false,
   }) {
-    bool obscure = isConfirmPass ? _obscureTextConfirm : _obscureText;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword && obscure,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
-          prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
-          suffixIcon: isPassword ? IconButton(
-            icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF64748B), size: 20),
-            onPressed: () {
-              setState(() {
-                if (isConfirmPass) {
-                  _obscureTextConfirm = !_obscureTextConfirm;
-                } else {
-                  _obscureText = !_obscureText;
-                }
-              });
-            },
-          ) : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        ),
-      ),
+    return AppTextField(
+      controller: controller,
+      hintText: hint,
+      prefixIcon: icon,
+      isPassword: isPassword,
     );
   }
 }

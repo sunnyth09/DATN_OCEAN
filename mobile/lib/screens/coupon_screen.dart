@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../config/app_theme.dart';
-import 'login_screen.dart';
 
 class CouponScreen extends StatefulWidget {
   const CouponScreen({super.key});
@@ -283,12 +282,19 @@ class _CouponScreenState extends State<CouponScreen> {
         ),
         child: TextField(
           onChanged: (v) => setState(() => searchQuery = v),
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             hintText: 'Tìm mã giảm giá...',
-            hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
-            prefixIcon: const Icon(Icons.search, color: AppColors.primary, size: 20),
+            hintStyle: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+            prefixIcon: Icon(Icons.search, color: AppColors.primary, size: 20),
+            isDense: true,
+            filled: false,
             border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(vertical: 14),
           ),
         ),
       ),

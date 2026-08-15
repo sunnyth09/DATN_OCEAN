@@ -1,13 +1,124 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
+import '../config/app_config.dart';
+import '../screens/google_oauth_webview_screen.dart';
 import 'api_client.dart';
 import 'storage_service.dart';
 
 class AuthService {
   static const String keyToken = 'access_token';
   static const String keyUser = 'user_data';
+
+  static Future<Map<String, dynamic>> exchangeGoogleCode(String code) async {
+    try {
+      final response = await ApiClient().dio.post(
+        '/auth/google/callback',
+        data: {'code': code},
+      );
+
+      final data = response.data;
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        await StorageService.write(keyToken, data['access_token']);
+        await StorageService.write(keyUser, jsonEncode(data['user']));
+        return {
+          'success': true,
+          'message': 'Đăng nhập Google thành công',
+          'user': data['user'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Đăng nhập Google thất bại!',
+        };
+      }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      return {
+        'success': false,
+        'message': data?['message'] ?? 'Lỗi kết nối khi xác thực Google.',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi xác thực Google: $e'};
+    }
+  }
+
+  static Future<Map<String, dynamic>> loginWithGoogle({BuildContext? context}) async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        serverClientId: AppConfig.kGoogleClientId,
+        scopes: ['email', 'profile'],
+      );
+
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
+
+      final GoogleSignInAccount? account = await googleSignIn.signIn();
+      if (account == null) {
+        return {'success': false, 'message': 'Đã hủy đăng nhập Google.'};
+      }
+
+      final GoogleSignInAuthentication auth = await account.authentication;
+
+      final response = await ApiClient().dio.post(
+        '/auth/google/mobile',
+        data: {
+          'id_token': auth.idToken,
+          'google_id': account.id,
+          'email': account.email,
+          'name': account.displayName,
+          'avatar_url': account.photoUrl,
+        },
+      );
+
+      final data = response.data;
+      if (response.statusCode == 200 && data['status'] == 'success') {
+        await StorageService.write(keyToken, data['access_token']);
+        await StorageService.write(keyUser, jsonEncode(data['user']));
+        return {
+          'success': true,
+          'message': 'Đăng nhập Google thành công',
+          'user': data['user'],
+        };
+      } else {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Đăng nhập Google thất bại!',
+        };
+      }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      return {
+        'success': false,
+        'message': data?['message'] ?? 'Lỗi kết nối máy chủ khi đăng nhập Google.',
+      };
+    } catch (e) {
+      // If native Google Sign-In throws PlatformException (e.g. SHA-1 mismatch / ApiException: 10)
+      // seamlessly fallback to the OAuth WebView!
+      if (context != null && context.mounted) {
+        final code = await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            builder: (context) => const GoogleOAuthWebViewScreen(),
+          ),
+        );
+
+        if (code != null && code.isNotEmpty) {
+          return await exchangeGoogleCode(code);
+        } else {
+          return {'success': false, 'message': 'Đã hủy đăng nhập Google.'};
+        }
+      }
+
+      return {
+        'success': false,
+        'message': 'Lỗi đăng nhập Google: $e',
+      };
+    }
+  }
 
   static Future<Map<String, dynamic>> login(
     String email,

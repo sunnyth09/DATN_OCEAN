@@ -6,6 +6,7 @@ import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../widgets/shimmer_loading.dart';
+import '../utils/format_utils.dart';
 
 class FlashSaleScreen extends StatefulWidget {
   const FlashSaleScreen({super.key});
@@ -338,16 +339,16 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     final product = item['product'] as Map<String, dynamic>? ?? {};
     final variant = item['variant'] as Map<String, dynamic>? ?? {};
     final name = product['name'] ?? 'Sản phẩm';
-    final salePrice = item['sale_price'] ?? variant['price'] ?? 0;
-    final originalPrice =
-        item['original_price'] ?? variant['price'] ?? salePrice;
+    final num salePrice = FormatUtils.parseNum(item['sale_price'] ?? variant['price']);
+    final num originalPrice = FormatUtils.parseNum(
+        item['original_price'] ?? variant['price'] ?? salePrice);
     final stock = item['stock'] ?? 0;
     final sold = item['sold'] ?? 0;
     final total = stock + sold;
     final progress = total > 0 ? sold / total : 0.0;
     final imageUrl = AppConfig.productImageUrl(product);
 
-    final discountPercent = originalPrice > 0
+    final discountPercent = originalPrice > salePrice && originalPrice > 0
         ? (((originalPrice - salePrice) / originalPrice) * 100).round()
         : 0;
 

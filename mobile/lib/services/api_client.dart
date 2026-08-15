@@ -65,7 +65,8 @@ class ApiClient {
             options.headers['User-Agent'] = kMobileUserAgent;
           }
 
-          final token = await StorageService.read('access_token');
+          final token = StorageService.readSync('access_token') ??
+              await StorageService.read('access_token');
           if (token != null && token.trim().isNotEmpty && token != 'null') {
             options.headers['Authorization'] = 'Bearer $token';
           }

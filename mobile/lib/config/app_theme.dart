@@ -2,118 +2,121 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// ============================================================
-/// HỆ THỐNG THEME TẬP TRUNG - ĐỒNG BỘ VỚI WEBSITE
-/// ============================================================
-/// Tất cả màu sắc, typography, styles được định nghĩa ở đây.
-/// Dựa theo file design_datn.md và website hiện tại.
+/// HỆ THỐNG THEME TẬP TRUNG & DESIGN SYSTEM CAO CẤP - OCEAN SPORT
 /// ============================================================
 
 class AppColors {
   AppColors._();
 
   // ── Màu chủ đạo (Primary) ──
-  static const Color primary = Color(0xFFE63B6F);
-  static const Color primaryDark = Color(0xFFB50C4D);
-  static const Color primaryLight = Color(0xFFFF8FAB);
-  static const Color primaryContainer = Color(0xFFD82F65);
+  static const Color primary = Color(0xFFE63B6F); // Vibrant Magenta / Rose
+  static const Color primaryDark = Color(0xFFC72859);
+  static const Color primaryLight = Color(0xFFFF5C8D);
+  static const Color primarySoft = Color(0xFFFFF0F5);
+  static const Color primaryContainer = Color(0xFFFFF0F5);
   static const Color onPrimary = Color(0xFFFFFFFF);
 
-  // ── Màu chữ / Text ──
-  static const Color textPrimary = Color(0xFF2D3436);
-  static const Color textSecondary = Color(0xFF636E72);
-  // Slate-500: đạt WCAG AA (~4.7:1) trên nền trắng cho text thường.
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color textDark = Color(0xFF0F172A);
-  static const Color textLabel = Color(0xFF334155);
+  // ── Màu phụ / Accent (Secondary / Sport Ocean) ──
+  static const Color secondary = Color(0xFF0F172A); // Midnight Navy
+  static const Color secondaryLight = Color(0xFF334155);
+  static const Color tertiary = Color(0xFFF59E0B); // Amber Accent
+  static const Color accent = Color(0xFF38BDF8); // Electric Cyan
+  static const Color court = Color(0xFF10B981);
+  static const Color courtLight = Color(0xFFD1FAE5);
 
-  // ── Bề mặt / Surface ──
-  static const Color surface = Color(0xFFF8F9FA);
-  static const Color surfaceDim = Color(0xFFD9DADB);
-  static const Color background = Color(0xFFFFFFFF);
+  // ── Màu chữ / Typography ──
+  static const Color textPrimary = Color(0xFF0F172A); // Slate 900
+  static const Color textSecondary = Color(0xFF475569); // Slate 600
+  static const Color textMuted = Color(0xFF94A3B8); // Slate 400
+  static const Color textDark = Color(0xFF020617); // Slate 950
+  static const Color textLabel = Color(0xFF334155); // Slate 700
+  static const Color textInverse = Color(0xFFFFFFFF);
+
+  // ── Bề mặt / Surfaces ──
+  static const Color background = Color(0xFFF8FAFC); // Slate 50
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceDim = Color(0xFFF1F5F9); // Slate 100
   static const Color cardBackground = Color(0xFFFFFFFF);
 
-  // ── Viền / Border ──
-  static const Color border = Color(0xFFE9ECEF);
-  static const Color borderLight = Color(0xFFF1F3F5);
+  // ── Viền / Borders ──
+  static const Color border = Color(0xFFE2E8F0); // Slate 200
+  static const Color borderLight = Color(0xFFF1F5F9); // Slate 100
   static const Color divider = Color(0xFFE2E8F0);
 
-  // ── Trạng thái ──
+  // ── Trạng thái / Semantic Status ──
   static const Color success = Color(0xFF10B981);
+  static const Color successLight = Color(0xFFDCFCE7);
   static const Color error = Color(0xFFEF4444);
+  static const Color errorLight = Color(0xFFFEE2E2);
   static const Color warning = Color(0xFFF59E0B);
+  static const Color warningLight = Color(0xFFFEF3C7);
   static const Color info = Color(0xFF3B82F6);
+  static const Color infoLight = Color(0xFFDBEAFE);
 
-  // ── Tertiary (xanh lá) ──
-  static const Color tertiary = Color(0xFF006B2D);
-
-  // ── Overlay / Shadow ──
-  static const Color shadowColor = Color(0x14293346); // rgba(45, 52, 70, 0.08)
-
-  // ── Primary nhạt (cho chip, badge, selected bg) ──
-  static Color get primarySoft => primary.withValues(alpha: 0.10);
+  // ── Primary nhạt ──
   static Color get primarySoftBg => primary.withValues(alpha: 0.06);
 }
 
-class AppTextStyles {
-  AppTextStyles._();
+class AppGradients {
+  AppGradients._();
 
-  // ── Headlines ──
-  static const TextStyle headlineXl = TextStyle(
-    fontSize: 48,
-    fontWeight: FontWeight.w800,
-    height: 56 / 48,
-    letterSpacing: -0.02 * 48,
-    color: AppColors.textDark,
-  );
-  static const TextStyle headlineLg = TextStyle(
-    fontSize: 32,
-    fontWeight: FontWeight.w700,
-    height: 40 / 32,
-    letterSpacing: -0.01 * 32,
-    color: AppColors.textDark,
-  );
-  static const TextStyle headlineLgMobile = TextStyle(
-    fontSize: 28,
-    fontWeight: FontWeight.w700,
-    height: 36 / 28,
-    color: AppColors.textDark,
-  );
-  static const TextStyle headlineMd = TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.w700,
-    height: 32 / 24,
-    color: AppColors.textDark,
+  static const LinearGradient primary = LinearGradient(
+    colors: [Color(0xFFE63B6F), Color(0xFFFF6584)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
 
-  // ── Body ──
-  static const TextStyle bodyLg = TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.w400,
-    height: 28 / 18,
-    color: AppColors.textPrimary,
-  );
-  static const TextStyle bodyMd = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.w400,
-    height: 24 / 16,
-    color: AppColors.textPrimary,
+  static const LinearGradient hero = LinearGradient(
+    colors: [Color(0xFFE63B6F), Color(0xFFFF8FAB)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
 
-  // ── Labels ──
-  static const TextStyle labelMd = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w600,
-    height: 20 / 14,
-    letterSpacing: 0.01 * 14,
-    color: AppColors.textPrimary,
+  static const LinearGradient vipGold = LinearGradient(
+    colors: [Color(0xFFF59E0B), Color(0xFFFBBF24), Color(0xFFD97706)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
-  static const TextStyle labelSm = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w700,
-    height: 16 / 12,
-    letterSpacing: 0.05 * 12,
-    color: AppColors.textPrimary,
+
+  static const LinearGradient courtBooking = LinearGradient(
+    colors: [Color(0xFF059669), Color(0xFF10B981), Color(0xFF34D399)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
+
+  static const LinearGradient darkCard = LinearGradient(
+    colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+}
+
+class AppShadows {
+  AppShadows._();
+
+  static List<BoxShadow> get card => [
+    BoxShadow(
+      color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+      blurRadius: 12,
+      offset: const Offset(0, 4),
+    ),
+  ];
+
+  static List<BoxShadow> get floating => [
+    BoxShadow(
+      color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+      blurRadius: 20,
+      offset: const Offset(0, 8),
+    ),
+  ];
+
+  static List<BoxShadow> get primaryGlow => [
+    BoxShadow(
+      color: AppColors.primary.withValues(alpha: 0.28),
+      blurRadius: 16,
+      offset: const Offset(0, 6),
+    ),
+  ];
 }
 
 class AppTheme {
@@ -132,72 +135,135 @@ class AppTheme {
         seedColor: AppColors.primary,
         primary: AppColors.primary,
         onPrimary: AppColors.onPrimary,
-        secondary: const Color(0xFF586062),
+        secondary: AppColors.secondary,
         surface: AppColors.surface,
         error: AppColors.error,
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: AppColors.surface,
+      scaffoldBackgroundColor: AppColors.background,
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.onPrimary,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textDark,
         elevation: 0,
         centerTitle: true,
+        scrolledUnderElevation: 0.5,
+        shadowColor: Colors.black.withValues(alpha: 0.05),
         titleTextStyle: GoogleFonts.plusJakartaSans(
           fontSize: 18,
-          fontWeight: FontWeight.w700,
-          color: AppColors.onPrimary,
+          fontWeight: FontWeight.w800,
+          color: AppColors.textDark,
+          letterSpacing: -0.2,
         ),
+        iconTheme: const IconThemeData(color: AppColors.textDark),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.onPrimary,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(16),
           ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          textStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          side: const BorderSide(color: AppColors.primary, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          textStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.background,
+        fillColor: AppColors.surface,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
-          vertical: 16,
+          vertical: 14,
         ),
-        hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+        hintStyle: GoogleFonts.plusJakartaSans(
+          color: AppColors.textMuted,
+          fontSize: 13.5,
+        ),
       ),
       cardTheme: CardThemeData(
         color: AppColors.cardBackground,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           side: const BorderSide(color: AppColors.borderLight),
         ),
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,
         thickness: 1,
+        space: 1,
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.background,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textMuted,
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        indicatorColor: AppColors.primarySoft,
+        elevation: 10,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            );
+          }
+          return GoogleFonts.plusJakartaSans(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMuted,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.primary, size: 24);
+          }
+          return const IconThemeData(color: AppColors.textMuted, size: 24);
+        }),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColors.primary,
@@ -205,7 +271,19 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.textDark,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
   }

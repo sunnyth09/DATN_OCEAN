@@ -264,7 +264,9 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       ),
       GoRoute(
         path: '/chat',
-        builder: (context, state) => const ChatScreen(),
+        builder: (context, state) => ChatScreen(
+          inquiryProduct: state.extra as Map<String, dynamic>?,
+        ),
       ),
     ],
   );

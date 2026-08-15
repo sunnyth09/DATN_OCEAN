@@ -1,12 +1,12 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'main_wrapper.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
 import '../services/notification_service.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
+import '../widgets/app_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,7 +16,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  bool _obscureText = true;
   bool _isLoading = false;
 
   final _emailController = TextEditingController();
@@ -50,6 +49,37 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
       );
+    }
+  }
+
+  void _handleGoogleLogin() async {
+    setState(() => _isLoading = true);
+
+    final result = await context.read<AuthProvider>().loginWithGoogle(context: context);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đăng nhập bằng Google thành công!'),
+          backgroundColor: Color(0xFF10B981),
+        ),
+      );
+      if (mounted) {
+        context.go('/');
+      }
+    } else {
+      final msg = result['message']?.toString() ?? 'Đăng nhập Google thất bại!';
+      if (!msg.contains('hủy')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
     }
   }
 
@@ -236,32 +266,57 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
-                  // Social Login
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildSocialBtn(
-                        Icons.g_mobiledata,
-                        const Color(0xFFDB4437),
+                  // Google Sign-In Button
+                  InkWell(
+                    onTap: _isLoading ? null : _handleGoogleLogin,
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      height: 50,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 16),
-                      _buildSocialBtn(Icons.facebook, const Color(0xFF4267B2)),
-                      const SizedBox(width: 16),
-                      _buildSocialBtn(Icons.apple, Colors.black),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Center(
-                    child: Text(
-                      'Đăng nhập Google, Facebook và Apple sẽ sớm ra mắt.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEA4335).withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.g_mobiledata_rounded,
+                              color: Color(0xFFEA4335),
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'Tiếp tục với Google',
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 36),
 
                   // Đăng ký
                   Row(
@@ -309,68 +364,11 @@ class _LoginScreenState extends State<LoginScreen> {
     bool isPassword = false,
     required TextEditingController controller,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword && _obscureText,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
-          prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
-          suffixIcon: isPassword
-              ? IconButton(
-                  icon: Icon(
-                    _obscureText
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: const Color(0xFF64748B),
-                    size: 20,
-                  ),
-                  onPressed: () => setState(() => _obscureText = !_obscureText),
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 16),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSocialBtn(IconData icon, Color color) {
-    return Tooltip(
-      message: 'Tính năng sắp ra mắt',
-      child: Opacity(
-        opacity: 0.45,
-        child: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Icon(icon, color: color, size: 28),
-        ),
-      ),
+    return AppTextField(
+      controller: controller,
+      hintText: hint,
+      prefixIcon: icon,
+      isPassword: isPassword,
     );
   }
 }

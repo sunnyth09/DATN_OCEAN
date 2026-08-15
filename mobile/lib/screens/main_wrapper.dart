@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../config/app_theme.dart';
-import '../providers/auth_provider.dart';
-import '../providers/cart_provider.dart';
 
 class MainWrapper extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -16,17 +13,6 @@ class MainWrapper extends StatefulWidget {
 
 class _MainWrapperState extends State<MainWrapper> {
   void _onItemTapped(int index) {
-    if (index >= 2) {
-      final loggedIn = context.read<AuthProvider>().isAuthenticated;
-      if (!loggedIn) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vui lòng đăng nhập để tiếp tục')),
-        );
-        context.push('/login');
-        return;
-      }
-    }
-
     widget.navigationShell.goBranch(
       index,
       initialLocation: index == widget.navigationShell.currentIndex,
@@ -48,31 +34,30 @@ class _MainWrapperState extends State<MainWrapper> {
       onDestinationSelected: _onItemTapped,
       backgroundColor: Colors.white,
       indicatorColor: AppColors.primarySoft,
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      destinations: [
-        const NavigationDestination(
+      elevation: 10,
+      shadowColor: Colors.black.withValues(alpha: 0.08),
+      destinations: const [
+        NavigationDestination(
           icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home, color: AppColors.primary),
+          selectedIcon: Icon(Icons.home_rounded, color: AppColors.primary),
           label: 'Trang chủ',
         ),
-        const NavigationDestination(
+        NavigationDestination(
           icon: Icon(Icons.grid_view_outlined),
-          selectedIcon: Icon(Icons.grid_view, color: AppColors.primary),
+          selectedIcon: Icon(Icons.grid_view_rounded, color: AppColors.primary),
           label: 'Cửa hàng',
         ),
-        const NavigationDestination(
+        NavigationDestination(
           icon: Icon(Icons.sports_tennis_outlined),
-          selectedIcon: Icon(Icons.sports_tennis, color: AppColors.primary),
+          selectedIcon: Icon(Icons.sports_tennis_rounded, color: AppColors.primary),
           label: 'Sân cầu',
         ),
-        const NavigationDestination(
-          icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person, color: AppColors.primary),
+        NavigationDestination(
+          icon: Icon(Icons.person_outline_rounded),
+          selectedIcon: Icon(Icons.person_rounded, color: AppColors.primary),
           label: 'Tài khoản',
         ),
       ],
     );
   }
 }
-

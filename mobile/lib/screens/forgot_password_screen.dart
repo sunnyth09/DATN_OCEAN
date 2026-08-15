@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
+import '../widgets/app_text_field.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -312,41 +313,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     bool isPassword = false,
     TextInputType keyboardType = TextInputType.text,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            controller: controller,
-            obscureText: isPassword,
-            keyboardType: keyboardType,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 14,
-              ),
-              prefixIcon: Icon(icon, color: const Color(0xFF64748B), size: 20),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-          ),
-        ),
-      ],
+    return AppTextField(
+      labelText: label,
+      hintText: hint,
+      controller: controller,
+      prefixIcon: icon,
+      isPassword: isPassword,
+      keyboardType: keyboardType,
     );
   }
 

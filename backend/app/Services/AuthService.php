@@ -350,6 +350,81 @@ class AuthService
         }
     }
 
+    public function googleMobileLogin(?string $idToken, ?string $googleId, ?string $email, ?string $name, ?string $avatar): array
+    {
+        try {
+            if ($idToken) {
+                try {
+                    $response = Http::timeout(5)->get('https://oauth2.googleapis.com/tokeninfo', [
+                        'id_token' => $idToken,
+                    ]);
+
+                    if ($response->successful()) {
+                        $payload = $response->json();
+                        $googleId = $payload['sub'] ?? $googleId;
+                        $email = $payload['email'] ?? $email;
+                        $name = $payload['name'] ?? $name ?? 'Google User';
+                        $avatar = $payload['picture'] ?? $avatar;
+                    }
+                } catch (\Exception $ex) {
+                    Log::warning('Google tokeninfo check skipped/failed: '.$ex->getMessage());
+                }
+            }
+
+            if (!$email) {
+                return ['_status' => 422, 'status' => 'error', 'message' => 'Không tìm thấy thông tin email từ Google!'];
+            }
+
+            // Check if admin
+            $admin = Admin::where('email', $email)->first();
+            if ($admin) {
+                if (isset($admin->status) && $admin->status !== 'active') {
+                    return ['_status' => 403, 'status' => 'error', 'message' => 'Tài khoản của bạn đã bị khóa hoặc vô hiệu hóa!'];
+                }
+
+                $token = auth('admin')->login($admin);
+
+                return [
+                    '_status' => 200,
+                    'status' => 'success',
+                    'message' => 'Đăng nhập Google thành công!',
+                    'access_token' => $token,
+                    'refresh_token' => $token,
+                    'token_type' => 'Bearer',
+                    'expires_in' => auth('admin')->factory()->getTTL() * 60,
+                    'role' => $admin->role ?? 'admin',
+                    'user' => clone $admin,
+                ];
+            }
+
+            // Find or create customer
+            $user = $this->findOrCreateOAuthUser('google', $googleId ?? $email, $email, $name ?? 'Google User', $avatar);
+
+            if (is_array($user) && isset($user['_status'])) {
+                return $user;
+            }
+
+            $model = $this->userRepository->findModel($user->user_id);
+            $token = auth('api')->login($model);
+
+            return [
+                '_status' => 200,
+                'status' => 'success',
+                'message' => 'Đăng nhập Google thành công!',
+                'access_token' => $token,
+                'refresh_token' => $token,
+                'token_type' => 'Bearer',
+                'expires_in' => auth('api')->factory()->getTTL() * 60,
+                'role' => $user->role ?? 'customer',
+                'user' => clone $user,
+            ];
+        } catch (\Exception $e) {
+            Log::error('Google Mobile login error: '.$e->getMessage());
+
+            return ['_status' => 500, 'status' => 'error', 'message' => 'Đăng nhập Google thất bại: '.$e->getMessage()];
+        }
+    }
+
     // ─── FACEBOOK OAUTH ────────────────────────────────────────────────
 
     public function facebookCallback(string $code): array

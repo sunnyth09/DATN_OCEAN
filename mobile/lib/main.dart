@@ -21,20 +21,22 @@ void main() async {
   await initializeDateFormatting('vi_VN', null);
   await initializeDateFormatting('vi', null);
 
-  // Khởi tạo Firebase TRƯỚC khi dùng FCM
+  // Khởi tạo Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Khởi tạo NotificationService → xin quyền + đăng ký FCM handlers
-  await NotificationService().initialize();
+  final authProvider = AuthProvider();
+
+  // Chạy các tác vụ khởi động song song để mở app tức thì
+  await Future.wait([
+    authProvider.bootstrap(),
+    NotificationService().initialize(),
+    SharedPreferences.getInstance(),
+  ]);
 
   final prefs = await SharedPreferences.getInstance();
-  final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;
-
-  // Khôi phục phiên đăng nhập từ SecureStorage vào AuthProvider.
-  final authProvider = AuthProvider();
-  await authProvider.bootstrap();
+  final isFirstLaunch = (prefs.getBool('is_first_launch') ?? true) && !authProvider.isAuthenticated;
 
   runApp(MyApp(isFirstLaunch: isFirstLaunch, authProvider: authProvider));
 }

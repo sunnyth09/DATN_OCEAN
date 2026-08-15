@@ -180,11 +180,18 @@ class _SearchScreenState extends State<SearchScreen> {
                       icon: Icon(Icons.close, color: Colors.grey.shade500, size: 18),
                       onPressed: () {
                         _searchController.clear();
-                        setState(() {}); // Update suffix icon visibility
+                        setState(() {});
                       },
                     )
                   : null,
+              isDense: true,
+              filled: false,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             onChanged: (val) {

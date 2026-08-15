@@ -1,12 +1,8 @@
-import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../widgets/network_image_widget.dart';
 import '../services/api_client.dart';
-import '../services/auth_service.dart';
-import '../utils/format_utils.dart';
 import '../widgets/shimmer_loading.dart';
-import '../config/app_config.dart';
+import '../widgets/product_card.dart';
 
 class ProductListScreen extends StatefulWidget {
   final int? categoryId;
@@ -228,7 +224,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           },
                         )
                       : null,
+                  isDense: true,
+                  filled: false,
                   border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -252,6 +255,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
       },
       child: CustomScrollView(
         controller: _scrollController,
+        cacheExtent: 800,
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         slivers: [
           if (isLoading && products.isEmpty)
             const SliverShimmerLoading(
@@ -318,17 +323,22 @@ class _ProductListScreenState extends State<ProductListScreen> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               sliver: SliverGrid(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 20,
-                  childAspectRatio: 0.62,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 0.65,
                 ),
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  return _buildProductCard(products[index]);
-                }, childCount: products.length),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    return ProductCard(product: products[index]);
+                  },
+                  childCount: products.length,
+                  addRepaintBoundaries: true,
+                  addAutomaticKeepAlives: false,
+                ),
               ),
             ),
           if (isFetchingMore)
@@ -353,175 +363,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  Future<void> _toggleFavorite(Map<String, dynamic> product) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final loggedIn = await AuthService.isLoggedIn();
-      if (!loggedIn) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Vui lòng đăng nhập để lưu!')),
-        );
-        return;
-      }
-      await ApiClient().dio.post(
-        '/profile/favorites/toggle',
-        data: {'product_id': product['product_id'] ?? product['id']},
-      );
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Đã cập nhật danh sách yêu thích!'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-    } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Không thể cập nhật yêu thích. Vui lòng thử lại.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Widget _buildProductCard(Map<String, dynamic> product) {
-    final name = product['name'] ?? 'Không tên';
-    final dynamic rawPrice =
-        product['min_price'] ??
-        (product['lowest_price_variant'] != null
-            ? product['lowest_price_variant']['price']
-            : 0);
-
-    final imageUrl = AppConfig.productImageUrl(product);
-
-    return GestureDetector(
-      onTap: () {
-        context.push('/product-detail', extra: product);
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          // Thiết kế đổ bóng nhẹ nâng lên từ figma
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  Hero(
-                    tag: product['id'] ?? product['slug'] ?? UniqueKey().toString(),
-                    child: NetworkImageWidget(
-                        imageUrl: imageUrl,
-                        width: double.infinity,
-                        height: double.infinity,
-                        fit: BoxFit.cover,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16),
-                        ),
-                        errorWidget: _imagePlaceholder(),
-                      ),
-                  ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: GestureDetector(
-                      onTap: () => _toggleFavorite(product),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.favorite_border,
-                          size: 18,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name.toString(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        FormatUtils.formatPrice(rawPrice),
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFFE63B6F),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE63B6F).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(
-                          Icons.add_shopping_cart,
-                          size: 16,
-                          color: Color(0xFFE63B6F),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _imagePlaceholder() {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      color: const Color(0xFFF8FAFC),
-      child: const Center(
-        child: Icon(Icons.inventory_2, size: 40, color: Color(0xFFE2E8F0)),
       ),
     );
   }

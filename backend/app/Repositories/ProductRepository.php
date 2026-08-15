@@ -47,14 +47,26 @@ class ProductRepository
         $query = Product::with($this->listEagerLoads())
             ->withSum('variants', 'stock');
 
-        // Search — đã được xử lý ở Service: truyền matchedIds hoặc LIKE
-        if ($matchedIds !== null) {
-            $query->whereIn('product_id', $matchedIds);
-        } elseif (! empty($filters['search_like'])) {
-            $search = str_replace(['%', '_'], ['\%', '\_'], $filters['search_like']);
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('slug', 'like', "%{$search}%");
+        // Search — Kết hợp Meilisearch IDs + SQL LIKE đa trường (name, slug, category, brand)
+        if (! empty($filters['search_like']) || $matchedIds !== null) {
+            $search = ! empty($filters['search_like'])
+                ? str_replace(['%', '_'], ['\%', '\_'], $filters['search_like'])
+                : '';
+
+            $query->where(function ($q) use ($search, $matchedIds) {
+                if (! empty($matchedIds)) {
+                    $q->whereIn('product_id', $matchedIds);
+                }
+                if ($search !== '') {
+                    $q->orWhere('name', 'like', "%{$search}%")
+                        ->orWhere('slug', 'like', "%{$search}%")
+                        ->orWhereHas('category', function ($cq) use ($search) {
+                            $cq->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('brand', function ($bq) use ($search) {
+                            $bq->where('name', 'like', "%{$search}%");
+                        });
+                }
             });
         }
 

@@ -1,15 +1,21 @@
-import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
 import '../config/app_theme.dart';
 import '../models/court_booking_models.dart';
+import '../providers/auth_provider.dart';
 import '../services/api_client.dart';
 import '../services/court_booking_service.dart';
-import 'court_booking/widgets/court_header.dart';
-import 'court_booking/widgets/slot_grid.dart';
-import 'court_booking/widgets/booking_summary_bar.dart';
+import '../services/realtime_service.dart';
+import '../widgets/app_empty_state.dart';
 import 'court_booking/widgets/booking_card.dart';
+import 'court_booking/widgets/booking_summary_bar.dart';
+import 'court_booking/widgets/court_header.dart';
+import 'court_booking/widgets/qr_check_in_dialog.dart';
+import 'court_booking/widgets/slot_grid.dart';
 import 'court_booking/widgets/stepper_counter.dart';
 
 class CourtBookingScreen extends StatefulWidget {
@@ -21,13 +27,11 @@ class CourtBookingScreen extends StatefulWidget {
 
 class _CourtBookingScreenState extends State<CourtBookingScreen> {
   final CourtBookingService _service = CourtBookingService();
-  final NumberFormat _money = NumberFormat.currency(locale: 'vi_VN', symbol: 'd');
+  final NumberFormat _money = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
   final TextEditingController _staffSearchController = TextEditingController();
 
-  Timer? _refreshTimer;
   bool _loading = true;
   bool _actionLoading = false;
-  bool _isRefreshing = false;
   bool _isStaff = false;
   String? _error;
 
@@ -41,23 +45,29 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
   int? _selectedCourtId;
   final Set<int> _selectedSlotIndexes = {};
   final Map<int, int> _serviceQuantities = {};
-  String _paymentMethod = 'cash';
-  String _staffStatus = 'all';
+  final String _paymentMethod = 'cash';
+  final String _staffStatus = 'all';
+  String _myBookingFilter = 'all';
+
+  // Realtime & Lock Management
+  String? _subscribedCourtChannel;
+  String? _subscribedDateChannel;
+  Timer? _pollingTimer;
+  Timer? _lockDebounce;
+  Timer? _lockCountdownTimer;
+  String? _activeLockToken;
+  DateTime? _lockExpiresAt;
+  int _lockSecondsRemaining = 0;
 
   String get _dateParam => DateFormat('yyyy-MM-dd').format(_selectedDate);
-  Court? get _selectedCourt {
-    for (final court in _courts) {
-      if (court.id == _selectedCourtId) return court;
-    }
-    return null;
-  }
 
   List<int> get _orderedSelectedIndexes {
     final indexes = _selectedSlotIndexes.toList()..sort();
     return indexes;
   }
 
-  int get _slotAmount => _orderedSelectedIndexes.fold(0, (sum, index) => sum + _slots[index].price);
+  int get _slotAmount => _orderedSelectedIndexes.fold(
+      0, (sum, index) => sum + (_slots.length > index ? _slots[index].price : 0));
 
   int get _serviceAmount {
     var total = 0;
@@ -73,12 +83,16 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
   void initState() {
     super.initState();
     _bootstrap();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) => _silentRefresh());
+    _startPolling();
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    _pollingTimer?.cancel();
+    _lockDebounce?.cancel();
+    _lockCountdownTimer?.cancel();
+    _unsubscribeRealtime();
+    _releaseCurrentLock();
     _staffSearchController.dispose();
     super.dispose();
   }
@@ -94,16 +108,20 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       final courts = await _service.getCourts();
       final services = await _service.getServices();
       if (!mounted) return;
+
       setState(() {
         _courts = courts;
         _extraServices = services;
         _selectedCourtId = courts.isNotEmpty ? courts.first.id : null;
       });
+
       await Future.wait([
         _loadAvailability(),
         _loadMyBookings(),
         if (_isStaff) _loadStaffBookings(),
       ]);
+
+      _setupRealtimeSubscription();
     } catch (e) {
       if (mounted) setState(() => _error = _service.errorMessage(e));
     } finally {
@@ -122,784 +140,994 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
     }
   }
 
-  Future<void> _silentRefresh() async {
-    if (!mounted || _actionLoading || _isRefreshing) return;
-    _isRefreshing = true;
-    try {
-      await Future.wait([
-        if (_selectedCourtId != null) _loadAvailability(silent: true),
-        _loadMyBookings(silent: true),
-        if (_isStaff) _loadStaffBookings(silent: true),
-      ]);
-    } catch (_) {
-      // Background refresh failures stay silent to avoid repeated snackbars.
-    } finally {
-      _isRefreshing = false;
-    }
-  }
-
   Future<void> _loadAvailability({bool silent = false}) async {
     if (_selectedCourtId == null) return;
-    final slots = await _service.getAvailability(_selectedCourtId!, _dateParam);
-    if (!mounted) return;
-    setState(() {
-      _slots = slots;
-      _selectedSlotIndexes.removeWhere((index) => index >= slots.length || !slots[index].isAvailable);
-    });
+    try {
+      final slots = await _service.getAvailability(_selectedCourtId!, _dateParam);
+      if (!mounted) return;
+      setState(() {
+        _slots = slots;
+        // Clean any selection that is no longer available and not locked by me
+        _selectedSlotIndexes.removeWhere((index) {
+          if (index >= slots.length) return true;
+          final s = slots[index];
+          return !s.isAvailable && !s.isMyLock;
+        });
+      });
+    } catch (_) {}
   }
 
-  Future<void> _loadMyBookings({bool silent = false}) async {
-    final bookings = await _service.getMyBookings();
-    if (mounted) setState(() => _myBookings = bookings);
+  Future<void> _loadMyBookings() async {
+    final loggedIn = context.read<AuthProvider>().isAuthenticated;
+    if (!loggedIn) return;
+    try {
+      final bookings = await _service.getMyBookings();
+      if (!mounted) return;
+      setState(() => _myBookings = bookings);
+    } catch (_) {}
   }
 
-  Future<void> _loadStaffBookings({bool silent = false}) async {
+  Future<void> _loadStaffBookings() async {
     if (!_isStaff) return;
-    final bookings = await _service.getStaffBookings(
-      date: _dateParam,
-      status: _staffStatus,
-      search: _staffSearchController.text,
-    );
-    if (mounted) setState(() => _staffBookings = bookings);
+    try {
+      final bookings = await _service.getStaffBookings(
+        date: _dateParam,
+        status: _staffStatus == 'all' ? null : _staffStatus,
+        search: _staffSearchController.text.trim().isEmpty
+            ? null
+            : _staffSearchController.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() => _staffBookings = bookings);
+    } catch (_) {}
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 45)),
-    );
-    if (picked == null) return;
-    setState(() {
-      _selectedDate = picked;
-      _selectedSlotIndexes.clear();
-    });
-    await Future.wait([
-      _loadAvailability(),
-      if (_isStaff) _loadStaffBookings(),
-    ]);
+  // ─── REALTIME SYNC ───────────────────────────────────────────────
+
+  void _setupRealtimeSubscription() {
+    if (_selectedCourtId == null) return;
+
+    final newCourtChannel = 'court-booking.court.$_selectedCourtId.$_dateParam';
+    final newDateChannel = 'court-booking.$_dateParam';
+
+    _unsubscribeRealtime();
+
+    _subscribedCourtChannel = newCourtChannel;
+    _subscribedDateChannel = newDateChannel;
+
+    void onRealtimeChange(String event, dynamic data) {
+      debugPrint('[CourtBooking] Realtime event received: $event on $_subscribedCourtChannel');
+      if (mounted) {
+        _loadAvailability(silent: true);
+      }
+    }
+
+    RealtimeService().subscribe(newCourtChannel, '*', onRealtimeChange);
+    RealtimeService().subscribe(newCourtChannel, 'CourtSlotLocked', onRealtimeChange);
+    RealtimeService().subscribe(newCourtChannel, 'CourtSlotReleased', onRealtimeChange);
+    RealtimeService().subscribe(newCourtChannel, 'CourtBookingCreated', onRealtimeChange);
+    RealtimeService().subscribe(newCourtChannel, 'CourtBookingCancelled', onRealtimeChange);
+    RealtimeService().subscribe(newCourtChannel, 'CourtBookingStatusChanged', onRealtimeChange);
+
+    RealtimeService().subscribe(newDateChannel, '*', onRealtimeChange);
+    RealtimeService().subscribe(newDateChannel, 'CourtSlotLocked', onRealtimeChange);
+    RealtimeService().subscribe(newDateChannel, 'CourtSlotReleased', onRealtimeChange);
+    RealtimeService().subscribe(newDateChannel, 'CourtBookingCreated', onRealtimeChange);
+    RealtimeService().subscribe(newDateChannel, 'CourtBookingCancelled', onRealtimeChange);
   }
 
-  void _toggleSlot(int index) {
-    final slot = _slots[index];
-    if (!slot.isAvailable) return;
+  void _unsubscribeRealtime() {
+    if (_subscribedCourtChannel != null) {
+      RealtimeService().unsubscribe(_subscribedCourtChannel!);
+      _subscribedCourtChannel = null;
+    }
+    if (_subscribedDateChannel != null) {
+      RealtimeService().unsubscribe(_subscribedDateChannel!);
+      _subscribedDateChannel = null;
+    }
+  }
 
-    setState(() {
-      if (_selectedSlotIndexes.contains(index)) {
-        _selectedSlotIndexes.remove(index);
-      } else {
-        final next = {..._selectedSlotIndexes, index}.toList()..sort();
-        var contiguous = true;
-        for (var i = 1; i < next.length; i++) {
-          if (next[i] != next[i - 1] + 1) contiguous = false;
-        }
-        if (contiguous) {
-          _selectedSlotIndexes.add(index);
-        } else {
-          _selectedSlotIndexes
-            ..clear()
-            ..add(index);
-        }
+  void _startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      if (mounted) {
+        _loadAvailability(silent: true);
       }
     });
   }
 
-  Future<void> _confirmBooking() async {
-    if (_selectedCourtId == null || _orderedSelectedIndexes.isEmpty) {
-      _showSnack('Chon san va khung gio truoc da bro.', isError: true);
+  // ─── SLOT SELECTION & LOCK ────────────────────────────────────────
+
+  bool _hasContinuousSlots(List<int> sortedIndexes) {
+    if (sortedIndexes.length <= 1) return true;
+    for (int i = 0; i < sortedIndexes.length - 1; i++) {
+      if (sortedIndexes[i + 1] != sortedIndexes[i] + 1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _onToggleSlot(int index) {
+    final loggedIn = context.read<AuthProvider>().isAuthenticated;
+    if (!loggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng đăng nhập để giữ chỗ và đặt sân'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      context.push('/login');
       return;
     }
 
-    final indexes = _orderedSelectedIndexes;
-    final start = _slots[indexes.first].startTime;
-    final end = _slots[indexes.last].endTime;
-    String? lockToken;
+    final slot = _slots[index];
+    if (!slot.isAvailable && !slot.isMyLock && !_selectedSlotIndexes.contains(index)) {
+      if (slot.isLocked) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Khung giờ này đang có khách giữ chỗ. Vui lòng chọn khung giờ khác!'),
+            backgroundColor: Color(0xFFD97706),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
 
-    setState(() => _actionLoading = true);
+    final tempSet = Set<int>.from(_selectedSlotIndexes);
+    if (tempSet.contains(index)) {
+      tempSet.remove(index);
+    } else {
+      tempSet.add(index);
+    }
+
+    final sorted = tempSet.toList()..sort();
+    if (sorted.length > 1 && !_hasContinuousSlots(sorted)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn các khung giờ liền kề nhau!'),
+          backgroundColor: Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _selectedSlotIndexes.clear();
+      _selectedSlotIndexes.addAll(tempSet);
+    });
+
+    // Debounce calling lock on server
+    _lockDebounce?.cancel();
+    _lockDebounce = Timer(const Duration(milliseconds: 300), () {
+      _syncLockWithBackend();
+    });
+  }
+
+  Future<void> _syncLockWithBackend() async {
+    if (_orderedSelectedIndexes.isEmpty) {
+      await _releaseCurrentLock();
+      return;
+    }
+
+    if (_selectedCourtId == null) return;
+    final firstIndex = _orderedSelectedIndexes.first;
+    final lastIndex = _orderedSelectedIndexes.last;
+    final startTime = _slots[firstIndex].startTime;
+    final endTime = _slots[lastIndex].endTime;
+
     try {
-      final lock = await _service.lockSlot(
+      final lockData = await _service.lockSlot(
         courtId: _selectedCourtId!,
         date: _dateParam,
-        startTime: start,
-        endTime: end,
+        startTime: startTime,
+        endTime: endTime,
       );
-      lockToken = lock['lock_token']?.toString();
-      if (lockToken == null || lockToken.isEmpty) {
-        throw Exception('Khong nhan duoc lock token tu may chu.');
+
+      final token = lockData['lock_token']?.toString();
+      final expiresAtStr = lockData['expires_at']?.toString();
+
+      if (token != null && mounted) {
+        setState(() {
+          _activeLockToken = token;
+          if (expiresAtStr != null) {
+            _lockExpiresAt = DateTime.tryParse(expiresAtStr);
+          } else {
+            _lockExpiresAt = DateTime.now().add(const Duration(minutes: 5));
+          }
+        });
+        _startLockCountdown();
       }
     } catch (e) {
-      setState(() => _actionLoading = false);
-      _showSnack(_service.errorMessage(e), isError: true);
-      return;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_service.errorMessage(e)),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        setState(() {
+          _selectedSlotIndexes.clear();
+          _activeLockToken = null;
+        });
+        _clearLockTimer();
+        _loadAvailability();
+      }
     }
-    
-    // Lock acquired! Reload availability so grid shows our lock, and stop loading indicator.
-    await _loadAvailability(silent: true);
-    setState(() => _actionLoading = false);
+  }
 
-    final confirmed = await _showBookingConfirmDialog();
-    
-    if (confirmed != true) {
-      // User cancelled or timeout
+  void _startLockCountdown() {
+    _lockCountdownTimer?.cancel();
+    if (_lockExpiresAt == null) return;
+
+    void tick() {
+      final diff = _lockExpiresAt!.difference(DateTime.now()).inSeconds;
+      if (diff <= 0) {
+        _clearLockTimer();
+        if (mounted) {
+          setState(() {
+            _selectedSlotIndexes.clear();
+            _activeLockToken = null;
+            _lockSecondsRemaining = 0;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Thời gian giữ chỗ (5 phút) đã hết. Vui lòng chọn lại khung giờ!'),
+              backgroundColor: Color(0xFFF59E0B),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          _loadAvailability();
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _lockSecondsRemaining = diff;
+          });
+        }
+      }
+    }
+
+    tick();
+    _lockCountdownTimer = Timer.periodic(const Duration(seconds: 1), (_) => tick());
+  }
+
+  void _clearLockTimer() {
+    _lockCountdownTimer?.cancel();
+    _lockCountdownTimer = null;
+    _lockSecondsRemaining = 0;
+  }
+
+  Future<void> _releaseCurrentLock() async {
+    if (_activeLockToken != null) {
+      final token = _activeLockToken!;
+      _activeLockToken = null;
+      _clearLockTimer();
       try {
-        await _service.releaseLock(lockToken);
+        await _service.releaseLock(token);
       } catch (_) {}
-      await _loadAvailability(silent: true);
+    }
+  }
+
+  Future<void> _handleBookCourt() async {
+    final loggedIn = context.read<AuthProvider>().isAuthenticated;
+    if (!loggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập để đặt sân')),
+      );
+      context.push('/login');
       return;
     }
+
+    if (_selectedCourtId == null || _orderedSelectedIndexes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn ít nhất một khung giờ trống')),
+      );
+      return;
+    }
+
+    final firstIndex = _orderedSelectedIndexes.first;
+    final lastIndex = _orderedSelectedIndexes.last;
+    final startTime = _slots[firstIndex].startTime;
+    final endTime = _slots[lastIndex].endTime;
 
     setState(() => _actionLoading = true);
+
     try {
       final booking = await _service.createBooking(
         courtId: _selectedCourtId!,
         date: _dateParam,
-        startTime: start,
-        endTime: end,
+        startTime: startTime,
+        endTime: endTime,
         paymentMethod: _paymentMethod,
-        lockToken: lockToken,
+        lockToken: _activeLockToken,
         services: _serviceQuantities,
       );
 
       if (!mounted) return;
-      _showSnack('Da tao booking ${booking.code}. Cho nhan vien xac nhan nhe.');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Đặt sân thành công! Mã đơn: #${booking.code}'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
       setState(() {
         _selectedSlotIndexes.clear();
         _serviceQuantities.clear();
+        _activeLockToken = null;
       });
-      await Future.wait([_loadAvailability(), _loadMyBookings(), if (_isStaff) _loadStaffBookings()]);
+      _clearLockTimer();
+
+      await Future.wait([
+        _loadAvailability(),
+        _loadMyBookings(),
+        if (_isStaff) _loadStaffBookings(),
+      ]);
     } catch (e) {
-      _showSnack(_service.errorMessage(e), isError: true);
-      try {
-        await _service.releaseLock(lockToken);
-      } catch (_) {}
-      await _loadAvailability(silent: true);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_service.errorMessage(e)),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _actionLoading = false);
     }
   }
 
-  Future<bool?> _showBookingConfirmDialog() {
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: 20,
-                  right: 20,
-                  top: 20,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Xac nhan dat san', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-                          TweenAnimationBuilder<Duration>(
-                            duration: const Duration(minutes: 5),
-                            tween: Tween(begin: const Duration(minutes: 5), end: Duration.zero),
-                            onEnd: () {
-                              if (Navigator.canPop(context)) context.pop(false);
-                              _showSnack('Het thoi gian giu cho!', isError: true);
-                            },
-                            builder: (context, value, child) {
-                              final minutes = value.inMinutes;
-                              final seconds = value.inSeconds % 60;
-                              return Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(Icons.timer_outlined, color: Colors.red, size: 16),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '$minutes:${seconds.toString().padLeft(2, '0')}',
-                                      style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _summaryRow('San', _selectedCourt?.name ?? ''),
-                      _summaryRow('Ngay', DateFormat('dd/MM/yyyy').format(_selectedDate)),
-                      _summaryRow('Gio', '${_slots[_orderedSelectedIndexes.first].startTime} - ${_slots[_orderedSelectedIndexes.last].endTime}'),
-                      _summaryRow('Tien san', _money.format(_slotAmount)),
-                      const SizedBox(height: 14),
-                      const Text('Dich vu them', style: TextStyle(fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 8),
-                      if (_extraServices.isEmpty)
-                        const Text('Chua co dich vu dang ban.', style: TextStyle(color: AppColors.textMuted))
-                      else
-                        ..._extraServices.map((service) {
-                          final qty = _serviceQuantities[service.id] ?? 0;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text('${service.name}\n${_money.format(service.unitPrice)}',
-                                      style: const TextStyle(height: 1.35)),
-                                ),
-                                IconButton(
-                                  onPressed: qty > 0
-                                      ? () => setSheetState(() {
-                                            setState(() => _serviceQuantities[service.id] = qty - 1);
-                                          })
-                                      : null,
-                                  icon: const Icon(Icons.remove_circle_outline),
-                                ),
-                                SizedBox(width: 28, child: Center(child: Text(qty.toString()))),
-                                IconButton(
-                                  onPressed: () => setSheetState(() {
-                                    setState(() => _serviceQuantities[service.id] = qty + 1);
-                                  }),
-                                  icon: const Icon(Icons.add_circle_outline),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
-                        initialValue: _paymentMethod,
-                        decoration: const InputDecoration(labelText: 'Phuong thuc thanh toan'),
-                        items: const [
-                          DropdownMenuItem(value: 'cash', child: Text('Tien mat tai san')),
-                          DropdownMenuItem(value: 'bank_transfer', child: Text('Chuyen khoan')),
-                          DropdownMenuItem(value: 'vnpay', child: Text('VNPay')),
-                          DropdownMenuItem(value: 'momo', child: Text('MoMo')),
-                        ],
-                        onChanged: (value) => setSheetState(() => setState(() => _paymentMethod = value ?? 'cash')),
-                      ),
-                      const SizedBox(height: 14),
-                      _summaryRow('Tong cong', _money.format(_totalAmount), strong: true),
-                      const SizedBox(height: 18),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => context.pop(false),
-                          icon: const Icon(Icons.event_available),
-                          label: const Text('Dat san ngay'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    if (_error != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Dat san')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-                const SizedBox(height: 12),
-                Text(_error!, textAlign: TextAlign.center),
-                const SizedBox(height: 16),
-                ElevatedButton(onPressed: _bootstrap, child: const Text('Thu lai')),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    final tabCount = _isStaff ? 3 : 2;
     return DefaultTabController(
-      length: tabCount,
+      length: _isStaff ? 3 : 2,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8FAFC),
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          title: const Text('Dat san'),
-          actions: [
-            IconButton(onPressed: _silentRefresh, icon: const Icon(Icons.refresh), tooltip: 'Lam moi'),
-          ],
+          title: const Text(
+            'Đặt Sân Thể Thao',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          ),
           bottom: TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.textSecondary,
+            indicatorColor: AppColors.primary,
             tabs: [
-              const Tab(icon: Icon(Icons.sports_tennis), text: 'Dat san'),
-              const Tab(icon: Icon(Icons.event_note), text: 'Lich cua toi'),
-              if (_isStaff) const Tab(icon: Icon(Icons.manage_accounts), text: 'Nhan vien'),
+              const Tab(text: 'Chọn sân & giờ'),
+              const Tab(text: 'Lịch sử của tôi'),
+              if (_isStaff) const Tab(text: 'Quản lý (Staff)'),
             ],
           ),
         ),
-        body: Stack(
-          children: [
-            TabBarView(
-              children: [
-                _buildBookingTab(),
-                _buildMyBookingsTab(),
-                if (_isStaff) _buildStaffTab(),
-              ],
-            ),
-            if (_actionLoading)
-              Container(
-                color: Colors.black.withValues(alpha: 0.18),
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-          ],
-        ),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+            : _error != null
+                ? AppEmptyState(
+                    icon: Icons.error_outline_rounded,
+                    title: 'Lỗi tải dữ liệu sân',
+                    message: _error!,
+                    buttonText: 'Thử lại',
+                    onAction: _bootstrap,
+                  )
+                : TabBarView(
+                    children: [
+                      _buildBookingTab(),
+                      _buildMyBookingsTab(),
+                      if (_isStaff) _buildStaffTab(),
+                    ],
+                  ),
       ),
     );
   }
 
   Widget _buildBookingTab() {
-    return RefreshIndicator(
-      onRefresh: _loadAvailability,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
+    if (_courts.isEmpty) {
+      return AppEmptyState(
+        icon: Icons.sports_tennis_rounded,
+        title: 'Chưa có sân khả dụng',
+        message: 'Hệ thống hiện chưa có sân nào được kích hoạt.',
+        buttonText: 'Tải lại',
+        onAction: _bootstrap,
+      );
+    }
+
+    return Stack(
+      children: [
+        RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () => Future.wait([
+            _loadAvailability(),
+            _loadMyBookings(),
+          ]),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today_outlined),
-                  label: Text(DateFormat('dd/MM/yyyy').format(_selectedDate)),
-                ),
+              // Court Selector Header
+              CourtHeader(
+                courts: _courts,
+                selectedCourtId: _selectedCourtId,
+                onSelectCourt: (id) {
+                  _releaseCurrentLock();
+                  setState(() {
+                    _selectedCourtId = id;
+                    _selectedSlotIndexes.clear();
+                  });
+                  _setupRealtimeSubscription();
+                  _loadAvailability();
+                },
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _selectedCourtId,
-                  decoration: const InputDecoration(labelText: 'San'),
-                  items: _courts
-                      .map((court) => DropdownMenuItem(value: court.id, child: Text(court.name, overflow: TextOverflow.ellipsis)))
-                      .toList(),
-                  onChanged: (value) async {
-                    setState(() {
-                      _selectedCourtId = value;
-                      _selectedSlotIndexes.clear();
-                    });
-                    await _loadAvailability();
-                  },
+
+              const SizedBox(height: 16),
+
+              // Date Picker Ribbon
+              _buildDateRibbon(),
+
+              const SizedBox(height: 16),
+
+              // Live Lock Countdown Banner
+              _buildLockCountdownBanner(),
+
+              // Legend
+              _buildLegend(),
+
+              const SizedBox(height: 14),
+
+              // Time Slot Grid
+              if (_slots.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(
+                    child: Text(
+                      'Không có khung giờ nào cho ngày đã chọn.',
+                      style: TextStyle(color: AppColors.textMuted),
+                    ),
+                  ),
+                )
+              else
+                SlotGrid(
+                  slots: _slots,
+                  selectedIndexes: _selectedSlotIndexes,
+                  money: _money,
+                  onToggle: _onToggleSlot,
                 ),
-              ),
+
+              const SizedBox(height: 24),
+
+              // Extra Services
+              if (_extraServices.isNotEmpty) _buildExtraServices(),
             ],
           ),
-          const SizedBox(height: 14),
-          if (_selectedCourt != null) CourtHeader(_selectedCourt!),
-          const SizedBox(height: 14),
-          const Text('Khung gio trong ngay', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-          const SizedBox(height: 10),
-          SlotGrid(
-            slots: _slots,
-            selectedIndexes: _selectedSlotIndexes,
-            money: _money,
-            onToggle: _toggleSlot,
-          ),
-          const SizedBox(height: 16),
-          BookingSummaryBar(
+        ),
+
+        // Sticky Summary Bar
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: BookingSummaryBar(
             slots: _slots,
             orderedSelectedIndexes: _orderedSelectedIndexes,
-            slotAmount: _slotAmount,
+            totalAmount: _totalAmount,
             money: _money,
-            onContinue: _confirmBooking,
+            isLoading: _actionLoading,
+            onBook: _handleBookCourt,
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLockCountdownBanner() {
+    if (_lockSecondsRemaining <= 0 || _orderedSelectedIndexes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final mins = (_lockSecondsRemaining ~/ 60).toString().padLeft(2, '0');
+    final secs = (_lockSecondsRemaining % 60).toString().padLeft(2, '0');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.timer_rounded, color: Color(0xFFD97706), size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 12.5, color: Color(0xFF92400E)),
+                children: [
+                  const TextSpan(text: 'Đang tạm giữ chỗ: '),
+                  TextSpan(
+                    text: '$mins:$secs',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFB45309),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const TextSpan(text: ' • Vui lòng xác nhận đặt sân trước khi hết giờ!'),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateRibbon() {
+    final now = DateTime.now();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text(
+              'Chọn ngày đặt sân',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+            ),
+          ),
+          SizedBox(
+            height: 68,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: 14,
+              itemBuilder: (context, index) {
+                final date = now.add(Duration(days: index));
+                final isSelected = DateFormat('yyyy-MM-dd').format(date) == _dateParam;
+                final dayName = index == 0
+                    ? 'Hôm nay'
+                    : index == 1
+                        ? 'Ngày mai'
+                        : DateFormat('E', 'vi').format(date);
+
+                return GestureDetector(
+                  onTap: () {
+                    _releaseCurrentLock();
+                    setState(() {
+                      _selectedDate = date;
+                      _selectedSlotIndexes.clear();
+                    });
+                    _setupRealtimeSubscription();
+                    _loadAvailability();
+                  },
+                  child: Container(
+                    width: 64,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primary : AppColors.surfaceDim,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          dayName,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: isSelected ? Colors.white70 : AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${date.day}/${date.month}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegend() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: [
+          _legendItem(const Color(0xFF10B981), 'Trống'),
+          _legendItem(AppColors.primary, 'Đang chọn'),
+          _legendItem(const Color(0xFFF59E0B), 'Đang giữ'),
+          _legendItem(const Color(0xFFDC2626), 'Đã đặt'),
+          _legendItem(const Color(0xFF94A3B8), 'Không khả dụng'),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendItem(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExtraServices() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Dịch vụ / Thiết bị đi kèm',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 12),
+          ..._extraServices.map((service) {
+            final quantity = _serviceQuantities[service.id] ?? 0;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          service.name,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        ),
+                        Text(
+                          _money.format(service.unitPrice),
+                          style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  StepperCounter(
+                    value: quantity,
+                    onChanged: (val) {
+                      setState(() {
+                        if (val <= 0) {
+                          _serviceQuantities.remove(service.id);
+                        } else {
+                          _serviceQuantities[service.id] = val;
+                        }
+                      });
+                    },
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
   }
 
   Widget _buildMyBookingsTab() {
-    if (_myBookings.isEmpty) {
-      return const Center(child: Text('Ban chua co lich dat san nao.'));
+    final loggedIn = context.watch<AuthProvider>().isAuthenticated;
+    if (!loggedIn) {
+      return AppEmptyState(
+        icon: Icons.lock_outline_rounded,
+        title: 'Bạn chưa đăng nhập',
+        message: 'Đăng nhập để xem lịch sử đặt sân của bạn.',
+        buttonText: 'Đăng nhập',
+        onAction: () => context.push('/login'),
+      );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadMyBookings,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _myBookings.length,
-        itemBuilder: (context, index) => _buildBookingCard(_myBookings[index], staffMode: false),
+    final filteredList = _myBookings.where((b) {
+      if (_myBookingFilter == 'all') return true;
+      if (_myBookingFilter == 'checked_in') {
+        return b.status == 'checked_in' || b.status == 'playing' || b.status == 'extended';
+      }
+      return b.status == _myBookingFilter;
+    }).toList();
+
+    final filterOptions = [
+      {'key': 'all', 'label': 'Tất cả'},
+      {'key': 'pending', 'label': 'Chờ xác nhận'},
+      {'key': 'confirmed', 'label': 'Đã xác nhận'},
+      {'key': 'checked_in', 'label': 'Đang chơi'},
+      {'key': 'completed', 'label': 'Hoàn thành'},
+      {'key': 'cancelled', 'label': 'Đã hủy'},
+    ];
+
+    return Column(
+      children: [
+        // Filter Ribbon
+        Container(
+          color: Colors.white,
+          height: 48,
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            scrollDirection: Axis.horizontal,
+            itemCount: filterOptions.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final opt = filterOptions[index];
+              final isSelected = _myBookingFilter == opt['key'];
+              return GestureDetector(
+                onTap: () {
+                  setState(() => _myBookingFilter = opt['key']!);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primary : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Text(
+                      opt['label']!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected ? Colors.white : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+
+        Expanded(
+          child: filteredList.isEmpty
+              ? _myBookings.isEmpty
+                  ? AppEmptyState(
+                      icon: Icons.sports_tennis_rounded,
+                      title: 'Chưa có lịch đặt sân',
+                      message: 'Bạn chưa đặt sân nào. Hãy chọn sân và khung giờ phù hợp nhé!',
+                      buttonText: 'Đặt sân ngay',
+                      onAction: () {
+                        DefaultTabController.of(context).animateTo(0);
+                      },
+                    )
+                  : AppEmptyState(
+                      icon: Icons.filter_alt_off_rounded,
+                      title: 'Không có đơn phù hợp',
+                      message: 'Không tìm thấy đơn đặt sân nào thuộc bộ lọc này.',
+                      buttonText: 'Tất cả đơn',
+                      onAction: () => setState(() => _myBookingFilter = 'all'),
+                    )
+              : RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: _loadMyBookings,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredList.length,
+                    itemBuilder: (context, index) {
+                      final booking = filteredList[index];
+                      return BookingCard(
+                        booking: booking,
+                        money: _money,
+                        onShowQr: () => _showQrCheckInDialog(booking),
+                        onPay: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Vui lòng thanh toán trực tiếp tại quầy hoặc liên hệ nhân viên!'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        onCancel: () => _cancelMyBooking(booking.id),
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  void _showQrCheckInDialog(CourtBooking booking) {
+    final courtName = booking.courtName ?? 'Sân #${booking.courtId}';
+    final dateStr = DateFormat('dd/MM/yyyy').format(DateTime.tryParse(booking.date) ?? DateTime.now());
+    final timeStr = '${booking.startTime} - ${booking.endTime}';
+
+    QrCheckInDialog.show(
+      context,
+      bookingId: booking.id,
+      bookingCode: booking.code,
+      courtName: courtName,
+      dateStr: dateStr,
+      timeStr: timeStr,
+    );
+  }
+
+  Future<void> _cancelMyBooking(int bookingId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận hủy đặt sân'),
+        content: const Text('Bạn có chắc chắn muốn hủy đơn đặt sân này không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Không'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Hủy sân', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    try {
+      await _service.cancelBooking(bookingId, reason: 'Khách hàng tự hủy trên mobile');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã hủy đặt sân thành công')),
+      );
+      _loadMyBookings();
+      _loadAvailability();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_service.errorMessage(e)), backgroundColor: AppColors.error),
+        );
+      }
+    }
   }
 
   Widget _buildStaffTab() {
-    return RefreshIndicator(
-      onRefresh: _loadStaffBookings,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today_outlined),
-                  label: Text(DateFormat('dd/MM/yyyy').format(_selectedDate)),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _staffStatus,
-                  decoration: const InputDecoration(labelText: 'Trang thai'),
-                  items: const [
-                    DropdownMenuItem(value: 'all', child: Text('Tat ca')),
-                    DropdownMenuItem(value: 'pending', child: Text('Cho xac nhan')),
-                    DropdownMenuItem(value: 'confirmed', child: Text('Da xac nhan')),
-                    DropdownMenuItem(value: 'checked_in', child: Text('Da check-in')),
-                    DropdownMenuItem(value: 'extended', child: Text('Gia han')),
-                    DropdownMenuItem(value: 'completed', child: Text('Hoan thanh')),
-                  ],
-                  onChanged: (value) async {
-                    setState(() => _staffStatus = value ?? 'all');
-                    await _loadStaffBookings();
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextField(
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
             controller: _staffSearchController,
-            decoration: InputDecoration(
-              hintText: 'Tim ma booking, ten, SDT',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(icon: const Icon(Icons.tune), onPressed: () => _loadStaffBookings()),
-            ),
             onSubmitted: (_) => _loadStaffBookings(),
-          ),
-          const SizedBox(height: 14),
-          if (_staffBookings.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 80),
-              child: Center(child: Text('Khong co booking phu hop.')),
-            )
-          else
-            ..._staffBookings.map((booking) => _buildBookingCard(booking, staffMode: true)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBookingCard(CourtBooking booking, {required bool staffMode}) {
-    return BookingCard(
-      booking: booking,
-      staffMode: staffMode,
-      money: _money,
-      onShowQr: () => _showQr(booking),
-      onPay: () => _showPaymentDialog(booking, staffMode: false),
-      onCancel: () => _cancelCustomerBooking(booking),
-      onConfirm: () => _runAction(() => _service.confirmBooking(booking.id)),
-      onCheckIn: () => _runAction(() => _service.checkIn(booking.id)),
-      onQrCheckIn: () => _showQrCheckInDialog(booking),
-      onAddService: () => _showAddServiceDialog(booking),
-      onExtend: () => _showExtendDialog(booking),
-      onStaffPay: () => _showPaymentDialog(booking, staffMode: true),
-      onCheckout: () => _showCheckoutDialog(booking),
-      onStaffCancel: () => _runAction(
-        () => _service.staffCancelBooking(booking.id, reason: 'Nhan vien huy booking'),
-      ),
-    );
-  }
-
-  Future<void> _cancelCustomerBooking(CourtBooking booking) async {
-    final ok = await _confirm('Huy booking ${booking.code}?');
-    if (ok == true) {
-      await _runAction(() => _service.cancelBooking(booking.id, reason: 'Khach huy tu mobile'));
-    }
-  }
-
-  Future<void> _showPaymentDialog(CourtBooking booking, {required bool staffMode}) async {
-    var method = staffMode ? 'cash' : 'bank_transfer';
-    var type = booking.paidAmount > 0 ? 'additional' : 'full';
-    final amountController = TextEditingController(text: booking.amountDue > 0 ? booking.amountDue.toString() : '');
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(staffMode ? 'Thu tien booking' : 'Tao thanh toan'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String>(
-                initialValue: method,
-                decoration: const InputDecoration(labelText: 'Phuong thuc'),
-                items: [
-                  if (staffMode) const DropdownMenuItem(value: 'cash', child: Text('Tien mat')),
-                  const DropdownMenuItem(value: 'bank_transfer', child: Text('Chuyen khoan')),
-                  if (staffMode) const DropdownMenuItem(value: 'pos_card', child: Text('The POS')),
-                  if (!staffMode) const DropdownMenuItem(value: 'vnpay', child: Text('VNPay')),
-                  if (!staffMode) const DropdownMenuItem(value: 'momo', child: Text('MoMo')),
-                ],
-                onChanged: (value) => setDialogState(() => method = value ?? method),
+            decoration: InputDecoration(
+              hintText: 'Tìm theo mã đơn, tên khách, SĐT...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: _loadStaffBookings,
               ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                initialValue: type,
-                decoration: const InputDecoration(labelText: 'Loai thanh toan'),
-                items: const [
-                  DropdownMenuItem(value: 'deposit', child: Text('Dat coc')),
-                  DropdownMenuItem(value: 'full', child: Text('Toan bo')),
-                  DropdownMenuItem(value: 'additional', child: Text('Phat sinh/con lai')),
-                ],
-                onChanged: (value) => setDialogState(() => type = value ?? type),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: amountController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'So tien'),
-              ),
-            ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Luu')),
-        ],
-      ),
-    );
-
-    final amount = int.tryParse(amountController.text);
-    amountController.dispose();
-    if (ok != true) return;
-
-    if (staffMode) {
-      await _runAction(() => _service.recordStaffPayment(
-            bookingId: booking.id,
-            paymentMethod: method,
-            paymentType: type,
-            amount: amount,
-            note: 'Thu tien tu mobile staff',
-          ));
-    } else {
-      await _runAction(() => _service.payBooking(
-            bookingId: booking.id,
-            paymentMethod: method,
-            paymentType: type,
-            amount: amount,
-            note: 'Khach tao thanh toan tu mobile',
-          ));
-    }
-  }
-
-  Future<void> _showQr(CourtBooking booking) async {
-    await _runAction(() async {
-      final data = await _service.getQrToken(booking.id);
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('QR ${booking.code}'),
-          content: SelectableText('court_booking:${booking.id}:${data['qr_token']}'),
-          actions: [TextButton(onPressed: () => context.pop(), child: const Text('Dong'))],
-        ),
-      );
-    }, reload: false);
-  }
-
-  Future<void> _showQrCheckInDialog(CourtBooking booking) async {
-    final controller = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('QR check-in'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'QR token hoac chuoi QR'),
-        ),
-        actions: [
-          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Check-in')),
-        ],
-      ),
-    );
-    final raw = controller.text.trim();
-    controller.dispose();
-    if (ok != true || raw.isEmpty) return;
-    final token = raw.startsWith('court_booking:') ? raw.split(':').last : raw;
-    await _runAction(() => _service.qrCheckIn(booking.id, token));
-  }
-
-  Future<void> _showAddServiceDialog(CourtBooking booking) async {
-    if (_extraServices.isEmpty) {
-      _showSnack('Chua co dich vu dang ban.', isError: true);
-      return;
-    }
-    var selectedService = _extraServices.first.id;
-    var qty = 1;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Them dich vu'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                initialValue: selectedService,
-                items: _extraServices
-                    .map((service) => DropdownMenuItem(value: service.id, child: Text(service.name)))
-                    .toList(),
-                onChanged: (value) => setDialogState(() => selectedService = value ?? selectedService),
-              ),
-              const SizedBox(height: 10),
-              StepperCounter(value: qty, onChanged: (value) => setDialogState(() => qty = value)),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Them')),
-        ],
-      ),
-    );
-    if (ok == true) {
-      await _runAction(() => _service.addService(bookingId: booking.id, serviceId: selectedService, quantity: qty));
-    }
-  }
-
-  Future<void> _showExtendDialog(CourtBooking booking) async {
-    var minutes = 30;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Gia han gio choi'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => DropdownButtonFormField<int>(
-            initialValue: minutes,
-            decoration: const InputDecoration(labelText: 'So phut'),
-            items: const [
-              DropdownMenuItem(value: 15, child: Text('15 phut')),
-              DropdownMenuItem(value: 30, child: Text('30 phut')),
-              DropdownMenuItem(value: 60, child: Text('60 phut')),
-            ],
-            onChanged: (value) => setDialogState(() => minutes = value ?? 30),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Gia han')),
-        ],
-      ),
-    );
-    if (ok == true) await _runAction(() => _service.extendBooking(booking.id, minutes));
-  }
-
-  Future<void> _showCheckoutDialog(CourtBooking booking) async {
-    var method = booking.amountDue > 0 ? 'cash' : null;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Check-out tra san'),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Con phai thu: ${_money.format(booking.amountDue)}'),
-              if (booking.amountDue > 0) ...[
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: method,
-                  decoration: const InputDecoration(labelText: 'Phuong thuc thu tien'),
-                  items: const [
-                    DropdownMenuItem(value: 'cash', child: Text('Tien mat')),
-                    DropdownMenuItem(value: 'bank_transfer', child: Text('Chuyen khoan')),
-                    DropdownMenuItem(value: 'pos_card', child: Text('The POS')),
-                    DropdownMenuItem(value: 'pos_transfer', child: Text('POS transfer')),
-                  ],
-                  onChanged: (value) => setDialogState(() => method = value),
+        Expanded(
+          child: _staffBookings.isEmpty
+              ? AppEmptyState(
+                  icon: Icons.search_off_rounded,
+                  title: 'Không tìm thấy đơn nào',
+                  message: 'Không có đơn đặt sân nào phù hợp với bộ lọc.',
+                  buttonText: 'Tải lại',
+                  onAction: _loadStaffBookings,
+                )
+              : RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: _loadStaffBookings,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _staffBookings.length,
+                    itemBuilder: (context, index) {
+                      final booking = _staffBookings[index];
+                      return BookingCard(
+                        booking: booking,
+                        money: _money,
+                        staffMode: true,
+                        onConfirm: () => _staffConfirm(booking.id),
+                        onCheckIn: () => _staffCheckIn(booking.id),
+                        onCheckout: () => _staffCheckOut(booking.id),
+                        onStaffCancel: () => _staffCancel(booking.id),
+                      );
+                    },
+                  ),
                 ),
-              ],
-            ],
-          ),
         ),
-        actions: [
-          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Check-out')),
-        ],
-      ),
+      ],
     );
-    if (ok == true) {
-      await _runAction(() => _service.checkOut(bookingId: booking.id, paymentMethod: method, note: 'Check-out tu mobile'));
-    }
   }
 
-  Future<void> _runAction(Future<void> Function() action, {bool reload = true}) async {
-    setState(() => _actionLoading = true);
+  Future<void> _staffConfirm(int id) async {
     try {
-      await action();
-      if (reload) {
-        await Future.wait([_loadMyBookings(), if (_isStaff) _loadStaffBookings(), if (_selectedCourtId != null) _loadAvailability()]);
-      }
-      _showSnack('Thao tac thanh cong.');
+      await _service.confirmBooking(id);
+      _loadStaffBookings();
     } catch (e) {
-      _showSnack(_service.errorMessage(e), isError: true);
-    } finally {
-      if (mounted) setState(() => _actionLoading = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_service.errorMessage(e))));
     }
   }
 
-  Future<bool?> _confirm(String text) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xac nhan'),
-        content: Text(text),
-        actions: [
-          TextButton(onPressed: () => context.pop(false), child: const Text('Dong')),
-          ElevatedButton(onPressed: () => context.pop(true), child: const Text('Dong y')),
-        ],
-      ),
-    );
+  Future<void> _staffCheckIn(int id) async {
+    try {
+      await _service.checkIn(id);
+      _loadStaffBookings();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_service.errorMessage(e))));
+    }
   }
 
-  Widget _summaryRow(String label, String value, {bool strong = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: const TextStyle(color: AppColors.textSecondary))),
-          Text(value, style: TextStyle(fontWeight: strong ? FontWeight.w900 : FontWeight.w700)),
-        ],
-      ),
-    );
+  Future<void> _staffCheckOut(int id) async {
+    try {
+      await _service.checkOut(bookingId: id);
+      _loadStaffBookings();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_service.errorMessage(e))));
+    }
   }
 
-  void _showSnack(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: isError ? AppColors.error : AppColors.success),
-    );
+  Future<void> _staffCancel(int id) async {
+    try {
+      await _service.staffCancelBooking(id, reason: 'Staff hủy');
+      _loadStaffBookings();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_service.errorMessage(e))));
+    }
   }
 }

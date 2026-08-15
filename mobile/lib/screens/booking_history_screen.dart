@@ -1,7 +1,12 @@
-import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import '../services/api_client.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+
 import '../config/app_theme.dart';
+import '../models/court_booking_models.dart';
+import '../services/api_client.dart';
+import 'court_booking/widgets/booking_card.dart';
+import 'court_booking/widgets/qr_check_in_dialog.dart';
 
 class BookingHistoryScreen extends StatefulWidget {
   const BookingHistoryScreen({super.key});
@@ -10,15 +15,43 @@ class BookingHistoryScreen extends StatefulWidget {
   State<BookingHistoryScreen> createState() => _BookingHistoryScreenState();
 }
 
-class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
-  List<dynamic> bookings = [];
+class _BookingHistoryScreenState extends State<BookingHistoryScreen>
+    with SingleTickerProviderStateMixin {
+  final NumberFormat _money = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
+  List<CourtBooking> bookings = [];
   bool isLoading = true;
   String? errorMessage;
+  String selectedFilter = 'all';
+
+  late TabController _tabController;
+
+  final List<Map<String, String>> _filterTabs = [
+    {'key': 'all', 'label': 'Tất cả'},
+    {'key': 'pending', 'label': 'Chờ duyệt'},
+    {'key': 'confirmed', 'label': 'Đã xác nhận'},
+    {'key': 'checked_in', 'label': 'Đang chơi'},
+    {'key': 'completed', 'label': 'Hoàn thành'},
+    {'key': 'cancelled', 'label': 'Đã hủy'},
+  ];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _filterTabs.length, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          selectedFilter = _filterTabs[_tabController.index]['key']!;
+        });
+      }
+    });
     fetchBookings();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchBookings() async {
@@ -37,28 +70,69 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       } else if (data['data'] is Map && data['data']['data'] is List) {
         list = data['data']['data'];
       }
-      if (mounted) setState(() { bookings = list; isLoading = false; });
+
+      final parsed = list
+          .whereType<Map>()
+          .map((item) => CourtBooking.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          bookings = parsed;
+          isLoading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { errorMessage = 'Không thể tải lịch sử đặt sân'; isLoading = false; });
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Không thể tải lịch sử đặt sân';
+          isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _cancelBooking(dynamic bookingId) async {
+  List<CourtBooking> get filteredBookings {
+    if (selectedFilter == 'all') return bookings;
+    return bookings.where((b) {
+      if (selectedFilter == 'checked_in') {
+        return b.status == 'checked_in' || b.status == 'playing' || b.status == 'extended';
+      }
+      return b.status == selectedFilter;
+    }).toList();
+  }
+
+  Future<void> _cancelBooking(int bookingId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hủy lịch đặt sân?', style: TextStyle(fontWeight: FontWeight.w700)),
-        content: const Text('Bạn có chắc chắn muốn hủy lịch đặt sân này không?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 28),
+            SizedBox(width: 10),
+            Text('Hủy lịch đặt sân?', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'Bạn có chắc chắn muốn hủy lịch đặt sân này không? Chỗ sẽ được mở lại cho người khác.',
+          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         actions: [
           TextButton(
             onPressed: () => context.pop(false),
-            child: const Text('Giữ lại'),
+            child: const Text('Giữ lại', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
           ),
           ElevatedButton(
             onPressed: () => context.pop(true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
-            child: const Text('Xác nhận hủy'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Xác nhận hủy', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -67,12 +141,21 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
     if (confirmed != true || !mounted) return;
 
     try {
-      showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
-      await ApiClient().dio.post('/court-bookings/$bookingId/cancel', data: {'reason': 'Khách hàng yêu cầu hủy'});
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+      await ApiClient().dio.post('/court-bookings/$bookingId/cancel', data: {'reason': 'Khách hàng yêu cầu hủy trên app'});
       if (mounted) {
-        context.pop();
+        context.pop(); // dismiss loading
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Hủy lịch thành công'), backgroundColor: AppColors.success, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          SnackBar(
+            content: const Text('Đã hủy lịch đặt sân thành công!'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
         fetchBookings();
       }
@@ -80,125 +163,103 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
       if (mounted) {
         context.pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Không thể hủy lịch đặt sân'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          SnackBar(
+            content: const Text('Không thể hủy lịch đặt sân. Vui lòng thử lại!'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
   }
 
-  String _formatCurrency(dynamic value) {
-    try {
-      final num p = num.parse(value.toString());
-      final formatted = p.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
-      return '$formatted₫';
-    } catch (_) {
-      return '0₫';
-    }
-  }
+  void _showQrCheckIn(CourtBooking booking) {
+    final courtName = booking.courtName ?? 'Sân #${booking.courtId}';
+    final dateStr = DateFormat('dd/MM/yyyy').format(DateTime.tryParse(booking.date) ?? DateTime.now());
+    final timeStr = '${booking.startTime} - ${booking.endTime}';
 
-  String _formatDate(dynamic value) {
-    if (value == null) return '';
-    final d = DateTime.tryParse(value.toString());
-    if (d == null) return value.toString();
-    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-  }
-
-  String _formatTime(dynamic value) {
-    if (value == null) return '';
-    final s = value.toString();
-    return s.length >= 5 ? s.substring(0, 5) : s;
-  }
-
-  String _getStatusLabel(String? status) {
-    switch (status) {
-      case 'pending': return 'Chờ duyệt';
-      case 'confirmed': return 'Đã xác nhận';
-      case 'checked_in': return 'Đang chơi';
-      case 'completed': return 'Hoàn thành';
-      case 'cancelled': return 'Đã hủy';
-      case 'no_show': return 'Không đến';
-      case 'extended': return 'Đã gia hạn';
-      default: return status ?? 'Không rõ';
-    }
-  }
-
-  Color _getStatusColor(String? status) {
-    switch (status) {
-      case 'pending': return const Color(0xFFD97706);
-      case 'confirmed': return const Color(0xFF2563EB);
-      case 'checked_in': return const Color(0xFF059669);
-      case 'completed': return AppColors.success;
-      case 'cancelled': return AppColors.error;
-      case 'no_show': return const Color(0xFFDC2626);
-      case 'extended': return const Color(0xFF7C3AED);
-      default: return const Color(0xFF475569);
-    }
-  }
-
-  Color _getStatusBg(String? status) {
-    switch (status) {
-      case 'pending': return const Color(0xFFFEF3C7);
-      case 'confirmed': return const Color(0xFFDBEAFE);
-      case 'checked_in': return const Color(0xFFD1FAE5);
-      case 'completed': return const Color(0xFFDCFCE7);
-      case 'cancelled': return const Color(0xFFFEE2E2);
-      case 'no_show': return const Color(0xFFFEE2E2);
-      case 'extended': return const Color(0xFFEDE9FE);
-      default: return const Color(0xFFF1F5F9);
-    }
-  }
-
-  IconData _getStatusIcon(String? status) {
-    switch (status) {
-      case 'pending': return Icons.hourglass_top;
-      case 'confirmed': return Icons.check_circle_outline;
-      case 'checked_in': return Icons.play_circle_outline;
-      case 'completed': return Icons.check_circle;
-      case 'cancelled': return Icons.cancel_outlined;
-      case 'no_show': return Icons.error_outline;
-      case 'extended': return Icons.update;
-      default: return Icons.help_outline;
-    }
-  }
-
-  int _getStepIndex(String? status) {
-    switch (status) {
-      case 'pending': return 0;
-      case 'confirmed': return 1;
-      case 'checked_in': return 2;
-      case 'completed': return 3;
-      default: return -1;
-    }
+    QrCheckInDialog.show(
+      context,
+      bookingId: booking.id,
+      bookingCode: booking.code,
+      courtName: courtName,
+      dateStr: dateStr,
+      timeStr: timeStr,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final list = filteredBookings;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Lịch Sử Đặt Sân', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text(
+          'Lịch Sử Đặt Sân',
+          style: TextStyle(
+            color: Color(0xFF0F172A),
+            fontWeight: FontWeight.w900,
+            fontSize: 18,
+          ),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0F172A),
         iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
         elevation: 0,
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              indicatorColor: AppColors.primary,
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.label,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: const Color(0xFF64748B),
+              labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+              tabs: _filterTabs.map((t) => Tab(text: t['label'])).toList(),
+            ),
+          ),
+        ),
       ),
       body: RefreshIndicator(
+        color: AppColors.primary,
         onRefresh: fetchBookings,
         child: isLoading
             ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
             : errorMessage != null
                 ? _buildError()
-                : bookings.isEmpty
+                : list.isEmpty
                     ? _buildEmpty()
                     : ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: bookings.length,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+                        itemCount: list.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 14),
-                        itemBuilder: (context, index) => _buildBookingCard(bookings[index]),
+                        itemBuilder: (context, index) {
+                          final booking = list[index];
+                          return BookingCard(
+                            booking: booking,
+                            money: _money,
+                            onShowQr: () => _showQrCheckIn(booking),
+                            onPay: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Vui lòng thanh toán trực tiếp tại quầy hoặc qua chuyển khoản!'),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            },
+                            onCancel: () => _cancelBooking(booking.id),
+                          );
+                        },
                       ),
       ),
     );
@@ -206,247 +267,84 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen> {
 
   Widget _buildError() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.grey),
-          const SizedBox(height: 12),
-          Text(errorMessage!, style: const TextStyle(color: Colors.grey)),
-          const SizedBox(height: 16),
-          ElevatedButton(onPressed: fetchBookings, child: const Text('Thử lại')),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEE2E2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              errorMessage!,
+              style: const TextStyle(color: Color(0xFF64748B), fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: fetchBookings,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Thử lại'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmpty() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF0F3),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.sports_tennis, size: 48, color: AppColors.primary),
-          ),
-          const SizedBox(height: 20),
-          const Text('Bạn chưa có lịch đặt sân nào', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-          const SizedBox(height: 8),
-          const Text('Hãy đặt sân đầu tiên để bắt đầu trải nghiệm!', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => context.pop(),
-            icon: const Icon(Icons.sports_tennis, size: 18),
-            label: const Text('Đặt sân ngay'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBookingCard(Map<String, dynamic> booking) {
-    final status = booking['status']?.toString();
-    final court = booking['court'] as Map<String, dynamic>?;
-    final courtName = court?['court_name'] ?? court?['name'] ?? 'Sân cầu lông';
-    final bookingCode = booking['booking_code'] ?? '#${booking['booking_id'] ?? booking['id']}';
-    final bookingDate = _formatDate(booking['booking_date']);
-    final startTime = _formatTime(booking['start_time']);
-    final endTime = _formatTime(booking['end_time']);
-    final totalAmount = booking['total_amount'] ?? 0;
-    final paymentStatus = booking['payment_status']?.toString();
-    final stepIndex = _getStepIndex(status);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 12, offset: const Offset(0, 4))],
-      ),
-      child: Column(
-        children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F9FB),
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
-              border: const Border(bottom: BorderSide(color: Color(0xFFF1F3F5))),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text('Mã: $bookingCode', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getStatusBg(status),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _getStatusColor(status).withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_getStatusIcon(status), size: 12, color: _getStatusColor(status)),
-                      const SizedBox(width: 4),
-                      Text(_getStatusLabel(status), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _getStatusColor(status))),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Body
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 48, height: 48,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.sports_tennis, color: AppColors.primary, size: 24),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(courtName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
-                          const SizedBox(height: 4),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.calendar_today, size: 13, color: Color(0xFF64748B)),
-                                  const SizedBox(width: 4),
-                                  Text(bookingDate, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                                ],
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.access_time, size: 13, color: Color(0xFF64748B)),
-                                  const SizedBox(width: 4),
-                                  Text('$startTime - $endTime', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const Text('Tổng tiền', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                        const SizedBox(height: 2),
-                        Text(_formatCurrency(totalAmount), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary)),
-                      ],
-                    ),
-                  ],
-                ),
-                // Progress steps
-                if (status != 'cancelled' && status != 'no_show' && stepIndex >= 0) ...[
-                  const SizedBox(height: 16),
-                  _buildProgressSteps(stepIndex),
-                ],
-              ],
-            ),
-          ),
-          // Footer actions
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0xFFF1F3F5))),
-            ),
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (paymentStatus != 'paid' && status != 'cancelled')
-                  _actionButton('Thanh toán', Icons.credit_card, const Color(0xFF059669), () {}),
-                if (status == 'pending' || status == 'confirmed') ...[
-                  _actionButton('QR Check-in', Icons.qr_code, AppColors.info, () {}),
-                  _actionButton('Hủy', Icons.close, AppColors.error, () => _cancelBooking(booking['booking_id'] ?? booking['id'])),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _actionButton(String label, IconData icon, Color color, VoidCallback onTap) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 14, color: color),
-      label: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: color, width: 1.2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      ),
-    );
-  }
-
-  Widget _buildProgressSteps(int currentStep) {
-    final steps = ['Đặt', 'Xác nhận', 'Chơi', 'Xong'];
-    return Row(
-      children: List.generate(steps.length * 2 - 1, (i) {
-        if (i.isOdd) {
-          // Connector line
-          final stepBefore = i ~/ 2;
-          return Expanded(
-            child: Container(
-              height: 2,
-              color: currentStep > stepBefore ? AppColors.primary : const Color(0xFFE2E8F0),
-            ),
-          );
-        } else {
-          final stepIdx = i ~/ 2;
-          final isActive = currentStep >= stepIdx;
-          return Column(
-            children: [
-              Container(
-                width: 22, height: 22,
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.primary : const Color(0xFFE2E8F0),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text('${stepIdx + 1}', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: isActive ? Colors.white : const Color(0xFF64748B))),
-                ),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: const BoxDecoration(
+                color: AppColors.primaryContainer,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 4),
-              Text(steps[stepIdx], style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: isActive ? AppColors.primary : const Color(0xFF64748B))),
-            ],
-          );
-        }
-      }),
+              child: const Icon(Icons.sports_tennis_rounded, size: 52, color: AppColors.primary),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Chưa có đơn đặt sân nào',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Khám phá hệ thống sân bãi hiện đại và đặt lịch chơi ngay hôm nay nhé!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13.5, color: Color(0xFF64748B), height: 1.4),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => context.pop(),
+              icon: const Icon(Icons.calendar_month_rounded, size: 18),
+              label: const Text('Đặt sân ngay'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -41,15 +41,26 @@ class CourtSlot {
   final String endTime;
   final int price;
   final String status;
+  final bool isMyLock;
+  final String? lockExpiresAt;
+  final String? lockToken;
 
   CourtSlot({
     required this.startTime,
     required this.endTime,
     required this.price,
     required this.status,
+    this.isMyLock = false,
+    this.lockExpiresAt,
+    this.lockToken,
   });
 
   bool get isAvailable => status == 'available';
+  bool get isLocked => status == 'locked';
+  bool get isBooked => status == 'booked';
+  bool get isPast => status == 'past';
+  bool get isMaintenance => status == 'maintenance';
+  bool get isClosed => status == 'closed';
 
   factory CourtSlot.fromJson(Map<String, dynamic> json) {
     return CourtSlot(
@@ -57,6 +68,9 @@ class CourtSlot {
       endTime: _shortTime(json['end_time']),
       price: _toInt(json['price']),
       status: (json['status'] ?? 'available').toString(),
+      isMyLock: json['is_my_lock'] == true,
+      lockExpiresAt: json['lock_expires_at']?.toString(),
+      lockToken: json['lock_token']?.toString(),
     );
   }
 }

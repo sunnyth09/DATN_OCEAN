@@ -4,7 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
-import 'main_wrapper.dart';
 import 'review_screen.dart';
 import '../config/app_config.dart';
 import '../utils/format_utils.dart';

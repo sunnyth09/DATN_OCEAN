@@ -1,11 +1,12 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import '../config/app_theme.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../utils/format_utils.dart';
-import 'order_detail_screen.dart';
-import 'login_screen.dart';
+import '../widgets/app_empty_state.dart';
+import '../widgets/price_tag.dart';
 
 class OrderScreen extends StatefulWidget {
   const OrderScreen({super.key});
@@ -104,24 +105,24 @@ class _OrderScreenState extends State<OrderScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
         title: const Text(
           'Đơn Hàng Của Tôi',
           style: TextStyle(
-            color: Color(0xFF0F172A),
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w900,
             fontSize: 18,
           ),
         ),
-        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.pop(),
+        ),
         bottom: TabBar(
           controller: _tabController,
-          labelColor: const Color(0xFFE63B6F),
-          unselectedLabelColor: const Color(0xFF64748B),
-          indicatorColor: const Color(0xFFE63B6F),
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
+          indicatorColor: AppColors.primary,
           isScrollable: true,
           tabs: const [
             Tab(text: 'Tất cả'),
@@ -139,85 +140,30 @@ class _OrderScreenState extends State<OrderScreen>
   Widget _buildBody() {
     if (isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFFE63B6F)),
+        child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
 
     if (isGuest) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.receipt_long_outlined,
-                size: 64,
-                color: Color(0xFF64748B),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Chưa đăng nhập',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Đăng nhập để xem lịch sử đơn hàng của bạn.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF64748B)),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  );
-                  fetchOrders();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE63B6F),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: const Text(
-                  'Đăng nhập ngay',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      return AppEmptyState(
+        icon: Icons.receipt_long_outlined,
+        title: 'Chưa đăng nhập',
+        message: 'Đăng nhập để xem và theo dõi lịch sử đơn hàng của bạn.',
+        buttonText: 'Đăng nhập ngay',
+        onAction: () async {
+          await context.push('/login');
+          fetchOrders();
+        },
       );
     }
 
     if (errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.receipt_long_outlined,
-              size: 60,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 16),
-            Text(errorMessage!, style: const TextStyle(color: Colors.red)),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: fetchOrders,
-              child: const Text('Thử lại'),
-            ),
-          ],
-        ),
+      return AppEmptyState(
+        icon: Icons.error_outline_rounded,
+        title: 'Không thể tải đơn hàng',
+        message: errorMessage!,
+        buttonText: 'Thử lại',
+        onAction: fetchOrders,
       );
     }
 
@@ -235,7 +181,6 @@ class _OrderScreenState extends State<OrderScreen>
 
   Widget _buildOrderList(String statusFilter) {
     List<dynamic> filtered = allOrders;
-    // Map theo status, Backend có thể dùng 'fulfillment_status' hoặc 'status'
     if (statusFilter != 'all') {
       filtered = allOrders.where((order) {
         String st = (order['fulfillment_status'] ?? order['status'] ?? '')
@@ -264,122 +209,123 @@ class _OrderScreenState extends State<OrderScreen>
     }
 
     if (filtered.isEmpty) {
-      return const Center(
-        child: Text(
-          'Không có đơn hàng nào',
-          style: TextStyle(color: Color(0xFF64748B)),
-        ),
+      return AppEmptyState(
+        icon: Icons.receipt_long_outlined,
+        title: 'Không có đơn hàng nào',
+        message: 'Chưa có đơn hàng nào ở trạng thái này.',
+        buttonText: 'Mua sắm ngay',
+        onAction: () => context.go('/shop'),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filtered.length,
-      itemBuilder: (context, index) {
-        final order = filtered[index];
-        final orderCode = order['order_code'] ?? order['id'].toString();
-        final date = FormatUtils.formatDate(order['created_at']);
-        final total = FormatUtils.formatPrice(
-          order['grand_total'] ?? order['total'],
-        );
-        final status =
-            (order['fulfillment_status'] ?? order['status'] ?? 'Unknown')
-                .toString()
-                .toUpperCase();
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: fetchOrders,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: filtered.length,
+        itemBuilder: (context, index) {
+          final order = filtered[index];
+          final orderCode = order['order_code'] ?? order['id'].toString();
+          final date = FormatUtils.formatDate(order['created_at']);
+          final total = order['grand_total'] ?? order['total'] ?? 0;
+          final status =
+              (order['fulfillment_status'] ?? order['status'] ?? 'Unknown')
+                  .toString()
+                  .toUpperCase();
 
-        // Màu status cơ bản
-        Color statusColor = const Color(0xFF64748B);
-        if (status.contains('PENDING')) {
-          statusColor = Colors.orange;
-        } else if (status.contains('SHIP')) {
-          statusColor = Colors.blue;
-        } else if (status.contains('COMPLETED') ||
-            status.contains('DELIVERED') ||
-            status.contains('SUCCESS')) {
-          statusColor = Colors.green;
-        } else if (status.contains('CANCEL') || status.contains('FAIL')) {
-          statusColor = Colors.red;
-        }
+          Color statusColor = AppColors.textSecondary;
+          Color statusBg = AppColors.surfaceDim;
+          if (status.contains('PENDING')) {
+            statusColor = AppColors.warning;
+            statusBg = AppColors.warningLight;
+          } else if (status.contains('SHIP')) {
+            statusColor = AppColors.info;
+            statusBg = AppColors.infoLight;
+          } else if (status.contains('COMPLETED') ||
+              status.contains('DELIVERED') ||
+              status.contains('SUCCESS')) {
+            statusColor = AppColors.success;
+            statusBg = AppColors.successLight;
+          } else if (status.contains('CANCEL') || status.contains('FAIL')) {
+            statusColor = AppColors.error;
+            statusBg = AppColors.errorLight;
+          }
 
-        return GestureDetector(
-          onTap: () async {
-            await context.push('/order-detail', extra: (order['order_id'] ?? order['id']).toString());
-            fetchOrders();
-          },
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Đơn hàng: #$orderCode',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        FormatUtils.translateStatus(status),
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+          return GestureDetector(
+            onTap: () async {
+              await context.push('/order-detail',
+                  extra: (order['order_id'] ?? order['id']).toString());
+              fetchOrders();
+            },
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.border),
+                boxShadow: AppShadows.card,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Đơn hàng: #$orderCode',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Divider(color: Color(0xFFF1F5F9)),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Ngày đặt: $date',
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 13,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusBg,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          FormatUtils.translateStatus(status),
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
-                    ),
-                    Text(
-                      total,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFFE63B6F),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Divider(),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Ngày đặt: $date',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      PriceTag(
+                        price: total,
+                        fontSize: 15,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

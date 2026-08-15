@@ -1,7 +1,9 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import '../config/app_theme.dart';
 import '../services/api_client.dart';
+import '../widgets/app_empty_state.dart';
 
 class AddressScreen extends StatefulWidget {
   final bool isSelecting;
@@ -40,29 +42,40 @@ class _AddressScreenState extends State<AddressScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Xác nhận xóa', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Bạn có chắc muốn xóa địa chỉ này không?'),
+        title: const Text('Xác nhận xóa', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: const Text('Bạn có chắc muốn xóa địa chỉ nhận hàng này không?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Hủy', style: TextStyle(color: AppColors.textMuted)),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
           ),
         ],
       ),
     );
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
 
     try {
       await ApiClient().dio.delete('/profile/addresses/$id');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xóa địa chỉ'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã xóa địa chỉ thành công!'), backgroundColor: AppColors.success),
+        );
         fetchAddresses();
       }
     } on DioException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.response?.data?['message'] ?? 'Xóa thất bại'), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.response?.data?['message'] ?? 'Xóa thất bại'), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 
@@ -70,17 +83,17 @@ class _AddressScreenState extends State<AddressScreen> {
     try {
       await ApiClient().dio.put('/profile/addresses/$id/default');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã đặt làm địa chỉ mặc định'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Đã đặt làm địa chỉ mặc định'), backgroundColor: AppColors.success),
+        );
         fetchAddresses();
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Không thể đặt địa chỉ mặc định. Vui lòng thử lại.',
-            ),
-            backgroundColor: Colors.red,
+            content: Text('Không thể đặt địa chỉ mặc định. Vui lòng thử lại.'),
+            backgroundColor: AppColors.error,
           ),
         );
       }
@@ -93,12 +106,9 @@ class _AddressScreenState extends State<AddressScreen> {
     final addressCtrl = TextEditingController(text: existing?['address_line'] ?? '');
 
     List<dynamic> provinces = [];
-    List<dynamic> districts = [];
     List<dynamic> wards = [];
     String? selectedProvCode = existing?['province_code'];
     String? selectedProvName = existing?['province'];
-    String? selectedDistCode = existing?['district_code'];
-    String? selectedDistName = existing?['district'];
     String? selectedWardCode = existing?['ward_code'];
     String? selectedWardName = existing?['ward'];
     bool isSaving = false;
@@ -108,11 +118,12 @@ class _AddressScreenState extends State<AddressScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (context) {
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalCtx) {
         return StatefulBuilder(
           builder: (BuildContext ctx, StateSetter setModal) {
-            // Load provinces on first build
             if (provinces.isEmpty) {
               ApiClient().dio.get('/location/provinces').then((res) {
                 if (res.statusCode == 200) {
@@ -121,7 +132,6 @@ class _AddressScreenState extends State<AddressScreen> {
               }).catchError((_) {});
             }
 
-            // Load wards when province selected
             void onProvChanged(dynamic val) {
               final pv = provinces.firstWhere((p) => p['id'].toString() == val.toString(), orElse: () => {});
               setModal(() {
@@ -144,33 +154,63 @@ class _AddressScreenState extends State<AddressScreen> {
             }
 
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 20, right: 20, top: 20),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                left: 20,
+                right: 20,
+                top: 20,
+              ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Handle
-                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceDim,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 16),
-                    Text(isEditing ? 'Chỉnh Sửa Địa Chỉ' : 'Thêm Địa Chỉ Mới',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(
+                      isEditing ? 'Chỉnh Sửa Địa Chỉ' : 'Thêm Địa Chỉ Mới',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
                     const SizedBox(height: 20),
                     _inputField(controller: nameCtrl, label: 'Tên người nhận *', icon: Icons.person_outline),
                     const SizedBox(height: 12),
-                    _inputField(controller: phoneCtrl, label: 'Số điện thoại *', icon: Icons.phone_outlined, type: TextInputType.phone),
+                    _inputField(
+                      controller: phoneCtrl,
+                      label: 'Số điện thoại *',
+                      icon: Icons.phone_outlined,
+                      type: TextInputType.phone,
+                    ),
                     const SizedBox(height: 12),
                     _dropdown(
                       label: 'Tỉnh/Thành phố',
                       value: selectedProvCode,
-                      items: provinces.map((p) => DropdownMenuItem(value: p['id'].toString(), child: Text(p['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
+                      items: provinces
+                          .map((p) => DropdownMenuItem(
+                                value: p['id'].toString(),
+                                child: Text(p['name'].toString(), overflow: TextOverflow.ellipsis),
+                              ))
+                          .toList(),
                       onChanged: onProvChanged,
                     ),
                     const SizedBox(height: 12),
                     _dropdown(
                       label: 'Phường/Xã',
                       value: selectedWardCode,
-                      items: wards.map((w) => DropdownMenuItem(value: w['id'].toString(), child: Text(w['name'].toString(), overflow: TextOverflow.ellipsis))).toList(),
+                      items: wards
+                          .map((w) => DropdownMenuItem(
+                                value: w['id'].toString(),
+                                child: Text(w['name'].toString(), overflow: TextOverflow.ellipsis),
+                              ))
+                          .toList(),
                       onChanged: wards.isEmpty ? null : onWardChanged,
                     ),
                     const SizedBox(height: 12),
@@ -180,58 +220,82 @@ class _AddressScreenState extends State<AddressScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE63B6F),
+                          backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        onPressed: isSaving ? null : () async {
-                          final phone = phoneCtrl.text.trim();
-                          final phoneRegExp = RegExp(r'^(0|\+84|84)[35789][0-9]{8}$');
+                        onPressed: isSaving
+                            ? null
+                            : () async {
+                                final phone = phoneCtrl.text.trim();
+                                final phoneRegExp = RegExp(r'^(0|\+84|84)[35789][0-9]{8}$');
 
-                          if (nameCtrl.text.trim().isEmpty || addressCtrl.text.trim().isEmpty || phone.isEmpty) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Vui lòng điền đủ thông tin bắt buộc (*)')));
-                            return;
-                          }
+                                if (nameCtrl.text.trim().isEmpty || addressCtrl.text.trim().isEmpty || phone.isEmpty) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(content: Text('Vui lòng điền đủ thông tin bắt buộc (*)')),
+                                  );
+                                  return;
+                                }
 
-                          if (!phoneRegExp.hasMatch(phone)) {
-                            ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Số điện thoại không hợp lệ (ví dụ: 0912345678)')));
-                            return;
-                          }
+                                if (!phoneRegExp.hasMatch(phone)) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(content: Text('Số điện thoại không hợp lệ (ví dụ: 0912345678)')),
+                                  );
+                                  return;
+                                }
 
-                          setModal(() => isSaving = true);
-                          final navigator = Navigator.of(ctx);
-                          final messenger = ScaffoldMessenger.of(ctx);
-                          try {
-                            final payload = {
-                              'recipient_name': nameCtrl.text.trim(),
-                              'phone': phoneCtrl.text.trim(),
-                              'province': selectedProvName ?? '',
-                              'province_code': selectedProvCode ?? '',
-                              'ward': selectedWardName ?? '',
-                              'ward_code': selectedWardCode ?? '',
-                              'address_line': addressCtrl.text.trim(),
-                              'is_default': false,
-                            };
-                            if (isEditing) {
-                              await ApiClient().dio.put('/profile/addresses/${existing['address_id'] ?? existing['id']}', data: payload);
-                            } else {
-                              await ApiClient().dio.post('/profile/addresses', data: payload);
-                            }
-                            context.pop();
-                            messenger.showSnackBar(SnackBar(
-                              content: Text(isEditing ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ thành công!'),
-                              backgroundColor: Colors.green,
-                            ));
-                            fetchAddresses();
-                          } on DioException catch (e) {
-                            setModal(() => isSaving = false);
-                            messenger.showSnackBar(SnackBar(content: Text(e.response?.data?['message'] ?? 'Lưu thất bại'), backgroundColor: Colors.red));
-                          }
-                        },
+                                setModal(() => isSaving = true);
+                                try {
+                                  final payload = {
+                                    'recipient_name': nameCtrl.text.trim(),
+                                    'phone': phoneCtrl.text.trim(),
+                                    'province': selectedProvName ?? '',
+                                    'province_code': selectedProvCode ?? '',
+                                    'ward': selectedWardName ?? '',
+                                    'ward_code': selectedWardCode ?? '',
+                                    'address_line': addressCtrl.text.trim(),
+                                    'is_default': false,
+                                  };
+                                  if (isEditing) {
+                                    await ApiClient().dio.put(
+                                      '/profile/addresses/${existing['address_id'] ?? existing['id']}',
+                                      data: payload,
+                                    );
+                                  } else {
+                                    await ApiClient().dio.post('/profile/addresses', data: payload);
+                                  }
+
+                                  if (modalCtx.mounted) {
+                                    Navigator.pop(modalCtx);
+                                  }
+
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                      content: Text(isEditing ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ thành công!'),
+                                      backgroundColor: AppColors.success,
+                                    ));
+                                    fetchAddresses();
+                                  }
+                                } on DioException catch (e) {
+                                  setModal(() => isSaving = false);
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                                      content: Text(e.response?.data?['message'] ?? 'Lưu thất bại'),
+                                      backgroundColor: AppColors.error,
+                                    ));
+                                  }
+                                }
+                              },
                         child: isSaving
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : Text(isEditing ? 'Cập nhật địa chỉ' : 'Lưu địa chỉ', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : Text(
+                                isEditing ? 'Cập nhật địa chỉ' : 'Lưu địa chỉ',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -245,36 +309,78 @@ class _AddressScreenState extends State<AddressScreen> {
     );
   }
 
-  Widget _inputField({required TextEditingController controller, required String label, required IconData icon, TextInputType type = TextInputType.text}) {
+  Widget _inputField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType type = TextInputType.text,
+  }) {
     return Container(
-      decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDim,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF64748B)),
+          Icon(icon, size: 18, color: AppColors.textMuted),
           const SizedBox(width: 10),
-          Expanded(child: TextField(
-            controller: controller,
-            keyboardType: type,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A)),
-            decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF64748B)), border: InputBorder.none, isDense: true),
-          )),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              keyboardType: type,
+              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                labelText: label,
+                labelStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                isDense: true,
+                filled: false,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _dropdown({required String label, required String? value, required List<DropdownMenuItem<String>> items, void Function(dynamic)? onChanged}) {
+  Widget _dropdown({
+    required String label,
+    required String? value,
+    required List<DropdownMenuItem<String>> items,
+    void Function(dynamic)? onChanged,
+  }) {
     return Container(
-      decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceDim,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       child: DropdownButtonFormField<String>(
-        decoration: InputDecoration(labelText: label, labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF64748B)), border: InputBorder.none, isDense: true),
-        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          isDense: true,
+          filled: false,
+        ),
+        initialValue: value,
         isExpanded: true,
         items: items,
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 14, color: Color(0xFF0F172A)),
+        style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
       ),
     );
   }
@@ -282,28 +388,26 @@ class _AddressScreenState extends State<AddressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Sổ địa chỉ', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18)),
-        backgroundColor: Colors.white,
-        centerTitle: true,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
+        title: const Text(
+          'Sổ Địa Chỉ',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => context.pop(),
+        ),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
           : addresses.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.location_off_outlined, size: 64, color: Color(0xFF64748B)),
-                      const SizedBox(height: 16),
-                      const Text('Chưa có địa chỉ nào', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-                      const SizedBox(height: 8),
-                      const Text('Thêm địa chỉ để tiện mua sắm hơn', style: TextStyle(color: Color(0xFF64748B))),
-                    ],
-                  ),
+              ? AppEmptyState(
+                  icon: Icons.location_off_outlined,
+                  title: 'Chưa có địa chỉ nào',
+                  message: 'Thêm địa chỉ nhận hàng để việc đặt hàng nhanh chóng và thuận tiện hơn.',
+                  buttonText: 'Thêm địa chỉ',
+                  onAction: () => _showAddAddressModal(),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -318,9 +422,11 @@ class _AddressScreenState extends State<AddressScreen> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: isDefault ? Border.all(color: const Color(0xFFE63B6F), width: 1.5) : null,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10)],
+                        borderRadius: BorderRadius.circular(18),
+                        border: isDefault
+                            ? Border.all(color: AppColors.primary, width: 1.5)
+                            : Border.all(color: AppColors.border),
+                        boxShadow: AppShadows.card,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,14 +438,32 @@ class _AddressScreenState extends State<AddressScreen> {
                                 child: Row(
                                   children: [
                                     Flexible(
-                                      child: Text(addr['recipient_name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)), overflow: TextOverflow.ellipsis),
+                                      child: Text(
+                                        addr['recipient_name'] ?? '',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 15,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                     if (isDefault) ...[
                                       const SizedBox(width: 8),
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(color: const Color(0xFFE63B6F).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                                        child: const Text('Mặc định', style: TextStyle(color: Color(0xFFE63B6F), fontSize: 10, fontWeight: FontWeight.bold)),
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryContainer,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Text(
+                                          'Mặc định',
+                                          style: TextStyle(
+                                            color: AppColors.primary,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ],
@@ -348,46 +472,56 @@ class _AddressScreenState extends State<AddressScreen> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  GestureDetector(
-                                    onTap: () => _showAddAddressModal(existing: addr),
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(10),
-                                      child: Icon(Icons.edit_outlined, color: Color(0xFFE63B6F), size: 20),
-                                    ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: 20),
+                                    onPressed: () => _showAddAddressModal(existing: addr),
                                   ),
-                                  GestureDetector(
-                                    onTap: () => deleteAddress(addrId),
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(10),
-                                      child: Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                                    ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+                                    onPressed: () => deleteAddress(addrId),
                                   ),
                                 ],
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
-                          Text(addr['phone'] ?? '', style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                          Text(
+                            addr['phone'] ?? '',
+                            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                          ),
                           const SizedBox(height: 6),
                           Text(
                             '${addr['address_line']}, ${addr['ward']}, ${addr['province']}',
-                            style: const TextStyle(color: Color(0xFF334155), height: 1.5, fontSize: 13),
+                            style: const TextStyle(color: AppColors.textPrimary, height: 1.4, fontSize: 13),
                           ),
                           if (!isDefault) ...[
                             const SizedBox(height: 10),
                             GestureDetector(
                               onTap: () => setDefaultAddress(addrId),
-                              child: const Text('Đặt làm mặc định', style: TextStyle(color: Color(0xFFE63B6F), fontSize: 12, fontWeight: FontWeight.w600)),
+                              child: const Text(
+                                'Đặt làm mặc định',
+                                style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ],
                           if (widget.isSelecting) ...[
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 12),
                             SizedBox(
                               width: double.infinity,
                               child: OutlinedButton(
-                                onPressed: () => context.pop(false),
-                                style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFE63B6F)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                                child: const Text('Chọn địa chỉ này', style: TextStyle(color: Color(0xFFE63B6F))),
+                                onPressed: () => context.pop(addr),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: AppColors.primary),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: const Text(
+                                  'Chọn địa chỉ này',
+                                  style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
+                                ),
                               ),
                             ),
                           ],
@@ -401,13 +535,15 @@ class _AddressScreenState extends State<AddressScreen> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: ElevatedButton.icon(
             onPressed: () => _showAddAddressModal(),
-            icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text('Thêm địa chỉ mới', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text(
+              'Thêm địa chỉ mới',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
+            ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE63B6F),
+              backgroundColor: AppColors.primary,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
           ),
         ),

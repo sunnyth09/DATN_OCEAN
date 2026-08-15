@@ -64,10 +64,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         options: Options(contentType: 'multipart/form-data'),
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cập nhật thành công!'), backgroundColor: Colors.green));
-        context.pop(false);
-      }
+      if (!mounted) return;
+      final updatedData = response.data['data'] ?? response.data['user'];
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cập nhật thành công!'), backgroundColor: Colors.green),
+      );
+      context.pop(updatedData);
     } on DioException catch (e) {
       if (mounted) {
         final msg = e.response?.data?['message'] ?? 'Cập nhật thất bại!';
@@ -228,7 +230,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   controller: ctrl,
                   keyboardType: type,
                   style: const TextStyle(fontSize: 15, color: Color(0xFF0F172A), fontWeight: FontWeight.w500),
-                  decoration: InputDecoration(hintText: hint, hintStyle: const TextStyle(color: Color(0xFFCBD5E1)), border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
+                  decoration: InputDecoration(
+                    hintText: hint,
+                    hintStyle: const TextStyle(color: Color(0xFFCBD5E1)),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    isDense: true,
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ),
               ],
             ),
