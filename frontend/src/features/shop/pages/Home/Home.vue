@@ -100,27 +100,34 @@ const fetchRealFlashSale = async () => {
         if (data && data.data && data.data.length > 0) {
             // Lấy danh sách sản phẩm và giới hạn 4 sản phẩm
             flashSaleProducts.value = data.data.slice(0, 4).map(p => {
-                // Map the Flash Sale API properties to match the component's expectations
+                const salePrice = p.sale_price ?? p.flash_price ?? p.price ?? 0;
+                const origPrice = p.original_price ?? p.originalPrice ?? salePrice;
+                const totalStock = p.total_stock ?? p.total_quantity ?? 0;
+                const soldCount = p.sold_count ?? p.sold ?? 0;
+                const percent = totalStock > 0 ? Math.min(100, Math.floor((soldCount / totalStock) * 100)) : 0;
+
                 return {
-                    id: p.product_id,
-                    name: p.name,
-                    price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(p.flash_price),
-                    min_price: p.flash_price,
-                    originalPrice: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(p.original_price),
-                    original_price: p.original_price,
-                    discount_percent: Math.round((p.original_price - p.flash_price) / p.original_price * 100),
+                    id: p.product_id ?? p.id,
+                    flash_sale_id: p.id,
+                    item_id: p.item_id,
+                    name: p.product_name ?? p.name ?? 'Sản phẩm Flash Sale',
+                    min_price: salePrice,
+                    price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(salePrice),
+                    original_price: origPrice,
+                    originalPrice: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(origPrice),
+                    discount_percent: p.discount_percent ?? (origPrice > 0 ? Math.round(((origPrice - salePrice) / origPrice) * 100) : 0),
                     is_on_sale: true,
-                    image: getImageUrl(p.image_url),
+                    image: p.product_thumbnail ?? p.image_url ?? p.image ?? '',
                     badge: "Hot",
-                    slug: p.slug,
+                    slug: p.slug ?? '',
                     category_name: p.category_name || '',
-                    flash_sold: p.sold,
-                    flash_total: p.total_quantity,
-                    flash_percent: Math.min(100, Math.floor((p.sold / p.total_quantity) * 100))
+                    flash_sold: soldCount,
+                    flash_total: totalStock,
+                    flash_percent: percent
                 };
             });
-            // Giả định API trả về chung 1 end_time cho flash sale
-            const endString = data.data[0].end_time;
+            // Lấy thời gian kết thúc flash sale (ends_at hoặc end_time)
+            const endString = data.data[0].ends_at || data.data[0].end_time;
             if (endString) {
                 flashSaleEndTime = new Date(endString);
             }
