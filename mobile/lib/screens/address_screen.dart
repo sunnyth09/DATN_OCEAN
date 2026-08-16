@@ -218,11 +218,11 @@ class _AddressScreenState extends State<AddressScreen> {
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
+                      height: 46,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
                         onPressed: isSaving
                             ? null
@@ -294,7 +294,7 @@ class _AddressScreenState extends State<AddressScreen> {
                               )
                             : Text(
                                 isEditing ? 'Cập nhật địa chỉ' : 'Lưu địa chỉ',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14.5),
                               ),
                       ),
                     ),
@@ -532,18 +532,20 @@ class _AddressScreenState extends State<AddressScreen> {
                 ),
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: ElevatedButton.icon(
-            onPressed: () => _showAddAddressModal(),
-            icon: const Icon(Icons.add_rounded, color: Colors.white),
-            label: const Text(
-              'Thêm địa chỉ mới',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: SizedBox(
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: () => _showAddAddressModal(),
+              icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+              label: const Text(
+                'Thêm địa chỉ mới',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14.5),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
             ),
           ),
         ),

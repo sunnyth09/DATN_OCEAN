@@ -326,7 +326,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _buildButton(String text, VoidCallback onPressed) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 46,
       child: ElevatedButton(
         onPressed: _isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
@@ -349,8 +349,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             : Text(
                 text,
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14.5,
                 ),
               ),
       ),

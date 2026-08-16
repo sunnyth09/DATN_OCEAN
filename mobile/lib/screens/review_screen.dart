@@ -277,25 +277,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
             SizedBox(
               width: double.infinity,
+              height: 46,
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFE63B6F),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _isSubmitting
                   ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                      SizedBox(width: 10),
-                      Text('Đang gửi...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      SizedBox(width: 8),
+                      Text('Đang gửi...', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                     ])
                   : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.send_rounded, size: 18),
-                      SizedBox(width: 8),
-                      Text('Gửi đánh giá', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Icon(Icons.send_rounded, size: 16),
+                      SizedBox(width: 6),
+                      Text('Gửi đánh giá', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                     ]),
               ),
             ),

@@ -184,37 +184,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     isConfirmPass: true,
                   ),
                   
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                   
                   // Nút Đăng ký
                   SizedBox(
                     width: double.infinity,
+                    height: 46,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: const Color(0xFFE63B6F),
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
                       child: _isLoading 
-                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Đăng ký tài khoản', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Đăng ký tài khoản', style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: Colors.white)),
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Divider
                   Row(
                     children: [
                       const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Text(
                           'Hoặc tiếp tục với',
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: Colors.grey.shade500,
                           ),
@@ -224,14 +224,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   // Google Sign-In Button
                   InkWell(
                     onTap: _isLoading ? null : _handleGoogleLogin,
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      height: 50,
+                      height: 44,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -240,8 +240,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1.5),
                           ),
                         ],
                       ),
@@ -249,7 +249,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(6),
+                            padding: const EdgeInsets.all(4.5),
                             decoration: BoxDecoration(
                               color: const Color(0xFFEA4335).withValues(alpha: 0.1),
                               shape: BoxShape.circle,
@@ -257,14 +257,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: const Icon(
                               Icons.g_mobiledata_rounded,
                               color: Color(0xFFEA4335),
-                              size: 26,
+                              size: 22,
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           const Text(
                             'Đăng ký với Google',
                             style: TextStyle(
-                              fontSize: 14.5,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF1E293B),
                             ),
@@ -274,7 +274,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                 ],
               ),
             ],

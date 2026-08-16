@@ -215,20 +215,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Nút Đăng nhập
                   SizedBox(
                     width: double.infinity,
+                    height: 46,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
                         backgroundColor: const Color(0xFFE63B6F),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                       ),
                       child: _isLoading
                           ? const SizedBox(
-                              width: 24,
-                              height: 24,
+                              width: 20,
+                              height: 20,
                               child: CircularProgressIndicator(
                                 color: Colors.white,
                                 strokeWidth: 2,
@@ -237,27 +237,27 @@ class _LoginScreenState extends State<LoginScreen> {
                           : const Text(
                               'Đăng nhập',
                               style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w700,
                                 color: Colors.white,
                               ),
                             ),
                     ),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 28),
 
                   // Divider
                   Row(
                     children: [
                       const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Text(
                           'HOẶC ĐĂNG NHẬP VỚI',
                           style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
                             color: Colors.grey.shade500,
                           ),
                         ),
@@ -266,14 +266,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   // Google Sign-In Button
                   InkWell(
                     onTap: _isLoading ? null : _handleGoogleLogin,
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
-                      height: 50,
+                      height: 44,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -282,8 +282,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.03),
-                            blurRadius: 6,
-                            offset: const Offset(0, 2),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1.5),
                           ),
                         ],
                       ),
@@ -291,7 +291,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(6),
+                            padding: const EdgeInsets.all(4.5),
                             decoration: BoxDecoration(
                               color: const Color(0xFFEA4335).withValues(alpha: 0.1),
                               shape: BoxShape.circle,
@@ -299,14 +299,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: const Icon(
                               Icons.g_mobiledata_rounded,
                               color: Color(0xFFEA4335),
-                              size: 26,
+                              size: 22,
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 8),
                           const Text(
                             'Tiếp tục với Google',
                             style: TextStyle(
-                              fontSize: 14.5,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF1E293B),
                             ),
@@ -316,7 +316,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 24),
 
                   // Đăng ký
                   Row(

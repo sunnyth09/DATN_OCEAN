@@ -167,15 +167,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               _buildReadOnly(label: 'Vai trò', value: _formatRole(widget.userData['role']), icon: Icons.badge_outlined),
             ]),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
             SizedBox(
               width: double.infinity,
+              height: 46,
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _save,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFE63B6F),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
@@ -183,9 +183,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                         SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
                         SizedBox(width: 10),
-                        Text('Đang lưu...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text('Đang lưu...', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                       ])
-                    : const Text('Lưu thay đổi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    : const Text('Lưu thay đổi', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
               ),
             ),
           ],

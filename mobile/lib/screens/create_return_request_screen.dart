@@ -235,26 +235,26 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 28),
             
             SizedBox(
               width: double.infinity,
+              height: 46,
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _isSubmitting
                   ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                      SizedBox(width: 10),
-                      Text('Đang gửi...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      SizedBox(width: 8),
+                      Text('Đang gửi...', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                     ])
-                  : const Text('Gửi Yêu Cầu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  : const Text('Gửi Yêu Cầu', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
               ),
             ),
           ],

@@ -91,18 +91,18 @@ class _AppTextFieldState extends State<AppTextField> {
           Text(
             widget.labelText!,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
               color: AppColors.textLabel,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
         ],
         AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           decoration: BoxDecoration(
             color: widget.readOnly ? const Color(0xFFF1F5F9) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: _isFocused ? AppColors.primary : const Color(0xFFE2E8F0),
               width: _isFocused ? 1.5 : 1.0,
@@ -111,14 +111,14 @@ class _AppTextFieldState extends State<AppTextField> {
                 ? [
                     BoxShadow(
                       color: AppColors.primary.withValues(alpha: 0.12),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 1.5),
                     ),
                   ]
                 : [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 4,
+                      blurRadius: 3,
                       offset: const Offset(0, 1),
                     ),
                   ],
@@ -140,7 +140,7 @@ class _AppTextFieldState extends State<AppTextField> {
             minLines: widget.isPassword ? 1 : widget.minLines,
             maxLines: widget.isPassword ? 1 : widget.maxLines,
             style: const TextStyle(
-              fontSize: 14.5,
+              fontSize: 13.5,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
             ),
@@ -149,17 +149,18 @@ class _AppTextFieldState extends State<AppTextField> {
               filled: false,
               hintText: widget.hintText,
               hintStyle: const TextStyle(
-                fontSize: 13.5,
+                fontSize: 13,
                 color: Color(0xFF94A3B8),
                 fontWeight: FontWeight.w400,
               ),
               prefixIcon: widget.prefixIcon != null
                   ? Icon(
                       widget.prefixIcon,
-                      size: 20,
+                      size: 18,
                       color: _isFocused ? AppColors.primary : const Color(0xFF64748B),
                     )
                   : null,
+              prefixIconConstraints: const BoxConstraints(minWidth: 38, minHeight: 38),
               suffixIcon: widget.isPassword
                   ? IconButton(
                       icon: Icon(
@@ -167,11 +168,14 @@ class _AppTextFieldState extends State<AppTextField> {
                             ? Icons.visibility_off_outlined
                             : Icons.visibility_outlined,
                         color: const Color(0xFF64748B),
-                        size: 20,
+                        size: 18,
                       ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                       onPressed: () => setState(() => _obscureText = !_obscureText),
                     )
                   : widget.suffixIcon,
+              suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -179,8 +183,8 @@ class _AppTextFieldState extends State<AppTextField> {
               focusedErrorBorder: InputBorder.none,
               disabledBorder: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(
-                horizontal: widget.prefixIcon != null ? 0 : 16,
-                vertical: 14,
+                horizontal: widget.prefixIcon != null ? 0 : 14,
+                vertical: 10,
               ),
             ),
           ),
