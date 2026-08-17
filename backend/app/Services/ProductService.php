@@ -89,6 +89,7 @@ class ProductService
         ];
 
         if ($search) {
+            $filters['search_query'] = $search;
             try {
                 // Sử dụng Meilisearch thông qua Laravel Scout
                 $ids = Product::search($search)->keys()->toArray();
@@ -98,19 +99,12 @@ class ProductService
                         'query' => $search,
                         'results_count' => count($matchedIds)
                     ]);
-                } else {
-                    Log::warning('Admin Product Search: Meilisearch trả về rỗng, dùng SQL LIKE làm dự phòng', [
-                        'query' => $search
-                    ]);
-                    $filters['search_like'] = $search;
                 }
             } catch (\Exception $e) {
-                // Fallback nếu Meilisearch bị lỗi hoặc chưa khởi động
-                Log::warning('Admin Product Search: Meilisearch thất bại, dùng SQL LIKE làm dự phòng', [
+                Log::warning('Admin Product Search: Meilisearch exception', [
                     'error' => $e->getMessage(),
                     'query' => $search
                 ]);
-                $filters['search_like'] = $search;
             }
         }
 
@@ -150,39 +144,25 @@ class ProductService
             'sort_by'    => $request->query('sort_by'),
         ];
 
-        // ── Tìm kiếm qua Meilisearch ──────────────────────────────────
-        $matchedIds     = null;  // null = không search, array = đã search (có thể rỗng)
-        $useMeilisearch = false;
+        // ── Tìm kiếm qua Meilisearch + Database ──────────────────────
+        $matchedIds = null;
 
         if ($search !== '') {
+            $filters['search_query'] = $search;
             try {
                 $ids = Product::search($search)->keys()->toArray();
-
-                // BUG FIX: Phân biệt "Meilisearch trả về rỗng do index lỗi/chưa sync"
-                // với "tìm thực sự không có kết quả".
-                // Nếu $ids rỗng → có thể do index chưa được import → fallback SQL LIKE.
-                // Nếu $ids có phần tử → Meilisearch hoạt động đúng, dùng kết quả này.
                 if (! empty($ids)) {
-                    $matchedIds     = $ids;
-                    $useMeilisearch = true;
+                    $matchedIds = $ids;
                     Log::info('Client Product Search: Meilisearch thành công', [
                         'query'   => $search,
                         'results' => count($ids),
                     ]);
-                } else {
-                    // Meilisearch chạy nhưng index rỗng/chưa sync → fallback SQL LIKE
-                    Log::warning('Client Product Search: Meilisearch trả về rỗng, dùng SQL LIKE fallback', [
-                        'query' => $search,
-                    ]);
-                    $filters['search_like'] = $search;
                 }
             } catch (\Exception $e) {
-                // Meilisearch lỗi hoàn toàn (không kết nối được) → fallback SQL LIKE
-                Log::warning('Client Product Search: Meilisearch lỗi, dùng SQL LIKE fallback', [
+                Log::warning('Client Product Search: Meilisearch exception', [
                     'error' => $e->getMessage(),
                     'query' => $search,
                 ]);
-                $filters['search_like'] = $search;
             }
         }
 

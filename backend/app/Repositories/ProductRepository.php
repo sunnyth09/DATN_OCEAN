@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class ProductRepository
 {
@@ -32,6 +33,57 @@ class ProductRepository
         ];
     }
 
+    /**
+     * Áp dụng tìm kiếm thông minh kết hợp Meilisearch IDs và SQL LIKE
+     * (Tìm theo tên, slug không dấu, mô tả, danh mục, thương hiệu)
+     */
+    private function applySearchFilters($query, ?array $matchedIds, array $filters): void
+    {
+        $search = $filters['search_query'] ?? $filters['search_like'] ?? null;
+        $hasMatchedIds = ! empty($matchedIds);
+
+        if ($hasMatchedIds || ! empty($search)) {
+            $query->where(function ($q) use ($matchedIds, $search, $hasMatchedIds) {
+                if ($hasMatchedIds) {
+                    $q->whereIn('products.product_id', $matchedIds);
+                }
+
+                if (! empty($search)) {
+                    $searchClean = str_replace(['%', '_'], ['\%', '\_'], trim($search));
+                    $searchSlug = Str::slug($search);
+
+                    $booleanOp = $hasMatchedIds ? 'orWhere' : 'where';
+                    $q->{$booleanOp}(function ($sub) use ($searchClean, $searchSlug) {
+                        $sub->where('products.name', 'like', "%{$searchClean}%")
+                            ->orWhere('products.slug', 'like', "%{$searchClean}%")
+                            ->orWhere('products.short_description', 'like', "%{$searchClean}%");
+
+                        if (! empty($searchSlug) && $searchSlug !== $searchClean) {
+                            $sub->orWhere('products.name', 'like', "%{$searchSlug}%")
+                                ->orWhere('products.slug', 'like', "%{$searchSlug}%");
+                        }
+
+                        // Tìm theo danh mục
+                        $sub->orWhereHas('category', function ($catQuery) use ($searchClean, $searchSlug) {
+                            $catQuery->where('name', 'like', "%{$searchClean}%");
+                            if (! empty($searchSlug) && $searchSlug !== $searchClean) {
+                                $catQuery->orWhere('name', 'like', "%{$searchSlug}%");
+                            }
+                        });
+
+                        // Tìm theo thương hiệu
+                        $sub->orWhereHas('brand', function ($brandQuery) use ($searchClean, $searchSlug) {
+                            $brandQuery->where('name', 'like', "%{$searchClean}%");
+                            if (! empty($searchSlug) && $searchSlug !== $searchClean) {
+                                $brandQuery->orWhere('name', 'like', "%{$searchSlug}%");
+                            }
+                        });
+                    });
+                }
+            });
+        }
+    }
+
     // ─── Admin queries ─────────────────────────────────────────────────
 
     /**
@@ -47,17 +99,8 @@ class ProductRepository
         $query = Product::with($this->listEagerLoads())
             ->withSum('variants', 'stock');
 
-        // Search — đã được xử lý ở Service: truyền matchedIds hoặc LIKE
-        if ($matchedIds !== null) {
-            $query->whereIn('product_id', $matchedIds);
-        } elseif (! empty($filters['search_like'])) {
-            $search = str_replace(['%', '_'], ['\%', '\_'], $filters['search_like']);
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('slug', 'like', "%{$search}%")
-                    ->orWhere('short_description', 'like', "%{$search}%");
-            });
-        }
+        // Search kết hợp Meilisearch + SQL LIKE
+        $this->applySearchFilters($query, $matchedIds, $filters);
 
         // Status
         if (! empty($filters['status'])) {
@@ -152,19 +195,8 @@ class ProductRepository
             ->where('status', 'active')
             ->whereNull('deleted_at');
 
-        // ── Search ────────────────────────────────────────────────────
-        if ($matchedIds !== null) {
-            // Dùng Meilisearch IDs (đã đảm bảo không rỗng ở Service layer)
-            $query->whereIn('product_id', $matchedIds);
-        } elseif (! empty($filters['search_like'])) {
-            // SQL LIKE fallback
-            $search = str_replace(['%', '_'], ['\%', '\_'], $filters['search_like']);
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('slug', 'like', "%{$search}%")
-                    ->orWhere('short_description', 'like', "%{$search}%");
-            });
-        }
+        // ── Search kết hợp Meilisearch + Database ────────────────────
+        $this->applySearchFilters($query, $matchedIds, $filters);
 
         // ── Category filter ───────────────────────────────────────────
         if (! empty($filters['category_ids'])) {
