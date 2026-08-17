@@ -91,11 +91,19 @@ class ProductService
         if ($search) {
             try {
                 // Sử dụng Meilisearch thông qua Laravel Scout
-                $matchedIds = Product::search($search)->keys()->toArray();
-                Log::info('Admin Product Search: Sử dụng Meilisearch thành công', [
-                    'query' => $search,
-                    'results_count' => count($matchedIds)
-                ]);
+                $ids = Product::search($search)->keys()->toArray();
+                if (! empty($ids)) {
+                    $matchedIds = $ids;
+                    Log::info('Admin Product Search: Sử dụng Meilisearch thành công', [
+                        'query' => $search,
+                        'results_count' => count($matchedIds)
+                    ]);
+                } else {
+                    Log::warning('Admin Product Search: Meilisearch trả về rỗng, dùng SQL LIKE làm dự phòng', [
+                        'query' => $search
+                    ]);
+                    $filters['search_like'] = $search;
+                }
             } catch (\Exception $e) {
                 // Fallback nếu Meilisearch bị lỗi hoặc chưa khởi động
                 Log::warning('Admin Product Search: Meilisearch thất bại, dùng SQL LIKE làm dự phòng', [
@@ -116,6 +124,83 @@ class ProductService
         }
 
         return $this->productRepository->getAdminProducts($matchedIds, $filters, $page, $limit);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  CLIENT PUBLIC: DANH SÁCH SẢN PHẨM CHO NGƯỜI DÙNG
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Client (public): danh sách sản phẩm active với tìm kiếm, lọc, phân trang.
+     *
+     * Khác biệt so với listAdminProducts():
+     *  - Luôn filter status=active, whereNull(deleted_at) → không leak dữ liệu admin
+     *  - Fix bug Meilisearch: khi trả về [] (index chưa sync hoặc lỗi), fallback về SQL LIKE
+     *    thay vì trả về 0 kết quả sai lệch
+     */
+    public function listClientProducts(Request $request): array
+    {
+        $page  = (int) $request->query('page', 1);
+        $limit = (int) $request->query('limit', 12);
+        $search = trim($request->query('search', ''));
+
+        $filters = [
+            'max_price'  => $request->query('max_price'),
+            'brand_ids'  => $request->query('brand_ids'),
+            'sort_by'    => $request->query('sort_by'),
+        ];
+
+        // ── Tìm kiếm qua Meilisearch ──────────────────────────────────
+        $matchedIds     = null;  // null = không search, array = đã search (có thể rỗng)
+        $useMeilisearch = false;
+
+        if ($search !== '') {
+            try {
+                $ids = Product::search($search)->keys()->toArray();
+
+                // BUG FIX: Phân biệt "Meilisearch trả về rỗng do index lỗi/chưa sync"
+                // với "tìm thực sự không có kết quả".
+                // Nếu $ids rỗng → có thể do index chưa được import → fallback SQL LIKE.
+                // Nếu $ids có phần tử → Meilisearch hoạt động đúng, dùng kết quả này.
+                if (! empty($ids)) {
+                    $matchedIds     = $ids;
+                    $useMeilisearch = true;
+                    Log::info('Client Product Search: Meilisearch thành công', [
+                        'query'   => $search,
+                        'results' => count($ids),
+                    ]);
+                } else {
+                    // Meilisearch chạy nhưng index rỗng/chưa sync → fallback SQL LIKE
+                    Log::warning('Client Product Search: Meilisearch trả về rỗng, dùng SQL LIKE fallback', [
+                        'query' => $search,
+                    ]);
+                    $filters['search_like'] = $search;
+                }
+            } catch (\Exception $e) {
+                // Meilisearch lỗi hoàn toàn (không kết nối được) → fallback SQL LIKE
+                Log::warning('Client Product Search: Meilisearch lỗi, dùng SQL LIKE fallback', [
+                    'error' => $e->getMessage(),
+                    'query' => $search,
+                ]);
+                $filters['search_like'] = $search;
+            }
+        }
+
+        // ── Category filter (bao gồm danh mục con) ────────────────────
+        $categoryInput = $request->query('category_ids') ?? $request->query('category_id');
+        if (! empty($categoryInput) && $categoryInput !== 'All') {
+            $categoryIds = is_array($categoryInput)
+                ? $categoryInput
+                : explode(',', $categoryInput);
+
+            $childIds = Category::whereIn('parent_id', $categoryIds)
+                ->pluck('category_id')
+                ->toArray();
+
+            $filters['category_ids'] = array_unique(array_merge($categoryIds, $childIds));
+        }
+
+        return $this->productRepository->getClientProducts($matchedIds, $filters, $page, $limit);
     }
 
     // ═══════════════════════════════════════════════════════════════════
