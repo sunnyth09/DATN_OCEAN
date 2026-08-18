@@ -269,6 +269,7 @@ Route::get('brands', [BrandController::class, 'index']);
 
 // Coupons (Công khai)
 Route::get('coupons/public', [CouponController::class, 'getPublicCoupons']);
+Route::post('coupons/check', [CouponController::class, 'checkCoupon']);
 
 // ==========================================
 // COMBO / BUNDLE PROMOTION (Public)

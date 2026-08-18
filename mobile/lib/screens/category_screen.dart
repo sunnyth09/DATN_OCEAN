@@ -416,33 +416,21 @@ class _CategoryScreenState extends State<CategoryScreen>
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(Icons.shopping_bag_outlined, size: 19, color: Color(0xFF1E293B)),
-                  if (cart.itemCount > 0)
-                    Positioned(
-                      top: 5,
-                      right: 5,
-                      child: Container(
-                        padding: const EdgeInsets.all(2.5),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                        child: Text(
-                          cart.itemCount > 99 ? '99+' : '${cart.itemCount}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w900,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
+              child: Center(
+                child: Badge(
+                  isLabelVisible: cart.itemCount > 0,
+                  label: Text(
+                    cart.itemCount > 99 ? '99+' : '${cart.itemCount}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w900,
                     ),
-                ],
+                  ),
+                  backgroundColor: AppColors.primary,
+                  offset: const Offset(4, -4),
+                  child: const Icon(Icons.shopping_cart_outlined, size: 20, color: Color(0xFF1E293B)),
+                ),
               ),
             ),
           ),
@@ -506,7 +494,7 @@ class _CategoryScreenState extends State<CategoryScreen>
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
-                  colors: [Color(0xFFE63B6F), Color(0xFFFF5286)],
+                  colors: [Color(0xFFE63B6F), Color(0xFFFF6584)],
                 )
               : null,
           color: selected ? null : const Color(0xFFF1F5F9),
@@ -587,7 +575,7 @@ class _CategoryScreenState extends State<CategoryScreen>
               padding: EdgeInsets.fromLTRB(14, 8, 14, 16),
               crossAxisSpacing: 10,
               mainAxisSpacing: 12,
-              childAspectRatio: 0.55,
+              childAspectRatio: 0.65,
             ),
 
           // Error
@@ -607,7 +595,7 @@ class _CategoryScreenState extends State<CategoryScreen>
                   crossAxisCount: 2,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 0.55,
+                  childAspectRatio: 0.65,
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (_, i) => ProductCard(
@@ -640,7 +628,7 @@ class _CategoryScreenState extends State<CategoryScreen>
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
-                    '✨ Bạn đã xem hết ${context.watch<CategoryProvider>().products.length} sản phẩm',
+                    'Đã hiển thị tất cả ${context.watch<CategoryProvider>().products.length} sản phẩm',
                     style: const TextStyle(
                       color: Color(0xFF94A3B8),
                       fontSize: 12,

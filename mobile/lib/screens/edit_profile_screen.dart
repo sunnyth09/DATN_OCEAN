@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_client.dart';
 import '../config/app_config.dart';
+import '../config/app_theme.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -94,13 +95,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
+        iconTheme: const IconThemeData(color: AppColors.primary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/me');
+            }
+          },
+        ),
         actions: [
           TextButton(
             onPressed: _isSaving ? null : _save,
             child: _isSaving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFE63B6F)))
-                : const Text('Lưu', style: TextStyle(color: Color(0xFFE63B6F), fontWeight: FontWeight.bold, fontSize: 16)),
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+                : const Text('Lưu', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
           ),
         ],
       ),
@@ -118,8 +129,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       width: 100, height: 100,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFFE63B6F), width: 3),
-                        boxShadow: [BoxShadow(color: const Color(0xFFE63B6F).withValues(alpha: 0.2), blurRadius: 12)],
+                        border: Border.all(color: AppColors.primary, width: 3),
+                        boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.2), blurRadius: 12)],
                       ),
                       child: ClipOval(
                         child: _pickedImage != null
@@ -137,7 +148,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE63B6F),
+                          color: AppColors.primary,
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
@@ -174,7 +185,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _save,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFE63B6F),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -196,16 +207,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   String _formatRole(dynamic role) {
     switch (role?.toString()) {
-      case 'admin': return '👑 Quản trị viên';
-      case 'seller': return '🏪 Nhân viên bán hàng';
-      case 'staff': return '👷 Nhân viên kho';
-      default: return '👤 Khách hàng';
+      case 'admin': return 'Quản trị viên';
+      case 'seller': return 'Nhân viên bán hàng';
+      case 'staff': return 'Nhân viên kho';
+      default: return 'Khách hàng';
     }
   }
 
   Widget _defaultAvatar() => Container(
-    color: const Color(0xFFFFF0F3),
-    child: const Icon(Icons.person, size: 50, color: Color(0xFFE63B6F)),
+    color: AppColors.primaryContainer,
+    child: const Icon(Icons.person, size: 50, color: AppColors.primary),
   );
 
   Widget _buildCard({required List<Widget> children}) => Container(

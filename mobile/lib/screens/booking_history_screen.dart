@@ -209,6 +209,16 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
         iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/me');
+            }
+          },
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Container(
@@ -331,7 +341,7 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => context.pop(),
+              onPressed: () => context.go('/court'),
               icon: const Icon(Icons.calendar_month_rounded, size: 18),
               label: const Text('Đặt sân ngay'),
               style: ElevatedButton.styleFrom(

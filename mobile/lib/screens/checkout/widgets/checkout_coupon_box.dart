@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../config/app_theme.dart';
 import '../../../utils/format_utils.dart';
 
 /// Box nhập / hiển thị mã giảm giá. State (coupon đã áp, số tiền giảm, cờ loading)
@@ -11,6 +12,7 @@ class CheckoutCouponBox extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onApply;
   final VoidCallback onRemove;
+  final VoidCallback? onOpenVoucherList;
 
   const CheckoutCouponBox({
     super.key,
@@ -20,6 +22,7 @@ class CheckoutCouponBox extends StatelessWidget {
     required this.controller,
     required this.onApply,
     required this.onRemove,
+    this.onOpenVoucherList,
   });
 
   @override
@@ -37,22 +40,39 @@ class CheckoutCouponBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                Icons.local_offer_outlined,
-                color: Color(0xFFE63B6F),
-                size: 20,
+              const Row(
+                children: [
+                  Icon(
+                    Icons.confirmation_number_outlined,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Ocean Voucher',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(width: 8),
-              Text(
-                'Mã giảm giá',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                  fontSize: 15,
+              if (onOpenVoucherList != null)
+                GestureDetector(
+                  onTap: onOpenVoucherList,
+                  child: const Text(
+                    'Chọn mã >',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -81,7 +101,7 @@ class CheckoutCouponBox extends StatelessWidget {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE63B6F)),
+                        borderSide: const BorderSide(color: AppColors.primary),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
@@ -97,7 +117,7 @@ class CheckoutCouponBox extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: isApplying ? null : onApply,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE63B6F),
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(

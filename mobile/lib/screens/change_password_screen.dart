@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import '../config/app_theme.dart';
 import '../services/api_client.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -64,7 +65,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
+        iconTheme: const IconThemeData(color: AppColors.primary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/me');
+            }
+          },
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -86,7 +97,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 child: ElevatedButton(
                   onPressed: _isSaving ? null : submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE63B6F),
+                    backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
@@ -115,7 +126,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           decoration: InputDecoration(
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F), width: 1.5)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             suffixIcon: IconButton(
               icon: Icon(show ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF64748B), size: 18),

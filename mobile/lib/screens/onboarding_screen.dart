@@ -20,7 +20,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'title': 'Thời Trang & Dụng Cụ Thể Thao',
       'description':
           'Khám phá hàng ngàn sản phẩm chính hãng từ vợt, giày đến trang phục thể thao cao cấp nhất.',
-      'gradient': const [Color(0xFFE63B6F), Color(0xFFFF8FAB)],
+      'gradient': const [Color(0xFFE63B6F), Color(0xFFFF6584)],
       'accentColor': const Color(0xFFE63B6F),
     },
     {
@@ -28,8 +28,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'title': 'Đặt Sân Thể Thao Dễ Dàng',
       'description':
           'Xem lịch sân trống thời gian thực, chọn khung giờ linh hoạt và đặt sân chỉ trong 30 giây.',
-      'gradient': const [Color(0xFF0284C7), Color(0xFF38BDF8)],
-      'accentColor': const Color(0xFF0284C7),
+      'gradient': const [Color(0xFF0D9488), Color(0xFF14B8A6)],
+      'accentColor': const Color(0xFF0D9488),
     },
     {
       'icon': Icons.stars_rounded,

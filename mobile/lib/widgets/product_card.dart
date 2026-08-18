@@ -6,7 +6,8 @@ import 'package:intl/intl.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../providers/auth_provider.dart';
-import '../services/api_client.dart';
+import '../providers/favorite_provider.dart';
+import '../utils/format_utils.dart';
 import 'network_image_widget.dart';
 
 /// Thẻ sản phẩm chuẩn TikTok Shop & Shopee Mall Tier:
@@ -26,24 +27,10 @@ class ProductCard extends StatelessWidget {
     this.imageAspectRatio = 1.1,
   });
 
-  String _extractBrand(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('babolat')) return 'BABOLAT';
-    if (lower.contains('yonex')) return 'YONEX';
-    if (lower.contains('wilson')) return 'WILSON';
-    if (lower.contains('victor')) return 'VICTOR';
-    if (lower.contains('lining') || lower.contains('li-ning')) return 'LI-NING';
-    if (lower.contains('head')) return 'HEAD';
-    if (lower.contains('asics')) return 'ASICS';
-    if (lower.contains('mizuno')) return 'MIZUNO';
-    return 'CHÍNH HÃNG';
-  }
-
   @override
   Widget build(BuildContext context) {
     final money = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
     final name = product['name']?.toString() ?? 'Sản phẩm thể thao';
-    final brand = _extractBrand(name);
 
     final dynamic rawPrice = product['min_price'] ??
         (product['lowest_price_variant'] is Map
@@ -61,9 +48,10 @@ class ProductCard extends StatelessWidget {
         ? (((originalPrice - currentPrice) / originalPrice) * 100).round()
         : 0;
 
+    final int soldCount = FormatUtils.parseNum(product['sold_count'] ?? product['sold'] ?? product['sold_quantity'] ?? 0).toInt();
+
     final imageUrl = AppConfig.productImageUrl(product);
     final isHot = product['is_featured'] == 1 || product['is_hot'] == 1;
-    final isFav = product['is_favorited'] == true || product['is_favorited'] == 1;
 
     return RepaintBoundary(
       child: GestureDetector(
@@ -95,14 +83,14 @@ class ProductCard extends StatelessWidget {
                       child: ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
                         child: Container(
-                          color: const Color(0xFFF8FAFC),
+                          color: Colors.white,
                           padding: const EdgeInsets.all(8),
                           child: Center(
                             child: NetworkImageWidget(
                               imageUrl: imageUrl,
                               fit: BoxFit.contain,
                               errorWidget: Container(
-                                color: const Color(0xFFF1F5F9),
+                                color: Colors.white,
                                 child: const Center(
                                   child: Icon(
                                     Icons.sports_tennis_rounded,
@@ -149,7 +137,7 @@ class ProductCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFFE63B6F), Color(0xFFFF5286)],
+                              colors: [Color(0xFFEF4444), Color(0xFFF97316)],
                             ),
                             borderRadius: BorderRadius.circular(5),
                           ),
@@ -171,36 +159,12 @@ class ProductCard extends StatelessWidget {
                         ),
                       ),
 
-                    // Brand Tag Bottom Left of Image
-                    Positioned(
-                      bottom: 6,
-                      left: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
-                        ),
-                        child: Text(
-                          brand,
-                          style: const TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF475569),
-                            letterSpacing: 0.4,
-                          ),
-                        ),
-                      ),
-                    ),
-
                     // Favorite Button Top Right
                     Positioned(
                       top: 6,
                       right: 6,
                       child: _FavoriteButton(
                         product: product,
-                        isFav: isFav,
                         onChanged: onFavoriteChanged,
                       ),
                     ),
@@ -246,24 +210,26 @@ class ProductCard extends StatelessWidget {
                             color: Color(0xFF0F172A),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        Container(
-                          width: 2.5,
-                          height: 2.5,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFCBD5E1),
-                            shape: BoxShape.circle,
+                        if (soldCount > 0) ...[
+                          const SizedBox(width: 4),
+                          Container(
+                            width: 2.5,
+                            height: 2.5,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFCBD5E1),
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          'Đã bán 120+',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFF94A3B8),
-                            fontWeight: FontWeight.w500,
+                          const SizedBox(width: 4),
+                          Text(
+                            'Đã bán $soldCount',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF94A3B8),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -338,84 +304,47 @@ class ProductCard extends StatelessWidget {
   }
 }
 
-class _FavoriteButton extends StatefulWidget {
+class _FavoriteButton extends StatelessWidget {
   final Map<String, dynamic> product;
-  final bool isFav;
   final VoidCallback? onChanged;
 
   const _FavoriteButton({
     required this.product,
-    required this.isFav,
     this.onChanged,
   });
 
   @override
-  State<_FavoriteButton> createState() => _FavoriteButtonState();
-}
-
-class _FavoriteButtonState extends State<_FavoriteButton> {
-  late bool _fav;
-
-  @override
-  void initState() {
-    super.initState();
-    _fav = widget.isFav;
-  }
-
-  @override
-  void didUpdateWidget(covariant _FavoriteButton oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.isFav != widget.isFav) {
-      _fav = widget.isFav;
-    }
-  }
-
-  Future<void> _toggle() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final loggedIn = context.read<AuthProvider>().isAuthenticated;
-    if (!loggedIn) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng đăng nhập để lưu yêu thích!'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      context.push('/login');
-      return;
-    }
-
-    setState(() => _fav = !_fav);
-
-    try {
-      final id = widget.product['product_id'] ?? widget.product['id'];
-      await ApiClient().dio.post(
-        '/profile/favorites/toggle',
-        data: {'product_id': id},
-      );
-      widget.onChanged?.call();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(_fav ? 'Đã thêm vào yêu thích' : 'Đã xóa khỏi yêu thích'),
-          duration: const Duration(milliseconds: 900),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (_) {
-      setState(() => _fav = !_fav);
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Không thể cập nhật yêu thích.'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final id = int.tryParse((product['product_id'] ?? product['id'] ?? 0).toString()) ?? 0;
+    final isFav = context.watch<FavoriteProvider>().isFavorite(id);
+
     return GestureDetector(
-      onTap: _toggle,
+      onTap: () async {
+        final messenger = ScaffoldMessenger.of(context);
+        final loggedIn = context.read<AuthProvider>().isAuthenticated;
+        if (!loggedIn) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Vui lòng đăng nhập để lưu yêu thích!'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          context.push('/login');
+          return;
+        }
+
+        final ok = await context.read<FavoriteProvider>().toggleFavorite(id);
+        onChanged?.call();
+        if (ok) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(!isFav ? 'Đã thêm vào yêu thích' : 'Đã xóa khỏi yêu thích'),
+              duration: const Duration(milliseconds: 900),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
       child: Container(
         width: 28,
         height: 28,
@@ -432,9 +361,9 @@ class _FavoriteButtonState extends State<_FavoriteButton> {
         ),
         child: Center(
           child: Icon(
-            _fav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
             size: 15,
-            color: _fav ? AppColors.error : const Color(0xFF64748B),
+            color: isFav ? AppColors.error : const Color(0xFF64748B),
           ),
         ),
       ),

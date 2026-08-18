@@ -182,16 +182,17 @@ class _AddressScreenState extends State<AddressScreen> {
                     ),
                     const SizedBox(height: 20),
                     _inputField(controller: nameCtrl, label: 'Tên người nhận *', icon: Icons.person_outline),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _inputField(
                       controller: phoneCtrl,
                       label: 'Số điện thoại *',
                       icon: Icons.phone_outlined,
                       type: TextInputType.phone,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _dropdown(
                       label: 'Tỉnh/Thành phố',
+                      icon: Icons.location_city_outlined,
                       value: selectedProvCode,
                       items: provinces
                           .map((p) => DropdownMenuItem(
@@ -201,9 +202,10 @@ class _AddressScreenState extends State<AddressScreen> {
                           .toList(),
                       onChanged: onProvChanged,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _dropdown(
                       label: 'Phường/Xã',
+                      icon: Icons.holiday_village_outlined,
                       value: selectedWardCode,
                       items: wards
                           .map((w) => DropdownMenuItem(
@@ -213,16 +215,18 @@ class _AddressScreenState extends State<AddressScreen> {
                           .toList(),
                       onChanged: wards.isEmpty ? null : onWardChanged,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _inputField(controller: addressCtrl, label: 'Số nhà, Tên đường *', icon: Icons.home_outlined),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
-                      height: 46,
+                      height: 44,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: isSaving
                             ? null
@@ -315,72 +319,72 @@ class _AddressScreenState extends State<AddressScreen> {
     required IconData icon,
     TextInputType type = TextInputType.text,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDim,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppColors.textMuted),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              keyboardType: type,
-              style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                labelText: label,
-                labelStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                isDense: true,
-                filled: false,
-              ),
-            ),
+    return SizedBox(
+      height: 44,
+      child: TextField(
+        controller: controller,
+        keyboardType: type,
+        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        decoration: InputDecoration(
+          hintText: label,
+          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w400),
+          prefixIcon: Icon(icon, size: 18, color: const Color(0xFF94A3B8)),
+          filled: true,
+          fillColor: const Color(0xFFF8FAFC),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
           ),
-        ],
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
+        ),
       ),
     );
   }
 
   Widget _dropdown({
     required String label,
+    required IconData icon,
     required String? value,
     required List<DropdownMenuItem<String>> items,
     void Function(dynamic)? onChanged,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDim,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+    return SizedBox(
+      height: 44,
       child: DropdownButtonFormField<String>(
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          errorBorder: InputBorder.none,
-          focusedErrorBorder: InputBorder.none,
-          disabledBorder: InputBorder.none,
-          isDense: true,
-          filled: false,
-        ),
         initialValue: value,
         isExpanded: true,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF94A3B8)),
+        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+        decoration: InputDecoration(
+          hintText: label,
+          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8), fontWeight: FontWeight.w400),
+          prefixIcon: Icon(icon, size: 18, color: const Color(0xFF94A3B8)),
+          filled: true,
+          fillColor: const Color(0xFFF8FAFC),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          ),
+        ),
         items: items,
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
       ),
     );
   }
@@ -396,7 +400,13 @@ class _AddressScreenState extends State<AddressScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/me');
+            }
+          },
         ),
       ),
       body: isLoading

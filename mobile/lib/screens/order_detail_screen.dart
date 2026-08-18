@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import 'review_screen.dart';
 import '../config/app_config.dart';
+import '../config/app_theme.dart';
 import '../utils/format_utils.dart';
 
 class OrderDetailScreen extends StatefulWidget {
@@ -161,7 +162,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary)),
                         ),
                       ),
                     ],
@@ -306,14 +307,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
+        iconTheme: const IconThemeData(color: AppColors.primary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/orders');
+            }
+          },
+        ),
       ),
       body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
-    if (isLoading) return const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)));
+    if (isLoading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     if (errorMessage != null) {
       return Center(
         child: Column(
@@ -408,7 +419,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               Container(
                                 width: 20, height: 20,
                                 decoration: BoxDecoration(
-                                  color: isLast ? const Color(0xFFE63B6F) : Colors.green,
+                                  color: isLast ? AppColors.primary : Colors.green,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(isLast ? Icons.circle : Icons.check, size: 12, color: Colors.white),
@@ -449,7 +460,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.location_on_outlined, color: Color(0xFFE63B6F), size: 20),
+                        child: const Icon(Icons.location_on_outlined, color: AppColors.primary, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -515,7 +526,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                     children: [
                                       Text('x$qty', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                                       const Spacer(),
-                                      Text(_formatPrice(num.parse(price.toString()) * qty), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE63B6F))),
+                                      Text(_formatPrice(num.parse(price.toString()) * qty), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
                                     ],
                                   ),
                                   if (isCompleted) ...[  
@@ -564,7 +575,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.payment_outlined, color: Color(0xFFE63B6F), size: 20),
+                      child: const Icon(Icons.payment_outlined, color: AppColors.primary, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -599,7 +610,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Tổng thanh toán', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text(_formatPrice(grandTotal), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE63B6F), fontSize: 20)),
+                        Text(_formatPrice(grandTotal), style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.primary, fontSize: 20)),
                       ],
                     ),
                   ],
@@ -629,12 +640,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red,
                           side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: _isCancelling
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
-                          : const Text('Huỷ đơn hàng', style: TextStyle(fontWeight: FontWeight.bold)),
+                          : const Text('Huỷ đơn hàng', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -650,12 +661,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           }
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFE63B6F),
-                          side: const BorderSide(color: Color(0xFFE63B6F)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('Hoàn trả', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text('Hoàn trả', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -663,13 +674,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _isReordering ? null : _reOrder,
                         icon: _isReordering
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.refresh, size: 18),
-                        label: const Text('Mua lại', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.refresh, size: 16),
+                        label: const Text('Mua lại', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE63B6F),
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
@@ -682,12 +693,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back, size: 18),
-                        label: const Text('Quay lại', style: TextStyle(fontWeight: FontWeight.bold)),
+                        icon: const Icon(Icons.arrow_back, size: 16),
+                        label: const Text('Quay lại', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE63B6F),
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
@@ -740,7 +751,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           child: const Center(
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: Color(0xFFE63B6F),
+              color: AppColors.primary,
             ),
           ),
         ),
@@ -758,7 +769,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         child: const Center(
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: Color(0xFFE63B6F),
+            color: AppColors.primary,
           ),
         ),
       ),

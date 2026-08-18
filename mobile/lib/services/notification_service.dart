@@ -11,7 +11,7 @@ import 'api_client.dart';
 import '../router/app_router.dart';
 import 'auth_service.dart';
 
-// ⚠️ QUAN TRỌNG: Hàm này PHẢI nằm ngoài class (Top-level function)
+// QUAN TRỌNG: Hàm này PHẢI nằm ngoài class (Top-level function)
 // Lắng nghe thông báo khi app đang chạy ngầm hoặc đã bị tắt.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {

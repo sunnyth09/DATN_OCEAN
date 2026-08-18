@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../services/api_client.dart';
+import '../config/app_theme.dart';
 import '../widgets/app_text_field.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -216,6 +217,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/login');
+            }
+          },
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -273,7 +284,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     child: const Text(
                       'Gửi lại mã OTP',
                       style: TextStyle(
-                        color: Color(0xFFE63B6F),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -330,7 +341,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFE63B6F),
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(

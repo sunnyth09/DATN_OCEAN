@@ -91,7 +91,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
         actions: [
           if (notifications.isNotEmpty)
@@ -133,6 +139,21 @@ class _NotificationScreenState extends State<NotificationScreen> {
                       return InkWell(
                         onTap: () {
                           if (!isRead) markAsRead(notif['id'].toString());
+                          final orderId = data['order_id'] ?? data['orderId'];
+                          final bookingId = data['booking_id'] ?? data['bookingId'];
+                          final screen = data['screen']?.toString();
+
+                          if (orderId != null) {
+                            context.push('/order-detail', extra: orderId.toString());
+                          } else if (bookingId != null || isCourt) {
+                            context.push('/booking-history');
+                          } else if (screen == 'orders') {
+                            context.push('/orders');
+                          } else if (screen == 'coupon' || screen == 'coupons') {
+                            context.push('/my-coupons');
+                          } else if (screen == 'flash_sale') {
+                            context.push('/flash-sale');
+                          }
                         },
                         borderRadius: BorderRadius.circular(18),
                         child: Container(

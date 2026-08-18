@@ -72,5 +72,7 @@
 	<string>Ứng dụng cần quyền vị trí để lấy tên WiFi hoặc tọa độ phục vụ quá trình chấm công.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Ứng dụng cần quyền vị trí để chấm công chính xác.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Ocean Sport cần quyền Face ID để bạn đăng nhập nhanh và bảo mật an toàn.</string>
 </dict>
 </plist>

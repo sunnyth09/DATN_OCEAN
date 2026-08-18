@@ -125,7 +125,11 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       GoRoute(
         path: '/orders',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const OrderScreen(),
+        builder: (context, state) {
+          final tabParam = state.uri.queryParameters['tab'];
+          final initialIndex = int.tryParse(tabParam ?? '') ?? (state.extra as int? ?? 0);
+          return OrderScreen(initialIndex: initialIndex);
+        },
       ),
       GoRoute(
         path: '/product-detail',
@@ -151,7 +155,11 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/checkout',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          return const CheckoutScreen();
+          final extra = state.extra as Map<String, dynamic>?;
+          return CheckoutScreen(
+            initialCoupon: extra?['appliedCoupon'] as Map<String, dynamic>?,
+            initialDiscount: extra?['discountAmount'] as int?,
+          );
         },
       ),
       GoRoute(
@@ -169,7 +177,12 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/order-success',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          return const OrderSuccessScreen();
+          final extra = state.extra as Map<String, dynamic>?;
+          return OrderSuccessScreen(
+            orderCode: extra?['orderCode'] as String?,
+            grandTotal: extra?['grandTotal'] as num?,
+            orderId: extra?['orderId']?.toString(),
+          );
         },
       ),
       GoRoute(

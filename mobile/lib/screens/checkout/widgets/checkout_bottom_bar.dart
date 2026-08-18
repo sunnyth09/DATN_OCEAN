@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../config/app_theme.dart';
 import '../../../utils/format_utils.dart';
 
 /// Thanh sticky đáy: tổng tiền + nút Đặt hàng.
@@ -47,7 +48,7 @@ class CheckoutBottomBar extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFFE63B6F),
+                    color: AppColors.primary,
                   ),
                 ),
               ],
@@ -61,8 +62,8 @@ class CheckoutBottomBar extends StatelessWidget {
                     horizontal: 28,
                     vertical: 0,
                   ),
-                  backgroundColor: const Color(0xFFE63B6F),
-                  disabledBackgroundColor: const Color(0xFFE63B6F).withValues(alpha: 0.6),
+                  backgroundColor: AppColors.primary,
+                  disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.6),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

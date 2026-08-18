@@ -1,8 +1,10 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
+import 'package:provider/provider.dart';
+
 import '../config/app_theme.dart';
-import '../services/api_client.dart';
+import '../providers/auth_provider.dart';
+import '../providers/favorite_provider.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/app_empty_state.dart';
 import '../widgets/product_card.dart';
@@ -15,68 +17,23 @@ class FavoriteScreen extends StatefulWidget {
 }
 
 class _FavoriteScreenState extends State<FavoriteScreen> {
-  List<dynamic> favorites = [];
-  bool isLoading = true;
-  String? errorMessage;
-
   @override
   void initState() {
     super.initState();
-    fetchFavorites();
-  }
-
-  Future<void> fetchFavorites() async {
-    if (!mounted) return;
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.isAuthenticated) {
+        context.read<FavoriteProvider>().fetchFavorites();
+      }
     });
-    try {
-      final res = await ApiClient().dio.get('/profile/favorites');
-      if (mounted) {
-        setState(() {
-          favorites = res.data['data'] ?? [];
-          isLoading = false;
-        });
-      }
-    } on DioException catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage =
-              e.response?.data?['message'] ?? 'Không thể tải danh sách';
-          isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          errorMessage = 'Lỗi kết nối';
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> toggleFavorite(int productId) async {
-    final old = List<dynamic>.from(favorites);
-    setState(
-      () => favorites.removeWhere(
-        (f) => (f['product']?['product_id'] ?? f['product_id']) == productId,
-      ),
-    );
-    try {
-      await ApiClient().dio.post(
-        '/profile/favorites/toggle',
-        data: {'product_id': productId},
-      );
-      fetchFavorites();
-    } catch (_) {
-      if (mounted) setState(() => favorites = old);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final favProvider = context.watch<FavoriteProvider>();
+    final favorites = favProvider.favorites;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -91,30 +48,43 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/me');
+            }
+          },
         ),
       ),
-      body: _buildBody(),
+      body: _buildBody(auth, favProvider),
     );
   }
 
-  Widget _buildBody() {
-    if (isLoading) {
+  Widget _buildBody(AuthProvider auth, FavoriteProvider favProvider) {
+    if (!auth.isAuthenticated) {
+      return AppEmptyState(
+        icon: Icons.person_outline_rounded,
+        title: 'Bạn chưa đăng nhập',
+        message: 'Đăng nhập để xem và đồng bộ danh sách sản phẩm yêu thích của bạn.',
+        buttonText: 'Đăng nhập ngay',
+        onAction: () async {
+          await context.push('/login');
+          if (mounted && context.read<AuthProvider>().isAuthenticated) {
+            context.read<FavoriteProvider>().fetchFavorites();
+          }
+        },
+      );
+    }
+
+    if (favProvider.isLoading && favProvider.favorites.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(16.0),
         child: ShimmerLoading(),
       );
     }
 
-    if (errorMessage != null) {
-      return AppEmptyState(
-        icon: Icons.error_outline_rounded,
-        title: 'Lỗi tải danh sách yêu thích',
-        message: errorMessage!,
-        buttonText: 'Thử lại',
-        onAction: fetchFavorites,
-      );
-    }
+    final favorites = favProvider.favorites;
 
     if (favorites.isEmpty) {
       return AppEmptyState(
@@ -128,7 +98,7 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
 
     return RefreshIndicator(
       color: AppColors.primary,
-      onRefresh: fetchFavorites,
+      onRefresh: () => favProvider.fetchFavorites(),
       child: GridView.builder(
         padding: const EdgeInsets.all(16),
         cacheExtent: 800,
@@ -150,7 +120,6 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
 
           return ProductCard(
             product: map,
-            onFavoriteChanged: fetchFavorites,
           );
         },
       ),

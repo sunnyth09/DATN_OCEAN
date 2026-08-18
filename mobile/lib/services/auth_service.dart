@@ -135,7 +135,12 @@ class AuthService {
       if (response.statusCode == 200 && data['status'] == 'success') {
         await StorageService.write(keyToken, data['access_token']);
         await StorageService.write(keyUser, jsonEncode(data['user']));
-        return {'success': true, 'message': 'Đăng nhập thành công'};
+        return {
+          'success': true,
+          'message': 'Đăng nhập thành công',
+          'user': data['user'],
+          'access_token': data['access_token'],
+        };
       } else {
         return {
           'success': false,
@@ -151,6 +156,66 @@ class AuthService {
       };
     } catch (e) {
       return {'success': false, 'message': 'Không thể kết nối đến máy chủ: $e'};
+    }
+  }
+
+  /// Đăng nhập bằng Token phiên hợp lệ (dùng cho Passkey & Biometric Auto-Login)
+  static Future<Map<String, dynamic>> loginWithSavedToken(
+    String token, {
+    Map<String, dynamic>? cachedUser,
+  }) async {
+    try {
+      if (_isTokenExpired(token)) {
+        return {
+          'success': false,
+          'message': 'Phiên đăng nhập Passkey đã hết hạn.',
+        };
+      }
+
+      await StorageService.write(keyToken, token);
+      if (cachedUser != null) {
+        await StorageService.write(keyUser, jsonEncode(cachedUser));
+      }
+
+      // Xác thực lại với server
+      final response = await ApiClient().dio.get('/me');
+      final data = response.data;
+      if (response.statusCode == 200 && data != null && data['user'] != null) {
+        await StorageService.write(keyUser, jsonEncode(data['user']));
+        return {
+          'success': true,
+          'message': 'Đăng nhập Passkey thành công!',
+          'user': data['user'],
+          'access_token': token,
+        };
+      }
+
+      if (cachedUser != null) {
+        return {
+          'success': true,
+          'message': 'Đăng nhập Passkey thành công!',
+          'user': cachedUser,
+          'access_token': token,
+        };
+      }
+
+      return {'success': false, 'message': 'Không thể xác thực phiên đăng nhập.'};
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await _clearLocalSession();
+        return {'success': false, 'message': 'Phiên đăng nhập đã hết hạn.'};
+      }
+      if (cachedUser != null) {
+        return {
+          'success': true,
+          'message': 'Đăng nhập Passkey thành công!',
+          'user': cachedUser,
+          'access_token': token,
+        };
+      }
+      return {'success': false, 'message': 'Lỗi kết nối máy chủ.'};
+    } catch (e) {
+      return {'success': false, 'message': 'Lỗi xác thực: $e'};
     }
   }
 

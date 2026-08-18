@@ -8,6 +8,7 @@ import '../services/api_client.dart';
 import '../providers/cart_provider.dart';
 import '../utils/format_utils.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/voucher_selection_modal.dart';
 import 'address_screen.dart';
 import 'order_success_screen.dart';
 import 'payment_webview_screen.dart';
@@ -18,7 +19,14 @@ import 'checkout/widgets/checkout_order_summary.dart';
 import 'checkout/widgets/checkout_bottom_bar.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
+  final Map<String, dynamic>? initialCoupon;
+  final int? initialDiscount;
+
+  const CheckoutScreen({
+    super.key,
+    this.initialCoupon,
+    this.initialDiscount,
+  });
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -43,6 +51,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialCoupon != null) {
+      appliedCoupon = widget.initialCoupon;
+      discountAmount = widget.initialDiscount ?? 0;
+      _couponCtrl.text = widget.initialCoupon!['code']?.toString() ?? '';
+    }
     fetchCheckoutData();
   }
 
@@ -97,6 +110,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
 
       await _calculateShippingFee();
+      _recalcCouponDiscount();
 
       if (mounted) setState(() => isLoading = false);
     } on DioException catch (e) {
@@ -116,6 +130,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         });
       }
     }
+  }
+
+  void _recalcCouponDiscount() {
+    if (appliedCoupon == null) return;
+    int disc = 0;
+    final type = appliedCoupon!['type']?.toString();
+    final val = num.tryParse(appliedCoupon!['value']?.toString() ?? '0') ?? 0;
+    if (type == 'percent') {
+      disc = (subtotal * val / 100).round();
+      final maxDisc = num.tryParse(appliedCoupon!['max_discount_value']?.toString() ?? '0') ?? 0;
+      if (maxDisc > 0 && disc > maxDisc) disc = maxDisc.toInt();
+    } else if (type == 'fixed') {
+      disc = val.toInt();
+    } else if (type == 'free_ship') {
+      disc = shippingFee;
+    }
+    discountAmount = disc > subtotal ? subtotal.toInt() : disc;
   }
 
   Future<void> _calculateShippingFee() async {
@@ -141,6 +172,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           setState(() {
             shippingFee = int.tryParse(fee.toString()) ?? 35000;
             _isCalculatingShip = false;
+            _recalcCouponDiscount();
           });
         }
       } else {
@@ -151,6 +183,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         setState(() {
           shippingFee = 35000;
           _isCalculatingShip = false;
+          _recalcCouponDiscount();
         });
       }
     }
@@ -236,6 +269,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  Future<void> _openVoucherModal() async {
+    final result = await VoucherSelectionModal.show(
+      context,
+      subtotal: subtotal.toDouble(),
+      currentCoupon: appliedCoupon,
+    );
+    if (!mounted || result == null) return;
+    if (result.isEmpty) {
+      _removeCoupon();
+    } else {
+      int discount = 0;
+      if (result['type'] == 'percent') {
+        discount = (subtotal * num.parse(result['value'].toString()) / 100).round();
+        final maxDisc = num.tryParse(result['max_discount_value']?.toString() ?? '0') ?? 0;
+        if (maxDisc > 0 && discount > maxDisc) discount = maxDisc.toInt();
+      } else if (result['type'] == 'fixed') {
+        discount = num.parse(result['value'].toString()).toInt();
+      } else if (result['type'] == 'free_ship') {
+        discount = shippingFee;
+      }
+      setState(() {
+        appliedCoupon = result;
+        discountAmount = discount;
+        _couponCtrl.text = result['code']?.toString() ?? '';
+      });
+    }
+  }
+
   void _removeCoupon() {
     setState(() {
       appliedCoupon = null;
@@ -288,6 +349,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       final orderData = resData['data'];
       final orderCode = orderData is Map ? orderData['order_code']?.toString() : null;
+      final orderId = orderData is Map ? (orderData['order_id'] ?? orderData['id'] ?? orderData['order_code'])?.toString() : null;
       final grandTotal = orderData is Map
           ? num.tryParse(orderData['grand_total']?.toString() ?? '')
           : null;
@@ -309,7 +371,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('🎉 Đặt hàng thành công!'),
+            content: Text('Đặt hàng thành công!'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -319,6 +381,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             builder: (_) => OrderSuccessScreen(
               orderCode: orderCode,
               grandTotal: grandTotal,
+              orderId: orderId,
             ),
           ),
           (route) => false,
@@ -368,7 +431,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         backgroundColor: AppColors.background,
         appBar: AppBar(
           title: const Text('Thanh toán', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-          leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/cart');
+              }
+            },
+          ),
         ),
         body: const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
@@ -381,7 +453,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         backgroundColor: AppColors.background,
         appBar: AppBar(
           title: const Text('Thanh toán', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-          leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/cart');
+              }
+            },
+          ),
         ),
         body: AppEmptyState(
           icon: Icons.error_outline_rounded,
@@ -410,7 +491,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/cart');
+            }
+          },
         ),
       ),
       body: Stack(
@@ -437,6 +524,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   controller: _couponCtrl,
                   onApply: _applyCoupon,
                   onRemove: _removeCoupon,
+                  onOpenVoucherList: _openVoucherModal,
                 ),
                 const SizedBox(height: 8),
                 CheckoutOrderSummary(

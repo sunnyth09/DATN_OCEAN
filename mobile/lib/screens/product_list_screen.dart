@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../config/app_theme.dart';
 import '../services/api_client.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/product_card.dart';
@@ -169,6 +171,16 @@ class _ProductListScreenState extends State<ProductListScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Color(0xFF0F172A)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/shop');
+            }
+          },
+        ),
         title: Text(
           title,
           style: const TextStyle(
@@ -245,7 +257,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   Widget _buildBody() {
     return RefreshIndicator(
-      color: const Color(0xFFE63B6F),
+      color: AppColors.primary,
       onRefresh: () async {
         setState(() {
           currentPage = 1;
@@ -346,7 +358,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               child: Padding(
                 padding: EdgeInsets.only(bottom: 30),
                 child: Center(
-                  child: CircularProgressIndicator(color: Color(0xFFE63B6F)),
+                  child: CircularProgressIndicator(color: AppColors.primary),
                 ),
               ),
             ),

@@ -9,7 +9,7 @@ class AppColors {
   AppColors._();
 
   // ── Màu chủ đạo (Primary) ──
-  static const Color primary = Color(0xFFE63B6F); // Vibrant Magenta / Rose
+  static const Color primary = Color(0xFFE63B6F); // Vivid Rose / Magenta
   static const Color primaryDark = Color(0xFFC72859);
   static const Color primaryLight = Color(0xFFFF5C8D);
   static const Color primarySoft = Color(0xFFFFF0F5);
@@ -86,6 +86,30 @@ class AppGradients {
 
   static const LinearGradient darkCard = LinearGradient(
     colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient fireSale = LinearGradient(
+    colors: [Color(0xFFFF2A55), Color(0xFFFF6E40), Color(0xFFFF9100)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient oceanMall = LinearGradient(
+    colors: [Color(0xFFD91E36), Color(0xFFEE4266), Color(0xFFFF758F)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient goldBadge = LinearGradient(
+    colors: [Color(0xFFFFD700), Color(0xFFFFA500)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient ticketVoucher = LinearGradient(
+    colors: [Color(0xFFFFF1F2), Color(0xFFFFE4E6)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
@@ -241,29 +265,33 @@ class AppTheme {
         space: 1,
       ),
       navigationBarTheme: NavigationBarThemeData(
+        height: 60,
         backgroundColor: Colors.white,
         indicatorColor: AppColors.primarySoft,
+        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         elevation: 10,
         shadowColor: Colors.black.withValues(alpha: 0.08),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return GoogleFonts.plusJakartaSans(
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w800,
               color: AppColors.primary,
+              letterSpacing: -0.1,
             );
           }
           return GoogleFonts.plusJakartaSans(
-            fontSize: 12,
+            fontSize: 11.5,
             fontWeight: FontWeight.w600,
             color: AppColors.textMuted,
+            letterSpacing: -0.1,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AppColors.primary, size: 24);
+            return const IconThemeData(color: AppColors.primary, size: 22);
           }
-          return const IconThemeData(color: AppColors.textMuted, size: 24);
+          return const IconThemeData(color: AppColors.textMuted, size: 22);
         }),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config/app_theme.dart';
 
 /// Box địa chỉ nhận hàng. Nhận [address] để hiển thị, báo yêu cầu đổi địa chỉ
 /// qua [onChangeAddress] (State cha xử lý điều hướng + tính lại phí ship).
@@ -30,23 +31,28 @@ class CheckoutAddressBox extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.location_on_outlined,
-                    color: Color(0xFFE63B6F),
-                    size: 20,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Địa chỉ nhận hàng',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
-                      fontSize: 15,
+              const Expanded(
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.location_on_outlined,
+                      color: AppColors.primary,
+                      size: 20,
                     ),
-                  ),
-                ],
+                    SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Địa chỉ nhận hàng',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                          fontSize: 15,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               GestureDetector(
                 onTap: onChangeAddress,
@@ -54,7 +60,7 @@ class CheckoutAddressBox extends StatelessWidget {
                   address != null ? 'Thay đổi' : 'Thêm mới',
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFFE63B6F),
+                    color: AppColors.primary,
                     fontSize: 13,
                   ),
                 ),
@@ -71,11 +77,14 @@ class CheckoutAddressBox extends StatelessWidget {
                   color: Color(0xFF64748B),
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  address!['recipient_name'] ?? '',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                Flexible(
+                  child: Text(
+                    address!['recipient_name'] ?? '',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -131,9 +140,11 @@ class CheckoutAddressBox extends StatelessWidget {
                     size: 16,
                   ),
                   SizedBox(width: 8),
-                  Text(
-                    'Bạn chưa có địa chỉ giao hàng. Vui lòng thêm.',
-                    style: TextStyle(color: Colors.red, fontSize: 13),
+                  Expanded(
+                    child: Text(
+                      'Bạn chưa có địa chỉ giao hàng. Vui lòng thêm.',
+                      style: TextStyle(color: Colors.red, fontSize: 13),
+                    ),
                   ),
                 ],
               ),

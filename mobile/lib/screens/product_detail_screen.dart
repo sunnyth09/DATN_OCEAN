@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -7,10 +8,14 @@ import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/favorite_provider.dart';
 import '../providers/product_detail_provider.dart';
 import '../services/api_client.dart';
 import '../utils/format_utils.dart';
+import '../widgets/app_toast.dart';
+import '../widgets/fly_to_cart_animator.dart';
 import '../widgets/network_image_widget.dart';
+import '../widgets/product_card.dart';
 import '../widgets/shimmer_loading.dart';
 
 /// Màn hình Chi tiết Sản phẩm phong cách Shopee & TikTok Shop.
@@ -25,16 +30,31 @@ class ProductDetailScreen extends StatefulWidget {
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
 }
 
-class _ProductDetailScreenState extends State<ProductDetailScreen> {
+class _ProductDetailScreenState extends State<ProductDetailScreen>
+    with SingleTickerProviderStateMixin {
   int _currentImageIndex = 0;
   final PageController _imagePageController = PageController();
   int _quantity = 1;
-  bool _isFavorite = false;
+
+  final GlobalKey _cartKey = GlobalKey();
+  final GlobalKey _imageKey = GlobalKey();
+  late AnimationController _cartBounceCtrl;
+  late Animation<double> _cartBounceScale;
 
   @override
   void initState() {
     super.initState();
-    _isFavorite = widget.product['is_favorited'] == true || widget.product['is_favorited'] == 1;
+
+    _cartBounceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _cartBounceScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.38).chain(CurveTween(curve: Curves.easeOutBack)), weight: 45),
+      TweenSequenceItem(tween: Tween(begin: 1.38, end: 0.88).chain(CurveTween(curve: Curves.easeInOut)), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.88, end: 1.0).chain(CurveTween(curve: Curves.easeIn)), weight: 25),
+    ]).animate(_cartBounceCtrl);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ProductDetailProvider>().fetchProductData(widget.product);
     });
@@ -42,6 +62,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   @override
   void dispose() {
+    _cartBounceCtrl.dispose();
     _imagePageController.dispose();
     super.dispose();
   }
@@ -57,26 +78,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return;
     }
 
-    setState(() => _isFavorite = !_isFavorite);
-
-    try {
-      await ApiClient().dio.post(
-        '/profile/favorites/toggle',
-        data: {'product_id': productId},
-      );
+    final currentlyFav = context.read<FavoriteProvider>().isFavorite(productId);
+    final ok = await context.read<FavoriteProvider>().toggleFavorite(productId);
+    if (ok) {
       messenger.showSnackBar(
         SnackBar(
-          content: Text(_isFavorite ? 'Đã lưu vào mục Yêu thích' : 'Đã bỏ yêu thích'),
+          content: Text(!currentlyFav ? 'Đã lưu vào mục Yêu thích' : 'Đã bỏ yêu thích'),
           duration: const Duration(milliseconds: 900),
           behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (_) {
-      setState(() => _isFavorite = !_isFavorite);
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Không thể cập nhật yêu thích.'),
-          backgroundColor: AppColors.error,
         ),
       );
     }
@@ -151,36 +160,41 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (action == 'buy_now') {
         context.push('/cart');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: 'XEM GIỎ',
-              textColor: Colors.white,
-              onPressed: () => context.push('/cart'),
-            ),
-          ),
+        // Kích hoạt hiệu ứng Fly-to-Cart bay hình ảnh theo đường cong Parabol vào icon giỏ hàng trên AppBar
+        final product = detailProvider.product.isNotEmpty ? detailProvider.product : widget.product;
+        String? currentImg;
+        if (product['thumbnail_url'] != null && product['thumbnail_url'].toString().isNotEmpty) {
+          currentImg = AppConfig.imageUrl(product['thumbnail_url'].toString());
+        }
+
+        FlyToCartAnimator.fly(
+          context: context,
+          targetKey: _cartKey,
+          startKey: _imageKey,
+          imageUrl: currentImg,
+          onComplete: () {
+            _cartBounceCtrl.forward(from: 0);
+            AppToast.showAddToCartSuccess(context, message: msg);
+          },
         );
       }
     } on DioException catch (e) {
       if (mounted) context.pop();
+      if (e.response?.statusCode == 401) {
+        if (mounted) {
+          AppToast.showError(context, message: 'Vui lòng đăng nhập để thêm vào giỏ hàng!');
+          context.push('/login');
+        }
+        return;
+      }
       final errMsg = e.response?.data?['message'] ?? 'Lỗi thêm sản phẩm!';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errMsg), backgroundColor: AppColors.error),
-        );
+        AppToast.showError(context, message: errMsg);
       }
     } catch (_) {
       if (mounted) {
         context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không kết nối được máy chủ!'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppToast.showError(context, message: 'Không kết nối được máy chủ!');
       }
     }
   }
@@ -199,7 +213,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
             final activeProvider = context.watch<ProductDetailProvider>();
-            dynamic curPrice = product['min_price'] ?? 0;
+            final isFlashSale = activeProvider.isFlashSaleActive && activeProvider.flashSaleData != null;
+            final fsPrice = isFlashSale
+                ? FormatUtils.parseNum(activeProvider.flashSaleData?['sale_price'] ?? activeProvider.flashSaleData?['flash_price'] ?? activeProvider.flashSaleData?['flash_sale_price'] ?? activeProvider.flashSaleData?['min_price'])
+                : 0;
+
+            dynamic curPrice = (isFlashSale && fsPrice > 0) ? fsPrice : (product['min_price'] ?? 0);
             String curImage = (product['thumbnail_url'] ?? '').toString();
 
             final variants = product['variants'] as List<dynamic>? ?? [];
@@ -210,7 +229,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               if (vColor.isNotEmpty && vColor != activeProvider.selectedColor) match = false;
               if (vSize.isNotEmpty && vSize != activeProvider.selectedSize) match = false;
               if (match) {
-                if (v['price'] != null) curPrice = v['price'];
+                if (!isFlashSale && v['price'] != null) curPrice = v['price'];
                 if (v['image_url'] != null && v['image_url'].toString().isNotEmpty) {
                   curImage = v['image_url'];
                 }
@@ -254,7 +273,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             width: 88,
                             height: 88,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: const Color(0xFFE2E8F0)),
                             ),
@@ -332,21 +351,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 setModalState(() {});
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
                                 decoration: BoxDecoration(
-                                  color: isSel ? const Color(0xFFFFF1F2) : const Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: isSel ? AppColors.primaryContainer : const Color(0xFFF4F4F5),
+                                  borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: isSel ? AppColors.primary : const Color(0xFFE2E8F0),
-                                    width: isSel ? 1.5 : 1,
+                                    color: isSel ? AppColors.primary : const Color(0xFFE4E4E7),
+                                    width: 1.0,
                                   ),
                                 ),
                                 child: Text(
                                   color,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                                    color: isSel ? AppColors.primary : AppColors.textPrimary,
+                                    fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSel ? AppColors.primary : const Color(0xFF27272A),
                                   ),
                                 ),
                               ),
@@ -380,21 +399,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 setModalState(() {});
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
                                 decoration: BoxDecoration(
-                                  color: isSel ? const Color(0xFFFFF1F2) : const Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: isSel ? AppColors.primaryContainer : const Color(0xFFF4F4F5),
+                                  borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: isSel ? AppColors.primary : const Color(0xFFE2E8F0),
-                                    width: isSel ? 1.5 : 1,
+                                    color: isSel ? AppColors.primary : const Color(0xFFE4E4E7),
+                                    width: 1.0,
                                   ),
                                 ),
                                 child: Text(
                                   size,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
-                                    color: isSel ? AppColors.primary : AppColors.textPrimary,
+                                    fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSel ? AppColors.primary : const Color(0xFF27272A),
                                   ),
                                 ),
                               ),
@@ -416,35 +435,69 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                           ),
                           Container(
+                            height: 30,
                             decoration: BoxDecoration(
                               color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
                             ),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(
-                                  icon: const Icon(Icons.remove_rounded, size: 16),
-                                  onPressed: _quantity > 1
+                                InkWell(
+                                  onTap: _quantity > 1
                                       ? () {
                                           setState(() => _quantity--);
                                           setModalState(() {});
                                         }
                                       : null,
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  child: Text(
-                                    '$_quantity',
-                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
+                                  child: Container(
+                                    width: 30,
+                                    height: 30,
+                                    alignment: Alignment.center,
+                                    child: Icon(
+                                      Icons.remove_rounded,
+                                      size: 15,
+                                      color: _quantity > 1 ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+                                    ),
                                   ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.add_rounded, size: 16),
-                                  onPressed: () {
+                                Container(
+                                  width: 34,
+                                  height: 30,
+                                  alignment: Alignment.center,
+                                  decoration: const BoxDecoration(
+                                    border: Border.symmetric(
+                                      vertical: BorderSide(color: Color(0xFFE2E8F0), width: 0.8),
+                                    ),
+                                    color: Colors.white,
+                                  ),
+                                  child: Text(
+                                    '$_quantity',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () {
                                     setState(() => _quantity++);
                                     setModalState(() {});
                                   },
+                                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
+                                  child: Container(
+                                    width: 30,
+                                    height: 30,
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.add_rounded,
+                                      size: 15,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -460,7 +513,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: SizedBox(
                         width: double.infinity,
-                        height: 48,
+                        height: 46,
                         child: ElevatedButton(
                           onPressed: () {
                             Navigator.pop(ctx);
@@ -475,10 +528,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           child: Text(
                             initialAction == 'buy_now' ? 'MUA NGAY' : 'THÊM VÀO GIỎ HÀNG',
                             style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
-                              letterSpacing: 0.5,
+                              letterSpacing: 0.3,
                             ),
                           ),
                         ),
@@ -515,11 +568,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return const ProductDetailShimmer();
     }
 
-    dynamic price = product['min_price'] ??
-        (product['lowest_price_variant'] is Map
-            ? product['lowest_price_variant']['price']
-            : 0);
-    dynamic originalPrice = product['original_price'] ?? product['max_price'];
+    final bool isFlashSale = provider.isFlashSaleActive && provider.flashSaleData != null;
+    final num fsPrice = isFlashSale
+        ? FormatUtils.parseNum(provider.flashSaleData?['sale_price'] ?? provider.flashSaleData?['flash_price'] ?? provider.flashSaleData?['flash_sale_price'] ?? provider.flashSaleData?['min_price'])
+        : 0;
+    final num fsOrigPrice = isFlashSale
+        ? FormatUtils.parseNum(provider.flashSaleData?['original_price'] ?? product['original_price'] ?? product['min_price'] ?? product['lowest_price_variant']?['price'] ?? 0)
+        : 0;
+
+    dynamic price = (isFlashSale && fsPrice > 0)
+        ? fsPrice
+        : (product['min_price'] ??
+            (product['lowest_price_variant'] is Map
+                ? product['lowest_price_variant']['price']
+                : 0));
+    dynamic originalPrice = (isFlashSale && fsOrigPrice > 0)
+        ? fsOrigPrice
+        : (product['original_price'] ?? product['max_price']);
     String rawImage = (product['thumbnail_url'] ?? '').toString();
 
     // Match variant price and image
@@ -531,7 +596,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (vColor.isNotEmpty && vColor != selectedColor) match = false;
       if (vSize.isNotEmpty && vSize != selectedSize) match = false;
       if (match) {
-        if (v['price'] != null) price = v['price'];
+        if (!isFlashSale && v['price'] != null) price = v['price'];
         if (v['image_url'] != null && v['image_url'].toString().isNotEmpty) {
           rawImage = v['image_url'];
         }
@@ -565,86 +630,87 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
     if (allImages.isEmpty) allImages.add('');
 
-    String description = product['description'] ?? 'Sản phẩm thể thao cao cấp chính hãng từ Ocean Sport, được thiết kế tối ưu hiệu năng thi đấu và bảo vệ vận động viên.';
-    description = description
+    String rawDescription = (product['description'] ?? product['short_description'] ?? '').toString();
+    rawDescription = rawDescription
         .replaceAll(RegExp(r'<[^>]*>'), '')
         .replaceAll('&nbsp;', ' ')
         .trim();
+    final description = rawDescription.isNotEmpty ? rawDescription : 'Chưa có mô tả chi tiết cho sản phẩm này.';
 
     final categoryName = product['category'] is Map
-        ? (product['category']['name'] ?? 'THỂ THAO')
-        : 'THỂ THAO';
+        ? (product['category']['name'] ?? 'Chưa phân loại')
+        : (product['category_name'] ?? 'Chưa phân loại');
+    final brandName = product['brand'] is Map
+        ? (product['brand']['name'] ?? '')
+        : (product['brand_name'] ?? product['brand']?.toString() ?? '');
+    final sku = (product['sku'] ?? product['code'] ?? 'SP-${product['product_id'] ?? product['id']}').toString();
     final name = product['name']?.toString() ?? 'Sản phẩm thể thao';
-    final productId = product['product_id'] ?? product['id'] ?? 0;
+    final pId = int.tryParse((product['product_id'] ?? product['id'] ?? 0).toString()) ?? 0;
+    final isFav = context.watch<FavoriteProvider>().isFavorite(pId);
+
+    // Real ratings and sold count from API
+    final ratingAvg = FormatUtils.parseNum(product['rating_avg'] ?? product['rating']);
+    final ratingCount = int.tryParse((product['rating_count'] ?? provider.comments.length).toString()) ?? provider.comments.length;
+    final soldCount = int.tryParse((product['sold_count'] ?? 0).toString()) ?? 0;
+
+    // Real Stock calculation from active variants
+    int totalStock = 0;
+    for (var v in variants) {
+      totalStock += int.tryParse(v['stock']?.toString() ?? '0') ?? 0;
+    }
+    if (totalStock == 0 && product['stock'] != null) {
+      totalStock = int.tryParse(product['stock'].toString()) ?? 0;
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9), // Shopee/TikTok neutral background
-      body: Stack(
-        children: [
-          // ── Scrollable Body ──
-          CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              // ── 1. Hero Image 1:1 Square Slider (TikTok Shop style) ──
-              SliverToBoxAdapter(
-                child: Stack(
-                  children: [
-                    Container(
-                      height: MediaQuery.of(context).size.width,
-                      width: double.infinity,
-                      color: Colors.white,
-                      child: PageView.builder(
-                        controller: _imagePageController,
-                        itemCount: allImages.length,
-                        onPageChanged: (index) {
-                          setState(() => _currentImageIndex = index);
-                        },
-                        itemBuilder: (context, index) {
-                          return Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: NetworkImageWidget(
-                                imageUrl: allImages[index],
-                                width: double.infinity,
-                                height: double.infinity,
-                                fit: BoxFit.contain,
-                                customMemCacheWidth: 900,
-                              ),
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: Stack(
+          children: [
+            // ── Scrollable Body ──
+            CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // ── 0. Clean Dedicated Top App Bar (Không bao giờ tràn vào Status Bar) ──
+                SliverToBoxAdapter(
+                  child: Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildCircleButton(
+                          icon: Icons.arrow_back_rounded,
+                          onTap: () {
+                            if (context.canPop()) {
+                              context.pop();
+                            } else {
+                              context.go('/home');
+                            }
+                          },
+                        ),
+                        Row(
+                          children: [
+                            _buildCircleButton(
+                              icon: Icons.share_outlined,
+                              onTap: () {},
                             ),
-                          );
-                        },
-                      ),
-                    ),
-
-                    // Floating App Bar
-                    Positioned(
-                      top: MediaQuery.of(context).padding.top + 6,
-                      left: 12,
-                      right: 12,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildCircleButton(
-                            icon: Icons.arrow_back_rounded,
-                            onTap: () => context.pop(),
-                          ),
-                          Row(
-                            children: [
-                              _buildCircleButton(
-                                icon: Icons.share_outlined,
-                                onTap: () {},
-                              ),
-                              const SizedBox(width: 8),
-                              _buildCircleButton(
-                                icon: _isFavorite
-                                    ? Icons.favorite_rounded
-                                    : Icons.favorite_border_rounded,
-                                iconColor: _isFavorite ? AppColors.error : Colors.black87,
-                                onTap: () => _toggleFavorite(productId),
-                              ),
-                              const SizedBox(width: 8),
-                              Consumer<CartProvider>(
-                                builder: (context, cart, _) => Stack(
+                            const SizedBox(width: 8),
+                            _buildCircleButton(
+                              icon: isFav
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              iconColor: isFav ? AppColors.error : Colors.black87,
+                              onTap: () => _toggleFavorite(pId),
+                            ),
+                            const SizedBox(width: 8),
+                            Consumer<CartProvider>(
+                              builder: (context, cart, _) => ScaleTransition(
+                                scale: _cartBounceScale,
+                                child: Stack(
+                                  key: _cartKey,
                                   clipBehavior: Clip.none,
                                   children: [
                                     _buildCircleButton(
@@ -672,32 +738,128 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Page Indicator (Shopee 1/5 style)
-                    if (allImages.length > 1)
-                      Positioned(
-                        bottom: 12,
-                        right: 14,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${_currentImageIndex + 1}/${allImages.length}',
-                            style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700),
-                          ),
+                            ),
+                          ],
                         ),
-                      ),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+
+                // ── 1. Hero Image 1:1 Square Slider + Thumbnail Strip (Shopee Mall style) ──
+                SliverToBoxAdapter(
+                  child: Container(
+                    color: Colors.white,
+                    child: Column(
+                      children: [
+                        Stack(
+                          children: [
+                            Container(
+                              key: _imageKey,
+                              height: MediaQuery.of(context).size.width * 0.85,
+                              width: double.infinity,
+                              color: Colors.white,
+                              child: PageView.builder(
+                                controller: _imagePageController,
+                                itemCount: allImages.length,
+                                onPageChanged: (index) {
+                                  setState(() => _currentImageIndex = index);
+                                },
+                                itemBuilder: (context, index) {
+                                  return Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: NetworkImageWidget(
+                                        imageUrl: allImages[index],
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        fit: BoxFit.contain,
+                                        customMemCacheWidth: 900,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                            // Page Indicator (Shopee 1/5 style)
+                            if (allImages.length > 1)
+                              Positioned(
+                                bottom: 10,
+                                right: 14,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.55),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${_currentImageIndex + 1}/${allImages.length}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        // Mini Thumbnail Strip (Giúp người dùng chọn góc ảnh và định hướng trực quan)
+                        if (allImages.length > 1)
+                          Container(
+                            height: 52,
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: allImages.length,
+                              separatorBuilder: (_, _) => const SizedBox(width: 8),
+                              itemBuilder: (context, idx) {
+                                final isSelected = idx == _currentImageIndex;
+                                return GestureDetector(
+                                  onTap: () {
+                                    _imagePageController.animateToPage(
+                                      idx,
+                                      duration: const Duration(milliseconds: 250),
+                                      curve: Curves.easeInOut,
+                                    );
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFAFAFA),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
+                                        width: isSelected ? 2 : 1,
+                                      ),
+                                    ),
+                                    padding: const EdgeInsets.all(2),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: NetworkImageWidget(
+                                        imageUrl: allImages[idx],
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // ── 1.5. Flash Sale Countdown Ribbon (Shopee / TikTok Shop style) ──
+              if (isFlashSale)
+                SliverToBoxAdapter(
+                  child: _FlashSaleCountdownRibbon(
+                    endTime: provider.flashSaleEndTime,
+                    discountPercent: discountPercent,
+                  ),
+                ),
 
               // ── 2. Price & Title Section (Shopee Mall style) ──
               SliverToBoxAdapter(
@@ -752,67 +914,63 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                       const SizedBox(height: 10),
 
-                      // Product Title with [Mall] / [Chính Hãng] Badge
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            margin: const EdgeInsets.only(top: 2, right: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'Mall',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              name,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                                height: 1.3,
-                              ),
-                            ),
-                          ),
-                        ],
+                      // Product Title
+                      Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                          height: 1.3,
+                        ),
                       ),
 
                       const SizedBox(height: 10),
 
-                      // Ratings, Sold & Favorite Count
-                      const Row(
+                      // Ratings, Sold & Reviews (100% Real from API)
+                      Row(
                         children: [
-                          Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
-                          SizedBox(width: 3),
+                          if (ratingAvg > 0) ...[
+                            const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
+                            const SizedBox(width: 3),
+                            Text(
+                              ratingAvg.toStringAsFixed(1),
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                            ),
+                            if (ratingCount > 0) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                '($ratingCount)',
+                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              ),
+                            ],
+                            const SizedBox(width: 8),
+                            const Text('|', style: TextStyle(color: Color(0xFFE2E8F0))),
+                            const SizedBox(width: 8),
+                          ] else ...[
+                            const Text(
+                              'Chưa có đánh giá',
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text('|', style: TextStyle(color: Color(0xFFE2E8F0))),
+                            const SizedBox(width: 8),
+                          ],
                           Text(
-                            '4.9',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                            soldCount > 0 ? 'Đã bán $soldCount' : 'Mới ra mắt',
+                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                           ),
-                          SizedBox(width: 8),
-                          Text('|', style: TextStyle(color: Color(0xFFE2E8F0))),
-                          SizedBox(width: 8),
-                          Text(
-                            'Đã bán 450+',
-                            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                          ),
-                          SizedBox(width: 8),
-                          Text('|', style: TextStyle(color: Color(0xFFE2E8F0))),
-                          SizedBox(width: 8),
-                          Text(
-                            '128 Đánh giá',
-                            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                          ),
+                          if (totalStock > 0) ...[
+                            const SizedBox(width: 8),
+                            const Text('|', style: TextStyle(color: Color(0xFFE2E8F0))),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Kho: $totalStock',
+                              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -822,36 +980,47 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
-              // ── 3. Shop Vouchers (Shopee Voucher Row) ──
-              SliverToBoxAdapter(
-                child: InkWell(
-                  onTap: () => context.push('/coupon'),
-                  child: Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        const Text(
-                          'Mã giảm giá',
-                          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Wrap(
-                            spacing: 6,
-                            children: [
-                              _buildVoucherTag('Giảm 10%'),
-                              _buildVoucherTag('Freeship Xtra'),
-                              _buildVoucherTag('Giảm 30K'),
-                            ],
+              // ── 3. Shop Vouchers (Real Available Coupons from API) ──
+              if (provider.coupons.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: InkWell(
+                    onTap: () => context.push('/coupon'),
+                    child: Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Mã giảm giá',
+                            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
                           ),
-                        ),
-                        const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
-                      ],
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: provider.coupons.take(3).map((c) {
+                                final code = c['code']?.toString() ?? '';
+                                final type = c['type']?.toString() ?? '';
+                                final val = c['value'];
+                                String label = code;
+                                if (type == 'percent') {
+                                  label = 'Giảm $val%';
+                                } else if (type == 'free_ship') {
+                                  label = 'Freeship';
+                                } else if (val != null) {
+                                  label = 'Giảm ${FormatUtils.formatPrice(val)}';
+                                }
+                                return _buildVoucherTag(label);
+                              }).toList(),
+                            ),
+                          ),
+                          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textMuted),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
@@ -943,58 +1112,63 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
-              // ── 6. Shop Info Banner (Ocean Sport Official Store) ──
+              // ── 6. Ocean Sport Brand Assurances & Guarantees ──
               SliverToBoxAdapter(
                 child: Container(
                   color: Colors.white,
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          gradient: AppGradients.primary,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: const Center(
-                          child: Icon(Icons.sports_tennis_rounded, color: Colors.white, size: 26),
-                        ),
+                      const Row(
+                        children: [
+                          Icon(Icons.verified_rounded, color: AppColors.primary, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Cam kết từ Ocean Sport',
+                            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  'Ocean Sport Official',
-                                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                                ),
-                                SizedBox(width: 4),
-                                Icon(Icons.check_circle, size: 14, color: AppColors.primary),
-                              ],
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildAssuranceItem(
+                              icon: Icons.shield_outlined,
+                              title: '100% Chính hãng',
+                              subtitle: 'Hoàn tiền 200% nếu hàng giả',
                             ),
-                            SizedBox(height: 3),
-                            Text(
-                              'Online 5 phút trước  •  TP. Hồ Chí Minh',
-                              style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildAssuranceItem(
+                              icon: Icons.published_with_changes_rounded,
+                              title: 'Đổi trả 15 ngày',
+                              subtitle: 'Miễn phí đổi hàng tận nơi',
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      OutlinedButton(
-                        onPressed: () => context.go('/shop'),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.primary),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        child: const Text(
-                          'Xem Shop',
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.primary),
-                        ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildAssuranceItem(
+                              icon: Icons.local_shipping_outlined,
+                              title: 'Giao hàng nhanh',
+                              subtitle: 'Toàn quốc 24h - 48h',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildAssuranceItem(
+                              icon: Icons.support_agent_rounded,
+                              title: 'Tư vấn chuyên sâu',
+                              subtitle: 'Đan vợt & test miễn phí',
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1003,7 +1177,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
-              // ── 7. Product Specifications & Description ──
+              // ── 7. Product Specifications & Description (100% Real Fields) ──
               SliverToBoxAdapter(
                 child: Container(
                   color: Colors.white,
@@ -1017,9 +1191,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                       const SizedBox(height: 12),
                       _buildSpecRow('Danh mục', categoryName),
-                      _buildSpecRow('Thương hiệu', 'Chính hãng'),
-                      _buildSpecRow('Gửi từ', 'Hồ Chí Minh, Việt Nam'),
-                      _buildSpecRow('Bảo hành', '12 tháng chính hãng'),
+                      if (brandName.isNotEmpty)
+                        _buildSpecRow('Thương hiệu', brandName),
+                      _buildSpecRow('Mã sản phẩm', sku),
+                      _buildSpecRow('Tình trạng', totalStock > 0 ? 'Còn hàng ($totalStock)' : 'Tạm hết hàng'),
+                      if (product['weight'] != null && product['weight'].toString() != '0' && product['weight'].toString().isNotEmpty)
+                        _buildSpecRow('Trọng lượng', '${product['weight']}g'),
+                      _buildSpecRow('Chính sách', 'Đổi trả miễn phí 15 ngày'),
                       const Divider(height: 24, color: Color(0xFFF1F5F9)),
                       const Text(
                         'MÔ TẢ SẢN PHẨM',
@@ -1034,6 +1212,193 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ),
                 ),
               ),
+
+              // ── 8. Real Customer Reviews (Đánh giá thực tế từ API) ──
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Colors.white,
+                  margin: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'ĐÁNH GIÁ SẢN PHẨM (${provider.comments.length})',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.textPrimary,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          if (provider.comments.isNotEmpty)
+                            Row(
+                              children: [
+                                const Icon(Icons.star_rounded, size: 16, color: Color(0xFFF59E0B)),
+                                const SizedBox(width: 2),
+                                Text(
+                                  ratingAvg > 0 ? ratingAvg.toStringAsFixed(1) : '5.0',
+                                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFFF59E0B)),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (provider.isLoadingComments)
+                        const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
+                      else if (provider.comments.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          alignment: Alignment.center,
+                          child: const Column(
+                            children: [
+                              Icon(Icons.rate_review_outlined, size: 32, color: Color(0xFFCBD5E1)),
+                              SizedBox(height: 6),
+                              Text('Chưa có đánh giá nào cho sản phẩm này', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12.5)),
+                            ],
+                          ),
+                        )
+                      else
+                        Column(
+                          children: provider.comments.take(5).map((cmt) {
+                            final reviewerName = cmt['commenter_info']?['full_name'] ?? cmt['user']?['full_name'] ?? 'Khách hàng';
+                            final cmtRating = int.tryParse(cmt['rating']?.toString() ?? '5') ?? 5;
+                            final cmtContent = cmt['content']?.toString() ?? '';
+                            final cmtImages = (cmt['images'] as List<dynamic>?) ?? [];
+                            final createdAt = cmt['created_at']?.toString() ?? '';
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: const BoxDecoration(
+                                border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 13,
+                                        backgroundColor: const Color(0xFFFFF1F2),
+                                        child: Text(
+                                          reviewerName.isNotEmpty ? reviewerName[0].toUpperCase() : 'U',
+                                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(reviewerName, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                                            Row(
+                                              children: List.generate(5, (sIdx) {
+                                                return Icon(
+                                                  sIdx < cmtRating ? Icons.star_rounded : Icons.star_border_rounded,
+                                                  size: 13,
+                                                  color: const Color(0xFFF59E0B),
+                                                );
+                                              }),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (createdAt.isNotEmpty)
+                                        Text(
+                                          createdAt.split('T')[0],
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                        ),
+                                    ],
+                                  ),
+                                  if (cmtContent.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Text(cmtContent, style: const TextStyle(fontSize: 13, color: Color(0xFF334155))),
+                                  ],
+                                  if (cmtImages.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: cmtImages.map((img) {
+                                        final imgUrl = img is Map ? (img['image_url'] ?? '') : img.toString();
+                                        return ClipRRect(
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: NetworkImageWidget(
+                                            imageUrl: AppConfig.imageUrl(imgUrl),
+                                            width: 60,
+                                            height: 60,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ── 9. Real Related Products (Sản phẩm liên quan dạng lưới 2 cột cuộn dọc) ──
+              if (provider.relatedProducts.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                    color: Colors.white,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 3.5,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'SẢN PHẨM TƯƠNG TỰ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 0.62,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, idx) {
+                        final rel = provider.relatedProducts[idx];
+                        return ProductCard(
+                          product: rel is Map<String, dynamic> ? rel : Map<String, dynamic>.from(rel),
+                        );
+                      },
+                      childCount: provider.relatedProducts.length,
+                    ),
+                  ),
+                ),
+              ],
 
               // Bottom Padding for Sticky Bar
               const SliverToBoxAdapter(child: SizedBox(height: 110)),
@@ -1130,8 +1495,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCircleButton({
     required IconData icon,
@@ -1196,6 +1562,180 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAssuranceItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFF1F5F9)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FlashSaleCountdownRibbon extends StatefulWidget {
+  final DateTime? endTime;
+  final int discountPercent;
+
+  const _FlashSaleCountdownRibbon({
+    this.endTime,
+    required this.discountPercent,
+  });
+
+  @override
+  State<_FlashSaleCountdownRibbon> createState() => _FlashSaleCountdownRibbonState();
+}
+
+class _FlashSaleCountdownRibbonState extends State<_FlashSaleCountdownRibbon> {
+  late Duration _remaining;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _calculateRemaining();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) _calculateRemaining();
+    });
+  }
+
+  void _calculateRemaining() {
+    final now = DateTime.now();
+    final end = widget.endTime ?? now.add(const Duration(hours: 2, minutes: 45));
+    final diff = end.difference(now);
+    setState(() {
+      _remaining = diff.isNegative ? Duration.zero : diff;
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hours = _remaining.inHours.toString().padLeft(2, '0');
+    final minutes = (_remaining.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (_remaining.inSeconds % 60).toString().padLeft(2, '0');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8.5),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.bolt_rounded, color: Color(0xFFFFD166), size: 22),
+              const SizedBox(width: 4),
+              const Text(
+                'FLASH SALE',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15.5,
+                  letterSpacing: 0.4,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              if (widget.discountPercent > 0) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '-${widget.discountPercent}%',
+                    style: const TextStyle(
+                      color: Color(0xFFE11D48),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          Row(
+            children: [
+              const Text(
+                'KẾT THÚC TRONG ',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 9.5,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              _buildTimeBox(hours),
+              const Text(' : ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10.5)),
+              _buildTimeBox(minutes),
+              const Text(' : ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10.5)),
+              _buildTimeBox(seconds),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeBox(String val) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0x3D000000),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        val,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+          fontSize: 10.5,
+        ),
       ),
     );
   }

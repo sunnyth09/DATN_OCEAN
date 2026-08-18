@@ -5,6 +5,8 @@ class HomeProvider extends ChangeNotifier {
   List<dynamic> products = [];
   List<dynamic> categories = [];
   List<dynamic> flashSaleProducts = [];
+  List<dynamic> bestSellingProducts = [];
+  List<dynamic> onSaleProducts = [];
 
   bool isInitialLoading = true;
   bool isFetchingMore = false;
@@ -132,6 +134,66 @@ class HomeProvider extends ChangeNotifier {
       isFlashSaleLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> fetchHomeCollections() async {
+    try {
+      final res = await ApiClient().get('/products/home/best-selling');
+      final bsData = res.data;
+      if (bsData is Map && bsData['data'] is List) {
+        bestSellingProducts = bsData['data'];
+      } else if (bsData is List) {
+        bestSellingProducts = bsData;
+      }
+    } catch (_) {}
+
+    try {
+      final res = await ApiClient().get('/products/home/on-sale');
+      final saleData = res.data;
+      if (saleData is Map && saleData['data'] is List) {
+        onSaleProducts = saleData['data'];
+      } else if (saleData is List) {
+        onSaleProducts = saleData;
+      }
+    } catch (_) {}
+
+    notifyListeners();
+  }
+
+  List<dynamic> homeVouchers = [];
+  Set<int> savedCouponIds = {};
+
+  Future<void> fetchVouchers() async {
+    try {
+      final res = await ApiClient().get('/coupons');
+      final data = res.data;
+      if (data is List) {
+        homeVouchers = data;
+      } else if (data is Map && data['data'] is List) {
+        homeVouchers = data['data'];
+      }
+    } catch (_) {}
+
+    try {
+      final myRes = await ApiClient().dio.get('/profile/coupons');
+      final myData = myRes.data;
+      final list = myData is List ? myData : (myData is Map && myData['data'] is List ? myData['data'] : []);
+      savedCouponIds = list.map<int>((c) => int.tryParse((c['coupon_id'] ?? c['id'] ?? 0).toString()) ?? 0).toSet();
+    } catch (_) {}
+
+    notifyListeners();
+  }
+
+  Future<bool> claimVoucher(int couponId) async {
+    try {
+      final res = await ApiClient().dio.post('/profile/coupons/save', data: {'coupon_id': couponId});
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        savedCouponIds.add(couponId);
+        notifyListeners();
+        return true;
+      }
+    } catch (_) {}
+    return false;
   }
 
   void setSearchQuery(String query) {

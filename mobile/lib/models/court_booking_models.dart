@@ -62,6 +62,30 @@ class CourtSlot {
   bool get isMaintenance => status == 'maintenance';
   bool get isClosed => status == 'closed';
 
+  int get startHour {
+    try {
+      final parts = startTime.split(':');
+      return int.parse(parts[0]);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  String get session {
+    final h = startHour;
+    if (h < 12) return 'morning';
+    if (h < 17) return 'afternoon';
+    return 'evening';
+  }
+
+  String get shortPrice {
+    if (price >= 1000) {
+      final k = (price / 1000).round();
+      return '${k}k';
+    }
+    return '$price';
+  }
+
   factory CourtSlot.fromJson(Map<String, dynamic> json) {
     return CourtSlot(
       startTime: _shortTime(json['start_time']),

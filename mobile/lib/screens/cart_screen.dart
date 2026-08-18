@@ -12,12 +12,12 @@ import '../widgets/network_image_widget.dart';
 import '../widgets/price_tag.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/voucher_selection_modal.dart';
 
-/// Màn hình Giỏ Hàng chuẩn Shopee / TikTok Shop:
-/// - Header gian hàng Mall chính hãng.
-/// - Thẻ sản phẩm trực quan, tăng giảm số lượng mượt mà, nút xóa tiện lợi.
-/// - Thanh mã giảm giá Voucher shop.
-/// - Thanh thanh toán cố định ở đáy màn hình.
+/// Màn hình Giỏ Hàng Ocean Sport:
+/// - Danh sách sản phẩm trực quan, tăng giảm số lượng mượt mà, nút xóa tiện lợi.
+/// - Thanh chọn và áp dụng Ocean Voucher thông minh.
+/// - Thanh thanh toán cố định ở đáy màn hình hiển thị chi tiết giảm giá.
 class CartScreen extends StatefulWidget {
   final VoidCallback? onContinueShopping;
 
@@ -29,6 +29,8 @@ class CartScreen extends StatefulWidget {
 
 class _CartScreenState extends State<CartScreen> {
   List<dynamic> _recommendedProducts = [];
+  Map<String, dynamic>? _appliedCoupon;
+  int _discountAmount = 0;
 
   @override
   void initState() {
@@ -37,6 +39,44 @@ class _CartScreenState extends State<CartScreen> {
       context.read<CartProvider>().fetchCart(force: true);
       _fetchRecommendations();
     });
+  }
+
+  int _calculateDiscount(Map<String, dynamic> coupon, double subtotal) {
+    final type = coupon['type']?.toString() ?? '';
+    final val = num.tryParse(coupon['value']?.toString() ?? '0') ?? 0;
+    final maxDisc = num.tryParse(coupon['max_discount_value']?.toString() ?? '0') ?? 0;
+
+    int discount = 0;
+    if (type == 'percent') {
+      discount = (subtotal * val / 100).round();
+      if (maxDisc > 0 && discount > maxDisc) discount = maxDisc.toInt();
+    } else if (type == 'free_ship') {
+      discount = val > 0 ? val.toInt() : 30000;
+    } else {
+      discount = val.toInt();
+    }
+    return discount > subtotal ? subtotal.toInt() : discount;
+  }
+
+  Future<void> _openVoucherModal(double subtotal) async {
+    final result = await VoucherSelectionModal.show(
+      context,
+      subtotal: subtotal,
+      currentCoupon: _appliedCoupon,
+    );
+    if (!mounted || result == null) return;
+    if (result.isEmpty) {
+      setState(() {
+        _appliedCoupon = null;
+        _discountAmount = 0;
+      });
+    } else {
+      final disc = _calculateDiscount(result, subtotal);
+      setState(() {
+        _appliedCoupon = result;
+        _discountAmount = disc;
+      });
+    }
   }
 
   Future<void> _fetchRecommendations() async {
@@ -128,7 +168,13 @@ class _CartScreenState extends State<CartScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
         actions: [
           IconButton(
@@ -143,9 +189,24 @@ class _CartScreenState extends State<CartScreen> {
             return const ListShimmerLoading();
           }
 
+          if (cart.status == CartStatus.unauthenticated && cart.items.isEmpty) {
+            return AppEmptyState(
+              icon: Icons.account_circle_outlined,
+              title: 'Bạn chưa đăng nhập',
+              message: 'Đăng nhập ngay để xem giỏ hàng, đồng bộ sản phẩm và nhận nhiều ưu đãi độc quyền!',
+              buttonText: 'Đăng nhập ngay',
+              onAction: () async {
+                await context.push('/login');
+                if (context.mounted) {
+                  context.read<CartProvider>().fetchCart(force: true);
+                }
+              },
+            );
+          }
+
           if (cart.status == CartStatus.error && cart.items.isEmpty) {
             return AppEmptyState(
-              icon: Icons.error_outline_rounded,
+              icon: Icons.wifi_off_rounded,
               title: 'Không thể tải giỏ hàng',
               message: cart.errorMessage ?? 'Đã xảy ra lỗi kết nối.',
               buttonText: 'Thử lại',
@@ -171,60 +232,52 @@ class _CartScreenState extends State<CartScreen> {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 130),
                   children: [
-                    // ── Shop Header ──
+                    // ── Cart Items Unified Container (Ocean Sport) ──
                     Container(
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'Mall',
-                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900),
-                            ),
+                          Row(
+                            children: [
+                              const Icon(Icons.shopping_bag_outlined, size: 18, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Sản phẩm trong giỏ (${cart.items.length})',
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: AppColors.textPrimary),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Ocean Sport Official Store',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: AppColors.textPrimary),
-                          ),
-                          const Spacer(),
-                          const Icon(Icons.verified_rounded, size: 16, color: AppColors.primary),
+                          const Divider(height: 18, color: Color(0xFFF1F5F9)),
+                          ...cart.items.map((item) => _buildCartItemCard(item)),
                         ],
                       ),
                     ),
 
-                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
-
-                    // ── Cart Items in White Container ──
-                    Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      child: Column(
-                        children: cart.items.map((item) => _buildCartItemCard(item)).toList(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
 
                     // ── Voucher Bar ──
                     InkWell(
-                      onTap: () => context.push('/coupon'),
+                      onTap: () => _openVoucherModal(cart.cart.totalPrice.toDouble()),
                       child: Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: _appliedCoupon != null ? const Color(0xFFFFD1DC) : const Color(0xFFF1F5F9),
+                            width: _appliedCoupon != null ? 1.2 : 1.0,
+                          ),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         child: Row(
@@ -236,10 +289,32 @@ class _CartScreenState extends State<CartScreen> {
                               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                             ),
                             const Spacer(),
-                            const Text(
-                              'Chọn hoặc nhập mã >',
-                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-                            ),
+                            if (_appliedCoupon != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF1F2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${_appliedCoupon!['code']} (-${FormatUtils.formatPrice(_discountAmount)})',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () => setState(() {
+                                  _appliedCoupon = null;
+                                  _discountAmount = 0;
+                                }),
+                                child: const Icon(Icons.cancel_rounded, size: 16, color: Color(0xFF94A3B8)),
+                              ),
+                            ] else ...[
+                              const Text(
+                                'Chọn hoặc nhập mã >',
+                                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -263,7 +338,7 @@ class _CartScreenState extends State<CartScreen> {
                       ),
                       const SizedBox(height: 6),
                       SizedBox(
-                        height: 215,
+                        height: 225,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           itemCount: _recommendedProducts.length,
@@ -282,21 +357,37 @@ class _CartScreenState extends State<CartScreen> {
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(color: const Color(0xFFF1F5F9)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.02),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    ClipRRect(
-                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                                    AspectRatio(
+                                      aspectRatio: 1.05,
                                       child: Container(
-                                        height: 120,
-                                        width: double.infinity,
-                                        color: const Color(0xFFF8FAFC),
-                                        child: NetworkImageWidget(
-                                          imageUrl: imgUrl,
-                                          height: 120,
-                                          width: double.infinity,
-                                          fit: BoxFit.cover,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+                                        ),
+                                        padding: const EdgeInsets.all(8),
+                                        child: Center(
+                                          child: NetworkImageWidget(
+                                            imageUrl: imgUrl,
+                                            fit: BoxFit.contain,
+                                            errorWidget: const Center(
+                                              child: Icon(
+                                                Icons.sports_tennis_rounded,
+                                                color: Color(0xFFCBD5E1),
+                                                size: 24,
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -307,11 +398,13 @@ class _CartScreenState extends State<CartScreen> {
                                         children: [
                                           Text(
                                             name,
-                                            maxLines: 1,
+                                            maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w700,
+                                              color: AppColors.textPrimary,
+                                              height: 1.25,
                                             ),
                                           ),
                                           const SizedBox(height: 4),
@@ -361,17 +454,31 @@ class _CartScreenState extends State<CartScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
-                              'Tổng thanh toán:',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary,
+                            if (_appliedCoupon != null) ...[
+                              Text(
+                                'Tiết kiệm: -${FormatUtils.formatPrice(_discountAmount)}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF059669),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
+                              const SizedBox(height: 2),
+                            ] else ...[
+                              const Text(
+                                'Tổng thanh toán:',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                            ],
                             Text(
-                              FormatUtils.formatPrice(cart.cart.totalPrice),
+                              FormatUtils.formatPrice(
+                                (cart.cart.totalPrice - _discountAmount).clamp(0, double.infinity),
+                              ),
                               style: const TextStyle(
                                 fontSize: 19,
                                 fontWeight: FontWeight.w900,
@@ -382,24 +489,27 @@ class _CartScreenState extends State<CartScreen> {
                           ],
                         ),
                         SizedBox(
-                          height: 48,
+                          height: 44,
                           child: ElevatedButton(
-                            onPressed: () => context.push('/checkout'),
+                            onPressed: () => context.push('/checkout', extra: {
+                              'appliedCoupon': _appliedCoupon,
+                              'discountAmount': _discountAmount,
+                            }),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
-                              elevation: 2,
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              elevation: 0,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                             child: Text(
                               'MUA HÀNG (${cart.itemCount})',
                               style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
                                 color: Colors.white,
-                                letterSpacing: 0.5,
+                                letterSpacing: 0.2,
                               ),
                             ),
                           ),

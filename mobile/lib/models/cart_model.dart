@@ -29,6 +29,15 @@ class CartVariant {
     );
   }
 
+  Map<String, dynamic> toJson() => {
+        'variant_id': variantId,
+        'price': price,
+        'color': color,
+        'size': size,
+        'image_url': imageUrl,
+        'stock_quantity': stock,
+      };
+
   /// Mô tả biến thể để hiển thị, ví dụ "Đỏ | Size M".
   String get label {
     final parts = <String>[];
@@ -73,6 +82,17 @@ class CartItem {
       productStock: _toInt(product?['stock_quantity'] ?? product?['stock']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'cart_item_id': cartItemId,
+        'quantity': quantity,
+        'product': {
+          'name': productName,
+          if (_productRaw != null) ..._productRaw,
+        },
+        'variant': variant?.toJson(),
+        'stock_quantity': productStock,
+      };
 
   num get price => variant?.price ?? 0;
 
@@ -128,6 +148,11 @@ class Cart {
           : null,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'items': items.map((e) => e.toJson()).toList(),
+        'total_price': serverTotalPrice,
+      };
 
   static const empty = Cart();
 

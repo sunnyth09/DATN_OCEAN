@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../config/app_theme.dart';
 import '../services/attendance_service.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -329,7 +330,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       backgroundColor: const Color(0xFFF1F5F9),
       appBar: AppBar(
         title: const Text('Chấm Công Điện Tử', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFFE63B6F),
+        backgroundColor: AppColors.primary,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SingleChildScrollView(
@@ -350,7 +351,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.access_time_filled, size: 48, color: Color(0xFFE63B6F)),
+                  const Icon(Icons.access_time_filled, size: 48, color: AppColors.primary),
                   const SizedBox(height: 16),
                   Text(_currentTime, style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: 2)),
                   const SizedBox(height: 8),
@@ -379,7 +380,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   const SizedBox(height: 8),
                   GestureDetector(
                     onTap: _loadNetworkInfo,
-                    child: const Text('Làm mới kết nối mạng', style: TextStyle(color: Color(0xFFE63B6F), fontSize: 12, decoration: TextDecoration.underline)),
+                    child: const Text('Làm mới kết nối mạng', style: TextStyle(color: AppColors.primary, fontSize: 12, decoration: TextDecoration.underline)),
                   )
                 ],
               ),

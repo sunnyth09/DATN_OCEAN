@@ -547,7 +547,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
             _loadMyBookings(),
           ]),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 160),
             children: [
               // Court Selector Header
               CourtHeader(
@@ -569,15 +569,10 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
               // Date Picker Ribbon
               _buildDateRibbon(),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Live Lock Countdown Banner
               _buildLockCountdownBanner(),
-
-              // Legend
-              _buildLegend(),
-
-              const SizedBox(height: 14),
 
               // Time Slot Grid
               if (_slots.isEmpty)
@@ -595,10 +590,11 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                   slots: _slots,
                   selectedIndexes: _selectedSlotIndexes,
                   money: _money,
+                  selectedDate: _selectedDate,
                   onToggle: _onToggleSlot,
                 ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               // Extra Services
               if (_extraServices.isNotEmpty) _buildExtraServices(),
@@ -616,6 +612,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
             orderedSelectedIndexes: _orderedSelectedIndexes,
             totalAmount: _totalAmount,
             money: _money,
+            dateText: DateFormat('dd/MM').format(_selectedDate),
             isLoading: _actionLoading,
             onBook: _handleBookCourt,
           ),
@@ -633,28 +630,30 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+        ),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFF59E0B), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+            padding: const EdgeInsets.all(7),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF59E0B),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.timer_rounded, color: Color(0xFFD97706), size: 18),
+            child: const Icon(Icons.timer_rounded, color: Colors.white, size: 16),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -671,7 +670,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                       fontSize: 14,
                     ),
                   ),
-                  const TextSpan(text: ' • Vui lòng xác nhận đặt sân trước khi hết giờ!'),
+                  const TextSpan(text: ' • Vui lòng xác nhận trước khi hết giờ!'),
                 ],
               ),
             ),
@@ -684,35 +683,105 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
   Widget _buildDateRibbon() {
     final now = DateTime.now();
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(
-              'Chọn ngày đặt sân',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.calendar_today_rounded, size: 15, color: AppColors.primary),
+                  SizedBox(width: 6),
+                  Text(
+                    'Chọn ngày đặt sân',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedDate,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 60)),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: AppColors.primary,
+                            onPrimary: Colors.white,
+                            onSurface: Color(0xFF1E293B),
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    _releaseCurrentLock();
+                    setState(() {
+                      _selectedDate = picked;
+                      _selectedSlotIndexes.clear();
+                    });
+                    _setupRealtimeSubscription();
+                    _loadAvailability();
+                  }
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF0F5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.edit_calendar_rounded, size: 13, color: AppColors.primary),
+                      SizedBox(width: 3),
+                      Text(
+                        'Lịch tháng',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 8),
           SizedBox(
-            height: 68,
+            height: 54,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: 14,
+              itemCount: 21,
               itemBuilder: (context, index) {
                 final date = now.add(Duration(days: index));
                 final isSelected = DateFormat('yyyy-MM-dd').format(date) == _dateParam;
-                final dayName = index == 0
+                final dayLabel = index == 0
                     ? 'Hôm nay'
                     : index == 1
                         ? 'Ngày mai'
-                        : DateFormat('E', 'vi').format(date);
+                        : 'T${date.weekday == 7 ? 'CN' : date.weekday + 1}';
 
                 return GestureDetector(
                   onTap: () {
@@ -724,31 +793,51 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                     _setupRealtimeSubscription();
                     _loadAvailability();
                   },
-                  child: Container(
-                    width: 64,
-                    margin: const EdgeInsets.only(right: 8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 58,
+                    margin: const EdgeInsets.only(right: 6),
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : AppColors.surfaceDim,
-                      borderRadius: BorderRadius.circular(14),
+                      gradient: isSelected
+                          ? const LinearGradient(
+                              colors: [Color(0xFFE63B6F), Color(0xFFFF6584)],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            )
+                          : null,
+                      color: isSelected ? null : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0),
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: AppColors.primary.withValues(alpha: 0.28),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          dayName,
+                          dayLabel,
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: isSelected ? Colors.white70 : AppColors.textSecondary,
+                            fontSize: 9.5,
+                            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                            color: isSelected ? Colors.white.withValues(alpha: 0.95) : const Color(0xFF64748B),
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
-                          '${date.day}/${date.month}',
+                          '${date.day}',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 15,
                             fontWeight: FontWeight.w900,
-                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                            color: isSelected ? Colors.white : const Color(0xFF1E293B),
                           ),
                         ),
                       ],
@@ -763,88 +852,85 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
     );
   }
 
-  Widget _buildLegend() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
-        children: [
-          _legendItem(const Color(0xFF10B981), 'Trống'),
-          _legendItem(AppColors.primary, 'Đang chọn'),
-          _legendItem(const Color(0xFFF59E0B), 'Đang giữ'),
-          _legendItem(const Color(0xFFDC2626), 'Đã đặt'),
-          _legendItem(const Color(0xFF94A3B8), 'Không khả dụng'),
-        ],
-      ),
-    );
-  }
-
-  Widget _legendItem(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildExtraServices() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Dịch vụ / Thiết bị đi kèm',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.add_shopping_cart_rounded, size: 16, color: AppColors.primary),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Dịch vụ & Thiết bị thuê thêm',
+                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           ..._extraServices.map((service) {
             final quantity = _serviceQuantities[service.id] ?? 0;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+            final lowerName = service.name.toLowerCase();
+
+            IconData sIcon = Icons.sports_tennis_rounded;
+            if (lowerName.contains('cầu')) {
+              sIcon = Icons.sports_volleyball_outlined;
+            } else if (lowerName.contains('nước')) {
+              sIcon = Icons.local_drink_rounded;
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: quantity > 0 ? const Color(0xFFFFF0F5) : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: quantity > 0 ? const Color(0xFFFFB6C1) : const Color(0xFFE2E8F0),
+                ),
+              ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(sIcon, size: 18, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           service.name,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1E293B)),
                         ),
                         Text(
-                          _money.format(service.unitPrice),
-                          style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w800),
+                          '${_money.format(service.unitPrice)} / ${service.unit}',
+                          style: const TextStyle(color: AppColors.primary, fontSize: 11.5, fontWeight: FontWeight.w800),
                         ),
                       ],
                     ),

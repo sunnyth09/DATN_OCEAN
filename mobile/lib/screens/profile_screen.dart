@@ -6,6 +6,12 @@ import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/coupon_provider.dart';
+import '../providers/favorite_provider.dart';
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
+import '../services/passkey_service.dart';
+import '../services/storage_service.dart';
 import '../widgets/app_empty_state.dart';
 
 /// Màn hình Tài Khoản chuẩn Sàn Thương Mại Điện Tử (Shopee / Lazada tier).
@@ -20,44 +26,171 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  Map<String, dynamic>? userData;
-  bool isLoading = true;
-  bool isGuest = false;
+  bool isLoading = false;
+  bool _isPasskeyEnrolled = false;
   String? errorMessage;
+  int _loyaltyPoints = 0;
+  String _membershipTier = 'THÀNH VIÊN MỚI';
+  Map<String, int> _orderCounts = {
+    'pending': 0,
+    'pickup': 0,
+    'shipping': 0,
+    'review': 0,
+    'returns': 0,
+  };
 
   @override
   void initState() {
     super.initState();
-    fetchProfile();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      if (auth.isAuthenticated) {
+        auth.loadProfile();
+        final email = auth.user?.email ?? '';
+        _checkPasskeyStatus(email);
+        _fetchOrderCounts();
+        _fetchUserMetrics();
+      }
+    });
+  }
+
+  Future<void> _fetchUserMetrics() async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated) return;
+
+    // 1. Lấy số lượng Voucher đã lưu thực tế
+    try {
+      if (mounted) {
+        context.read<CouponProvider>().fetchUserCoupons(silent: true);
+      }
+    } catch (_) {}
+
+    // 2. Lấy số lượng Sản phẩm yêu thích thực tế
+    try {
+      if (mounted) {
+        context.read<FavoriteProvider>().fetchFavorites(silent: true);
+      }
+    } catch (_) {}
+
+    // 3. Lấy Điểm thưởng và Hạng thành viên thực tế
+    try {
+      final res = await ApiClient().dio.get('/loyalty/profile');
+      if (res.data != null && res.data['status'] == 'success') {
+        final data = res.data['data'];
+        final pts = (data['points'] as num?)?.toInt() ?? 0;
+        final tier = data['tier']?.toString() ?? '';
+        if (mounted) {
+          setState(() {
+            _loyaltyPoints = pts;
+            if (tier.isNotEmpty) {
+              _membershipTier = tier.toUpperCase();
+            } else if (pts >= 1000) {
+              _membershipTier = 'THÀNH VIÊN KIM CƯƠNG';
+            } else if (pts >= 500) {
+              _membershipTier = 'THÀNH VIÊN VÀNG';
+            } else if (pts >= 100) {
+              _membershipTier = 'THÀNH VIÊN BẠC';
+            } else {
+              _membershipTier = 'THÀNH VIÊN ĐỒNG';
+            }
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _fetchOrderCounts() async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated) return;
+
+    try {
+      final response = await ApiClient().dio.get('/profile/orders');
+      final decoded = response.data;
+      List<dynamic> fetchedOrders = [];
+
+      if (decoded is List) {
+        fetchedOrders = decoded;
+      } else if (decoded is Map) {
+        if (decoded['data'] is List) {
+          fetchedOrders = decoded['data'];
+        } else if (decoded['data'] is Map && decoded['data']['data'] is List) {
+          fetchedOrders = decoded['data']['data'];
+        } else if (decoded['orders'] is List) {
+          fetchedOrders = decoded['orders'];
+        }
+      }
+
+      int pendingCount = 0;
+      int pickupCount = 0;
+      int shippingCount = 0;
+      int reviewCount = 0;
+      int returnCount = 0;
+
+      for (var order in fetchedOrders) {
+        final st = (order['fulfillment_status'] ?? order['status'] ?? '').toString().toLowerCase();
+        final orderStatus = (order['order_status'] ?? order['status'] ?? '').toString().toLowerCase();
+
+        if (st.contains('pending') || orderStatus.contains('pending') || orderStatus.contains('unpaid') || orderStatus.contains('waiting')) {
+          pendingCount++;
+        } else if (st.contains('processing') || st.contains('confirmed') || st.contains('ready') || st.contains('pickup')) {
+          pickupCount++;
+        } else if (st.contains('shipping') || st.contains('delivering') || st.contains('transit')) {
+          shippingCount++;
+        } else if (st.contains('completed') || st.contains('delivered') || st.contains('success') || orderStatus.contains('completed')) {
+          reviewCount++;
+        } else if (st.contains('return') || st.contains('refund') || orderStatus.contains('return')) {
+          returnCount++;
+        }
+      }
+
+      try {
+        final retRes = await ApiClient().dio.get('/return-requests');
+        if (retRes.data != null) {
+          final retList = retRes.data['data'] ?? retRes.data;
+          if (retList is List && retList.isNotEmpty) {
+            returnCount = retList.length;
+          }
+        }
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _orderCounts = {
+            'pending': pendingCount,
+            'pickup': pickupCount,
+            'shipping': shippingCount,
+            'review': reviewCount,
+            'returns': returnCount,
+          };
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkPasskeyStatus(String email) async {
+    if (email.isEmpty) return;
+    final status = await PasskeyService.isPasskeyEnrolled(email);
+    if (mounted) setState(() => _isPasskeyEnrolled = status);
   }
 
   Future<void> fetchProfile() async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated) return;
+
     if (!mounted) return;
     setState(() {
       isLoading = true;
       errorMessage = null;
-      isGuest = false;
     });
 
-    final auth = context.read<AuthProvider>();
-    if (!auth.isAuthenticated) {
-      if (mounted) setState(() { isGuest = true; isLoading = false; });
-      return;
-    }
-
     try {
-      final ok = await auth.loadProfile();
-      if (!mounted) return;
-      if (!ok) {
-        setState(() { isGuest = true; isLoading = false; });
-        return;
-      }
-      setState(() {
-        userData = auth.user?.raw;
-        isLoading = false;
-      });
+      await auth.loadProfile();
+      await _fetchOrderCounts();
+      await _fetchUserMetrics();
     } catch (_) {
-      if (mounted) setState(() { errorMessage = 'Lỗi kết nối máy chủ.'; isLoading = false; });
+      if (mounted) setState(() => errorMessage = 'Lỗi kết nối máy chủ.');
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -98,23 +231,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     context.read<CartProvider>().clearCart();
     context.pop(); // Close loading dialog
-    context.go('/login');
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9), // Shopee neutral bg
-      body: _buildBody(),
+      body: _buildBody(auth),
     );
   }
 
-  Widget _buildBody() {
-    if (isLoading) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-    }
-
-    if (isGuest) {
+  Widget _buildBody(AuthProvider auth) {
+    if (!auth.isAuthenticated) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Tài Khoản', style: TextStyle(fontWeight: FontWeight.w900)),
@@ -126,14 +256,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           message: 'Đăng nhập để theo dõi đơn hàng, nhận mã giảm giá và các ưu đãi đặc quyền.',
           buttonText: 'Đăng nhập ngay',
           onAction: () async {
-            await context.push('/login');
-            fetchProfile();
+            final res = await context.push('/login');
+            if (mounted && (res == true || context.read<AuthProvider>().isAuthenticated)) {
+              fetchProfile();
+            }
           },
         ),
       );
     }
 
-    if (errorMessage != null) {
+    if (isLoading && auth.user == null) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+    }
+
+    if (errorMessage != null && auth.user == null) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Tài Khoản', style: TextStyle(fontWeight: FontWeight.w900)),
@@ -149,13 +285,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    final name = userData?['full_name'] ?? userData?['name'] ?? 'Khách hàng Ocean';
-    final email = userData?['email'] ?? 'Chưa cập nhật email';
-    final phone = userData?['phone'] ?? '';
-    final avatar = userData?['avatar_url'];
-    final role = userData?['role']?.toString();
+    final user = auth.user;
+    final userData = user?.raw ?? {};
+
+    final name = (user?.fullName.isNotEmpty == true)
+        ? user!.fullName
+        : (userData['full_name'] ?? userData['name'] ?? 'Khách hàng Ocean');
+    final email = (user?.email.isNotEmpty == true)
+        ? user!.email
+        : (userData['email'] ?? 'Chưa cập nhật email');
+    final phone = user?.phone ?? userData['phone'] ?? '';
+    final avatar = user?.avatarUrl ?? userData['avatar_url'];
+    final role = user?.role ?? userData['role']?.toString();
     final isStaff = role == 'admin' || role == 'seller' || role == 'staff';
-    final points = userData?['loyalty_points'] ?? 150;
+    final points = _loyaltyPoints;
+    final tierLabel = isStaff ? 'NHÂN VIÊN HỆ THỐNG' : _membershipTier;
 
     return RefreshIndicator(
       color: AppColors.primary,
@@ -167,11 +311,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // ── 1. Top Header Profile Card ──
             Container(
               decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFE63B6F), Color(0xFFFF6B8B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                gradient: AppGradients.hero,
               ),
               padding: EdgeInsets.fromLTRB(
                 16,
@@ -202,7 +342,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             right: 0,
                             child: GestureDetector(
                               onTap: () async {
-                                if (userData == null) return;
                                 await context.push('/edit-profile', extra: userData);
                                 fetchProfile();
                               },
@@ -253,7 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   const Icon(Icons.star_rounded, size: 12, color: Colors.amberAccent),
                                   const SizedBox(width: 3),
                                   Text(
-                                    isStaff ? 'NHÂN VIÊN HỆ THỐNG' : 'THÀNH VIÊN VIP',
+                                    tierLabel,
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
@@ -293,11 +432,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildMetricCol('Voucher', '3 mã', Icons.confirmation_number_outlined, () => context.push('/my-coupons')),
+                        Consumer<CouponProvider>(
+                          builder: (context, couponProv, _) => _buildMetricCol(
+                            'Voucher',
+                            '${couponProv.voucherCount} mã',
+                            Icons.confirmation_number_outlined,
+                            () => context.push('/my-coupons'),
+                          ),
+                        ),
                         Container(width: 1, height: 28, color: const Color(0xFFE2E8F0)),
-                        _buildMetricCol('Điểm Ocean', '$points đ', Icons.stars_rounded, () => context.push('/loyalty')),
+                        _buildMetricCol(
+                          'Điểm Ocean',
+                          '$points đ',
+                          Icons.stars_rounded,
+                          () => context.push('/loyalty'),
+                        ),
                         Container(width: 1, height: 28, color: const Color(0xFFE2E8F0)),
-                        _buildMetricCol('Yêu thích', 'Xem', Icons.favorite_border_rounded, () => context.push('/favorite')),
+                        Consumer<FavoriteProvider>(
+                          builder: (context, fav, _) => _buildMetricCol(
+                            'Yêu thích',
+                            '${fav.itemCount} món',
+                            Icons.favorite_border_rounded,
+                            () => context.push('/favorite'),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -344,11 +502,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildOrderStatusCol(Icons.account_balance_wallet_outlined, 'Chờ xác nhận', () => context.push('/orders')),
-                      _buildOrderStatusCol(Icons.inventory_2_outlined, 'Chờ lấy hàng', () => context.push('/orders')),
-                      _buildOrderStatusCol(Icons.local_shipping_outlined, 'Đang giao', () => context.push('/orders')),
-                      _buildOrderStatusCol(Icons.star_outline_rounded, 'Đánh giá', () => context.push('/orders')),
-                      _buildOrderStatusCol(Icons.published_with_changes_rounded, 'Trả hàng', () => context.push('/return-requests')),
+                      _buildOrderStatusCol(
+                        Icons.account_balance_wallet_outlined,
+                        'Chờ xác nhận',
+                        () => context.push('/orders?tab=1'),
+                        badgeCount: _orderCounts['pending'] ?? 0,
+                      ),
+                      _buildOrderStatusCol(
+                        Icons.inventory_2_outlined,
+                        'Chờ lấy hàng',
+                        () => context.push('/orders?tab=2'),
+                        badgeCount: _orderCounts['pickup'] ?? 0,
+                      ),
+                      _buildOrderStatusCol(
+                        Icons.local_shipping_outlined,
+                        'Đang giao',
+                        () => context.push('/orders?tab=3'),
+                        badgeCount: _orderCounts['shipping'] ?? 0,
+                      ),
+                      _buildOrderStatusCol(
+                        Icons.star_outline_rounded,
+                        'Đánh giá',
+                        () => context.push('/orders?tab=4'),
+                        badgeCount: _orderCounts['review'] ?? 0,
+                      ),
+                      _buildOrderStatusCol(
+                        Icons.published_with_changes_rounded,
+                        'Trả hàng',
+                        () => context.push('/orders?tab=5'),
+                        badgeCount: _orderCounts['returns'] ?? 0,
+                      ),
                     ],
                   ),
                 ],
@@ -377,28 +560,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
 
-            // ── 4. Utilities Grid & Support ──
-            Container(
-              margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+              // ── 4. Utilities Grid & Support ──
+              Container(
+                margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('TIỆN ÍCH & BẢO MẬT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textSecondary)),
+                    ),
+                    _buildListTile(
+                      Icons.fingerprint_rounded,
+                      'Passkey & Sinh trắc học',
+                      () => _showPasskeyManagementDialog(email, name, avatar),
+                      trailingWidget: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _isPasskeyEnrolled ? const Color(0xFFF0FDF4) : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _isPasskeyEnrolled ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Text(
+                          _isPasskeyEnrolled ? 'Đã bật' : 'Chưa bật',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: _isPasskeyEnrolled ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
+                    ),
+                    _buildListTile(Icons.sports_tennis_rounded, 'Lịch sử đặt sân bãi', () => context.push('/booking-history')),
+                    _buildListTile(Icons.location_on_outlined, 'Sổ địa chỉ nhận hàng', () => context.push('/address')),
+                    _buildListTile(Icons.chat_bubble_outline_rounded, 'Trung tâm hỗ trợ CSKH 24/7', () => context.push('/chat')),
+                    _buildListTile(Icons.lock_outline_rounded, 'Đổi mật khẩu', () => context.push('/change-password')),
+                  ],
+                ),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('TIỆN ÍCH & DỊCH VỤ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textSecondary)),
-                  ),
-                  _buildListTile(Icons.sports_tennis_rounded, 'Lịch sử đặt sân bãi', () => context.push('/booking-history')),
-                  _buildListTile(Icons.location_on_outlined, 'Sổ địa chỉ nhận hàng', () => context.push('/address')),
-                  _buildListTile(Icons.chat_bubble_outline_rounded, 'Trung tâm hỗ trợ CSKH 24/7', () => context.push('/chat')),
-                  _buildListTile(Icons.lock_outline_rounded, 'Đổi mật khẩu', () => context.push('/change-password')),
-                ],
-              ),
-            ),
 
             // ── 5. Logout Button ──
             Container(
@@ -460,28 +666,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildOrderStatusCol(IconData icon, String title, VoidCallback onTap) {
-    return GestureDetector(
+  Widget _buildOrderStatusCol(
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    int badgeCount = 0,
+  }) {
+    return InkWell(
       onTap: onTap,
-      child: SizedBox(
-        width: 62,
-        child: Column(
-          children: [
-            Icon(icon, color: const Color(0xFF334155), size: 24),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1.1),
-            ),
-          ],
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+        child: SizedBox(
+          width: 60,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 28,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(icon, color: const Color(0xFF64748B), size: 22),
+                    if (badgeCount > 0)
+                      Positioned(
+                        top: -3,
+                        right: -10,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 1),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFF4B55), Color(0xFFEE2A35)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.35),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1.5),
+                              ),
+                            ],
+                          ),
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          child: Center(
+                            child: Text(
+                              badgeCount > 99 ? '99+' : badgeCount.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                                height: 1.1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF475569),
+                  height: 1.15,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildListTile(IconData icon, String title, VoidCallback onTap) {
+  Widget _buildListTile(IconData icon, String title, VoidCallback onTap, {Widget? trailingWidget}) {
     return ListTile(
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
@@ -497,7 +762,161 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title,
         style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
       ),
-      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: AppColors.textMuted),
+      trailing: trailingWidget ?? const Icon(Icons.arrow_forward_ios_rounded, size: 13, color: AppColors.textMuted),
+    );
+  }
+
+  void _showPasskeyManagementDialog(String email, String name, String? avatar) async {
+    final isEnrolled = await PasskeyService.isPasskeyEnrolled(email);
+    final bioSupport = await PasskeyService.checkDeviceBiometricSupport();
+    final isDeviceReady = bioSupport['supported'] == true;
+
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: (isEnrolled
+                          ? const Color(0xFF10B981)
+                          : (isDeviceReady ? const Color(0xFF8B5CF6) : const Color(0xFFF59E0B)))
+                      .withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isDeviceReady ? Icons.fingerprint_rounded : Icons.lock_clock_rounded,
+                  size: 48,
+                  color: isEnrolled
+                      ? const Color(0xFF10B981)
+                      : (isDeviceReady ? const Color(0xFF8B5CF6) : const Color(0xFFD97706)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isEnrolled
+                    ? 'Passkey Đang Hoạt Động'
+                    : (isDeviceReady ? 'Kích Hoạt Passkey Thiết Bị' : 'Yêu Cầu Khóa Màn Hình'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isEnrolled
+                    ? 'Tài khoản $email đã được liên kết với mã khóa bảo mật trên thiết bị này. Bạn có thể đăng nhập 1 chạm bằng sinh trắc học ở màn hình đăng nhập.'
+                    : (isDeviceReady
+                        ? 'Kích hoạt Passkey để đăng nhập 1 chạm an toàn bằng Face ID / Vân tay / PIN máy mà không cần nhập mật khẩu cho những lần sau.'
+                        : 'Thiết bị này chưa thiết lập Khóa màn hình hoặc Sinh trắc học (PIN / Mẫu hình / Vân tay). Vui lòng vào Cài đặt thiết bị để thiết lập trước khi kích hoạt Passkey.'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+              ),
+              const SizedBox(height: 24),
+              if (!isEnrolled)
+                ElevatedButton(
+                  onPressed: () async {
+                    final authProvider = context.read<AuthProvider>();
+                    // Kiểm tra và yêu cầu xác thực bằng cảm biến/mã khóa thực tế của hệ điều hành
+                    final authRes = await PasskeyService.authenticateWithBiometrics(
+                      reason: 'Xác thực vân tay / Face ID / PIN để kích hoạt Passkey',
+                    );
+
+                    if (authRes['success'] != true) {
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(authRes['message'] ?? 'Xác thực sinh trắc học không thành công.'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 4),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final token = await StorageService.read(AuthService.keyToken);
+                    final user = authProvider.user;
+                    await PasskeyService.enrollPasskey(
+                      email,
+                      name: name,
+                      avatarUrl: avatar,
+                      token: token,
+                      userData: user?.toJson(),
+                    );
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (!mounted) return;
+                    _checkPasskeyStatus(email);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('🎉 Đã kích hoạt Passkey bảo mật thành công trên thiết bị này!'),
+                        backgroundColor: AppColors.success,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.fingerprint_rounded, size: 20),
+                      SizedBox(width: 8),
+                      Text('Xác thực & Kích hoạt ngay', style: TextStyle(fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                )
+              else
+                OutlinedButton(
+                  onPressed: () async {
+                    await PasskeyService.revokePasskey(email);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (!mounted) return;
+                    _checkPasskeyStatus(email);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Đã hủy kích hoạt Passkey trên thiết bị.'),
+                        backgroundColor: AppColors.textSecondary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 48),
+                    side: const BorderSide(color: AppColors.error),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Hủy kích hoạt Passkey trên máy này', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

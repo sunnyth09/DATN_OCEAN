@@ -1,6 +1,8 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../providers/coupon_provider.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../config/app_theme.dart';
@@ -117,31 +119,17 @@ class _CouponScreenState extends State<CouponScreen> {
       return;
     }
 
-    try {
-      final res = await ApiClient().dio.post('/profile/coupons/save', data: {'coupon_id': couponId});
-      final status = res.data['status'];
-      final msg = res.data['message'] ?? 'Đã lưu mã giảm giá!';
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: status == 'success' ? AppColors.success : AppColors.info,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Không thể lưu mã giảm giá!'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
+    if (!mounted) return;
+    final ok = await context.read<CouponProvider>().claimCoupon(couponId);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? 'Đã lưu mã giảm giá vào ví!' : 'Không thể lưu mã giảm giá!'),
+          backgroundColor: ok ? AppColors.success : AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
     }
   }
 
@@ -238,11 +226,7 @@ class _CouponScreenState extends State<CouponScreen> {
   Widget _buildHero() {
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFB50C4D), Color(0xFFE63B6F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: AppGradients.hero,
       ),
       child: SafeArea(
         bottom: false,
@@ -252,7 +236,16 @@ class _CouponScreenState extends State<CouponScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 children: [
-                  IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => context.pop()),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/home');
+                      }
+                    },
+                  ),
                   const Spacer(),
                   const Text('Săn Voucher', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
                   const Spacer(),
@@ -272,20 +265,22 @@ class _CouponScreenState extends State<CouponScreen> {
 
   Widget _buildSearch() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Container(
+        height: 42,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFFFFE3E8)),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
         ),
         child: TextField(
           onChanged: (v) => setState(() => searchQuery = v),
+          style: const TextStyle(fontSize: 13.5, color: AppColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Tìm mã giảm giá...',
-            hintStyle: TextStyle(color: Color(0xFF64748B), fontSize: 14),
-            prefixIcon: Icon(Icons.search, color: AppColors.primary, size: 20),
+            hintStyle: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+            prefixIcon: Icon(Icons.search, color: AppColors.primary, size: 18),
             isDense: true,
             filled: false,
             border: InputBorder.none,
@@ -294,7 +289,7 @@ class _CouponScreenState extends State<CouponScreen> {
             errorBorder: InputBorder.none,
             focusedErrorBorder: InputBorder.none,
             disabledBorder: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(vertical: 14),
+            contentPadding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           ),
         ),
       ),
@@ -306,6 +301,8 @@ class _CouponScreenState extends State<CouponScreen> {
     final code = coupon['code']?.toString() ?? '';
     final expired = _isExpired(coupon['end_date']);
     final isActive = coupon['is_active'] == true && !expired;
+    final id = int.tryParse((coupon['id'] ?? 0).toString()) ?? 0;
+    final isSaved = context.watch<CouponProvider>().isSaved(id);
 
     return Opacity(
       opacity: isActive ? 1.0 : 0.6,
@@ -407,10 +404,10 @@ class _CouponScreenState extends State<CouponScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: isActive ? () => _saveCoupon(coupon['id']) : null,
+                      onPressed: (isActive && !isSaved) ? () => _saveCoupon(id) : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: isActive ? AppColors.primary : const Color(0xFFE2E8F0),
-                        foregroundColor: isActive ? Colors.white : const Color(0xFF64748B),
+                        backgroundColor: isSaved ? const Color(0xFFE2E8F0) : (isActive ? AppColors.primary : const Color(0xFFE2E8F0)),
+                        foregroundColor: isSaved ? const Color(0xFF64748B) : (isActive ? Colors.white : const Color(0xFF64748B)),
                         elevation: 0,
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         minimumSize: Size.zero,
@@ -418,7 +415,7 @@ class _CouponScreenState extends State<CouponScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                       ),
-                      child: const Text('Lưu mã'),
+                      child: Text(isSaved ? 'Đã lưu' : 'Lưu mã'),
                     ),
                   ),
                 ],

@@ -38,6 +38,10 @@ class AuthProvider extends ChangeNotifier {
     if (result['success'] == true) {
       _isAuthenticated = true;
       _user = await _readCachedUser();
+      notifyListeners();
+      try {
+        await loadProfile();
+      } catch (_) {}
     }
 
     _isLoading = false;
@@ -54,6 +58,30 @@ class AuthProvider extends ChangeNotifier {
     if (result['success'] == true) {
       _isAuthenticated = true;
       _user = await _readCachedUser();
+      notifyListeners();
+      try {
+        await loadProfile();
+      } catch (_) {}
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return result;
+  }
+
+  Future<Map<String, dynamic>> loginWithSavedToken(String token, {Map<String, dynamic>? cachedUser}) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await AuthService.loginWithSavedToken(token, cachedUser: cachedUser);
+
+    if (result['success'] == true) {
+      _isAuthenticated = true;
+      _user = await _readCachedUser();
+      notifyListeners();
+      try {
+        await loadProfile();
+      } catch (_) {}
     }
 
     _isLoading = false;

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../config/app_theme.dart';
 import '../widgets/app_text_field.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -116,7 +117,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/login');
+            }
+          },
         ),
       ),
       body: SafeArea(
@@ -129,10 +136,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Container(
                 width: 72, height: 72,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F3),
+                  color: AppColors.primaryContainer,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Icon(Icons.sports_tennis, color: Color(0xFFE63B6F), size: 40),
+                child: const Icon(Icons.sports_tennis, color: AppColors.primary, size: 40),
               ),
               const SizedBox(height: 16),
               const Text('Đăng ký tài khoản', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
@@ -193,7 +200,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE63B6F),
+                        backgroundColor: AppColors.primary,
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),

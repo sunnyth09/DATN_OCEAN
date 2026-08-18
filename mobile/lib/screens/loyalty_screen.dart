@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../providers/loyalty_provider.dart';
+import '../utils/format_utils.dart';
 import '../widgets/network_image_widget.dart';
 import '../widgets/app_empty_state.dart';
 
@@ -110,7 +111,13 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/me');
+            }
+          },
         ),
       ),
       body: RefreshIndicator(
@@ -291,18 +298,24 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
-                                if (reward['description'] != null) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    reward['description'].toString(),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
+                                 Builder(
+                                   builder: (_) {
+                                     final desc = FormatUtils.stripHtml(reward['description']);
+                                     if (desc.isEmpty) return const SizedBox.shrink();
+                                     return Padding(
+                                       padding: const EdgeInsets.only(top: 4),
+                                       child: Text(
+                                         desc,
+                                         maxLines: 2,
+                                         overflow: TextOverflow.ellipsis,
+                                         style: const TextStyle(
+                                           color: AppColors.textSecondary,
+                                           fontSize: 12,
+                                         ),
+                                       ),
+                                     );
+                                   },
+                                 ),
                                 const SizedBox(height: 8),
                                 Row(
                                   children: [

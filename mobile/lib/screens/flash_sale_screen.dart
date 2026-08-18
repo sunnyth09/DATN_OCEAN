@@ -167,7 +167,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFE63B6F), Color(0xFFFF6B9D)],
+          colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -183,7 +183,13 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => context.pop(),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/home');
+                      }
+                    },
                   ),
                   const Spacer(),
                   const Text(
@@ -354,7 +360,12 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
 
     return InkWell(
       onTap: () {
-        context.push('/product-detail', extra: product);
+        final Map<String, dynamic> extraData = Map<String, dynamic>.from(product);
+        extraData['flash_sale'] = item;
+        extraData['flash_sale_price'] = salePrice;
+        extraData['flash_sale_item'] = item;
+        if (originalPrice > 0) extraData['original_price'] = originalPrice;
+        context.push('/product-detail', extra: extraData);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -363,19 +374,24 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
             // Image
             Hero(
               tag: product['id'] ?? product['slug'] ?? UniqueKey().toString(),
-              child: NetworkImageWidget(
-              imageUrl: imageUrl,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-              borderRadius: BorderRadius.circular(12),
-              errorWidget: Container(
+              child: Container(
                 width: 80,
                 height: 80,
-                color: const Color(0xFFF1F5F9),
-                child: const Icon(Icons.image, color: Colors.grey),
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: NetworkImageWidget(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    errorWidget: const Center(
+                      child: Icon(Icons.sports_tennis_rounded, color: Color(0xFFCBD5E1), size: 24),
+                    ),
+                  ),
+                ),
               ),
-            ),
             ),
             const SizedBox(width: 14),
             // Info
@@ -456,7 +472,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                           height: 6,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [Color(0xFFE63B6F), Color(0xFFFF8FAB)],
+                              colors: [Color(0xFFE11D48), Color(0xFFF43F5E)],
                             ),
                             borderRadius: BorderRadius.circular(3),
                           ),

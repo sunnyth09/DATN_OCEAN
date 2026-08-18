@@ -83,19 +83,15 @@ class NetworkImageWidget extends StatelessWidget {
         placeholderBuilder: (ctx) => _buildPlaceholder(ctx),
       );
     } else {
-      // Giới hạn decode thumbnail về 350px để GPU/RAM nhẹ tối đa khi cuộn danh sách lớn
+      // Tối ưu RAM/GPU nhưng giữ nguyên tỉ lệ gốc (aspect ratio) của ảnh:
+      // CHỈ set memCacheWidth (không set cứng cả width và height cùng lúc)
+      // để Flutter Image Decoder tự tính height theo đúng tỉ lệ gốc, không bị méo ảnh.
       int? memWidth = customMemCacheWidth;
-      int? memHeight = customMemCacheHeight;
-
-      if (memWidth == null && memHeight == null) {
+      if (memWidth == null) {
         if (width != null && width!.isFinite && width! > 0) {
-          memWidth = (width! * 1.5).toInt().clamp(100, 600);
+          memWidth = (width! * 2).toInt().clamp(150, 800);
         } else {
-          memWidth = 350;
-        }
-
-        if (height != null && height!.isFinite && height! > 0) {
-          memHeight = (height! * 1.5).toInt().clamp(100, 600);
+          memWidth = 400;
         }
       }
 
@@ -106,10 +102,10 @@ class NetworkImageWidget extends StatelessWidget {
           height: height,
           fit: fit,
           memCacheWidth: memWidth,
-          memCacheHeight: memHeight,
+          memCacheHeight: customMemCacheHeight,
           maxWidthDiskCache: 800,
           maxHeightDiskCache: 800,
-          filterQuality: FilterQuality.low,
+          filterQuality: FilterQuality.medium,
           useOldImageOnUrlChange: true,
           fadeInDuration: const Duration(milliseconds: 90),
           fadeOutDuration: const Duration(milliseconds: 90),
