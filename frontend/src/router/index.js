@@ -199,6 +199,12 @@ const routes = [
                 meta: { roles: ['admin', 'staff'], title: 'Quản lý danh mục' },
             },
             {
+                path: "size-guide",
+                name: "admin-size-guide",
+                component: () => import("@/features/shop/pages/admin/AdminSizeGuide.vue"),
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý bảng size' },
+            },
+            {
                 path: "staff",
                 name: "admin-staff",
                 component: AdminStaff,

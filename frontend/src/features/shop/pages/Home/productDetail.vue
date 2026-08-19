@@ -38,14 +38,8 @@ const addingToCart = ref(false);
 const buyingNow = ref(false);
 const cartVersion = ref(0);
 const showSizeGuide = ref(false);
-const sizeGuideType = computed(() => {
-  const catName = product.value?.category?.name?.toLowerCase() || '';
-  const prodName = product.value?.name?.toLowerCase() || '';
-  const text = catName + ' ' + prodName;
-  if (text.includes('giày') || text.includes('shoe')) return 'shoes';
-  if (text.includes('áo') || text.includes('quần') || text.includes('trang phục')) return 'clothes';
-  if (text.includes('vợt') || text.includes('racket')) return 'racket';
-  return 'default';
+const sizeGuideData = computed(() => {
+  return product.value?.category?.size_guide || null;
 });
 
 
@@ -820,7 +814,7 @@ onBeforeUnmount(() => {
         <div class="pd-variants" v-if="availableSizes.length > 0">
           <div class="pd-var-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <h4 class="pd-var-label" style="margin-bottom: 0;">Kích cỡ</h4>
-            <button v-if="sizeGuideType !== 'default'" type="button" @click="showSizeGuide = true" class="pd-var-label" style="background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 0; text-decoration: underline;">
+            <button v-if="sizeGuideData" type="button" @click="showSizeGuide = true" class="pd-var-label" style="background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 0; text-decoration: underline;">
               Hướng dẫn chọn size
             </button>
           </div>
@@ -832,7 +826,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div v-if="availableSizes.length === 0 && sizeGuideType !== 'default'" style="margin-bottom: 16px; text-align: right;">
+        <div v-if="availableSizes.length === 0 && sizeGuideData" style="margin-bottom: 16px; text-align: right;">
           <button type="button" @click="showSizeGuide = true" class="pd-var-label" style="background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 0; text-decoration: underline; color: #E63B6F;">
             Hướng dẫn chọn size
           </button>
@@ -1046,181 +1040,36 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div class="modal-body">
-            <p class="size-desc">Bảng tính mặc định được thiết kế dựa trên số đo chuẩn của người Việt Nam. Nếu bạn có số
-              đo nằm giữa 2 size, lời khuyên là nên chọn size lớn hơn để có sự thoải mái nhất.</p>
+            <p class="size-desc">{{ sizeGuideData?.description }}</p>
 
             <div class="table-responsive">
               <table class="size-table">
-                <template v-if="sizeGuideType === 'shoes'">
+                <template v-if="sizeGuideData">
                   <thead>
                     <tr>
-                      <th>Size</th>
-                      <th>Chiều dài chân (cm)</th>
-                      <th>Gợi ý form dáng</th>
+                      <th v-for="(col, index) in sizeGuideData.table_headers" :key="index">{{ col }}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td><strong>38</strong></td>
-                      <td>23.5 - 24 cm</td>
-                      <td>Vừa vặn</td>
-                    </tr>
-                    <tr>
-                      <td><strong>39</strong></td>
-                      <td>24 - 24.5 cm</td>
-                      <td>Vừa vặn</td>
-                    </tr>
-                    <tr>
-                      <td><strong>40</strong></td>
-                      <td>24.5 - 25 cm</td>
-                      <td>Vừa vặn</td>
-                    </tr>
-                    <tr>
-                      <td><strong>41</strong></td>
-                      <td>25.5 - 26 cm</td>
-                      <td>Vừa vặn</td>
-                    </tr>
-                    <tr>
-                      <td><strong>42</strong></td>
-                      <td>26 - 26.5 cm</td>
-                      <td>Vừa vặn</td>
-                    </tr>
-                    <tr>
-                      <td><strong>43</strong></td>
-                      <td>27 - 27.5 cm</td>
-                      <td>Vừa vặn</td>
-                    </tr>
-                    <tr>
-                      <td><strong>44</strong></td>
-                      <td>27.5 - 28 cm</td>
-                      <td>Vừa vặn</td>
-                    </tr>
-                  </tbody>
-                </template>
-                <template v-else-if="sizeGuideType === 'clothes'">
-                  <thead>
-                    <tr>
-                      <th>Size</th>
-                      <th>Cân nặng (kg)</th>
-                      <th>Chiều cao (cm)</th>
-                      <th>Gợi ý form dáng</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td><strong>S</strong></td>
-                      <td>45 - 52 kg</td>
-                      <td>Dưới 1m60</td>
-                      <td>Ôm gọn, tôn dáng</td>
-                    </tr>
-                    <tr>
-                      <td><strong>M</strong></td>
-                      <td>53 - 59 kg</td>
-                      <td>1m60 - 1m65</td>
-                      <td>Vừa vặn, thoải mái</td>
-                    </tr>
-                    <tr>
-                      <td><strong>L</strong></td>
-                      <td>60 - 68 kg</td>
-                      <td>1m66 - 1m72</td>
-                      <td>Thoải mái vận động</td>
-                    </tr>
-                    <tr>
-                      <td><strong>XL</strong></td>
-                      <td>69 - 76 kg</td>
-                      <td>1m73 - 1m78</td>
-                      <td>Rộng rãi, che khuyết điểm</td>
-                    </tr>
-                    <tr>
-                      <td><strong>XXL</strong></td>
-                      <td>Trên 76 kg</td>
-                      <td>Trên 1m78</td>
-                      <td>Oversize rộng rãi</td>
-                    </tr>
-                  </tbody>
-                </template>
-                <template v-else-if="sizeGuideType === 'racket'">
-                  <thead>
-                    <tr>
-                      <th>Size Cán (Grip)</th>
-                      <th>Chu vi cán vợt</th>
-                      <th>Đối tượng khuyên dùng</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td><strong>G4</strong></td>
-                      <td>3.25 inch (~8.25 cm)</td>
-                      <td>Người lớn tay trung bình (phổ biến nhất)</td>
-                    </tr>
-                    <tr>
-                      <td><strong>G5</strong></td>
-                      <td>3.12 inch (~7.90 cm)</td>
-                      <td>Người lớn tay nhỏ, thích xoay vợt linh hoạt</td>
-                    </tr>
-                    <tr>
-                      <td><strong>G6</strong></td>
-                      <td>3.00 inch (~7.60 cm)</td>
-                      <td>Trẻ em hoặc phụ nữ có bàn tay rất nhỏ</td>
+                    <tr v-for="(row, rowIndex) in sizeGuideData.table_rows" :key="rowIndex">
+                      <td v-for="(cell, cellIndex) in row" :key="cellIndex">
+                        <strong v-if="cellIndex === 0">{{ cell }}</strong>
+                        <template v-else>{{ cell }}</template>
+                      </td>
                     </tr>
                   </tbody>
                 </template>
               </table>
             </div>
-            <div class="size-tips" v-if="sizeGuideType === 'shoes'">
-              <div class="tip-item">
+            
+            <div class="size-tips" v-if="sizeGuideData && sizeGuideData.tips && sizeGuideData.tips.length > 0">
+              <div class="tip-item" v-for="(tip, tIndex) in sizeGuideData.tips" :key="tIndex">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                <span>Nên đo chiều dài chân vào buổi chiều tối để có kích thước chuẩn xác nhất.</span>
-              </div>
-              <div class="tip-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>Nếu form chân bè, dày hoặc thường mang bít tất (vớ) dày, bạn nên chọn lớn hơn 1 size.</span>
-              </div>
-            </div>
-            <div class="size-tips" v-else-if="sizeGuideType === 'racket'">
-              <div class="tip-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>Chu vi cán vợt ảnh hưởng trực tiếp đến cảm giác vung và kiểm soát cầu/bóng.</span>
-              </div>
-              <div class="tip-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>Nên chọn cán vừa tay. Nếu phân vân, hãy chọn cán nhỏ hơn (bạn luôn có thể quấn thêm băng quấn).</span>
-              </div>
-            </div>
-            <div class="size-tips" v-else-if="sizeGuideType === 'clothes'">
-              <div class="tip-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F"
-                  stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>Sản phẩm có độ co giãn nhẹ khoảng 2-3cm ở vòng bụng.</span>
-              </div>
-              <div class="tip-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F"
-                  stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>Màu sắc thực tế có thể chênh lệch 3-5% do độ phân giải và ánh sáng màn hình.</span>
+                <span>{{ tip }}</span>
               </div>
             </div>
           </div>

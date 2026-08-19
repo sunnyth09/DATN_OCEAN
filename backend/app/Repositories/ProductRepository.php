@@ -380,7 +380,7 @@ class ProductRepository
     public function findByIdentifier($identifier)
     {
         $query = Product::with([
-            'category',
+            'category.sizeGuide',
             'brand',
             'images',
             'variants' => function ($q) {
@@ -402,7 +402,7 @@ class ProductRepository
      */
     public function findByIdentifierBasic($identifier)
     {
-        $query = Product::with(['category', 'brand', 'images', 'variants']);
+        $query = Product::with(['category.sizeGuide', 'brand', 'images', 'variants']);
 
         if (is_numeric($identifier)) {
             $query->where('product_id', $identifier)->orWhere('slug', $identifier);

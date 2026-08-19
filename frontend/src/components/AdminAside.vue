@@ -191,6 +191,9 @@ const fetchPendingReviewCount = async () => {
           <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/category" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Danh mục</span>
           </router-link>
+          <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/size-guide" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Bảng size</span>
+          </router-link>
         </div>
       </transition>
 

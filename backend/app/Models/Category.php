@@ -18,6 +18,7 @@ class Category extends Model
         'description',
         'sort_order',
         'is_active',
+        'size_guide_id',
     ];
 
     public function children()
@@ -28,5 +29,10 @@ class Category extends Model
     public function parent()
     {
         return $this->belongsTo(Category::class, 'parent_id', 'category_id');
+    }
+
+    public function sizeGuide()
+    {
+        return $this->belongsTo(SizeGuide::class, 'size_guide_id', 'id');
     }
 }
