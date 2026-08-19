@@ -26,6 +26,7 @@ import '../screens/favorite_screen.dart';
 import '../screens/flash_sale_screen.dart';
 import '../screens/notification_screen.dart';
 import '../screens/pos_scanner_screen.dart';
+import '../screens/product_scanner_screen.dart';
 import '../screens/return_requests_screen.dart';
 import '../screens/review_screen.dart';
 import '../screens/onboarding_screen.dart';
@@ -253,6 +254,11 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/pos-scanner',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const PosScannerScreen(),
+      ),
+      GoRoute(
+        path: '/product-scanner',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const ProductScannerScreen(),
       ),
       GoRoute(
         path: '/return-requests',

@@ -65,6 +65,10 @@ class ProductRepository
                         })
                         ->orWhereHas('brand', function ($bq) use ($search) {
                             $bq->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('variants', function ($vq) use ($search) {
+                            $vq->where('sku', 'like', "%{$search}%")
+                               ->orWhere('barcode', 'like', "%{$search}%");
                         });
                 }
             });

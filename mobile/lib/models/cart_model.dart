@@ -4,6 +4,8 @@ import '../config/app_config.dart';
 class CartVariant {
   final int? variantId;
   final num price;
+  final num? originalPrice;
+  final bool isOnSale;
   final String? color;
   final String? size;
   final String? imageUrl;
@@ -12,6 +14,8 @@ class CartVariant {
   const CartVariant({
     this.variantId,
     this.price = 0,
+    this.originalPrice,
+    this.isOnSale = false,
     this.color,
     this.size,
     this.imageUrl,
@@ -22,6 +26,8 @@ class CartVariant {
     return CartVariant(
       variantId: _toInt(json['variant_id'] ?? json['id']),
       price: _toNum(json['price']),
+      originalPrice: _toNum(json['original_price'] ?? json['compare_at_price']),
+      isOnSale: json['is_on_sale'] == true,
       color: json['color']?.toString(),
       size: json['size']?.toString(),
       imageUrl: json['image_url']?.toString(),
@@ -32,6 +38,8 @@ class CartVariant {
   Map<String, dynamic> toJson() => {
         'variant_id': variantId,
         'price': price,
+        'original_price': originalPrice,
+        'is_on_sale': isOnSale,
         'color': color,
         'size': size,
         'image_url': imageUrl,

@@ -14,6 +14,8 @@ import '../widgets/app_text_field.dart';
 import '../widgets/app_toast.dart';
 import 'package:flutter/services.dart';
 
+import 'forgot_password_screen.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -801,7 +803,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ForgotPasswordScreen(),
+                        builder: (_) => ForgotPasswordScreen(),
                       ),
                     );
                   },

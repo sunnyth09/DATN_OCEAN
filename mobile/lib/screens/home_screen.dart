@@ -329,6 +329,15 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                           Expanded(
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 350),
+                              layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+                                return Stack(
+                                  alignment: Alignment.centerLeft,
+                                  children: <Widget>[
+                                    ...previousChildren,
+                                    ?currentChild,
+                                  ],
+                                );
+                              },
                               transitionBuilder: (child, anim) => FadeTransition(
                                 opacity: anim,
                                 child: SlideTransition(
@@ -339,31 +348,36 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                   child: child,
                                 ),
                               ),
-                              child: Text(
-                                _trendingKeywords[_tickerIndex],
+                              child: SizedBox(
                                 key: ValueKey<int>(_tickerIndex),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF64748B),
+                                width: double.infinity,
+                                child: Text(
+                                  _trendingKeywords[_tickerIndex],
+                                  maxLines: 1,
+                                  textAlign: TextAlign.left,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF64748B),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
+                          const SizedBox(width: 6),
                           GestureDetector(
                             onTap: () {
                               HapticFeedback.lightImpact();
-                              context.push('/pos-scanner');
+                              context.push('/product-scanner');
                             },
                             child: Container(
-                              padding: const EdgeInsets.all(4),
+                              padding: const EdgeInsets.all(5),
                               decoration: BoxDecoration(
                                 color: AppColors.primary.withValues(alpha: 0.08),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.camera_alt_outlined, color: AppColors.primary, size: 15),
+                              child: const Icon(Icons.camera_alt_outlined, color: AppColors.primary, size: 16),
                             ),
                           ),
                         ],
@@ -924,7 +938,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         'iconColor': const Color(0xFF2563EB),
         'borderColor': const Color(0xFFDBEAFE),
         'badge': null,
-        'action': () => context.go('/shop'),
+        'action': () => context.push(
+          '/product-list',
+          extra: {
+            'searchQuery': 'Cầu lông',
+            'categoryName': 'Cầu Lông',
+          },
+        ),
       },
       {
         'label': 'Pickleball',
@@ -933,7 +953,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         'iconColor': const Color(0xFF059669),
         'borderColor': const Color(0xFFD1FAE5),
         'badge': null,
-        'action': () => context.go('/shop'),
+        'action': () => context.push(
+          '/product-list',
+          extra: {
+            'searchQuery': 'Pickleball',
+            'categoryName': 'Pickleball',
+          },
+        ),
       },
       {
         'label': 'Bóng Chuyền',
@@ -942,7 +968,13 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         'iconColor': const Color(0xFFEA580C),
         'borderColor': const Color(0xFFFFEDD5),
         'badge': null,
-        'action': () => context.go('/shop'),
+        'action': () => context.push(
+          '/product-list',
+          extra: {
+            'searchQuery': 'Bóng chuyền',
+            'categoryName': 'Bóng Chuyền',
+          },
+        ),
       },
       {
         'label': 'Giày Thể Thao',
@@ -951,11 +983,17 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
         'iconColor': const Color(0xFF7C3AED),
         'borderColor': const Color(0xFFEDE9FE),
         'badge': null,
-        'action': () => context.go('/shop'),
+        'action': () => context.push(
+          '/product-list',
+          extra: {
+            'searchQuery': 'Giày',
+            'categoryName': 'Giày Thể Thao',
+          },
+        ),
       },
       {
         'label': 'Đặt Sân Online',
-        'icon': Icons.stadium_rounded,
+        'icon': Icons.sports_tennis_rounded,
         'bgColor': const Color(0xFFF0FDF4), // Mint Pastel
         'iconColor': const Color(0xFF16A34A),
         'borderColor': const Color(0xFFDCFCE7),
@@ -1408,20 +1446,62 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  // ── 5. Ocean Mall - Gian Hàng Uỷ Quyền Chính Hãng ──
+  // ── 5. Ocean Mall - Gian Hàng Uỷ Quyền Chính Hãng (Shopee Mall / LazMall Flagship UI) ──
   Widget _buildOceanMallSection(BuildContext context) {
     final brands = [
-      {'name': 'Yonex', 'tag': 'Nhật Bản', 'color': const Color(0xFF0038A8)},
-      {'name': 'Babolat', 'tag': 'Pháp', 'color': const Color(0xFF0047AB)},
-      {'name': 'Victor', 'tag': 'Đài Loan', 'color': const Color(0xFF1E3A8A)},
-      {'name': 'Lining', 'tag': 'Chính hãng', 'color': const Color(0xFFDC2626)},
-      {'name': 'Wilson', 'tag': 'Mỹ', 'color': const Color(0xFFB91C1C)},
-      {'name': 'Mizuno', 'tag': 'Nhật Bản', 'color': const Color(0xFF0F172A)},
+      {
+        'name': 'YONEX',
+        'sub': 'Nhật Bản',
+        'promo': 'Ưu đãi -40%',
+        'color': const Color(0xFF0038A8),
+        'bg': const Color(0xFFEFF6FF),
+        'icon': Icons.sports_tennis_rounded,
+      },
+      {
+        'name': 'VICTOR',
+        'sub': 'Đài Loan',
+        'promo': 'Voucher 100K',
+        'color': const Color(0xFF0A3981),
+        'bg': const Color(0xFFF0FDF4),
+        'icon': Icons.sports_baseball_rounded,
+      },
+      {
+        'name': 'LI-NING',
+        'sub': 'Chính hãng',
+        'promo': 'Giảm sâu 50%',
+        'color': const Color(0xFFDC2626),
+        'bg': const Color(0xFFFEF2F2),
+        'icon': Icons.flash_on_rounded,
+      },
+      {
+        'name': 'MIZUNO',
+        'sub': 'Nhật Bản',
+        'promo': 'Mới về 2026',
+        'color': const Color(0xFF0F172A),
+        'bg': const Color(0xFFF8FAFC),
+        'icon': Icons.shield_rounded,
+      },
+      {
+        'name': 'BABOLAT',
+        'sub': 'Pháp',
+        'promo': 'Freeship Extra',
+        'color': const Color(0xFF1D4ED8),
+        'bg': const Color(0xFFEEF2FF),
+        'icon': Icons.sports_tennis_rounded,
+      },
+      {
+        'name': 'WILSON',
+        'sub': 'Hoa Kỳ',
+        'promo': 'Độc quyền Mall',
+        'color': const Color(0xFFB91C1C),
+        'bg': const Color(0xFFFFF1F2),
+        'icon': Icons.verified_rounded,
+      },
     ];
 
     return Container(
       margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -1437,87 +1517,211 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    gradient: AppGradients.oceanMall,
-                    borderRadius: BorderRadius.circular(6),
+          // Header: [MALL] Gian Hàng Chính Hãng ... [Xem tất cả >]
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFD90429), Color(0xFFEF233C)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  child: const Text(
-                    'OCEAN MALL',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
+                  borderRadius: BorderRadius.circular(6),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFD90429).withValues(alpha: 0.25),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1.5),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Text(
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.verified_rounded, color: Colors.white, size: 11),
+                    SizedBox(width: 3),
+                    Text(
+                      'MALL',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 7),
+              const Expanded(
+                child: Text(
                   'Gian Hàng Chính Hãng',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF0F172A),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const Spacer(),
-                GestureDetector(
-                  onTap: () => context.go('/shop'),
-                  child: const Row(
-                    children: [
-                      Text('Xem thêm', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                      Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.primary),
-                    ],
-                  ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  context.push('/product-list', extra: {'categoryName': 'Ocean Mall Chính Hãng'});
+                },
+                behavior: HitTestBehavior.opaque,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Xem tất cả',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 15,
+                      color: AppColors.primary,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+
           const SizedBox(height: 12),
+
+          // Brand Cards (Shopee Mall Flagship Banner Cards)
           SizedBox(
-            height: 64,
+            height: 82,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              clipBehavior: Clip.none,
               itemCount: brands.length,
               itemBuilder: (context, index) {
                 final b = brands[index];
                 return GestureDetector(
-                  onTap: () => context.go('/shop'),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    context.push(
+                      '/product-list',
+                      extra: {
+                        'searchQuery': b['name'],
+                        'categoryName': '${b['name']} Official',
+                      },
+                    );
+                  },
                   child: Container(
-                    width: 112,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    width: 138,
+                    margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: b['bg'] as Color,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(
+                        color: (b['color'] as Color).withValues(alpha: 0.15),
+                        width: 1,
+                      ),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Stack(
                       children: [
-                        Text(
-                          b['name'] as String,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                            color: b['color'] as Color,
-                            letterSpacing: -0.2,
+                        // Mall mini badge in top right
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFD90429),
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(11),
+                                bottomLeft: Radius.circular(6),
+                              ),
+                            ),
+                            child: const Text(
+                              'MALL',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          b['tag'] as String,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w600,
+
+                        // Content
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    b['icon'] as IconData,
+                                    size: 16,
+                                    color: b['color'] as Color,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Expanded(
+                                    child: Text(
+                                      b['name'] as String,
+                                      style: TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w900,
+                                        color: b['color'] as Color,
+                                        letterSpacing: -0.2,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      b['sub'] as String,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: (b['color'] as Color).withValues(alpha: 0.2),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      b['promo'] as String,
+                                      style: TextStyle(
+                                        fontSize: 8.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: b['color'] as Color,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -1527,15 +1731,39 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               },
             ),
           ),
-          const SizedBox(height: 10),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
+          const SizedBox(height: 12),
+
+          // Trust Guarantee Soft Ribbon (3 Cam Kết Vàng Mall)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF1F2),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFFFE4E6), width: 0.8),
+            ),
+            child: const Row(
               children: [
-                _MallPill(icon: Icons.verified_user_outlined, label: '100% Chính hãng'),
-                _MallPill(icon: Icons.local_shipping_outlined, label: 'Miễn phí vận chuyển'),
-                _MallPill(icon: Icons.published_with_changes_rounded, label: 'Đổi trả 15 ngày'),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _MallPill(icon: Icons.verified_rounded, label: '100% Chính hãng'),
+                  ),
+                ),
+                SizedBox(width: 4),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _MallPill(icon: Icons.local_shipping_rounded, label: 'Miễn phí vận chuyển'),
+                  ),
+                ),
+                SizedBox(width: 4),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: _MallPill(icon: Icons.published_with_changes_rounded, label: 'Đổi trả 15 ngày'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1716,14 +1944,14 @@ class _MallPill extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: AppColors.primary),
+        Icon(icon, size: 13.5, color: const Color(0xFFD90429)),
         const SizedBox(width: 4),
         Text(
           label,
           style: const TextStyle(
             fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF475569),
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF881337),
           ),
         ),
       ],

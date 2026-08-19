@@ -193,7 +193,12 @@ class _SearchScreenState extends State<SearchScreen> {
                         setState(() {});
                       },
                     )
-                  : null,
+                  : IconButton(
+                      icon: const Icon(Icons.camera_alt_outlined, color: AppColors.primary, size: 19),
+                      onPressed: () {
+                        context.push('/product-scanner');
+                      },
+                    ),
               isDense: true,
               filled: false,
               border: InputBorder.none,
