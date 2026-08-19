@@ -1860,6 +1860,9 @@ onBeforeUnmount(() => {
   max-width: 650px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -1899,6 +1902,7 @@ onBeforeUnmount(() => {
 
 .modal-body {
   padding: 24px;
+  overflow-y: auto;
 }
 
 .size-desc {
