@@ -41,29 +41,36 @@ const showToast = (message, type = 'success') => {
 };
 
 const fetchData = async () => {
+    isLoading.value = true;
     try {
-        isLoading.value = true;
-        const [resSizes, resCats] = await Promise.all([
-            api.get('/admin/size-guides'),
-            api.get('/categories') // To assign size guides to categories
-        ]);
-        sizeGuides.value = resSizes.data.data;
-        categories.value = flattenCategories(resCats.data.data);
+        const resSizes = await api.get('/admin/size-guides');
+        sizeGuides.value = resSizes.data?.data || resSizes.data || [];
     } catch (error) {
-        showToast('Lỗi tải dữ liệu!', 'danger');
-    } finally {
-        isLoading.value = false;
+        console.error('Lỗi tải bảng size:', error);
+        showToast('Lỗi tải dữ liệu bảng size!', 'danger');
     }
+
+    try {
+        const resCats = await api.get('/categories');
+        const catData = resCats.data?.data || resCats.data || [];
+        categories.value = flattenCategories(Array.isArray(catData) ? catData : Object.values(catData));
+    } catch (error) {
+        console.error('Lỗi tải danh mục:', error);
+        showToast('Lỗi tải danh mục!', 'danger');
+    }
+    
+    isLoading.value = false;
 };
 
 const flattenCategories = (nodes, prefix = '') => {
+    if (!nodes || !Array.isArray(nodes)) return [];
     let result = [];
     nodes.forEach(node => {
         result.push({
-            id: node.category_id,
-            name: prefix + node.name
+            id: node.category_id || node.id,
+            name: prefix + (node.name || 'Danh mục')
         });
-        if (node.children && node.children.length > 0) {
+        if (node.children && Array.isArray(node.children) && node.children.length > 0) {
             result = result.concat(flattenCategories(node.children, prefix + '-- '));
         }
     });
