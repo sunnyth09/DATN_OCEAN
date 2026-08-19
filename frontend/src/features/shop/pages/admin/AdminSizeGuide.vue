@@ -297,9 +297,13 @@ const deleteGuide = async (id) => {
                             </div>
                             <div class="form-group">
                                 <label>Áp dụng cho Danh mục (Chọn nhiều)</label>
-                                <select v-model="form.category_ids" multiple class="form-control form-select-multi" style="height: 100px">
-                                    <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-                                </select>
+                                <div class="category-list-scroll form-control">
+                                    <label v-for="cat in categories" :key="cat.id" class="cat-checkbox">
+                                        <input type="checkbox" :value="cat.id" v-model="form.category_ids" />
+                                        <span>{{ cat.name }}</span>
+                                    </label>
+                                    <div v-if="categories.length === 0" class="text-muted p-2">Không có danh mục nào.</div>
+                                </div>
                             </div>
                         </div>
 
@@ -355,7 +359,13 @@ const deleteGuide = async (id) => {
                             </div>
                             <div class="tip-list">
                                 <div v-for="(tip, index) in form.tips" :key="index" class="tip-item">
-                                    <div class="tip-icon">💡</div>
+                                    <div class="tip-icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2">
+                                          <circle cx="12" cy="12" r="10" />
+                                          <line x1="12" y1="16" x2="12" y2="12" />
+                                          <line x1="12" y1="8" x2="12.01" y2="8" />
+                                        </svg>
+                                    </div>
                                     <input type="text" v-model="form.tips[index]" class="form-control" placeholder="Nhập ghi chú..." />
                                     <button type="button" @click="removeTip(index)" class="btn-remove-row">
                                         <AppIcon name="trash" size="16"/>
@@ -456,9 +466,26 @@ const deleteGuide = async (id) => {
     font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
 }
 .form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.form-control.is-invalid { border-color: var(--coral); background: #fef2f2; }
+.form-control.is-invalid:focus { box-shadow: 0 0 0 3px rgba(239,83,80,0.1); }
+.field-error { display: block; color: var(--coral); font-size: 0.72rem; font-weight: 600; margin-top: 6px; }
+
+.form-error-box {
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px; margin-bottom: 14px;
+    background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;
+    color: #dc2626; font-size: 0.82rem; font-weight: 600;
+}
+
+.category-list-scroll {
+    height: 120px; overflow-y: auto; padding: 8px 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    background: var(--ocean-deepest);
+}
+.cat-checkbox {
+    display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-main); font-weight: 500;
+}
+
 .form-control-sm { padding: 8px 12px; font-size: 0.85rem;}
-.form-select-multi { padding: 6px; }
-.form-select-multi option { padding: 8px 12px; }
 
 /* Builder */
 .table-builder, .tips-builder { background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); }
