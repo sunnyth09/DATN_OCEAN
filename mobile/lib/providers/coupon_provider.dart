@@ -53,15 +53,16 @@ class CouponProvider extends ChangeNotifier {
           : (data is Map && data['data'] is List ? data['data'] as List : []);
 
       _userCoupons = list;
-      _savedCouponIds.clear();
+      final newSet = <int>{};
       for (final item in list) {
         final id = int.tryParse(
           (item['coupon_id'] ?? item['id'] ?? 0).toString(),
         );
         if (id != null && id > 0) {
-          _savedCouponIds.add(id);
+          newSet.add(id);
         }
       }
+      _savedCouponIds.addAll(newSet);
     } catch (_) {}
     _isLoadingUser = false;
     notifyListeners();
@@ -77,8 +78,11 @@ class CouponProvider extends ChangeNotifier {
         data: {'coupon_id': couponId},
       );
       if (res.statusCode == 200 || res.statusCode == 201) {
+        _savedCouponIds.add(couponId);
         // Đồng bộ danh sách voucher của người dùng ngầm
         await fetchUserCoupons(silent: true);
+        _savedCouponIds.add(couponId);
+        notifyListeners();
         return true;
       } else {
         _savedCouponIds.remove(couponId);

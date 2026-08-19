@@ -5,11 +5,11 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
 import '../router/app_router.dart';
+import '../widgets/app_toast.dart';
 import 'auth_service.dart';
 import 'storage_service.dart';
 
@@ -231,9 +231,7 @@ class ApiClient {
     if (hasToken) {
       final context = rootNavigatorKey.currentContext;
       if (context != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại')),
-        );
+        AppToast.showInfo(context, message: 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
         context.go('/login');
       }
     }

@@ -11,8 +11,8 @@ import '../services/notification_service.dart';
 import '../services/passkey_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/app_text_field.dart';
-import 'forgot_password_screen.dart';
-import 'register_screen.dart';
+import '../widgets/app_toast.dart';
+import 'package:flutter/services.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -60,13 +60,22 @@ class _LoginScreenState extends State<LoginScreen> {
     final user = context.read<AuthProvider>().user;
     final token = await StorageService.read(AuthService.keyToken);
     final isPasskey = await PasskeyService.isPasskeyEnrolled(email);
-    if (isPasskey) {
+    if (!isPasskey) {
+      // Lần đầu: Ghi danh Passkey mới cho tài khoản này
       await PasskeyService.enrollPasskey(
         email,
         name: user?.fullName,
         avatarUrl: user?.avatarUrl,
         password: password,
         token: token,
+        userData: user?.toJson(),
+      );
+    } else {
+      // Đã enrolled: Chỉ cập nhật token và user data mới nhất, không re-create
+      await PasskeyService.updatePasskeyData(
+        email,
+        token: token,
+        password: password,
         userData: user?.toJson(),
       );
     }
@@ -83,12 +92,9 @@ class _LoginScreenState extends State<LoginScreen> {
     NotificationService().syncTokenToServer();
     context.read<CartProvider>().fetchCart(silent: true, force: true);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🎉 Xin chào ${user?.fullName.isNotEmpty == true ? user!.fullName : email}, đăng nhập thành công!'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ),
+    AppToast.showSuccess(
+      context,
+      message: 'Xin chào ${user?.fullName.isNotEmpty == true ? user!.fullName : email}, đăng nhập thành công!',
     );
 
     if (context.canPop()) {
@@ -99,6 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handlePasskeyLogin() async {
+    HapticFeedback.lightImpact();
     if (_lastAccount == null) return;
     final email = _lastAccount!['email']?.toString() ?? '';
     if (email.isEmpty) return;
@@ -114,12 +121,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       final msg = authRes['message']?.toString() ?? '';
       if (!msg.contains('Hủy') && !msg.contains('hủy') && !msg.contains('cancel')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppToast.showError(
+          context,
+          message: msg,
         );
       }
       return;
@@ -237,9 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     : () async {
                         final pwd = pwdController.text.trim();
                         if (pwd.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Vui lòng nhập mật khẩu!'), backgroundColor: AppColors.error),
-                          );
+                          AppToast.showWarning(context, message: 'Vui lòng nhập mật khẩu!');
                           return;
                         }
                         setModalState(() => isVerifying = true);
@@ -253,11 +255,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           await _completeLoginSuccess(email, password: pwd);
                         } else {
                           if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(result['message'] ?? 'Mật khẩu không chính xác!'),
-                              backgroundColor: AppColors.error,
-                            ),
+                          AppToast.showError(
+                            context,
+                            message: result['message'] ?? 'Mật khẩu không chính xác!',
                           );
                         }
                       },
@@ -279,16 +279,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleLogin() async {
+    HapticFeedback.lightImpact();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng nhập đầy đủ thông tin đăng nhập'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Vui lòng nhập đầy đủ thông tin đăng nhập',
       );
       return;
     }
@@ -303,17 +301,15 @@ class _LoginScreenState extends State<LoginScreen> {
     if (result['success'] == true) {
       await _completeLoginSuccess(email, password: password);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Đăng nhập thất bại'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppToast.showError(
+        context,
+        message: result['message'] ?? 'Đăng nhập thất bại',
       );
     }
   }
 
   void _handleGoogleLogin() async {
+    HapticFeedback.lightImpact();
     setState(() => _isLoading = true);
 
     final result = await context.read<AuthProvider>().loginWithGoogle(context: context);
@@ -339,12 +335,9 @@ class _LoginScreenState extends State<LoginScreen> {
       NotificationService().syncTokenToServer();
       context.read<CartProvider>().fetchCart(silent: true, force: true);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đăng nhập bằng Google thành công!'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppToast.showSuccess(
+        context,
+        message: 'Đăng nhập bằng Google thành công!',
       );
       if (context.canPop()) {
         context.pop(true);
@@ -354,12 +347,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       final msg = result['message']?.toString() ?? 'Đăng nhập Google thất bại!';
       if (!msg.contains('hủy')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppToast.showError(
+          context,
+          message: msg,
         );
       }
     }
@@ -377,8 +367,20 @@ class _LoginScreenState extends State<LoginScreen> {
     final hasSavedAccount = _lastAccount != null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      body: SafeArea(
+      backgroundColor: Colors.white,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.primary.withValues(alpha: 0.08),
+              Colors.white,
+            ],
+            stops: const [0.0, 0.3],
+          ),
+        ),
+        child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: Column(
@@ -443,10 +445,11 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
-  /// 🌟 Giao diện Đăng nhập nhanh với Tài khoản đã lưu sẵn (Chỉ cần Passkey hoặc Nhập mật khẩu)
+  /// Giao diện Đăng nhập nhanh với Tài khoản đã lưu sẵn (Chỉ cần Passkey hoặc Nhập mật khẩu)
   Widget _buildSavedAccountView() {
     final name = _lastAccount!['name']?.toString() ?? 'Khách hàng Ocean';
     final email = _lastAccount!['email']?.toString() ?? '';
@@ -529,7 +532,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         const SizedBox(height: 20),
 
-        // 🔑 Nút 1: Đăng nhập bằng Passkey / Sinh trắc học (CHỈ HIỂN THỊ KHI ĐÃ ĐĂNG KÝ KÍCH HOẠT TRƯỚC ĐÓ)
+        // Nút 1: Đăng nhập bằng Passkey / Sinh trắc học (CHỈ HIỂN THỊ KHI ĐÃ ĐĂNG KÝ KÍCH HOẠT TRƯỚC ĐÓ)
         if (_isPasskeyEnrolled) ...[
           InkWell(
             onTap: _isLoading ? null : _handlePasskeyLogin,
@@ -630,12 +633,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ForgotPasswordScreen(),
-                      ),
-                    );
+                    context.push('/forgot-password');
                   },
                   child: const Text(
                     'Quên mật khẩu?',
@@ -955,10 +953,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Text('Bạn chưa có tài khoản? ', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                    );
+                    context.push('/register');
                   },
                   child: const Text(
                     'Đăng ký ngay',

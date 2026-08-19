@@ -1,12 +1,12 @@
 import 'package:go_router/go_router.dart';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_client.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
+import '../widgets/app_toast.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -44,7 +44,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _save() async {
     if (_nameCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập họ tên!'), backgroundColor: Colors.orange));
+      AppToast.showWarning(context, message: 'Vui lòng nhập họ tên!');
       return;
     }
     setState(() => _isSaving = true);
@@ -54,9 +54,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'full_name': _nameCtrl.text.trim(),
         'phone': _phoneCtrl.text.trim(),
         if (_pickedImage != null)
-          'avatar': kIsWeb
-              ? MultipartFile.fromBytes(await _pickedImage!.readAsBytes(), filename: 'avatar.jpg')
-              : await MultipartFile.fromFile(_pickedImage!.path, filename: 'avatar.jpg'),
+          'avatar': await MultipartFile.fromFile(_pickedImage!.path, filename: 'avatar.jpg'),
       });
 
       final response = await ApiClient().dio.post(
@@ -67,17 +65,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (!mounted) return;
       final updatedData = response.data['data'] ?? response.data['user'];
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cập nhật thành công!'), backgroundColor: Colors.green),
-      );
+      AppToast.showSuccess(context, message: 'Cập nhật thành công!');
       context.pop(updatedData);
     } on DioException catch (e) {
       if (mounted) {
         final msg = e.response?.data?['message'] ?? 'Cập nhật thất bại!';
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+        AppToast.showError(context, message: msg);
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
+      if (mounted) AppToast.showError(context, message: 'Lỗi kết nối!');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -134,7 +130,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                       child: ClipOval(
                         child: _pickedImage != null
-                            ? (kIsWeb ? Image.network(_pickedImage!.path, fit: BoxFit.cover) : Image.file(File(_pickedImage!.path), fit: BoxFit.cover))
+                            ? Image.file(File(_pickedImage!.path), fit: BoxFit.cover)
                             : (avatarUrl.isNotEmpty
                                 ? Image.network(avatarUrl, fit: BoxFit.cover, errorBuilder: (_, _, _) => _defaultAvatar())
                                 : _defaultAvatar()),
@@ -220,7 +216,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   );
 
   Widget _buildCard({required List<Widget> children}) => Container(
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10)]),
+    decoration: BoxDecoration(
+      color: Colors.white, 
+      borderRadius: BorderRadius.circular(20), 
+      boxShadow: [
+        BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 15, offset: const Offset(0, 4))
+      ]
+    ),
     child: Column(children: children),
   );
 

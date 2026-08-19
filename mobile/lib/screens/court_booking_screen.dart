@@ -11,6 +11,7 @@ import '../services/api_client.dart';
 import '../services/court_booking_service.dart';
 import '../services/realtime_service.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/app_toast.dart';
 import 'court_booking/widgets/booking_card.dart';
 import 'court_booking/widgets/booking_summary_bar.dart';
 import 'court_booking/widgets/court_header.dart';
@@ -251,11 +252,9 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
   void _onToggleSlot(int index) {
     final loggedIn = context.read<AuthProvider>().isAuthenticated;
     if (!loggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng đăng nhập để giữ chỗ và đặt sân'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppToast.showInfo(
+        context,
+        message: 'Vui lòng đăng nhập để giữ chỗ và đặt sân',
       );
       context.push('/login');
       return;
@@ -264,12 +263,9 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
     final slot = _slots[index];
     if (!slot.isAvailable && !slot.isMyLock && !_selectedSlotIndexes.contains(index)) {
       if (slot.isLocked) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Khung giờ này đang có khách giữ chỗ. Vui lòng chọn khung giờ khác!'),
-            backgroundColor: Color(0xFFD97706),
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppToast.showWarning(
+          context,
+          message: 'Khung giờ này đang có khách giữ chỗ. Vui lòng chọn khung giờ khác!',
         );
       }
       return;
@@ -284,12 +280,9 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
 
     final sorted = tempSet.toList()..sort();
     if (sorted.length > 1 && !_hasContinuousSlots(sorted)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng chọn các khung giờ liền kề nhau!'),
-          backgroundColor: Color(0xFFF59E0B),
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Vui lòng chọn các khung giờ liền kề nhau!',
       );
       return;
     }
@@ -342,12 +335,9 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_service.errorMessage(e)),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppToast.showError(
+          context,
+          message: _service.errorMessage(e),
         );
         setState(() {
           _selectedSlotIndexes.clear();
@@ -373,12 +363,9 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
             _activeLockToken = null;
             _lockSecondsRemaining = 0;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Thời gian giữ chỗ (5 phút) đã hết. Vui lòng chọn lại khung giờ!'),
-              backgroundColor: Color(0xFFF59E0B),
-              behavior: SnackBarBehavior.floating,
-            ),
+          AppToast.showWarning(
+            context,
+            message: 'Thời gian giữ chỗ (5 phút) đã hết. Vui lòng chọn lại khung giờ!',
           );
           _loadAvailability();
         }
@@ -415,16 +402,18 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
   Future<void> _handleBookCourt() async {
     final loggedIn = context.read<AuthProvider>().isAuthenticated;
     if (!loggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng đăng nhập để đặt sân')),
+      AppToast.showInfo(
+        context,
+        message: 'Vui lòng đăng nhập để đặt sân',
       );
       context.push('/login');
       return;
     }
 
     if (_selectedCourtId == null || _orderedSelectedIndexes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn ít nhất một khung giờ trống')),
+      AppToast.showWarning(
+        context,
+        message: 'Vui lòng chọn ít nhất một khung giờ trống',
       );
       return;
     }
@@ -449,12 +438,9 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đặt sân thành công! Mã đơn: #${booking.code}'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppToast.showSuccess(
+        context,
+        message: 'Đặt sân thành công! Mã đơn: #${booking.code}',
       );
 
       setState(() {
@@ -471,12 +457,9 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       ]);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_service.errorMessage(e)),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppToast.showError(
+          context,
+          message: _service.errorMessage(e),
         );
       }
     } finally {
@@ -1058,11 +1041,9 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
                         money: _money,
                         onShowQr: () => _showQrCheckInDialog(booking),
                         onPay: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Vui lòng thanh toán trực tiếp tại quầy hoặc liên hệ nhân viên!'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          AppToast.showInfo(
+                            context,
+                            message: 'Vui lòng thanh toán trực tiếp tại quầy hoặc liên hệ nhân viên!',
                           );
                         },
                         onCancel: () => _cancelMyBooking(booking.id),
@@ -1115,16 +1096,12 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
     try {
       await _service.cancelBooking(bookingId, reason: 'Khách hàng tự hủy trên mobile');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã hủy đặt sân thành công')),
-      );
+      AppToast.showSuccess(context, message: 'Đã hủy đặt sân thành công');
       _loadMyBookings();
       _loadAvailability();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_service.errorMessage(e)), backgroundColor: AppColors.error),
-        );
+        AppToast.showError(context, message: _service.errorMessage(e));
       }
     }
   }
@@ -1186,7 +1163,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       await _service.confirmBooking(id);
       _loadStaffBookings();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_service.errorMessage(e))));
+      if (mounted) AppToast.showError(context, message: _service.errorMessage(e));
     }
   }
 
@@ -1195,7 +1172,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       await _service.checkIn(id);
       _loadStaffBookings();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_service.errorMessage(e))));
+      if (mounted) AppToast.showError(context, message: _service.errorMessage(e));
     }
   }
 
@@ -1204,7 +1181,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       await _service.checkOut(bookingId: id);
       _loadStaffBookings();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_service.errorMessage(e))));
+      if (mounted) AppToast.showError(context, message: _service.errorMessage(e));
     }
   }
 
@@ -1213,7 +1190,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
       await _service.staffCancelBooking(id, reason: 'Staff hủy');
       _loadStaffBookings();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_service.errorMessage(e))));
+      if (mounted) AppToast.showError(context, message: _service.errorMessage(e));
     }
   }
 }

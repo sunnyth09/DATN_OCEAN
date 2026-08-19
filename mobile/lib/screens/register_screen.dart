@@ -1,10 +1,12 @@
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
 import '../config/app_theme.dart';
 import '../widgets/app_text_field.dart';
+import '../widgets/app_toast.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,12 +18,38 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
 
+  // P1-02: Email regex pattern — validate trước khi gọi API
+  static final RegExp _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
 
+  double _passwordStrength = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_updatePasswordStrength);
+  }
+
+  void _updatePasswordStrength() {
+    final pwd = _passwordController.text;
+    double strength = 0;
+    if (pwd.isNotEmpty) {
+      if (pwd.length >= 6) strength += 0.25;
+      if (pwd.length >= 8) strength += 0.25;
+      if (RegExp(r'[A-Z]').hasMatch(pwd)) strength += 0.25;
+      if (RegExp(r'[0-9!@#\$&*~]').hasMatch(pwd)) strength += 0.25;
+    }
+    setState(() {
+      _passwordStrength = strength;
+    });
+  }
+
   void _handleGoogleLogin() async {
+    HapticFeedback.lightImpact();
     setState(() => _isLoading = true);
 
     final result = await context.read<AuthProvider>().loginWithGoogle(context: context);
@@ -30,11 +58,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đăng nhập bằng Google thành công!'),
-          backgroundColor: Color(0xFF10B981),
-        ),
+      AppToast.showSuccess(
+        context,
+        message: 'Đăng nhập bằng Google thành công!',
       );
       if (mounted) {
         context.go('/');
@@ -42,32 +68,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } else {
       final msg = result['message']?.toString() ?? 'Đăng nhập Google thất bại!';
       if (!msg.contains('hủy')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(msg),
-            backgroundColor: const Color(0xFFEF4444),
-          ),
+        AppToast.showError(
+          context,
+          message: msg,
         );
       }
     }
   }
 
   void _handleRegister() async {
+    HapticFeedback.lightImpact();
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final passwordConfirm = _passwordConfirmController.text;
 
     if (name.isEmpty || email.isEmpty || password.isEmpty || passwordConfirm.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng điền đầy đủ thông tin')),
+      AppToast.showWarning(
+        context,
+        message: 'Vui lòng điền đầy đủ thông tin',
+      );
+      return;
+    }
+
+    // P1-02: Validate email format
+    if (!_emailPattern.hasMatch(email)) {
+      AppToast.showWarning(
+        context,
+        message: 'Địa chỉ email không hợp lệ. Vui lòng kiểm tra lại.',
+      );
+      return;
+    }
+
+    // Validate password min length
+    if (password.length < 8) {
+      AppToast.showWarning(
+        context,
+        message: 'Mật khẩu phải có ít nhất 8 ký tự.',
       );
       return;
     }
 
     if (password != passwordConfirm) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mật khẩu xác nhận không khớp')),
+      AppToast.showWarning(
+        context,
+        message: 'Mật khẩu xác nhận không khớp',
       );
       return;
     }
@@ -85,15 +130,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (result['success']) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đăng ký thành công! Vui lòng đăng nhập.'), backgroundColor: Colors.green),
+        AppToast.showSuccess(
+          context,
+          message: 'Đăng ký thành công! Vui lòng đăng nhập.',
         );
         context.pop(); // Go back to Login Screen
       }
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
+        AppToast.showError(
+          context,
+          message: result['message'] ?? 'Đăng ký thất bại!',
         );
       }
     }
@@ -111,28 +158,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-          onPressed: () {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/login');
-            }
-          },
+      backgroundColor: Colors.white,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.primary.withValues(alpha: 0.08),
+              Colors.white,
+            ],
+            stops: const [0.0, 0.3],
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Logo
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      alignment: Alignment.centerLeft,
+                      icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A), size: 28),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/login');
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                // Logo
               Container(
                 width: 72, height: 72,
                 decoration: BoxDecoration(
@@ -179,6 +242,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _passwordController,
                     isConfirmPass: false,
                   ),
+                  if (_passwordController.text.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: _passwordStrength,
+                                backgroundColor: const Color(0xFFE2E8F0),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _passwordStrength <= 0.25 ? AppColors.error :
+                                  _passwordStrength <= 0.5 ? AppColors.warning :
+                                  _passwordStrength <= 0.75 ? Colors.lightBlue : AppColors.success,
+                                ),
+                                minHeight: 6,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _passwordStrength <= 0.25 ? 'Yếu' :
+                            _passwordStrength <= 0.5 ? 'Trung bình' :
+                            _passwordStrength <= 0.75 ? 'Khá' : 'Mạnh',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: _passwordStrength <= 0.25 ? AppColors.error :
+                                  _passwordStrength <= 0.5 ? AppColors.warning :
+                                  _passwordStrength <= 0.75 ? Colors.lightBlue : AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   const SizedBox(height: 16),
 
                   const Text('Xác nhận mật khẩu', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
@@ -287,6 +386,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

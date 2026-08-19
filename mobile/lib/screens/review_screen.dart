@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../services/api_client.dart';
+import '../widgets/app_toast.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Map<String, dynamic> orderItem;
@@ -26,7 +27,7 @@ class ReviewScreen extends StatefulWidget {
 
 class _ReviewScreenState extends State<ReviewScreen> {
   int _rating = 5;
-  final _commentCtrl = TextEditingController();
+  final TextEditingController _commentCtrl = TextEditingController();
   bool _isSubmitting = false;
   
   final List<File> _selectedImages = [];
@@ -34,7 +35,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _pickImages() async {
     if (_selectedImages.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chỉ được chọn tối đa 5 ảnh')));
+      AppToast.showWarning(context, message: 'Chỉ được chọn tối đa 5 ảnh');
       return;
     }
     
@@ -54,7 +55,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể chọn ảnh')));
+        AppToast.showError(context, message: 'Không thể chọn ảnh');
       }
     }
   }
@@ -73,7 +74,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _submit() async {
     if (_commentCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập nội dung đánh giá!'), backgroundColor: Colors.orange));
+      AppToast.showWarning(context, message: 'Vui lòng nhập nội dung đánh giá!');
       return;
     }
     setState(() => _isSubmitting = true);
@@ -102,15 +103,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đánh giá thành công! Cảm ơn bạn.'), backgroundColor: Colors.green));
+      AppToast.showSuccess(context, message: 'Đánh giá thành công! Cảm ơn bạn.');
       context.pop(true);
     } on DioException catch (e) {
       if (mounted) {
         final message = e.response?.data is Map ? e.response?.data['message'] : null;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message ?? 'Không thể gửi đánh giá!'), backgroundColor: Colors.red));
+        AppToast.showError(context, message: message ?? 'Không thể gửi đánh giá!');
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
+      if (mounted) AppToast.showError(context, message: 'Lỗi kết nối!');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

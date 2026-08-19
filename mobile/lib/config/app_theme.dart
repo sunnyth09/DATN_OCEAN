@@ -113,6 +113,18 @@ class AppGradients {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
+
+  static const LinearGradient brandAurora = LinearGradient(
+    colors: [Color(0xFFE63B6F), Color(0xFFF43F5E), Color(0xFFFB7185)],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  static const LinearGradient goldTicket = LinearGradient(
+    colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 }
 
 class AppShadows {
@@ -120,8 +132,8 @@ class AppShadows {
 
   static List<BoxShadow> get card => [
     BoxShadow(
-      color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-      blurRadius: 12,
+      color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+      blurRadius: 16,
       offset: const Offset(0, 4),
     ),
   ];

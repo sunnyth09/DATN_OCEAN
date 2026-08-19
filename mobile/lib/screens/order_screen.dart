@@ -6,6 +6,7 @@ import '../config/app_theme.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../utils/format_utils.dart';
+import '../utils/api_response_parser.dart';
 import '../widgets/app_empty_state.dart';
 import '../widgets/network_image_widget.dart';
 import '../widgets/price_tag.dart';
@@ -59,19 +60,7 @@ class _OrderScreenState extends State<OrderScreen>
     try {
       final response = await ApiClient().dio.get('/profile/orders');
       final decoded = response.data;
-      List<dynamic> fetchedOrders = [];
-
-      if (decoded is List) {
-        fetchedOrders = decoded;
-      } else if (decoded is Map) {
-        if (decoded['data'] is List) {
-          fetchedOrders = decoded['data'];
-        } else if (decoded['data'] is Map && decoded['data']['data'] is List) {
-          fetchedOrders = decoded['data']['data'];
-        } else if (decoded['orders'] is List) {
-          fetchedOrders = decoded['orders'];
-        }
-      }
+      final fetchedOrders = ApiResponseParser.parseList(decoded);
 
       if (mounted) {
         setState(() {
@@ -108,28 +97,30 @@ class _OrderScreenState extends State<OrderScreen>
   int _getCountForFilter(String filter) {
     if (filter == 'all') return allOrders.length;
     return allOrders.where((order) {
-      String st = (order['fulfillment_status'] ?? order['status'] ?? '').toString().toLowerCase();
-      String orderStatus = (order['order_status'] ?? order['status'] ?? '').toString().toLowerCase();
+      // P1-06: Ưu tiên fulfillment_status, fallback về order_status
+      // Dùng exact match / ưu tiên rõ ràng để tránh overlap giữa các tab
+      final st = (order['fulfillment_status'] ?? order['status'] ?? '').toString().toLowerCase().trim();
+      final orderSt = (order['order_status'] ?? order['status'] ?? '').toString().toLowerCase().trim();
+      // Xác định trạng thái chính theo thứ tự ưu tiên
+      final effectiveSt = st.isNotEmpty ? st : orderSt;
 
-      if (filter == 'pending_confirmation') {
-        return (st == 'pending' || orderStatus == 'pending' || orderStatus.contains('unpaid') || orderStatus.contains('waiting'));
+      // Tab trả hàng/hoàn tiền — ưu tiên kiểm tra TRƯỚC to_review để tránh overlap
+      final isReturn = effectiveSt.contains('return') || effectiveSt.contains('refund');
+      final isCancelled = effectiveSt.contains('cancel') || effectiveSt == 'failed';
+      final isCompleted = (effectiveSt.contains('completed') || effectiveSt.contains('delivered') || effectiveSt == 'success') && !isReturn;
+      final isShipping = (effectiveSt.contains('shipping') || effectiveSt.contains('delivering') || effectiveSt.contains('transit')) && !isReturn && !isCancelled;
+      final isProcessing = (effectiveSt.contains('processing') || effectiveSt.contains('confirmed') || effectiveSt.contains('ready') || effectiveSt.contains('pickup') || effectiveSt.contains('packing')) && !isShipping && !isReturn && !isCancelled;
+      final isPending = (effectiveSt == 'pending' || effectiveSt == 'unpaid' || effectiveSt.contains('waiting')) && !isProcessing && !isShipping && !isReturn && !isCancelled;
+
+      switch (filter) {
+        case 'pending_confirmation': return isPending;
+        case 'processing': return isProcessing;
+        case 'shipping': return isShipping;
+        case 'to_review': return isCompleted;
+        case 'returns': return isReturn;
+        case 'cancelled': return isCancelled;
+        default: return false;
       }
-      if (filter == 'processing') {
-        return (st.contains('processing') || st.contains('confirmed') || st.contains('ready') || st.contains('pickup') || orderStatus.contains('processing') || orderStatus.contains('confirmed'));
-      }
-      if (filter == 'shipping') {
-        return (st.contains('shipping') || st.contains('delivering') || st.contains('transit') || orderStatus.contains('shipping') || orderStatus.contains('delivering'));
-      }
-      if (filter == 'to_review') {
-        return (st.contains('completed') || st.contains('delivered') || st.contains('success') || orderStatus.contains('completed') || orderStatus.contains('delivered'));
-      }
-      if (filter == 'returns') {
-        return (st.contains('return') || st.contains('refund') || orderStatus.contains('return') || orderStatus.contains('refund'));
-      }
-      if (filter == 'cancelled') {
-        return (st.contains('cancel') || st.contains('fail') || orderStatus.contains('cancel') || orderStatus.contains('fail'));
-      }
-      return false;
     }).length;
   }
 

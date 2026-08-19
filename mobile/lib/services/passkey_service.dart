@@ -130,6 +130,31 @@ class PasskeyService {
     await StorageService.write('last_login_account', jsonEncode(acc));
   }
 
+  /// Cập nhật credentials mới nhất cho Passkey đã enrolled (KHÔNG thay đổi trạng thái enrolled).
+  /// Gọi sau mỗi lần đăng nhập thành công để giữ token & password luôn fresh.
+  static Future<void> updatePasskeyData(
+    String email, {
+    String? token,
+    String? password,
+    Map<String, dynamic>? userData,
+  }) async {
+    if (email.trim().isEmpty) return;
+    final key = '$_keyPrefix${email.trim().toLowerCase()}';
+    // Chỉ cập nhật nếu đã enrolled — không tạo mới entry
+    final enrolled = await StorageService.read(key);
+    if (enrolled != 'true') return;
+
+    if (password != null && password.isNotEmpty) {
+      await StorageService.write('${key}_pwd', password);
+    }
+    if (token != null && token.isNotEmpty) {
+      await StorageService.write('${key}_token', token);
+    }
+    if (userData != null) {
+      await StorageService.write('${key}_user', jsonEncode(userData));
+    }
+  }
+
   /// Lấy mật khẩu của Passkey đã lưu
   static Future<String?> getPasskeyPassword(String email) async {
     if (email.trim().isEmpty) return null;

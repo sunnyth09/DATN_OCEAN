@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../config/app_theme.dart';
 import '../../../models/court_booking_models.dart';
+import '../../../widgets/app_toast.dart';
 
 /// Lưới khung giờ thông minh: Tự động nhận diện buổi theo thời gian thực (Real-time Session Tabs)
 /// và hiển thị dạng 3 cột siêu gọn gàng.
@@ -420,13 +421,9 @@ class _SlotGridState extends State<SlotGrid> {
           ? () => widget.onToggle(index)
           : () {
               if (isLockedByOther) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Khung giờ này đang có khách giữ chỗ. Vui lòng chọn khung giờ khác hoặc đợi hết hạn!'),
-                    backgroundColor: Color(0xFFD97706),
-                    duration: Duration(seconds: 2),
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                AppToast.showWarning(
+                  context,
+                  message: 'Khung giờ này đang có khách giữ chỗ. Vui lòng chọn khung giờ khác!',
                 );
               }
             },

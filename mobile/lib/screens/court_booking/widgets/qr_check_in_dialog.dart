@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../config/app_theme.dart';
 import '../../../services/court_booking_service.dart';
+import '../../../widgets/app_toast.dart';
 
 class QrCheckInDialog extends StatefulWidget {
   final int bookingId;
@@ -220,11 +221,9 @@ class _QrCheckInDialogState extends State<QrCheckInDialog> {
                 InkWell(
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: widget.bookingCode));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Đã sao chép mã đặt sân!'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    AppToast.showSuccess(
+                      context,
+                      message: 'Đã sao chép mã đặt sân!',
                     );
                   },
                   borderRadius: BorderRadius.circular(12),

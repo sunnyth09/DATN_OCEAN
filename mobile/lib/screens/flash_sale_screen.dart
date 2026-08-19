@@ -60,20 +60,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
     }
   }
 
-  String _formatPrice(dynamic price) {
-    try {
-      final num p = num.parse(price.toString());
-      final formatted = p
-          .toStringAsFixed(0)
-          .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]}.',
-          );
-      return '$formattedđ';
-    } catch (_) {
-      return price.toString();
-    }
-  }
+  // P1-01: Đã xóa _formatPrice() duplicate — dùng FormatUtils.formatPrice() xuyên suốt
 
   Map<String, int> _getCountdown(String? endDate) {
     if (endDate == null) return {'h': 0, 'm': 0, 's': 0};
@@ -413,7 +400,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                   Row(
                     children: [
                       Text(
-                        _formatPrice(salePrice),
+                        FormatUtils.formatPrice(salePrice),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
@@ -447,7 +434,7 @@ class _FlashSaleScreenState extends State<FlashSaleScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
-                        _formatPrice(originalPrice),
+                        FormatUtils.formatPrice(originalPrice),
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF64748B),

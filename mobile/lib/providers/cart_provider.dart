@@ -36,7 +36,11 @@ class CartProvider extends ChangeNotifier {
         }
       }
     } catch (_) {}
-    await fetchCart(silent: true, force: true);
+    
+    // Đợi UI render cache xong rồi mới đồng bộ nền, tránh flicker & block UI thread
+    Future.delayed(const Duration(milliseconds: 500), () {
+      fetchCart(silent: true, force: true);
+    });
   }
 
   Cart get cart => _cart;

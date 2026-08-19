@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../config/app_theme.dart';
 import '../models/court_booking_models.dart';
 import '../services/api_client.dart';
+import '../widgets/app_toast.dart';
 import 'court_booking/widgets/booking_card.dart';
 import 'court_booking/widgets/qr_check_in_dialog.dart';
 
@@ -149,26 +150,18 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
       await ApiClient().dio.post('/court-bookings/$bookingId/cancel', data: {'reason': 'Khách hàng yêu cầu hủy trên app'});
       if (mounted) {
         context.pop(); // dismiss loading
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Đã hủy lịch đặt sân thành công!'),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
+        AppToast.showSuccess(
+          context,
+          message: 'Đã hủy lịch đặt sân thành công!',
         );
         fetchBookings();
       }
     } catch (e) {
       if (mounted) {
         context.pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Không thể hủy lịch đặt sân. Vui lòng thử lại!'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
+        AppToast.showError(
+          context,
+          message: 'Không thể hủy lịch đặt sân. Vui lòng thử lại!',
         );
       }
     }
@@ -260,11 +253,9 @@ class _BookingHistoryScreenState extends State<BookingHistoryScreen>
                             money: _money,
                             onShowQr: () => _showQrCheckIn(booking),
                             onPay: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Vui lòng thanh toán trực tiếp tại quầy hoặc qua chuyển khoản!'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
+                              AppToast.showInfo(
+                                context,
+                                message: 'Vui lòng thanh toán trực tiếp tại quầy hoặc qua chuyển khoản!',
                               );
                             },
                             onCancel: () => _cancelBooking(booking.id),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,7 @@ import '../config/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/favorite_provider.dart';
 import '../utils/format_utils.dart';
+import 'app_toast.dart';
 import 'network_image_widget.dart';
 
 /// Thẻ sản phẩm chuẩn TikTok Shop & Shopee Mall Tier:
@@ -55,7 +57,14 @@ class ProductCard extends StatelessWidget {
 
     return RepaintBoundary(
       child: GestureDetector(
-        onTap: onTap ?? () => context.push('/product-detail', extra: product),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          if (onTap != null) {
+            onTap!();
+          } else {
+            context.push('/product-detail', extra: product);
+          }
+        },
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -272,6 +281,7 @@ class ProductCard extends StatelessWidget {
                         // Quick Add to Cart Button
                         GestureDetector(
                           onTap: () {
+                            HapticFeedback.lightImpact();
                             context.push('/product-detail', extra: product);
                           },
                           child: Container(
@@ -320,28 +330,21 @@ class _FavoriteButton extends StatelessWidget {
 
     return GestureDetector(
       onTap: () async {
-        final messenger = ScaffoldMessenger.of(context);
+        HapticFeedback.lightImpact();
         final loggedIn = context.read<AuthProvider>().isAuthenticated;
         if (!loggedIn) {
-          messenger.showSnackBar(
-            const SnackBar(
-              content: Text('Vui lòng đăng nhập để lưu yêu thích!'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          AppToast.showInfo(context, message: 'Vui lòng đăng nhập để lưu yêu thích!');
           context.push('/login');
           return;
         }
 
         final ok = await context.read<FavoriteProvider>().toggleFavorite(id);
         onChanged?.call();
-        if (ok) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(!isFav ? 'Đã thêm vào yêu thích' : 'Đã xóa khỏi yêu thích'),
-              duration: const Duration(milliseconds: 900),
-              behavior: SnackBarBehavior.floating,
-            ),
+        if (ok && context.mounted) {
+          AppToast.showFavorite(
+            context,
+            message: !isFav ? 'Đã thêm vào yêu thích' : 'Đã xóa khỏi yêu thích',
+            isFavorited: !isFav,
           );
         }
       },

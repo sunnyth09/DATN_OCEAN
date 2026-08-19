@@ -8,6 +8,7 @@ import 'review_screen.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../utils/format_utils.dart';
+import '../widgets/app_toast.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -33,9 +34,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> fetchOrderDetail() async {
     setState(() { isLoading = true; errorMessage = null; });
     try {
-      debugPrint('Fetching order details for ID: ${widget.orderId}');
-      if (widget.orderId == 'null') {
-        throw Exception('Invalid orderId (null)');
+      if (widget.orderId == 'null' || widget.orderId.isEmpty) {
+        throw Exception('Invalid orderId');
       }
       final response = await ApiClient().dio.get('/profile/orders/${widget.orderId}');
 
@@ -49,19 +49,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         }
       }
     } on DioException catch (e) {
-      debugPrint('DioException in fetchOrderDetail: ${e.message}');
+      // P0-02: Không hiển thị raw error, chỉ dùng statusCode để debug
       if (mounted) {
         setState(() {
-          errorMessage = 'Không thể xem chi tiết đơn hàng: ${e.response?.statusCode}';
+          errorMessage = e.response?.statusCode == 404
+              ? 'Đơn hàng không tồn tại hoặc đã bị xóa.'
+              : 'Không thể xem chi tiết đơn hàng. Vui lòng thử lại.';
           isLoading = false;
         });
       }
-    } catch (e) {
-      debugPrint('Exception in fetchOrderDetail: $e');
+    } catch (_) {
+      // P0-02 + P0-03: Không log exception, không expose đển user
       if (mounted) {
-        setState(() { 
-          errorMessage = 'Lỗi xử lý dữ liệu: $e'; 
-          isLoading = false; 
+        setState(() {
+          errorMessage = 'Lỗi xử lý dữ liệu. Vui lòng thử lại.';
+          isLoading = false;
         });
       }
     }
@@ -188,11 +190,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           child: ElevatedButton(
                             onPressed: () {
                               if (selectedReason == null) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Vui lòng chọn lý do huỷ!'), backgroundColor: Colors.orange));
+                                AppToast.showWarning(ctx, message: 'Vui lòng chọn lý do huỷ!');
                                 return;
                               }
                               if (showCustomInput && customCtrl.text.trim().isEmpty) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Vui lòng nhập lý do cụ thể!'), backgroundColor: Colors.orange));
+                                AppToast.showWarning(ctx, message: 'Vui lòng nhập lý do cụ thể!');
                                 return;
                               }
                               Navigator.pop(ctx, true);
@@ -232,22 +234,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Đơn hàng đã được huỷ thành công!'),
-          backgroundColor: Colors.orange,
-        ));
+        AppToast.showSuccess(
+          context,
+          message: 'Đơn hàng đã được huỷ thành công!',
+        );
         fetchOrderDetail();
       }
     } on DioException catch (e) {
       final message = e.response?.data is Map ? e.response?.data['message'] : null;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(message ?? 'Không thể huỷ đơn hàng!'),
-          backgroundColor: Colors.red,
-        ));
+        AppToast.showError(
+          context,
+          message: message ?? 'Không thể huỷ đơn hàng!',
+        );
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
+      if (mounted) AppToast.showError(context, message: 'Lỗi kết nối!');
     } finally {
       if (mounted) setState(() => _isCancelling = false);
     }
@@ -259,14 +261,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       await ApiClient().dio.post('/cart/buy-again/${widget.orderId}');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Đã thêm sản phẩm vào giỏ hàng!'),
-          backgroundColor: Colors.green,
-        ));
+        AppToast.showSuccess(
+          context,
+          message: 'Đã thêm sản phẩm vào giỏ hàng!',
+        );
         context.go('/cart');
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
+      if (mounted) AppToast.showError(context, message: 'Lỗi kết nối!');
     } finally {
       if (mounted) setState(() => _isReordering = false);
     }

@@ -6,6 +6,7 @@ import '../config/app_config.dart';
 import '../services/api_client.dart';
 import '../widgets/network_image_widget.dart';
 import '../utils/format_utils.dart';
+import '../widgets/app_empty_state.dart';
 
 import '../config/app_theme.dart';
 
@@ -362,11 +363,10 @@ class _SearchScreenState extends State<SearchScreen> {
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
     if (_searchResults.isEmpty) {
-      return Center(
-        child: Text(
-          'Không tìm thấy sản phẩm nào',
-          style: TextStyle(color: Colors.grey.shade500),
-        ),
+      return AppEmptyState(
+        icon: Icons.search_off_rounded,
+        title: 'Không tìm thấy kết quả',
+        message: 'Rất tiếc, không có sản phẩm nào khớp với từ khóa "${_searchController.text}".',
       );
     }
     return ListView.separated(

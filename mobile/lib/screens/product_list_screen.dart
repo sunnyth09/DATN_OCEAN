@@ -363,13 +363,31 @@ class _ProductListScreenState extends State<ProductListScreen> {
               ),
             ),
           if (!hasMore && products.length > 5)
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.only(bottom: 30),
+                padding: const EdgeInsets.only(top: 16, bottom: 40),
                 child: Center(
-                  child: Text(
-                    'Bạn đã xem hết sản phẩm',
-                    style: TextStyle(color: Color(0xFF64748B)),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF94A3B8)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Bạn đã xem hết ${products.length} sản phẩm',
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

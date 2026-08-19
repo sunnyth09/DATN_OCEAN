@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/api_client.dart';
+import '../widgets/app_toast.dart';
 
 class PosScannerScreen extends StatefulWidget {
   const PosScannerScreen({super.key});
@@ -43,33 +44,24 @@ class _PosScannerScreenState extends State<PosScannerScreen> {
 
       if (response.statusCode == 200) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Đã gửi mã: $barcode'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 1),
-            ),
+          AppToast.showSuccess(
+            context,
+            message: 'Đã gửi mã: $barcode',
           );
         }
       } else {
-         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Lỗi gửi mã: ${response.statusCode}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 1),
-            ),
+        if (mounted) {
+          AppToast.showError(
+            context,
+            message: 'Lỗi gửi mã: ${response.statusCode}',
           );
-         }
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể kết nối đến máy chủ.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 1),
-          ),
+        AppToast.showError(
+          context,
+          message: 'Không thể kết nối đến máy chủ.',
         );
       }
     } finally {
@@ -96,18 +88,14 @@ class _PosScannerScreenState extends State<PosScannerScreen> {
         setState(() {
           sessionId = code.replaceAll('pos_session:', '');
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kết nối Web POS thành công. Hãy quét sản phẩm!'),
-            backgroundColor: Colors.green,
-          ),
+        AppToast.showSuccess(
+          context,
+          message: 'Kết nối Web POS thành công. Hãy quét sản phẩm!',
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Vui lòng quét mã QR trên màn hình máy tính trước!'),
-            duration: Duration(seconds: 2),
-          ),
+        AppToast.showWarning(
+          context,
+          message: 'Vui lòng quét mã QR trên màn hình máy tính trước!',
         );
       }
     } else {
@@ -176,8 +164,9 @@ class _PosScannerScreenState extends State<PosScannerScreen> {
                           tooltip: 'Ngắt kết nối POS',
                           onPressed: () {
                             setState(() { sessionId = null; });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Đã ngắt kết nối với Web POS.')),
+                            AppToast.showInfo(
+                              context,
+                              message: 'Đã ngắt kết nối với Web POS.',
                             );
                           },
                         ),

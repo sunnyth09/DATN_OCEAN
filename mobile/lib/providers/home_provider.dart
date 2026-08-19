@@ -165,12 +165,12 @@ class HomeProvider extends ChangeNotifier {
 
   Future<void> fetchVouchers() async {
     try {
-      final res = await ApiClient().get('/coupons');
+      final res = await ApiClient().get('/coupons/public');
       final data = res.data;
-      if (data is List) {
-        homeVouchers = data;
-      } else if (data is Map && data['data'] is List) {
+      if (data is Map && data['data'] is List) {
         homeVouchers = data['data'];
+      } else if (data is List) {
+        homeVouchers = data;
       }
     } catch (_) {}
 

@@ -61,6 +61,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   }
 
   @override
+  void didUpdateWidget(ProductDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.product['product_id'] != widget.product['product_id'] && 
+        oldWidget.product['id'] != widget.product['id']) {
+      setState(() {
+        _quantity = 1;
+        _currentImageIndex = 0;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<ProductDetailProvider>().fetchProductData(widget.product);
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _cartBounceCtrl.dispose();
     _imagePageController.dispose();
@@ -68,25 +83,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   }
 
   Future<void> _toggleFavorite(int productId) async {
-    final messenger = ScaffoldMessenger.of(context);
     final loggedIn = context.read<AuthProvider>().isAuthenticated;
     if (!loggedIn) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Vui lòng đăng nhập để lưu yêu thích!')),
-      );
+      AppToast.showInfo(context, message: 'Vui lòng đăng nhập để lưu yêu thích!');
       context.push('/login');
       return;
     }
 
     final currentlyFav = context.read<FavoriteProvider>().isFavorite(productId);
     final ok = await context.read<FavoriteProvider>().toggleFavorite(productId);
-    if (ok) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(!currentlyFav ? 'Đã lưu vào mục Yêu thích' : 'Đã bỏ yêu thích'),
-          duration: const Duration(milliseconds: 900),
-          behavior: SnackBarBehavior.floating,
-        ),
+    if (ok && mounted) {
+      AppToast.showFavorite(
+        context,
+        message: !currentlyFav ? 'Đã lưu vào mục Yêu thích' : 'Đã bỏ yêu thích',
+        isFavorited: !currentlyFav,
       );
     }
   }
@@ -94,9 +104,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
   Future<void> _handleAddToCart(String action) async {
     final loggedIn = context.read<AuthProvider>().isAuthenticated;
     if (!loggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng đăng nhập để tiếp tục')),
-      );
+      AppToast.showInfo(context, message: 'Vui lòng đăng nhập để tiếp tục');
       context.push('/login');
       return;
     }
@@ -125,12 +133,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
     }
 
     if (variantId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sản phẩm hiện chưa có phân loại khả dụng.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppToast.showError(context, message: 'Sản phẩm hiện chưa có phân loại khả dụng.');
       return;
     }
 
@@ -769,12 +772,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen>
                                   return Center(
                                     child: Padding(
                                       padding: const EdgeInsets.all(12),
-                                      child: NetworkImageWidget(
-                                        imageUrl: allImages[index],
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        fit: BoxFit.contain,
-                                        customMemCacheWidth: 900,
+                                      child: InteractiveViewer(
+                                        minScale: 1.0,
+                                        maxScale: 4.0,
+                                        child: NetworkImageWidget(
+                                          imageUrl: allImages[index],
+                                          width: double.infinity,
+                                          height: double.infinity,
+                                          fit: BoxFit.contain,
+                                          customMemCacheWidth: 900,
+                                        ),
                                       ),
                                     ),
                                   );

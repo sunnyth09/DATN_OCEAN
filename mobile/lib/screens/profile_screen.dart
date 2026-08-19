@@ -12,7 +12,9 @@ import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/passkey_service.dart';
 import '../services/storage_service.dart';
+import '../utils/api_response_parser.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/app_toast.dart';
 
 /// Màn hình Tài Khoản chuẩn Sàn Thương Mại Điện Tử (Shopee / Lazada tier).
 /// - Thẻ hội viên VIP cao cấp.
@@ -106,19 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final response = await ApiClient().dio.get('/profile/orders');
       final decoded = response.data;
-      List<dynamic> fetchedOrders = [];
-
-      if (decoded is List) {
-        fetchedOrders = decoded;
-      } else if (decoded is Map) {
-        if (decoded['data'] is List) {
-          fetchedOrders = decoded['data'];
-        } else if (decoded['data'] is Map && decoded['data']['data'] is List) {
-          fetchedOrders = decoded['data']['data'];
-        } else if (decoded['orders'] is List) {
-          fetchedOrders = decoded['orders'];
-        }
-      }
+      final fetchedOrders = ApiResponseParser.parseList(decoded);
 
       int pendingCount = 0;
       int pickupCount = 0;
@@ -845,13 +835,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (authRes['success'] != true) {
                       if (ctx.mounted) Navigator.pop(ctx);
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(authRes['message'] ?? 'Xác thực sinh trắc học không thành công.'),
-                          backgroundColor: AppColors.error,
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 4),
-                        ),
+                      AppToast.showError(
+                        context,
+                        message: authRes['message'] ?? 'Xác thực sinh trắc học không thành công.',
                       );
                       return;
                     }
@@ -868,12 +854,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (!mounted) return;
                     _checkPasskeyStatus(email);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('🎉 Đã kích hoạt Passkey bảo mật thành công trên thiết bị này!'),
-                        backgroundColor: AppColors.success,
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    AppToast.showSuccess(
+                      context,
+                      message: 'Đã kích hoạt Passkey bảo mật thành công trên thiết bị này!',
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -898,12 +881,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (ctx.mounted) Navigator.pop(ctx);
                     if (!mounted) return;
                     _checkPasskeyStatus(email);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Đã hủy kích hoạt Passkey trên thiết bị.'),
-                        backgroundColor: AppColors.textSecondary,
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    AppToast.showInfo(
+                      context,
+                      message: 'Đã hủy kích hoạt Passkey trên thiết bị.',
                     );
                   },
                   style: OutlinedButton.styleFrom(

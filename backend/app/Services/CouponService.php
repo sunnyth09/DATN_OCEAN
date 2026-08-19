@@ -166,17 +166,20 @@ class CouponService
             return ['state' => 'not_found', 'message' => 'Mã giảm giá không tồn tại hoặc đã hết hạn!'];
         }
 
-        $inserted = UserCoupon::insertOrIgnore([
-            'user_id' => $userId,
-            'coupon_id' => $coupon->id,
-            'is_saved' => true,
-            'used_count' => 0,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        if ($inserted === 0) {
+        $record = UserCoupon::where('user_id', $userId)->where('coupon_id', $coupon->id)->first();
+        if ($record && $record->is_saved) {
             return ['state' => 'already_saved', 'message' => 'Bạn đã lưu mã giảm giá này rồi!'];
+        }
+
+        if ($record) {
+            $record->update(['is_saved' => true]);
+        } else {
+            UserCoupon::create([
+                'user_id' => $userId,
+                'coupon_id' => $coupon->id,
+                'is_saved' => true,
+                'used_count' => 0,
+            ]);
         }
 
         return ['state' => 'saved', 'message' => 'Đã lưu mã giảm giá thành công!'];

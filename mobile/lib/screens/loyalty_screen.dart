@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +9,7 @@ import '../providers/loyalty_provider.dart';
 import '../utils/format_utils.dart';
 import '../widgets/network_image_widget.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/app_toast.dart';
 
 class LoyaltyScreen extends StatefulWidget {
   const LoyaltyScreen({super.key});
@@ -37,7 +39,7 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
     if (provider.points >= pointsRequired) {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
+        builder: (dialogContext) => AlertDialog(
           title: const Text(
             'Xác nhận đổi quà',
             style: TextStyle(fontWeight: FontWeight.w800),
@@ -47,32 +49,23 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy', style: TextStyle(color: AppColors.textMuted)),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context);
-                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(dialogContext);
                 final success = await provider.redeemReward(reward['id']);
                 if (!mounted) return;
                 if (success) {
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Đổi quà thành công! Bạn còn ${provider.points} điểm.',
-                      ),
-                      backgroundColor: AppColors.success,
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  AppToast.showSuccess(
+                    context,
+                    message: 'Đổi quà thành công! Bạn còn ${provider.points} điểm.',
                   );
                 } else {
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('Đổi quà thất bại. Vui lòng thử lại.'),
-                      backgroundColor: AppColors.error,
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  AppToast.showError(
+                    context,
+                    message: 'Đổi quà thất bại. Vui lòng thử lại.',
                   );
                 }
               },
@@ -86,17 +79,137 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Bạn chưa đủ điểm để đổi phần quà này.'),
-          backgroundColor: AppColors.warning,
-          behavior: SnackBarBehavior.floating,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Bạn chưa đủ điểm để đổi phần quà này.',
       );
     }
   }
+  Widget _buildDailyCheckIn(LoyaltyProvider provider) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Điểm danh hằng ngày',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Nhận thưởng mỗi ngày',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+              ElevatedButton(
+                onPressed: provider.hasCheckedInToday || provider.isCheckingIn
+                    ? null
+                    : () async {
+                        HapticFeedback.mediumImpact();
+                        final res = await provider.checkInDaily();
+                        if (!mounted) return;
+                        if (res['success'] == true) {
+                          HapticFeedback.heavyImpact();
+                          AppToast.showSuccess(
+                            context,
+                            message: '${res['message']} (+${res['points_earned']} điểm)',
+                          );
+                        } else {
+                          HapticFeedback.vibrate();
+                          AppToast.showError(
+                            context,
+                            message: res['message'],
+                          );
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: provider.hasCheckedInToday ? Colors.grey[200] : AppColors.primary,
+                  foregroundColor: provider.hasCheckedInToday ? AppColors.textMuted : Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                child: provider.isCheckingIn
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : Text(
+                        provider.hasCheckedInToday ? 'Đã nhận' : 'Nhận ngay',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // Streak UI
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(7, (index) {
+              final day = index + 1;
+              final isPast = day <= provider.checkInStreak;
+              final isToday = day == provider.checkInStreak + 1;
+              return Column(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: isPast
+                          ? AppColors.primary
+                          : (isToday && !provider.hasCheckedInToday ? AppColors.primary.withValues(alpha: 0.1) : Colors.grey[100]),
+                      shape: BoxShape.circle,
+                      border: isPast || (isToday && !provider.hasCheckedInToday)
+                          ? Border.all(color: AppColors.primary.withValues(alpha: 0.5), width: 1.5)
+                          : Border.all(color: Colors.transparent),
+                    ),
+                    child: Icon(
+                      Icons.check_rounded,
+                      size: 20,
+                      color: isPast ? Colors.white : (isToday && !provider.hasCheckedInToday ? AppColors.primary : Colors.grey[400]),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'N$day',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isPast || isToday ? FontWeight.bold : FontWeight.normal,
+                      color: isPast ? AppColors.primary : AppColors.textMuted,
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
+
   Widget build(BuildContext context) {
     final provider = context.watch<LoyaltyProvider>();
     final currentPoints = provider.points;
@@ -212,6 +325,9 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
                   ],
                 ),
               ),
+
+              // Daily Check In
+              _buildDailyCheckIn(provider),
 
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 12, 20, 12),

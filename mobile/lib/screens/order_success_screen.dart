@@ -7,6 +7,7 @@ import '../config/app_theme.dart';
 import '../providers/navigation_provider.dart';
 import '../services/api_client.dart';
 import '../utils/format_utils.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/network_image_widget.dart';
 import '../widgets/price_tag.dart';
 
@@ -225,12 +226,9 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                             GestureDetector(
                               onTap: () {
                                 Clipboard.setData(ClipboardData(text: widget.orderCode!));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Đã sao chép mã đơn hàng!'),
-                                    duration: Duration(seconds: 2),
-                                    backgroundColor: Color(0xFF0F172A),
-                                  ),
+                                AppToast.showSuccess(
+                                  context,
+                                  message: 'Đã sao chép mã đơn hàng!',
                                 );
                               },
                               child: const Icon(

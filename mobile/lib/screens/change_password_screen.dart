@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../config/app_theme.dart';
 import '../services/api_client.dart';
+import '../widgets/app_toast.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -20,17 +21,26 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _showNew = false;
   bool _showConfirm = false;
 
+  @override
+  void dispose() {
+    // P1-03: Gi\u1ea3i ph\u00f3ng controller \u2014 tr\u00e1nh memory leak
+    currentCtrl.dispose();
+    newCtrl.dispose();
+    confirmCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> submit() async {
     if (currentCtrl.text.isEmpty || newCtrl.text.isEmpty || confirmCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng điền đầy đủ thông tin!'), backgroundColor: Colors.orange));
+      AppToast.showWarning(context, message: 'Vui lòng điền đầy đủ thông tin!');
       return;
     }
     if (newCtrl.text != confirmCtrl.text) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Xác nhận mật khẩu không khớp!'), backgroundColor: Colors.red));
+      AppToast.showWarning(context, message: 'Xác nhận mật khẩu không khớp!');
       return;
     }
     if (newCtrl.text.length < 8) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mật khẩu mới phải có ít nhất 8 ký tự!'), backgroundColor: Colors.orange));
+      AppToast.showWarning(context, message: 'Mật khẩu mới phải có ít nhất 8 ký tự!');
       return;
     }
 
@@ -43,13 +53,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đổi mật khẩu thành công!'), backgroundColor: Colors.green));
+        AppToast.showSuccess(context, message: 'Đổi mật khẩu thành công!');
         context.pop();
       }
     } on DioException catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.response?.data?['message'] ?? 'Lỗi thay đổi mật khẩu!'), backgroundColor: Colors.red));
+      if (mounted) AppToast.showError(context, message: e.response?.data?['message'] ?? 'Lỗi thay đổi mật khẩu!');
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối máy chủ!'), backgroundColor: Colors.red));
+      if (mounted) AppToast.showError(context, message: 'Lỗi kết nối máy chủ!');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

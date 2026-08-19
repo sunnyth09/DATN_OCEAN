@@ -625,14 +625,28 @@ class _CategoryScreenState extends State<CategoryScreen>
           if (!context.watch<CategoryProvider>().hasMore && context.watch<CategoryProvider>().products.length > 4)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
+                padding: const EdgeInsets.only(top: 16, bottom: 40),
                 child: Center(
-                  child: Text(
-                    'Đã hiển thị tất cả ${context.watch<CategoryProvider>().products.length} sản phẩm',
-                    style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF94A3B8)),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Bạn đã xem hết ${context.watch<CategoryProvider>().products.length} sản phẩm',
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

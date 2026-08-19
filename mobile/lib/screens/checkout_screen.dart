@@ -8,10 +8,9 @@ import '../services/api_client.dart';
 import '../providers/cart_provider.dart';
 import '../utils/format_utils.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/voucher_selection_modal.dart';
 import 'address_screen.dart';
-import 'order_success_screen.dart';
-import 'payment_webview_screen.dart';
 import 'checkout/widgets/checkout_address_box.dart';
 import 'checkout/widgets/checkout_payment_box.dart';
 import 'checkout/widgets/checkout_coupon_box.dart';
@@ -109,6 +108,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       }
 
+      // P0-05: Validate empty cart — không cho tiến hành checkout khi giỏ trống
+      if (cartItems.isEmpty) {
+        if (mounted) {
+          setState(() {
+            errorMessage = 'Giỏ hàng của bạn đang trống. Vui lòng thêm sản phẩm để tiếp tục.';
+            isLoading = false;
+          });
+        }
+        return;
+      }
+
       await _calculateShippingFee();
       _recalcCouponDiscount();
 
@@ -204,11 +214,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
       if (coupon == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Mã giảm giá không hợp lệ hoặc đã hết hạn!'),
-              backgroundColor: AppColors.error,
-            ),
+          AppToast.showError(
+            context,
+            message: 'Mã giảm giá không hợp lệ hoặc đã hết hạn!',
           );
         }
       } else {
@@ -216,13 +224,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             num.tryParse(coupon['min_order_value']?.toString() ?? '0') ?? 0;
         if (subtotal < minOrder) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Đơn hàng tối thiểu ${FormatUtils.formatPrice(minOrder)} để dùng mã này!',
-                ),
-                backgroundColor: AppColors.warning,
-              ),
+            AppToast.showWarning(
+              context,
+              message: 'Đơn hàng tối thiểu ${FormatUtils.formatPrice(minOrder)} để dùng mã này!',
             );
           }
         } else {
@@ -244,24 +248,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             discountAmount = discount;
           });
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Áp dụng mã thành công! Giảm ${FormatUtils.formatPrice(discount)}',
-                ),
-                backgroundColor: AppColors.success,
-              ),
+            AppToast.showSuccess(
+              context,
+              message: 'Áp dụng mã thành công! Giảm ${FormatUtils.formatPrice(discount)}',
             );
           }
         }
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lỗi kiểm tra mã!'),
-            backgroundColor: AppColors.error,
-          ),
+        AppToast.showError(
+          context,
+          message: 'Lỗi kiểm tra mã!',
         );
       }
     } finally {
@@ -307,20 +305,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> placeOrder() async {
     if (defaultAddress == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng thêm địa chỉ nhận hàng!'),
-          backgroundColor: AppColors.warning,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Vui lòng thêm địa chỉ nhận hàng!',
       );
       return;
     }
     if (cartItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Giỏ hàng trống!'),
-          backgroundColor: AppColors.warning,
-        ),
+      AppToast.showWarning(
+        context,
+        message: 'Giỏ hàng trống!',
       );
       return;
     }
@@ -357,50 +351,42 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (!mounted) return;
 
       if (paymentUrl != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentWebviewScreen(
-              url: paymentUrl,
-              paymentMethod: pm,
-              orderCode: orderCode,
-              grandTotal: grandTotal,
-            ),
-          ),
+        // P1-08: Dùng context.push() (GoRouter) thay Navigator.push() để nhất quán navigation
+        context.push(
+          '/payment-webview',
+          extra: {
+            'url': paymentUrl,
+            'paymentMethod': pm,
+            'orderCode': orderCode,
+            'grandTotal': grandTotal,
+          },
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đặt hàng thành công!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        Navigator.pushAndRemoveUntil(
+        AppToast.showSuccess(
           context,
-          MaterialPageRoute(
-            builder: (_) => OrderSuccessScreen(
-              orderCode: orderCode,
-              grandTotal: grandTotal,
-              orderId: orderId,
-            ),
-          ),
-          (route) => false,
+          message: 'Đặt hàng thành công!',
+        );
+        // P1-09: Dùng context.go() (GoRouter) thay Navigator.pushAndRemoveUntil() 
+        // để GoRouter quản lý stack, tránh user bị kẹt không back được
+        context.go(
+          '/order-success',
+          extra: {
+            'orderCode': orderCode,
+            'grandTotal': grandTotal,
+            'orderId': orderId,
+          },
         );
       }
     } on DioException catch (e) {
       final msg = e.response?.data?['message'] ?? 'Lỗi đặt hàng';
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), backgroundColor: AppColors.error),
-        );
+        AppToast.showError(context, message: msg);
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lỗi kết nối máy chủ!'),
-            backgroundColor: AppColors.error,
-          ),
+        AppToast.showError(
+          context,
+          message: 'Lỗi kết nối máy chủ!',
         );
       }
     } finally {
@@ -474,10 +460,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
     }
 
-    final grandTotal = (subtotal.toInt() + shippingFee - discountAmount).clamp(
-      0,
-      double.maxFinite.toInt(),
-    );
+    // P0-01: Dùng constant an toàn thay cho double.maxFinite.toInt() (có thể overflow 32-bit)
+    const int maxOrderValue = 999_999_999;
+    final grandTotal = (subtotal.toInt() + shippingFee - discountAmount).clamp(0, maxOrderValue);
 
     return Scaffold(
       backgroundColor: AppColors.background,

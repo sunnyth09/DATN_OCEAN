@@ -6,6 +6,9 @@ import '../providers/coupon_provider.dart';
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../config/app_theme.dart';
+import '../widgets/app_toast.dart';
+import '../utils/format_utils.dart';
+import '../utils/api_response_parser.dart';
 
 class CouponScreen extends StatefulWidget {
   const CouponScreen({super.key});
@@ -30,11 +33,8 @@ class _CouponScreenState extends State<CouponScreen> {
     try {
       setState(() { isLoading = true; errorMessage = null; });
       final res = await ApiClient().dio.get('/coupons/public');
-      if (res.data['status'] == 'success') {
-        if (mounted) setState(() { coupons = res.data['data'] ?? []; isLoading = false; });
-      } else {
-        if (mounted) setState(() => isLoading = false);
-      }
+      final dataList = ApiResponseParser.parseList(res.data);
+      if (mounted) setState(() { coupons = dataList; isLoading = false; });
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -72,23 +72,9 @@ class _CouponScreenState extends State<CouponScreen> {
   String _formatValue(Map<String, dynamic> coupon) {
     final type = coupon['type']?.toString() ?? '';
     final value = coupon['value'];
-    if (type == 'percent') return '$value%';
-    if (type == 'free_ship') return 'Freeship ${_formatCurrency(value)}';
-    return _formatCurrency(value);
-  }
-
-  String _formatCurrency(dynamic val) {
-    if (val == null) return '0₫';
-    try {
-      final num p = num.parse(val.toString());
-      final formatted = p.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
-      return '$formatted₫';
-    } catch (_) {
-      return '$val₫';
-    }
+    if (type == 'percent') return 'Giảm $value%';
+    if (type == 'free_ship') return 'Freeship ${FormatUtils.formatPrice(value)}';
+    return 'Giảm ${FormatUtils.formatPrice(value)}';
   }
 
   String _formatDate(dynamic dateString) {
@@ -100,14 +86,7 @@ class _CouponScreenState extends State<CouponScreen> {
 
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đã sao chép mã: $code'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppToast.showSuccess(context, message: 'Đã sao chép mã: $code');
   }
 
   Future<void> _saveCoupon(int couponId) async {
@@ -122,14 +101,11 @@ class _CouponScreenState extends State<CouponScreen> {
     if (!mounted) return;
     final ok = await context.read<CouponProvider>().claimCoupon(couponId);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ok ? 'Đã lưu mã giảm giá vào ví!' : 'Không thể lưu mã giảm giá!'),
-          backgroundColor: ok ? AppColors.success : AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      if (ok) {
+        AppToast.showVoucherSaved(context, message: 'Đã lưu mã giảm giá vào ví!');
+      } else {
+        AppToast.showError(context, message: 'Không thể lưu mã giảm giá!');
+      }
     }
   }
 
@@ -378,7 +354,7 @@ class _CouponScreenState extends State<CouponScreen> {
                     const Spacer(),
                     // Min order
                     if (coupon['min_order_value'] != null)
-                      Text('Đơn từ ${_formatCurrency(coupon['min_order_value'])}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      Text('Đơn từ ${FormatUtils.formatPrice(coupon['min_order_value'])}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                   ],
                 ),
               ),

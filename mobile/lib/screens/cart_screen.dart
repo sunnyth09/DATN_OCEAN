@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +13,7 @@ import '../widgets/network_image_widget.dart';
 import '../widgets/price_tag.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/voucher_selection_modal.dart';
 
 /// Màn hình Giỏ Hàng Ocean Sport:
@@ -102,13 +104,17 @@ class _CartScreenState extends State<CartScreen> {
           cartItemId,
           quantity,
         );
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lỗi cập nhật số lượng!'),
-          backgroundColor: AppColors.error,
-        ),
+    if (!mounted) return;
+    if (!ok) {
+      AppToast.showError(
+        context,
+        message: 'Lỗi cập nhật số lượng!',
       );
+    } else if (_appliedCoupon != null) {
+      // P0-06: Recalculate discount dựa trên subtotal mới sau khi thay đổi số lượng
+      final newSubtotal = context.read<CartProvider>().cart.totalPrice.toDouble();
+      final newDiscount = _calculateDiscount(_appliedCoupon!, newSubtotal);
+      setState(() => _discountAmount = newDiscount);
     }
   }
 
@@ -146,11 +152,9 @@ class _CartScreenState extends State<CartScreen> {
 
     final ok = await context.read<CartProvider>().removeItem(cartItemId);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lỗi xóa sản phẩm!'),
-          backgroundColor: AppColors.error,
-        ),
+      AppToast.showError(
+        context,
+        message: 'Lỗi xóa sản phẩm!',
       );
     }
   }
@@ -491,10 +495,13 @@ class _CartScreenState extends State<CartScreen> {
                         SizedBox(
                           height: 44,
                           child: ElevatedButton(
-                            onPressed: () => context.push('/checkout', extra: {
-                              'appliedCoupon': _appliedCoupon,
-                              'discountAmount': _discountAmount,
-                            }),
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              context.push('/checkout', extra: {
+                                'appliedCoupon': _appliedCoupon,
+                                'discountAmount': _discountAmount,
+                              });
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -527,12 +534,29 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Widget _buildCartItemCard(CartItem item) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Thumbnail
+    return Dismissible(
+      key: Key(item.cartItemId.toString()),
+      direction: DismissDirection.endToStart,
+      onDismissed: (direction) {
+        context.read<CartProvider>().removeItem(item.cartItemId);
+        AppToast.showSuccess(context, message: 'Đã xóa sản phẩm');
+      },
+      background: Container(
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(
+          color: AppColors.error,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        alignment: Alignment.centerRight,
+        child: const Icon(Icons.delete_outline, color: Colors.white, size: 28),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thumbnail
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: Container(

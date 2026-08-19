@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../config/app_theme.dart';
 import '../services/attendance_service.dart';
+import '../widgets/app_toast.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -98,31 +99,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (!mounted) return;
 
       if (res['status'] == 'success') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res['message'] ?? 'Thành công!', style: const TextStyle(fontWeight: FontWeight.bold)),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
+        AppToast.showSuccess(
+          context,
+          message: res['message'] ?? 'Thành công!',
         );
         _noteController.clear();
       } else if (res['needs_settings'] == true) {
         // Quyền vị trí bị từ chối vĩnh viễn — không request lại được, phải ra Settings.
         _showOpenSettingsDialog(res['message'] ?? 'Cần cấp quyền Vị trí.');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res['message'] ?? 'Lỗi không xác định!'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 4),
-          ),
+        AppToast.showError(
+          context,
+          message: res['message'] ?? 'Lỗi không xác định!',
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Có lỗi xảy ra.'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        AppToast.showError(context, message: 'Có lỗi xảy ra.');
+      }
     } finally {
       if (mounted) {
         setState(() {

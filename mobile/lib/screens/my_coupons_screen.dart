@@ -7,7 +7,9 @@ import '../config/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/coupon_provider.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/app_toast.dart';
 import '../widgets/shimmer_loading.dart';
+import '../utils/format_utils.dart';
 
 class MyCouponsScreen extends StatefulWidget {
   const MyCouponsScreen({super.key});
@@ -38,22 +40,8 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
     final type = coupon['type']?.toString() ?? '';
     final value = coupon['value'];
     if (type == 'percent') return 'Giảm $value%';
-    if (type == 'free_ship') return 'Freeship ${_formatCurrency(value)}';
-    return 'Giảm ${_formatCurrency(value)}';
-  }
-
-  String _formatCurrency(dynamic val) {
-    if (val == null) return '0₫';
-    try {
-      final num p = num.parse(val.toString());
-      final formatted = p.toStringAsFixed(0).replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
-      return '$formatted₫';
-    } catch (_) {
-      return '$val₫';
-    }
+    if (type == 'free_ship') return 'Freeship ${FormatUtils.formatPrice(value)}';
+    return 'Giảm ${FormatUtils.formatPrice(value)}';
   }
 
   String _formatDate(dynamic dateString) {
@@ -65,14 +53,7 @@ class _MyCouponsScreenState extends State<MyCouponsScreen> {
 
   void _copyCode(String code) {
     Clipboard.setData(ClipboardData(text: code));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Đã sao chép mã: $code'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    AppToast.showSuccess(context, message: 'Đã sao chép mã: $code');
   }
 
   @override

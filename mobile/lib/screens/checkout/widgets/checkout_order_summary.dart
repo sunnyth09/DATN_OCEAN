@@ -105,6 +105,23 @@ class CheckoutOrderSummary extends StatelessWidget {
                     ),
             ],
           ),
+          if (!isCalculatingShip && shippingFee > 0) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.local_shipping_outlined, size: 12, color: Color(0xFF64748B)),
+                const SizedBox(width: 4),
+                Text(
+                  'Dự kiến giao hàng: 2 - 3 ngày',
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    color: Color(0xFF64748B),
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (discountAmount > 0) ...[
             const SizedBox(height: 6),
             _buildPriceRow(

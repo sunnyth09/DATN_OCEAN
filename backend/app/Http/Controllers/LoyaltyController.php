@@ -41,9 +41,65 @@ class LoyaltyController extends Controller
         }
 
         $summary = $this->loyaltyService->getSummary($user->user_id);
+        
+        // Add checkin info to summary
+        $summary['last_check_in_at'] = $user->last_check_in_at;
+        $summary['check_in_streak'] = $user->check_in_streak ?? 0;
+        $summary['has_checked_in_today'] = $user->last_check_in_at && \Carbon\Carbon::parse($user->last_check_in_at)->isToday();
 
         return response()->json(['status' => 'success', 'data' => $summary]);
     }
+
+    /**
+     * POST /api/loyalty/check-in
+     * Điểm danh hàng ngày nhận xu
+     */
+    public function checkIn(): JsonResponse
+    {
+        $user = auth('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $today = now()->toDateString();
+        $lastCheckIn = $user->last_check_in_at ? \Carbon\Carbon::parse($user->last_check_in_at)->toDateString() : null;
+
+        if ($lastCheckIn === $today) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bạn đã điểm danh hôm nay rồi.',
+                'data' => [
+                    'check_in_streak' => $user->check_in_streak,
+                    'reward_points' => $user->reward_points,
+                ]
+            ], 400);
+        }
+
+        $yesterday = now()->subDay()->toDateString();
+        
+        if ($lastCheckIn === $yesterday) {
+            $user->check_in_streak += 1;
+        } else {
+            $user->check_in_streak = 1;
+        }
+        
+        $user->last_check_in_at = now();
+        $user->save();
+
+        $tx = $this->loyaltyService->earnDailyCheckIn($user, $user->check_in_streak);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Điểm danh thành công!',
+            'data' => [
+                'points_earned' => $tx ? $tx->points : 0,
+                'check_in_streak' => $user->check_in_streak,
+                'reward_points' => $user->reward_points,
+            ]
+        ]);
+    }
+
+
 
     /**
      * GET /api/loyalty/history?type=earn|burn|expire&per_page=20

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../config/app_theme.dart';
 import '../services/api_client.dart';
+import '../services/storage_service.dart';
 import '../utils/format_utils.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/app_toast.dart';
+import 'package:dio/dio.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -16,6 +19,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
   List<dynamic> notifications = [];
   bool isLoading = true;
   bool _isFetching = false;
+  // P1-04: Track trạng thái chưa đăng nhập để hiển thị đúng UI
+  bool isUnauthenticated = false;
   int unreadCount = 0;
 
   @override
@@ -27,7 +32,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Future<void> fetchNotifications({bool silent = false}) async {
     if (_isFetching) return;
     _isFetching = true;
-    if (!silent && mounted) setState(() => isLoading = true);
+    if (!silent && mounted) setState(() { isLoading = true; isUnauthenticated = false; });
+
+    // P1-04: Kiểm tra auth trước khi gọi API
+    final token = StorageService.readSync('access_token') ?? await StorageService.read('access_token');
+    if (token == null || token.trim().isEmpty || token == 'null') {
+      _isFetching = false;
+      if (mounted) setState(() { isLoading = false; isUnauthenticated = true; });
+      return;
+    }
 
     try {
       final res = await ApiClient().dio.get('/profile/notifications');
@@ -39,7 +52,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
           unreadCount =
               int.tryParse((res.data['unread_count'] ?? 0).toString()) ?? 0;
           isLoading = false;
+          isUnauthenticated = false;
         });
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        if (mounted) setState(() { isLoading = false; isUnauthenticated = true; });
+      } else {
+        if (mounted) setState(() => isLoading = false);
       }
     } catch (_) {
       if (mounted) setState(() => isLoading = false);
@@ -54,11 +74,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
       await fetchNotifications(silent: true);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể đánh dấu thông báo đã đọc.'),
-            backgroundColor: AppColors.error,
-          ),
+        AppToast.showError(
+          context,
+          message: 'Không thể đánh dấu thông báo đã đọc.',
         );
       }
     }
@@ -70,11 +88,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
       await fetchNotifications(silent: true);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể đánh dấu tất cả thông báo đã đọc.'),
-            backgroundColor: AppColors.error,
-          ),
+        AppToast.showError(
+          context,
+          message: 'Không thể đánh dấu tất cả thông báo đã đọc.',
         );
       }
     }
@@ -112,12 +128,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             )
+          // P1-04: Hi\u1ec3n th\u1ecb \u0111\u00fang tr\u1ea1ng th\u00e1i khi ch\u01b0a \u0111\u0103ng nh\u1eadp
+          : isUnauthenticated
+              ? AppEmptyState(
+                  icon: Icons.person_outline_rounded,
+                  title: 'B\u1ea1n ch\u01b0a \u0111\u0103ng nh\u1eadp',
+                  message: '\u0110\u0103ng nh\u1eadp \u0111\u1ec3 xem th\u00f4ng b\u00e1o v\u1ec1 \u0111\u01a1n h\u00e0ng v\u00e0 \u01b0u \u0111\u00e3i c\u1ee7a b\u1ea1n.',
+                  buttonText: '\u0110\u0103ng nh\u1eadp ngay',
+                  onAction: () async {
+                    await context.push('/login');
+                    if (mounted) fetchNotifications();
+                  },
+                )
           : notifications.isEmpty
               ? AppEmptyState(
                   icon: Icons.notifications_off_outlined,
-                  title: 'Không có thông báo mới',
-                  message: 'Các thông báo về đơn hàng và ưu đãi sẽ xuất hiện tại đây.',
-                  buttonText: 'Tải lại',
+                  title: 'Kh\u00f4ng c\u00f3 th\u00f4ng b\u00e1o m\u1edbi',
+                  message: 'C\u00e1c th\u00f4ng b\u00e1o v\u1ec1 \u0111\u01a1n h\u00e0ng v\u00e0 \u01b0u \u0111\u00e3i s\u1ebd xu\u1ea5t hi\u1ec7n t\u1ea1i \u0111\u00e2y.',
+                  buttonText: 'T\u1ea3i l\u1ea1i',
                   onAction: fetchNotifications,
                 )
               : RefreshIndicator(

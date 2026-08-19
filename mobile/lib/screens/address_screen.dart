@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import '../config/app_theme.dart';
 import '../services/api_client.dart';
 import '../widgets/app_empty_state.dart';
+import '../widgets/app_toast.dart';
 
 class AddressScreen extends StatefulWidget {
   final bool isSelecting;
@@ -65,16 +66,12 @@ class _AddressScreenState extends State<AddressScreen> {
     try {
       await ApiClient().dio.delete('/profile/addresses/$id');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã xóa địa chỉ thành công!'), backgroundColor: AppColors.success),
-        );
+        AppToast.showSuccess(context, message: 'Đã xóa địa chỉ thành công!');
         fetchAddresses();
       }
     } on DioException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.response?.data?['message'] ?? 'Xóa thất bại'), backgroundColor: AppColors.error),
-        );
+        AppToast.showError(context, message: e.response?.data?['message'] ?? 'Xóa thất bại');
       }
     }
   }
@@ -83,19 +80,12 @@ class _AddressScreenState extends State<AddressScreen> {
     try {
       await ApiClient().dio.put('/profile/addresses/$id/default');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã đặt làm địa chỉ mặc định'), backgroundColor: AppColors.success),
-        );
+        AppToast.showSuccess(context, message: 'Đã đặt làm địa chỉ mặc định');
         fetchAddresses();
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không thể đặt địa chỉ mặc định. Vui lòng thử lại.'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        AppToast.showError(context, message: 'Không thể đặt địa chỉ mặc định. Vui lòng thử lại.');
       }
     }
   }
@@ -235,16 +225,12 @@ class _AddressScreenState extends State<AddressScreen> {
                                 final phoneRegExp = RegExp(r'^(0|\+84|84)[35789][0-9]{8}$');
 
                                 if (nameCtrl.text.trim().isEmpty || addressCtrl.text.trim().isEmpty || phone.isEmpty) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(content: Text('Vui lòng điền đủ thông tin bắt buộc (*)')),
-                                  );
+                                  AppToast.showWarning(ctx, message: 'Vui lòng điền đủ thông tin bắt buộc (*)');
                                   return;
                                 }
 
                                 if (!phoneRegExp.hasMatch(phone)) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(content: Text('Số điện thoại không hợp lệ (ví dụ: 0912345678)')),
-                                  );
+                                  AppToast.showWarning(ctx, message: 'Số điện thoại không hợp lệ (ví dụ: 0912345678)');
                                   return;
                                 }
 
@@ -274,19 +260,16 @@ class _AddressScreenState extends State<AddressScreen> {
                                   }
 
                                   if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                      content: Text(isEditing ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ thành công!'),
-                                      backgroundColor: AppColors.success,
-                                    ));
+                                    AppToast.showSuccess(
+                                      context,
+                                      message: isEditing ? 'Cập nhật địa chỉ thành công!' : 'Thêm địa chỉ thành công!',
+                                    );
                                     fetchAddresses();
                                   }
                                 } on DioException catch (e) {
                                   setModal(() => isSaving = false);
                                   if (ctx.mounted) {
-                                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                                      content: Text(e.response?.data?['message'] ?? 'Lưu thất bại'),
-                                      backgroundColor: AppColors.error,
-                                    ));
+                                    AppToast.showError(ctx, message: e.response?.data?['message'] ?? 'Lưu thất bại');
                                   }
                                 }
                               },
@@ -333,15 +316,15 @@ class _AddressScreenState extends State<AddressScreen> {
           fillColor: const Color(0xFFF8FAFC),
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
           ),
         ),
@@ -371,15 +354,15 @@ class _AddressScreenState extends State<AddressScreen> {
           fillColor: const Color(0xFFF8FAFC),
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
             borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
           ),
         ),
@@ -432,7 +415,7 @@ class _AddressScreenState extends State<AddressScreen> {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(20),
                         border: isDefault
                             ? Border.all(color: AppColors.primary, width: 1.5)
                             : Border.all(color: AppColors.border),

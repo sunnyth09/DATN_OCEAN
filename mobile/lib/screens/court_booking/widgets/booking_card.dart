@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../config/app_theme.dart';
 import '../../../models/court_booking_models.dart';
+import '../../../widgets/app_toast.dart';
 import 'court_booking_chips.dart';
 
 class BookingCard extends StatelessWidget {
@@ -128,12 +129,9 @@ class BookingCard extends StatelessWidget {
                       InkWell(
                         onTap: () {
                           Clipboard.setData(ClipboardData(text: booking.code));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Đã sao chép mã đặt sân!'),
-                              behavior: SnackBarBehavior.floating,
-                              duration: Duration(seconds: 2),
-                            ),
+                          AppToast.showSuccess(
+                            context,
+                            message: 'Đã sao chép mã đặt sân!',
                           );
                         },
                         borderRadius: BorderRadius.circular(4),

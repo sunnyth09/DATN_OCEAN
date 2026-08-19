@@ -170,6 +170,8 @@ GoRouter createRouter({required bool isFirstLaunch}) {
           return PaymentWebviewScreen(
             url: extra['url'] as String,
             paymentMethod: extra['paymentMethod'] as String,
+            orderCode: extra['orderCode'] as String?,
+            grandTotal: extra['grandTotal'] as num?,
           );
         },
       ),
