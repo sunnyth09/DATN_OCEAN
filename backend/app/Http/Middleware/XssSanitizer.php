@@ -62,7 +62,7 @@ class XssSanitizer
         }
 
         if ($key === 'description') {
-            if ($request->is('api/tickets')) {
+            if ($request->is('api/tickets') || $request->is('api/size-guides*')) {
                 return true;
             }
         }

@@ -220,7 +220,7 @@ class AdminDashboardController extends Controller
             $openTickets += Ticket::whereIn('status', ['pending', 'processing'])->count();
         }
         if (class_exists('\\App\\Models\\ProductComment')) {
-            $openTickets += ProductComment::where('is_approved', 0)->count();
+            $openTickets += \App\Models\ProductComment::where('is_approved', 0)->count();
         }
 
         // Yêu cầu liên hệ chưa phản hồi (status = pending)
