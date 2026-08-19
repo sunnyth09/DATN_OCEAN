@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SizeGuide;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class SizeGuideController extends Controller
 {
@@ -47,6 +48,8 @@ class SizeGuideController extends Controller
             Category::whereIn('category_id', $request->category_ids)->update(['size_guide_id' => $sizeGuide->id]);
         }
 
+        Cache::flush();
+
         return response()->json([
             '_status' => 200,
             'message' => 'Tạo bảng size thành công',
@@ -80,6 +83,8 @@ class SizeGuideController extends Controller
             Category::whereIn('category_id', $request->category_ids)->update(['size_guide_id' => $id]);
         }
 
+        Cache::flush();
+
         return response()->json([
             '_status' => 200,
             'message' => 'Cập nhật bảng size thành công',
@@ -98,6 +103,8 @@ class SizeGuideController extends Controller
         Category::where('size_guide_id', $id)->update(['size_guide_id' => null]);
         
         $sizeGuide->delete();
+
+        Cache::flush();
 
         return response()->json([
             '_status' => 200,
