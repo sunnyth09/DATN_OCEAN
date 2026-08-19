@@ -101,7 +101,6 @@ class LoyaltyProvider extends ChangeNotifier {
       });
 
       if (res.data['status'] == 'success') {
-        // Cập nhật lại data sau khi đổi quà thành công
         await fetchLoyaltyData();
         return true;
       }
@@ -115,6 +114,49 @@ class LoyaltyProvider extends ChangeNotifier {
     } finally {
       _isRedeeming = false;
       notifyListeners();
+    }
+  }
+
+  Future<List<dynamic>> fetchLuckyWheelPrizes() async {
+    try {
+      final res = await ApiClient().dio.get('/loyalty/lucky-wheel');
+      if (res.data['status'] == 'success') {
+        return res.data['data'] ?? [];
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching wheel prizes: $e');
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>> spinLuckyWheel() async {
+    try {
+      final res = await ApiClient().dio.post('/loyalty/lucky-wheel/spin');
+      if (res.data['status'] == 'success') {
+        // Update local points
+        _points = res.data['data']['reward_points'] ?? _points;
+        notifyListeners();
+        return {
+          'success': true,
+          'prize_index': res.data['data']['prize_index'],
+          'prize': res.data['data']['prize'],
+        };
+      }
+      return {
+        'success': false,
+        'message': res.data['message'] ?? 'Có lỗi xảy ra',
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Lỗi kết nối',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Đã có lỗi xảy ra',
+      };
     }
   }
 }

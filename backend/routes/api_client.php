@@ -287,6 +287,8 @@ Route::get('/loyalty/rules', [LoyaltyController::class, 'rules']);
 
 // Routes yêu cầu đăng nhập
 Route::middleware('auth:api')->prefix('loyalty')->group(function () {
+    Route::get('/lucky-wheel', [LoyaltyController::class, 'luckyWheelPrizes']);   // Danh sách quà vòng quay
+    Route::post('/lucky-wheel/spin', [LoyaltyController::class, 'spinLuckyWheel']); // Quay vòng quay
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
     Route::post('/check-in', [LoyaltyController::class, 'checkIn']);      // Điểm danh
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch

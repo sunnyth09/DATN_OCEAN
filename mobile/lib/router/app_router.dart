@@ -32,6 +32,7 @@ import '../screens/onboarding_screen.dart';
 import '../screens/search_screen.dart';
 import '../screens/create_return_request_screen.dart';
 import '../screens/loyalty_screen.dart';
+import '../screens/lucky_wheel_screen.dart';
 import '../screens/chat_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -242,6 +243,11 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/notification',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const NotificationScreen(),
+      ),
+      GoRoute(
+        path: '/lucky-wheel',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const LuckyWheelScreen(),
       ),
       GoRoute(
         path: '/pos-scanner',

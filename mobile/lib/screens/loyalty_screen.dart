@@ -208,6 +208,64 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
     );
   }
 
+  Widget _buildLuckyWheelBanner() {
+    return GestureDetector(
+      onTap: () {
+        context.push('/lucky-wheel');
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFF6D365), Color(0xFFFDA085)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFDA085).withValues(alpha: 0.4),
+              blurRadius: 10,
+              spreadRadius: 2,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.casino_rounded, color: Colors.white, size: 48),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Vòng Quay May Mắn',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Thử vận may - Nhận quà liền tay',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
 
   Widget build(BuildContext context) {
@@ -328,6 +386,10 @@ class _LoyaltyScreenState extends State<LoyaltyScreen> {
 
               // Daily Check In
               _buildDailyCheckIn(provider),
+
+              // Lucky Wheel Banner
+              _buildLuckyWheelBanner(),
+
 
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 12, 20, 12),
