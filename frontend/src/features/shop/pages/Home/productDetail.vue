@@ -832,6 +832,12 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <div v-if="availableSizes.length === 0 && sizeGuideType !== 'default'" style="margin-bottom: 16px; text-align: right;">
+          <button type="button" @click="showSizeGuide = true" class="pd-var-label" style="background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 0; text-decoration: underline; color: #E63B6F;">
+            Hướng dẫn chọn size
+          </button>
+        </div>
+
         <!-- Số lượng -->
         <div class="pd-qty-row">
           <span class="pd-qty-label">Số lượng</span>
