@@ -4,6 +4,7 @@ import api from '@/axios';
 import Swal from 'sweetalert2';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import AdminCategoryFormTree from '@/components/AdminCategoryFormTree.vue';
 
 const sizeGuides = ref([]);
 const categories = ref([]);
