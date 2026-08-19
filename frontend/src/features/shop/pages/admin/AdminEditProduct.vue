@@ -524,8 +524,8 @@ onMounted(() => { handleFetchCategories(); handleFetchBrands(); fetchProduct(); 
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Mã Sản Phẩm (SKU)</label>
-                                    <input type="text" v-model="product.sku" class="form-control" placeholder="Ví dụ: V-001" />
+                                    <label>Mã Sản Phẩm (SKU) - Tự động tạo</label>
+                                    <input type="text" v-model="product.sku" class="form-control" disabled style="background-color: #e9ecef; cursor: not-allowed;" />
                                 </div>
                             </div>
                             <div class="col-md-6">

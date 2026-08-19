@@ -703,18 +703,7 @@ onMounted(() => {
                     >
                         <h3 class="card-title">Thông Số Kỹ Thuật</h3>
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Mã Sản Phẩm (SKU)</label>
-                                    <input
-                                        type="text"
-                                        v-model="product.sku"
-                                        class="form-control"
-                                        placeholder="Ví dụ: V-001"
-                                    />
-                                </div>
-                            </div>
-                            <div class="col-md-6">
+                            <div class="col-md-12">
                                 <div class="form-group">
                                     <label>Trọng Lượng (gram)</label>
                                     <input
