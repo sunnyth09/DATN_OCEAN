@@ -909,11 +909,10 @@ onBeforeUnmount(() => {
       <div class="pd-tab-bar">
         <button class="pd-tab" :class="{ active: activeTab === 'description' }" @click="activeTab = 'description'">Mô tả
           chi tiết</button>
-        <button class="pd-tab" :class="{ active: activeTab === 'specs' }" @click="activeTab = 'specs'">Thông số kỹ
-          thuật</button>
         <button class="pd-tab" :class="{ active: activeTab === 'reviews' }" @click="activeTab = 'reviews'">Đánh giá
           khách hàng ({{ product.rating_count || 0 }})</button>
       </div>
+
 
       <div class="pd-tab-content">
         <!-- Tab: Mô tả -->
@@ -961,40 +960,12 @@ onBeforeUnmount(() => {
                 <td>Xuất xứ</td>
                 <td>{{ product.origin }}</td>
               </tr>
+              <tr v-if="product.style">
+                <td>Kiểu dáng</td>
+                <td>{{ product.style }}</td>
+              </tr>
             </table>
           </div>
-        </div>
-
-        <!-- Tab: Thông số -->
-        <div v-if="activeTab === 'specs'" class="pd-specs-full">
-          <table class="pd-specs-table full">
-            <tr v-if="product.category">
-              <td>Danh mục</td>
-              <td>{{ product.category.name }}</td>
-            </tr>
-            <tr v-if="product.brand">
-              <td>Thương hiệu</td>
-              <td>{{ product.brand?.name || product.brand }}</td>
-            </tr>
-            <tr v-if="product.sku">
-              <td>Mã SKU</td>
-              <td>{{ product.sku }}</td>
-            </tr>
-            <tr v-if="product.weight">
-              <td>Trọng lượng</td>
-              <td>{{ product.weight }}</td>
-            </tr>
-            <tr v-if="product.material">
-              <td>Chất liệu</td>
-              <td>{{ product.material }}</td>
-            </tr>
-            <tr v-if="product.origin">
-              <td>Xuất xứ</td>
-              <td>{{ product.origin }}</td>
-            </tr>
-          </table>
-          <div class="pd-desc-text expanded" v-if="product.short_description" v-html="safeShortDescription"
-            style="margin-top:24px"></div>
         </div>
 
         <!-- Tab: Đánh giá -->
@@ -1059,7 +1030,7 @@ onBeforeUnmount(() => {
       <div v-if="showSizeGuide" class="modal-overlay" @click.self="showSizeGuide = false">
         <div class="modal-content size-modal">
           <div class="modal-header">
-            <h2 class="modal-title">Bảng size tham khảo (Vóc dáng người Việt)</h2>
+            <h2 class="modal-title">Bảng size tham khảo</h2>
             <button class="modal-close" @click="showSizeGuide = false">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                 stroke-linecap="round">
@@ -1190,7 +1161,43 @@ onBeforeUnmount(() => {
                 </template>
               </table>
             </div>
-            <div class="size-tips">
+            <div class="size-tips" v-if="sizeGuideType === 'shoes'">
+              <div class="tip-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                <span>Nên đo chiều dài chân vào buổi chiều tối để có kích thước chuẩn xác nhất.</span>
+              </div>
+              <div class="tip-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                <span>Nếu form chân bè, dày hoặc thường mang bít tất (vớ) dày, bạn nên chọn lớn hơn 1 size.</span>
+              </div>
+            </div>
+            <div class="size-tips" v-else-if="sizeGuideType === 'racket'">
+              <div class="tip-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                <span>Chu vi cán vợt ảnh hưởng trực tiếp đến cảm giác vung và kiểm soát cầu/bóng.</span>
+              </div>
+              <div class="tip-item">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                <span>Nên chọn cán vừa tay. Nếu phân vân, hãy chọn cán nhỏ hơn (bạn luôn có thể quấn thêm băng quấn).</span>
+              </div>
+            </div>
+            <div class="size-tips" v-else-if="sizeGuideType === 'clothes'">
               <div class="tip-item">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F"
                   stroke-width="2">

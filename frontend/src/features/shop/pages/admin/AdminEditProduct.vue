@@ -131,6 +131,11 @@ const product = reactive({
     product_type: "simple",
     status: "draft",
     is_featured: false,
+    sku: "",
+    weight: "",
+    material: "",
+    origin: "",
+    style: "",
     price: "",
     compare_at_price: "",
     stock: "",
@@ -189,6 +194,11 @@ const fetchProduct = async () => {
         product.product_type = p.product_type || "simple";
         product.status = p.status || "draft";
         product.is_featured = !!p.is_featured;
+        product.sku = p.sku || "";
+        product.weight = p.weight || "";
+        product.material = p.material || "";
+        product.origin = p.origin || "";
+        product.style = p.style || "";
         product.thumbnail_url = p.thumbnail_url || "";
         product.imagePreview = p.thumbnail_url ? buildMedia(p.thumbnail_url) : "";
 
@@ -391,6 +401,11 @@ const handleSubmit = async () => {
     fd.append("product_type", product.product_type);
     fd.append("status", product.status);
     fd.append("is_featured", product.is_featured ? "1" : "0");
+    fd.append("sku", product.sku || "");
+    fd.append("weight", product.weight || "");
+    fd.append("material", product.material || "");
+    fd.append("origin", product.origin || "");
+    fd.append("style", product.style || "");
 
     if (product.thumbnail_url instanceof File) fd.append("thumbnail", product.thumbnail_url);
 
@@ -500,6 +515,45 @@ onMounted(() => { handleFetchCategories(); handleFetchBrands(); fetchProduct(); 
                         <div class="form-group">
                             <label>Mô Tả Chi Tiết</label>
                             <div class="quill-wrapper editor-long"><div ref="editorLong"></div></div>
+                        </div>
+                    </div>
+
+                    <!-- Tech Specs -->
+                    <div class="ocean-card form-card animate-in" style="animation-delay: 0.15s">
+                        <h3 class="card-title">Thông Số Kỹ Thuật</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Mã Sản Phẩm (SKU)</label>
+                                    <input type="text" v-model="product.sku" class="form-control" placeholder="Ví dụ: V-001" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Trọng Lượng (gram)</label>
+                                    <input type="number" v-model="product.weight" class="form-control" placeholder="Ví dụ: 300" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Chất Liệu</label>
+                                    <input type="text" v-model="product.material" class="form-control" placeholder="Ví dụ: Cotton" />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Xuất Xứ</label>
+                                    <input type="text" v-model="product.origin" class="form-control" placeholder="Ví dụ: Việt Nam" />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Kiểu Dáng</label>
+                                    <input type="text" v-model="product.style" class="form-control" placeholder="Ví dụ: Slim Fit" />
+                                </div>
+                            </div>
                         </div>
                     </div>
 

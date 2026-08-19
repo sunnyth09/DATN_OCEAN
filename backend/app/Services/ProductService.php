@@ -410,6 +410,11 @@ class ProductService
                 'product_type' => $request->product_type,
                 'status' => $request->status,
                 'is_featured' => $request->boolean('is_featured'),
+                'sku' => $request->sku,
+                'weight' => $request->weight ?? 0,
+                'material' => $request->material,
+                'origin' => $request->origin,
+                'style' => $request->style,
                 'min_price' => 0,
                 'max_price' => 0,
             ]);
@@ -503,6 +508,11 @@ class ProductService
                 'product_type' => $request->product_type,
                 'status' => $request->status,
                 'is_featured' => $request->boolean('is_featured'),
+                'sku' => $request->sku,
+                'weight' => $request->weight ?? 0,
+                'material' => $request->material,
+                'origin' => $request->origin,
+                'style' => $request->style,
             ]);
 
             // Xóa gallery cũ
