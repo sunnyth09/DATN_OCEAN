@@ -425,18 +425,40 @@ const deleteGuide = async (id) => {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);
     display: flex; align-items: center; justify-content: center; z-index: 1000;
+    overflow-y: auto; padding: 24px 0;
 }
-.modal-box.modal-xl { width: 100%; max-width: 800px; max-height: 90vh; display: flex; flex-direction: column; }
-.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-color); flex-shrink: 0;}
-.btn-close { background: none; border: none; cursor: pointer; color: var(--text-muted); }
-.modal-body.custom-scroll { padding: 24px; overflow-y: auto; flex: 1;}
+.modal-box.modal-xl { 
+    width: 100%; max-width: 700px; padding: 0;
+    border-radius: 16px; overflow: hidden;
+    margin: auto; background: var(--card-bg, #fff);
+}
+.modal-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 24px; border-bottom: 1px solid var(--border-color);
+}
+.modal-head h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main); margin: 0; }
+.btn-close {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+    padding: 4px; border-radius: 6px; transition: all 0.2s;
+}
+.btn-close:hover { background: var(--hover-bg); color: var(--coral); }
+
+.modal-body.custom-scroll { padding: 24px; }
 .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-group { margin-bottom: 16px; }
-.form-group label { display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 8px; }
-.form-control { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); }
-.form-control-sm { padding: 6px 10px; font-size: 0.85rem;}
+.form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px; }
+.required { color: var(--coral); }
+.form-control {
+    width: 100%; padding: 10px 14px; border-radius: 8px;
+    border: 1px solid var(--border-color); background: var(--ocean-deepest);
+    color: var(--text-main); font-family: var(--font-inter);
+    font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box;
+}
+.form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1); }
+.form-control-sm { padding: 8px 12px; font-size: 0.85rem;}
 .form-select-multi { padding: 6px; }
-.form-select-multi option { padding: 6px 10px; }
+.form-select-multi option { padding: 8px 12px; }
 
 /* Builder */
 .table-builder, .tips-builder { background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); }
@@ -455,12 +477,23 @@ const deleteGuide = async (id) => {
 .tip-list { display: flex; flex-direction: column; gap: 10px; }
 .tip-item { display: flex; align-items: center; gap: 10px; background: white; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);}
 .tip-icon { font-size: 1.2rem; }
-.btn-outline { padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color); background: white; cursor: pointer; }
-.modal-footer { margin-top: 0; padding-top: 16px; border-top: 1px solid var(--border-color); }
+.btn-outline {
+    padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: var(--ocean-deepest); color: var(--text-main);
+    font-family: var(--font-inter); font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+}
+.btn-outline:hover { border-color: var(--text-light); }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 
 .text-center { text-align: center; }
 .py-4 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
 .mt-2 { margin-top: 0.5rem; }
 .mt-4 { margin-top: 1.5rem; }
 .mt-3 { margin-top: 1rem; }
+
+/* Modal Transition */
+.modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.modal-enter-from .modal-box, .modal-leave-to .modal-box { transform: scale(0.95) translateY(10px); }
 </style>
