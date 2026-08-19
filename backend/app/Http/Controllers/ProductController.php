@@ -301,4 +301,25 @@ class ProductController extends Controller
     {
         return $this->productService->downloadTemplate();
     }
+
+    /**
+     * Upload ảnh cho editor mô tả sản phẩm (Quill)
+     */
+    public function uploadEditorImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+        ], [
+            'image.required' => 'Vui lòng chọn ảnh.',
+            'image.image' => 'File phải là ảnh.',
+            'image.mimes' => 'Chỉ hỗ trợ định dạng: JPEG, PNG, JPG, GIF, WEBP.',
+            'image.max' => 'Ảnh không được vượt quá 4MB.',
+        ]);
+
+        $path = $request->file('image')->store('product_descriptions', 'public');
+
+        return response()->json([
+            'url' => '/storage/' . $path,
+        ]);
+    }
 }

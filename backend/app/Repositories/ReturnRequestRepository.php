@@ -92,6 +92,7 @@ class ReturnRequestRepository
             'items.variant',
             'refundTransactions',
             'user',
+            'user.bankAccounts',
         ])->find($id);
     }
 

@@ -491,6 +491,15 @@ onMounted(() => {
           <p><strong>Số tiền đơn hàng:</strong> {{ formatPrice(detail.order?.grand_total) }}</p>
           <p v-if="Number(detail.refund_amount || 0) > 0"><strong>{{ refundAmountLabel }}</strong> {{ formatPrice(detail.refund_amount) }}</p>
           <p v-if="detail.refund_method"><strong>Phương thức:</strong> {{ getRefundMethodLabel(detail.refund_method) }}</p>
+          
+          <div v-if="detail.refund_method === 'bank_transfer' && detail.user?.bank_accounts?.length" style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+            <p style="color: var(--text-muted); font-size: 0.85rem; font-weight: 700; margin-bottom: 6px;">THÔNG TIN CHUYỂN KHOẢN (MẶC ĐỊNH):</p>
+            <div v-for="bank in detail.user.bank_accounts.filter(b => b.is_default)" :key="bank.id" style="background: var(--surface-container-low); padding: 10px; border-radius: 8px; font-size: 0.9rem;">
+              <p style="margin: 0 0 4px 0;">Ngân hàng: <strong>{{ bank.bank_name }}</strong></p>
+              <p style="margin: 0 0 4px 0;">STK: <strong>{{ bank.account_number }}</strong></p>
+              <p style="margin: 0;">Chủ TK: <strong>{{ bank.account_name }}</strong></p>
+            </div>
+          </div>
         </div>
       </aside>
     </div>

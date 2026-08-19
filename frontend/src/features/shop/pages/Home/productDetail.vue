@@ -38,6 +38,16 @@ const addingToCart = ref(false);
 const buyingNow = ref(false);
 const cartVersion = ref(0);
 const showSizeGuide = ref(false);
+const sizeGuideType = computed(() => {
+  const catName = product.value?.category?.name?.toLowerCase() || '';
+  const prodName = product.value?.name?.toLowerCase() || '';
+  const text = catName + ' ' + prodName;
+  if (text.includes('giày') || text.includes('shoe')) return 'shoes';
+  if (text.includes('áo') || text.includes('quần') || text.includes('trang phục')) return 'clothes';
+  if (text.includes('vợt') || text.includes('racket')) return 'racket';
+  return 'default';
+});
+
 
 const { showToast } = useToast();
 const { isFavorited, toggleFavorite } = useFavorites();
@@ -799,7 +809,7 @@ onBeforeUnmount(() => {
 
         <!-- Variant chips -->
         <div class="pd-variants" v-if="uniqueColors.length > 0">
-          <h4 class="pd-var-label">Phân bản / Màu sắc</h4>
+          <h4 class="pd-var-label">Màu sắc</h4>
           <div class="pd-var-options">
             <button v-for="color in uniqueColors" :key="color" class="pd-var-btn"
               :class="{ active: selectedColor === color }"
@@ -808,7 +818,12 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="pd-variants" v-if="availableSizes.length > 0">
-          <h4 class="pd-var-label">Kích cỡ</h4>
+          <div class="pd-var-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h4 class="pd-var-label" style="margin-bottom: 0;">Kích cỡ</h4>
+            <button v-if="sizeGuideType !== 'default'" type="button" @click="showSizeGuide = true" class="pd-var-label" style="background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 0; text-decoration: underline;">
+              Hướng dẫn chọn size
+            </button>
+          </div>
           <div class="pd-var-options">
             <button v-for="s in availableSizes" :key="s.size" class="pd-var-btn"
               :class="{ active: selectedSize === s.size, disabled: !s.available }" :disabled="!s.available"
@@ -1059,46 +1074,120 @@ onBeforeUnmount(() => {
 
             <div class="table-responsive">
               <table class="size-table">
-                <thead>
-                  <tr>
-                    <th>Size</th>
-                    <th>Cân nặng (kg)</th>
-                    <th>Chiều cao (cm)</th>
-                    <th>Gợi ý form dáng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>S</strong></td>
-                    <td>45 - 52 kg</td>
-                    <td>Dưới 1m60</td>
-                    <td>Ôm gọn, tôn dáng</td>
-                  </tr>
-                  <tr>
-                    <td><strong>M</strong></td>
-                    <td>53 - 59 kg</td>
-                    <td>1m60 - 1m65</td>
-                    <td>Vừa vặn, thoải mái</td>
-                  </tr>
-                  <tr>
-                    <td><strong>L</strong></td>
-                    <td>60 - 68 kg</td>
-                    <td>1m66 - 1m72</td>
-                    <td>Thoải mái vận động</td>
-                  </tr>
-                  <tr>
-                    <td><strong>XL</strong></td>
-                    <td>69 - 76 kg</td>
-                    <td>1m73 - 1m78</td>
-                    <td>Rộng rãi, che khuyết điểm</td>
-                  </tr>
-                  <tr>
-                    <td><strong>XXL</strong></td>
-                    <td>Trên 76 kg</td>
-                    <td>Trên 1m78</td>
-                    <td>Oversize trần viền rộng rãi</td>
-                  </tr>
-                </tbody>
+                <template v-if="sizeGuideType === 'shoes'">
+                  <thead>
+                    <tr>
+                      <th>Size</th>
+                      <th>Chiều dài chân (cm)</th>
+                      <th>Gợi ý form dáng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>38</strong></td>
+                      <td>23.5 - 24 cm</td>
+                      <td>Vừa vặn</td>
+                    </tr>
+                    <tr>
+                      <td><strong>39</strong></td>
+                      <td>24 - 24.5 cm</td>
+                      <td>Vừa vặn</td>
+                    </tr>
+                    <tr>
+                      <td><strong>40</strong></td>
+                      <td>24.5 - 25 cm</td>
+                      <td>Vừa vặn</td>
+                    </tr>
+                    <tr>
+                      <td><strong>41</strong></td>
+                      <td>25.5 - 26 cm</td>
+                      <td>Vừa vặn</td>
+                    </tr>
+                    <tr>
+                      <td><strong>42</strong></td>
+                      <td>26 - 26.5 cm</td>
+                      <td>Vừa vặn</td>
+                    </tr>
+                    <tr>
+                      <td><strong>43</strong></td>
+                      <td>27 - 27.5 cm</td>
+                      <td>Vừa vặn</td>
+                    </tr>
+                    <tr>
+                      <td><strong>44</strong></td>
+                      <td>27.5 - 28 cm</td>
+                      <td>Vừa vặn</td>
+                    </tr>
+                  </tbody>
+                </template>
+                <template v-else-if="sizeGuideType === 'clothes'">
+                  <thead>
+                    <tr>
+                      <th>Size</th>
+                      <th>Cân nặng (kg)</th>
+                      <th>Chiều cao (cm)</th>
+                      <th>Gợi ý form dáng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>S</strong></td>
+                      <td>45 - 52 kg</td>
+                      <td>Dưới 1m60</td>
+                      <td>Ôm gọn, tôn dáng</td>
+                    </tr>
+                    <tr>
+                      <td><strong>M</strong></td>
+                      <td>53 - 59 kg</td>
+                      <td>1m60 - 1m65</td>
+                      <td>Vừa vặn, thoải mái</td>
+                    </tr>
+                    <tr>
+                      <td><strong>L</strong></td>
+                      <td>60 - 68 kg</td>
+                      <td>1m66 - 1m72</td>
+                      <td>Thoải mái vận động</td>
+                    </tr>
+                    <tr>
+                      <td><strong>XL</strong></td>
+                      <td>69 - 76 kg</td>
+                      <td>1m73 - 1m78</td>
+                      <td>Rộng rãi, che khuyết điểm</td>
+                    </tr>
+                    <tr>
+                      <td><strong>XXL</strong></td>
+                      <td>Trên 76 kg</td>
+                      <td>Trên 1m78</td>
+                      <td>Oversize rộng rãi</td>
+                    </tr>
+                  </tbody>
+                </template>
+                <template v-else-if="sizeGuideType === 'racket'">
+                  <thead>
+                    <tr>
+                      <th>Size Cán (Grip)</th>
+                      <th>Chu vi cán vợt</th>
+                      <th>Đối tượng khuyên dùng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>G4</strong></td>
+                      <td>3.25 inch (~8.25 cm)</td>
+                      <td>Người lớn tay trung bình (phổ biến nhất)</td>
+                    </tr>
+                    <tr>
+                      <td><strong>G5</strong></td>
+                      <td>3.12 inch (~7.90 cm)</td>
+                      <td>Người lớn tay nhỏ, thích xoay vợt linh hoạt</td>
+                    </tr>
+                    <tr>
+                      <td><strong>G6</strong></td>
+                      <td>3.00 inch (~7.60 cm)</td>
+                      <td>Trẻ em hoặc phụ nữ có bàn tay rất nhỏ</td>
+                    </tr>
+                  </tbody>
+                </template>
               </table>
             </div>
             <div class="size-tips">
@@ -1683,8 +1772,16 @@ onBeforeUnmount(() => {
   max-height: 5000px;
 }
 
-.pd-desc-text p {
+.pd-desc-text :deep(p) {
   margin-bottom: 12px;
+}
+
+.pd-desc-text :deep(img) {
+  max-width: 40%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px auto;
+  display: block;
 }
 
 .pd-desc-fade {

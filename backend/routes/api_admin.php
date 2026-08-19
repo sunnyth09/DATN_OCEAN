@@ -260,6 +260,7 @@ Route::middleware(['auth:api,admin', 'role:admin,staff'])->group(function () {
     Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
     Route::delete('categories/{id}/image', [CategoryController::class, 'deleteImage']);
 
+    Route::post('products/upload-editor-image', [ProductController::class, 'uploadEditorImage']);
     Route::post('products', [ProductController::class, 'store']);
     Route::post('products/{id}', [ProductController::class, 'update']); // Use POST for multipart/form-data with _method=PUT
     Route::delete('products/{id}', [ProductController::class, 'destroy']);

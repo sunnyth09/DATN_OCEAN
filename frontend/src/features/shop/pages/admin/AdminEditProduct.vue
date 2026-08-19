@@ -19,9 +19,67 @@ const initQuill = () => {
             [{ header: [1, 2, 3, false] }],
             ["bold", "italic", "underline"],
             [{ list: "ordered" }, { list: "bullet" }],
-            ["link"],
+            ["link", "image"],
         ],
     };
+
+    const uploadFileToEditor = async (file, quillInstance) => {
+        if (file.size > 4 * 1024 * 1024) {
+            Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Ảnh không được vượt quá 4MB.', icon: 'error', showConfirmButton: false, timer: 3000 });
+            return;
+        }
+        const fd = new FormData();
+        fd.append("image", file);
+        try {
+            const res = await api.post("/products/upload-editor-image", fd, { headers: { "Content-Type": "multipart/form-data" } });
+            let range = quillInstance.getSelection(true);
+            const url = `${getAppBaseUrl()}${res.data.url}`;
+            quillInstance.insertEmbed(range.index, "image", url);
+            quillInstance.setSelection(range.index + 1);
+        } catch (e) {
+            console.error("Upload image error:", e);
+            Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Không thể tải ảnh lên. Vui lòng thử lại.', icon: 'error', showConfirmButton: false, timer: 3000 });
+        }
+    };
+
+    const imageHandler = (quillInstance) => {
+        const input = document.createElement("input");
+        input.setAttribute("type", "file");
+        input.setAttribute("accept", "image/jpeg,image/png,image/jpg,image/gif,image/webp");
+        input.click();
+        input.onchange = async () => {
+            const file = input.files[0];
+            if (!file) return;
+            await uploadFileToEditor(file, quillInstance);
+        };
+    };
+
+    const setupDragAndPaste = (quillInstance) => {
+        quillInstance.root.addEventListener("paste", async (e) => {
+            if (e.clipboardData && e.clipboardData.items && e.clipboardData.items.length) {
+                for (let i = 0; i < e.clipboardData.items.length; i++) {
+                    const item = e.clipboardData.items[i];
+                    if (item.type.startsWith("image/")) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (file) await uploadFileToEditor(file, quillInstance);
+                    }
+                }
+            }
+        });
+        quillInstance.root.addEventListener("drop", async (e) => {
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+                for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                    const file = e.dataTransfer.files[i];
+                    if (file.type.startsWith("image/")) {
+                        e.preventDefault();
+                        await uploadFileToEditor(file, quillInstance);
+                    }
+                }
+            }
+        });
+    };
+
     if (editorShort.value && !quillShort) {
         quillShort = new Quill(editorShort.value, {
             theme: "snow",
@@ -32,6 +90,8 @@ const initQuill = () => {
         quillShort.on("text-change", () => {
             product.short_description = quillShort.root.innerHTML === "<p><br></p>" ? "" : quillShort.root.innerHTML;
         });
+        quillShort.getModule("toolbar").addHandler("image", () => imageHandler(quillShort));
+        setupDragAndPaste(quillShort);
     }
     if (editorLong.value && !quillLong) {
         quillLong = new Quill(editorLong.value, {
@@ -43,6 +103,8 @@ const initQuill = () => {
         quillLong.on("text-change", () => {
             product.description = quillLong.root.innerHTML === "<p><br></p>" ? "" : quillLong.root.innerHTML;
         });
+        quillLong.getModule("toolbar").addHandler("image", () => imageHandler(quillLong));
+        setupDragAndPaste(quillLong);
     }
 };
 
@@ -851,6 +913,13 @@ onMounted(() => { handleFetchCategories(); handleFetchBrands(); fetchProduct(); 
 .editor-short :deep(.ql-editor) { min-height: 100px; max-height: 250px; }
 .editor-long :deep(.ql-editor) {
     min-height: 250px;
+}
+.quill-wrapper :deep(.ql-editor img) {
+    max-width: 30%;
+    height: auto;
+    border-radius: 6px;
+    margin: 8px auto;
+    display: block;
 }
 
 /* Sale Promo Styles */

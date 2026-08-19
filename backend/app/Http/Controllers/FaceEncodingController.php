@@ -184,8 +184,6 @@ class FaceEncodingController extends Controller
     public function management(Request $request): JsonResponse
     {
         $search = $request->input('search', '');
-
-        // Lấy tất cả nhân sự
         $query = Admin::query();
 
         if ($search) {
