@@ -288,7 +288,7 @@ const deleteGuide = async (id) => {
                             </div>
                             <div class="form-group">
                                 <label>Áp dụng cho Danh mục</label>
-                                <select v-model="form.category_id" class="form-control form-select" :class="{'is-invalid': errors.category_ids}">
+                                <select v-model="form.category_id" class="form-select" :class="{'is-invalid': errors.category_ids}">
                                     <option :value="null">— Chọn 1 danh mục —</option>
                                     <AdminCategoryFormTree :categories="categories" />
                                 </select>
