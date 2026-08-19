@@ -11,8 +11,7 @@ const isLoading = ref(true);
 const isModalOpen = ref(false);
 const isSubmitting = ref(false);
 const isEditing = ref(false);
-onMounted(() => {
-    fetchData();
+
 
 const form = ref({
     id: null,
