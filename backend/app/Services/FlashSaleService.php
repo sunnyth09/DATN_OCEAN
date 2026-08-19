@@ -21,14 +21,15 @@ class FlashSaleService
         $data = Cache::remember('flash_sale_public_list', 5, function () {
             $campaigns = FlashSale::whereIn('status', ['active', 'draft'])
                 ->where('end_time', '>', now())
-                ->with(['items.product'])
+                ->with(['items.product.category', 'items.product.mainImage'])
                 ->orderBy('start_time', 'asc')
                 ->get();
 
             $formatted = [];
             foreach ($campaigns as $fs) {
                 foreach ($fs->items as $item) {
-                    $originalPrice = $item->product ? ($item->product->min_price ?? 0) : 0;
+                    $product = $item->product;
+                    $originalPrice = $product ? ($product->min_price ?? 0) : 0;
                     $discountPct = $originalPrice > 0 ? round((($originalPrice - $item->campaign_price) / $originalPrice) * 100) : 0;
 
                     $stockKey = "flash_sale_{$fs->id}_product_{$item->product_id}_stock";
@@ -40,17 +41,28 @@ class FlashSaleService
                         'item_id' => $item->id,
                         'product_id' => $item->product_id,
                         'title' => $fs->name,
-                        'product_name' => $item->product->name ?? 'Sản phẩm Flash Sale',
-                        'product_thumbnail' => $item->product->thumbnail_url ?? null,
+                        'name' => $product->name ?? 'Sản phẩm Flash Sale',
+                        'product_name' => $product->name ?? 'Sản phẩm Flash Sale',
+                        'slug' => $product->slug ?? null,
+                        'product_thumbnail' => $product->thumbnail_url ?? null,
+                        'thumbnail_url' => $product->thumbnail_url ?? null,
+                        'image_url' => $product->thumbnail_url ?? null,
                         'sale_price' => (float) $item->campaign_price,
+                        'flash_price' => (float) $item->campaign_price,
+                        'min_price' => (float) $item->campaign_price,
                         'original_price' => (float) $originalPrice,
                         'discount_percent' => $discountPct,
                         'total_stock' => $item->campaign_stock,
+                        'total_quantity' => $item->campaign_stock,
+                        'sold' => max(0, $item->campaign_stock - $remaining),
                         'sold_count' => max(0, $item->campaign_stock - $remaining),
                         'max_per_user' => self::MAX_PER_USER,
                         'starts_at' => $fs->start_time->toISOString(),
                         'ends_at' => $fs->end_time->toISOString(),
+                        'start_time' => $fs->start_time->toISOString(),
+                        'end_time' => $fs->end_time->toISOString(),
                         'status' => $fs->status,
+                        'category_name' => $product->category->name ?? '',
                         'server_time' => now()->toISOString(),
                     ];
                 }

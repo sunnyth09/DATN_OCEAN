@@ -35,6 +35,11 @@ export const orderService = {
     return api.get(`/profile/orders/${orderCode}/order-id`);
   },
 
+  // Lấy thông tin đơn hàng (kể cả payment_status) theo order_code — dùng cho polling ở OrderSuccess
+  getOrderByCode(orderCode) {
+    return api.get(`/profile/orders/${orderCode}/order-id`);
+  },
+
   buyAgain(orderId) {
     return api.post(`/cart/buy-again/${orderId}`);
   },

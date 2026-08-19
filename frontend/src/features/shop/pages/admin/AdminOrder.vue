@@ -369,13 +369,21 @@ onMounted(() => {
       .listen('.OrderCreatedAdmin', (event) => {
         toast.info(`🛒 Có đơn hàng mới: ${event.order_code}`);
         if (pagination.value.current_page === 1 && (!currentStatus.value || currentStatus.value === 'pending')) {
-            orders.value.unshift({ 
-                ...event, 
+            orders.value.unshift({
+                ...event,
                 order_id: event.order_id,
-                is_new: true 
+                is_new: true
             });
             if (orders.value.length > 15) orders.value.pop();
         }
+      })
+      .listen('.OrderPaymentUpdated', (event) => {
+        // Cập nhật payment_status của đơn đã có trong list — không thêm row mới
+        const idx = orders.value.findIndex(o => o.order_id === event.order_id);
+        if (idx !== -1) {
+            orders.value[idx] = { ...orders.value[idx], payment_status: event.payment_status };
+        }
+        toast.success(`💳 Đơn hàng #${event.order_code} đã thanh toán thành công!`);
       });
   }
 });

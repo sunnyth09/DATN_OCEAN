@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\OrderPaymentUpdated;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Services\PaymentProcessingService;
@@ -47,9 +48,15 @@ class SepayController extends Controller
         $payload = $request->all();
 
         // 2. Extract transaction fields from SePay payload
-        $transferContent = $payload['code'] ?? $payload['content'] ?? $payload['description'] ?? ''; // Transfer content
-        $transferAmount = (float) ($payload['transferAmount'] ?? 0);      // Transferred amount
-        $transactionId = $payload['id'] ?? '';                           // Transaction code
+        // FIX #3: dùng filter() để bỏ qua cả null lẫn chuỗi rỗng "" — PHP ?? chỉ skip null.
+        $transferContent = collect([
+            $payload['code']        ?? null,
+            $payload['content']     ?? null,
+            $payload['description'] ?? null,
+        ])->filter(fn ($v) => ! empty($v))->first() ?? '';
+
+        $transferAmount = (float) ($payload['transferAmount'] ?? 0);  // Transferred amount
+        $transactionId  = (string) ($payload['id'] ?? '');            // Transaction code
 
         Log::info('SePay Webhook: Processing bank transfer', [
             'transaction_id' => $transactionId,
@@ -78,7 +85,8 @@ class SepayController extends Controller
 
         // 4. Update order and create payment record in database transaction
         try {
-            $response = DB::transaction(function () use ($orderCode, $transferAmount, $transactionId, $payload) {
+            $order = null;
+            $response = DB::transaction(function () use ($orderCode, $transferAmount, $transactionId, $payload, &$order) {
                 $order = Order::where('order_code', $orderCode)->lockForUpdate()->first();
 
                 if (! $order) {
@@ -120,11 +128,39 @@ class SepayController extends Controller
                     ]
                 );
 
-                // Clear cart, send email confirmation and send socket updates
-                $this->paymentService->dispatchPostPaymentActions($order);
-
                 return ['status' => 'success', 'message' => 'Payment processed successfully'];
             });
+
+            // FIX #1 & #2: Side-effects chạy SAU khi transaction commit.
+            // Nếu email/socket thất bại, payment vẫn được ghi nhận — không rollback.
+            if ($response['status'] === 'success' && $order) {
+                try {
+                    // FIX #2: Load đầy đủ relations cho email xác nhận có danh sách sản phẩm
+                    $order->loadMissing(['items', 'user']);
+                    $this->paymentService->dispatchPostPaymentActions($order);
+                    Log::info('SePay Webhook: Post-payment actions dispatched', [
+                        'order_code' => $order->order_code,
+                    ]);
+                } catch (\Throwable $e) {
+                    // Không throw — payment đã thành công, side-effects sẽ được
+                    // bù bởi Scheduler polling job nếu cần.
+                    Log::error('SePay Webhook: Post-payment side-effects failed (payment still recorded)', [
+                        'order_code' => $order->order_code,
+                        'error'      => $e->getMessage(),
+                    ]);
+                }
+
+                // Broadcast riêng để AdminOrder.vue cập nhật payment_status đúng row
+                // (khác OrderCreatedAdmin — không tạo row mới, chỉ update existing)
+                try {
+                    event(new OrderPaymentUpdated($order));
+                } catch (\Throwable $e) {
+                    Log::warning('SePay Webhook: OrderPaymentUpdated broadcast failed', [
+                        'order_code' => $order->order_code,
+                        'error'      => $e->getMessage(),
+                    ]);
+                }
+            }
 
             return response()->json($response);
 
@@ -224,17 +260,28 @@ class SepayController extends Controller
     /**
      * Extract payment code từ nội dung chuyển khoản.
      * Hỗ trợ: WDP (wallet deposit), ORD (order), DH (legacy order)
+     *
+     * Lưu ý: SePay thường strip dấu '-' khỏi nội dung chuyển khoản,
+     * nên 'ORD-F8C62FC5-916' → 'ORDF8C62FC5916'.
+     * Hàm này chuẩn hoá lại về đúng format DB.
      */
     private function extractPaymentCode(string $content): ?string
     {
-        // Wallet deposit: WDP prefix
+        // Wallet deposit: WDP prefix (không cần normalize)
         if (preg_match('/(WDP[A-Za-z0-9]+)/i', $content, $matches)) {
             return strtoupper($matches[1]);
         }
-        // Order: ORD prefix
-        if (preg_match('/(ORD[A-F0-9]+\d*)/i', $content, $matches)) {
-            return strtoupper($matches[1]);
+
+        // Order: ORD prefix — có thể dạng ORD-XXXX-YYY (có hyphen) hoặc ORDXXXXYYYY (không hyphen)
+        // Dạng đầy đủ với hyphen: ORD-[8 hex]-[3 số]
+        if (preg_match('/ORD-([A-F0-9]{8})-(\d{3})/i', $content, $matches)) {
+            return 'ORD-'.strtoupper($matches[1]).'-'.$matches[2];
         }
+        // Dạng SePay đã strip hyphen: ORD[8 hex][3 số] = 14 ký tự sau ORD = 11 ký tự
+        if (preg_match('/ORD([A-F0-9]{8})(\d{3})/i', $content, $matches)) {
+            return 'ORD-'.strtoupper($matches[1]).'-'.$matches[2];
+        }
+
         // Legacy: DH + digits
         if (preg_match('/(DH\d+)/i', $content, $matches)) {
             return strtoupper($matches[1]);

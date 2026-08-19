@@ -17,9 +17,10 @@ class SyncOceanExpressOrdersCommand extends Command
     {
         $this->info('Starting OceanExpress order sync fallback...');
 
-        $orders = Order::where('carrier', 'ocean_express')
+        $orders = Order::whereNotNull('tracking_number')
+            ->where('tracking_number', '!=', 'SELF-DELIVERY')
+            ->where('tracking_number', 'like', 'OE-%')
             ->whereIn('fulfillment_status', ['awaiting_pickup', 'shipping'])
-            ->whereNotNull('tracking_number')
             ->get();
 
         $count = $orders->count();

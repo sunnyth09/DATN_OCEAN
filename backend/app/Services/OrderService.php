@@ -79,6 +79,14 @@ class OrderService
         return $order?->order_id;
     }
 
+    /**
+     * Tra cứu Order object (kèm payment_status) theo order_code — dùng cho polling ở OrderSuccess.
+     */
+    public function getOrderByCode(int $userId, string $orderCode): ?Order
+    {
+        return $this->orderRepository->findByCodeAndUser($userId, $orderCode);
+    }
+
     public function createOrder(int $userId, array $data, Request $request): array
     {
         try {

@@ -13,11 +13,19 @@ class ProductController extends Controller
     ) {}
 
     /**
-     * Admin: danh sách sản phẩm (phân trang, tìm kiếm, lọc status)
+     * Danh sách sản phẩm (phân trang, tìm kiếm, lọc)
+     * Tự động điều hướng:
+     *  - Admin/Staff/Seller: xem toàn bộ sản phẩm với filter status tùy chọn
+     *  - Public/Khách hàng: chỉ xem sản phẩm active, whereNull(deleted_at)
      */
     public function index(Request $request)
     {
-        $result = $this->productService->listAdminProducts($request);
+        $user = auth('admin')->user() ?? auth('api')->user();
+        $isAdmin = $user && in_array($user->role, ['admin', 'staff', 'seller']);
+
+        $result = $isAdmin
+            ? $this->productService->listAdminProducts($request)
+            : $this->productService->listClientProducts($request);
 
         // Log search history if search term exists
         if ($request->filled('search')) {
@@ -54,6 +62,47 @@ class ProductController extends Controller
 
         return response()->json($result);
     }
+
+    /**
+     * Client (public): danh sách sản phẩm active (phân trang, tìm kiếm, lọc).
+     * Đây là endpoint công khai dùng cho trang sản phẩm và tìm kiếm của người dùng.
+     */
+    public function clientList(Request $request)
+    {
+        $result = $this->productService->listClientProducts($request);
+
+        // Ghi lịch sử tìm kiếm nếu có từ khoá
+        if ($request->filled('search')) {
+            $userId    = auth('api')->id();
+            $sessionId = $request->header('X-Session-ID') ?? $request->query('session_id');
+
+            if ($userId || $sessionId) {
+                $query = SearchHistory::where('keyword', $request->search);
+                $userId
+                    ? $query->where('user_id', $userId)
+                    : $query->where('session_id', $sessionId);
+
+                $record = $query->first();
+                if ($record) {
+                    $record->update([
+                        'updated_at'    => now(),
+                        'results_count' => $result['total'] ?? 0,
+                    ]);
+                } else {
+                    SearchHistory::create([
+                        'user_id'       => $userId,
+                        'session_id'    => $userId ? null : $sessionId,
+                        'keyword'       => $request->search,
+                        'results_count' => $result['total'] ?? 0,
+                    ]);
+                }
+            }
+        }
+
+        return response()->json($result);
+    }
+
+
 
     /**
      * Sản phẩm nổi bật (client — có limit)
