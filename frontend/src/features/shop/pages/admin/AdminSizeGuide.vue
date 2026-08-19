@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
@@ -11,6 +11,23 @@ const isLoading = ref(true);
 const isModalOpen = ref(false);
 const isSubmitting = ref(false);
 const isEditing = ref(false);
+const isDropdownOpen = ref(false);
+
+const dropdownRef = ref(null);
+const handleClickOutside = (event) => {
+    if (dropdownRef.value && !dropdownRef.value.contains(event.target)) {
+        isDropdownOpen.value = false;
+    }
+};
+
+onMounted(() => {
+    fetchData();
+    document.addEventListener('mousedown', handleClickOutside);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('mousedown', handleClickOutside);
+});
 
 const form = ref({
     id: null,
@@ -62,16 +79,16 @@ const fetchData = async () => {
     isLoading.value = false;
 };
 
-const flattenCategories = (nodes, prefix = '') => {
+const flattenCategories = (nodes, level = 0) => {
     if (!nodes || !Array.isArray(nodes)) return [];
     let result = [];
     nodes.forEach(node => {
         result.push({
             id: node.category_id || node.id,
-            name: prefix + (node.name || 'Danh mục')
+            name: '　'.repeat(level) + (level > 0 ? '└ ' : '') + (node.name || 'Danh mục')
         });
         if (node.children && Array.isArray(node.children) && node.children.length > 0) {
-            result = result.concat(flattenCategories(node.children, prefix + '-- '));
+            result = result.concat(flattenCategories(node.children, level + 1));
         }
     });
     return result;
@@ -304,12 +321,18 @@ const deleteGuide = async (id) => {
                             </div>
                             <div class="form-group">
                                 <label>Áp dụng cho Danh mục (Chọn nhiều)</label>
-                                <div class="category-list-scroll form-control">
-                                    <label v-for="cat in categories" :key="cat.id" class="cat-checkbox">
-                                        <input type="checkbox" :value="cat.id" v-model="form.category_ids" />
-                                        <span>{{ cat.name }}</span>
-                                    </label>
-                                    <div v-if="categories.length === 0" class="text-muted p-2">Không có danh mục nào.</div>
+                                <div class="custom-multi-select" ref="dropdownRef">
+                                    <div class="multi-select-header form-control form-select" @click="isDropdownOpen = !isDropdownOpen" :class="{'is-invalid': errors.category_ids}">
+                                        <span v-if="form.category_ids.length === 0">— Chọn danh mục —</span>
+                                        <span v-else>Đã chọn {{ form.category_ids.length }} danh mục</span>
+                                    </div>
+                                    <div class="multi-select-dropdown" v-show="isDropdownOpen">
+                                        <label v-for="cat in categories" :key="cat.id" class="cat-checkbox">
+                                            <input type="checkbox" :value="cat.id" v-model="form.category_ids" />
+                                            <span>{{ cat.name }}</span>
+                                        </label>
+                                        <div v-if="categories.length === 0" class="text-muted p-2">Không có danh mục nào.</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -483,14 +506,23 @@ const deleteGuide = async (id) => {
     color: #dc2626; font-size: 0.82rem; font-weight: 600;
 }
 
-.category-list-scroll {
-    height: 120px; overflow-y: auto; padding: 8px 12px;
-    display: flex; flex-direction: column; gap: 8px;
-    background: var(--ocean-deepest);
+/* Custom Multi Select Dropdown */
+.custom-multi-select { position: relative; }
+.multi-select-header {
+    cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    background-color: var(--ocean-deepest); color: var(--text-main);
+}
+.multi-select-dropdown {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+    max-height: 200px; overflow-y: auto; background: var(--ocean-deepest);
+    border: 1px solid var(--border-color); border-radius: 8px; margin-top: 4px;
+    padding: 8px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 8px;
 }
 .cat-checkbox {
     display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; color: var(--text-main); font-weight: 500;
+    padding: 4px 0;
 }
+.cat-checkbox:hover { opacity: 0.8; }
 
 .form-control-sm { padding: 8px 12px; font-size: 0.85rem;}
 
