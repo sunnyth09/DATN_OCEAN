@@ -60,7 +60,7 @@ const showToast = (message, type = 'success') => {
 const fetchData = async () => {
     isLoading.value = true;
     try {
-        const resSizes = await api.get('/admin/size-guides');
+        const resSizes = await api.get('/size-guides');
         sizeGuides.value = resSizes.data?.data || resSizes.data || [];
     } catch (error) {
         console.error('Lỗi tải bảng size:', error);
@@ -187,10 +187,10 @@ const handleSubmit = async () => {
         };
 
         if (isEditing.value) {
-            await api.put(`/admin/size-guides/${form.value.id}`, payload);
+            await api.put(`/size-guides/${form.value.id}`, payload);
             showToast('Cập nhật thành công!', 'success');
         } else {
-            await api.post('/admin/size-guides', payload);
+            await api.post('/size-guides', payload);
             showToast('Tạo thành công!', 'success');
         }
         await fetchData();
@@ -222,7 +222,7 @@ const deleteGuide = async (id) => {
     if (!result.isConfirmed) return;
 
     try {
-        await api.delete(`/admin/size-guides/${id}`);
+        await api.delete(`/size-guides/${id}`);
         showToast('Đã xóa bảng size!', 'success');
         await fetchData();
     } catch (error) {
