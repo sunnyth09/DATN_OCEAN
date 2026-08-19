@@ -13,18 +13,15 @@ const isSubmitting = ref(false);
 const isEditing = ref(false);
 onMounted(() => {
     fetchData();
-});
 
 const form = ref({
     id: null,
     name: '',
     description: '',
-    category_ids: [],
-    table_headers: ['Size', 'Gợi ý form dáng'],
-    table_rows: [
-        ['S', 'Vừa vặn']
-    ],
-    tips: ['Tip 1']
+    table_headers: [],
+    table_rows: [],
+    tips: [],
+    category_id: null
 });
 
 const formError = ref('');
@@ -64,8 +61,6 @@ const fetchData = async () => {
     isLoading.value = false;
 };
 
-
-
 onMounted(fetchData);
 
 const openCreateModal = () => {
@@ -76,12 +71,12 @@ const openCreateModal = () => {
         id: null,
         name: '',
         description: '',
-        category_ids: [],
         table_headers: ['Size', 'Chiều dài (cm)'],
         table_rows: [
             ['M', '65']
         ],
-        tips: ['Vui lòng chọn size theo bảng']
+        tips: ['Vui lòng chọn size theo bảng'],
+        category_id: null
     };
     isModalOpen.value = true;
 };
@@ -92,12 +87,12 @@ const openEditModal = (guide) => {
     errors.value = {};
     form.value = {
         id: guide.id,
-        name: guide.name,
+        name: guide.name || '',
         description: guide.description || '',
-        category_ids: guide.categories ? guide.categories.map(c => c.category_id) : [],
-        table_headers: guide.table_headers ? [...guide.table_headers] : ['Size', 'Chiều dài (cm)'],
-        table_rows: guide.table_rows ? JSON.parse(JSON.stringify(guide.table_rows)) : [['M', '65']],
-        tips: guide.tips ? [...guide.tips] : ['Vui lòng chọn size theo bảng']
+        table_headers: Array.isArray(guide.table_headers) ? [...guide.table_headers] : [],
+        table_rows: Array.isArray(guide.table_rows) ? JSON.parse(JSON.stringify(guide.table_rows)) : [],
+        tips: Array.isArray(guide.tips) ? [...guide.tips] : [],
+        category_id: guide.categories && guide.categories.length > 0 ? guide.categories[0].category_id : null
     };
     isModalOpen.value = true;
 };
@@ -146,7 +141,7 @@ const handleSubmit = async () => {
         return;
     }
 
-    isSubmitting.value = true;
+    const categoryIds = form.value.category_id ? [form.value.category_id] : [];
 
     try {
         const payload = {
@@ -155,7 +150,7 @@ const handleSubmit = async () => {
             table_headers: form.value.table_headers,
             table_rows: form.value.table_rows,
             tips: form.value.tips,
-            category_ids: form.value.category_ids
+            category_ids: categoryIds
         };
 
         if (isEditing.value) {
@@ -292,8 +287,9 @@ const deleteGuide = async (id) => {
                                 <span v-if="errors.name" class="field-error">{{ errors.name }}</span>
                             </div>
                             <div class="form-group">
-                                <label>Áp dụng cho Danh mục (Chọn nhiều bằng cách giữ phím Ctrl)</label>
-                                <select v-model="form.category_ids" multiple class="form-control" style="min-height: 180px;" :class="{'is-invalid': errors.category_ids}">
+                                <label>Áp dụng cho Danh mục</label>
+                                <select v-model="form.category_id" class="form-control form-select" :class="{'is-invalid': errors.category_ids}">
+                                    <option :value="null">— Chọn 1 danh mục —</option>
                                     <AdminCategoryFormTree :categories="categories" />
                                 </select>
                             </div>
