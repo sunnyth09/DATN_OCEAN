@@ -253,17 +253,25 @@ class OceanExpressOrderStatusSyncService
         return true;
     }
 
-    private function parseHappenedAt(array $data): Carbon
+    public function parseHappenedAt(array $data): Carbon
     {
-        $time = $data['timestamp'] ?? null;
+        $time = $data['timestamp'] ?? $data['created_at'] ?? $data['happened_at'] ?? null;
 
         if (is_numeric($time)) {
-            return Carbon::createFromTimestamp((int) $time);
+            return Carbon::createFromTimestamp((int) $time)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
         }
 
         if (is_string($time) && $time !== '') {
             try {
-                return Carbon::parse($time);
+                if (str_contains($time, 'T') || str_ends_with($time, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $time)) {
+                    return Carbon::parse($time)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
+                }
+
+                if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/', $time)) {
+                    return Carbon::parse($time, 'UTC')->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
+                }
+
+                return Carbon::parse($time)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
             } catch (\Throwable) {
                 return now();
             }

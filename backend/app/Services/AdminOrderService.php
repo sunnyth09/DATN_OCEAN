@@ -96,11 +96,11 @@ class AdminOrderService
             // Khóa cập nhật các trạng thái thuộc về đơn vị vận chuyển nếu dùng đối tác thứ 3
             if ($order->tracking_number && $order->tracking_number !== 'SELF-DELIVERY') {
                 $carrierStatuses = [
-                    \App\Models\Enums\OrderStatus::SHIPPING->value,
-                    \App\Models\Enums\OrderStatus::DELIVERED->value,
-                    \App\Models\Enums\OrderStatus::RETURNING->value,
-                    \App\Models\Enums\OrderStatus::RETURNED->value,
-                    \App\Models\Enums\OrderStatus::WAREHOUSE_RECEIVED->value,
+                    OrderStatus::SHIPPING->value,
+                    OrderStatus::DELIVERED->value,
+                    OrderStatus::RETURNING->value,
+                    OrderStatus::RETURNED->value,
+                    OrderStatus::WAREHOUSE_RECEIVED->value,
                 ];
                 if (in_array($newFulfillmentStatus, $carrierStatuses, true)) {
                     return [

@@ -264,11 +264,19 @@ class OrderTrackingService
     {
         try {
             if (is_numeric($value)) {
-                return Carbon::createFromTimestamp((int) $value)->toIso8601String();
+                return Carbon::createFromTimestamp((int) $value)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
             }
 
             if (is_string($value) && $value !== '') {
-                return Carbon::parse($value)->toIso8601String();
+                if (str_contains($value, 'T') || str_ends_with($value, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $value)) {
+                    return Carbon::parse($value)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
+                }
+
+                if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/', $value)) {
+                    return Carbon::parse($value, 'UTC')->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
+                }
+
+                return Carbon::parse($value)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
             }
         } catch (\Throwable) {
             // fallback below

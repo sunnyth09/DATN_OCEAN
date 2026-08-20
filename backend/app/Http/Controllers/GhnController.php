@@ -99,9 +99,12 @@ class GhnController extends Controller
                 $mappedStatus = $syncService->mapStatus($oeStatus ?? '');
 
                 $latestLog = collect($rawLogs)->sortByDesc('created_at')->first() ?? collect($rawLogs)->sortByDesc('timestamp')->first();
-                $logTime = ! empty($latestLog['created_at'])
+                $rawLogTime = ! empty($latestLog['created_at'])
                     ? $latestLog['created_at']
                     : (! empty($latestLog['timestamp']) ? $latestLog['timestamp'] : ($trackingData['created_at'] ?? now()->toIso8601String()));
+
+                $logTimeCarbon = $syncService->parseHappenedAt(['timestamp' => $rawLogTime]);
+                $logTime = $logTimeCarbon->toIso8601String();
 
                 $syncResult = [
                     'changed' => false,

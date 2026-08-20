@@ -65,7 +65,7 @@ class SyncGhnOrderStatus extends Command
                             'note' => 'Auto-sync từ Ocean Express',
                             'source' => 'system',
                             'description' => $latestLog['note'] ?? ($detail['status_description'] ?? $oeStatus),
-                            'happened_at' => \Carbon\Carbon::parse($logTime),
+                            'happened_at' => $oeSyncService->parseHappenedAt(['timestamp' => $logTime]),
                             'location' => $detail['receiver_address_detail'] ?? $detail['receiver_address'] ?? null,
                             'ghn_status' => $oeStatus,
                         ]);

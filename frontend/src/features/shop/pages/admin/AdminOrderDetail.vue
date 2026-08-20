@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { Toast, Modal } from 'bootstrap';
@@ -208,12 +208,15 @@ const paymentMethodLabels = {
 paymentLabels.refund_pending = 'Chờ hoàn tiền';
 paymentLabels.refund_failed = 'Hoàn tiền lỗi';
 
-const fetchOrder = async () => {
+const fetchOrder = async (autoLookup = true) => {
   loading.value = true;
   try {
     const res = await api.get(`/admin/orders/${route.params.id}`);
     if (res.data.status === 'success') {
       order.value = { ...res.data.data, _prevFulfillmentStatus: res.data.data.fulfillment_status, _prevPaymentStatus: res.data.data.payment_status };
+      if (autoLookup && order.value?.tracking_number && order.value.tracking_number !== 'SELF-DELIVERY') {
+        lookupGhnStatus(false, true);
+      }
     }
   } catch (error) {
     console.error('Fetch order detail failed', error);
@@ -409,7 +412,7 @@ const getStepTimestamp = (step) => {
       if (step.key === 'packing' && (h.new_status === 'awaiting_pickup' || h.new_status === 'processing')) return true;
       return false;
     });
-    if (history) return history.created_at;
+    if (history) return history.happened_at || history.created_at;
   }
   return null;
 };
@@ -464,7 +467,7 @@ const confirmSelfDelivery = async () => {
   }
 };
 
-const lookupGhnStatus = async (sync = true) => {
+const lookupGhnStatus = async (sync = true, silent = false) => {
   if (!order.value?.tracking_number || order.value.tracking_number === 'SELF-DELIVERY') return;
   isLookingUpGhn.value = true;
   try {
@@ -474,11 +477,11 @@ const lookupGhnStatus = async (sync = true) => {
     });
     if (res.data.status === 'success') {
       ghnLookup.value = res.data.data;
-      toast.success(res.data.message || 'Đã tra cứu trạng thái vận chuyển');
-      if (sync) await fetchOrder();
+      if (!silent) toast.success(res.data.message || 'Đã tra cứu trạng thái vận chuyển');
+      if (sync) await fetchOrder(false);
     }
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Không thể tra cứu trạng thái vận chuyển');
+    if (!silent) toast.error(error.response?.data?.message || 'Không thể tra cứu trạng thái vận chuyển');
   } finally {
     isLookingUpGhn.value = false;
   }
@@ -522,6 +525,17 @@ const cancelGhnOrder = async () => {
     isCanceling.value = false;
   }
 };
+
+const sortedShippingLogs = computed(() => {
+  const logs = ghnLookup.value?.logs;
+  if (!Array.isArray(logs) || logs.length === 0) return [];
+  // Sort descending: newest event at the TOP (index 0)
+  return [...logs].sort((a, b) => {
+    const timeA = new Date(a.created_at || a.timestamp || a.happened_at || 0).getTime();
+    const timeB = new Date(b.created_at || b.timestamp || b.happened_at || 0).getTime();
+    return timeB - timeA;
+  });
+});
 
 onMounted(() => fetchOrder());
 </script>
@@ -847,18 +861,20 @@ onMounted(() => fetchOrder());
               </div>
 
               <!-- Lịch sử hành trình / Tracking Logs nếu có -->
-              <div v-if="ghnLookup.logs && ghnLookup.logs.length > 0" class="shipping-logs-section">
+              <div v-if="sortedShippingLogs.length > 0" class="shipping-logs-section">
                 <div class="logs-title">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                  Hành trình vận đơn ({{ ghnLookup.logs.length }} mốc)
+                  Hành trình vận đơn ({{ sortedShippingLogs.length }} mốc)
                 </div>
                 <div class="shipping-logs-timeline">
-                  <div v-for="(log, idx) in ghnLookup.logs" :key="idx" class="log-item" :class="{ 'latest': idx === 0 }">
-                    <div class="log-dot"></div>
+                  <div v-for="(log, idx) in sortedShippingLogs" :key="idx" class="log-item" :class="{ 'latest': idx === 0 }">
+                    <div class="log-dot">
+                      <div v-if="idx === 0" class="log-dot-pulse"></div>
+                    </div>
                     <div class="log-content">
                       <div class="log-status-row">
-                        <span class="log-status">{{ log.status_name || log.status_label || getShippingStatusTitle(log) }}</span>
-                        <span class="log-time">{{ formatDate(log.created_at || log.timestamp) }}</span>
+                        <span class="log-status">{{ getShippingStatusTitle(log) }}</span>
+                        <span class="log-time">{{ formatDate(log.created_at || log.timestamp || log.happened_at) }}</span>
                       </div>
                       <div class="log-note" v-if="log.note">{{ log.note }}</div>
                     </div>
@@ -1475,62 +1491,97 @@ onMounted(() => fetchOrder());
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 700;
-  color: #334155;
-  margin-bottom: 10px;
+  color: #1e293b;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
 }
 .shipping-logs-timeline {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   position: relative;
-  padding-left: 14px;
+  padding-left: 18px;
   border-left: 2px solid #e2e8f0;
-  margin-left: 6px;
+  margin-left: 8px;
 }
 .log-item {
   position: relative;
+  transition: all 0.2s ease;
 }
 .log-dot {
   position: absolute;
-  left: -21px;
-  top: 4px;
+  left: -25px;
+  top: 3px;
   width: 12px;
   height: 12px;
   border-radius: 50%;
   background: #cbd5e1;
   border: 2px solid #ffffff;
-  box-shadow: 0 0 0 2px #cbd5e1;
+  box-shadow: 0 0 0 1.5px #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .log-item.latest .log-dot {
-  background: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  background: #0284c7;
+  box-shadow: 0 0 0 2px #0284c7;
+}
+.log-dot-pulse {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  background: rgba(2, 132, 199, 0.25);
+  animation: shippingDotPulse 2s infinite ease-in-out;
+}
+@keyframes shippingDotPulse {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(0.9); opacity: 0; }
 }
 .log-content {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.log-item.latest .log-content {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 .log-status-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .log-status {
   font-weight: 700;
-  color: #1e293b;
+  color: #334155;
+  font-size: 0.82rem;
 }
 .log-item.latest .log-status {
-  color: #1d4ed8;
+  color: #0284c7;
 }
 .log-time {
   font-size: 0.74rem;
   color: #94a3b8;
+  font-weight: 500;
 }
 .log-note {
-  font-size: 0.76rem;
-  color: #64748b;
-  margin-top: 2px;
-  line-height: 1.35;
+  font-size: 0.78rem;
+  color: #475569;
+  margin-top: 3px;
+  line-height: 1.4;
+  word-break: break-word;
 }
  
 /* Responsive */
