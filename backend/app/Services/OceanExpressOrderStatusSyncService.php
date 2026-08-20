@@ -105,7 +105,7 @@ class OceanExpressOrderStatusSyncService
                 ];
             }
 
-            return $this->applyStatus($order, $mappedStatus, $oeStatus, 'ocean_express_webhook', $happenedAt, $description, $latitude, $longitude);
+            return $this->applyStatus($order, $mappedStatus, $oeStatus, 'ocean_express', $happenedAt, $description, $latitude, $longitude);
         } finally {
             $lock->release();
         }
@@ -200,7 +200,7 @@ class OceanExpressOrderStatusSyncService
                 'new_status' => $shouldUpdateOrder ? $mappedStatus : $oldStatus,
                 'note' => 'Cập nhật tự động từ Ocean Express (Webhook)',
                 'ghn_status' => $oeStatus, // Ghi log vào cột ghn_status cũ để hiển thị
-                'source' => $source,
+                'source' => substr((string) ($source ?: 'ocean_express'), 0, 20),
                 'description' => $description,
                 'latitude' => $latitude,
                 'longitude' => $longitude,
