@@ -31,6 +31,7 @@ use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductCommentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\Admin\SizeGuideController;
 use App\Http\Controllers\WorkLocationController;
 use App\Http\Controllers\WorkShiftController;
 use App\Models\Cart;
@@ -260,6 +261,14 @@ Route::middleware(['auth:api,admin', 'role:admin,staff'])->group(function () {
     Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
     Route::delete('categories/{id}/image', [CategoryController::class, 'deleteImage']);
 
+    // Quản lý Bảng Size
+    Route::get('size-guides', [SizeGuideController::class, 'index']);
+    Route::get('size-guides/{id}', [SizeGuideController::class, 'show']);
+    Route::post('size-guides', [SizeGuideController::class, 'store']);
+    Route::put('size-guides/{id}', [SizeGuideController::class, 'update']);
+    Route::delete('size-guides/{id}', [SizeGuideController::class, 'destroy']);
+
+    Route::post('products/upload-editor-image', [ProductController::class, 'uploadEditorImage']);
     Route::post('products', [ProductController::class, 'store']);
     Route::post('products/{id}', [ProductController::class, 'update']); // Use POST for multipart/form-data with _method=PUT
     Route::delete('products/{id}', [ProductController::class, 'destroy']);

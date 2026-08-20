@@ -81,6 +81,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 || $e instanceof AuthorizationException
                 || $e instanceof HttpExceptionInterface
                 || $e instanceof ModelNotFoundException
+                || $e instanceof \Illuminate\Http\Exceptions\HttpResponseException
             ) {
                 return null;
             }

@@ -89,17 +89,19 @@ class ProductService
         ];
 
         if ($search) {
-            $filters['search_like'] = $search;
+            $filters['search_query'] = $search;
             try {
                 // Sử dụng Meilisearch thông qua Laravel Scout
-                $matchedIds = Product::search($search)->take(100)->keys()->toArray();
-                Log::info('Product Search: Sử dụng Meilisearch thành công', [
-                    'query' => $search,
-                    'results_count' => count($matchedIds)
-                ]);
+                $ids = Product::search($search)->keys()->toArray();
+                if (! empty($ids)) {
+                    $matchedIds = $ids;
+                    Log::info('Admin Product Search: Sử dụng Meilisearch thành công', [
+                        'query' => $search,
+                        'results_count' => count($matchedIds)
+                    ]);
+                }
             } catch (\Exception $e) {
-                // Fallback nếu Meilisearch bị lỗi hoặc chưa khởi động
-                Log::warning('Product Search: Meilisearch thất bại, dùng SQL LIKE làm dự phòng', [
+                Log::warning('Admin Product Search: Meilisearch exception', [
                     'error' => $e->getMessage(),
                     'query' => $search
                 ]);
@@ -116,6 +118,69 @@ class ProductService
         }
 
         return $this->productRepository->getAdminProducts($matchedIds, $filters, $page, $limit);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  CLIENT PUBLIC: DANH SÁCH SẢN PHẨM CHO NGƯỜI DÙNG
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Client (public): danh sách sản phẩm active với tìm kiếm, lọc, phân trang.
+     *
+     * Khác biệt so với listAdminProducts():
+     *  - Luôn filter status=active, whereNull(deleted_at) → không leak dữ liệu admin
+     *  - Fix bug Meilisearch: khi trả về [] (index chưa sync hoặc lỗi), fallback về SQL LIKE
+     *    thay vì trả về 0 kết quả sai lệch
+     */
+    public function listClientProducts(Request $request): array
+    {
+        $page  = (int) $request->query('page', 1);
+        $limit = (int) $request->query('limit', 12);
+        $search = trim($request->query('search', ''));
+
+        $filters = [
+            'max_price'  => $request->query('max_price'),
+            'brand_ids'  => $request->query('brand_ids'),
+            'sort_by'    => $request->query('sort_by'),
+        ];
+
+        // ── Tìm kiếm qua Meilisearch + Database ──────────────────────
+        $matchedIds = null;
+
+        if ($search !== '') {
+            $filters['search_query'] = $search;
+            try {
+                $ids = Product::search($search)->keys()->toArray();
+                if (! empty($ids)) {
+                    $matchedIds = $ids;
+                    Log::info('Client Product Search: Meilisearch thành công', [
+                        'query'   => $search,
+                        'results' => count($ids),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::warning('Client Product Search: Meilisearch exception', [
+                    'error' => $e->getMessage(),
+                    'query' => $search,
+                ]);
+            }
+        }
+
+        // ── Category filter (bao gồm danh mục con) ────────────────────
+        $categoryInput = $request->query('category_ids') ?? $request->query('category_id');
+        if (! empty($categoryInput) && $categoryInput !== 'All') {
+            $categoryIds = is_array($categoryInput)
+                ? $categoryInput
+                : explode(',', $categoryInput);
+
+            $childIds = Category::whereIn('parent_id', $categoryIds)
+                ->pluck('category_id')
+                ->toArray();
+
+            $filters['category_ids'] = array_unique(array_merge($categoryIds, $childIds));
+        }
+
+        return $this->productRepository->getClientProducts($matchedIds, $filters, $page, $limit);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -345,6 +410,11 @@ class ProductService
                 'product_type' => $request->product_type,
                 'status' => $request->status,
                 'is_featured' => $request->boolean('is_featured'),
+                'sku' => $request->sku ?: 'SP-'.strtoupper(Str::random(6)),
+                'weight' => $request->weight ?? 0,
+                'material' => $request->material,
+                'origin' => $request->origin,
+                'style' => $request->style,
                 'min_price' => 0,
                 'max_price' => 0,
             ]);
@@ -438,6 +508,11 @@ class ProductService
                 'product_type' => $request->product_type,
                 'status' => $request->status,
                 'is_featured' => $request->boolean('is_featured'),
+                'sku' => $request->sku ?: $product->sku ?: 'SP-'.strtoupper(Str::random(6)),
+                'weight' => $request->weight ?? 0,
+                'material' => $request->material,
+                'origin' => $request->origin,
+                'style' => $request->style,
             ]);
 
             // Xóa gallery cũ

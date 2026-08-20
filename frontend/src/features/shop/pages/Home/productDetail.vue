@@ -38,6 +38,10 @@ const addingToCart = ref(false);
 const buyingNow = ref(false);
 const cartVersion = ref(0);
 const showSizeGuide = ref(false);
+const sizeGuideData = computed(() => {
+  return product.value?.category?.size_guide || null;
+});
+
 
 const { showToast } = useToast();
 const { isFavorited, toggleFavorite } = useFavorites();
@@ -799,7 +803,7 @@ onBeforeUnmount(() => {
 
         <!-- Variant chips -->
         <div class="pd-variants" v-if="uniqueColors.length > 0">
-          <h4 class="pd-var-label">Phân bản / Màu sắc</h4>
+          <h4 class="pd-var-label">Màu sắc</h4>
           <div class="pd-var-options">
             <button v-for="color in uniqueColors" :key="color" class="pd-var-btn"
               :class="{ active: selectedColor === color }"
@@ -808,13 +812,24 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="pd-variants" v-if="availableSizes.length > 0">
-          <h4 class="pd-var-label">Kích cỡ</h4>
+          <div class="pd-var-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h4 class="pd-var-label" style="margin-bottom: 0;">Kích cỡ</h4>
+            <button v-if="sizeGuideData" type="button" @click="showSizeGuide = true" class="pd-var-label" style="background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 0; text-decoration: underline;">
+              Hướng dẫn chọn size
+            </button>
+          </div>
           <div class="pd-var-options">
             <button v-for="s in availableSizes" :key="s.size" class="pd-var-btn"
               :class="{ active: selectedSize === s.size, disabled: !s.available }" :disabled="!s.available"
               @click="s.available && (selectedSize = s.size)">{{ s.size || 'Mặc định'
               }}</button>
           </div>
+        </div>
+
+        <div v-if="availableSizes.length === 0 && sizeGuideData" style="margin-bottom: 16px; text-align: right;">
+          <button type="button" @click="showSizeGuide = true" class="pd-var-label" style="background: none; border: none; cursor: pointer; padding: 0; margin-bottom: 0; text-decoration: underline; color: #E63B6F;">
+            Hướng dẫn chọn size
+          </button>
         </div>
 
         <!-- Số lượng -->
@@ -894,11 +909,10 @@ onBeforeUnmount(() => {
       <div class="pd-tab-bar">
         <button class="pd-tab" :class="{ active: activeTab === 'description' }" @click="activeTab = 'description'">Mô tả
           chi tiết</button>
-        <button class="pd-tab" :class="{ active: activeTab === 'specs' }" @click="activeTab = 'specs'">Thông số kỹ
-          thuật</button>
         <button class="pd-tab" :class="{ active: activeTab === 'reviews' }" @click="activeTab = 'reviews'">Đánh giá
           khách hàng ({{ product.rating_count || 0 }})</button>
       </div>
+
 
       <div class="pd-tab-content">
         <!-- Tab: Mô tả -->
@@ -946,40 +960,12 @@ onBeforeUnmount(() => {
                 <td>Xuất xứ</td>
                 <td>{{ product.origin }}</td>
               </tr>
+              <tr v-if="product.style">
+                <td>Kiểu dáng</td>
+                <td>{{ product.style }}</td>
+              </tr>
             </table>
           </div>
-        </div>
-
-        <!-- Tab: Thông số -->
-        <div v-if="activeTab === 'specs'" class="pd-specs-full">
-          <table class="pd-specs-table full">
-            <tr v-if="product.category">
-              <td>Danh mục</td>
-              <td>{{ product.category.name }}</td>
-            </tr>
-            <tr v-if="product.brand">
-              <td>Thương hiệu</td>
-              <td>{{ product.brand?.name || product.brand }}</td>
-            </tr>
-            <tr v-if="product.sku">
-              <td>Mã SKU</td>
-              <td>{{ product.sku }}</td>
-            </tr>
-            <tr v-if="product.weight">
-              <td>Trọng lượng</td>
-              <td>{{ product.weight }}</td>
-            </tr>
-            <tr v-if="product.material">
-              <td>Chất liệu</td>
-              <td>{{ product.material }}</td>
-            </tr>
-            <tr v-if="product.origin">
-              <td>Xuất xứ</td>
-              <td>{{ product.origin }}</td>
-            </tr>
-          </table>
-          <div class="pd-desc-text expanded" v-if="product.short_description" v-html="safeShortDescription"
-            style="margin-top:24px"></div>
         </div>
 
         <!-- Tab: Đánh giá -->
@@ -1044,7 +1030,7 @@ onBeforeUnmount(() => {
       <div v-if="showSizeGuide" class="modal-overlay" @click.self="showSizeGuide = false">
         <div class="modal-content size-modal">
           <div class="modal-header">
-            <h2 class="modal-title">Bảng size tham khảo (Vóc dáng người Việt)</h2>
+            <h2 class="modal-title">Bảng size tham khảo</h2>
             <button class="modal-close" @click="showSizeGuide = false">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                 stroke-linecap="round">
@@ -1054,71 +1040,36 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div class="modal-body">
-            <p class="size-desc">Bảng tính mặc định được thiết kế dựa trên số đo chuẩn của người Việt Nam. Nếu bạn có số
-              đo nằm giữa 2 size, lời khuyên là nên chọn size lớn hơn để có sự thoải mái nhất.</p>
+            <p class="size-desc">{{ sizeGuideData?.description }}</p>
 
             <div class="table-responsive">
               <table class="size-table">
-                <thead>
-                  <tr>
-                    <th>Size</th>
-                    <th>Cân nặng (kg)</th>
-                    <th>Chiều cao (cm)</th>
-                    <th>Gợi ý form dáng</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>S</strong></td>
-                    <td>45 - 52 kg</td>
-                    <td>Dưới 1m60</td>
-                    <td>Ôm gọn, tôn dáng</td>
-                  </tr>
-                  <tr>
-                    <td><strong>M</strong></td>
-                    <td>53 - 59 kg</td>
-                    <td>1m60 - 1m65</td>
-                    <td>Vừa vặn, thoải mái</td>
-                  </tr>
-                  <tr>
-                    <td><strong>L</strong></td>
-                    <td>60 - 68 kg</td>
-                    <td>1m66 - 1m72</td>
-                    <td>Thoải mái vận động</td>
-                  </tr>
-                  <tr>
-                    <td><strong>XL</strong></td>
-                    <td>69 - 76 kg</td>
-                    <td>1m73 - 1m78</td>
-                    <td>Rộng rãi, che khuyết điểm</td>
-                  </tr>
-                  <tr>
-                    <td><strong>XXL</strong></td>
-                    <td>Trên 76 kg</td>
-                    <td>Trên 1m78</td>
-                    <td>Oversize trần viền rộng rãi</td>
-                  </tr>
-                </tbody>
+                <template v-if="sizeGuideData">
+                  <thead>
+                    <tr>
+                      <th v-for="(col, index) in sizeGuideData.table_headers" :key="index">{{ col }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(row, rowIndex) in sizeGuideData.table_rows" :key="rowIndex">
+                      <td v-for="(cell, cellIndex) in row" :key="cellIndex">
+                        <strong v-if="cellIndex === 0">{{ cell }}</strong>
+                        <template v-else>{{ cell }}</template>
+                      </td>
+                    </tr>
+                  </tbody>
+                </template>
               </table>
             </div>
-            <div class="size-tips">
-              <div class="tip-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F"
-                  stroke-width="2">
+            
+            <div class="size-tips" v-if="sizeGuideData && sizeGuideData.tips && sizeGuideData.tips.length > 0">
+              <div class="tip-item" v-for="(tip, tIndex) in sizeGuideData.tips" :key="tIndex">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F" stroke-width="2">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
-                <span>Sản phẩm có độ co giãn nhẹ khoảng 2-3cm ở vòng bụng.</span>
-              </div>
-              <div class="tip-item">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="tip-icon" stroke="#E63B6F"
-                  stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>Màu sắc thực tế có thể chênh lệch 3-5% do độ phân giải và ánh sáng màn hình.</span>
+                <span>{{ tip }}</span>
               </div>
             </div>
           </div>
@@ -1683,8 +1634,16 @@ onBeforeUnmount(() => {
   max-height: 5000px;
 }
 
-.pd-desc-text p {
+.pd-desc-text :deep(p) {
   margin-bottom: 12px;
+}
+
+.pd-desc-text :deep(img) {
+  max-width: 40%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px auto;
+  display: block;
 }
 
 .pd-desc-fade {
@@ -1901,6 +1860,9 @@ onBeforeUnmount(() => {
   max-width: 650px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
@@ -1940,6 +1902,7 @@ onBeforeUnmount(() => {
 
 .modal-body {
   padding: 24px;
+  overflow-y: auto;
 }
 
 .size-desc {

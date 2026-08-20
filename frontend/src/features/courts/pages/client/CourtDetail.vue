@@ -40,6 +40,12 @@ let lockTimer = null;
 let bookingChannel = null;
 const timelineWrapper = ref(null);
 
+const DEFAULT_COURT_IMAGE = 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=800&auto=format&fit=crop';
+
+const handleImgError = (event) => {
+    event.target.src = DEFAULT_COURT_IMAGE;
+};
+
 const scrollToCurrentTime = () => {
     if (!timelineWrapper.value || availableSlots.value.length === 0) return;
 
@@ -570,8 +576,9 @@ onUnmounted(() => {
                 <!-- Court Image & Info -->
                 <div class="card border-0 rounded-4 overflow-hidden mb-4"
                     style="box-shadow: var(--court-ambient-shadow);">
-                    <img :src="store.currentCourt.image_url || 'https://placehold.co/800x400/1a1a2e/e63b6f?text=' + courtName"
-                        class="card-img-top" style="height: 280px; object-fit: cover;" :alt="courtName">
+                    <img :src="store.currentCourt.image_url || DEFAULT_COURT_IMAGE"
+                        class="card-img-top" style="height: 280px; object-fit: cover;" :alt="courtName"
+                        @error="handleImgError">
                     <div class="card-body p-4" style="background: var(--court-section-bg, #f8f9fb);">
                         <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"
                                 style="color: var(--court-primary);"></i>Thông tin sân</h5>

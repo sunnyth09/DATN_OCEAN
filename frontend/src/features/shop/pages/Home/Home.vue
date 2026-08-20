@@ -100,8 +100,8 @@ const fetchRealFlashSale = async () => {
         if (data && data.data && data.data.length > 0) {
             // Lấy danh sách sản phẩm và giới hạn 4 sản phẩm
             flashSaleProducts.value = data.data.slice(0, 4).map(p => {
-                const flashPrice = Number(p.sale_price ?? p.flash_price ?? p.min_price ?? 0);
-                const originalPrice = Number(p.original_price ?? flashPrice);
+                const flashPrice = Number(p.sale_price ?? p.flash_price ?? p.min_price ?? p.price ?? 0);
+                const originalPrice = Number(p.original_price ?? p.originalPrice ?? flashPrice);
                 const totalStock = Number(p.total_stock ?? p.total_quantity ?? 0);
                 const soldCount = Number(p.sold_count ?? p.sold ?? 0);
                 const flashPercent = totalStock > 0 ? Math.min(100, Math.floor((soldCount / totalStock) * 100)) : 0;
@@ -110,6 +110,8 @@ const fetchRealFlashSale = async () => {
                 return {
                     id: p.product_id || p.id,
                     product_id: p.product_id || p.id,
+                    flash_sale_id: p.id,
+                    item_id: p.item_id,
                     name: p.product_name || p.name || 'Sản phẩm Flash Sale',
                     min_price: flashPrice,
                     price: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(flashPrice),
@@ -127,7 +129,7 @@ const fetchRealFlashSale = async () => {
                     flash_percent: flashPercent
                 };
             });
-            // Giả định API trả về chung 1 end_time cho flash sale
+            // Lấy thời gian kết thúc flash sale (ends_at hoặc end_time)
             const endString = data.data[0].ends_at || data.data[0].end_time;
             if (endString) {
                 flashSaleEndTime = new Date(endString);

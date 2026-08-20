@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 import AdminCategoryFormTree from "@/components/AdminCategoryFormTree.vue";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
+import { getAppBaseUrl } from '@/utils/url';
 
 let quillShort = null;
 let quillLong = null;
@@ -18,8 +19,65 @@ const initQuill = () => {
             [{ header: [1, 2, 3, false] }],
             ["bold", "italic", "underline"],
             [{ list: "ordered" }, { list: "bullet" }],
-            ["link"],
+            ["link", "image"],
         ],
+    };
+
+    const uploadFileToEditor = async (file, quillInstance) => {
+        if (file.size > 4 * 1024 * 1024) {
+            Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Ảnh không được vượt quá 4MB.', icon: 'error', showConfirmButton: false, timer: 3000 });
+            return;
+        }
+        const fd = new FormData();
+        fd.append("image", file);
+        try {
+            const res = await api.post("/products/upload-editor-image", fd, { headers: { "Content-Type": "multipart/form-data" } });
+            let range = quillInstance.getSelection(true);
+            const url = `${getAppBaseUrl()}${res.data.url}`;
+            quillInstance.insertEmbed(range.index, "image", url);
+            quillInstance.setSelection(range.index + 1);
+        } catch (e) {
+            console.error("Upload image error:", e);
+            Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: 'Không thể tải ảnh lên. Vui lòng thử lại.', icon: 'error', showConfirmButton: false, timer: 3000 });
+        }
+    };
+
+    const imageHandler = (quillInstance) => {
+        const input = document.createElement("input");
+        input.setAttribute("type", "file");
+        input.setAttribute("accept", "image/jpeg,image/png,image/jpg,image/gif,image/webp");
+        input.click();
+        input.onchange = async () => {
+            const file = input.files[0];
+            if (!file) return;
+            await uploadFileToEditor(file, quillInstance);
+        };
+    };
+
+    const setupDragAndPaste = (quillInstance) => {
+        quillInstance.root.addEventListener("paste", async (e) => {
+            if (e.clipboardData && e.clipboardData.items && e.clipboardData.items.length) {
+                for (let i = 0; i < e.clipboardData.items.length; i++) {
+                    const item = e.clipboardData.items[i];
+                    if (item.type.startsWith("image/")) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (file) await uploadFileToEditor(file, quillInstance);
+                    }
+                }
+            }
+        });
+        quillInstance.root.addEventListener("drop", async (e) => {
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+                for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                    const file = e.dataTransfer.files[i];
+                    if (file.type.startsWith("image/")) {
+                        e.preventDefault();
+                        await uploadFileToEditor(file, quillInstance);
+                    }
+                }
+            }
+        });
     };
 
     if (editorShort.value && !quillShort) {
@@ -37,6 +95,8 @@ const initQuill = () => {
                     ? ""
                     : quillShort.root.innerHTML;
         });
+        quillShort.getModule("toolbar").addHandler("image", () => imageHandler(quillShort));
+        setupDragAndPaste(quillShort);
     }
 
     if (editorLong.value && !quillLong) {
@@ -54,6 +114,8 @@ const initQuill = () => {
                     ? ""
                     : quillLong.root.innerHTML;
         });
+        quillLong.getModule("toolbar").addHandler("image", () => imageHandler(quillLong));
+        setupDragAndPaste(quillLong);
     }
 };
 
@@ -152,6 +214,11 @@ const product = reactive({
     product_type: "simple", // simple | variant
     status: "draft",
     is_featured: false,
+    sku: "",
+    weight: "",
+    material: "",
+    origin: "",
+    style: "",
     price: "",
     compare_at_price: "",
     stock: "",
@@ -452,6 +519,11 @@ const handleSubmit = async () => {
     formData.append("product_type", product.product_type);
     formData.append("status", product.status);
     formData.append("is_featured", product.is_featured ? 1 : 0);
+    formData.append("sku", product.sku || "");
+    formData.append("weight", product.weight || "");
+    formData.append("material", product.material || "");
+    formData.append("origin", product.origin || "");
+    formData.append("style", product.style || "");
 
     if (product.thumbnail_url) {
         formData.append("thumbnail", product.thumbnail_url);
@@ -621,6 +693,62 @@ onMounted(() => {
                             <span v-if="errors.description" class="field-error">
                                 {{ errors.description }}
                             </span>
+                        </div>
+                    </div>
+
+                    <!-- Tech Specs -->
+                    <div
+                        class="ocean-card form-card animate-in"
+                        style="animation-delay: 0.15s"
+                    >
+                        <h3 class="card-title">Thông Số Kỹ Thuật</h3>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label>Trọng Lượng (gram)</label>
+                                    <input
+                                        type="number"
+                                        v-model="product.weight"
+                                        class="form-control"
+                                        placeholder="Ví dụ: 300"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Chất Liệu</label>
+                                    <input
+                                        type="text"
+                                        v-model="product.material"
+                                        class="form-control"
+                                        placeholder="Ví dụ: Cotton"
+                                    />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Xuất Xứ</label>
+                                    <input
+                                        type="text"
+                                        v-model="product.origin"
+                                        class="form-control"
+                                        placeholder="Ví dụ: Việt Nam"
+                                    />
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Kiểu Dáng</label>
+                                    <input
+                                        type="text"
+                                        v-model="product.style"
+                                        class="form-control"
+                                        placeholder="Ví dụ: Slim Fit"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -2220,6 +2348,13 @@ onMounted(() => {
 
 .editor-long :deep(.ql-editor) {
     min-height: 250px;
+}
+.quill-wrapper :deep(.ql-editor img) {
+    max-width: 30%;
+    height: auto;
+    border-radius: 6px;
+    margin: 8px auto;
+    display: block;
 }
 
 /* Sale Promo Styles */

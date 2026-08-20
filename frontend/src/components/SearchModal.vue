@@ -87,7 +87,7 @@ const viewAll = () => {
     if (!searchQuery.value.trim()) return;
     const q = searchQuery.value.trim();
     close();
-    router.push({ path: '/product', query: { search: q } });
+    router.push({ name: 'product-list', query: { search: q } });
 };
 
 const tipsKeywords = ['Vợt cầu lông', 'Giày đá bóng', 'Pickleball', 'Áo thể thao', 'Phụ kiện'];

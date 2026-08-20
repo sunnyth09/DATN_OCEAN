@@ -45,6 +45,12 @@ const getTypeIcon = (type) => {
     return map[type] || 'bi-layers';
 };
 
+const DEFAULT_COURT_IMAGE = 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=800&auto=format&fit=crop';
+
+const handleImgError = (event) => {
+    event.target.src = DEFAULT_COURT_IMAGE;
+};
+
 const clearFilters = () => {
     searchParams.value = {
         date: toLocalDateString(),
@@ -155,9 +161,9 @@ const clearFilters = () => {
                         <div class="client-court-card card h-100" @click="goToDetail(court.court_id)">
                             <!-- Image -->
                             <div class="client-court-card__img-wrap">
-                                <img :src="court.image_url || 'https://placehold.co/600x400/1a1a2e/e63b6f?text=San+' + (court.court_name || '')"
+                                <img :src="court.image_url || DEFAULT_COURT_IMAGE"
                                     class="client-court-card__img" :alt="court.court_name"
-                                    onerror="this.src='https://placehold.co/600x400/1a1a2e/e63b6f?text=San+Cau+Long'">
+                                    @error="handleImgError">
                                 <!-- Status Badge Overlay -->
                                 <div
                                     class="position-absolute top-0 start-0 w-100 p-3 d-flex justify-content-between align-items-start">

@@ -253,7 +253,7 @@ Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products/home/best-selling', [ProductController::class, 'bestSelling']);
 Route::get('products/home/on-sale', [ProductController::class, 'onSale']);
-Route::get('products', [ProductController::class, 'index']);
+Route::get('products', [ProductController::class, 'clientList']);
 Route::get('products/{id}', [ProductController::class, 'show']);
 Route::get('products/{id}/variants', [ProductController::class, 'getVariants']);
 Route::get('products/slug/{slug}', [ProductController::class, 'show']);

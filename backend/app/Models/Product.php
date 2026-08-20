@@ -34,6 +34,10 @@ class Product extends Model
         'view_count',
         'sold_count',
         'weight',
+        'sku',
+        'material',
+        'origin',
+        'style',
         'published_at',
         'deleted_at',
     ];
@@ -118,6 +122,7 @@ class Product extends Model
             'thumbnail_url' => $this->thumbnail_url ?? '',
             'rating_avg' => (float) ($this->rating_avg ?? 0),
             'sold_count' => (int) ($this->sold_count ?? 0),
+            'sku' => $this->sku ?? '',
         ];
     }
 
