@@ -45,14 +45,16 @@ const copiedField = ref(null);
 let countdownTimer = null;
 let pollingTimer = null;
 
-// Lấy thông tin tài khoản ngân hàng (nếu không truyền bankingInfo thì dùng fallback config default)
-const bankAccount = computed(() => props.bankingInfo?.account_number || 'MBBANK');
-const bankAccountNo = computed(() => props.bankingInfo?.account_number || '0901234567');
-const bankAccountName = computed(() => props.bankingInfo?.account_name || 'OCEAN SPORT STORE');
+// Lấy thông tin tài khoản ngân hàng (dùng bankingInfo truyền vào hoặc fallback cấu hình .env / mặc định)
+const bankAccount = computed(() => props.bankingInfo?.bank_name || props.bankingInfo?.gateway || 'MBBANK');
+const bankAccountNo = computed(() => props.bankingInfo?.account_number || import.meta.env.BANK_ACCOUNT_NUMBER);
+const bankAccountName = computed(() => props.bankingInfo?.account_name || import.meta.env.BANK_ACCOUNT_NAME);
+const bankBin = computed(() => props.bankingInfo?.bank_bin || import.meta.env.BANK_BIN);
+
 const qrUrl = computed(() => {
   if (props.bankingInfo?.qr_url) return props.bankingInfo.qr_url;
   const acc = bankAccountNo.value;
-  const bank = props.bankingInfo?.bank_bin || '970422'; // MB Bank BIN
+  const bank = bankBin.value;
   const amt = Math.round(Number(props.amount || 0));
   const des = encodeURIComponent(props.orderCode || '');
   return `https://qr.sepay.vn/img?acc=${acc}&bank=${bank}&amount=${amt}&des=${des}`;
@@ -226,7 +228,7 @@ onUnmounted(() => {
           <div class="sepay-modal-header">
             <div class="header-title">
               <span class="bank-icon-badge">
-                <AppIcon name="bank" size="22" color="#ffffff" />
+                <AppIcon name="credit-card" size="22" color="#ffffff" />
               </span>
               <div>
                 <h3 class="modal-heading">Thanh toán Chuyển khoản (SePay)</h3>
@@ -234,7 +236,7 @@ onUnmounted(() => {
               </div>
             </div>
             <button class="btn-close-modal" aria-label="Close" @click="isGuest ? handleCloseModal() : handlePayLater()">
-              &times;
+              <AppIcon name="x" size="18" />
             </button>
           </div>
 
@@ -242,19 +244,21 @@ onUnmounted(() => {
           <div v-if="isSuccess" class="success-banner-overlay">
             <div class="success-content">
               <div class="success-icon-bounce">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
+                <AppIcon name="check" size="46" color="#ffffff" stroke-width="3.5" />
               </div>
               <h4>Thanh toán thành công!</h4>
               <p>Đơn hàng <strong>#{{ orderCode }}</strong> đã được xác nhận thanh toán.</p>
-              <span class="redirect-spinner">Đang chuyển hướng sang trang kết quả...</span>
+              <span class="redirect-spinner">
+                <span class="spinner-dot"></span> Đang chuyển hướng sang trang kết quả...
+              </span>
             </div>
           </div>
 
           <!-- Banner Hết Hạn 15 Phút -->
           <div v-else-if="isExpired" class="expired-banner-box">
-            <div class="expired-icon">⏱️</div>
+            <div class="expired-icon">
+              <AppIcon name="clock" size="44" color="#e11d48" />
+            </div>
             <div>
               <h5>Đã hết thời hạn 15 phút thanh toán</h5>
               <p>Thời gian dành cho việc thanh toán đơn hàng <strong>#{{ orderCode }}</strong> đã hết. Vui lòng đóng cửa sổ này hoặc đặt lại đơn hàng mới.</p>
@@ -271,7 +275,10 @@ onUnmounted(() => {
                   <span class="live-dot"></span>
                   Thời gian hoàn tất thanh toán:
                 </span>
-                <span class="timer-clock">{{ formattedTimeLeft }}</span>
+                <span class="timer-clock">
+                  <AppIcon name="clock" size="15" class="timer-icon" />
+                  {{ formattedTimeLeft }}
+                </span>
               </div>
               <div class="timer-progress-track">
                 <div class="timer-progress-bar" :style="{ width: progressPercent + '%' }"></div>
@@ -300,7 +307,12 @@ onUnmounted(() => {
                   <div class="info-value-wrap">
                     <span class="info-value highlight">{{ bankAccountNo }}</span>
                     <button class="btn-copy-chip" @click="copyToClipboard(bankAccountNo, 'acc')">
-                      {{ copiedField === 'acc' ? '✓ Đã chép' : '📋 Copy' }}
+                      <template v-if="copiedField === 'acc'">
+                        <AppIcon name="check" size="13" /> Đã chép
+                      </template>
+                      <template v-else>
+                        <AppIcon name="copy" size="13" /> Copy
+                      </template>
                     </button>
                   </div>
                 </div>
@@ -315,7 +327,12 @@ onUnmounted(() => {
                   <div class="info-value-wrap">
                     <span class="info-value amount-text">{{ formatPrice(amount) }}</span>
                     <button class="btn-copy-chip" @click="copyToClipboard(Math.round(Number(amount)), 'amt')">
-                      {{ copiedField === 'amt' ? '✓ Đã chép' : '📋 Copy' }}
+                      <template v-if="copiedField === 'amt'">
+                        <AppIcon name="check" size="13" /> Đã chép
+                      </template>
+                      <template v-else>
+                        <AppIcon name="copy" size="13" /> Copy
+                      </template>
                     </button>
                   </div>
                 </div>
@@ -325,7 +342,12 @@ onUnmounted(() => {
                   <div class="info-value-wrap">
                     <span class="info-value code-text">{{ orderCode }}</span>
                     <button class="btn-copy-chip primary" @click="copyToClipboard(orderCode, 'code')">
-                      {{ copiedField === 'code' ? '✓ Đã chép' : '📋 Copy mã' }}
+                      <template v-if="copiedField === 'code'">
+                        <AppIcon name="check" size="13" /> Đã chép
+                      </template>
+                      <template v-else>
+                        <AppIcon name="copy" size="13" /> Copy mã
+                      </template>
                     </button>
                   </div>
                 </div>
@@ -334,11 +356,7 @@ onUnmounted(() => {
 
             <!-- Ghi chú lưu ý -->
             <div class="payment-alert-note">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
+              <AppIcon name="alert-circle" size="18" color="#d97706" class="flex-shrink-0" />
               <span>Vui lòng giữ đúng <strong>Nội dung chuyển khoản là {{ orderCode }}</strong> để hệ thống tự động xác nhận đơn hàng trong vài giây.</span>
             </div>
           </div>
@@ -346,7 +364,9 @@ onUnmounted(() => {
           <!-- Footer Actions -->
           <div class="sepay-modal-footer">
             <div v-if="isGuest" class="guest-notice-bar">
-              <span class="guest-warn-text">⚠️ Đơn hàng vãng lai không có tài khoản. Vui lòng thanh toán trong modal này trước khi thoát.</span>
+              <span class="guest-warn-text">
+                <AppIcon name="alert-circle" size="15" color="#d97706" /> Đơn hàng vãng lai không có tài khoản. Vui lòng thanh toán trong modal này trước khi thoát.
+              </span>
               <button class="btn-close-guest" @click="handleCloseModal">Tắt cửa sổ</button>
             </div>
 
@@ -400,7 +420,7 @@ onUnmounted(() => {
 
 /* Header */
 .sepay-modal-header {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #e63b6f 0%, #c2185b 100%);
   color: #ffffff;
   padding: 20px 24px;
   display: flex;
@@ -417,12 +437,13 @@ onUnmounted(() => {
 .bank-icon-badge {
   width: 42px;
   height: 42px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  backdrop-filter: blur(4px);
 }
 
 .modal-heading {
@@ -435,14 +456,13 @@ onUnmounted(() => {
 .modal-subheading {
   margin: 2px 0 0;
   font-size: 0.82rem;
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .btn-close-modal {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.2);
   border: none;
-  color: #cbd5e1;
-  font-size: 1.5rem;
+  color: #ffffff;
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -454,8 +474,8 @@ onUnmounted(() => {
 }
 
 .btn-close-modal:hover {
-  background: rgba(239, 68, 68, 0.8);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.35);
+  transform: rotate(90deg);
 }
 
 /* Body */
@@ -683,7 +703,7 @@ onUnmounted(() => {
 
 /* Success Banner Overlay */
 .success-banner-overlay {
-  padding: 60px 30px;
+  padding: 50px 30px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -692,22 +712,23 @@ onUnmounted(() => {
 }
 
 .success-icon-bounce {
-  width: 80px;
-  height: 80px;
-  background: #f0fdf4;
+  width: 90px;
+  height: 90px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 20px;
-  box-shadow: 0 0 0 12px rgba(34, 197, 94, 0.15);
+  margin-bottom: 22px;
+  color: #ffffff;
+  box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4), 0 0 0 14px rgba(16, 185, 129, 0.12);
   animation: bounceSuccess 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .success-content h4 {
-  font-size: 1.5rem;
+  font-size: 1.55rem;
   font-weight: 800;
-  color: #16a34a;
+  color: #059669;
   margin: 0 0 8px;
 }
 
@@ -721,6 +742,17 @@ onUnmounted(() => {
   font-size: 0.85rem;
   color: #64748b;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spinner-dot {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: pulseDot 1s infinite ease-in-out;
 }
 
 /* Expired Banner Box */
