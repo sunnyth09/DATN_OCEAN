@@ -674,6 +674,23 @@ class LoyaltyService
         ];
     }
 
+    /**
+     * Thêm điểm cho user (dùng cho mini game, vòng quay may mắn, thưởng sự kiện).
+     */
+    public function addPoints(int $userId, int $points, string $type = 'earn', string $description = 'Thưởng điểm'): LoyaltyTransaction
+    {
+        $user = User::findOrFail($userId);
+
+        return $this->recordEarn(
+            user: $user,
+            points: $points,
+            rule: null,
+            referenceType: 'lucky_wheel',
+            referenceId: null,
+            description: $description,
+        );
+    }
+
     // ─── PRIVATE HELPERS ─────────────────────────────────────────────────
 
     /**
@@ -682,10 +699,10 @@ class LoyaltyService
     private function recordEarn(
         User $user,
         int $points,
-        LoyaltyRule $rule,
-        string $referenceType,
-        ?int $referenceId,
-        string $description,
+        ?LoyaltyRule $rule = null,
+        string $referenceType = 'system',
+        ?int $referenceId = null,
+        string $description = '',
     ): LoyaltyTransaction {
         $currentBalance = $this->getBalance($user->user_id);
         $newBalance = $currentBalance + $points;
@@ -703,7 +720,7 @@ class LoyaltyService
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
             'description' => $description,
-            'expires_at' => $rule->calcExpiryDate(),
+            'expires_at' => $rule ? $rule->calcExpiryDate() : Carbon::now()->addYear(),
         ]);
 
         // Gửi thông báo tích điểm tới user
