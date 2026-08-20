@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Services\GhnOrderStatusSyncService;
 use App\Services\GHNService;
+use App\Services\OceanExpressOrderStatusSyncService;
 use App\Services\OceanExpressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -95,7 +96,7 @@ class GhnController extends Controller
 
                 $rawLogs = $trackingData['tracking_logs'] ?? $trackingData['logs'] ?? [];
                 $oeStatus = $trackingData['status'] ?? null;
-                $syncService = app(\App\Services\OceanExpressOrderStatusSyncService::class);
+                $syncService = app(OceanExpressOrderStatusSyncService::class);
                 $mappedStatus = $syncService->mapStatus($oeStatus ?? '');
 
                 $latestLog = collect($rawLogs)->sortByDesc('created_at')->first() ?? collect($rawLogs)->sortByDesc('timestamp')->first();
@@ -151,8 +152,8 @@ class GhnController extends Controller
                         'location' => $trackingData['receiver_address_detail'] ?? $trackingData['receiver_address'] ?? null,
                         'description' => $statusDesc,
                         'logs' => $rawLogs,
-                        'tracking_url' => $trackingBaseUrl . '/' . urlencode($finalTrackingNumber),
-                        'print_url' => $apiBaseUrl . '/public/tracking/' . urlencode($finalTrackingNumber) . '/label',
+                        'tracking_url' => $trackingBaseUrl.'/'.urlencode($finalTrackingNumber),
+                        'print_url' => $apiBaseUrl.'/public/tracking/'.urlencode($finalTrackingNumber).'/label',
                         'raw' => $trackingData,
                     ],
                 ]);
@@ -197,17 +198,18 @@ class GhnController extends Controller
                     'location' => $detail['warehouse_name'] ?? null,
                     'description' => $detail['note'] ?? $ghnStatus,
                     'logs' => $detail['log'] ?? $detail['logs'] ?? [],
-                    'tracking_url' => 'https://donhang.ghn.vn/?order_code=' . urlencode($ghnCode),
+                    'tracking_url' => 'https://donhang.ghn.vn/?order_code='.urlencode($ghnCode),
                     'print_url' => null,
                     'raw' => $detail,
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('GhnController orderDetail error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            Log::error('GhnController orderDetail error: '.$e->getMessage()."\n".$e->getTraceAsString());
+
             return response()->json([
                 'code' => 400,
                 'status' => 'error',
-                'message' => 'Lỗi tra cứu đơn hàng: ' . $e->getMessage(),
+                'message' => 'Lỗi tra cứu đơn hàng: '.$e->getMessage(),
             ], 400);
         }
     }
@@ -249,7 +251,7 @@ class GhnController extends Controller
                         'new_status' => 'cancelled',
                         'note' => $reason,
                         'source' => 'manual',
-                        'description' => 'Hủy vận đơn Ocean Express: ' . $reason,
+                        'description' => 'Hủy vận đơn Ocean Express: '.$reason,
                         'happened_at' => now(),
                     ]);
                 }
@@ -273,18 +275,19 @@ class GhnController extends Controller
                     'new_status' => 'cancelled',
                     'note' => $reason,
                     'source' => 'manual',
-                    'description' => 'Hủy vận đơn GHN: ' . $reason,
+                    'description' => 'Hủy vận đơn GHN: '.$reason,
                     'happened_at' => now(),
                 ]);
             }
 
             return response()->json($result);
         } catch (\Throwable $e) {
-            Log::error('GhnController cancelOrder error: ' . $e->getMessage());
+            Log::error('GhnController cancelOrder error: '.$e->getMessage());
+
             return response()->json([
                 'code' => 400,
                 'status' => 'error',
-                'message' => 'Lỗi hủy vận đơn: ' . $e->getMessage(),
+                'message' => 'Lỗi hủy vận đơn: '.$e->getMessage(),
             ], 400);
         }
     }
@@ -311,18 +314,21 @@ class GhnController extends Controller
             if ($isOceanExpress) {
                 $trackingNumber = ($order && $order->tracking_number) ? $order->tracking_number : $orderCode;
                 $result = OceanExpressService::printLabel($trackingNumber);
+
                 return response()->json($result);
             }
 
             // 2. Đơn GHN
             $ghnCode = ($order && $order->ghn_order_code) ? $order->ghn_order_code : $orderCode;
+
             return response()->json(GHNService::printLabel($ghnCode));
         } catch (\Throwable $e) {
-            Log::error('GhnController printLabel error: ' . $e->getMessage());
+            Log::error('GhnController printLabel error: '.$e->getMessage());
+
             return response()->json([
                 'code' => 400,
                 'status' => 'error',
-                'message' => 'Lỗi in vận đơn: ' . $e->getMessage(),
+                'message' => 'Lỗi in vận đơn: '.$e->getMessage(),
             ], 400);
         }
     }
