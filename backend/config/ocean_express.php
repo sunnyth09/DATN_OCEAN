@@ -47,7 +47,7 @@ return [
         explode(',', (string) env('OCEAN_EXPRESS_WEBHOOK_ALLOWED_IPS', ''))
     ))),
     'webhook_require_auth' => filter_var(
-        env('OCEAN_EXPRESS_WEBHOOK_REQUIRE_AUTH', true),
+        env('OCEAN_EXPRESS_WEBHOOK_REQUIRE_AUTH', false),
         FILTER_VALIDATE_BOOLEAN
     ),
 
