@@ -854,7 +854,7 @@ class OrderService
 
     private function generateOrderCode(): string
     {
-        return 'ORD-'.strtoupper(substr(Str::uuid()->toString(), 0, 8)).'-'.rand(100, 999);
+        return 'ORD'.strtoupper(substr(Str::uuid()->toString(), 0, 8)).rand(100, 999);
     }
 
     private function dispatchOrderCreatedEvent($order): void
