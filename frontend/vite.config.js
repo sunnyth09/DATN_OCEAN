@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 // https://vite.dev/config/
 export default defineConfig({
   envDir: '../',
+  envPrefix: ['VITE_', 'BANK_'],
   plugins: [
     vue(),
   ],

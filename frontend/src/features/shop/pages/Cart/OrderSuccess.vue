@@ -5,6 +5,7 @@ import ProductCard from "@/components/ProductCard.vue";
 import { catalogService } from "@/services/catalogService";
 import { orderService } from "@/services/orderService";
 import { useAuthStore } from "@/stores/auth";
+import api from "@/axios";
 
 const route = useRoute();
 const orderCode = route.params.order_code || "";
@@ -53,7 +54,7 @@ const MAX_POLLS = 36;
 const checkPaymentStatus = async () => {
     if (!orderCode) return;
     try {
-        const res = await orderService.getOrderByCode(orderCode);
+        const res = await api.get(`/orders/status/${orderCode}`);
         const order = res.data?.data;
         if (order?.payment_status === 'paid') {
             paymentStatus.value = 'paid';

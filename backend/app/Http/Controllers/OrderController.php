@@ -211,4 +211,33 @@ class OrderController extends Controller
             ],
         ]);
     }
+
+    /**
+     * GET /api/orders/status/{orderCode} — Tra cứu công khai trạng thái đơn hàng.
+     * Hỗ trợ polling real-time cho cả Guest và User đã đăng nhập.
+     */
+    public function publicStatus(string $orderCode): JsonResponse
+    {
+        $order = Order::where('order_code', $orderCode)->first();
+
+        if (! $order) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Không tìm thấy đơn hàng!',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'order_id'           => $order->order_id,
+                'order_code'         => $order->order_code,
+                'payment_status'     => $order->payment_status,
+                'payment_method'     => $order->payment_method,
+                'fulfillment_status' => $order->fulfillment_status,
+                'created_at'         => $order->created_at?->toISOString(),
+                'grand_total'        => (float) $order->grand_total,
+            ],
+        ]);
+    }
 }

@@ -227,6 +227,7 @@ Route::middleware('auth:api,admin')->prefix('cart')->group(function () {
 
 Route::post('/cart/guest-details', [CartController::class, 'getGuestDetails']);
 Route::middleware('throttle:30,1')->post('/orders/guest', [OrderController::class, 'storeGuest']);
+Route::middleware('throttle:120,1')->get('/orders/status/{order_code}', [OrderController::class, 'publicStatus']);
 Route::middleware('throttle:strict_api')->get('/tracking/{token}', [OrderTrackingController::class, 'trackByToken']);
 Route::post('/orders/guest-tracking', [OrderTrackingController::class, 'trackByPhone']);
 
