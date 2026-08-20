@@ -55,8 +55,8 @@ class OrderTrackingController extends Controller
     public function trackByPhone(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'order_code' => ['required', 'string', 'max:50'],
-            'phone' => ['required', 'string', 'regex:/^[0-9]{10,11}$/'],
+            'order_code' => ['required', 'string', 'max:100'],
+            'phone' => ['required', 'string'],
         ]);
 
         $key = 'guest_tracking:'.$request->ip();
@@ -70,13 +70,20 @@ class OrderTrackingController extends Controller
         }
         RateLimiter::hit($key, 300);
 
+        $searchCode = trim($validated['order_code']);
         $phone = preg_replace('/\D+/', '', $validated['phone']);
+        $phoneSuffix = strlen($phone) >= 9 ? substr($phone, -9) : $phone;
 
         $order = Order::with(['address'])
-            ->where('order_code', $validated['order_code'])
-            ->where(function ($query) use ($phone) {
+            ->where(function ($query) use ($searchCode) {
+                $query->where('order_code', $searchCode)
+                    ->orWhere('tracking_number', $searchCode)
+                    ->orWhere('ghn_order_code', $searchCode);
+            })
+            ->where(function ($query) use ($phone, $phoneSuffix) {
                 $query->where('recipient_phone', $phone)
-                    ->orWhereHas('address', fn ($addressQuery) => $addressQuery->where('phone', $phone));
+                    ->orWhere('recipient_phone', 'like', "%{$phoneSuffix}")
+                    ->orWhereHas('address', fn ($addressQuery) => $addressQuery->where('phone', $phone)->orWhere('phone', 'like', "%{$phoneSuffix}"));
             })
             ->first();
 

@@ -457,4 +457,15 @@ router.afterEach((to, from) => {
     }
 });
 
+// ==================== Dynamic Chunk Error Handling ====================
+router.onError((error, to) => {
+    if (error?.message?.includes('Failed to fetch dynamically imported module') || error?.message?.includes('Importing a module script failed')) {
+        const isReloaded = sessionStorage.getItem('chunk_reload_' + to.fullPath);
+        if (!isReloaded) {
+            sessionStorage.setItem('chunk_reload_' + to.fullPath, 'true');
+            window.location.href = to.fullPath;
+        }
+    }
+});
+
 export default router;

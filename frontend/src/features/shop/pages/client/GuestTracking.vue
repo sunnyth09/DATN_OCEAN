@@ -120,8 +120,8 @@ onMounted(loadByToken);
     <section class="tracking-card">
       <form v-if="!token" class="tracking-form" @submit.prevent="submitGuestTracking">
         <div class="form-group">
-          <label for="order_code">Mã đơn hàng</label>
-          <input id="order_code" v-model="form.order_code" type="text" placeholder="VD: QS123456" autocomplete="off" />
+          <label for="order_code">Mã đơn hàng / Mã vận đơn</label>
+          <input id="order_code" v-model="form.order_code" type="text" placeholder="VD: QS123456 hoặc OE-123456" autocomplete="off" />
         </div>
         <div class="form-group">
           <label for="phone">Số điện thoại</label>
@@ -160,9 +160,9 @@ onMounted(loadByToken);
             <span>Số điện thoại</span>
             <strong>{{ tracking.receiver_phone || 'Đã ẩn' }}</strong>
           </div>
-          <div class="info-box" v-if="tracking.tracking_number">
-            <span>Mã GHN</span>
-            <strong>{{ tracking.tracking_number }}</strong>
+          <div class="info-box" v-if="tracking.tracking_number || tracking.ghn_order_code">
+            <span>{{ tracking.tracking_number?.startsWith('OE-') ? 'Mã Ocean Express' : (tracking.ghn_order_code ? 'Mã GHN' : 'Mã vận đơn') }}</span>
+            <strong>{{ tracking.tracking_number || tracking.ghn_order_code }}</strong>
           </div>
         </div>
 
@@ -208,9 +208,9 @@ onMounted(loadByToken);
             </div>
           </div>
 
-          <a v-if="tracking.ghn_tracking_url" class="ghn-link mt-4" :href="tracking.ghn_tracking_url" target="_blank"
+          <a v-if="tracking.tracking_url || tracking.ghn_tracking_url" class="ghn-link mt-4" :href="tracking.tracking_url || tracking.ghn_tracking_url" target="_blank"
             rel="noopener">
-            Xem trực tiếp trên GHN
+            Xem trực tiếp trên {{ tracking.tracking_url?.includes('oceanexpress') ? 'Ocean Express' : 'GHN' }}
           </a>
 
         <div class="timeline-section" v-if="tracking.timeline?.length">

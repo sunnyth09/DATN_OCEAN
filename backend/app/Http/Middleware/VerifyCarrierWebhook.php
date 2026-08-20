@@ -36,7 +36,7 @@ class VerifyCarrierWebhook
         $token = config("{$carrier}.webhook_token");
         $secret = config("{$carrier}.webhook_secret");
         $allowedIps = config("{$carrier}.webhook_allowed_ips", []);
-        $requireAuth = (bool) config("{$carrier}.webhook_require_auth", true);
+        $requireAuth = (bool) config("{$carrier}.webhook_require_auth", false);
 
         // ── Lớp 1: IP whitelist ──
         if (! empty($allowedIps) && ! in_array($request->ip(), $allowedIps, true)) {

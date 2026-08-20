@@ -234,10 +234,10 @@ const fetchSidebarBadges = async () => {
     const response = await api.get('/admin/sidebar-badges');
     if (response.data.status === 'success') {
       const data = response.data.data;
-      uiStore.setAdminUnreadChatCount(data.unread_chats || 0);
-      uiStore.setAdminPendingReviewCount(data.pending_reviews || 0);
-      uiStore.setAdminPendingTicketCount(data.open_tickets || 0);
-      uiStore.setAdminPendingContactCount(data.pending_contacts || 0);
+      uiStore.setAdminUnreadChatCount?.(data.unread_chats || 0);
+      uiStore.setAdminPendingReviewCount?.(data.pending_reviews || 0);
+      uiStore.setAdminPendingTicketCount?.(data.open_tickets || 0);
+      uiStore.setAdminPendingContactCount?.(data.pending_contacts || 0);
     }
   } catch (error) {
     console.error('Failed to fetch sidebar badges', error);

@@ -11,6 +11,34 @@ use Illuminate\Http\Request;
 class AdminChatController extends Controller
 {
     /**
+     * Lấy số lượng tin nhắn/phiên chat chưa xử lý
+     */
+    public function getPendingCount()
+    {
+        try {
+            $unreadMessages = ChatMessage::where('sender_type', 'user')->where('is_read', false)->count();
+            $unrepliedSessions = ChatSession::where('status', 'open')->count();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'unread_messages' => $unreadMessages,
+                    'unreplied_sessions' => $unrepliedSessions,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'data' => [
+                    'unread_messages' => 0,
+                    'unreplied_sessions' => 0,
+                ],
+            ], 500);
+        }
+    }
+
+    /**
      * Lấy danh sách các session
      */
     public function getSessions()

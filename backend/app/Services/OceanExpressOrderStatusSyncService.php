@@ -24,12 +24,24 @@ class OceanExpressOrderStatusSyncService
     {
         return [
             'pending' => OrderStatus::PENDING->value,
+            'ready_to_pick' => OrderStatus::AWAITING_PICKUP->value,
             'picking' => OrderStatus::AWAITING_PICKUP->value,
+            'picked' => OrderStatus::SHIPPING->value,
+            'picked_up' => OrderStatus::SHIPPING->value,
+            'stored' => OrderStatus::SHIPPING->value,
+            'storing' => OrderStatus::SHIPPING->value,
+            'in_hub' => OrderStatus::SHIPPING->value,
+            'hub_inbound' => OrderStatus::SHIPPING->value,
+            'hub_outbound' => OrderStatus::SHIPPING->value,
+            'transporting' => OrderStatus::SHIPPING->value,
+            'in_transit' => OrderStatus::SHIPPING->value,
             'shipping' => OrderStatus::SHIPPING->value,
             'delivering' => OrderStatus::SHIPPING->value,
             'delivered' => OrderStatus::DELIVERED->value,
             'completed' => OrderStatus::COMPLETED->value,
             'cancelled' => OrderStatus::CANCELLED->value,
+            'return_requested' => OrderStatus::RETURN_REQUESTED->value,
+            'returning' => OrderStatus::RETURNING->value,
             'returned' => OrderStatus::RETURNED->value,
         ][$status] ?? null;
     }
@@ -93,7 +105,7 @@ class OceanExpressOrderStatusSyncService
                 ];
             }
 
-            return $this->applyStatus($order, $mappedStatus, $oeStatus, 'ocean_express_webhook', $happenedAt, $description, $latitude, $longitude);
+            return $this->applyStatus($order, $mappedStatus, $oeStatus, 'ocean_express', $happenedAt, $description, $latitude, $longitude);
         } finally {
             $lock->release();
         }
@@ -188,7 +200,7 @@ class OceanExpressOrderStatusSyncService
                 'new_status' => $shouldUpdateOrder ? $mappedStatus : $oldStatus,
                 'note' => 'Cập nhật tự động từ Ocean Express (Webhook)',
                 'ghn_status' => $oeStatus, // Ghi log vào cột ghn_status cũ để hiển thị
-                'source' => $source,
+                'source' => substr((string) ($source ?: 'ocean_express'), 0, 20),
                 'description' => $description,
                 'latitude' => $latitude,
                 'longitude' => $longitude,
@@ -241,17 +253,25 @@ class OceanExpressOrderStatusSyncService
         return true;
     }
 
-    private function parseHappenedAt(array $data): Carbon
+    public function parseHappenedAt(array $data): Carbon
     {
-        $time = $data['timestamp'] ?? null;
+        $time = $data['timestamp'] ?? $data['created_at'] ?? $data['happened_at'] ?? null;
 
         if (is_numeric($time)) {
-            return Carbon::createFromTimestamp((int) $time);
+            return Carbon::createFromTimestamp((int) $time)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
         }
 
         if (is_string($time) && $time !== '') {
             try {
-                return Carbon::parse($time);
+                if (str_contains($time, 'T') || str_ends_with($time, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $time)) {
+                    return Carbon::parse($time)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
+                }
+
+                if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/', $time)) {
+                    return Carbon::parse($time, 'UTC')->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
+                }
+
+                return Carbon::parse($time)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
             } catch (\Throwable) {
                 return now();
             }

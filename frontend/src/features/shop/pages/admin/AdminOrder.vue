@@ -210,7 +210,16 @@ const getOrderStatusActions = (order) => {
   const allowed = order.available_transitions || [];
   return allowed
     .filter((status) => {
-      if (status === 'delivered' && order.tracking_number) return false;
+      if (order.tracking_number && order.tracking_number !== 'SELF-DELIVERY') {
+        const carrierBlockedStatuses = [
+          'pending', 'confirmed', 'processing', 'packing', 'awaiting_pickup',
+          'shipping', 'delivered', 'returning', 'returned', 'warehouse_received',
+          'cancelled'
+        ];
+        if (carrierBlockedStatuses.includes(status)) {
+          return false;
+        }
+      }
       return Boolean(statusActionDefinitions[status]);
     })
     .map((status) => ({ value: status, ...statusActionDefinitions[status] }));

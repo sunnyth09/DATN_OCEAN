@@ -31,6 +31,8 @@ class AdminOrderRepository
             $searchTerm = $filters['search'];
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('order_code', 'like', "%{$searchTerm}%")
+                    ->orWhere('tracking_number', 'like', "%{$searchTerm}%")
+                    ->orWhere('ghn_order_code', 'like', "%{$searchTerm}%")
                     ->orWhere('recipient_name', 'like', "%{$searchTerm}%")
                     ->orWhere('recipient_phone', 'like', "%{$searchTerm}%");
             });

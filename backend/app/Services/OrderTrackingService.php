@@ -119,7 +119,7 @@ class OrderTrackingService
             return collect();
         }
 
-        $logs = $data['logs'] ?? [];
+        $logs = $data['tracking_logs'] ?? $data['logs'] ?? [];
         if (! is_array($logs)) {
             return collect();
         }
@@ -127,9 +127,9 @@ class OrderTrackingService
         return collect($logs)
             ->filter(fn ($log) => is_array($log))
             ->map(function (array $log) use ($order) {
-                // Ocean Express log fields per API spec: status, timestamp, note
+                // Ocean Express log fields: status, created_at/timestamp, note
                 $status = $log['status'] ?? null;
-                $timestamp = $log['timestamp'] ?? now()->toIso8601String();
+                $timestamp = $log['created_at'] ?? $log['timestamp'] ?? now()->toIso8601String();
                 $note = $log['note'] ?? $status;
 
                 // Map Ocean Express status to local fulfillment_status
@@ -264,11 +264,19 @@ class OrderTrackingService
     {
         try {
             if (is_numeric($value)) {
-                return Carbon::createFromTimestamp((int) $value)->toIso8601String();
+                return Carbon::createFromTimestamp((int) $value)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
             }
 
             if (is_string($value) && $value !== '') {
-                return Carbon::parse($value)->toIso8601String();
+                if (str_contains($value, 'T') || str_ends_with($value, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $value)) {
+                    return Carbon::parse($value)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
+                }
+
+                if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/', $value)) {
+                    return Carbon::parse($value, 'UTC')->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
+                }
+
+                return Carbon::parse($value)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
             }
         } catch (\Throwable) {
             // fallback below

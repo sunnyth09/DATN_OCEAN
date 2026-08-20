@@ -87,6 +87,7 @@ class LoyaltyController extends Controller
         $user->save();
 
         $tx = $this->loyaltyService->earnDailyCheckIn($user, $user->check_in_streak);
+        $user->refresh();
 
         return response()->json([
             'status' => 'success',
@@ -172,7 +173,7 @@ class LoyaltyController extends Controller
         }
 
         // Cấp phát phần thưởng
-        if ($winningPrize->type === 'points' && $winningPrize->value > 0) {
+        if ($winningPrize && $winningPrize->type === 'points' && $winningPrize->value > 0) {
             $this->loyaltyService->addPoints(
                 $user->user_id,
                 $winningPrize->value,
@@ -180,8 +181,17 @@ class LoyaltyController extends Controller
                 'Trúng thưởng vòng quay: ' . $winningPrize->name
             );
             $user->refresh();
-        } elseif ($winningPrize->type === 'voucher') {
-            // (Tuỳ chọn: cấp phát voucher vào UserCoupon table)
+        } elseif ($winningPrize && $winningPrize->type === 'voucher' && $winningPrize->value > 0) {
+            $coupon = \App\Models\Coupon::where('type', 'percent')
+                ->where('value', $winningPrize->value)
+                ->where('is_active', true)
+                ->first();
+            if ($coupon) {
+                \App\Models\UserCoupon::firstOrCreate(
+                    ['user_id' => $user->user_id, 'coupon_id' => $coupon->id],
+                    ['is_saved' => true, 'used_count' => 0]
+                );
+            }
         }
 
         return response()->json([

@@ -160,4 +160,102 @@ class OceanExpressService
 
         return null;
     }
+
+    /**
+     * Get Print Label URL for Ocean Express order.
+     */
+    public static function printLabel(string $trackingNumber): array
+    {
+        $directUrl = self::url('public/tracking/'.urlencode($trackingNumber).'/label');
+
+        try {
+            $response = self::client(false)->get(self::url('public/orders/'.urlencode($trackingNumber).'/print-label'));
+            if ($response->successful()) {
+                $data = $response->json('data', []);
+                $labelUrl = $data['label_url'] ?? $data['pdf_url'] ?? $directUrl;
+
+                if (str_contains($labelUrl, '/public/orders/')) {
+                    $labelUrl = str_replace('/public/orders/', '/public/tracking/', $labelUrl);
+                }
+
+                return [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'Lấy link in vận đơn thành công',
+                    'data' => [
+                        'token' => 'oe_'.md5($trackingNumber),
+                        'print_url' => $labelUrl,
+                        'label_url' => $labelUrl,
+                        'pdf_url' => $labelUrl,
+                        'tracking_number' => $trackingNumber,
+                    ],
+                ];
+            }
+
+            return [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'Lấy link in vận đơn thành công',
+                'data' => [
+                    'token' => 'oe_'.md5($trackingNumber),
+                    'print_url' => $directUrl,
+                    'label_url' => $directUrl,
+                    'pdf_url' => $directUrl,
+                    'tracking_number' => $trackingNumber,
+                ],
+            ];
+        } catch (\Throwable $e) {
+            Log::error('OceanExpress printLabel error: '.$e->getMessage());
+
+            return [
+                'code' => 200,
+                'status' => 'success',
+                'message' => 'Lấy link in vận đơn thành công',
+                'data' => [
+                    'token' => 'oe_'.md5($trackingNumber),
+                    'print_url' => $directUrl,
+                    'label_url' => $directUrl,
+                    'pdf_url' => $directUrl,
+                    'tracking_number' => $trackingNumber,
+                ],
+            ];
+        }
+    }
+
+    /**
+     * Cancel a shipment order in Ocean Express.
+     */
+    public static function cancelOrder(string $trackingNumber, string $reason = ''): array
+    {
+        try {
+            $response = self::client()->put(self::url('orders/'.urlencode($trackingNumber).'/status'), [
+                'status' => 'cancelled',
+                'note' => $reason,
+                'failure_reason' => $reason,
+            ]);
+
+            if ($response->successful()) {
+                return [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'Hủy vận đơn Ocean Express thành công',
+                    'data' => $response->json('data', []),
+                ];
+            }
+
+            Log::warning('OceanExpress cancelOrder failed: '.$response->body());
+            return [
+                'code' => $response->status(),
+                'status' => 'error',
+                'message' => $response->json('message') ?? 'Không thể hủy đơn Ocean Express',
+            ];
+        } catch (\Throwable $e) {
+            Log::error('OceanExpress cancelOrder error: '.$e->getMessage());
+            return [
+                'code' => 500,
+                'status' => 'error',
+                'message' => 'Lỗi kết nối khi hủy đơn Ocean Express',
+            ];
+        }
+    }
 }

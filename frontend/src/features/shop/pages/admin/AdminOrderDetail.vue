@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
 import { Toast, Modal } from 'bootstrap';
@@ -46,12 +46,88 @@ const statuses = [
 // Luồng trạng thái tuần tự
 statuses.splice(2, 0, { value: 'processing', label: 'Đang xử lý' });
 statuses.push(
+  { value: 'awaiting_pickup', label: 'Chờ lấy hàng' },
+  { value: 'ready_to_pick', label: 'Chờ lấy hàng' },
+  { value: 'picking', label: 'Đang lấy hàng' },
+  { value: 'picked_up', label: 'Đã lấy hàng' },
+  { value: 'stored', label: 'Đã nhập kho' },
+  { value: 'storing', label: 'Đang lưu kho' },
+  { value: 'hub_inbound', label: 'Đã nhập kho trung chuyển' },
+  { value: 'in_transit', label: 'Đang trung chuyển' },
+  { value: 'transporting', label: 'Đang trung chuyển' },
+  { value: 'hub_outbound', label: 'Đã xuất kho giao' },
+  { value: 'delivering', label: 'Đang giao hàng' },
+  { value: 'delivery_fail', label: 'Giao không thành công' },
   { value: 'return_requested', label: 'Yêu cầu hoàn' },
+  { value: 'returning', label: 'Đang chuyển hoàn' },
   { value: 'return_approved', label: 'Đã duyệt hoàn' },
   { value: 'return_rejected', label: 'Từ chối hoàn' },
   { value: 'returned', label: 'Đã nhận hàng hoàn' },
   { value: 'refunded', label: 'Đã hoàn tiền' },
 );
+
+const shippingStatusMap = {
+  ready_to_pick: { label: 'Chờ lấy hàng', color: '#d97706', bg: '#fef3c7', border: '#fcd34d', desc: 'Đơn hàng đã được tạo trên hệ thống, đang chờ bưu tá tiếp nhận và đến lấy hàng.' },
+  picking: { label: 'Đang lấy hàng', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', desc: 'Bưu tá đang trên đường đến địa chỉ người gửi để lấy hàng.' },
+  picked_up: { label: 'Đã lấy hàng', color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', desc: 'Bưu tá đã lấy hàng thành công từ người gửi.' },
+  stored: { label: 'Đã nhập kho', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', desc: 'Kiện hàng đã nhập kho để kiểm đếm và phân loại.' },
+  storing: { label: 'Đang lưu kho', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', desc: 'Kiện hàng đang được lưu giữ tại bưu cục/kho.' },
+  hub_inbound: { label: 'Đã nhập kho trung chuyển', color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', desc: 'Kiện hàng đã đến kho trung chuyển khu vực.' },
+  in_transit: { label: 'Đang trung chuyển', color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', desc: 'Kiện hàng đang được vận chuyển giữa các bưu cục/kho trung chuyển.' },
+  transporting: { label: 'Đang trung chuyển', color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', desc: 'Kiện hàng đang được vận chuyển giữa các bưu cục/kho trung chuyển.' },
+  hub_outbound: { label: 'Đã xuất kho giao', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', desc: 'Kiện hàng đã xuất kho trung chuyển, chuyển tới bưu cục phát.' },
+  delivering: { label: 'Đang giao hàng', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', desc: 'Bưu tá đang trên đường giao kiện hàng tới địa chỉ người nhận.' },
+  delivered: { label: 'Giao thành công', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', desc: 'Đơn hàng đã được giao thành công tới người nhận.' },
+  delivery_fail: { label: 'Giao không thành công', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', desc: 'Giao hàng chưa thành công, bưu tá sẽ liên hệ phát lại.' },
+  failed: { label: 'Giao thất bại', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', desc: 'Giao hàng không thành công.' },
+  return_requested: { label: 'Yêu cầu chuyển hoàn', color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', desc: 'Đơn hàng có yêu cầu chuyển hoàn về cho Shop.' },
+  returning: { label: 'Đang chuyển hoàn', color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', desc: 'Kiện hàng đang trên đường chuyển hoàn lại cho người gửi.' },
+  returned: { label: 'Đã hoàn trả Shop', color: '#4b5563', bg: '#f3f4f6', border: '#e5e7eb', desc: 'Kiện hàng đã được hoàn trả thành công về Shop.' },
+  cancelled: { label: 'Đã hủy', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', desc: 'Vận đơn đã bị hủy.' },
+  cancel: { label: 'Đã hủy', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', desc: 'Vận đơn đã bị hủy.' },
+  awaiting_pickup: { label: 'Chờ lấy hàng', color: '#d97706', bg: '#fef3c7', border: '#fcd34d', desc: 'Đang chờ hãng vận chuyển tiếp nhận kiện hàng.' },
+  shipping: { label: 'Đang vận chuyển', color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', desc: 'Đơn hàng đang trong quá trình vận chuyển.' },
+};
+
+const getShippingStatusTitle = (item) => {
+  if (!item) return 'Đang xử lý';
+  if (item.status_name) return item.status_name;
+  if (item.status_label) return item.status_label;
+  const rawKey = item.ghn_status || item.status || item.mapped_status || item.local_status;
+  return shippingStatusMap[rawKey]?.label || getStatusLabel(rawKey) || rawKey;
+};
+
+const getShippingStatusDesc = (item) => {
+  if (!item) return '';
+  if (item.status_description) return item.status_description;
+  if (item.description && !item.description.startsWith('Trạng thái:')) return item.description;
+  const rawKey = item.ghn_status || item.status || item.mapped_status || item.local_status;
+  return shippingStatusMap[rawKey]?.desc || item.description || '';
+};
+
+const getShippingBadgeStyle = (item) => {
+  const rawKey = item?.ghn_status || item?.status || item?.mapped_status || item?.local_status;
+  const meta = shippingStatusMap[rawKey];
+  if (item?.status_badge?.badge_bg) {
+    return {
+      color: item.status_badge.badge_text || '#0f172a',
+      backgroundColor: item.status_badge.badge_bg,
+      borderColor: item.status_badge.badge_bg,
+    };
+  }
+  if (meta) {
+    return {
+      color: meta.color,
+      backgroundColor: meta.bg,
+      borderColor: meta.border,
+    };
+  }
+  return {
+    color: '#2563eb',
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+  };
+};
 
 // statusTransitions was removed because we use backend available_transitions now
 
@@ -86,10 +162,14 @@ const getCurrentOrderStatusActions = () => {
     .filter((status) => {
       if (status === 'shipping') return false; // Shipping is handled by dedicated UI now
       
-      // Khóa toàn bộ các trạng thái thuộc về Vận chuyển (Carrier) nếu đang dùng đối tác thứ 3 (GHN/OceanExpress)
+      // Khóa toàn bộ các thao tác nội bộ & giao hàng nếu đơn đã đẩy sang hãng vận chuyển (GHN/OceanExpress)
       if (order.value.tracking_number && order.value.tracking_number !== 'SELF-DELIVERY') {
-        const carrierControlledStatuses = ['delivered', 'returning', 'returned', 'warehouse_received'];
-        if (carrierControlledStatuses.includes(status)) {
+        const carrierBlockedStatuses = [
+          'pending', 'confirmed', 'processing', 'packing', 'awaiting_pickup',
+          'shipping', 'delivered', 'returning', 'returned', 'warehouse_received',
+          'cancelled'
+        ];
+        if (carrierBlockedStatuses.includes(status)) {
           return false;
         }
       }
@@ -128,12 +208,15 @@ const paymentMethodLabels = {
 paymentLabels.refund_pending = 'Chờ hoàn tiền';
 paymentLabels.refund_failed = 'Hoàn tiền lỗi';
 
-const fetchOrder = async () => {
+const fetchOrder = async (autoLookup = true) => {
   loading.value = true;
   try {
     const res = await api.get(`/admin/orders/${route.params.id}`);
     if (res.data.status === 'success') {
       order.value = { ...res.data.data, _prevFulfillmentStatus: res.data.data.fulfillment_status, _prevPaymentStatus: res.data.data.payment_status };
+      if (autoLookup && order.value?.tracking_number && order.value.tracking_number !== 'SELF-DELIVERY') {
+        lookupGhnStatus(false, true);
+      }
     }
   } catch (error) {
     console.error('Fetch order detail failed', error);
@@ -286,17 +369,35 @@ const getStepStatus = (stepKey) => {
   if (order.value.fulfillment_status === 'cancelled') {
     return 'cancelled';
   }
-  const stepOrder = ['pending', 'confirmed', 'packing', 'shipping', 'delivered', 'completed'];
-  const currentIdx = stepOrder.indexOf(order.value.fulfillment_status);
-  const stepIdx = stepOrder.indexOf(stepKey);
-  
-  // Nếu đã hoàn thành thì tất cả các bước (kể cả bước hoàn thành) đều là 'done'
+
+  const statusLevels = {
+    pending: 1,
+    confirmed: 2,
+    processing: 2,
+    packing: 3,
+    awaiting_pickup: 3, // Chờ lấy hàng = hoàn thành xác nhận/đóng gói, đang chờ shipper
+    shipping: 4,
+    delivered: 5,
+    completed: 6,
+  };
+  const stepLevels = {
+    pending: 1,
+    confirmed: 2,
+    packing: 3,
+    shipping: 4,
+    delivered: 5,
+    completed: 6,
+  };
+
+  const currentLevel = statusLevels[order.value.fulfillment_status] || 0;
+  const stepLevel = stepLevels[stepKey] || 0;
+
   if (order.value.fulfillment_status === 'completed') {
-      return stepIdx <= currentIdx ? 'done' : 'inactive';
+    return 'done';
   }
-  
-  if (stepIdx < currentIdx) return 'done';
-  if (stepIdx === currentIdx) return 'active';
+
+  if (stepLevel < currentLevel) return 'done';
+  if (stepLevel === currentLevel) return 'active';
   return 'inactive';
 };
 
@@ -306,8 +407,12 @@ const getStepTimestamp = (step) => {
     return order.value[step.field];
   }
   if (order.value.status_histories && order.value.status_histories.length > 0) {
-    const history = order.value.status_histories.find(h => h.new_status === step.key);
-    if (history) return history.created_at;
+    const history = order.value.status_histories.find(h => {
+      if (h.new_status === step.key) return true;
+      if (step.key === 'packing' && (h.new_status === 'awaiting_pickup' || h.new_status === 'processing')) return true;
+      return false;
+    });
+    if (history) return history.happened_at || history.created_at;
   }
   return null;
 };
@@ -362,7 +467,7 @@ const confirmSelfDelivery = async () => {
   }
 };
 
-const lookupGhnStatus = async (sync = true) => {
+const lookupGhnStatus = async (sync = true, silent = false) => {
   if (!order.value?.tracking_number || order.value.tracking_number === 'SELF-DELIVERY') return;
   isLookingUpGhn.value = true;
   try {
@@ -372,11 +477,11 @@ const lookupGhnStatus = async (sync = true) => {
     });
     if (res.data.status === 'success') {
       ghnLookup.value = res.data.data;
-      toast.success(res.data.message || 'Đã tra cứu trạng thái vận chuyển');
-      if (sync) await fetchOrder();
+      if (!silent) toast.success(res.data.message || 'Đã tra cứu trạng thái vận chuyển');
+      if (sync) await fetchOrder(false);
     }
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Không thể tra cứu trạng thái vận chuyển');
+    if (!silent) toast.error(error.response?.data?.message || 'Không thể tra cứu trạng thái vận chuyển');
   } finally {
     isLookingUpGhn.value = false;
   }
@@ -420,6 +525,21 @@ const cancelGhnOrder = async () => {
     isCanceling.value = false;
   }
 };
+
+const sortedShippingLogs = computed(() => {
+  const logs = ghnLookup.value?.logs;
+  if (!Array.isArray(logs) || logs.length === 0) return [];
+  const withIndex = logs.map((log, originalIdx) => ({ log, originalIdx }));
+  withIndex.sort((a, b) => {
+    const timeA = new Date(a.log.created_at || a.log.timestamp || a.log.happened_at || 0).getTime();
+    const timeB = new Date(b.log.created_at || b.log.timestamp || b.log.happened_at || 0).getTime();
+    if (timeB !== timeA) {
+      return timeB - timeA;
+    }
+    return b.originalIdx - a.originalIdx;
+  });
+  return withIndex.map(item => item.log);
+});
 
 onMounted(() => fetchOrder());
 </script>
@@ -652,7 +772,7 @@ onMounted(() => fetchOrder());
               </div>
               
               <!-- Khối thao tác đẩy đơn/tự giao -->
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="order.available_transitions?.includes('shipping')">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="!order.tracking_number && order.available_transitions?.includes('shipping')">
                 <button class="btn-lookup-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
                    <AppIcon name="truck" size="16" class="me-1" />
                    {{ isSyncingGhn ? 'Đang đẩy...' : 'Giao qua đối tác' }}
@@ -698,14 +818,73 @@ onMounted(() => fetchOrder());
                 <span class="info-value note-text">{{ order.note }}</span>
               </div>
             </div>
-            <div v-if="ghnLookup" class="ghn-lookup-panel">
-              <div class="ghn-lookup-title">Trạng thái vận chuyển</div>
-              <div class="ghn-lookup-row"><span>Trạng thái vận chuyển</span><strong>{{ ghnLookup.ghn_status || '—' }}</strong></div>
-              <div class="ghn-lookup-row"><span>Trạng thái local</span><strong>{{ getStatusLabel(ghnLookup.local_status) }}</strong></div>
-              <div class="ghn-lookup-row"><span>Mapping</span><strong>{{ getStatusLabel(ghnLookup.mapped_status) }}</strong></div>
-              <div class="ghn-lookup-row" v-if="ghnLookup.happened_at"><span>Thời gian</span><strong>{{ formatDate(ghnLookup.happened_at) }}</strong></div>
-              <div class="ghn-lookup-row" v-if="ghnLookup.location"><span>Vị trí</span><strong>{{ ghnLookup.location }}</strong></div>
-              <p v-if="ghnLookup.description" class="ghn-lookup-desc">{{ ghnLookup.description }}</p>
+            <!-- Panel thông tin vận đơn chuyên nghiệp -->
+            <div v-if="ghnLookup" class="shipping-carrier-panel">
+              <div class="shipping-panel-header">
+                <div class="carrier-brand">
+                  <div class="carrier-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="1" y="3" width="15" height="13"></rect>
+                      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                      <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                      <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="carrier-name">{{ ghnLookup.carrier || (order.tracking_number?.startsWith('OE-') ? 'Ocean Express' : 'Giao Hàng Nhanh') }}</div>
+                    <div class="carrier-code-wrap">
+                      <span class="carrier-code-label">Mã vận đơn:</span>
+                      <strong class="carrier-tracking-code">{{ ghnLookup.order_code || order.tracking_number }}</strong>
+                    </div>
+                  </div>
+                </div>
+                
+                <span class="carrier-status-badge" :style="getShippingBadgeStyle(ghnLookup)">
+                  {{ getShippingStatusTitle(ghnLookup) }}
+                </span>
+              </div>
+
+              <!-- Mô tả trạng thái thực tế -->
+              <div class="shipping-status-desc" v-if="getShippingStatusDesc(ghnLookup)">
+                <div class="desc-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </div>
+                <p>{{ getShippingStatusDesc(ghnLookup) }}</p>
+              </div>
+
+              <!-- Chi tiết thông tin -->
+              <div class="shipping-info-grid">
+                <div class="shipping-info-item" v-if="ghnLookup.happened_at">
+                  <span class="info-k">Cập nhật:</span>
+                  <span class="info-v">{{ formatDate(ghnLookup.happened_at) }}</span>
+                </div>
+                <div class="shipping-info-item" v-if="ghnLookup.location">
+                  <span class="info-k">Địa chỉ phát:</span>
+                  <span class="info-v">{{ ghnLookup.location }}</span>
+                </div>
+              </div>
+
+              <!-- Lịch sử hành trình / Tracking Logs nếu có -->
+              <div v-if="sortedShippingLogs.length > 0" class="shipping-logs-section">
+                <div class="logs-title">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                  Hành trình vận đơn ({{ sortedShippingLogs.length }} mốc)
+                </div>
+                <div class="shipping-logs-timeline">
+                  <div v-for="(log, idx) in sortedShippingLogs" :key="idx" class="log-item" :class="{ 'latest': idx === 0 }">
+                    <div class="log-dot">
+                      <div v-if="idx === 0" class="log-dot-pulse"></div>
+                    </div>
+                    <div class="log-content">
+                      <div class="log-status-row">
+                        <span class="log-status">{{ getShippingStatusTitle(log) }}</span>
+                        <span class="log-time">{{ formatDate(log.created_at || log.timestamp || log.happened_at) }}</span>
+                      </div>
+                      <div class="log-note" v-if="log.note">{{ log.note }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1203,33 +1382,210 @@ onMounted(() => fetchOrder());
 }
 .summary-row.total span:last-child { color: var(--primary); font-size: 1.2rem; }
  
-/* History */
-.ghn-lookup-panel {
+/* Carrier Shipping Panel */
+.shipping-carrier-panel {
   margin-top: 16px;
-  padding: 14px;
-  border: 1px dashed #93c5fd;
-  border-radius: 12px;
-  background: #eff6ff;
+  padding: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.08);
 }
-.ghn-lookup-title {
-  font-weight: 800;
-  color: #1d4ed8;
-  margin-bottom: 10px;
-}
-.ghn-lookup-row {
+.shipping-panel-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  font-size: 0.85rem;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
 }
-.ghn-lookup-row span { color: var(--text-muted); }
-.ghn-lookup-row strong { color: var(--text-main); text-align: right; }
-.ghn-lookup-desc {
-  margin: 8px 0 0;
+.carrier-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.carrier-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.carrier-name {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #1e3a8a;
+  line-height: 1.2;
+}
+.carrier-code-wrap {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+.carrier-code-label {
+  margin-right: 4px;
+}
+.carrier-tracking-code {
+  color: #2563eb;
+  font-family: monospace;
   font-size: 0.82rem;
-  color: var(--text-muted);
-  font-style: italic;
+}
+.carrier-status-badge {
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-width: 1px;
+  border-style: solid;
+  letter-spacing: 0.2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.shipping-status-desc {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(239, 246, 255, 0.8);
+  border: 1px solid #dbeafe;
+  margin-bottom: 12px;
+}
+.shipping-status-desc .desc-icon {
+  color: #2563eb;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.shipping-status-desc p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #1e40af;
+  line-height: 1.45;
+  font-weight: 500;
+}
+.shipping-info-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  padding-bottom: 4px;
+}
+.shipping-info-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.shipping-info-item .info-k {
+  color: #64748b;
+}
+.shipping-info-item .info-v {
+  font-weight: 600;
+  color: #1e293b;
+  text-align: right;
+}
+.shipping-logs-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #cbd5e1;
+}
+.logs-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.shipping-logs-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  padding-left: 18px;
+  border-left: 2px solid #e2e8f0;
+  margin-left: 8px;
+}
+.log-item {
+  position: relative;
+  transition: all 0.2s ease;
+}
+.log-dot {
+  position: absolute;
+  left: -25px;
+  top: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1.5px #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.log-item.latest .log-dot {
+  background: #0284c7;
+  box-shadow: 0 0 0 2px #0284c7;
+}
+.log-dot-pulse {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  background: rgba(2, 132, 199, 0.25);
+  animation: shippingDotPulse 2s infinite ease-in-out;
+}
+@keyframes shippingDotPulse {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(0.9); opacity: 0; }
+}
+.log-content {
+  font-size: 0.82rem;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.log-item.latest .log-content {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.log-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.log-status {
+  font-weight: 700;
+  color: #334155;
+  font-size: 0.82rem;
+}
+.log-item.latest .log-status {
+  color: #0284c7;
+}
+.log-time {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+.log-note {
+  font-size: 0.78rem;
+  color: #475569;
+  margin-top: 3px;
+  line-height: 1.4;
+  word-break: break-word;
 }
  
 /* Responsive */
