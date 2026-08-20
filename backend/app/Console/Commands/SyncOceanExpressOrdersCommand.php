@@ -32,7 +32,8 @@ class SyncOceanExpressOrdersCommand extends Command
         foreach ($orders as $order) {
             $tracking = OceanExpressService::getTracking($order->tracking_number);
 
-            if (! $tracking || empty($tracking['logs'])) {
+            $logs = $tracking['tracking_logs'] ?? $tracking['logs'] ?? [];
+            if (! $tracking || empty($logs)) {
                 $this->error("Failed to fetch tracking or no logs for order {$order->order_code} ({$order->tracking_number})");
                 $failCount++;
 
@@ -41,10 +42,10 @@ class SyncOceanExpressOrdersCommand extends Command
 
             // Sync tất cả logs (lịch sử) để đảm bảo không lọt log nào
             // Nhờ idempotency trong SyncService, các log cũ sẽ bị bỏ qua
-            foreach ($tracking['logs'] as $log) {
+            foreach ($logs as $log) {
                 $payload = [
                     'status' => $log['status'],
-                    'timestamp' => $log['timestamp'] ?? null,
+                    'timestamp' => $log['created_at'] ?? $log['timestamp'] ?? null,
                     'note' => $log['note'] ?? null,
                 ];
 

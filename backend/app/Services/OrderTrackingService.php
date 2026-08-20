@@ -119,7 +119,7 @@ class OrderTrackingService
             return collect();
         }
 
-        $logs = $data['logs'] ?? [];
+        $logs = $data['tracking_logs'] ?? $data['logs'] ?? [];
         if (! is_array($logs)) {
             return collect();
         }
@@ -127,9 +127,9 @@ class OrderTrackingService
         return collect($logs)
             ->filter(fn ($log) => is_array($log))
             ->map(function (array $log) use ($order) {
-                // Ocean Express log fields per API spec: status, timestamp, note
+                // Ocean Express log fields: status, created_at/timestamp, note
                 $status = $log['status'] ?? null;
-                $timestamp = $log['timestamp'] ?? now()->toIso8601String();
+                $timestamp = $log['created_at'] ?? $log['timestamp'] ?? now()->toIso8601String();
                 $note = $log['note'] ?? $status;
 
                 // Map Ocean Express status to local fulfillment_status

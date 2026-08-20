@@ -85,41 +85,77 @@ class GhnController extends Controller
 
             $oeStatus = $detail['status'] ?? null;
             $mappedStatus = match ($oeStatus) {
-                'ready_to_pick' => 'confirmed',
-                'picking', 'in_hub', 'delivering' => 'shipping',
-                'delivered' => 'delivered',
-                'returned' => 'return_requested',
+                'ready_to_pick' => 'awaiting_pickup',
+                'picking', 'in_hub', 'delivering', 'shipping' => 'shipping',
+                'delivered', 'completed' => 'delivered',
+                'returned' => 'returned',
+                'cancelled' => 'cancelled',
                 default => null,
             };
 
-            // Tìm log mới nhất
-            $latestLog = collect($detail['logs'] ?? [])->sortByDesc('timestamp')->first();
-            
+            // Tìm log mới nhất (hỗ trợ cả tracking_logs và logs, created_at và timestamp)
+            $rawLogs = $detail['tracking_logs'] ?? $detail['logs'] ?? [];
+            $logs = collect($rawLogs)->map(function ($log) {
+                if (! is_array($log)) {
+                    return null;
+                }
+
+                return [
+                    'status' => $log['status'] ?? null,
+                    'note' => $log['note'] ?? null,
+                    'timestamp' => $log['created_at'] ?? $log['timestamp'] ?? null,
+                ];
+            })->filter()->sortByDesc('timestamp');
+
+            $latestLog = $logs->first();
+            $logTime = ! empty($latestLog['timestamp'])
+                ? \Carbon\Carbon::parse($latestLog['timestamp'])
+                : (! empty($detail['created_at']) ? \Carbon\Carbon::parse($detail['created_at']) : now());
+            $logDesc = $latestLog['note'] ?? ($oeStatus ? "Trạng thái: {$oeStatus}" : 'Đơn hàng Ocean Express');
+            $location = $detail['receiver_address_detail'] ?? $detail['receiver_address'] ?? null;
+
             $syncResult = [
                 'changed' => false,
                 'history_created' => false,
             ];
 
-            // Nếu cờ sync = true, cập nhật trạng thái vào cơ sở dữ liệu
-            if (!empty($data['sync']) && $mappedStatus && $mappedStatus !== $order->fulfillment_status) {
-                $oldStatus = $order->fulfillment_status;
-                $order->update(['fulfillment_status' => $mappedStatus]);
-                
-                \App\Models\OrderStatusHistory::create([
-                    'order_id' => $order->order_id,
-                    'old_status' => $oldStatus,
-                    'new_status' => $mappedStatus,
-                    'note' => 'Đồng bộ từ Ocean Express',
-                    'source' => 'carrier_api',
-                    'description' => $latestLog['note'] ?? $oeStatus,
-                    'happened_at' => $latestLog['timestamp'] ? \Carbon\Carbon::parse($latestLog['timestamp']) : now(),
-                    'location' => $detail['receiver_address'] ?? null,
-                    'ghn_status' => $oeStatus,
-                ]);
+            // Nếu cờ sync = true, cập nhật trạng thái vào cơ sở dữ liệu (chỉ cập nhật nếu tiến tới, không downgrade lùi)
+            if (! empty($data['sync']) && $mappedStatus && $mappedStatus !== $order->fulfillment_status) {
+                $statusWeights = [
+                    'pending' => 10,
+                    'confirmed' => 20,
+                    'processing' => 30,
+                    'packing' => 40,
+                    'awaiting_pickup' => 45,
+                    'shipping' => 50,
+                    'delivered' => 60,
+                    'completed' => 70,
+                ];
 
-                $syncResult['changed'] = true;
-                $syncResult['history_created'] = true;
-                $order->refresh();
+                $currentWeight = $statusWeights[$order->fulfillment_status] ?? 0;
+                $targetWeight = $statusWeights[$mappedStatus] ?? 0;
+
+                // Chỉ cập nhật nếu không bị lùi trạng thái và không phải terminal status
+                if ($targetWeight >= $currentWeight && ! in_array($order->fulfillment_status, ['completed', 'cancelled', 'returned'])) {
+                    $oldStatus = $order->fulfillment_status;
+                    $order->update(['fulfillment_status' => $mappedStatus]);
+
+                    \App\Models\OrderStatusHistory::create([
+                        'order_id' => $order->order_id,
+                        'old_status' => $oldStatus,
+                        'new_status' => $mappedStatus,
+                        'note' => 'Đồng bộ từ Ocean Express',
+                        'source' => 'carrier_api',
+                        'description' => $logDesc,
+                        'happened_at' => $logTime,
+                        'location' => $location,
+                        'ghn_status' => $oeStatus,
+                    ]);
+
+                    $syncResult['changed'] = true;
+                    $syncResult['history_created'] = true;
+                    $order->refresh();
+                }
             }
 
             return response()->json([
@@ -132,9 +168,9 @@ class GhnController extends Controller
                     'local_status' => $order->fulfillment_status,
                     'changed' => $syncResult['changed'],
                     'history_created' => $syncResult['history_created'],
-                    'happened_at' => $latestLog['timestamp'] ?? null,
-                    'location' => $detail['receiver_address'] ?? null,
-                    'description' => $latestLog['note'] ?? $oeStatus,
+                    'happened_at' => $logTime->toIso8601String(),
+                    'location' => $location,
+                    'description' => $logDesc,
                     'raw' => $detail,
                 ],
             ]);
