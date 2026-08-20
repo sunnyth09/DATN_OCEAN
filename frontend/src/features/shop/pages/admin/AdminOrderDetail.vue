@@ -86,10 +86,14 @@ const getCurrentOrderStatusActions = () => {
     .filter((status) => {
       if (status === 'shipping') return false; // Shipping is handled by dedicated UI now
       
-      // Khóa toàn bộ các trạng thái thuộc về Vận chuyển (Carrier) nếu đang dùng đối tác thứ 3 (GHN/OceanExpress)
+      // Khóa toàn bộ các thao tác nội bộ & giao hàng nếu đơn đã đẩy sang hãng vận chuyển (GHN/OceanExpress)
       if (order.value.tracking_number && order.value.tracking_number !== 'SELF-DELIVERY') {
-        const carrierControlledStatuses = ['delivered', 'returning', 'returned', 'warehouse_received'];
-        if (carrierControlledStatuses.includes(status)) {
+        const carrierBlockedStatuses = [
+          'pending', 'confirmed', 'processing', 'packing', 'awaiting_pickup',
+          'shipping', 'delivered', 'returning', 'returned', 'warehouse_received',
+          'cancelled'
+        ];
+        if (carrierBlockedStatuses.includes(status)) {
           return false;
         }
       }
