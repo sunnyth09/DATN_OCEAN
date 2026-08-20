@@ -703,7 +703,7 @@ onUnmounted(() => {
 
 /* Success Banner Overlay */
 .success-banner-overlay {
-  padding: 50px 30px;
+  padding: 60px 30px 65px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -711,31 +711,46 @@ onUnmounted(() => {
   justify-content: center;
 }
 
+.success-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
 .success-icon-bounce {
-  width: 90px;
-  height: 90px;
+  width: 88px;
+  height: 88px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 22px;
+  margin: 12px auto 28px;
   color: #ffffff;
   box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4), 0 0 0 14px rgba(16, 185, 129, 0.12);
   animation: bounceSuccess 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0;
+}
+
+.success-icon-bounce :deep(svg),
+.success-icon-bounce svg {
+  display: block;
+  margin: 0 auto;
 }
 
 .success-content h4 {
-  font-size: 1.55rem;
+  font-size: 1.6rem;
   font-weight: 800;
   color: #059669;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
 }
 
 .success-content p {
   color: #475569;
-  font-size: 0.98rem;
-  margin: 0 0 16px;
+  font-size: 1rem;
+  margin: 0 0 20px;
 }
 
 .redirect-spinner {
