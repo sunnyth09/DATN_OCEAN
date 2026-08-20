@@ -64,114 +64,88 @@ class GhnController extends Controller
     {
         $data = $request->validate([
             'order_code' => 'required|string',
+            'sync' => 'nullable|boolean',
         ]);
 
-        $order = Order::where('tracking_number', $data['order_code'])
-            ->orWhere('ghn_order_code', $data['order_code'])
+        $orderCode = trim($data['order_code']);
+
+        $order = Order::where('tracking_number', $orderCode)
+            ->orWhere('ghn_order_code', $orderCode)
             ->first();
 
         // 1. PhÃ¢n loáº¡i Ocean Express:
-        if (($order && $order->carrier === 'ocean_express') || str_starts_with($data['order_code'], 'OE-')) {
-            $trackingData = OceanExpressService::getTracking($data['order_code']);
-            if ($trackingData) {
-                // Tá»± Ä‘á»™ng map tráº¡ng thÃ¡i cá»§a Ocean Express sang format GHN tÆ°Æ¡ng thÃ­ch Ä‘á»ƒ hiá»ƒn thá»‹ UI
-                $statusMap = [
-                    'pending' => 'ready_to_pick',
-                    'ready_to_pick' => 'ready_to_pick',
-                    'picking' => 'picking',
-                    'stored' => 'storing',
-                    'in_transit' => 'transporting',
-                    'delivering' => 'delivering',
-                    'delivered' => 'delivered',
-                    'returning' => 'returning',
-                    'returned' => 'returned',
-                    'cancelled' => 'cancel',
-                    'failed' => 'delivery_fail',
-                ];
-                $mappedStatus = $statusMap[$trackingData['status']] ?? $trackingData['status'];
-
-                $ghnLogs = [];
-                if (!empty($trackingData['logs'])) {
-                    foreach ($trackingData['logs'] as $log) {
-                        $ghnLogs[] = [
-                            'status' => $statusMap[$log['status']] ?? $log['status'],
-                            'updated_date' => $log['timestamp'] ?? now()->toIso8601String(),
-                            'note' => $log['note'] ?? '',
-                        ];
-                    }
-                }
-
-                // Cáº­p nháº­t tráº¡ng thÃ¡i Ä‘Æ¡n hÃ ng trong DB náº¿u cÃ³ sá»± thay Ä‘á»•i
-                if ($order && $mappedStatus) {
-                    $orderStatusMap = [
-                        'delivered' => 'completed',
-                        'cancel' => 'cancelled',
-                        'delivery_fail' => 'failed',
-                    ];
-                    $fulfillmentStatusMap = [
-                        'ready_to_pick' => 'ready_to_pick',
-                        'picking' => 'picking',
-                        'storing' => 'storing',
-                        'transporting' => 'in_transit',
-                        'delivering' => 'delivering',
-                        'delivered' => 'delivered',
-                        'returning' => 'returning',
-                        'returned' => 'returned',
-                        'cancel' => 'cancelled',
-                        'delivery_fail' => 'delivery_fail',
-                    ];
-
-                    $newFulfillmentStatus = $fulfillmentStatusMap[$mappedStatus] ?? $order->fulfillment_status;
-                    $newOrderStatus = $orderStatusMap[$mappedStatus] ?? $order->status;
-
-                    if ($order->fulfillment_status !== $newFulfillmentStatus || $order->status !== $newOrderStatus) {
-                        $oldStatus = $order->status;
-                        $order->update([
-                            'status' => $newOrderStatus,
-                            'fulfillment_status' => $newFulfillmentStatus,
-                        ]);
-
-                        OrderStatusHistory::create([
-                            'order_id' => $order->order_id,
-                            'old_status' => $oldStatus,
-                            'new_status' => $newOrderStatus,
-                            'note' => 'Äá»“ng bá»™ tá»± Ä‘á»™ng tá»« Ocean Express (Tra cá»©u Ä‘Æ¡n)',
-                            'source' => 'system',
-                            'description' => "Tráº¡ng thÃ¡i váº­n chuyá»ƒn: {$mappedStatus}",
-                            'happened_at' => now(),
-                        ]);
-                    }
-                }
-
+        if (($order && $order->carrier === 'ocean_express') || str_starts_with($orderCode, 'OE-')) {
+            $trackingData = OceanExpressService::getTracking($orderCode);
+            if (empty($trackingData)) {
                 return response()->json([
-                    'code' => 200,
-                    'message' => 'Success',
-                    'data' => [
-                        'order_code' => $trackingData['tracking_number'],
-                        'status' => $mappedStatus,
-                        'status_name' => $trackingData['status_label'] ?? $trackingData['status_name'] ?? $mappedStatus,
-                        'log' => $ghnLogs,
-                        'to_name' => $trackingData['receiver_name'] ?? '',
-                        'to_phone' => $trackingData['receiver_phone'] ?? '',
-                        'to_address' => $trackingData['receiver_address'] ?? '',
-                        'from_name' => $trackingData['sender_name'] ?? '',
-                        'from_phone' => $trackingData['sender_phone'] ?? '',
-                        'from_address' => $trackingData['sender_address'] ?? '',
-                        'cod_amount' => $trackingData['cod_amount'] ?? 0,
-                    ]
-                ]);
+                    'code' => 404,
+                    'status' => 'error',
+                    'message' => 'KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin Ä‘Æ¡n hÃ ng trÃªn há»‡ thá»‘ng Ocean Express',
+                    'data' => null,
+                ], 404);
             }
 
+            $rawLogs = $trackingData['tracking_logs'] ?? $trackingData['logs'] ?? [];
+            $oeStatus = $trackingData['status'] ?? null;
+            $syncService = app(\App\Services\OceanExpressOrderStatusSyncService::class);
+            $mappedStatus = $syncService->mapStatus($oeStatus ?? '');
+
+            $latestLog = collect($rawLogs)->sortByDesc('created_at')->first() ?? collect($rawLogs)->sortByDesc('timestamp')->first();
+            $logTime = ! empty($latestLog['created_at'])
+                ? $latestLog['created_at']
+                : (! empty($latestLog['timestamp']) ? $latestLog['timestamp'] : ($trackingData['created_at'] ?? now()->toIso8601String()));
+
+            $syncResult = [
+                'changed' => false,
+                'history_created' => false,
+            ];
+
+            if ($order && $oeStatus && ! empty($data['sync'])) {
+                $payload = [
+                    'status' => $oeStatus,
+                    'timestamp' => $logTime,
+                    'note' => $latestLog['note'] ?? $oeStatus,
+                    'latitude' => $trackingData['receiver_latitude'] ?? null,
+                    'longitude' => $trackingData['receiver_longitude'] ?? null,
+                ];
+
+                $syncResult = $syncService->syncFromWebhookPayload($order, $payload);
+                $order->refresh();
+            }
+
+            $statusName = $trackingData['status_name'] ?? $trackingData['status_label'] ?? $oeStatus;
+            $statusDesc = $trackingData['status_description'] ?? ($latestLog['note'] ?? 'ÄÆ¡n hÃ ng Ocean Express');
+
             return response()->json([
-                'code' => 404,
-                'message' => 'KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin Ä‘Æ¡n hÃ ng trÃªn há»‡ thá»‘ng Ocean Express',
-                'data' => null
-            ], 404);
+                'code' => 200,
+                'status' => 'success',
+                'message' => $syncResult['changed'] ? 'ÄÃ£ cáº­p nháº­t tráº¡ng thÃ¡i Ä‘Æ¡n hÃ ng tá»« Ocean Express' : 'Láº¥y tráº¡ng thÃ¡i váº­n chuyá»ƒn thÃ nh cÃ´ng',
+                'data' => [
+                    'carrier' => 'Ocean Express',
+                    'order_code' => $trackingData['tracking_number'] ?? $orderCode,
+                    'ghn_status' => $oeStatus,
+                    'status_name' => $statusName,
+                    'status_label' => $trackingData['status_label'] ?? $statusName,
+                    'status_description' => $statusDesc,
+                    'status_badge' => $trackingData['status_badge'] ?? null,
+                    'mapped_status' => $mappedStatus,
+                    'local_status' => $order?->fulfillment_status ?? $mappedStatus,
+                    'changed' => $syncResult['changed'] ?? false,
+                    'history_created' => $syncResult['history_created'] ?? false,
+                    'happened_at' => $logTime,
+                    'location' => $trackingData['receiver_address_detail'] ?? $trackingData['receiver_address'] ?? null,
+                    'description' => $statusDesc,
+                    'logs' => $rawLogs,
+                    'tracking_url' => 'https://oceanexpress.bcbdev.id.vn/tracking?code=' . ($trackingData['tracking_number'] ?? $orderCode),
+                    'print_url' => 'https://api.oceanexpress.bcbdev.id.vn/api/v1/public/orders/' . ($trackingData['tracking_number'] ?? $orderCode) . '/label',
+                    'raw' => $trackingData,
+                ],
+            ]);
         }
 
         // 2. Tra cá»©u GHN
         try {
-            $detail = GHNService::getOrderDetail($data['order_code']);
+            $detail = GHNService::getOrderDetail($orderCode);
 
             // Äá»“ng bá»™ tráº¡ng thÃ¡i Ä‘Æ¡n hÃ ng khi tra cá»©u
             if ($order && isset($detail['data']['status'])) {
