@@ -8,6 +8,7 @@ import { useCartUpsell } from '@/composables/useCartUpsell';
 import { useToast } from '@/composables/useToast';
 import AddressSelector from '@/components/AddressSelector.vue';
 import CheckoutAddressModal from '@/features/shop/components/CheckoutAddressModal.vue';
+import SepayPaymentModal from '@/components/SepayPaymentModal.vue';
 import { addressService } from '@/services/addressService';
 import { orderService } from '@/services/orderService';
 import { walletService } from '@/services/walletService';
@@ -79,6 +80,19 @@ const note = ref('');
 const showBankingModal = ref(false);
 const bankingInfo = ref(null); // { bank_bin, account_number, account_name, amount, order_code, qr_url }
 const bankingOrderCode = ref('');
+
+const onBankingPayLater = () => {
+    showToast('Sản phẩm/Đơn hàng của bạn chưa thanh toán! Vui lòng hoàn tất trong 15 phút tại Đơn hàng của tôi.', 'warning');
+    if (authStore.isAuthenticated) {
+        router.push({ name: 'profile-orders' });
+    } else {
+        router.push({ name: 'order-success', params: { order_code: bankingOrderCode.value } });
+    }
+};
+
+const onBankingPaySuccess = () => {
+    showToast('Thanh toán đơn hàng thành công!', 'success');
+};
 
 // --- Coupon ---
 const couponCode = ref('');
@@ -783,68 +797,17 @@ onMounted(async () => {
 <template>
     <div class="checkout-page theme-brown container">
 
-        <!-- ===== BANKING QR MODAL ===== -->
-        <Teleport to="body">
-            <div v-if="showBankingModal" class="banking-modal-overlay" @click.self="null">
-                <div class="banking-modal">
-                    <div class="banking-modal-header">
-                        <span class="banking-modal-icon">
-                            <AppIcon name="bank" size="24" />
-                        </span>
-                        <h2>Thanh toán chuyển khoản</h2>
-                        <p>Quét mã QR hoặc chuyển khoản thủ công theo thông tin dưới đây</p>
-                    </div>
-
-                    <div class="banking-modal-body">
-                        <div class="qr-section">
-                            <img v-if="bankingInfo?.qr_url" :src="bankingInfo.qr_url" alt="QR Chuyển khoản"
-                                class="qr-image" />
-                            <p class="qr-hint">Quét bằng app ngân hàng bất kỳ</p>
-                        </div>
-
-                        <div class="bank-info-section">
-                            <div class="bank-info-row">
-                                <span class="bank-label">Số tài khoản</span>
-                                <span class="bank-value highlight">{{ bankingInfo?.account_number }}</span>
-                            </div>
-                            <div class="bank-info-row">
-                                <span class="bank-label">Chủ tài khoản</span>
-                                <span class="bank-value">{{ bankingInfo?.account_name }}</span>
-                            </div>
-                            <div class="bank-info-row">
-                                <span class="bank-label">Số tiền</span>
-                                <span class="bank-value highlight">{{ formatPrice(bankingInfo?.amount) }}</span>
-                            </div>
-                            <div class="bank-info-row">
-                                <span class="bank-label">Nội dung CK</span>
-                                <span class="bank-value highlight">{{ bankingOrderCode }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="banking-note">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="12" y1="8" x2="12" y2="12" />
-                            <line x1="12" y1="16" x2="12.01" y2="16" />
-                        </svg>
-                        <span>Nhập đúng <strong>nội dung chuyển khoản</strong> là mã đơn hàng để hệ thống xác nhận tự
-                            động!</span>
-                    </div>
-
-                    <div class="banking-modal-actions">
-                        <button class="btn-banking-done"
-                            @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })">
-                            Tôi đã chuyển khoản xong
-                        </button>
-                        <button class="btn-banking-later"
-                            @click="router.push({ name: 'order-success', params: { order_code: bankingOrderCode } })">
-                            Chuyển khoản sau
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </Teleport>
+        <!-- ===== BANKING SEPAY MODAL ===== -->
+        <SepayPaymentModal
+            :show="showBankingModal"
+            :order-code="bankingOrderCode"
+            :amount="bankingInfo?.amount || total"
+            :banking-info="bankingInfo"
+            :is-guest="!authStore.isAuthenticated"
+            @close="showBankingModal = false"
+            @later="onBankingPayLater"
+            @success="onBankingPaySuccess"
+        />
 
         <div v-if="loading" class="checkout-skeleton-grid" style="margin-top: 30px;">
             <div class="row" style="display:flex; gap: 30px; flex-wrap: wrap;">

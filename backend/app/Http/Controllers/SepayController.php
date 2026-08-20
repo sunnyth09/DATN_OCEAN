@@ -34,13 +34,20 @@ class SepayController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Webhook not configured'], 500);
         }
 
-        $authHeader = $request->header('Authorization');
-        $apiKey = $authHeader ? str_replace('Apikey ', '', $authHeader) : '';
+        $authHeader = trim((string) $request->header('Authorization', ''));
+        $apiKey = trim(preg_replace('/^(Apikey|Bearer)\s+/i', '', $authHeader));
 
         if (! hash_equals($expectedKey, $apiKey)) {
             Log::warning('SePay Webhook: Unauthorized webhook call', [
-                'ip' => $request->ip(),
-            ]);
+    'ip' => $request->ip(),
+    'has_authorization' => $authHeader !== '',
+    'auth_scheme' => str_contains($authHeader, ' ') ? strtok($authHeader, ' ') : 'raw',
+    'expected_len' => strlen($expectedKey),
+    'received_len' => strlen($apiKey),
+    'expected_sha' => substr(hash('sha256', $expectedKey), 0, 12),
+    'received_sha' => substr(hash('sha256', $apiKey), 0, 12),
+]);
+
 
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
@@ -87,10 +94,13 @@ class SepayController extends Controller
         try {
             $order = null;
             $response = DB::transaction(function () use ($orderCode, $transferAmount, $transactionId, $payload, &$order) {
-                $order = Order::where('order_code', $orderCode)->lockForUpdate()->first();
+                $order = Order::whereIn('order_code', $this->orderCodeCandidates($orderCode))->lockForUpdate()->first();
 
                 if (! $order) {
-                    Log::warning('SePay Webhook: Order not found', ['order_code' => $orderCode]);
+                    Log::warning('SePay Webhook: Order not found', [
+                        'order_code' => $orderCode,
+                        'candidates' => $this->orderCodeCandidates($orderCode),
+                    ]);
 
                     return ['status' => 'error', 'message' => 'Order not found: '.$orderCode];
                 }
@@ -259,34 +269,39 @@ class SepayController extends Controller
 
     /**
      * Extract payment code từ nội dung chuyển khoản.
-     * Hỗ trợ: WDP (wallet deposit), ORD (order), DH (legacy order)
-     *
-     * Lưu ý: SePay thường strip dấu '-' khỏi nội dung chuyển khoản,
-     * nên 'ORD-F8C62FC5-916' → 'ORDF8C62FC5916'.
-     * Hàm này chuẩn hoá lại về đúng format DB.
+     * Hỗ trợ: WDP (wallet deposit), ORD (order), DH (legacy order).
      */
     private function extractPaymentCode(string $content): ?string
     {
-        // Wallet deposit: WDP prefix (không cần normalize)
         if (preg_match('/(WDP[A-Za-z0-9]+)/i', $content, $matches)) {
             return strtoupper($matches[1]);
         }
 
-        // Order: ORD prefix — có thể dạng ORD-XXXX-YYY (có hyphen) hoặc ORDXXXXYYYY (không hyphen)
-        // Dạng đầy đủ với hyphen: ORD-[8 hex]-[3 số]
-        if (preg_match('/ORD-([A-F0-9]{8})-(\d{3})/i', $content, $matches)) {
-            return 'ORD-'.strtoupper($matches[1]).'-'.$matches[2];
-        }
-        // Dạng SePay đã strip hyphen: ORD[8 hex][3 số] = 14 ký tự sau ORD = 11 ký tự
-        if (preg_match('/ORD([A-F0-9]{8})(\d{3})/i', $content, $matches)) {
-            return 'ORD-'.strtoupper($matches[1]).'-'.$matches[2];
+        if (preg_match('/ORD-?([A-F0-9]{8})-?(\d{3})/i', $content, $matches)) {
+            return 'ORD'.strtoupper($matches[1]).$matches[2];
         }
 
-        // Legacy: DH + digits
         if (preg_match('/(DH\d+)/i', $content, $matches)) {
             return strtoupper($matches[1]);
         }
 
         return null;
+    }
+
+    private function orderCodeCandidates(string $orderCode): array
+    {
+        $orderCode = strtoupper($orderCode);
+
+        $candidates = [$orderCode];
+
+        if (preg_match('/^ORD([A-F0-9]{8})(\d{3})$/', $orderCode, $matches)) {
+            $candidates[] = 'ORD-'.$matches[1].'-'.$matches[2];
+        }
+
+        if (preg_match('/^ORD-([A-F0-9]{8})-(\d{3})$/', $orderCode, $matches)) {
+            $candidates[] = 'ORD'.$matches[1].$matches[2];
+        }
+
+        return array_values(array_unique($candidates));
     }
 }

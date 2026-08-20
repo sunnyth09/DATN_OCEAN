@@ -21,8 +21,24 @@ const currentFilter = ref('all');
 const router = useRouter();
 
 import FeedbackModal from '@/components/FeedbackModal.vue';
+import SepayPaymentModal from '@/components/SepayPaymentModal.vue';
+import AppIcon from '@/components/AppIcon.vue';
+
 const showFeedbackModal = ref(false);
 const selectedOrderForFeedback = ref(null);
+
+const showSepayModal = ref(false);
+const selectedOrderForSepay = ref(null);
+
+const openSepayModal = (order) => {
+  selectedOrderForSepay.value = order;
+  showSepayModal.value = true;
+};
+
+const onSepaySuccess = () => {
+  showToast('Thanh toán đơn hàng thành công!', 'success');
+  fetchOrders(currentPage.value);
+};
 
 const openFeedback = (order) => {
     selectedOrderForFeedback.value = order;
@@ -56,15 +72,13 @@ const getStatusText = (status) => getOrderStatusDescription(status);
 const getSummaryStatusText = (status) => getOrderStatusSummaryLabel(status);
 const getStatusClass = (status) => getOrderStatusTone(status);
 
-const statusIconSvg = {
-  pending: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
-  shipping: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>',
-  cancelled: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
-  completed: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-  delivered: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+const getStatusIconName = (status) => {
+  if (status === 'pending') return 'clock';
+  if (status === 'shipping') return 'truck';
+  if (status === 'cancelled') return 'x';
+  if (status === 'completed' || status === 'delivered') return 'check';
+  return 'cart';
 };
-const defaultIconSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>';
-const getStatusIcon = (status) => statusIconSvg[status] || defaultIconSvg;
 
 const fetchOrders = async (page = 1) => {
   loading.value = true;
@@ -238,17 +252,23 @@ onMounted(() => {
           <div class="order-header-left">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <span class="order-code">#{{ order.order_code }}</span>
-                <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">⚡ Flash Sale</span>
+                <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; display: inline-flex; align-items: center; gap: 3px;">
+                  <AppIcon name="zap" size="12" /> Flash Sale
+                </span>
             </div>
             <div class="order-meta">
               <span>{{ formatDate(order.created_at) }}</span>
               <span class="dot">•</span>
               <span>{{ order.items ? order.items.length : 0 }} sản phẩm</span>
             </div>
+            <div v-if="order.payment_method === 'bank_transfer' && order.payment_status !== 'paid' && order.fulfillment_status !== 'cancelled'" class="unpaid-order-tag">
+              <AppIcon name="alert-circle" size="14" color="#b45309" />
+              <span>Sản phẩm bạn chưa thanh toán</span>
+            </div>
           </div>
           <div class="order-header-center">
             <div class="status-badge" :class="getStatusClass(order.fulfillment_status)">
-              <span class="status-icon" v-html="getStatusIcon(order.fulfillment_status)"></span>
+              <span class="status-icon"><AppIcon :name="getStatusIconName(order.fulfillment_status)" size="14" /></span>
               {{ getStatusText(order.fulfillment_status) }}
             </div>
           </div>
@@ -257,6 +277,14 @@ onMounted(() => {
             <div class="payment-status-badge" :class="order.fulfillment_status">
               {{ getSummaryStatusText(order.fulfillment_status) }}
             </div>
+
+            <button 
+              v-if="order.payment_method === 'bank_transfer' && order.payment_status !== 'paid' && order.fulfillment_status !== 'cancelled'"
+              class="btn-action btn-continue-pay"
+              @click="openSepayModal(order)"
+            >
+              <AppIcon name="credit-card" size="14" /> Tiếp tục thanh toán
+            </button>
 
             <router-link
               v-if="order.latest_return_request"
@@ -274,14 +302,14 @@ onMounted(() => {
               :disabled="actionLoading === order.order_id"
             >
               <span v-if="actionLoading === order.order_id" class="spinner-small"></span>
-              <span v-else>⊗ Yêu cầu hủy</span>
+              <span v-else class="btn-inner"><AppIcon name="x" size="14" /> Yêu cầu hủy</span>
             </button>
             <button 
               v-else-if="['completed', 'cancelled', 'returned'].includes(order.fulfillment_status)" 
               class="btn-action btn-buy-again" 
               @click="buyAgain(order.order_id)"
             >
-              ↻ Mua lại
+              <AppIcon name="rotate-ccw" size="14" /> Mua lại
             </button>
             <template v-if="order.fulfillment_status === 'completed' || order.fulfillment_status === 'delivered'">
               <button 
@@ -289,11 +317,12 @@ onMounted(() => {
                 class="btn-action btn-feedback"
                 @click="openFeedback(order)"
               >
-                ★ Đánh giá
+                <AppIcon name="shield" size="14" /> Đánh giá
               </button>
               <p v-else class="evaluation-status-text">Bạn đã đánh giá</p>
             </template>
             <router-link :to="{ name: 'profile-order-detail', params: { id: order.order_id } }" class="btn-action btn-detail mt-2">
+              <AppIcon name="arrow-right" size="13" />
               {{ order.can_request_return ? 'Xem chi tiết / hoàn hàng' : 'Xem chi tiết' }}
             </router-link>
           </div>
@@ -331,6 +360,17 @@ onMounted(() => {
         v-model="showFeedbackModal" 
         :order="selectedOrderForFeedback" 
         @feedback-submitted="onFeedbackSubmitted" 
+    />
+
+    <!-- SePay Modal -->
+    <SepayPaymentModal
+        :show="showSepayModal"
+        :order-code="selectedOrderForSepay?.order_code || ''"
+        :amount="selectedOrderForSepay?.grand_total || 0"
+        :created-at="selectedOrderForSepay?.created_at"
+        :is-guest="false"
+        @close="showSepayModal = false"
+        @success="onSepaySuccess"
     />
 
     <!-- Cancel Reason Modal -->
@@ -706,4 +746,45 @@ onMounted(() => {
 .modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-from .cancel-modal-box, .modal-leave-to .cancel-modal-box { transform: scale(0.95) translateY(10px); }
+
+.unpaid-order-tag {
+  background: linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%);
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.08);
+}
+
+.btn-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-continue-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 700 !important;
+  padding: 6px 14px !important;
+  border-radius: 20px !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 8px rgba(3, 105, 161, 0.25) !important;
+  transition: all 0.2s !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+}
+
+.btn-continue-pay:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.35) !important;
+}
 </style>
