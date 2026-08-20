@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Log;
 class OceanExpressService
 {
     /**
-     * Base URL Ä‘á»c tá»« config (KHÃ”NG dÃ¹ng env() trá»±c tiáº¿p â€” env() tráº£ null khi
-     * production Ä‘Ã£ cháº¡y `php artisan config:cache`).
+     * Base URL đọc từ config (KHÔNG dùng env() trực tiếp — env() trả null khi
+     * production đã chạy `php artisan config:cache`).
      */
     private static function url(string $path): string
     {
@@ -19,8 +19,8 @@ class OceanExpressService
     }
 
     /**
-     * HTTP client dÃ¹ng chung: cÃ³ API key + timeout Ä‘á»ƒ má»™t request treo khÃ´ng
-     * kÃ©o theo cáº£ worker queue/web.
+     * HTTP client dùng chung: có API key + timeout để một request treo không
+     * kéo theo cả worker queue/web.
      */
     private static function client(bool $withApiKey = true): PendingRequest
     {
@@ -94,7 +94,7 @@ class OceanExpressService
                     return ['fee' => (int) $fee];
                 }
 
-                Log::warning('OceanExpress calculateRate: response thiáº¿u data.fee â€” '.$response->body());
+                Log::warning('OceanExpress calculateRate: response thiếu data.fee — '.$response->body());
             } else {
                 Log::warning('OceanExpress calculateRate failed: '.$response->body());
             }
@@ -106,7 +106,7 @@ class OceanExpressService
     }
 
     /**
-     * PhiÃªn báº£n chá»‰ tráº£ vá» sá»‘ tiá»n â€” giá»¯ cho cÃ¡c nÆ¡i gá»i cÅ©.
+     * Phiên bản chỉ trả về số tiền — giữ cho các nơi gọi cũ.
      */
     public static function calculateRate(string $receiverLocationId, int $weight): int
     {
@@ -139,7 +139,7 @@ class OceanExpressService
 
     /**
      * Fetch public tracking info for a shipment.
-     * This endpoint is public â€” no API key required.
+     * This endpoint is public — no API key required.
      *
      * Response data: { tracking_number, status, sender_address, receiver_address, logs[] }
      * Each log: { status, timestamp, note }
@@ -166,52 +166,58 @@ class OceanExpressService
      */
     public static function printLabel(string $trackingNumber): array
     {
+        $directUrl = self::url('public/tracking/'.urlencode($trackingNumber).'/label');
+
         try {
             $response = self::client(false)->get(self::url('public/orders/'.urlencode($trackingNumber).'/print-label'));
             if ($response->successful()) {
                 $data = $response->json('data', []);
-                $labelUrl = $data['label_url'] ?? $data['pdf_url'] ?? self::url('public/orders/'.urlencode($trackingNumber).'/label');
+                $labelUrl = $data['label_url'] ?? $data['pdf_url'] ?? $directUrl;
+
+                if (str_contains($labelUrl, '/public/orders/')) {
+                    $labelUrl = str_replace('/public/orders/', '/public/tracking/', $labelUrl);
+                }
+
                 return [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'Láº¥y link in váº­n Ä‘Æ¡n thÃ nh cÃ´ng',
+                    'message' => 'Lấy link in vận đơn thành công',
                     'data' => [
-                        'token' => 'oe_' . md5($trackingNumber),
+                        'token' => 'oe_'.md5($trackingNumber),
                         'print_url' => $labelUrl,
                         'label_url' => $labelUrl,
                         'pdf_url' => $labelUrl,
                         'tracking_number' => $trackingNumber,
-                    ]
+                    ],
                 ];
             }
-            // Fallback direct URL if print-label returned non-200
-            $directUrl = self::url('public/orders/'.urlencode($trackingNumber).'/label');
+
             return [
                 'code' => 200,
                 'status' => 'success',
-                'message' => 'Láº¥y link in váº­n Ä‘Æ¡n thÃ nh cÃ´ng',
+                'message' => 'Lấy link in vận đơn thành công',
                 'data' => [
-                    'token' => 'oe_' . md5($trackingNumber),
+                    'token' => 'oe_'.md5($trackingNumber),
                     'print_url' => $directUrl,
                     'label_url' => $directUrl,
                     'pdf_url' => $directUrl,
                     'tracking_number' => $trackingNumber,
-                ]
+                ],
             ];
         } catch (\Throwable $e) {
-            Log::error('OceanExpress printLabel error: ' . $e->getMessage());
-            $directUrl = self::url('public/orders/'.urlencode($trackingNumber).'/label');
+            Log::error('OceanExpress printLabel error: '.$e->getMessage());
+
             return [
                 'code' => 200,
                 'status' => 'success',
-                'message' => 'Láº¥y link in váº­n Ä‘Æ¡n thÃ nh cÃ´ng',
+                'message' => 'Lấy link in vận đơn thành công',
                 'data' => [
-                    'token' => 'oe_' . md5($trackingNumber),
+                    'token' => 'oe_'.md5($trackingNumber),
                     'print_url' => $directUrl,
                     'label_url' => $directUrl,
                     'pdf_url' => $directUrl,
                     'tracking_number' => $trackingNumber,
-                ]
+                ],
             ];
         }
     }
@@ -232,7 +238,7 @@ class OceanExpressService
                 return [
                     'code' => 200,
                     'status' => 'success',
-                    'message' => 'Há»§y váº­n Ä‘Æ¡n Ocean Express thÃ nh cÃ´ng',
+                    'message' => 'Hủy vận đơn Ocean Express thành công',
                     'data' => $response->json('data', []),
                 ];
             }
@@ -241,14 +247,14 @@ class OceanExpressService
             return [
                 'code' => $response->status(),
                 'status' => 'error',
-                'message' => $response->json('message') ?? 'KhÃ´ng thá»ƒ há»§y Ä‘Æ¡n Ocean Express',
+                'message' => $response->json('message') ?? 'Không thể hủy đơn Ocean Express',
             ];
         } catch (\Throwable $e) {
             Log::error('OceanExpress cancelOrder error: '.$e->getMessage());
             return [
                 'code' => 500,
                 'status' => 'error',
-                'message' => 'Lá»—i káº¿t ná»‘i khi há»§y Ä‘Æ¡n Ocean Express',
+                'message' => 'Lỗi kết nối khi hủy đơn Ocean Express',
             ];
         }
     }

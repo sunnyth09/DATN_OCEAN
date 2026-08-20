@@ -536,23 +536,23 @@ watch(orderId, (newId) => {
         </router-link>
       </div>
 
-      <div v-if="tracking?.tracking_number || trackingLoading" class="ghn-tracking-card mt-4">
+      <div v-if="tracking?.tracking_number || tracking?.ghn_order_code || trackingLoading" class="ghn-tracking-card mt-4">
         <div class="card-header">
-          <h3>Thông tin vận chuyển GHN</h3>
+          <h3>Thông tin vận chuyển {{ tracking?.tracking_number?.startsWith('OE-') ? 'Ocean Express' : (tracking?.ghn_order_code ? 'GHN' : '') }}</h3>
         </div>
         <div class="card-body">
           <p v-if="trackingLoading" class="tracking-muted">Đang tải thông tin vận chuyển...</p>
           <template v-else>
             <div class="ghn-info-row">
               <span>Mã vận đơn</span>
-              <strong>{{ tracking.tracking_number }}</strong>
+              <strong>{{ tracking.tracking_number || tracking.ghn_order_code }}</strong>
             </div>
             <div class="ghn-info-row" v-if="tracking.receiver_phone">
               <span>SĐT nhận hàng</span>
               <strong>{{ tracking.receiver_phone }}</strong>
             </div>
-            <a v-if="tracking.ghn_tracking_url" class="ghn-tracking-link" :href="tracking.ghn_tracking_url" target="_blank" rel="noopener">
-              Xem trực tiếp trên GHN
+            <a v-if="tracking.tracking_url || tracking.ghn_tracking_url" class="ghn-tracking-link" :href="tracking.tracking_url || tracking.ghn_tracking_url" target="_blank" rel="noopener">
+              Xem trực tiếp trên {{ tracking.tracking_url?.includes('oceanexpress') ? 'Ocean Express' : 'GHN' }}
             </a>
           </template>
         </div>

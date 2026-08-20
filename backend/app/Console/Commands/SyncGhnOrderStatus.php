@@ -45,28 +45,28 @@ class SyncGhnOrderStatus extends Command
                     }
                     
                     $oeStatus = $detail['status'] ?? null;
-                    $mappedStatus = match ($oeStatus) {
-                        'ready_to_pick' => 'confirmed',
-                        'picking', 'in_hub', 'delivering' => 'shipping',
-                        'delivered' => 'delivered',
-                        'returned' => 'return_requested',
-                        default => null,
-                    };
+                    $oeSyncService = app(\App\Services\OceanExpressOrderStatusSyncService::class);
+                    $mappedStatus = $oeStatus ? $oeSyncService->mapStatus($oeStatus) : null;
                     
                     if ($mappedStatus && $mappedStatus !== $order->fulfillment_status) {
                         $oldStatus = $order->fulfillment_status;
                         $order->update(['fulfillment_status' => $mappedStatus]);
                         
-                        $latestLog = collect($detail['logs'] ?? [])->sortByDesc('timestamp')->first();
+                        $rawLogs = $detail['tracking_logs'] ?? $detail['logs'] ?? [];
+                        $latestLog = collect($rawLogs)->sortByDesc('created_at')->first() ?? collect($rawLogs)->sortByDesc('timestamp')->first();
+                        $logTime = ! empty($latestLog['created_at'])
+                            ? $latestLog['created_at']
+                            : (! empty($latestLog['timestamp']) ? $latestLog['timestamp'] : now());
+
                         \App\Models\OrderStatusHistory::create([
                             'order_id' => $order->order_id,
                             'old_status' => $oldStatus,
                             'new_status' => $mappedStatus,
                             'note' => 'Auto-sync từ Ocean Express',
                             'source' => 'system',
-                            'description' => $latestLog['note'] ?? $oeStatus,
-                            'happened_at' => $latestLog['timestamp'] ? \Carbon\Carbon::parse($latestLog['timestamp']) : now(),
-                            'location' => $detail['receiver_address'] ?? null,
+                            'description' => $latestLog['note'] ?? ($detail['status_description'] ?? $oeStatus),
+                            'happened_at' => \Carbon\Carbon::parse($logTime),
+                            'location' => $detail['receiver_address_detail'] ?? $detail['receiver_address'] ?? null,
                             'ghn_status' => $oeStatus,
                         ]);
                         $synced++;

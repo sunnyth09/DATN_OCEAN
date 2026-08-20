@@ -24,12 +24,24 @@ class OceanExpressOrderStatusSyncService
     {
         return [
             'pending' => OrderStatus::PENDING->value,
+            'ready_to_pick' => OrderStatus::AWAITING_PICKUP->value,
             'picking' => OrderStatus::AWAITING_PICKUP->value,
+            'picked' => OrderStatus::SHIPPING->value,
+            'picked_up' => OrderStatus::SHIPPING->value,
+            'stored' => OrderStatus::SHIPPING->value,
+            'storing' => OrderStatus::SHIPPING->value,
+            'in_hub' => OrderStatus::SHIPPING->value,
+            'hub_inbound' => OrderStatus::SHIPPING->value,
+            'hub_outbound' => OrderStatus::SHIPPING->value,
+            'transporting' => OrderStatus::SHIPPING->value,
+            'in_transit' => OrderStatus::SHIPPING->value,
             'shipping' => OrderStatus::SHIPPING->value,
             'delivering' => OrderStatus::SHIPPING->value,
             'delivered' => OrderStatus::DELIVERED->value,
             'completed' => OrderStatus::COMPLETED->value,
             'cancelled' => OrderStatus::CANCELLED->value,
+            'return_requested' => OrderStatus::RETURN_REQUESTED->value,
+            'returning' => OrderStatus::RETURNING->value,
             'returned' => OrderStatus::RETURNED->value,
         ][$status] ?? null;
     }

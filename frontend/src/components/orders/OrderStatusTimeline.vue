@@ -13,6 +13,8 @@ const sourceLabels = {
   ghn_webhook: 'GHN',
   ghn_manual_sync: 'GHN',
   ghn_api: 'GHN',
+  ocean_express: 'Ocean Express',
+  ocean_express_webhook: 'Ocean Express',
 };
 
 const ghnStatusLabels = {

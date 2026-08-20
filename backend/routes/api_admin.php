@@ -165,6 +165,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::delete('/notifications/{id}', [App\Http\Controllers\Api\Admin\NotificationController::class, 'destroy']);
 
     // Quản lý Đánh giá sản phẩm (Duyệt)
+    Route::get('/reviews/pending-count', [ProductCommentController::class, 'pendingCount']);
     Route::get('/reviews', [ProductCommentController::class, 'adminIndex']);
     Route::put('/reviews/{id}/approve', [ProductCommentController::class, 'approve']);
     Route::put('/reviews/{id}/reject', [ProductCommentController::class, 'reject']);
@@ -176,6 +177,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::delete('/post-comments/{id}', [PostCommentController::class, 'destroy']);
 
     // Quản lý Liên hệ (Xem và trả lời)
+    Route::get('/contacts/pending-count', [ContactController::class, 'pendingCount']);
     Route::get('/contacts', [ContactController::class, 'index']);
     Route::post('/contacts/{id}/reply', [ContactController::class, 'reply']);
 
