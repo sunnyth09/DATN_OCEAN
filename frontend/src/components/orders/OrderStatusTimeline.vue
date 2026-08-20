@@ -53,14 +53,43 @@ const carrierStatusNames = {
   returned: 'Đã hoàn hàng',
 };
 
-const sortedHistories = () => [...props.histories].sort((a, b) => {
-  const aTime = new Date(a.happened_at || a.created_at || 0).getTime();
-  const bTime = new Date(b.happened_at || b.created_at || 0).getTime();
-  if (bTime !== aTime) {
-    return bTime - aTime;
+const getEffectiveTime = (h) => {
+  if (!h) return 0;
+  if (h.happened_at && h.created_at) {
+    const tHap = new Date(h.happened_at).getTime();
+    const tCre = new Date(h.created_at).getTime();
+    if (tCre > tHap && (tCre - tHap) > 2 * 3600 * 1000) {
+      return tCre;
+    }
   }
-  return (b.history_id || b.id || 0) - (a.history_id || a.id || 0);
-});
+  return new Date(h.happened_at || h.created_at || 0).getTime();
+};
+
+const getEffectiveDate = (h) => {
+  if (!h) return '';
+  if (h.happened_at && h.created_at) {
+    const tHap = new Date(h.happened_at).getTime();
+    const tCre = new Date(h.created_at).getTime();
+    if (tCre > tHap && (tCre - tHap) > 2 * 3600 * 1000) {
+      return h.created_at;
+    }
+  }
+  return h.happened_at || h.created_at;
+};
+
+const sortedHistories = () => {
+  const list = Array.isArray(props.histories) ? [...props.histories] : [];
+  return list.sort((a, b) => {
+    const idA = Number(a.history_id || a.id || 0);
+    const idB = Number(b.history_id || b.id || 0);
+    if (idA > 0 && idB > 0 && idA !== idB) {
+      return idB - idA;
+    }
+    const aTime = getEffectiveTime(a);
+    const bTime = getEffectiveTime(b);
+    return bTime - aTime;
+  });
+};
 
 const readableFallback = (value) => String(value || '').replace(/_/g, ' ');
 const getSourceLabel = (source) => sourceLabels[source] || readableFallback(source);
@@ -159,7 +188,7 @@ const shouldShowDescription = (h) => {
           </span>
           <span class="history-time">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            {{ formatDate(h.happened_at || h.created_at) }}
+            {{ formatDate(getEffectiveDate(h)) }}
           </span>
         </div>
       </div>

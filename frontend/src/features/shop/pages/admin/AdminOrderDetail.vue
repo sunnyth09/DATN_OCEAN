@@ -529,12 +529,16 @@ const cancelGhnOrder = async () => {
 const sortedShippingLogs = computed(() => {
   const logs = ghnLookup.value?.logs;
   if (!Array.isArray(logs) || logs.length === 0) return [];
-  // Sort descending: newest event at the TOP (index 0)
-  return [...logs].sort((a, b) => {
-    const timeA = new Date(a.created_at || a.timestamp || a.happened_at || 0).getTime();
-    const timeB = new Date(b.created_at || b.timestamp || b.happened_at || 0).getTime();
-    return timeB - timeA;
+  const withIndex = logs.map((log, originalIdx) => ({ log, originalIdx }));
+  withIndex.sort((a, b) => {
+    const timeA = new Date(a.log.created_at || a.log.timestamp || a.log.happened_at || 0).getTime();
+    const timeB = new Date(b.log.created_at || b.log.timestamp || b.log.happened_at || 0).getTime();
+    if (timeB !== timeA) {
+      return timeB - timeA;
+    }
+    return b.originalIdx - a.originalIdx;
   });
+  return withIndex.map(item => item.log);
 });
 
 onMounted(() => fetchOrder());
