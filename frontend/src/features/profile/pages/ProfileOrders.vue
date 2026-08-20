@@ -21,8 +21,23 @@ const currentFilter = ref('all');
 const router = useRouter();
 
 import FeedbackModal from '@/components/FeedbackModal.vue';
+import SepayPaymentModal from '@/components/SepayPaymentModal.vue';
+
 const showFeedbackModal = ref(false);
 const selectedOrderForFeedback = ref(null);
+
+const showSepayModal = ref(false);
+const selectedOrderForSepay = ref(null);
+
+const openSepayModal = (order) => {
+  selectedOrderForSepay.value = order;
+  showSepayModal.value = true;
+};
+
+const onSepaySuccess = () => {
+  showToast('Thanh toán đơn hàng thành công!', 'success');
+  fetchOrders(currentPage.value);
+};
 
 const openFeedback = (order) => {
     selectedOrderForFeedback.value = order;
@@ -245,6 +260,9 @@ onMounted(() => {
               <span class="dot">•</span>
               <span>{{ order.items ? order.items.length : 0 }} sản phẩm</span>
             </div>
+            <div v-if="order.payment_method === 'bank_transfer' && order.payment_status !== 'paid' && order.fulfillment_status !== 'cancelled'" class="unpaid-order-tag">
+              ⚠️ Sản phẩm bạn chưa thanh toán
+            </div>
           </div>
           <div class="order-header-center">
             <div class="status-badge" :class="getStatusClass(order.fulfillment_status)">
@@ -257,6 +275,14 @@ onMounted(() => {
             <div class="payment-status-badge" :class="order.fulfillment_status">
               {{ getSummaryStatusText(order.fulfillment_status) }}
             </div>
+
+            <button 
+              v-if="order.payment_method === 'bank_transfer' && order.payment_status !== 'paid' && order.fulfillment_status !== 'cancelled'"
+              class="btn-action btn-continue-pay"
+              @click="openSepayModal(order)"
+            >
+              💳 Tiếp tục thanh toán
+            </button>
 
             <router-link
               v-if="order.latest_return_request"
@@ -331,6 +357,17 @@ onMounted(() => {
         v-model="showFeedbackModal" 
         :order="selectedOrderForFeedback" 
         @feedback-submitted="onFeedbackSubmitted" 
+    />
+
+    <!-- SePay Modal -->
+    <SepayPaymentModal
+        :show="showSepayModal"
+        :order-code="selectedOrderForSepay?.order_code || ''"
+        :amount="selectedOrderForSepay?.grand_total || 0"
+        :created-at="selectedOrderForSepay?.created_at"
+        :is-guest="false"
+        @close="showSepayModal = false"
+        @success="onSepaySuccess"
     />
 
     <!-- Cancel Reason Modal -->
@@ -706,4 +743,35 @@ onMounted(() => {
 .modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-from .cancel-modal-box, .modal-leave-to .cancel-modal-box { transform: scale(0.95) translateY(10px); }
+
+.unpaid-order-tag {
+  background: #fffbe6;
+  border: 1px dashed #ffe58f;
+  color: #d46b08;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-continue-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 700 !important;
+  padding: 6px 14px !important;
+  border-radius: 20px !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 8px rgba(3, 105, 161, 0.25) !important;
+  transition: all 0.2s !important;
+}
+
+.btn-continue-pay:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.35) !important;
+}
 </style>

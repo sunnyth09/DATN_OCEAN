@@ -18,6 +18,13 @@ import {
 import api from '@/axios';
 import { getStorageUrl } from '@/utils/url';
 import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline.vue';
+import SepayPaymentModal from '@/components/SepayPaymentModal.vue';
+
+const showSepayModal = ref(false);
+const onSepaySuccess = () => {
+  showToast('Thanh toán đơn hàng thành công!', 'success');
+  fetchOrderDetail();
+};
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -500,6 +507,13 @@ watch(orderId, (newId) => {
         </div>
         <div class="status-actions">
           <button 
+            v-if="order.payment_method === 'bank_transfer' && order.payment_status !== 'paid' && order.fulfillment_status !== 'cancelled'"
+            class="btn-action btn-continue-pay"
+            @click="showSepayModal = true"
+          >
+            💳 Tiếp tục thanh toán
+          </button>
+          <button 
             v-if="order.fulfillment_status === 'pending'" 
             class="btn-action btn-cancel-order"
             @click="openCancelModal"
@@ -518,6 +532,20 @@ watch(orderId, (newId) => {
             <span v-else>↺ Yêu cầu hoàn hàng</span>
           </button>
         </div>
+      </div>
+
+      <!-- Banner Cảnh Báo Chưa Thanh Toán -->
+      <div v-if="order.payment_method === 'bank_transfer' && order.payment_status !== 'paid' && order.fulfillment_status !== 'cancelled'" class="unpaid-detail-banner">
+        <div class="unpaid-banner-content">
+          <span class="unpaid-icon">⚠️</span>
+          <div>
+            <strong>Sản phẩm/Đơn hàng bạn chưa thanh toán!</strong>
+            <p>Vui lòng chuyển khoản ngân hàng trong thời hạn 15 phút để hoàn tất đơn hàng.</p>
+          </div>
+        </div>
+        <button class="btn-banner-pay" @click="showSepayModal = true">
+          💳 Thanh toán ngay
+        </button>
       </div>
 
       <div v-if="order.latest_return_request" class="return-request-banner">
@@ -656,6 +684,17 @@ watch(orderId, (newId) => {
       </div>
       
     </div>
+
+    <!-- SePay Modal -->
+    <SepayPaymentModal
+        :show="showSepayModal"
+        :order-code="order?.order_code || ''"
+        :amount="order?.grand_total || 0"
+        :created-at="order?.created_at"
+        :is-guest="false"
+        @close="showSepayModal = false"
+        @success="onSepaySuccess"
+    />
 
     <!-- Cancel Reason Modal -->
     <Transition name="modal">
@@ -1542,4 +1581,88 @@ watch(orderId, (newId) => {
   text-decoration: none;
 }
 .ghn-tracking-link:hover { background: #dbeafe; }
+
+.unpaid-detail-banner {
+  background: linear-gradient(135deg, #fffbe6 0%, #fff1b8 100%);
+  border: 1.5px solid #ffe58f;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(212, 107, 8, 0.08);
+}
+
+.unpaid-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.unpaid-icon {
+  font-size: 1.8rem;
+}
+
+.unpaid-banner-content strong {
+  display: block;
+  font-size: 1rem;
+  color: #d46b08;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.unpaid-banner-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #8c4b00;
+}
+
+.btn-banner-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-banner-pay:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.4);
+}
+
+.btn-continue-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 700 !important;
+  padding: 6px 14px !important;
+  border-radius: 20px !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 8px rgba(3, 105, 161, 0.25) !important;
+  transition: all 0.2s !important;
+}
+
+.btn-continue-pay:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.35) !important;
+}
+
+@media (max-width: 640px) {
+  .unpaid-detail-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-banner-pay {
+    text-align: center;
+    width: 100%;
+  }
+}
 </style>
