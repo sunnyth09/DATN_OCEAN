@@ -201,66 +201,78 @@ class AdminDashboardController extends Controller
     /**
      * GET /admin/sidebar-badges
      * Trả về các con số badge cho sidebar menu:
-     * đơn hàng chờ xỮd lý, hoàn hàng chờ duyệt, ticket chưa giải quyết, live chat chưa đọc.
+     * đơn hàng chờ xử lý, hoàn hàng chờ duyệt, ticket chưa giải quyết, live chat chưa đọc.
      */
     public function getSidebarBadges()
     {
-        // Đơn hàng mới chưa xác nhận (pending)
-        $pendingOrders = Order::where('fulfillment_status', 'pending')->count();
+        try {
+            // Đơn hàng mới chưa xác nhận (pending)
+            $pendingOrders = Order::where('fulfillment_status', 'pending')->count();
 
-        // Hoàn hàng đang chờ duyệt
-        $pendingReturns = 0;
-        if (class_exists('\App\Models\ReturnRequest')) {
-            $pendingReturns = ReturnRequest::where('status', 'return_pending')->count();
+            // Hoàn hàng đang chờ duyệt
+            $pendingReturns = 0;
+            if (class_exists('\App\Models\ReturnRequest')) {
+                $pendingReturns = ReturnRequest::where('status', 'return_pending')->count();
+            }
+
+            // Ticket khiếu nại chưa giải quyết
+            $openTickets = 0;
+            if (class_exists('\\App\\Models\\Ticket')) {
+                $openTickets = Ticket::whereIn('status', ['pending', 'processing'])->count();
+            }
+
+            // Yêu cầu liên hệ chưa phản hồi (status = pending)
+            $pendingContacts = 0;
+            if (class_exists('\\App\\Models\\Contact')) {
+                $pendingContacts = Contact::where('status', 'pending')->count();
+            }
+
+            // Live chat session chưa được xử lý (status = open)
+            $unrepliedChats = 0;
+            if (class_exists('\\App\\Models\\ChatSession')) {
+                $unrepliedChats = ChatSession::where('status', 'open')->count();
+            }
+
+            // Tổng số tin nhắn chưa đọc
+            $unreadChats = 0;
+            if (class_exists('\App\Models\ChatMessage')) {
+                $unreadChats = ChatMessage::where('sender_type', 'user')->where('is_read', false)->count();
+            }
+
+            // Đánh giá chờ duyệt
+            $pendingReviews = 0;
+            if (class_exists('\App\Models\ProductComment')) {
+                $pendingReviews = \App\Models\ProductComment::where('is_approved', false)->count();
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'pending_orders' => $pendingOrders,
+                    'pending_returns' => $pendingReturns,
+                    'open_tickets' => $openTickets,
+                    'pending_contacts' => $pendingContacts,
+                    'unreplied_chats' => $unrepliedChats,
+                    'unread_chats' => $unreadChats,
+                    'pending_reviews' => $pendingReviews,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('getSidebarBadges error: '.$e->getMessage());
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi khi lấy số lượng badge sidebar',
+                'data' => [
+                    'pending_orders' => 0,
+                    'pending_returns' => 0,
+                    'open_tickets' => 0,
+                    'pending_contacts' => 0,
+                    'unreplied_chats' => 0,
+                    'unread_chats' => 0,
+                    'pending_reviews' => 0,
+                ],
+            ], 500);
         }
-
-        // Ticket khiếu nại chưa giải quyết + Đánh giá sản phẩm chờ duyệt
-        $openTickets = 0;
-        if (class_exists('\\App\\Models\\Ticket')) {
-            $openTickets += Ticket::whereIn('status', ['pending', 'processing'])->count();
-        }
-        if (class_exists('\\App\\Models\\ProductComment')) {
-            $openTickets += \App\Models\ProductComment::where('is_approved', 0)->count();
-        }
-
-        // Yêu cầu liên hệ chưa phản hồi (status = pending)
-        $pendingContacts = 0;
-        if (class_exists('\\App\\Models\\Contact')) {
-            $pendingContacts = Contact::where('status', 'pending')->count();
-        }
-
-        // Live chat session chưa được xử lý (status = open)
-        $unrepliedChats = ChatSession::where('status', 'open')->count();
-
-        // Tổng số tin nhắn chưa đọc
-        $unreadChats = 0;
-        if (class_exists('\App\Models\ChatMessage')) {
-            $unreadChats = ChatMessage::where('sender_type', 'user')->where('is_read', false)->count();
-        }
-
-        // Đánh giá chờ duyệt
-        $pendingReviews = 0;
-        if (class_exists('\App\Models\ProductComment')) {
-            $pendingReviews = \App\Models\ProductComment::where('is_approved', false)->count();
-        }
-
-        // Liên hệ chưa xử lý
-        $pendingContacts = 0;
-        if (class_exists('\App\Models\Contact')) {
-            $pendingContacts = \App\Models\Contact::where('status', 'pending')->count();
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'data' => [
-                'pending_orders' => $pendingOrders,
-                'pending_returns' => $pendingReturns,
-                'open_tickets' => $openTickets,
-                'pending_contacts' => $pendingContacts,
-                'unreplied_chats' => $unrepliedChats,
-                'unread_chats' => $unreadChats,
-                'pending_reviews' => $pendingReviews,
-            ],
-        ]);
     }
 }

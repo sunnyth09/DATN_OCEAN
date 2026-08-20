@@ -197,6 +197,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::get('/pos/orders/{id}/receipt-pdf', [PosController::class, 'exportReceiptPdf']);
 
     // Admin Live Chat
+    Route::get('/live-chats/pending-count', [AdminChatController::class, 'getPendingCount']);
     Route::get('/live-chats', [AdminChatController::class, 'getSessions']);
     Route::get('/live-chats/{id}', [AdminChatController::class, 'getMessages']);
     Route::post('/live-chats/{id}/reply', [AdminChatController::class, 'replyMessage']);
