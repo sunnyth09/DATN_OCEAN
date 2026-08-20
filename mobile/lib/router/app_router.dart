@@ -26,12 +26,14 @@ import '../screens/favorite_screen.dart';
 import '../screens/flash_sale_screen.dart';
 import '../screens/notification_screen.dart';
 import '../screens/pos_scanner_screen.dart';
+import '../screens/product_scanner_screen.dart';
 import '../screens/return_requests_screen.dart';
 import '../screens/review_screen.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/search_screen.dart';
 import '../screens/create_return_request_screen.dart';
 import '../screens/loyalty_screen.dart';
+import '../screens/lucky_wheel_screen.dart';
 import '../screens/chat_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -125,7 +127,11 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       GoRoute(
         path: '/orders',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const OrderScreen(),
+        builder: (context, state) {
+          final tabParam = state.uri.queryParameters['tab'];
+          final initialIndex = int.tryParse(tabParam ?? '') ?? (state.extra as int? ?? 0);
+          return OrderScreen(initialIndex: initialIndex);
+        },
       ),
       GoRoute(
         path: '/product-detail',
@@ -151,7 +157,11 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/checkout',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          return const CheckoutScreen();
+          final extra = state.extra as Map<String, dynamic>?;
+          return CheckoutScreen(
+            initialCoupon: extra?['appliedCoupon'] as Map<String, dynamic>?,
+            initialDiscount: extra?['discountAmount'] as int?,
+          );
         },
       ),
       GoRoute(
@@ -162,6 +172,8 @@ GoRouter createRouter({required bool isFirstLaunch}) {
           return PaymentWebviewScreen(
             url: extra['url'] as String,
             paymentMethod: extra['paymentMethod'] as String,
+            orderCode: extra['orderCode'] as String?,
+            grandTotal: extra['grandTotal'] as num?,
           );
         },
       ),
@@ -169,7 +181,12 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/order-success',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          return const OrderSuccessScreen();
+          final extra = state.extra as Map<String, dynamic>?;
+          return OrderSuccessScreen(
+            orderCode: extra?['orderCode'] as String?,
+            grandTotal: extra?['grandTotal'] as num?,
+            orderId: extra?['orderId']?.toString(),
+          );
         },
       ),
       GoRoute(
@@ -229,9 +246,19 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         builder: (context, state) => const NotificationScreen(),
       ),
       GoRoute(
+        path: '/lucky-wheel',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const LuckyWheelScreen(),
+      ),
+      GoRoute(
         path: '/pos-scanner',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const PosScannerScreen(),
+      ),
+      GoRoute(
+        path: '/product-scanner',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const ProductScannerScreen(),
       ),
       GoRoute(
         path: '/return-requests',
@@ -264,7 +291,9 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       ),
       GoRoute(
         path: '/chat',
-        builder: (context, state) => const ChatScreen(),
+        builder: (context, state) => ChatScreen(
+          inquiryProduct: state.extra as Map<String, dynamic>?,
+        ),
       ),
     ],
   );

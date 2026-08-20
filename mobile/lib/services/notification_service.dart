@@ -1,9 +1,7 @@
 import 'dart:convert';
 
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -13,7 +11,7 @@ import 'api_client.dart';
 import '../router/app_router.dart';
 import 'auth_service.dart';
 
-// ⚠️ QUAN TRỌNG: Hàm này PHẢI nằm ngoài class (Top-level function)
+// QUAN TRỌNG: Hàm này PHẢI nằm ngoài class (Top-level function)
 // Lắng nghe thông báo khi app đang chạy ngầm hoặc đã bị tắt.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {

@@ -6,6 +6,7 @@ import '../config/app_config.dart';
 import '../services/api_client.dart';
 import '../widgets/network_image_widget.dart';
 import '../utils/format_utils.dart';
+import '../widgets/app_empty_state.dart';
 
 import '../config/app_theme.dart';
 
@@ -157,7 +158,16 @@ class _SearchScreenState extends State<SearchScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: AppColors.textPrimary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
         titleSpacing: 0,
         title: Container(
           height: 40,
@@ -180,11 +190,23 @@ class _SearchScreenState extends State<SearchScreen> {
                       icon: Icon(Icons.close, color: Colors.grey.shade500, size: 18),
                       onPressed: () {
                         _searchController.clear();
-                        setState(() {}); // Update suffix icon visibility
+                        setState(() {});
                       },
                     )
-                  : null,
+                  : IconButton(
+                      icon: const Icon(Icons.camera_alt_outlined, color: AppColors.primary, size: 19),
+                      onPressed: () {
+                        context.push('/product-scanner');
+                      },
+                    ),
+              isDense: true,
+              filled: false,
               border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             onChanged: (val) {
@@ -200,69 +222,142 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  final List<String> _popularKeywords = [
+    'Vợt Tennis',
+    'Cầu Lông',
+    'Babolat',
+    'Wilson',
+    'Yonex',
+    'Giày thể thao',
+    'Túi vợt',
+    'Bóng tennis',
+  ];
+
   Widget _buildEmptyState() {
-    return Center(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.search, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          Text(
-            'Nhập từ khóa để tìm kiếm',
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
+          _buildPopularSearches(),
         ],
       ),
     );
   }
 
   Widget _buildRecentSearches() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Row(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Tìm kiếm gần đây',
+                'Lịch sử tìm kiếm',
                 style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14.5,
                   color: AppColors.textPrimary,
                 ),
               ),
               InkWell(
                 onTap: _clearHistory,
                 child: const Text(
-                  'Xóa lịch sử',
+                  'Xóa tất cả',
                   style: TextStyle(
                     color: AppColors.primary,
-                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.5,
                   ),
                 ),
               ),
             ],
           ),
-        ),
-        Expanded(
-          child: ListView.separated(
-            itemCount: _recentSearches.length,
-            separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade200),
-            itemBuilder: (context, index) {
-              final query = _recentSearches[index];
-              return ListTile(
-                leading: const Icon(Icons.history, color: Colors.grey, size: 20),
-                title: Text(query, style: const TextStyle(fontSize: 15)),
-                trailing: const Icon(Icons.north_west, color: Colors.grey, size: 16),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _recentSearches.map((query) {
+              return InkWell(
                 onTap: () {
                   _searchController.text = query;
                   _performSearch(query);
                 },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.history_rounded, size: 14, color: AppColors.textMuted),
+                      const SizedBox(width: 6),
+                      Text(
+                        query,
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
               );
-            },
+            }).toList(),
           ),
+          const SizedBox(height: 24),
+          _buildPopularSearches(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPopularSearches() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.local_fire_department_rounded, color: Color(0xFFEF4444), size: 18),
+            SizedBox(width: 6),
+            Text(
+              'Từ khóa phổ biến',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14.5,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _popularKeywords.map((keyword) {
+            return InkWell(
+              onTap: () {
+                _searchController.text = keyword;
+                _performSearch(keyword);
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFFFD1DC)),
+                ),
+                child: Text(
+                  keyword,
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.primary),
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ],
     );
@@ -273,11 +368,10 @@ class _SearchScreenState extends State<SearchScreen> {
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
     if (_searchResults.isEmpty) {
-      return Center(
-        child: Text(
-          'Không tìm thấy sản phẩm nào',
-          style: TextStyle(color: Colors.grey.shade500),
-        ),
+      return AppEmptyState(
+        icon: Icons.search_off_rounded,
+        title: 'Không tìm thấy kết quả',
+        message: 'Rất tiếc, không có sản phẩm nào khớp với từ khóa "${_searchController.text}".',
       );
     }
     return ListView.separated(

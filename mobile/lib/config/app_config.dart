@@ -7,6 +7,22 @@ class AppConfig {
   static const String kProductionStorageUrl =
       'https://apiocean.bcbdev.id.vn/storage';
 
+  static const String kGoogleClientId =
+      '69477374031-v9nattjdc51dj9hb20qntpq6dkqedem8.apps.googleusercontent.com';
+  static const String kGoogleRedirectUri =
+      'http://localhost:3302/client/auth/google/callback';
+
+  static const String kReverbAppKey = 'ocean_realtime_key_2024';
+  static const int kReverbPort = 8383;
+
+  static String get reverbWsUrl {
+    if (isProduction) {
+      return 'wss://apiocean.bcbdev.id.vn/app/$kReverbAppKey?protocol=7&client=dart&version=1.0';
+    }
+    final host = kIsWeb ? '127.0.0.1' : _localIp;
+    return 'ws://$host:$kReverbPort/app/$kReverbAppKey?protocol=7&client=dart&version=1.0';
+  }
+
   static const String _apiBaseUrlOverride = String.fromEnvironment(
     'API_BASE_URL',
   );

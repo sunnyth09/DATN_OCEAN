@@ -1,7 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'order_success_screen.dart';
+import '../widgets/app_toast.dart';
 
 class PaymentWebviewScreen extends StatefulWidget {
   final String url;
@@ -24,6 +24,7 @@ class PaymentWebviewScreen extends StatefulWidget {
 class _PaymentWebviewScreenState extends State<PaymentWebviewScreen> {
   late final WebViewController _controller;
   bool _isLoading = true;
+  bool _isRedirecting = false;
 
   @override
   void initState() {
@@ -32,21 +33,16 @@ class _PaymentWebviewScreenState extends State<PaymentWebviewScreen> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (String url) {
+          onPageStarted: (url) {
             if (mounted) setState(() => _isLoading = true);
+            _checkUrl(url);
           },
-          onPageFinished: (String url) {
+          onPageFinished: (url) {
             if (mounted) setState(() => _isLoading = false);
+            _checkUrl(url);
           },
-          onNavigationRequest: (NavigationRequest request) {
-            final url = request.url;
-            // QS-project scheme hoặc URL chứa tham số trả về từ cổng thanh toán
-            if (url.startsWith('qs-project://payment-return') ||
-                url.contains('vnp_ResponseCode') ||
-                url.contains('resultCode')) {
-              _handlePaymentReturn(url);
-              return NavigationDecision.prevent;
-            }
+          onNavigationRequest: (request) {
+            _checkUrl(request.url);
             return NavigationDecision.navigate;
           },
         ),
@@ -54,16 +50,27 @@ class _PaymentWebviewScreenState extends State<PaymentWebviewScreen> {
       ..loadRequest(Uri.parse(widget.url));
   }
 
-  void _handlePaymentReturn(String url) {
-    if (!mounted) return;
+  void _checkUrl(String url) {
+    if (_isRedirecting) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
 
-    final params = Uri.parse(url).queryParameters;
-    // VNPay: vnp_ResponseCode == '00' là thành công (24 = huỷ, khác = lỗi).
-    // MoMo: resultCode == '0' là thành công.
+    // Bắt return URL từ VNPAY hoặc MOMO hoặc deep link custom
+    if (url.contains('/vnpay/return') ||
+        url.contains('/momo/return') ||
+        url.contains('payment-return') ||
+        uri.scheme == 'qs-project') {
+      _isRedirecting = true;
+      _handlePaymentResult(uri);
+    }
+  }
+
+  void _handlePaymentResult(Uri uri) {
+    final params = uri.queryParameters;
     final vnpCode = params['vnp_ResponseCode'];
     final momoCode = params['resultCode'];
 
-    bool success;
+    bool success = false;
     if (vnpCode != null) {
       success = vnpCode == '00';
     } else if (momoCode != null) {
@@ -75,37 +82,34 @@ class _PaymentWebviewScreenState extends State<PaymentWebviewScreen> {
     }
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Thanh toán thành công!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pushAndRemoveUntil(
+      AppToast.showSuccess(
         context,
-        MaterialPageRoute(
-          builder: (_) => OrderSuccessScreen(
-            orderCode: widget.orderCode,
-            grandTotal: widget.grandTotal,
-          ),
-        ),
-        (route) => false,
+        message: 'Thanh toán thành công!',
+      );
+      // P1-09: Dùng context.go() (GoRouter) thay Navigator.pushAndRemoveUntil()
+      context.go(
+        '/order-success',
+        extra: {
+          'orderCode': widget.orderCode,
+          'grandTotal': widget.grandTotal,
+          'orderId': null,
+        },
       );
     } else {
       // Huỷ hoặc thất bại: KHÔNG đưa sang màn thành công. Đơn đã tạo,
       // user có thể thanh toán lại trong "Đơn hàng của tôi".
       final isCancelled = vnpCode == '24' || momoCode == '1003';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isCancelled
-                ? 'Bạn đã huỷ thanh toán. Đơn hàng vẫn được lưu, có thể thanh toán lại trong "Đơn hàng của tôi".'
-                : 'Thanh toán thất bại. Đơn hàng vẫn được lưu, vui lòng thử lại trong "Đơn hàng của tôi".',
-          ),
-          backgroundColor: isCancelled ? Colors.orange : Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      if (isCancelled) {
+        AppToast.showWarning(
+          context,
+          message: 'Bạn đã huỷ thanh toán. Đơn hàng vẫn được lưu trong "Đơn hàng của tôi".',
+        );
+      } else {
+        AppToast.showError(
+          context,
+          message: 'Thanh toán thất bại. Đơn hàng vẫn được lưu trong "Đơn hàng của tôi".',
+        );
+      }
       Navigator.of(context).pop();
     }
   }

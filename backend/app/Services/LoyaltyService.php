@@ -160,6 +160,25 @@ class LoyaltyService
     }
 
     /**
+     * Earn điểm khi điểm danh hằng ngày.
+     */
+    public function earnDailyCheckIn(User $user, int $streak): ?LoyaltyTransaction
+    {
+        // Ta có thể sử dụng cấu hình 'DAILY_CHECKIN' nếu muốn, hoặc hardcode dựa trên streak
+        // Ở đây ta cộng cứng (min 10*streak, max 100)
+        $points = min(10 * $streak, 100);
+
+        return $this->recordEarn(
+            user: $user,
+            points: $points,
+            rule: null,
+            referenceType: 'daily_checkin',
+            referenceId: null,
+            description: "Điểm danh hằng ngày (Ngày $streak)",
+        );
+    }
+
+    /**
      * Earn điểm sinh nhật cho user.
      * Nên gọi từ Artisan command hàng ngày.
      */

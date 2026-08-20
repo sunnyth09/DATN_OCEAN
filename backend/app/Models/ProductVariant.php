@@ -45,44 +45,112 @@ class ProductVariant extends Model
      */
     protected $appends = ['effective_price', 'is_on_sale', 'discount_percent'];
 
+    /**
+     * Cache tĩnh active Flash Sale theo request để tối ưu tốc độ.
+     */
+    protected static ?array $activeFlashSaleCache = null;
+
+    public static function clearFlashSaleCache(): void
+    {
+        self::$activeFlashSaleCache = null;
+    }
+
+    protected static function getActiveFlashSaleCampaignPrice(int $productId): ?float
+    {
+        if (self::$activeFlashSaleCache === null) {
+            try {
+                self::$activeFlashSaleCache = FlashSaleItem::whereHas('flashSale', function ($q) {
+                    $q->where('status', 'active')
+                      ->where('start_time', '<=', now())
+                      ->where('end_time', '>=', now());
+                })
+                ->pluck('campaign_price', 'product_id')
+                ->toArray();
+            } catch (\Throwable $e) {
+                self::$activeFlashSaleCache = [];
+            }
+        }
+
+        return isset(self::$activeFlashSaleCache[$productId])
+            ? (float) self::$activeFlashSaleCache[$productId]
+            : null;
+    }
+
     // ── Accessors ────────────────────────────────────────────────────────────
 
     /**
-     * Kiểm tra variant có đang nằm trong khung giảm giá hay không.
+     * Kiểm tra variant có đang nằm trong khung giảm giá hoặc Flash Sale active hay không.
      */
     public function getIsOnSaleAttribute(): bool
     {
-        if (! $this->sale_price || $this->sale_price <= 0) {
-            return false;
+        if ($this->sale_price && $this->sale_price > 0) {
+            $now = Carbon::now();
+
+            // Nếu không có thời gian bắt đầu và kết thúc -> Sale vô thời hạn (dài hạn)
+            if (! $this->sale_starts_at && ! $this->sale_ends_at) {
+                return true;
+            }
+
+            // Nếu chỉ có thời gian bắt đầu
+            if ($this->sale_starts_at && ! $this->sale_ends_at) {
+                return $now->gte($this->sale_starts_at);
+            }
+
+            // Nếu chỉ có thời gian kết thúc
+            if (! $this->sale_starts_at && $this->sale_ends_at) {
+                return $now->lte($this->sale_ends_at);
+            }
+
+            // Nếu có cả hai
+            if ($now->gte($this->sale_starts_at) && $now->lte($this->sale_ends_at)) {
+                return true;
+            }
         }
 
-        $now = Carbon::now();
-
-        // Nếu không có thời gian bắt đầu và kết thúc -> Sale vô thời hạn (dài hạn)
-        if (! $this->sale_starts_at && ! $this->sale_ends_at) {
-            return true;
+        // Kiểm tra Flash Sale active
+        if ($this->product_id) {
+            $fsPrice = self::getActiveFlashSaleCampaignPrice((int) $this->product_id);
+            if ($fsPrice !== null && $fsPrice > 0 && ($this->price <= 0 || $fsPrice < $this->price)) {
+                return true;
+            }
         }
 
-        // Nếu chỉ có thời gian bắt đầu
-        if ($this->sale_starts_at && ! $this->sale_ends_at) {
-            return $now->gte($this->sale_starts_at);
-        }
-
-        // Nếu chỉ có thời gian kết thúc
-        if (! $this->sale_starts_at && $this->sale_ends_at) {
-            return $now->lte($this->sale_ends_at);
-        }
-
-        // Nếu có cả hai
-        return $now->gte($this->sale_starts_at) && $now->lte($this->sale_ends_at);
+        return false;
     }
 
     /**
-     * Giá hiệu lực: trả về sale_price nếu đang sale, ngược lại trả price gốc.
+     * Giá hiệu lực: trả về giá Flash Sale (nếu có), hoặc sale_price nếu đang sale, ngược lại trả price gốc.
      */
     public function getEffectivePriceAttribute(): float
     {
-        return $this->is_on_sale ? (float) $this->sale_price : (float) $this->price;
+        // 1. Kiểm tra Flash Sale active trước (ưu tiên giá sốc Flash Sale)
+        if ($this->product_id) {
+            $fsPrice = self::getActiveFlashSaleCampaignPrice((int) $this->product_id);
+            if ($fsPrice !== null && $fsPrice > 0 && ($this->price <= 0 || $fsPrice < $this->price)) {
+                return (float) $fsPrice;
+            }
+        }
+
+        // 2. Kiểm tra sale_price thông thường
+        if ($this->sale_price && $this->sale_price > 0) {
+            $now = Carbon::now();
+            $isSale = false;
+            if (! $this->sale_starts_at && ! $this->sale_ends_at) {
+                $isSale = true;
+            } elseif ($this->sale_starts_at && ! $this->sale_ends_at) {
+                $isSale = $now->gte($this->sale_starts_at);
+            } elseif (! $this->sale_starts_at && $this->sale_ends_at) {
+                $isSale = $now->lte($this->sale_ends_at);
+            } elseif ($now->gte($this->sale_starts_at) && $now->lte($this->sale_ends_at)) {
+                $isSale = true;
+            }
+
+            if ($isSale) {
+                return (float) $this->sale_price;
+            }
+        }
+
+        return (float) $this->price;
     }
 
     /**
@@ -90,11 +158,12 @@ class ProductVariant extends Model
      */
     public function getDiscountPercentAttribute(): int
     {
-        if (! $this->is_on_sale || $this->price <= 0) {
+        $effectivePrice = $this->effective_price;
+        if ($this->price <= 0 || $effectivePrice >= $this->price) {
             return 0;
         }
 
-        return (int) round(($this->price - $this->sale_price) / $this->price * 100);
+        return (int) round(($this->price - $effectivePrice) / $this->price * 100);
     }
 
     // ── Relationships ────────────────────────────────────────────────────────

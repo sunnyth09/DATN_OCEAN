@@ -78,6 +78,12 @@ class ProductRepository
                                 $brandQuery->orWhere('name', 'like', "%{$searchSlug}%");
                             }
                         });
+
+                        // Tìm theo biến thể (SKU, barcode)
+                        $sub->orWhereHas('variants', function ($vq) use ($searchClean) {
+                            $vq->where('sku', 'like', "%{$searchClean}%")
+                               ->orWhere('barcode', 'like', "%{$searchClean}%");
+                        });
                     });
                 }
             });

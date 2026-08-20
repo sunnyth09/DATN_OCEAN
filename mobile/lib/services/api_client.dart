@@ -5,11 +5,11 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
 import '../router/app_router.dart';
+import '../widgets/app_toast.dart';
 import 'auth_service.dart';
 import 'storage_service.dart';
 
@@ -22,13 +22,41 @@ class ApiClient {
   factory ApiClient() => _instance;
 
   late Dio dio;
+  static String? _resolvedIp;
+  static DateTime? _lastDnsLookup;
+
+  /// Giải quyết lỗi DNS IPv6 treo trên Android Emulator:
+  /// Phân giải trực tiếp sang IPv4 hoặc fallback về IP tĩnh '116.118.6.160'
+  static Future<String> getEffectiveHost() async {
+    if (kIsWeb) return 'apiocean.bcbdev.id.vn';
+    if (_resolvedIp != null &&
+        _lastDnsLookup != null &&
+        DateTime.now().difference(_lastDnsLookup!).inMinutes < 10) {
+      return _resolvedIp!;
+    }
+    try {
+      final list = await InternetAddress.lookup('apiocean.bcbdev.id.vn', type: InternetAddressType.IPv4)
+          .timeout(const Duration(milliseconds: 1500));
+      if (list.isNotEmpty) {
+        _resolvedIp = list.first.address;
+        _lastDnsLookup = DateTime.now();
+        return _resolvedIp!;
+      }
+    } catch (_) {
+      // Fallback về IP máy chủ nếu máy ảo Android bị nghẽn DNS
+      _resolvedIp = '116.118.6.160';
+      _lastDnsLookup = DateTime.now();
+    }
+    return _resolvedIp ?? '116.118.6.160';
+  }
 
   ApiClient._internal() {
     dio = Dio(
       BaseOptions(
         baseUrl: kBaseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 35),
+        receiveTimeout: const Duration(seconds: 35),
+        sendTimeout: const Duration(seconds: 35),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -41,9 +69,37 @@ class ApiClient {
       dio.httpClientAdapter = IOHttpClientAdapter(
         createHttpClient: () {
           final client = HttpClient();
+          client.connectionTimeout = const Duration(seconds: 30);
+          client.idleTimeout = const Duration(seconds: 60);
+          client.maxConnectionsPerHost = 20;
           client.badCertificateCallback =
               (X509Certificate cert, String host, int port) => true;
           client.userAgent = kMobileUserAgent;
+
+          // Khắc phục triệt để lỗi nghẽn DNS IPv6 trên Android Emulator (10.0.2.3):
+          // 1. Mở kết nối TCP trực tiếp tới IP máy chủ '116.118.6.160' (< 50ms)
+          // 2. Nâng cấp TLS bằng SecureSocket.secure với host: uri.host để thiết lập đầy đủ tiêu đề SNI hợp lệ
+          client.connectionFactory = (Uri uri, String? proxyHost, int? proxyPort) {
+            final targetIp = (uri.host == 'apiocean.bcbdev.id.vn') ? '116.118.6.160' : uri.host;
+
+            final Future<Socket> futureSocket = Socket.connect(
+              targetIp,
+              uri.port,
+              timeout: const Duration(seconds: 15),
+            ).then<Socket>((rawSocket) {
+              if (uri.scheme == 'https') {
+                return SecureSocket.secure(
+                  rawSocket,
+                  host: uri.host, // 'apiocean.bcbdev.id.vn' -> Thiết lập chuẩn tiêu đề TLS SNI!
+                  onBadCertificate: (cert) => true,
+                );
+              }
+              return rawSocket;
+            });
+
+            return Future.value(ConnectionTask.fromSocket(futureSocket, () {}));
+          };
+
           return client;
         },
       );
@@ -65,7 +121,8 @@ class ApiClient {
             options.headers['User-Agent'] = kMobileUserAgent;
           }
 
-          final token = await StorageService.read('access_token');
+          final token = StorageService.readSync('access_token') ??
+              await StorageService.read('access_token');
           if (token != null && token.trim().isNotEmpty && token != 'null') {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -102,6 +159,25 @@ class ApiClient {
             debugPrint('Status: ${e.response?.statusCode}');
             debugPrint('Data: ${e.response?.data}');
             debugPrint('=========================');
+          }
+
+          // 1. Tự động retry 1 lần đối với request GET khi gặp timeout hoặc mạng chập chờn
+          final isGet = e.requestOptions.method.toUpperCase() == 'GET';
+          final isTimeoutOrConnError =
+              e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.connectionError;
+          final alreadyRetriedConn = e.requestOptions.extra['__conn_retried'] == true;
+
+          if (isGet && isTimeoutOrConnError && !alreadyRetriedConn) {
+            try {
+              final opts = e.requestOptions..extra['__conn_retried'] = true;
+              await Future.delayed(const Duration(milliseconds: 600));
+              final retryRes = await dio.fetch(opts);
+              return handler.resolve(retryRes);
+            } catch (_) {
+              // Tiếp tục luồng xử lý lỗi tiếp theo
+            }
           }
 
           final is401 = e.response?.statusCode == 401;
@@ -155,9 +231,7 @@ class ApiClient {
     if (hasToken) {
       final context = rootNavigatorKey.currentContext;
       if (context != null && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại')),
-        );
+        AppToast.showInfo(context, message: 'Phiên đăng nhập hết hạn, vui lòng đăng nhập lại');
         context.go('/login');
       }
     }

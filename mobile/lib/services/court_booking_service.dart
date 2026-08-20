@@ -51,8 +51,8 @@ class CourtBookingService {
     required String startTime,
     required String endTime,
     required String paymentMethod,
-    required String lockToken,
-    required Map<int, int> services,
+    String? lockToken,
+    Map<int, int> services = const {},
   }) async {
     final response = await _dio.post('/court-bookings', data: {
       'court_id': courtId,
@@ -60,7 +60,7 @@ class CourtBookingService {
       'start_time': startTime,
       'end_time': endTime,
       'payment_method': paymentMethod,
-      'lock_token': lockToken,
+      if (lockToken != null && lockToken.isNotEmpty) 'lock_token': lockToken,
       'services': services.entries
           .where((entry) => entry.value > 0)
           .map((entry) => {'service_id': entry.key, 'quantity': entry.value})

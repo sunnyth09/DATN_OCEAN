@@ -41,8 +41,158 @@ class LoyaltyController extends Controller
         }
 
         $summary = $this->loyaltyService->getSummary($user->user_id);
+        
+        // Add checkin info to summary
+        $summary['last_check_in_at'] = $user->last_check_in_at;
+        $summary['check_in_streak'] = $user->check_in_streak ?? 0;
+        $summary['has_checked_in_today'] = $user->last_check_in_at && \Carbon\Carbon::parse($user->last_check_in_at)->isToday();
 
         return response()->json(['status' => 'success', 'data' => $summary]);
+    }
+
+    /**
+     * POST /api/loyalty/check-in
+     * Điểm danh hàng ngày nhận xu
+     */
+    public function checkIn(): JsonResponse
+    {
+        $user = auth('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $today = now()->toDateString();
+        $lastCheckIn = $user->last_check_in_at ? \Carbon\Carbon::parse($user->last_check_in_at)->toDateString() : null;
+
+        if ($lastCheckIn === $today) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Bạn đã điểm danh hôm nay rồi.',
+                'data' => [
+                    'check_in_streak' => $user->check_in_streak,
+                    'reward_points' => $user->reward_points,
+                ]
+            ], 400);
+        }
+
+        $yesterday = now()->subDay()->toDateString();
+        
+        if ($lastCheckIn === $yesterday) {
+            $user->check_in_streak += 1;
+        } else {
+            $user->check_in_streak = 1;
+        }
+        
+        $user->last_check_in_at = now();
+        $user->save();
+
+        $tx = $this->loyaltyService->earnDailyCheckIn($user, $user->check_in_streak);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Điểm danh thành công!',
+            'data' => [
+                'points_earned' => $tx ? $tx->points : 0,
+                'check_in_streak' => $user->check_in_streak,
+                'reward_points' => $user->reward_points,
+            ]
+        ]);
+    }
+
+    /**
+     * GET /api/loyalty/lucky-wheel
+     * Lấy danh sách phần thưởng vòng quay
+     */
+    public function luckyWheelPrizes(): JsonResponse
+    {
+        $prizes = \App\Models\LuckyWheelPrize::where('is_active', true)->get();
+        return response()->json([
+            'status' => 'success',
+            'data' => $prizes
+        ]);
+    }
+
+    /**
+     * POST /api/loyalty/lucky-wheel/spin
+     * Quay vòng quay may mắn
+     */
+    public function spinLuckyWheel(): JsonResponse
+    {
+        $user = auth('api')->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        $costPerSpin = 50; // Xu cần cho 1 lần quay
+
+        if ($user->reward_points < $costPerSpin) {
+            return response()->json([
+                'status' => 'error',
+                'message' => "Bạn cần $costPerSpin xu để quay vòng quay.",
+            ], 400);
+        }
+
+        // Deduct points
+        $oldPoints = $user->reward_points;
+        $user->reward_points -= $costPerSpin;
+        $user->save();
+
+        \Illuminate\Support\Facades\DB::table('loyalty_transactions')->insert([
+            'user_id' => $user->user_id,
+            'type' => 'burn',
+            'points' => $costPerSpin,
+            'balance_before' => $oldPoints,
+            'balance_after' => $user->reward_points,
+            'description' => 'Chơi vòng quay may mắn',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Tính toán phần thưởng dựa trên probability
+        $prizes = \App\Models\LuckyWheelPrize::where('is_active', true)->get();
+        $totalWeight = $prizes->sum('probability');
+        $random = mt_rand(1, (int) ($totalWeight * 100)) / 100;
+        
+        $currentWeight = 0;
+        $winningPrize = null;
+        $winningIndex = 0;
+
+        foreach ($prizes as $index => $prize) {
+            $currentWeight += $prize->probability;
+            if ($random <= $currentWeight) {
+                $winningPrize = $prize;
+                $winningIndex = $index;
+                break;
+            }
+        }
+
+        if (!$winningPrize) {
+            $winningPrize = $prizes->last();
+            $winningIndex = $prizes->count() - 1;
+        }
+
+        // Cấp phát phần thưởng
+        if ($winningPrize->type === 'points' && $winningPrize->value > 0) {
+            $this->loyaltyService->addPoints(
+                $user->user_id,
+                $winningPrize->value,
+                'earn',
+                'Trúng thưởng vòng quay: ' . $winningPrize->name
+            );
+            $user->refresh();
+        } elseif ($winningPrize->type === 'voucher') {
+            // (Tuỳ chọn: cấp phát voucher vào UserCoupon table)
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Quay thành công!',
+            'data' => [
+                'prize' => $winningPrize,
+                'prize_index' => $winningIndex,
+                'reward_points' => $user->reward_points,
+            ]
+        ]);
     }
 
     /**

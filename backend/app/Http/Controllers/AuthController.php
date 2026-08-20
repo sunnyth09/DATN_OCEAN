@@ -70,6 +70,24 @@ class AuthController extends Controller
     }
 
     /**
+     * Google Mobile Sign-In (ID Token / Direct Payload)
+     */
+    public function googleMobileLogin(Request $request)
+    {
+        $idToken = $request->input('id_token');
+        $googleId = $request->input('google_id');
+        $email = $request->input('email');
+        $name = $request->input('name');
+        $avatar = $request->input('avatar_url');
+
+        $result = $this->authService->googleMobileLogin($idToken, $googleId, $email, $name, $avatar);
+        $status = $result['_status'] ?? 200;
+        unset($result['_status']);
+
+        return response()->json($result, $status);
+    }
+
+    /**
      * Facebook OAuth 2.0 Callback
      */
     public function facebookCallback(Request $request)

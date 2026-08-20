@@ -4,10 +4,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
-import 'main_wrapper.dart';
 import 'review_screen.dart';
 import '../config/app_config.dart';
+import '../config/app_theme.dart';
 import '../utils/format_utils.dart';
+import '../widgets/app_toast.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final String orderId;
@@ -33,9 +34,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Future<void> fetchOrderDetail() async {
     setState(() { isLoading = true; errorMessage = null; });
     try {
-      debugPrint('Fetching order details for ID: ${widget.orderId}');
-      if (widget.orderId == 'null') {
-        throw Exception('Invalid orderId (null)');
+      if (widget.orderId == 'null' || widget.orderId.isEmpty) {
+        throw Exception('Invalid orderId');
       }
       final response = await ApiClient().dio.get('/profile/orders/${widget.orderId}');
 
@@ -49,19 +49,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         }
       }
     } on DioException catch (e) {
-      debugPrint('DioException in fetchOrderDetail: ${e.message}');
+      // P0-02: Không hiển thị raw error, chỉ dùng statusCode để debug
       if (mounted) {
         setState(() {
-          errorMessage = 'Không thể xem chi tiết đơn hàng: ${e.response?.statusCode}';
+          errorMessage = e.response?.statusCode == 404
+              ? 'Đơn hàng không tồn tại hoặc đã bị xóa.'
+              : 'Không thể xem chi tiết đơn hàng. Vui lòng thử lại.';
           isLoading = false;
         });
       }
-    } catch (e) {
-      debugPrint('Exception in fetchOrderDetail: $e');
+    } catch (_) {
+      // P0-02 + P0-03: Không log exception, không expose đển user
       if (mounted) {
-        setState(() { 
-          errorMessage = 'Lỗi xử lý dữ liệu: $e'; 
-          isLoading = false; 
+        setState(() {
+          errorMessage = 'Lỗi xử lý dữ liệu. Vui lòng thử lại.';
+          isLoading = false;
         });
       }
     }
@@ -162,7 +164,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           filled: true,
                           fillColor: const Color(0xFFF8FAFC),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary)),
                         ),
                       ),
                     ],
@@ -188,11 +190,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           child: ElevatedButton(
                             onPressed: () {
                               if (selectedReason == null) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Vui lòng chọn lý do huỷ!'), backgroundColor: Colors.orange));
+                                AppToast.showWarning(ctx, message: 'Vui lòng chọn lý do huỷ!');
                                 return;
                               }
                               if (showCustomInput && customCtrl.text.trim().isEmpty) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Vui lòng nhập lý do cụ thể!'), backgroundColor: Colors.orange));
+                                AppToast.showWarning(ctx, message: 'Vui lòng nhập lý do cụ thể!');
                                 return;
                               }
                               Navigator.pop(ctx, true);
@@ -232,22 +234,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Đơn hàng đã được huỷ thành công!'),
-          backgroundColor: Colors.orange,
-        ));
+        AppToast.showSuccess(
+          context,
+          message: 'Đơn hàng đã được huỷ thành công!',
+        );
         fetchOrderDetail();
       }
     } on DioException catch (e) {
       final message = e.response?.data is Map ? e.response?.data['message'] : null;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(message ?? 'Không thể huỷ đơn hàng!'),
-          backgroundColor: Colors.red,
-        ));
+        AppToast.showError(
+          context,
+          message: message ?? 'Không thể huỷ đơn hàng!',
+        );
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
+      if (mounted) AppToast.showError(context, message: 'Lỗi kết nối!');
     } finally {
       if (mounted) setState(() => _isCancelling = false);
     }
@@ -259,14 +261,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       await ApiClient().dio.post('/cart/buy-again/${widget.orderId}');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Đã thêm sản phẩm vào giỏ hàng!'),
-          backgroundColor: Colors.green,
-        ));
+        AppToast.showSuccess(
+          context,
+          message: 'Đã thêm sản phẩm vào giỏ hàng!',
+        );
         context.go('/cart');
       }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red));
+      if (mounted) AppToast.showError(context, message: 'Lỗi kết nối!');
     } finally {
       if (mounted) setState(() => _isReordering = false);
     }
@@ -307,14 +309,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
+        iconTheme: const IconThemeData(color: AppColors.primary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/orders');
+            }
+          },
+        ),
       ),
       body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
-    if (isLoading) return const Center(child: CircularProgressIndicator(color: Color(0xFFE63B6F)));
+    if (isLoading) return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     if (errorMessage != null) {
       return Center(
         child: Column(
@@ -409,7 +421,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               Container(
                                 width: 20, height: 20,
                                 decoration: BoxDecoration(
-                                  color: isLast ? const Color(0xFFE63B6F) : Colors.green,
+                                  color: isLast ? AppColors.primary : Colors.green,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(isLast ? Icons.circle : Icons.check, size: 12, color: Colors.white),
@@ -450,7 +462,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.location_on_outlined, color: Color(0xFFE63B6F), size: 20),
+                        child: const Icon(Icons.location_on_outlined, color: AppColors.primary, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -516,7 +528,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                     children: [
                                       Text('x$qty', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                                       const Spacer(),
-                                      Text(_formatPrice(num.parse(price.toString()) * qty), style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE63B6F))),
+                                      Text(_formatPrice(num.parse(price.toString()) * qty), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
                                     ],
                                   ),
                                   if (isCompleted) ...[  
@@ -565,7 +577,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(color: const Color(0xFFF0F9FF), borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.payment_outlined, color: Color(0xFFE63B6F), size: 20),
+                      child: const Icon(Icons.payment_outlined, color: AppColors.primary, size: 20),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -600,7 +612,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Tổng thanh toán', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text(_formatPrice(grandTotal), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFE63B6F), fontSize: 20)),
+                        Text(_formatPrice(grandTotal), style: const TextStyle(fontWeight: FontWeight.w900, color: AppColors.primary, fontSize: 20)),
                       ],
                     ),
                   ],
@@ -630,12 +642,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red,
                           side: const BorderSide(color: Colors.red),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: _isCancelling
                           ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.red))
-                          : const Text('Huỷ đơn hàng', style: TextStyle(fontWeight: FontWeight.bold)),
+                          : const Text('Huỷ đơn hàng', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -651,12 +663,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           }
                         },
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFE63B6F),
-                          side: const BorderSide(color: Color(0xFFE63B6F)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('Hoàn trả', style: TextStyle(fontWeight: FontWeight.bold)),
+                        child: const Text('Hoàn trả', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -664,13 +676,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _isReordering ? null : _reOrder,
                         icon: _isReordering
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.refresh, size: 18),
-                        label: const Text('Mua lại', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.refresh, size: 16),
+                        label: const Text('Mua lại', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE63B6F),
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
@@ -683,12 +695,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => context.pop(),
-                        icon: const Icon(Icons.arrow_back, size: 18),
-                        label: const Text('Quay lại', style: TextStyle(fontWeight: FontWeight.bold)),
+                        icon: const Icon(Icons.arrow_back, size: 16),
+                        label: const Text('Quay lại', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE63B6F),
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 11),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           elevation: 0,
                         ),
@@ -741,7 +753,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           child: const Center(
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: Color(0xFFE63B6F),
+              color: AppColors.primary,
             ),
           ),
         ),
@@ -759,7 +771,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         child: const Center(
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: Color(0xFFE63B6F),
+            color: AppColors.primary,
           ),
         ),
       ),

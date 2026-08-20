@@ -154,6 +154,11 @@ class CategoryProvider extends ChangeNotifier {
   void updateSearch(String query) {
     _searchQuery = query;
     _currentPage = 1;
+    // Khi bắt đầu gõ tìm kiếm từ khóa, tự động chuyển về 'Tất cả' để tìm kiếm toàn sàn
+    if (query.isNotEmpty && _selectedCategoryId != null) {
+      _selectedCategoryId = null;
+      _selectedCategoryName = null;
+    }
     fetchProducts();
   }
 

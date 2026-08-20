@@ -89,6 +89,7 @@ Route::post('/forgot-password/reset', [ForgotPasswordController::class, 'resetPa
 
 // OAuth callbacks (Public)
 Route::post('/auth/google/callback', [AuthController::class, 'googleCallback']);
+Route::post('/auth/google/mobile', [AuthController::class, 'googleMobileLogin']);
 Route::post('/auth/facebook/callback', [AuthController::class, 'facebookCallback']);
 Route::middleware('throttle:20,1')->post('/refresh', [AuthController::class, 'refresh']);
 
@@ -268,6 +269,7 @@ Route::get('brands', [BrandController::class, 'index']);
 
 // Coupons (Công khai)
 Route::get('coupons/public', [CouponController::class, 'getPublicCoupons']);
+Route::post('coupons/check', [CouponController::class, 'checkCoupon']);
 
 // ==========================================
 // COMBO / BUNDLE PROMOTION (Public)
@@ -285,7 +287,10 @@ Route::get('/loyalty/rules', [LoyaltyController::class, 'rules']);
 
 // Routes yêu cầu đăng nhập
 Route::middleware('auth:api')->prefix('loyalty')->group(function () {
+    Route::get('/lucky-wheel', [LoyaltyController::class, 'luckyWheelPrizes']);   // Danh sách quà vòng quay
+    Route::post('/lucky-wheel/spin', [LoyaltyController::class, 'spinLuckyWheel']); // Quay vòng quay
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê
+    Route::post('/check-in', [LoyaltyController::class, 'checkIn']);      // Điểm danh
     Route::get('/history', [LoyaltyController::class, 'history']);        // Lịch sử giao dịch
     Route::middleware('throttle:strict_api')->post('/preview-burn', [LoyaltyController::class, 'previewBurn']); // Preview đổi điểm
 });

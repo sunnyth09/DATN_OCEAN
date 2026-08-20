@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 import '../config/app_theme.dart';
+import '../widgets/app_toast.dart';
 
 class CreateReturnRequestScreen extends StatefulWidget {
   final String orderId;
@@ -31,7 +32,7 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
 
   Future<void> _pickImages() async {
     if (_selectedImages.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chỉ được chọn tối đa 5 ảnh')));
+      AppToast.showWarning(context, message: 'Chỉ được chọn tối đa 5 ảnh');
       return;
     }
     
@@ -50,7 +51,9 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể chọn ảnh')));
+      if (mounted) {
+        AppToast.showError(context, message: 'Không thể chọn ảnh');
+      }
     }
   }
 
@@ -62,7 +65,7 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
 
   Future<void> _submit() async {
     if (selectedReason == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng chọn lý do hoàn hàng!'), backgroundColor: Colors.orange));
+      AppToast.showWarning(context, message: 'Vui lòng chọn lý do hoàn hàng!');
       return;
     }
 
@@ -88,25 +91,27 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
         data: formData,
       );
 
+      if (!mounted) return;
       if (response.statusCode == 200 || response.statusCode == 201) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Đã gửi yêu cầu hoàn hàng thành công!'), backgroundColor: Colors.green),
-          );
-          context.pop(true);
-        }
+        AppToast.showSuccess(
+          context,
+          message: 'Đã gửi yêu cầu hoàn hàng thành công!',
+        );
+        context.pop(true);
       }
     } on DioException catch (e) {
-      final message = e.response?.data is Map ? e.response?.data['message'] : null;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message ?? 'Không thể gửi yêu cầu hoàn hàng!'), backgroundColor: Colors.red),
+        final message = e.response?.data is Map ? e.response?.data['message'] : null;
+        AppToast.showError(
+          context,
+          message: message ?? 'Không thể gửi yêu cầu hoàn hàng!',
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lỗi kết nối!'), backgroundColor: Colors.red),
+        AppToast.showError(
+          context,
+          message: 'Lỗi kết nối!',
         );
       }
     } finally {
@@ -123,7 +128,17 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFFE63B6F)),
+        iconTheme: const IconThemeData(color: AppColors.primary),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/orders');
+            }
+          },
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -181,7 +196,8 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
                 filled: true,
                 fillColor: Colors.white,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE63B6F))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
               ),
             ),
             const SizedBox(height: 16),
@@ -233,26 +249,26 @@ class _CreateReturnRequestScreenState extends State<CreateReturnRequestScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 28),
             
             SizedBox(
               width: double.infinity,
+              height: 46,
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _isSubmitting
                   ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                       SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-                      SizedBox(width: 10),
-                      Text('Đang gửi...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      SizedBox(width: 8),
+                      Text('Đang gửi...', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
                     ])
-                  : const Text('Gửi Yêu Cầu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  : const Text('Gửi Yêu Cầu', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
               ),
             ),
           ],
