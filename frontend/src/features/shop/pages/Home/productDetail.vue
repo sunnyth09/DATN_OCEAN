@@ -792,13 +792,6 @@ onBeforeUnmount(() => {
             }}</span>
         </div>
 
-        <!-- Stock -->
-        <div class="pd-stock">
-          <span class="pd-stock-label me-2">Số lượng còn:</span>
-          <span class="pd-stock-value" v-if="selectedVariant">{{ selectedVariant.stock }}</span>
-          <span class="pd-stock-value" v-else>{{ productTotalStock }}</span>
-        </div>
-
 
 
         <!-- Variant chips -->
@@ -858,6 +851,11 @@ onBeforeUnmount(() => {
               </svg>
             </button>
           </div>
+          <span class="pd-stock-info">
+            Số lượng còn:
+            <span class="pd-stock-value" v-if="selectedVariant">{{ selectedVariant.stock }}</span>
+            <span class="pd-stock-value" v-else>{{ productTotalStock }}</span>
+          </span>
         </div>
 
         <!-- Lỗi validation inline -->
@@ -1442,6 +1440,19 @@ onBeforeUnmount(() => {
   outline: none;
   background: var(--card-bg);
   font-family: inherit;
+}
+
+.pd-stock-info {
+  font-size: 0.88rem;
+  color: #636E72;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pd-stock-value {
+  font-weight: 700;
+  color: var(--text-main);
 }
 
 /* CTA Buttons */
