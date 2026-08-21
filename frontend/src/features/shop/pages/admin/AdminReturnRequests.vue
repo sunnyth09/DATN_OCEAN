@@ -55,10 +55,11 @@ onMounted(() => {
 
 <template>
   <div class="admin-returns-page">
-    <div class="page-header animate-in">
+    <!-- Header -->
+    <div class="page-header">
       <div class="header-info">
         <h1 class="page-title">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#E63B6F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
             <polyline points="9 22 9 12 15 12 15 22"/>
           </svg>
@@ -71,6 +72,7 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Toolbar Filters -->
     <div class="toolbar">
       <div class="search-wrap">
         <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -92,8 +94,10 @@ onMounted(() => {
       </select>
     </div>
 
+    <!-- Skeleton Loading -->
     <AdminTableSkeleton v-if="adminLoading" :columns="8" :rows="5" />
 
+    <!-- Table Card -->
     <div v-else class="table-card">
       <div class="table-scroll-container">
         <table class="data-table">
@@ -122,41 +126,44 @@ onMounted(() => {
               </td>
             </tr>
             <tr v-for="item in adminRequests" :key="item.id" class="return-row">
+              <!-- Mã yêu cầu -->
               <td>
                 <div class="cell-stack">
                   <strong class="strong-code">{{ item.return_code || `#${item.id}` }}</strong>
                   <span class="order-sub-code">Đơn #{{ item.order?.order_code || item.order_id }}</span>
                 </div>
               </td>
+              <!-- Khách hàng -->
               <td>
                 <div class="cell-stack">
-                  <strong class="user-name">{{ item.user?.full_name || item.order?.recipient_name || 'Khách hàng' }}</strong>
-                  <span class="user-sub">{{ item.user?.email || item.order?.recipient_phone || '—' }}</span>
+                  <strong class="user-name" :title="item.user?.full_name || item.order?.recipient_name">{{ item.user?.full_name || item.order?.recipient_name || 'Khách hàng' }}</strong>
+                  <span class="user-sub" :title="item.user?.email || item.order?.recipient_phone">{{ item.user?.email || item.order?.recipient_phone || '—' }}</span>
                 </div>
               </td>
+              <!-- Lý do -->
               <td class="reason-cell">
                 <div class="reason-pill" :class="`reason-pill--${getReasonTone(item.reason)}`" :title="item.reason">
                   <span class="reason-icon">
-                    <svg v-if="getReasonTone(item.reason) === 'danger'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <svg v-if="getReasonTone(item.reason) === 'danger'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <circle cx="12" cy="12" r="10"></circle>
                       <line x1="12" y1="8" x2="12" y2="12"></line>
                       <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
-                    <svg v-else-if="getReasonTone(item.reason) === 'warning'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <svg v-else-if="getReasonTone(item.reason) === 'warning'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
                       <line x1="12" y1="9" x2="12" y2="13"></line>
                       <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
-                    <svg v-else-if="getReasonTone(item.reason) === 'info'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <svg v-else-if="getReasonTone(item.reason) === 'info'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
                       <line x1="7" y1="7" x2="7.01" y2="7"></line>
                     </svg>
-                    <svg v-else-if="getReasonTone(item.reason) === 'purple'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <svg v-else-if="getReasonTone(item.reason) === 'purple'" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <circle cx="12" cy="12" r="10"></circle>
                       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
                       <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
-                    <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <circle cx="12" cy="12" r="10"></circle>
                       <line x1="12" y1="16" x2="12" y2="12"></line>
                       <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -165,29 +172,34 @@ onMounted(() => {
                   <span class="reason-text">{{ item.reason || 'Chưa ghi lý do' }}</span>
                 </div>
               </td>
+              <!-- Sản phẩm -->
               <td class="text-center">
                 <div class="cell-stack text-center">
                   <strong>{{ item.items?.length || 0 }} dòng</strong>
                   <span class="sub-qty">{{ (item.items || []).reduce((sum, row) => sum + Number(row.requested_quantity || 0), 0) }} SP</span>
                 </div>
               </td>
+              <!-- Trạng thái -->
               <td class="text-center">
                 <span class="status-badge" :class="getReturnRequestStatusTone(item.status)">
                   {{ getReturnRequestStatusLabel(item.status) }}
                 </span>
               </td>
+              <!-- Hoàn tiền -->
               <td>
                 <div class="cell-stack">
                   <span class="refund-status-label">{{ getReturnRefundStatusLabel(item.refund_status) }}</span>
                   <strong v-if="Number(item.refund_amount || 0) > 0" class="refund-amount-text">{{ formatPrice(item.refund_amount) }}</strong>
                 </div>
               </td>
+              <!-- Gửi lúc -->
               <td class="date-cell">
                 <div class="cell-stack">
                   <span class="time-text">{{ formatDateTime(item.requested_at || item.created_at).time }}</span>
                   <span class="date-sub">{{ formatDateTime(item.requested_at || item.created_at).date }}</span>
                 </div>
               </td>
+              <!-- Thao tác -->
               <td class="text-right">
                 <router-link :to="{ name: 'admin-return-request-detail', params: { id: item.id } }" class="btn-action-view" title="Xem chi tiết">
                   <span>Xem</span>
@@ -202,6 +214,7 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Pagination -->
     <div v-if="adminPagination && adminPagination.last_page > 1" class="pagination">
       <button class="page-btn" :disabled="adminPagination.current_page === 1" @click="fetchData(adminPagination.current_page - 1)">
         «
@@ -220,21 +233,18 @@ onMounted(() => {
   flex-direction: column;
   gap: 16px;
   font-family: var(--font-inter);
-  padding: 20px;
-  box-sizing: border-box;
-  max-width: 100%;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
 }
 
 .page-title {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   font-weight: 800;
   color: var(--text-main);
   display: flex;
@@ -244,9 +254,9 @@ onMounted(() => {
 }
 
 .page-subtitle {
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 3px;
   font-weight: 500;
   margin-bottom: 0;
 }
@@ -254,10 +264,10 @@ onMounted(() => {
 .header-badge {
   background: var(--primary, #e63b6f);
   color: #fff;
-  padding: 5px 14px;
+  padding: 4px 12px;
   border-radius: 20px;
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   white-space: nowrap;
 }
 
@@ -277,7 +287,7 @@ onMounted(() => {
 .search-wrap {
   position: relative;
   flex: 1;
-  min-width: 240px;
+  min-width: 220px;
 }
 
 .search-icon {
@@ -294,11 +304,11 @@ onMounted(() => {
   background: var(--surface-container-low);
   border: 1.5px solid var(--border-color);
   border-radius: 8px;
-  padding: 8px 14px 8px 36px;
-  min-height: 38px;
+  padding: 7px 12px 7px 34px;
+  min-height: 36px;
   color: var(--text-main);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   transition: all 0.2s;
 }
 
@@ -306,11 +316,11 @@ onMounted(() => {
   background: var(--surface-container-low);
   border: 1.5px solid var(--border-color);
   border-radius: 8px;
-  padding: 8px 12px;
-  min-height: 38px;
+  padding: 7px 12px;
+  min-height: 36px;
   color: var(--text-main);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   transition: all 0.2s;
   cursor: pointer;
 }
@@ -333,94 +343,105 @@ onMounted(() => {
 }
 
 .table-scroll-container {
-  overflow-x: auto;
   width: 100%;
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .table-scroll-container::-webkit-scrollbar {
-  height: 6px;
+  height: 5px;
 }
 .table-scroll-container::-webkit-scrollbar-track {
   background: #f1f5f9;
-  border-radius: 3px;
 }
 .table-scroll-container::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
-.table-scroll-container::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: auto;
 }
 
 .data-table th {
-  padding: 12px 14px;
-  font-size: 0.76rem;
+  padding: 10px 10px;
+  font-size: 0.74rem;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   border-bottom: 1px solid var(--border-color);
   background: var(--surface-container-low, #f8fafc);
   text-align: left;
   white-space: nowrap;
 }
 
-.data-table th.col-code { min-width: 130px; }
-.data-table th.col-user { min-width: 140px; }
-.data-table th.col-reason { min-width: 150px; }
-.data-table th.col-items { min-width: 80px; }
-.data-table th.col-status { min-width: 100px; }
-.data-table th.col-refund { min-width: 110px; }
-.data-table th.col-date { min-width: 95px; }
-.data-table th.col-action { min-width: 65px; }
+.data-table th:first-child,
+.data-table td:first-child {
+  padding-left: 16px;
+}
+
+.data-table th:last-child,
+.data-table td:last-child {
+  padding-right: 16px;
+}
 
 .data-table td {
-  padding: 12px 14px;
+  padding: 10px 10px;
   border-bottom: 1px solid var(--border-color);
   transition: background 0.15s;
   vertical-align: middle;
   background: var(--card-bg);
   color: var(--text-main);
-  font-size: 0.85rem;
+  font-size: 0.83rem;
 }
 
 .return-row:hover td {
   background: var(--hover-bg, #f8fafc);
 }
 
-.strong-code { font-weight: 700; color: var(--primary); font-size: 0.86rem; }
-.order-sub-code { color: var(--text-muted); font-size: 0.78rem; font-weight: 500; }
+.strong-code { font-weight: 700; color: var(--primary); font-size: 0.83rem; white-space: nowrap; }
+.order-sub-code { color: var(--text-muted); font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
 
-.user-name { font-weight: 600; font-size: 0.85rem; }
-.user-sub { color: var(--text-muted); font-size: 0.78rem; }
+.user-name {
+  font-weight: 600;
+  font-size: 0.83rem;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+.user-sub {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
 
 .cell-stack { display: flex; flex-direction: column; gap: 2px; color: var(--text-main); }
 .cell-stack.text-center { align-items: center; }
 
 /* ─── Reason Pill Styling ───────────────────────────────────────────────────────── */
 .reason-cell {
-  min-width: 140px;
+  max-width: 180px;
 }
 
 .reason-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 5px;
+  padding: 4px 8px;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.3;
   border: 1px solid transparent;
-  transition: all 0.2s ease;
-  white-space: nowrap;
+  max-width: 100%;
 }
 
 .reason-pill--danger {
@@ -487,15 +508,17 @@ onMounted(() => {
 }
 
 .reason-text {
-  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.sub-qty { font-size: 0.76rem; color: var(--text-muted); }
-.refund-status-label { font-size: 0.78rem; color: var(--text-muted); }
-.refund-amount-text { font-size: 0.85rem; color: #059669; }
+.sub-qty { font-size: 0.74rem; color: var(--text-muted); }
+.refund-status-label { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+.refund-amount-text { font-size: 0.82rem; color: #059669; white-space: nowrap; }
 
-.date-cell .time-text { font-weight: 600; font-size: 0.82rem; color: var(--text-main); }
-.date-cell .date-sub { font-size: 0.76rem; color: var(--text-muted); }
+.date-cell .time-text { font-weight: 600; font-size: 0.8rem; color: var(--text-main); }
+.date-cell .date-sub { font-size: 0.74rem; color: var(--text-muted); }
 
 .text-center { text-align: center !important; }
 .text-right { text-align: right !important; }
@@ -504,14 +527,14 @@ onMounted(() => {
 .btn-action-view {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  gap: 3px;
+  padding: 4px 8px;
+  border-radius: 5px;
   background: #f1f5f9;
   color: #475569;
   border: 1px solid #e2e8f0;
   text-decoration: none;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -521,17 +544,16 @@ onMounted(() => {
   background: var(--primary, #e63b6f);
   color: #fff;
   border-color: var(--primary, #e63b6f);
-  transform: translateX(1px);
 }
 
 /* ─── Status Badges ─────────────────────────────────────────────────────────────── */
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 16px;
-  font-size: 0.76rem;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.74rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -560,13 +582,13 @@ onMounted(() => {
 }
 
 .page-btn {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
   background: var(--card-bg);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -580,9 +602,5 @@ onMounted(() => {
 .page-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 </style>
