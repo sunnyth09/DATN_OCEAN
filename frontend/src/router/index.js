@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
-import { pinia } from '@/stores';
-import { useAuthStore } from '@/stores/auth';
+import { pinia } from '../stores';
+import { useAuthStore } from '../stores/auth';
 
 // ==================== CORE LAYOUTS (eager load) ====================
 import ClientLayout from "../layouts/ClientLayout.vue";

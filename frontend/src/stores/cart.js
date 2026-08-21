@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { defineStore } from 'pinia';
-import { pinia } from '@/stores/index';
-import { useAuthStore } from '@/stores/auth';
+import { pinia } from './index';
+import { useAuthStore } from './auth';
 
 let hasBoundCartEvents = false;
 
@@ -29,7 +29,7 @@ export const useCartStore = defineStore('cart', () => {
 
     isFetchingCount.value = true;
     countRequest = (async () => {
-      const { default: api } = await import('@/axios');
+      const { default: api } = await import('../axios');
       const response = await api.get('/cart/count');
       count.value = response.data?.count || 0;
       return count.value;
@@ -51,7 +51,7 @@ export const useCartStore = defineStore('cart', () => {
       return { status: 'unauthenticated' };
     }
 
-    const { default: api } = await import('@/axios');
+    const { default: api } = await import('../axios');
     const response = await api.post('/cart/items', {
       variant_id: variantId,
       quantity,
@@ -69,7 +69,7 @@ export const useCartStore = defineStore('cart', () => {
     if (localItems.length === 0) return;
 
     try {
-      const { default: api } = await import('@/axios');
+      const { default: api } = await import('../axios');
       await api.post('/cart/sync', {
         items: localItems.map(item => ({
           variant_id: item.variant_id,
