@@ -328,7 +328,9 @@ const getStatusBadgeClass = (status) => {
   const map = {
     pending: 'badge-warning',
     confirmed: 'badge-primary',
+    processing: 'badge-info',
     packing: 'badge-info',
+    awaiting_pickup: 'badge-info',
     shipping: 'badge-info',
     delivered: 'badge-success',
     completed: 'badge-success',
