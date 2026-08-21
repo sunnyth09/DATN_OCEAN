@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted, watch } from 'vue';
+import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
@@ -261,8 +261,35 @@ const submitReply = async () => {
   }
 };
 
+// ─── Image Lightbox (Phóng to ảnh) ────────────────────────────────────────────────
+const previewImageUrl = ref('');
+const showImageLightbox = ref(false);
+
+const openImageLightbox = (url) => {
+  if (!url) return;
+  previewImageUrl.value = url;
+  showImageLightbox.value = true;
+};
+
+const closeImageLightbox = () => {
+  showImageLightbox.value = false;
+  previewImageUrl.value = '';
+};
+
 const openImage = (path) => {
-  window.open(thumbUrl(path), '_blank');
+  openImageLightbox(thumbUrl(path));
+};
+
+const onKeydown = (e) => {
+  if (e.key === 'Escape') {
+    if (showImageLightbox.value) {
+      closeImageLightbox();
+    } else if (showReviewModal.value) {
+      closeReviewModal();
+    } else if (showTicketModal.value) {
+      closeTicketModal();
+    }
+  }
 };
 
 watch(viewMode, (newVal) => {
@@ -272,6 +299,11 @@ watch(viewMode, (newVal) => {
 
 onMounted(() => {
   fetchReviews();
+  window.addEventListener('keydown', onKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown);
 });
 </script>
 
@@ -413,15 +445,23 @@ onMounted(() => {
               </td>
               <!-- Có ảnh -->
               <td class="text-center">
-                <div v-if="parseReviewImages(r.images).length > 0" style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; max-width: 100px;">
-                  <img v-for="(img, idx) in parseReviewImages(r.images).slice(0, 3)" :key="idx" :src="getStorageUrl(img)" style="width: 36px; height: 36px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer;" alt="img" @click="openReviewModal(r)" />
-                  <span v-if="parseReviewImages(r.images).length > 3" style="font-size: 11px; color: #64748b; align-self: center;">+{{ parseReviewImages(r.images).length - 3 }}</span>
+                <div v-if="parseReviewImages(r.images).length > 0" class="table-images-wrap">
+                  <img
+                    v-for="(img, idx) in parseReviewImages(r.images).slice(0, 3)"
+                    :key="idx"
+                    :src="getStorageUrl(img)"
+                    class="table-review-img"
+                    alt="img"
+                    title="Nhấn để xem ảnh to"
+                    @click.stop="openImageLightbox(getStorageUrl(img))"
+                  />
+                  <span v-if="parseReviewImages(r.images).length > 3" class="more-images-count">+{{ parseReviewImages(r.images).length - 3 }}</span>
                 </div>
                 <span v-else class="text-muted">❌</span>
               </td>
               <!-- Nội dung -->
               <td>
-                <div class="review-content" style="max-height: 3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;" v-html="sanitizeHtml(r.content || '(Không có nội dung)')"></div>
+                <div class="review-content" v-html="sanitizeHtml(r.content || '(Không có nội dung)')"></div>
               </td>
               <!-- Ngày -->
               <td class="date-cell">{{ formatDate(r.created_at) }}</td>
@@ -433,8 +473,8 @@ onMounted(() => {
               </td>
               <!-- Thao tác -->
               <td>
-                <div class="action-btns" style="display: flex; gap: 4px; flex-wrap: wrap;">
-                  <button class="btn-action btn-view" style="background: #e2e8f0; color: #475569;" title="Xem chi tiết" @click="openReviewModal(r)">
+                <div class="action-btns">
+                  <button class="btn-action btn-view" title="Xem chi tiết" @click="openReviewModal(r)">
                     Xem
                   </button>
                   <button class="btn-action" :class="r.is_approved ? 'btn-warn' : 'btn-success'" :title="r.is_approved ? 'Ẩn đánh giá' : 'Duyệt đánh giá'" @click="toggleApprove(r)">
@@ -565,9 +605,20 @@ onMounted(() => {
               <h4>Nội dung đánh giá:</h4>
               <div class="description-box" v-html="sanitizeHtml(selectedReview.content || '(Không có nội dung)')"></div>
               <div class="image-box" v-if="parseReviewImages(selectedReview.images).length > 0" style="margin-top: 16px;">
-                 <p><strong>Ảnh đính kèm:</strong></p>
+                 <p class="image-box-title"><strong>Ảnh đính kèm (nhấn vào ảnh để xem to):</strong></p>
                  <div class="review-images">
-                   <img v-for="(img, idx) in parseReviewImages(selectedReview.images)" :key="idx" :src="getStorageUrl(img)" class="admin-review-img modal-review-img" alt="Review image" @click="window.open(getStorageUrl(img), '_blank')" style="cursor: pointer; width: 80px; height: 80px;" title="Nhấn để xem ảnh lớn" />
+                   <div
+                     v-for="(img, idx) in parseReviewImages(selectedReview.images)"
+                     :key="idx"
+                     class="modal-img-container"
+                     title="Nhấn để xem ảnh phóng to"
+                     @click="openImageLightbox(getStorageUrl(img))"
+                   >
+                     <img :src="getStorageUrl(img)" class="admin-review-img modal-review-img" alt="Review image" />
+                     <div class="zoom-overlay">
+                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                     </div>
+                   </div>
                  </div>
               </div>
             </div>
@@ -625,8 +676,17 @@ onMounted(() => {
                 {{ selectedTicket.description }}
               </div>
               <div class="image-box" v-if="selectedTicket.image_url">
-                 <p><strong>Ảnh minh chứng:</strong></p>
-                 <img :src="thumbUrl(selectedTicket.image_url)" alt="Minh chứng" class="evidence-img" @click="openImage(selectedTicket.image_url)">
+                 <p class="image-box-title"><strong>Ảnh minh chứng (nhấn vào ảnh để xem to):</strong></p>
+                 <div
+                   class="modal-img-container evidence-container"
+                   title="Nhấn để xem ảnh phóng to"
+                   @click="openImageLightbox(thumbUrl(selectedTicket.image_url))"
+                 >
+                   <img :src="thumbUrl(selectedTicket.image_url)" alt="Minh chứng" class="evidence-img" />
+                   <div class="zoom-overlay">
+                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                   </div>
+                 </div>
               </div>
             </div>
 
@@ -661,25 +721,50 @@ onMounted(() => {
         </div>
       </div>
     </Transition>
+
+    <!-- Image Lightbox Modal -->
+    <Teleport to="body">
+      <Transition name="lightbox-fade">
+        <div
+          v-if="showImageLightbox && previewImageUrl"
+          class="image-lightbox-overlay"
+          @click.self="closeImageLightbox"
+          role="dialog"
+          aria-modal="true"
+        >
+          <button class="lightbox-close-btn" @click="closeImageLightbox" title="Đóng (ESC)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <div class="lightbox-content" @click.self="closeImageLightbox">
+            <img :src="previewImageUrl" class="lightbox-img" alt="Xem ảnh phóng to" />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .admin-reviews {
-  padding: 28px;
+  padding: 24px 20px;
   min-height: calc(100vh - 70px);
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 .review-images {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
   margin-top: 8px;
 }
 .admin-review-img {
   width: 50px;
   height: 50px;
-  border-radius: 4px;
+  border-radius: 6px;
   object-fit: cover;
   border: 1px solid #e2e8f0;
 }
@@ -740,6 +825,7 @@ onMounted(() => {
   font-size: 0.9rem;
   outline: none;
   transition: border 0.2s;
+  box-sizing: border-box;
 }
 .search-input:focus { border-color: var(--primary); }
 
@@ -796,26 +882,45 @@ onMounted(() => {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Table responsive wrapper */
 .table-wrap {
   background: var(--card-bg);
   border-radius: 12px;
   border: 1px solid #e9ecef;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
+.table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+.table-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.table-wrap::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 .review-table {
   width: 100%;
+  min-width: 960px;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 .review-table thead tr {
   background: var(--surface-container);
 }
 .review-table th {
-  padding: 13px 16px;
+  padding: 13px 14px;
   text-align: left;
   font-weight: 600;
   color: #374151;
-  font-size: 0.83rem;
+  font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 1px solid #e9ecef;
@@ -828,7 +933,7 @@ onMounted(() => {
 .review-row:hover { background: #fafbff; }
 .review-row.row--pending { background: #fffbeb; }
 .review-table td {
-  padding: 13px 16px;
+  padding: 12px 14px;
   vertical-align: middle;
   color: #374151;
 }
@@ -838,11 +943,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 160px;
-  max-width: 210px;
+  min-width: 140px;
+  max-width: 200px;
 }
 .product-thumb {
-  width: 46px; height: 46px;
+  width: 44px; height: 44px;
   border-radius: 8px;
   object-fit: cover;
   border: 1px solid #e5e7eb;
@@ -864,7 +969,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 9px;
-  min-width: 140px;
+  min-width: 130px;
 }
 .user-avatar {
   width: 36px; height: 36px;
@@ -872,31 +977,59 @@ onMounted(() => {
   object-fit: cover;
   flex-shrink: 0;
 }
-.user-name { font-weight: 500; font-size: 0.88rem; }
-.user-email { font-size: 0.78rem; color: var(--text-light); }
+.user-name { font-weight: 500; font-size: 0.86rem; }
+.user-email { font-size: 0.76rem; color: var(--text-light); }
 
 /* Stars */
 .stars-row { display: flex; gap: 1px; }
-.star { font-size: 1rem; color: #d1d5db; }
+.star { font-size: 0.95rem; color: #d1d5db; }
 .star--filled { color: #f59e0b; }
-.rating-num { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; display: block; }
+.rating-num { font-size: 0.76rem; color: var(--text-muted); margin-top: 2px; display: block; }
+
+/* Table images */
+.table-images-wrap {
+  display: inline-flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+}
+.table-review-img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  cursor: zoom-in;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.table-review-img:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  border-color: var(--primary);
+}
+.more-images-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  margin-left: 2px;
+}
 
 /* Content */
 .review-content {
   margin: 0;
-  max-width: 240px;
+  max-width: 200px;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: #475569;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .date-cell {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -906,7 +1039,7 @@ onMounted(() => {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 20px;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -914,15 +1047,20 @@ onMounted(() => {
 .badge--pending  { background: #fef3c7; color: #92400e; }
 
 /* Action buttons */
-.action-btns { display: flex; flex-direction: column; gap: 6px; }
+.action-btns {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
 .btn-action {
-  padding: 5px 12px;
-  border-radius: 7px;
+  padding: 6px 12px;
+  border-radius: 6px;
   border: none;
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: 0.78rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
+  transition: opacity 0.15s, transform 0.1s;
   white-space: nowrap;
 }
 .btn-action:active { transform: scale(0.96); }
@@ -1018,7 +1156,7 @@ onMounted(() => {
   color: var(--primary);
 }
 
-/* Modal styles for tickets */
+/* Modal styles for tickets & reviews */
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.5);
@@ -1060,7 +1198,55 @@ onMounted(() => {
 .description-box { color: #334155; line-height: 1.6; white-space: pre-wrap; }
 
 .image-box { margin-top: 16px; }
-.evidence-img { max-width: 100%; max-height: 200px; border-radius: 8px; cursor: zoom-in; border: 1px solid #e2e8f0; }
+.image-box-title {
+  font-size: 0.88rem;
+  color: #334155;
+  margin-bottom: 8px;
+}
+.modal-img-container {
+  position: relative;
+  display: inline-block;
+  cursor: zoom-in;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.modal-img-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  border-color: var(--primary);
+}
+.modal-img-container .admin-review-img {
+  width: 90px;
+  height: 90px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+.zoom-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.modal-img-container:hover .zoom-overlay {
+  opacity: 1;
+}
+
+.evidence-container {
+  max-width: 220px;
+}
+.evidence-container .evidence-img {
+  max-width: 100%;
+  max-height: 180px;
+  display: block;
+}
 
 .reply-section h4 { margin: 0 0 12px; font-size: 1.05rem; }
 .reply-input {
@@ -1087,6 +1273,77 @@ onMounted(() => {
 .filter-select {
   padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px;
   font-size: 0.95rem; outline: none; background: white;
+}
+
+/* ──────────────────────────────────────────────────────────
+   IMAGE LIGHTBOX MODAL
+────────────────────────────────────────────────────────── */
+.image-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(10, 15, 30, 0.88);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.lightbox-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.1s;
+  z-index: 100000;
+}
+.lightbox-close-btn:hover {
+  background: #ef4444;
+  transform: scale(1.08);
+}
+.lightbox-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 92vw;
+  max-height: 90vh;
+}
+.lightbox-img {
+  max-width: 90vw;
+  max-height: 86vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+  animation: zoomIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
+  opacity: 0;
 }
 
 /* Transitions */
