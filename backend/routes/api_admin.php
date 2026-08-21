@@ -254,6 +254,13 @@ Route::middleware(['auth:api,admin', 'role:admin,staff'])->group(function () {
     Route::delete('categories/{id}', [CategoryController::class, 'destroy']);
     Route::delete('categories/{id}/image', [CategoryController::class, 'deleteImage']);
 
+    // Thương hiệu (Brand)
+    Route::post('brands', [App\Http\Controllers\BrandController::class, 'store']);
+    Route::post('brands/{id}', [App\Http\Controllers\BrandController::class, 'update']); // POST for multipart/form-data
+    Route::put('brands/{id}', [App\Http\Controllers\BrandController::class, 'update']);
+    Route::delete('brands/{id}', [App\Http\Controllers\BrandController::class, 'destroy']);
+    Route::delete('brands/{id}/image', [App\Http\Controllers\BrandController::class, 'deleteImage']);
+
     // Quản lý Bảng Size
     Route::get('size-guides', [SizeGuideController::class, 'index']);
     Route::get('size-guides/{id}', [SizeGuideController::class, 'show']);

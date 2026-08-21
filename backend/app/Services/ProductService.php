@@ -140,6 +140,7 @@ class ProductService
 
         $filters = [
             'max_price' => $request->query('max_price'),
+            'price_range' => $request->query('price_range'),
             'brand_ids' => $request->query('brand_ids'),
             'sort_by' => $request->query('sort_by'),
         ];

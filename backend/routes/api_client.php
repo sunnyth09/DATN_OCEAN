@@ -311,6 +311,7 @@ Route::middleware('auth:api')->prefix('wallet')->group(function () {
     // Tài khoản ngân hàng liên kết
     Route::get('/bank-accounts', [UserBankAccountController::class, 'index']);
     Route::post('/bank-accounts', [UserBankAccountController::class, 'store']);
+    Route::post('/bank-accounts/verify', [UserBankAccountController::class, 'verifyAccount']);
     Route::put('/bank-accounts/{id}', [UserBankAccountController::class, 'update']);
     Route::delete('/bank-accounts/{id}', [UserBankAccountController::class, 'destroy']);
     Route::post('/bank-accounts/{id}/default', [UserBankAccountController::class, 'setDefault']);

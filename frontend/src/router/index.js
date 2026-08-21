@@ -25,6 +25,7 @@ const AdminProduct = () => import("@/features/shop/pages/admin/AdminProduct.vue"
 const AdminCreateProduct = () => import("@/features/shop/pages/admin/AdminCreateProduct.vue");
 const AdminUsers = () => import("@/features/admin/pages/AdminUsers.vue");
 const AdminCategory = () => import("@/features/shop/pages/admin/AdminCategory.vue");
+const AdminBrand = () => import("@/features/shop/pages/admin/AdminBrand.vue");
 const AdminStaff = () => import("@/features/hr/pages/AdminStaff.vue");
 const AdminContact = () => import("@/features/support/pages/AdminContact.vue");
 const AdminCoupon = () => import("@/features/shop/pages/admin/AdminCoupon.vue");
@@ -197,6 +198,12 @@ const routes = [
                 name: "admin-category",
                 component: AdminCategory,
                 meta: { roles: ['admin', 'staff'], title: 'Quản lý danh mục' },
+            },
+            {
+                path: "brand",
+                name: "admin-brand",
+                component: AdminBrand,
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý thương hiệu' },
             },
             {
                 path: "size-guide",
