@@ -503,11 +503,18 @@ const validateForm = () => {
     return isValid;
 };
 
+const isSubmitting = ref(false);
+
 const handleSubmit = async () => {
+    // Chống double-submit: nếu đang xử lý thì bỏ qua mọi click tiếp theo
+    if (isSubmitting.value) return;
+
     if (!validateForm()) {
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
     }
+
+    isSubmitting.value = true;
 
     const formData = new FormData();
     formData.append("name", product.name);
@@ -570,7 +577,7 @@ const handleSubmit = async () => {
     }
 
     try {
-        const response = await api.post("/products", formData);
+        await api.post("/products", formData);
         Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: 'Thêm sản phẩm thành công!', icon: 'success', showConfirmButton: false, timer: 3000 });
         router.push("/admin/product");
     } catch (error) {
@@ -584,6 +591,9 @@ const handleSubmit = async () => {
             firstErrorMessage(error.response?.data?.errors) || error.response?.data?.message || "Lỗi khi thêm sản phẩm",
             'error',
         );
+    } finally {
+        // Luôn mở khóa để người dùng thử lại nếu có lỗi
+        isSubmitting.value = false;
     }
 };
 
@@ -627,24 +637,18 @@ onMounted(() => {
                 </div>
                 <div class="header-actions">
                     <router-link to="/admin/product" class="btn-outline">Hủy bỏ</router-link>
-                    <button type="submit" class="btn-primary">
-                        <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2.5"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <path
-                                d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
-                            ></path>
+                    <button type="submit" class="btn-primary" :disabled="isSubmitting" :style="isSubmitting ? 'opacity:0.75; cursor:not-allowed;' : ''">
+                        <!-- Spinner khi đang lưu -->
+                        <svg v-if="isSubmitting" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 0.8s linear infinite;">
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                        </svg>
+                        <!-- Icon bình thường -->
+                        <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                             <polyline points="17 21 17 13 7 13 7 21"></polyline>
                             <polyline points="7 3 7 8 15 8"></polyline>
                         </svg>
-                        Lưu Sản Phẩm
+                        {{ isSubmitting ? 'Đang lưu...' : 'Lưu Sản Phẩm' }}
                     </button>
                 </div>
             </div>
@@ -1635,10 +1639,21 @@ onMounted(() => {
     transition: all 0.2s;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     background: var(--ocean-bright);
     transform: translateY(-2px);
     box-shadow: 0 6px 14px rgba(230, 59, 111, 0.3);
+}
+
+.btn-primary:disabled {
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
 }
 
 .btn-outline {
