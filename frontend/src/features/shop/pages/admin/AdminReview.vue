@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
@@ -261,23 +261,44 @@ const submitReply = async () => {
   }
 };
 
-// ─── Image Lightbox (Phóng to ảnh) ────────────────────────────────────────────────
-const previewImageUrl = ref('');
+// ─── Image Lightbox (Phóng to ảnh & Xem bộ sưu tập) ─────────────────────────
+const previewImages = ref([]);
+const currentImageIndex = ref(0);
 const showImageLightbox = ref(false);
+const previewImageUrl = computed(() => previewImages.value[currentImageIndex.value] || '');
 
-const openImageLightbox = (url) => {
-  if (!url) return;
-  previewImageUrl.value = url;
-  showImageLightbox.value = true;
+const openImageLightbox = (images, index = 0) => {
+  if (!images) return;
+  if (Array.isArray(images)) {
+    previewImages.value = images.filter(Boolean);
+    currentImageIndex.value = Math.max(0, Math.min(index, previewImages.value.length - 1));
+  } else if (typeof images === 'string') {
+    previewImages.value = [images];
+    currentImageIndex.value = 0;
+  }
+  if (previewImages.value.length > 0) {
+    showImageLightbox.value = true;
+  }
 };
 
 const closeImageLightbox = () => {
   showImageLightbox.value = false;
-  previewImageUrl.value = '';
+  previewImages.value = [];
+  currentImageIndex.value = 0;
+};
+
+const nextImage = () => {
+  if (previewImages.value.length <= 1) return;
+  currentImageIndex.value = (currentImageIndex.value + 1) % previewImages.value.length;
+};
+
+const prevImage = () => {
+  if (previewImages.value.length <= 1) return;
+  currentImageIndex.value = (currentImageIndex.value - 1 + previewImages.value.length) % previewImages.value.length;
 };
 
 const openImage = (path) => {
-  openImageLightbox(thumbUrl(path));
+  openImageLightbox([thumbUrl(path)], 0);
 };
 
 const onKeydown = (e) => {
@@ -288,6 +309,14 @@ const onKeydown = (e) => {
       closeReviewModal();
     } else if (showTicketModal.value) {
       closeTicketModal();
+    }
+  } else if (showImageLightbox.value && previewImages.value.length > 1) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      nextImage();
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      prevImage();
     }
   }
 };
@@ -453,9 +482,15 @@ onUnmounted(() => {
                     class="table-review-img"
                     alt="img"
                     title="Nhấn để xem ảnh to"
-                    @click.stop="openImageLightbox(getStorageUrl(img))"
+                    @click.stop="openImageLightbox(parseReviewImages(r.images).map(i => getStorageUrl(i)), idx)"
                   />
-                  <span v-if="parseReviewImages(r.images).length > 3" class="more-images-count">+{{ parseReviewImages(r.images).length - 3 }}</span>
+                  <span
+                    v-if="parseReviewImages(r.images).length > 3"
+                    class="more-images-count"
+                    style="cursor: pointer;"
+                    title="Xem tất cả ảnh"
+                    @click.stop="openImageLightbox(parseReviewImages(r.images).map(i => getStorageUrl(i)), 3)"
+                  >+{{ parseReviewImages(r.images).length - 3 }}</span>
                 </div>
                 <span v-else class="text-muted">❌</span>
               </td>
@@ -612,7 +647,7 @@ onUnmounted(() => {
                      :key="idx"
                      class="modal-img-container"
                      title="Nhấn để xem ảnh phóng to"
-                     @click="openImageLightbox(getStorageUrl(img))"
+                     @click="openImageLightbox(parseReviewImages(selectedReview.images).map(i => getStorageUrl(i)), idx)"
                    >
                      <img :src="getStorageUrl(img)" class="admin-review-img modal-review-img" alt="Review image" />
                      <div class="zoom-overlay">
@@ -680,7 +715,7 @@ onUnmounted(() => {
                  <div
                    class="modal-img-container evidence-container"
                    title="Nhấn để xem ảnh phóng to"
-                   @click="openImageLightbox(thumbUrl(selectedTicket.image_url))"
+                   @click="openImageLightbox([thumbUrl(selectedTicket.image_url)], 0)"
                  >
                    <img :src="thumbUrl(selectedTicket.image_url)" alt="Minh chứng" class="evidence-img" />
                    <div class="zoom-overlay">
@@ -732,15 +767,63 @@ onUnmounted(() => {
           role="dialog"
           aria-modal="true"
         >
+          <!-- Nút Đóng -->
           <button class="lightbox-close-btn" @click="closeImageLightbox" title="Đóng (ESC)">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
+
+          <!-- Nút Trước (Prev) -->
+          <button
+            v-if="previewImages.length > 1"
+            class="lightbox-nav-btn lightbox-prev-btn"
+            @click.stop="prevImage"
+            title="Ảnh trước (Phím ←)"
+            aria-label="Ảnh trước"
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+
+          <!-- Nội dung ảnh & thanh footer -->
           <div class="lightbox-content" @click.self="closeImageLightbox">
-            <img :src="previewImageUrl" class="lightbox-img" alt="Xem ảnh phóng to" />
+            <div class="lightbox-img-wrapper">
+              <img :key="previewImageUrl" :src="previewImageUrl" class="lightbox-img" alt="Xem ảnh phóng to" />
+            </div>
+
+            <!-- Footer: Số thứ tự ảnh & Chấm chọn nhanh -->
+            <div v-if="previewImages.length > 1" class="lightbox-footer">
+              <div class="lightbox-counter">
+                <span>{{ currentImageIndex + 1 }} / {{ previewImages.length }}</span>
+              </div>
+              <div class="lightbox-dots">
+                <button
+                  v-for="(img, idx) in previewImages"
+                  :key="idx"
+                  class="lightbox-dot"
+                  :class="{ active: idx === currentImageIndex }"
+                  @click.stop="currentImageIndex = idx"
+                  :title="`Xem ảnh ${idx + 1}`"
+                ></button>
+              </div>
+            </div>
           </div>
+
+          <!-- Nút Tiếp theo (Next) -->
+          <button
+            v-if="previewImages.length > 1"
+            class="lightbox-nav-btn lightbox-next-btn"
+            @click.stop="nextImage"
+            title="Ảnh tiếp theo (Phím →)"
+            aria-label="Ảnh tiếp theo"
+          >
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
         </div>
       </Transition>
     </Teleport>
@@ -1288,12 +1371,13 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   z-index: 99999;
-  background: rgba(10, 15, 30, 0.88);
-  backdrop-filter: blur(8px);
+  background: rgba(10, 15, 30, 0.9);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 20px;
+  user-select: none;
 }
 .lightbox-close-btn {
   position: absolute;
@@ -1302,39 +1386,147 @@ onUnmounted(() => {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s, transform 0.1s;
-  z-index: 100000;
+  transition: all 0.2s ease;
+  z-index: 100002;
+  backdrop-filter: blur(4px);
 }
 .lightbox-close-btn:hover {
   background: #ef4444;
-  transform: scale(1.08);
+  border-color: #ef4444;
+  transform: scale(1.1);
 }
-.lightbox-content {
+
+.lightbox-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: 92vw;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100001;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.lightbox-nav-btn:hover {
+  background: var(--primary, #e63b6f);
+  border-color: var(--primary, #e63b6f);
+  transform: translateY(-50%) scale(1.12);
+  box-shadow: 0 6px 20px rgba(230, 59, 111, 0.4);
+}
+.lightbox-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+.lightbox-prev-btn {
+  left: 32px;
+}
+.lightbox-next-btn {
+  right: 32px;
+}
+
+.lightbox-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 86vw;
   max-height: 90vh;
+  position: relative;
+}
+.lightbox-img-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  max-height: 78vh;
 }
 .lightbox-img {
-  max-width: 90vw;
-  max-height: 86vh;
+  max-width: 82vw;
+  max-height: 76vh;
   object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
-  animation: zoomIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: zoomIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lightbox-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  z-index: 100001;
+}
+.lightbox-counter {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  padding: 4px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.lightbox-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.lightbox-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.lightbox-dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+.lightbox-dot.active {
+  width: 26px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+}
+
+@media (max-width: 768px) {
+  .lightbox-nav-btn {
+    width: 42px;
+    height: 42px;
+  }
+  .lightbox-prev-btn {
+    left: 12px;
+  }
+  .lightbox-next-btn {
+    right: 12px;
+  }
+  .lightbox-img {
+    max-width: 92vw;
+    max-height: 70vh;
+  }
 }
 
 @keyframes zoomIn {
   from {
-    transform: scale(0.9);
+    transform: scale(0.92);
     opacity: 0;
   }
   to {
