@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
-import '../providers/navigation_provider.dart';
 import '../services/api_client.dart';
 import '../utils/format_utils.dart';
 import '../widgets/app_toast.dart';
@@ -77,7 +75,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
   }
 
   void _onContinueShopping() {
-    context.read<NavigationProvider>().setTab(0);
+    HapticFeedback.lightImpact();
     context.go('/home');
   }
 
