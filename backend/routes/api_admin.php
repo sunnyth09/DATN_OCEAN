@@ -243,7 +243,6 @@ Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin'
 Route::middleware(['auth:api,admin', 'role:admin,staff'])->group(function () {
     Route::post('products/import', [ProductController::class, 'importExcel']);
     Route::post('products/import/process-chunk', [ProductController::class, 'processImportChunk']);
-    Route::get('products/import-template', [ProductController::class, 'downloadTemplate']);
 });
 
 // ==========================================
