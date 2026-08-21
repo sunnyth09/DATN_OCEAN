@@ -67,6 +67,7 @@
             v-for="c in contacts"
             :key="c.id"
             class="review-row"
+            :class="{ 'row--pending': c.status === 'pending' }"
           >
             <!-- Người gửi -->
             <td>
@@ -541,6 +542,9 @@ onMounted(() => {
 .review-row:hover {
   background: #fafbff;
 }
+.review-row.row--pending {
+  background: #fff0f6;
+}
 .review-table td {
   padding: 14px 16px;
   vertical-align: middle;
@@ -650,28 +654,28 @@ onMounted(() => {
   transform: scale(0.96);
 }
 .btn-primary-action {
-  background: #2563eb;
-  color: #fff;
-  border: none;
+  background: #fdf2f8;
+  color: var(--primary);
+  border: 1px solid #fbcfe8;
 }
 .btn-primary-action:hover {
-  background: #1d4ed8;
+  background: #fce7f3;
 }
 .btn-view {
-  background: #2563eb;
-  color: #fff;
-  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
 }
 .btn-view:hover {
-  background: #1d4ed8;
+  background: #e2e8f0;
 }
 .btn-danger {
-  background: #dc2626;
-  color: #fff;
+  background: #fef3c7;
+  color: #92400e;
   border: none;
 }
 .btn-danger:hover {
-  background: #b91c1c;
+  background: #fde68a;
 }
 
 /* Empty state */

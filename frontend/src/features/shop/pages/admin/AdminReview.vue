@@ -477,10 +477,10 @@ onUnmounted(() => {
                   <button class="btn-action btn-view" title="Xem chi tiết" @click="openReviewModal(r)">
                     Xem
                   </button>
-                  <button class="btn-action" :class="r.is_approved ? 'btn-warn' : 'btn-success'" :title="r.is_approved ? 'Ẩn đánh giá' : 'Duyệt đánh giá'" @click="toggleApprove(r)">
+                  <button class="btn-action" :class="r.is_approved ? 'btn-danger' : 'btn-success'" :title="r.is_approved ? 'Ẩn đánh giá' : 'Duyệt đánh giá'" @click="toggleApprove(r)">
                     {{ r.is_approved ? 'Ẩn' : 'Duyệt' }}
                   </button>
-                  <button class="btn-action btn-danger" title="Xóa" @click="deleteReview(r)">
+                  <button class="btn-action btn-warn" title="Xóa" @click="deleteReview(r)">
                     Xóa
                   </button>
                 </div>
@@ -931,7 +931,7 @@ onUnmounted(() => {
   transition: background 0.15s;
 }
 .review-row:hover { background: #fafbff; }
-.review-row.row--pending { background: #fffbeb; }
+.review-row.row--pending { background: #fff0f6; }
 .review-table td {
   padding: 12px 14px;
   vertical-align: middle;
