@@ -141,9 +141,26 @@ const removeFromCart = (item) => {
   cartItems.value = cartItems.value.filter(i => i.variant_id !== item.variant_id);
 };
 
-const clearCart = () => {
-  cartItems.value = [];
-  removeCoupon();
+const clearCart = async () => {
+  if (cartItems.value.length === 0) return;
+
+  const result = await Swal.fire({
+    title: 'Xác nhận xóa',
+    text: 'Bạn có chắc chắn muốn xóa toàn bộ sản phẩm khỏi đơn hàng hiện tại?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#e63b6f',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Xóa tất cả',
+    cancelButtonText: 'Hủy',
+    reverseButtons: true,
+  });
+
+  if (result.isConfirmed) {
+    cartItems.value = [];
+    removeCoupon();
+    toast.success('Đã xóa toàn bộ sản phẩm khỏi đơn hàng!');
+  }
 };
 
 // ================== COUPON ==================
@@ -295,13 +312,24 @@ const downloadReceiptPdf = async (order) => {
 };
 
 const checkoutOrder = ref(null);
-const showCheckoutSuccess = ref(false);
+const customerNameError = ref(false);
 
 const handleCheckout = async () => {
   if (cartItems.value.length === 0) {
     toast.error('Giỏ hàng trống!');
     return;
   }
+  if (!customerName.value || !customerName.value.trim()) {
+    customerNameError.value = true;
+    toast.error('Vui lòng nhập tên khách hàng!');
+    nextTick(() => {
+      const nameInput = document.querySelector('.customer-name-input');
+      if (nameInput) nameInput.focus();
+    });
+    return;
+  }
+  customerNameError.value = false;
+
   isCheckingOut.value = true;
   try {
     const payload = {
@@ -310,7 +338,7 @@ const handleCheckout = async () => {
         quantity: item.quantity
       })),
       user_id: customerId.value,
-      customer_name: customerName.value,
+      customer_name: customerName.value.trim(),
       customer_phone: customerPhone.value,
       payment_method: paymentMethod.value,
       note: note.value,
@@ -716,12 +744,12 @@ onUnmounted(() => {
         <div class="panel-section">
           <div class="section-label">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            Khách hàng
+            Khách hàng <span style="color:#ef4444; margin-left:2px;">*</span>
           </div>
           <div class="customer-inputs">
-            <div class="field-wrap">
+            <div class="field-wrap" :class="{ 'has-error': customerNameError }">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              <input type="text" v-model="customerName" placeholder="Tên khách hàng" />
+              <input type="text" v-model="customerName" class="customer-name-input" @input="customerNameError = false" placeholder="Tên khách hàng *" />
             </div>
             <div class="field-wrap">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.52 9.82 19.79 19.79 0 01.47 1.18 2 2 0 012.45.01h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.29 6.29l.79-.79a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
@@ -1565,6 +1593,10 @@ onUnmounted(() => {
 .field-wrap:focus-within {
   border-color: var(--primary, #e63b6f);
   box-shadow: 0 0 0 2px rgba(230,59,111,.1);
+}
+.field-wrap.has-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15) !important;
 }
 .field-wrap svg { color: var(--text-light, #9ca3af); flex-shrink: 0; }
 .field-wrap input {
