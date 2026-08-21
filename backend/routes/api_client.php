@@ -251,6 +251,8 @@ Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products/home/best-selling', [ProductController::class, 'bestSelling']);
 Route::get('products/home/on-sale', [ProductController::class, 'onSale']);
 Route::get('products/import-template', [ProductController::class, 'downloadTemplate'])->middleware(['auth:api,admin', 'role:admin,staff']);
+// Khai báo trước products/{id} để tránh route shadowing (Laravel khớp từ trên xuống)
+Route::get('products/export', [ProductController::class, 'exportExcel'])->middleware(['auth:api,admin', 'role:admin,staff']);
 Route::get('products', [ProductController::class, 'index']);
 Route::get('products/slug/{slug}', [ProductController::class, 'show']);
 Route::get('products/{id}/variants', [ProductController::class, 'getVariants']);
