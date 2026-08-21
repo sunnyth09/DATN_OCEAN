@@ -1265,7 +1265,7 @@ const formatDate = (dateString) => {
                     <div class="import-body">
                         <!-- Hướng dẫn -->
                         <div class="import-guide">
-                            <h4><AppIcon iconName="import" size="16" /> Hướng dẫn</h4>
+                            <h4><AppIcon name="import" size="16" /> Hướng dẫn</h4>
                             <ol>
                                 <li>Tải file Excel mẫu bên dưới</li>
                                 <li>Điền thông tin sản phẩm vào file (mỗi dòng = 1 sản phẩm đơn)</li>
