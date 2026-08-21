@@ -92,9 +92,11 @@ const sortedHistories = () => {
       const sameGhn = (prev.ghn_status || '') === (curr.ghn_status || '');
       const sameNote = (prev.note || '') === (curr.note || '');
       const sameDesc = (prev.description || '') === (curr.description || '');
+      const prevTime = getEffectiveTime(prev);
+      const currTime = getEffectiveTime(curr);
+      const isClose = Math.abs(prevTime - currTime) < 300000; // Trong vòng 5 phút
 
-      // Nếu 2 bản ghi liên tiếp hoàn toàn giống nhau về trạng thái và nội dung mô tả, coi là trùng lặp và bỏ qua
-      if (sameOld && sameNew && sameGhn && sameNote && sameDesc) {
+      if (sameOld && sameNew && sameGhn && sameNote && sameDesc && isClose) {
         continue;
       }
     }
