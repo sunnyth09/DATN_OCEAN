@@ -65,14 +65,14 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
                 'Chất liệu trượt nước, 2 lớp',   // F: Mô tả chi tiết
                 'active',                         // G: Trạng thái
                 1,                                // H: Nổi bật
-                'https://picsum.photos/id/26/800/800',  // I: Ảnh chính
+                '',                               // I: Ảnh chính (để trống để test nhanh)
                 '',                               // J: Ảnh phụ
                 'Đỏ',                             // K: Màu sắc
                 'M',                              // L: Kích cỡ
                 550000,                           // M: Giá bán
                 700000,                           // N: Giá gốc
                 50,                               // O: Kho
-                'https://picsum.photos/id/27/400/400',  // P: Ảnh biến thể
+                '',                               // P: Ảnh biến thể
                 'AKG-OCEAN-001',                  // Q: Mã SKU
                 'Polyester chống thấm',           // R: Chất liệu
                 'Việt Nam',                       // S: Xuất xứ
@@ -88,7 +88,7 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
                 550000,                           // M
                 700000,                           // N
                 30,                               // O
-                'https://picsum.photos/id/27/400/400',  // P
+                '',                               // P
                 '', '', '', '',                   // Q-T: Để trống (chỉ điền ở dòng đầu)
             ],
             // Biến thể 3: Xanh - M
@@ -101,7 +101,7 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
                 560000,                           // M
                 700000,                           // N
                 40,                               // O
-                'https://picsum.photos/id/28/400/400',  // P
+                '',                               // P
                 '', '', '', '',                   // Q-T: Để trống
             ],
 
@@ -115,7 +115,7 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
                 'Đệm khí, đế cao su chống trượt', // F
                 'active',                         // G
                 0,                                // H
-                'https://picsum.photos/id/21/800/800',  // I
+                '',                               // I
                 '',                               // J
                 '',                               // K: Để trống (simple)
                 '',                               // L: Để trống
