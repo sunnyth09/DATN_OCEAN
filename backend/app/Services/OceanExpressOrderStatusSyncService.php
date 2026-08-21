@@ -119,26 +119,26 @@ class OceanExpressOrderStatusSyncService
         $happenedAt = $this->parseHappenedAt($payload);
         $mappedStatus = $this->mapStatus($oeStatus);
 
-        // 1. Chặn trùng chính xác theo order_id, ghn_status và mốc happened_at
+        // 1. Chặn trùng chính xác theo order_id, ghn_status và mốc happened_at (hoặc gần nhau)
         $exactDuplicate = OrderStatusHistory::where('order_id', $order->order_id)
             ->where('ghn_status', $oeStatus)
-            ->where('happened_at', $happenedAt)
+            ->where(function ($q) use ($happenedAt) {
+                $q->where('happened_at', $happenedAt)
+                    ->orWhereRaw('ABS(TIMESTAMPDIFF(MINUTE, COALESCE(happened_at, created_at), ?)) < 720', [$happenedAt->toDateTimeString()]);
+            })
             ->exists();
 
         if ($exactDuplicate) {
             return true;
         }
 
-        // 2. Chặn webhook retry liên tục khi đơn hàng không thay đổi trạng thái
+        // 2. Chặn webhook/sync lặp lại khi trạng thái mới nhất từ hãng vận chuyển không hề thay đổi
         $latestHistory = OrderStatusHistory::where('order_id', $order->order_id)
             ->latest('history_id')
             ->first();
 
         if ($latestHistory && $latestHistory->ghn_status === $oeStatus) {
-            $latestTime = $latestHistory->happened_at ?? $latestHistory->created_at;
-            if ($latestTime && abs($happenedAt->diffInMinutes($latestTime)) < 30) {
-                return true;
-            }
+            return true;
         }
 
         return false;
@@ -284,13 +284,18 @@ class OceanExpressOrderStatusSyncService
         if (is_string($time) && trim($time) !== '') {
             $time = trim($time);
             try {
-                // Có định dạng múi giờ rõ ràng (ISO Z hoặc +07:00 / +00:00)
+                // 1. Có định dạng múi giờ rõ ràng (ISO Z hoặc +07:00 / +00:00)
                 if (str_ends_with($time, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $time)) {
                     return Carbon::parse($time)->setTimezone($tz);
                 }
 
-                // Định dạng ngày giờ thông thường (mặc định hiểu là giờ địa phương Việt Nam)
-                return Carbon::parse($time, $tz);
+                // 2. Chuỗi ngày giờ không offset từ Ocean Express API (chuẩn UTC)
+                if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/', $time)) {
+                    return Carbon::parse($time, 'UTC')->setTimezone($tz);
+                }
+
+                // 3. Fallback định dạng ngày giờ khác
+                return Carbon::parse($time)->setTimezone($tz);
             } catch (\Throwable) {
                 return now($tz);
             }
