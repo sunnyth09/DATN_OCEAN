@@ -22,12 +22,11 @@ const isCategoryOpen = ref(true);
 const isBrandOpen = ref(true);
 const selectedCategories = ref([]);     // checkbox array
 const selectedBrands = ref([]);         // checkbox array
-const priceMin = ref(0);
-const priceMax = ref(10000000);
-const displayPriceMax = ref(10000000);
-const maxPriceLimit = ref(10000000);
-const hasUserSetPrice = ref(false);
-watch(priceMax, (newVal) => { displayPriceMax.value = newVal; });
+const priceMin = ref(null);
+const priceMax = ref(null);
+const selectedPriceRange = ref('all');
+const customPriceMin = ref(null);
+const customPriceMax = ref(null);
 
 const sortBy = ref("newest");
 const searchQuery = ref("");
@@ -114,8 +113,22 @@ const fetchProducts = async () => {
         if (selectedBrands.value.length > 0) {
             params.brand_ids = selectedBrands.value.join(',');
         }
-        if (priceMax.value !== undefined && priceMax.value !== null) {
-            params.max_price = priceMax.value;
+        if (selectedPriceRange.value === 'custom') {
+            if (customPriceMin.value !== null && customPriceMin.value !== '') {
+                params.min_price = customPriceMin.value;
+            }
+            if (customPriceMax.value !== null && customPriceMax.value !== '') {
+                params.max_price = customPriceMax.value;
+            }
+            if (customPriceMin.value !== null && customPriceMax.value !== null) {
+                params.price_range = `${customPriceMin.value}-${customPriceMax.value}`;
+            } else if (customPriceMin.value !== null) {
+                params.price_range = `${customPriceMin.value}-`;
+            } else if (customPriceMax.value !== null) {
+                params.price_range = `-${customPriceMax.value}`;
+            }
+        } else if (selectedPriceRange.value !== 'all') {
+            params.price_range = selectedPriceRange.value;
         }
         
         if (sortBy.value) params.sort_by = sortBy.value;
@@ -158,13 +171,6 @@ const fetchProducts = async () => {
         });
         totalPages.value = response.data.total_pages || Math.ceil((response.data.total || Products.value.length) / perPage) || 1;
         totalProducts.value = response.data.total || Products.value.length;
-        if (response.data.max_price_limit) {
-            maxPriceLimit.value = Number(response.data.max_price_limit);
-            if (!hasUserSetPrice.value) {
-                priceMax.value = maxPriceLimit.value;
-                displayPriceMax.value = maxPriceLimit.value;
-            }
-        }
     } catch (error) {
         if (error.code === 'ERR_CANCELED') return;
         console.error("Error fetching products:", error);
@@ -175,9 +181,9 @@ const fetchProducts = async () => {
     }
 };
 
-const scheduleFetchProducts = () => {
+const scheduleFetchProducts = (delay = 100) => {
     clearTimeout(fetchTimer);
-    fetchTimer = setTimeout(fetchProducts, 100);
+    fetchTimer = setTimeout(fetchProducts, delay);
 };
 
 // ── Fetch categories ──
@@ -237,20 +243,26 @@ const formatPrice = (val) => {
 // ── Watchers ──
 let isResettingPage = false;
 
-watch([selectedCategories, selectedBrands, sortBy, priceMax], () => {
-    if (isInitializing) return;
-    if (currentPage.value !== 1) {
-        isResettingPage = true;
-        currentPage.value = 1;
+watch(
+    [selectedCategories, selectedBrands, sortBy, selectedPriceRange],
+    () => {
+        if (!isInitializing) {
+            currentPage.value = 1;
+            scheduleFetchProducts(100);
+        }
+    },
+    { deep: true }
+);
+
+watch(
+    [customPriceMin, customPriceMax],
+    () => {
+        if (!isInitializing && selectedPriceRange.value === 'custom') {
+            currentPage.value = 1;
+            scheduleFetchProducts(700);
+        }
     }
-    scheduleFetchProducts();
-    // Sync URL
-    const newQuery = { ...route.query };
-    if (selectedCategories.value.length > 0) newQuery.category = selectedCategories.value.join(',');
-    else delete newQuery.category;
-    if (currentPage.value === 1) delete newQuery.page;
-    router.replace({ query: newQuery }).catch(() => {});
-}, { deep: true });
+);
 
 watch(() => route.query.search, (val) => {
     if (isInitializing) return;
@@ -473,17 +485,49 @@ onUnmounted(() => {
 
                     <!-- Khoảng giá -->
                     <div class="filter-group">
-                        <h3 class="filter-title">MỨC GIÁ TỐI ĐA</h3>
-                        <div class="price-slider-wrap">
-                            <div class="current-price-label">
-                                Dưới <strong>{{ formatPrice(displayPriceMax) }}</strong>
-                            </div>
-                            <input type="range" min="0" :max="maxPriceLimit" step="100000" v-model.number="displayPriceMax" @change="priceMax = displayPriceMax; hasUserSetPrice = true" class="price-slider" />
-                            <div class="price-labels">
-                                <span>0đ</span>
-                                <span>{{ formatPrice(maxPriceLimit) }}</span>
-                            </div>
+                        <h3 class="filter-title">KHOẢNG GIÁ</h3>
+                        
+                        <!-- Radio Tùy chọn giá -->
+                        <div class="price-options">
+                            <label class="filter-radio" :class="{ checked: selectedPriceRange === 'all' }">
+                                <input type="radio" value="all" v-model="selectedPriceRange" />
+                                <span class="rb-custom"></span>
+                                <span class="rb-label">Tất cả</span>
+                            </label>
+                            <label class="filter-radio" :class="{ checked: selectedPriceRange === 'under-500k' }">
+                                <input type="radio" value="under-500k" v-model="selectedPriceRange" />
+                                <span class="rb-custom"></span>
+                                <span class="rb-label">Dưới 500.000đ</span>
+                            </label>
+                            <label class="filter-radio" :class="{ checked: selectedPriceRange === '500k-1m' }">
+                                <input type="radio" value="500k-1m" v-model="selectedPriceRange" />
+                                <span class="rb-custom"></span>
+                                <span class="rb-label">500.000đ - 1.000.000đ</span>
+                            </label>
+                            <label class="filter-radio" :class="{ checked: selectedPriceRange === 'above-1m' }">
+                                <input type="radio" value="above-1m" v-model="selectedPriceRange" />
+                                <span class="rb-custom"></span>
+                                <span class="rb-label">Trên 1.000.000đ</span>
+                            </label>
+                            <label class="filter-radio" :class="{ checked: selectedPriceRange === 'custom' }">
+                                <input type="radio" value="custom" v-model="selectedPriceRange" />
+                                <span class="rb-custom"></span>
+                                <span class="rb-label">Tùy chỉnh</span>
+                            </label>
                         </div>
+
+                        <!-- Ô nhập tay (chỉ hiện khi chọn Tùy chỉnh) -->
+                        <transition name="fade">
+                            <div v-if="selectedPriceRange === 'custom'" class="custom-price-inputs">
+                                <div class="price-input-wrapper">
+                                    <input type="number" v-model.number="customPriceMin" placeholder="Tối thiểu" class="price-input" min="0"/>
+                                </div>
+                                <span class="price-separator">-</span>
+                                <div class="price-input-wrapper">
+                                    <input type="number" v-model.number="customPriceMax" placeholder="Tối đa" class="price-input" min="0"/>
+                                </div>
+                            </div>
+                        </transition>
                     </div>
                 </aside>
 
@@ -509,7 +553,7 @@ onUnmounted(() => {
                         <h3>Không tìm thấy sản phẩm nào!</h3>
                         <p v-if="searchQuery">Không có sản phẩm nào khớp với từ khoá <strong>"{{ searchQuery }}"</strong>.</p>
                         <p v-else>Không có sản phẩm nào phù hợp với bộ lọc bạn vừa chọn.</p>
-                        <button class="btn-reset-filter" @click="selectedCategories = []; selectedBrands = []; clearSearch();">Xóa bộ lọc</button>
+                        <button class="btn-reset-filter" @click="selectedCategories = []; selectedBrands = []; selectedPriceRange = 'all'; clearSearch();">Xóa bộ lọc</button>
                     </div>
 
                     <!-- Pagination -->
@@ -683,6 +727,20 @@ onUnmounted(() => {
     flex-shrink: 0;
     position: sticky;
     top: 90px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+    padding-right: 8px; /* space for scrollbar */
+}
+/* Custom scrollbar cho sidebar */
+.product-sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+.product-sidebar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+.product-sidebar::-webkit-scrollbar-track {
+    background: transparent;
 }
 
 .filter-group {
@@ -720,7 +778,7 @@ onUnmounted(() => {
     transform: rotate(180deg);
 }
 
-/* Checkbox filter */
+/* Checkbox/Radio filters */
 .category-parent-wrap {
     display: flex;
     align-items: center;
@@ -763,20 +821,73 @@ onUnmounted(() => {
     font-size: 0.85rem;
 }
 
-.filter-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 7px 0;
-    cursor: pointer;
-    font-size: 0.9rem;
-    color: #636E72;
-    transition: color 0.2s;
+.filter-checkbox, .filter-radio {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  margin-bottom: 12px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  transition: background 0.2s;
 }
-.filter-checkbox:hover { color: var(--text-main); }
-.filter-checkbox.checked { color: var(--text-main); font-weight: 600; }
-.filter-checkbox input[type="checkbox"] {
-    display: none;
+.filter-checkbox:hover, .filter-radio:hover {
+  background: #f8fafc;
+}
+.filter-checkbox input, .filter-radio input {
+  display: none;
+}
+.cb-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cbd5e1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.rb-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.filter-checkbox.checked .cb-custom {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.filter-radio.checked .rb-custom {
+  border-color: var(--primary);
+}
+.filter-checkbox.checked .cb-custom::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+.filter-radio.checked .rb-custom::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: var(--primary);
+  border-radius: 50%;
+}
+.cb-label, .rb-label {
+  font-size: 0.95rem;
+  color: #475569;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.filter-checkbox.checked .cb-label, .filter-radio.checked .rb-label {
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .sub-categories {
@@ -788,84 +899,53 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 2px;
 }
-.filter-checkbox.sub-category {
-    padding: 5px 0;
-    font-size: 0.85rem;
-}
 
-.cb-custom {
-    width: 18px;
-    height: 18px;
-    border: 2px solid #B2BEC3;
-    border-radius: 4px;
+/* ── PRICE OPTIONS ── */
+.price-options {
+    display: flex;
+    flex-direction: column;
+}
+.custom-price-inputs {
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.2s;
-}
-
-.filter-checkbox.checked .cb-custom {
-    background: var(--primary);
-    border-color: var(--primary);
-}
-.filter-checkbox.checked .cb-custom::after {
-    content: '';
-    width: 10px;
-    height: 6px;
-    border-left: 2px solid #fff;
-    border-bottom: 2px solid #fff;
-    transform: rotate(-45deg);
-    margin-top: -2px;
-}
-
-/* Price slider */
-.price-slider-wrap {
-    padding: 4px 0;
-}
-.current-price-label {
-    font-size: 0.9rem;
-    color: var(--primary);
-    margin-bottom: 12px;
-    text-align: center;
-}
-.current-price-label strong {
-    font-weight: 800;
-    font-size: 1.1rem;
-}
-.price-slider {
-    width: 100%;
-    -webkit-appearance: none;
-    appearance: none;
-    height: 4px;
-    background: #E9ECEF;
-    border-radius: 2px;
-    outline: none;
-}
-.price-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    background: var(--primary);
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 2px 6px rgba(230,59,111,0.3);
-}
-.price-slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    background: var(--primary);
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
-}
-.price-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8rem;
-    color: #636E72;
+    gap: 8px;
     margin-top: 8px;
-    font-weight: 600;
+    padding-left: 32px;
+}
+.price-input-wrapper {
+    flex: 1;
+}
+.price-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    color: #334155;
+    outline: none;
+    transition: all 0.2s;
+    font-family: inherit;
+    -moz-appearance: textfield;
+}
+.price-input::-webkit-outer-spin-button,
+.price-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.price-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+}
+.price-separator {
+    color: #64748b;
+    font-weight: bold;
+}
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 
 /* ── PRODUCT GRID 3 columns ── */

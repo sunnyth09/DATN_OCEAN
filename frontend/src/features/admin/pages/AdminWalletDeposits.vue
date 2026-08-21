@@ -6,7 +6,7 @@ import Swal from 'sweetalert2';
 
 const deposits = ref([]);
 const isLoading = ref(false);
-const statusFilter = ref('pending');
+const searchQuery = ref('');
 const pagination = ref(null);
 
 const formatPrice = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0);
@@ -19,9 +19,9 @@ const formatDate = (d) => {
 };
 
 const STATUS_MAP = {
-  pending:   { text: 'Chờ duyệt',  tone: 'status-warning' },
-  completed: { text: 'Đã duyệt',   tone: 'status-success' },
-  failed:    { text: 'Từ chối',     tone: 'status-danger' },
+  pending:   { text: 'Chờ thanh toán',  tone: 'status-warning' },
+  completed: { text: 'Thành công',   tone: 'status-success' },
+  failed:    { text: 'Thất bại',     tone: 'status-danger' },
   expired:   { text: 'Hết hạn',     tone: 'status-info' },
 };
 
@@ -30,15 +30,13 @@ const METHOD_MAP = {
   vnpay: 'VNPay',
 };
 
-const summaryPending = computed(() => deposits.value.filter(d => d.status === 'pending').length);
-const summaryCompleted = computed(() => deposits.value.filter(d => d.status === 'completed').length);
-const summaryTotal = computed(() => deposits.value.filter(d => d.status === 'completed').reduce((s, d) => s + Number(d.amount), 0));
+const summaryTotal = computed(() => deposits.value.reduce((s, d) => s + Number(d.amount), 0));
 
 const fetchDeposits = async (page = 1) => {
   isLoading.value = true;
   try {
     const res = await api.get('/admin/wallets/deposits/pending', {
-      params: { status: statusFilter.value, per_page: 10, page },
+      params: { status: 'completed', per_page: 10, page, search: searchQuery.value },
     });
     if (res.data?.status === 'success') {
       deposits.value = res.data.data.data || [];
@@ -55,47 +53,6 @@ const fetchDeposits = async (page = 1) => {
   }
 };
 
-const confirmDeposit = async (deposit) => {
-  const result = await Swal.fire({
-    title: 'Xác nhận duyệt nạp tiền?',
-    html: `<p>Khách hàng: <strong>${deposit.full_name}</strong></p><p>Số tiền: <strong>${formatPrice(deposit.amount)}</strong></p><p>Mã nạp: <code>${deposit.deposit_code}</code></p>`,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Duyệt nạp tiền',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#16a34a',
-  });
-  if (!result.isConfirmed) return;
-
-  try {
-    const res = await api.post(`/admin/wallets/deposits/${deposit.id}/confirm`);
-    Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data?.message || 'Đã duyệt', icon: 'success', showConfirmButton: false, timer: 3000 });
-    fetchDeposits(pagination.value?.current_page || 1);
-  } catch (e) {
-    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
-  }
-};
-
-const rejectDeposit = async (deposit) => {
-  const result = await Swal.fire({
-    title: 'Từ chối nạp tiền?',
-    html: `<p>Mã nạp: <code>${deposit.deposit_code}</code></p><p>Số tiền: <strong>${formatPrice(deposit.amount)}</strong></p>`,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonText: 'Từ chối',
-    cancelButtonText: 'Hủy',
-    confirmButtonColor: '#dc2626',
-  });
-  if (!result.isConfirmed) return;
-
-  try {
-    const res = await api.post(`/admin/wallets/deposits/${deposit.id}/reject`);
-    Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data?.message || 'Đã từ chối', icon: 'success', showConfirmButton: false, timer: 3000 });
-    fetchDeposits(pagination.value?.current_page || 1);
-  } catch (e) {
-    Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
-  }
-};
 
 onMounted(() => fetchDeposits());
 </script>
@@ -112,51 +69,33 @@ onMounted(() => fetchDeposits());
             <path d="M2 10h2"/>
             <path d="M20 10h2"/>
           </svg>
-          Quản lý Ví & Nạp tiền
+          Lịch sử Nạp tiền
         </h1>
-        <p class="page-subtitle">Duyệt, từ chối các yêu cầu nạp tiền vào ví của khách hàng.</p>
+        <p class="page-subtitle">Theo dõi lịch sử giao dịch nạp tiền vào ví của khách hàng.</p>
       </div>
     </div>
 
     <!-- Summary Cards -->
-    <div class="summary-row">
-      <div class="summary-card">
-        <div class="summary-icon summary-icon--warning">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <div class="summary-body">
-          <span class="summary-value">{{ summaryPending }}</span>
-          <span class="summary-label">Chờ duyệt</span>
-        </div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-icon summary-icon--success">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        </div>
-        <div class="summary-body">
-          <span class="summary-value">{{ summaryCompleted }}</span>
-          <span class="summary-label">Đã duyệt</span>
-        </div>
-      </div>
+    <div class="summary-row" style="grid-template-columns: 1fr;">
       <div class="summary-card">
         <div class="summary-icon summary-icon--primary">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </div>
         <div class="summary-body">
           <span class="summary-value">{{ formatPrice(summaryTotal) }}</span>
-          <span class="summary-label">Tổng đã duyệt</span>
+          <span class="summary-label">Tổng tiền nạp</span>
         </div>
       </div>
     </div>
 
     <!-- Toolbar -->
-    <div class="toolbar">
-      <select v-model="statusFilter" class="status-select" @change="fetchDeposits(1)">
-        <option value="pending">⏳ Chờ duyệt</option>
-        <option value="completed">✅ Đã duyệt</option>
-        <option value="failed">❌ Từ chối</option>
-        <option value="all">📋 Tất cả</option>
-      </select>
+    <div class="toolbar" style="justify-content: space-between;">
+      <div class="search-box">
+        <input type="text" v-model="searchQuery" placeholder="Tìm mã nạp, tên hoặc email..." class="search-input" @keyup.enter="fetchDeposits(1)">
+        <button class="btn-search" @click="fetchDeposits(1)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </button>
+      </div>
       <button class="btn-reload" @click="fetchDeposits(1)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         Tải lại
@@ -176,14 +115,12 @@ onMounted(() => fetchDeposits());
             <th>Khách hàng</th>
             <th>Số tiền</th>
             <th>Phương thức</th>
-            <th>Trạng thái</th>
             <th>Thời gian</th>
-            <th>Thao tác</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="deposits.length === 0">
-            <td colspan="7" class="empty-cell">Không có yêu cầu nạp tiền nào.</td>
+            <td colspan="5" class="empty-cell">Không có giao dịch nạp tiền nào.</td>
           </tr>
           <tr v-for="d in deposits" :key="d.id">
             <td class="strong">{{ d.deposit_code }}</td>
@@ -199,24 +136,7 @@ onMounted(() => fetchDeposits());
             <td>
               <span class="method-badge">{{ METHOD_MAP[d.method] || d.method }}</span>
             </td>
-            <td>
-              <span class="status-badge" :class="STATUS_MAP[d.status]?.tone || 'status-info'">
-                {{ STATUS_MAP[d.status]?.text || d.status }}
-              </span>
-            </td>
             <td>{{ formatDate(d.created_at) }}</td>
-            <td>
-              <div v-if="d.status === 'pending'" class="action-group">
-                <button class="btn-action btn-action--approve" @click="confirmDeposit(d)" title="Duyệt nạp tiền">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  Duyệt
-                </button>
-                <button class="btn-action btn-action--reject" @click="rejectDeposit(d)" title="Từ chối">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </div>
-              <span v-else class="processed-text">{{ formatDate(d.completed_at) }}</span>
-            </td>
           </tr>
         </tbody>
         </table>
@@ -384,6 +304,58 @@ onMounted(() => fetchDeposits());
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.btn-reload:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(230, 59, 111, 0.04);
+}
+
+/* Search Box */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-container-low);
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px 8px 4px 16px;
+  min-width: 350px;
+  transition: all 0.2s;
+}
+
+.search-box:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  width: 100%;
+}
+
+.btn-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.btn-search:hover {
+  background: rgba(230, 59, 111, 0.1);
+  color: var(--primary);
 }
 
 .btn-reload:hover {

@@ -191,6 +191,9 @@ const fetchPendingReviewCount = async () => {
           <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/category" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Danh mục</span>
           </router-link>
+          <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/brand" class="submenu-item" active-class="submenu-item--active">
+            <span class="submenu-dot"></span><span>Thương hiệu</span>
+          </router-link>
           <router-link v-if="['admin', 'staff'].includes(userRoleRaw)" to="/admin/size-guide" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Bảng size</span>
           </router-link>
@@ -262,7 +265,7 @@ const fetchPendingReviewCount = async () => {
       <transition name="slide-fade">
         <div v-if="openMenus.finance" class="nav-submenu">
           <router-link to="/admin/wallet-deposits" class="submenu-item" active-class="submenu-item--active">
-            <span class="submenu-dot"></span><span>Duyệt nạp tiền</span>
+            <span class="submenu-dot"></span><span>Lịch sử nạp tiền</span>
           </router-link>
           <router-link to="/admin/wallet-withdrawals" class="submenu-item" active-class="submenu-item--active">
             <span class="submenu-dot"></span><span>Duyệt rút tiền</span>
