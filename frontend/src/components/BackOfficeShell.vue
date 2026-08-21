@@ -31,8 +31,8 @@
             @click="toggleSidebar"
           >
             <svg
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -56,8 +56,8 @@
         <div class="backoffice-header__actions">
           <router-link to="/admin/notifications" class="shell-icon-btn position-relative" title="Thông báo">
             <svg
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -82,8 +82,8 @@
           >
             <svg
               v-if="isDarkMode"
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -103,8 +103,8 @@
             </svg>
             <svg
               v-else
-              width="20"
-              height="20"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -415,41 +415,45 @@ onUnmounted(() => {
 }
 
 .backoffice-header {
-  min-height: var(--shell-header-height);
-  padding: 0 24px;
+  height: var(--shell-header-height, 56px);
+  min-height: var(--shell-header-height, 56px);
+  padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  background: rgba(255, 255, 255, 0.92);
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.95);
   border-bottom: 1px solid var(--border-color);
   backdrop-filter: blur(14px);
+  box-sizing: border-box;
 }
 
 .backoffice-header__leading {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 
 .backoffice-header__meta {
   min-width: 0;
+  display: flex;
+  align-items: center;
 }
 
 .backoffice-header__eyebrow {
-  margin: 0 0 4px;
+  margin: 0;
   color: var(--text-light);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .backoffice-header__title {
   margin: 0;
   color: var(--text-main);
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 800;
   line-height: 1.2;
 }
@@ -457,7 +461,7 @@ onUnmounted(() => {
 .backoffice-header__actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
@@ -466,8 +470,8 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 40px;
+  gap: 6px;
+  height: 34px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--card-bg);
@@ -476,14 +480,14 @@ onUnmounted(() => {
 }
 
 .shell-icon-btn {
-  width: 40px;
+  width: 34px;
   cursor: pointer;
 }
 
 .back-home-btn {
-  padding: 0 14px;
+  padding: 0 12px;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 600;
 }
 
@@ -560,22 +564,27 @@ onUnmounted(() => {
 
 @media (max-width: 768px) {
   .backoffice-header {
-    padding: 14px 16px;
-    align-items: flex-start;
-    flex-wrap: wrap;
+    height: auto;
+    min-height: var(--shell-header-height, 56px);
+    padding: 8px 14px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .backoffice-header__title {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
   }
 
   .backoffice-header__actions {
-    width: 100%;
+    width: auto;
     justify-content: flex-end;
+    gap: 6px;
   }
 
   .backoffice-content {
-    padding: 16px;
+    padding: 14px;
   }
 
   .back-home-btn span {

@@ -10,6 +10,7 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
+import FlashSaleBuyModal from '@/features/shop/components/FlashSaleBuyModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
 import { sanitizeHtml } from '@/utils/sanitize';
@@ -24,6 +25,99 @@ const slug = computed(() => route.params.id);
 const product = ref(null);
 const isLoading = ref(true);
 const isNotFound = ref(false);
+
+// ── Flash Sale Integration ──
+const showFlashSaleBuyModal = ref(false);
+const hasFlashSale = computed(() => !!product.value?.flash_sale);
+const flashSaleData = computed(() => product.value?.flash_sale || null);
+
+const isFlashSaleEnded = computed(() => {
+  if (!flashSaleData.value?.end_time) return false;
+  return new Date(flashSaleData.value.end_time).getTime() <= Date.now();
+});
+
+const flashDiscountPercent = computed(() => {
+  if (!flashSaleData.value) return 0;
+  const currentBase = displayPriceInfo.value.current || product.value?.min_price || 0;
+  const flashPrice = flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0;
+  if (currentBase > flashPrice && currentBase > 0) {
+    return Math.round(((currentBase - flashPrice) / currentBase) * 100);
+  }
+  return 0;
+});
+
+const flashFillPercent = computed(() => {
+  if (!flashSaleData.value) return 0;
+  const total = flashSaleData.value.total_stock || 1;
+  const sold = flashSaleData.value.sold_count || flashSaleData.value.sold || 0;
+  return Math.min(100, Math.round((sold / total) * 100));
+});
+
+const flashSaleItemPayload = computed(() => {
+  if (!flashSaleData.value || !product.value) return {};
+  return {
+    flash_sale_id: flashSaleData.value.flash_sale_id,
+    product_id: product.value.product_id,
+    product_name: product.value.name,
+    sale_price: flashSaleData.value.flash_price || flashSaleData.value.campaign_price,
+    flash_price: flashSaleData.value.flash_price || flashSaleData.value.campaign_price,
+    original_price: displayPriceInfo.value.current || product.value.min_price,
+    thumbnail_url: product.value.thumbnail_url,
+    discount_percent: flashDiscountPercent.value,
+    total_stock: flashSaleData.value.total_stock,
+    remaining: flashSaleData.value.remaining,
+  };
+});
+
+const flashRemainingTime = ref({ hours: '00', minutes: '00', seconds: '00' });
+let flashTimerInterval = null;
+
+const startFlashCountdown = () => {
+  if (flashTimerInterval) clearInterval(flashTimerInterval);
+  if (!flashSaleData.value?.end_time) return;
+
+  const update = () => {
+    const end = new Date(flashSaleData.value.end_time).getTime();
+    const now = Date.now();
+    const diff = Math.max(0, end - now);
+
+    if (diff <= 0) {
+      flashRemainingTime.value = { hours: '00', minutes: '00', seconds: '00' };
+      clearInterval(flashTimerInterval);
+      return;
+    }
+
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    const pad = (n) => String(n).padStart(2, '0');
+
+    flashRemainingTime.value = {
+      hours: pad(h),
+      minutes: pad(m),
+      seconds: pad(s),
+    };
+  };
+
+  update();
+  flashTimerInterval = setInterval(update, 1000);
+};
+
+watch(flashSaleData, (val) => {
+  if (val) startFlashCountdown();
+}, { immediate: true });
+
+onBeforeUnmount(() => {
+  if (flashTimerInterval) clearInterval(flashTimerInterval);
+});
+
+const handleFlashSaleBuyNow = () => {
+  showFlashSaleBuyModal.value = true;
+};
+
+const onFlashSaleOrderSuccess = () => {
+  fetchProduct(slug.value);
+};
 const safeDescription = computed(() => sanitizeHtml(product.value?.description));
 const safeShortDescription = computed(() => sanitizeHtml(product.value?.short_description));
 const productImageRef = ref(null);
@@ -785,14 +879,54 @@ onBeforeUnmount(() => {
           <span class="pd-rating-text">({{ product.rating_count ?? 0 }} đánh giá)</span>
         </div>
 
-        <!-- Price -->
-        <div class="pd-price-row">
-          <span class="pd-price">{{ formatPrice(displayPriceInfo.current) }}</span>
-          <span class="pd-price-old" v-if="displayPriceInfo.original">{{ formatPrice(displayPriceInfo.original)
-            }}</span>
+        <!-- ═══ FLASH SALE BANNER CARD (NẾU ĐANG DIỄN RA) ═══ -->
+        <div v-if="hasFlashSale" class="pd-flash-sale-card">
+          <div class="pd-fs-header">
+            <div class="pd-fs-title-box">
+              <span class="pd-fs-fire">⚡</span>
+              <span class="pd-fs-title">FLASH SALE GIÁ SỐC</span>
+            </div>
+            <div class="pd-fs-countdown" v-if="!isFlashSaleEnded">
+              <span class="pd-fs-cd-label">KẾT THÚC TRONG</span>
+              <div class="pd-fs-timer">
+                <span class="pd-fs-digit">{{ flashRemainingTime.hours }}</span>
+                <span class="pd-fs-colon">:</span>
+                <span class="pd-fs-digit">{{ flashRemainingTime.minutes }}</span>
+                <span class="pd-fs-colon">:</span>
+                <span class="pd-fs-digit">{{ flashRemainingTime.seconds }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pd-fs-price-row">
+            <div class="pd-fs-price-main">
+              <span class="pd-fs-price">{{ formatPrice(flashSaleData.flash_price || flashSaleData.campaign_price) }}</span>
+              <span class="pd-fs-origin-price" v-if="displayPriceInfo.current > (flashSaleData.flash_price || flashSaleData.campaign_price)">
+                {{ formatPrice(displayPriceInfo.current) }}
+              </span>
+            </div>
+            <span class="pd-fs-discount-tag" v-if="flashDiscountPercent > 0">
+              -{{ flashDiscountPercent }}%
+            </span>
+          </div>
+
+          <!-- Progress stock -->
+          <div class="pd-fs-stock-bar">
+            <div class="pd-fs-stock-info">
+              <span>Đã bán: <strong>{{ flashSaleData.sold_count || flashSaleData.sold || 0 }}</strong> / {{ flashSaleData.total_stock }} suất</span>
+              <span class="pd-fs-remain">Còn lại: <strong>{{ flashSaleData.remaining }}</strong></span>
+            </div>
+            <div class="pd-fs-track">
+              <div class="pd-fs-fill" :style="{ width: flashFillPercent + '%' }"></div>
+            </div>
+          </div>
         </div>
 
-
+        <!-- Standard Price (Ẩn hoặc làm phụ khi có Flash Sale) -->
+        <div class="pd-price-row" v-if="!hasFlashSale">
+          <span class="pd-price">{{ formatPrice(displayPriceInfo.current) }}</span>
+          <span class="pd-price-old" v-if="displayPriceInfo.original">{{ formatPrice(displayPriceInfo.original) }}</span>
+        </div>
 
         <!-- Variant chips -->
         <div class="pd-variants" v-if="uniqueColors.length > 0">
@@ -864,7 +998,20 @@ onBeforeUnmount(() => {
           {{ ctaDisabledReason }}
         </p>
 
-        <!-- CTA -->
+        <!-- ═══ FLASH SALE SPECIAL CTA ═══ -->
+        <div v-if="hasFlashSale && !isFlashSaleEnded" class="pd-flash-cta mb-3">
+          <button
+            class="pd-btn-flash-buy"
+            @click="handleFlashSaleBuyNow"
+            :disabled="flashSaleData.is_sold_out"
+          >
+            <AppIcon name="zap" size="20" stroke-width="2.5" />
+            <span v-if="flashSaleData.is_sold_out">HẾT SUẤT FLASH SALE</span>
+            <span v-else>⚡ SĂN DEAL FLASH SALE (Freeship 100%)</span>
+          </button>
+        </div>
+
+        <!-- CTA Thường -->
         <div class="pd-cta">
           <button class="pd-btn-cart" @click="addToCart"
             :disabled="addingToCart || buyingNow || !canPurchaseSelectedVariant"
@@ -878,6 +1025,13 @@ onBeforeUnmount(() => {
             {{ buyingNow ? 'Đang chuyển...' : 'Đặt Hàng Nhanh' }}
           </button>
         </div>
+
+        <!-- Flash Sale Fast Checkout Modal -->
+        <FlashSaleBuyModal
+          v-model="showFlashSaleBuyModal"
+          :sale-item="flashSaleItemPayload"
+          @success="onFlashSaleOrderSuccess"
+        />
 
         <!-- AI Try-On -->
         <button v-if="tryOnEnabled" class="pd-btn-tryon" @click="showTryOn = true" title="Thử đồ bằng AI">
@@ -1296,6 +1450,183 @@ onBeforeUnmount(() => {
 .pd-rating-text {
   font-size: 0.85rem;
   color: #636E72;
+}
+
+/* ═══ FLASH SALE CARD STYLING ═══ */
+.pd-flash-sale-card {
+  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+  border: 2px solid #fecdd3;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(225, 29, 72, 0.08);
+}
+
+.pd-fs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #f43f5e33;
+}
+
+.pd-fs-title-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pd-fs-fire {
+  font-size: 1.2rem;
+  animation: pulse 1.5s infinite;
+}
+
+.pd-fs-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #e11d48;
+  letter-spacing: 0.5px;
+}
+
+.pd-fs-countdown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pd-fs-cd-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.pd-fs-timer {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pd-fs-digit {
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-family: monospace;
+}
+
+.pd-fs-colon {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.pd-fs-price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.pd-fs-price-main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.pd-fs-price {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #e11d48;
+}
+
+.pd-fs-origin-price {
+  font-size: 1.1rem;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.pd-fs-discount-tag {
+  background: #e11d48;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.pd-fs-stock-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pd-fs-stock-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.pd-fs-stock-info strong {
+  color: #e11d48;
+}
+
+.pd-fs-remain {
+  color: #0284c7;
+}
+
+.pd-fs-track {
+  height: 8px;
+  background: #cbd5e1;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.pd-fs-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f43f5e 0%, #e11d48 100%);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+/* Flash Sale CTA Button */
+.pd-flash-cta {
+  width: 100%;
+}
+
+.pd-btn-flash-buy {
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 28px;
+  font-size: 1rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.35);
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.pd-btn-flash-buy:hover:not(:disabled) {
+  background: linear-gradient(135deg, #be123c 0%, #9f1239 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.45);
+}
+
+.pd-btn-flash-buy:disabled {
+  background: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 .pd-price-row {

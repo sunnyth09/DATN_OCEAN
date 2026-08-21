@@ -82,6 +82,11 @@ class Product extends Model
         return $this->hasMany(Favorite::class, 'product_id', 'product_id');
     }
 
+    public function flashSaleItems()
+    {
+        return $this->hasMany(FlashSaleItem::class, 'product_id', 'product_id');
+    }
+
     public function mainImage()
     {
         return $this->hasOne(ProductImage::class, 'product_id')->where('is_main', 1);

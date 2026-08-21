@@ -275,7 +275,7 @@ class ProductService
      */
     public function showProduct($identifier): array
     {
-        $product = Cache::remember("product:identifier:{$identifier}", 1800, function () use ($identifier) {
+        $product = Cache::remember("product:identifier:{$identifier}", 300, function () use ($identifier) {
             return $this->productRepository->findByIdentifier($identifier);
         });
 
@@ -283,7 +283,14 @@ class ProductService
             return ['_status' => 404, 'status' => 'error', 'message' => 'Product not found'];
         }
 
-        return ['_status' => 200, 'data' => $product];
+        $data = $product->toArray();
+        try {
+            $data['flash_sale'] = app(FlashSaleService::class)->getActiveForProduct($product->product_id);
+        } catch (\Throwable $e) {
+            $data['flash_sale'] = null;
+        }
+
+        return ['_status' => 200, 'data' => $data];
     }
 
     /**

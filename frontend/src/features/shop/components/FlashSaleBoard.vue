@@ -78,15 +78,16 @@
           id="flash-sale-buy-btn"
           class="buy-btn"
           :class="btnClass"
-          :disabled="isBuying || soldOut || isBought"
+          :disabled="isBuying || soldOut || isBought || isUpcoming"
           @click="handleBuy"
         >
           <span v-if="isBought">✅ Đặt hàng thành công!</span>
           <span v-else-if="isBuying">Đang xử lý...</span>
           <span v-else-if="soldOut">Đã hết hàng</span>
+          <span v-else-if="isUpcoming">⏳ Sắp Mở Bán</span>
           <span v-else>⚡ Săn Deal Ngay</span>
         </button>
-        <p class="auth-note" v-if="!isLoggedIn">
+        <p class="auth-note" v-if="!isLoggedIn && !isUpcoming">
           <router-link to="/client/login">Đăng nhập</router-link> để tham gia
         </p>
       </div>
@@ -95,6 +96,13 @@
       </div>
 
     </template>
+
+    <!-- ── FAST CHECKOUT MODAL ── -->
+    <FlashSaleBuyModal
+      v-model="showBuyModal"
+      :sale-item="sale"
+      @success="onBuySuccess"
+    />
 
     <!-- ── TOAST ── -->
     <div v-if="toast.visible" class="toast-box" :class="`toast--${toast.type}`">
@@ -108,8 +116,10 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api, { getUser } from '@/axios.js';
+import FlashSaleBuyModal from '@/features/shop/components/FlashSaleBuyModal.vue';
 
 const router = useRouter();
+const showBuyModal = ref(false);
 
 const props = defineProps({
   flashSaleId: { type: Number, default: null },
@@ -142,6 +152,10 @@ let stockRequest  = null;
 // ── Computed ──
 const isLoggedIn   = computed(() => !!getUser());
 const soldOut      = computed(() => !!stockData.value?.is_sold_out);
+const isUpcoming   = computed(() => {
+  if (!sale.value?.starts_at) return false;
+  return new Date(sale.value.starts_at).getTime() > Date.now();
+});
 const stockPercent = computed(() => {
   if (!sale.value || !stockData.value) return 0;
   return (stockData.value.sold_count / sale.value.total_stock) * 100;
@@ -153,7 +167,7 @@ const fillClass = computed(() => {
 });
 const btnClass = computed(() => {
   if (isBought.value) return 'btn--success';
-  if (soldOut.value || ended.value) return 'btn--disabled';
+  if (soldOut.value || ended.value || isUpcoming.value) return 'btn--disabled';
   if (isBuying.value) return 'btn--loading';
   return 'btn--active';
 });
@@ -261,19 +275,20 @@ async function fetchStock() {
 }
 
 // ── Buy ──
-async function handleBuy() {
+function handleBuy() {
   if (!isLoggedIn.value) {
-    showToast('warn', 'Vui lòng đăng nhập để tham gia Flash Sale!'); return;
+    showToast('warn', 'Vui lòng đăng nhập để tham gia Flash Sale!');
+    router.push('/client/login');
+    return;
   }
   if (isBuying.value || isBought.value || soldOut.value) return;
 
-  router.push({
-    path: '/checkout',
-    query: {
-      flash_sale_id: sale.value.id,
-      product_id: sale.value.product_id
-    }
-  });
+  showBuyModal.value = true;
+}
+
+function onBuySuccess(orderData) {
+  isBought.value = true;
+  fetchStock();
 }
 
 // ── Lifecycle ──

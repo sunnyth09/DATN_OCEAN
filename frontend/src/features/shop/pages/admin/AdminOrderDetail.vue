@@ -635,9 +635,107 @@ onMounted(() => fetchOrder());
 
 <template>
   <div class="order-detail-page">
-    <!-- Loading -->
-    <div v-if="loading" class="loading-box">
-      <div class="spinner-border text-primary" role="status"></div>
+    <!-- Modern Skeleton Loading -->
+    <div v-if="loading" class="order-detail-skeleton">
+      <!-- Header Skeleton -->
+      <div class="skeleton-header">
+        <div class="skeleton-header-left">
+          <div class="skeleton-box" style="width: 100px; height: 38px; border-radius: 8px;"></div>
+          <div>
+            <div class="skeleton-box" style="width: 240px; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 180px; height: 16px; border-radius: 6px;"></div>
+          </div>
+        </div>
+        <div class="skeleton-header-right">
+          <div class="skeleton-box" style="width: 90px; height: 32px; border-radius: 20px;"></div>
+          <div class="skeleton-box" style="width: 110px; height: 32px; border-radius: 20px;"></div>
+        </div>
+      </div>
+
+      <!-- Timeline Skeleton Card -->
+      <div class="skeleton-card" style="margin-bottom: 24px; padding: 28px 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="skeleton-box" style="width: 38px; height: 38px; border-radius: 10px;"></div>
+            <div class="skeleton-box" style="width: 160px; height: 22px; border-radius: 6px;"></div>
+          </div>
+          <div class="skeleton-box" style="width: 90px; height: 28px; border-radius: 20px;"></div>
+        </div>
+        <div class="skeleton-timeline-steps">
+          <div v-for="i in 6" :key="i" class="skeleton-step-item">
+            <div class="skeleton-box" style="width: 48px; height: 48px; border-radius: 50%; margin: 0 auto 12px;"></div>
+            <div class="skeleton-box" style="width: 70px; height: 14px; margin: 0 auto 6px; border-radius: 4px;"></div>
+            <div class="skeleton-box" style="width: 50px; height: 10px; margin: 0 auto; border-radius: 4px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid Skeleton -->
+      <div class="detail-grid">
+        <!-- Left: Products & Histories Skeleton -->
+        <div class="detail-main">
+          <!-- Products Card Skeleton -->
+          <div class="skeleton-card" style="margin-bottom: 24px;">
+            <div class="skeleton-box" style="width: 140px; height: 22px; margin-bottom: 20px; border-radius: 6px;"></div>
+            <div v-for="i in 2" :key="i" style="display: flex; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border-color, #f1f5f9);">
+              <div class="skeleton-box" style="width: 64px; height: 64px; border-radius: 10px; flex-shrink: 0;"></div>
+              <div style="flex: 1;">
+                <div class="skeleton-box" style="width: 65%; height: 18px; margin-bottom: 8px; border-radius: 4px;"></div>
+                <div class="skeleton-box" style="width: 35%; height: 14px; border-radius: 4px;"></div>
+              </div>
+              <div class="skeleton-box" style="width: 40px; height: 16px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 4px;"></div>
+            </div>
+            <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 80px; height: 14px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px;"></div></div>
+              <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 80px; height: 14px; border-radius: 4px;"></div></div>
+              <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 130px; height: 22px; border-radius: 6px;"></div></div>
+            </div>
+          </div>
+
+          <!-- History Card Skeleton -->
+          <div class="skeleton-card">
+            <div class="skeleton-box" style="width: 160px; height: 22px; margin-bottom: 20px; border-radius: 6px;"></div>
+            <div v-for="i in 3" :key="i" style="display: flex; gap: 14px; margin-bottom: 16px;">
+              <div class="skeleton-box" style="width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; flex-shrink: 0;"></div>
+              <div style="flex: 1;">
+                <div class="skeleton-box" style="width: 45%; height: 16px; margin-bottom: 6px; border-radius: 4px;"></div>
+                <div class="skeleton-box" style="width: 30%; height: 12px; border-radius: 4px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Sidebar Skeleton -->
+        <div class="detail-sidebar">
+          <!-- Status Action Card Skeleton -->
+          <div class="skeleton-card" style="margin-bottom: 24px;">
+            <div class="skeleton-box" style="width: 170px; height: 22px; margin-bottom: 16px; border-radius: 6px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 42px; border-radius: 8px; margin-bottom: 16px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 38px; border-radius: 8px;"></div>
+          </div>
+
+          <!-- Customer Card Skeleton -->
+          <div class="skeleton-card" style="margin-bottom: 24px;">
+            <div class="skeleton-box" style="width: 130px; height: 22px; margin-bottom: 16px; border-radius: 6px;"></div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div class="skeleton-box" style="width: 70%; height: 14px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 85%; height: 14px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 60%; height: 14px; border-radius: 4px;"></div>
+            </div>
+          </div>
+
+          <!-- Shipping Card Skeleton -->
+          <div class="skeleton-card">
+            <div class="skeleton-box" style="width: 120px; height: 22px; margin-bottom: 16px; border-radius: 6px;"></div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div class="skeleton-box" style="width: 60%; height: 14px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 50%; height: 14px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 90%; height: 14px; border-radius: 4px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <template v-if="order && !loading">
@@ -1045,8 +1143,85 @@ onMounted(() => fetchOrder());
   font-family: var(--font-primary);
 }
  
-/* Loading */
-.loading-box { text-align: center; padding: 80px 0; }
+/* ===== Modern Skeleton Loading ===== */
+.order-detail-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.skeleton-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.skeleton-header-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border-color, #e9ecef);
+  box-shadow: var(--shadow-card, 0 4px 15px rgba(45, 52, 70, 0.08));
+}
+
+.skeleton-timeline-steps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .skeleton-timeline-steps {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+}
+
+.skeleton-step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.35) 30%,
+    rgba(255, 255, 255, 0.7) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
  
 /* Header */
 .detail-header {
