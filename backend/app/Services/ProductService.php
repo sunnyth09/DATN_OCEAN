@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exports\ProductsExport;
 use App\Exports\ProductsTemplateExport;
 use App\Imports\ProductsImport;
 use App\Imports\ProductsRowImport;
@@ -738,6 +739,26 @@ class ProductService
     public function downloadTemplate()
     {
         return Excel::download(new ProductsTemplateExport, 'mau_import_san_pham.xlsx');
+    }
+
+    /**
+     * Xuất danh sách sản phẩm ra Excel
+     */
+    public function exportProducts(Request $request)
+    {
+        $filters = [
+            'date_preset' => $request->query('date_preset', 'all'),
+            'from_date' => $request->query('from_date'),
+            'to_date' => $request->query('to_date'),
+            'status' => $request->query('status', 'all'),
+            'category_id' => $request->query('category_id'),
+            'brand_id' => $request->query('brand_id'),
+            'export_type' => $request->query('export_type', 'variant'),
+        ];
+
+        $fileName = 'danh_sach_san_pham_'.date('Ymd_His').'.xlsx';
+
+        return Excel::download(new ProductsExport($filters), $fileName);
     }
 
     // ═══════════════════════════════════════════════════════════════════
