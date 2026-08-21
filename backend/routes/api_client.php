@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Route;
 Broadcast::routes(['middleware' => ['api', 'auth:api,admin']]);
 
 use App\Http\Controllers\AddressController;
-use App\Http\Controllers\PostCommentController;
 use App\Http\Controllers\AffiliateController;
 use App\Http\Controllers\Api\Client\TrackingController;
 use App\Http\Controllers\Api\DeviceTokenController;
@@ -31,6 +30,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderTrackingController;
 use App\Http\Controllers\PostCategoryController;
+use App\Http\Controllers\PostCommentController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProductCommentController;
 use App\Http\Controllers\ProductController;
@@ -42,13 +42,9 @@ use App\Http\Controllers\UserBankAccountController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\WalletDepositController;
 use App\Models\Cart;
-use App\Models\Order;
 use App\Services\FcmService;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 
 // use Illuminate\Http\Request;
-
 
 // Route debug gửi push — CHỈ đăng ký ở môi trường local để tránh bị lạm dụng
 // (spam FCM / dò token hợp lệ) trên production. Bọc thêm throttle phòng hờ.
@@ -254,12 +250,13 @@ Route::get('categories', [CategoryController::class, 'index']);
 Route::get('categories/{id}', [CategoryController::class, 'show']);
 Route::get('products/home/best-selling', [ProductController::class, 'bestSelling']);
 Route::get('products/home/on-sale', [ProductController::class, 'onSale']);
-Route::get('products', [ProductController::class, 'clientList']);
-Route::get('products/{id}', [ProductController::class, 'show']);
-Route::get('products/{id}/variants', [ProductController::class, 'getVariants']);
+Route::get('products/import-template', [ProductController::class, 'downloadTemplate'])->middleware(['auth:api,admin', 'role:admin,staff']);
+Route::get('products', [ProductController::class, 'index']);
 Route::get('products/slug/{slug}', [ProductController::class, 'show']);
+Route::get('products/{id}/variants', [ProductController::class, 'getVariants']);
 Route::get('products/{slug}/related', [ProductController::class, 'related']);
 Route::get('products/{product_id}/comments', [ProductCommentController::class, 'getByProduct']);
+Route::get('products/{id}', [ProductController::class, 'show']);
 Route::get('productFeatured', [ProductController::class, 'productFeatured']);
 
 // ==========================================

@@ -11,10 +11,11 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * ProductsTemplateExport — File Excel mẫu chuẩn 16 cột
+ * ProductsTemplateExport — File Excel mẫu chuẩn 20 cột
  *
  * Hỗ trợ cả sản phẩm đơn (simple) và sản phẩm có biến thể (variant).
  * Dữ liệu mẫu bao gồm 1 SP variant (3 biến thể) + 1 SP simple.
+ * Cột Q-T: Thông số kỹ thuật (SKU, Chất liệu, Xuất xứ, Kiểu dáng)
  */
 class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeadings, WithStyles
 {
@@ -40,6 +41,10 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
             'GIÁ GỐC',                  // N
             'SỐ LƯỢNG KHO (*)',         // O
             'ẢNH BIẾN THỂ (URLs)',       // P — cách nhau dấu phẩy
+            'MÃ SKU',                    // Q — Mã sản phẩm chung
+            'CHẤT LIỆU',                // R — Chất liệu sản phẩm
+            'XUẤT XỨ',                  // S — Xuất xứ / Nơi sản xuất
+            'KIỂU DÁNG',                // T — Kiểu dáng / Style
         ];
     }
 
@@ -60,14 +65,18 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
                 'Chất liệu trượt nước, 2 lớp',   // F: Mô tả chi tiết
                 'active',                         // G: Trạng thái
                 1,                                // H: Nổi bật
-                'https://picsum.photos/id/26/800/800',  // I: Ảnh chính
+                '',                               // I: Ảnh chính (để trống để test nhanh)
                 '',                               // J: Ảnh phụ
                 'Đỏ',                             // K: Màu sắc
                 'M',                              // L: Kích cỡ
                 550000,                           // M: Giá bán
                 700000,                           // N: Giá gốc
                 50,                               // O: Kho
-                'https://picsum.photos/id/27/400/400',  // P: Ảnh biến thể
+                '',                               // P: Ảnh biến thể
+                'AKG-OCEAN-001',                  // Q: Mã SKU
+                'Polyester chống thấm',           // R: Chất liệu
+                'Việt Nam',                       // S: Xuất xứ
+                'Áo khoác thể thao',              // T: Kiểu dáng
             ],
             // Biến thể 2: Đỏ - L (chỉ cần điền tên SP + cột biến thể)
             [
@@ -79,7 +88,8 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
                 550000,                           // M
                 700000,                           // N
                 30,                               // O
-                'https://picsum.photos/id/27/400/400',  // P
+                '',                               // P
+                '', '', '', '',                   // Q-T: Để trống (chỉ điền ở dòng đầu)
             ],
             // Biến thể 3: Xanh - M
             [
@@ -91,7 +101,8 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
                 560000,                           // M
                 700000,                           // N
                 40,                               // O
-                'https://picsum.photos/id/28/400/400',  // P
+                '',                               // P
+                '', '', '', '',                   // Q-T: Để trống
             ],
 
             // === SP 2: Giày Nike (simple) — 1 dòng duy nhất ===
@@ -104,7 +115,7 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
                 'Đệm khí, đế cao su chống trượt', // F
                 'active',                         // G
                 0,                                // H
-                'https://picsum.photos/id/21/800/800',  // I
+                '',                               // I
                 '',                               // J
                 '',                               // K: Để trống (simple)
                 '',                               // L: Để trống
@@ -112,6 +123,10 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
                 1500000,                          // N
                 25,                               // O
                 '',                               // P: Để trống
+                'GTT-RUNNER-01',                  // Q: Mã SKU
+                'Vải mesh + Cao su',              // R: Chất liệu
+                'Trung Quốc',                     // S: Xuất xứ
+                'Giày chạy bộ',                   // T: Kiểu dáng
             ],
         ];
     }
@@ -125,7 +140,7 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
 
         // Tô nền phân biệt từng sản phẩm
         // SP1 (Áo khoác): rows 2-4 → nền xanh nhạt
-        $sheet->getStyle('A2:P4')->applyFromArray([
+        $sheet->getStyle('A2:T4')->applyFromArray([
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'E3F2FD'],
@@ -133,7 +148,7 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
         ]);
 
         // SP2 (Giày): row 5 → nền cam nhạt
-        $sheet->getStyle('A5:P5')->applyFromArray([
+        $sheet->getStyle('A5:T5')->applyFromArray([
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
                 'startColor' => ['rgb' => 'FFF3E0'],
@@ -188,6 +203,10 @@ class ProductsTemplateExport implements FromArray, WithColumnWidths, WithHeading
             'N' => 14,  // Giá gốc
             'O' => 16,  // Kho
             'P' => 40,  // Ảnh biến thể URLs
+            'Q' => 18,  // Mã SKU
+            'R' => 20,  // Chất liệu
+            'S' => 18,  // Xuất xứ
+            'T' => 18,  // Kiểu dáng
         ];
     }
 }

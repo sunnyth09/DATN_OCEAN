@@ -87,7 +87,15 @@ const isOutOfStock = computed(() => totalStock.value !== null && totalStock.valu
 const LOW_STOCK_THRESHOLD = 5;
 const isLowStock = computed(() => totalStock.value !== null && totalStock.value > 0 && totalStock.value <= LOW_STOCK_THRESHOLD);
 
+const isFlashSale = computed(() => {
+    return props.product.flash_sold !== undefined || !!props.product.flash_sale || !!props.product.is_flash_sale;
+});
+
 const badgeLabel = computed(() => {
+    if (isFlashSale.value) {
+        return numericDiscount.value > 0 ? `⚡ -${numericDiscount.value}%` : "⚡ Flash Sale";
+    }
+
     if (numericDiscount.value > 0) {
         return `-${numericDiscount.value}%`;
     }
@@ -97,13 +105,14 @@ const badgeLabel = computed(() => {
     }
 
     if (props.product.badge === "Hot") {
-        return "Mới";
+        return "Hot";
     }
 
     return props.product.badge || "";
 });
 
 const badgeClass = computed(() => {
+    if (isFlashSale.value) return "badge-flash";
     if (numericDiscount.value > 0) return "badge-sale";
     return "badge-new";
 });
@@ -519,6 +528,13 @@ const handleAddToCart = async (event) => {
 .badge-sale {
     background: var(--primary);
     color: #fff;
+}
+
+/* Badge Flash Sale: glowing flame pink */
+.badge-flash {
+    background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(225, 29, 72, 0.4);
 }
 
 .icon-btn {

@@ -52,10 +52,10 @@ class XssSanitizer
     private function shouldSkipPurification(Request $request, string $key): bool
     {
         if ($key === 'content') {
-            if ($request->is('api/posts/*/comments') 
-                || $request->is('api/orders/feedback*') 
-                || $request->is('api/chat/*') 
-                || $request->is('api/live-chat/*') 
+            if ($request->is('api/posts/*/comments')
+                || $request->is('api/orders/feedback*')
+                || $request->is('api/chat/*')
+                || $request->is('api/live-chat/*')
                 || $request->is('api/chatbot/*')) {
                 return true;
             }

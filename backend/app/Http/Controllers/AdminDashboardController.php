@@ -13,6 +13,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AdminDashboardController extends Controller
 {
@@ -28,11 +29,11 @@ class AdminDashboardController extends Controller
             $q->where('payment_status', 'paid')
                 ->orWhere('fulfillment_status', 'completed');
         })
-        ->whereNotIn('fulfillment_status', ['cancelled', 'refunded', 'returned', 'return_approved'])
-        ->where(function ($q) {
-            $q->whereNull('is_abandoned_checkout')->orWhere('is_abandoned_checkout', 0);
-        })
-        ->sum('grand_total');
+            ->whereNotIn('fulfillment_status', ['cancelled', 'refunded', 'returned', 'return_approved'])
+            ->where(function ($q) {
+                $q->whereNull('is_abandoned_checkout')->orWhere('is_abandoned_checkout', 0);
+            })
+            ->sum('grand_total');
 
         $last7Days = collect();
         for ($i = 6; $i >= 0; $i--) {
@@ -244,7 +245,7 @@ class AdminDashboardController extends Controller
             // Đánh giá chờ duyệt
             $pendingReviews = 0;
             if (class_exists('\App\Models\ProductComment')) {
-                $pendingReviews = \App\Models\ProductComment::where('is_approved', false)->count();
+                $pendingReviews = ProductComment::where('is_approved', false)->count();
             }
 
             return response()->json([
@@ -260,7 +261,7 @@ class AdminDashboardController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('getSidebarBadges error: '.$e->getMessage());
+            Log::error('getSidebarBadges error: '.$e->getMessage());
 
             return response()->json([
                 'status' => 'error',

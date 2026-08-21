@@ -17,11 +17,11 @@ class FlashSaleController extends Controller
     // PUBLIC — Danh sách Flash Sale Items đang active
     // GET /api/flash-sale
     // ─────────────────────────────────────────────────────────────────────────
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         return response()->json([
             'status' => 'success',
-            'data' => $this->flashSaleService->getPublicList(),
+            'data' => $this->flashSaleService->getPublicList($request->query('filter')),
         ]);
     }
 
@@ -64,10 +64,11 @@ class FlashSaleController extends Controller
             (int) $request->product_id,
             (int) ($request->quantity ?? 1),
             [
+                'variant_id' => $request->variant_id ? (int) $request->variant_id : null,
                 'recipient_name' => $request->recipient_name,
                 'recipient_phone' => $request->recipient_phone,
                 'shipping_address' => $request->shipping_address,
-                'payment_method' => $request->payment_method,
+                'payment_method' => $request->payment_method ?? 'cod',
             ]
         );
 

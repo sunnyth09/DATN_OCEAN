@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Services\GhnOrderStatusSyncService;
 use App\Services\GHNService;
+use App\Services\OceanExpressOrderStatusSyncService;
 use App\Services\OceanExpressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -18,26 +19,78 @@ class GhnController extends Controller
 
     public function calculateFee(Request $request)
     {
-        $data = $request->validate([
-            'to_district_id' => 'required|integer',
-            'to_ward_code' => 'required|string',
-            'weight' => 'required|integer|min:1',
-            'insurance_value' => 'nullable|integer|min:0',
-            'coupon_code' => 'nullable|string',
-        ]);
+        $wardCode = $request->input('ward_code') ?? $request->input('to_ward_code');
+        $districtId = $request->input('district_id') ?? $request->input('to_district_id');
+        $weight = max((int) $request->input('weight', 500), 10);
+
+        if (! $wardCode && ! $districtId) {
+            $fallback = (int) config('ocean_express.fallback_fee', 30000);
+
+            return response()->json([
+                'code' => 200,
+                'status' => 'success',
+                'data' => [
+                    'total' => $fallback,
+                    'fee' => $fallback,
+                    'service_fee' => $fallback,
+                ],
+            ]);
+        }
 
         try {
-            $feeData = GHNService::calculateFee(
-                toDistrictId: (int) $data['to_district_id'],
-                toWardCode: $data['to_ward_code'],
-                weight: (int) $data['weight'],
-                insuranceValue: (int) ($data['insurance_value'] ?? 0),
-                couponCode: $data['coupon_code'] ?? null
-            );
+            // 1. Nếu là mã địa điểm Ocean Express (bắt đầu bằng VN- hoặc không có district_id)
+            if ($wardCode && (str_starts_with((string) $wardCode, 'VN-') || ! $districtId)) {
+                $oeRate = OceanExpressService::calculateRateDetailed((string) $wardCode, $weight);
+                $fee = (int) ($oeRate['fee'] ?? config('ocean_express.fallback_fee', 30000));
 
-            return response()->json($feeData);
+                return response()->json([
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'Tính phí vận chuyển Ocean Express thành công',
+                    'data' => [
+                        'total' => $fee,
+                        'fee' => $fee,
+                        'service_fee' => $fee,
+                        'insurance_fee' => 0,
+                    ],
+                ]);
+            }
+
+            // 2. Nếu là mã GHN (có to_district_id và to_ward_code)
+            $feeData = GHNService::calculateFee([
+                'to_district_id' => (int) $districtId,
+                'to_ward_code' => (string) $wardCode,
+                'weight' => $weight,
+                'insurance_value' => (int) $request->input('insurance_value', 0),
+                'coupon_code' => $request->input('coupon_code'),
+            ]);
+
+            $total = $feeData['data']['total'] ?? $feeData['data']['service_fee'] ?? (int) config('ocean_express.fallback_fee', 30000);
+
+            return response()->json([
+                'code' => 200,
+                'status' => 'success',
+                'data' => [
+                    'total' => $total,
+                    'fee' => $total,
+                    'service_fee' => $feeData['data']['service_fee'] ?? $total,
+                    'insurance_fee' => $feeData['data']['insurance_fee'] ?? 0,
+                    'raw' => $feeData,
+                ],
+            ]);
         } catch (\Throwable $e) {
-            return response()->json(['code' => 400, 'message' => $e->getMessage()], 400);
+            Log::warning('GhnController calculateFee fallback: '.$e->getMessage());
+            $fallback = (int) config('ocean_express.fallback_fee', 30000);
+
+            return response()->json([
+                'code' => 200,
+                'status' => 'success',
+                'data' => [
+                    'total' => $fallback,
+                    'fee' => $fallback,
+                    'service_fee' => $fallback,
+                ],
+            ]);
         }
     }
 
@@ -95,7 +148,7 @@ class GhnController extends Controller
 
                 $rawLogs = $trackingData['tracking_logs'] ?? $trackingData['logs'] ?? [];
                 $oeStatus = $trackingData['status'] ?? null;
-                $syncService = app(\App\Services\OceanExpressOrderStatusSyncService::class);
+                $syncService = app(OceanExpressOrderStatusSyncService::class);
                 $mappedStatus = $syncService->mapStatus($oeStatus ?? '');
 
                 $latestLog = collect($rawLogs)->sortByDesc('created_at')->first() ?? collect($rawLogs)->sortByDesc('timestamp')->first();
@@ -151,8 +204,8 @@ class GhnController extends Controller
                         'location' => $trackingData['receiver_address_detail'] ?? $trackingData['receiver_address'] ?? null,
                         'description' => $statusDesc,
                         'logs' => $rawLogs,
-                        'tracking_url' => $trackingBaseUrl . '/' . urlencode($finalTrackingNumber),
-                        'print_url' => $apiBaseUrl . '/public/tracking/' . urlencode($finalTrackingNumber) . '/label',
+                        'tracking_url' => $trackingBaseUrl.'/'.urlencode($finalTrackingNumber),
+                        'print_url' => $apiBaseUrl.'/public/tracking/'.urlencode($finalTrackingNumber).'/label',
                         'raw' => $trackingData,
                     ],
                 ]);
@@ -197,17 +250,18 @@ class GhnController extends Controller
                     'location' => $detail['warehouse_name'] ?? null,
                     'description' => $detail['note'] ?? $ghnStatus,
                     'logs' => $detail['log'] ?? $detail['logs'] ?? [],
-                    'tracking_url' => 'https://donhang.ghn.vn/?order_code=' . urlencode($ghnCode),
+                    'tracking_url' => 'https://donhang.ghn.vn/?order_code='.urlencode($ghnCode),
                     'print_url' => null,
                     'raw' => $detail,
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('GhnController orderDetail error: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            Log::error('GhnController orderDetail error: '.$e->getMessage()."\n".$e->getTraceAsString());
+
             return response()->json([
                 'code' => 400,
                 'status' => 'error',
-                'message' => 'Lỗi tra cứu đơn hàng: ' . $e->getMessage(),
+                'message' => 'Lỗi tra cứu đơn hàng: '.$e->getMessage(),
             ], 400);
         }
     }
@@ -249,7 +303,7 @@ class GhnController extends Controller
                         'new_status' => 'cancelled',
                         'note' => $reason,
                         'source' => 'manual',
-                        'description' => 'Hủy vận đơn Ocean Express: ' . $reason,
+                        'description' => 'Hủy vận đơn Ocean Express: '.$reason,
                         'happened_at' => now(),
                     ]);
                 }
@@ -273,18 +327,19 @@ class GhnController extends Controller
                     'new_status' => 'cancelled',
                     'note' => $reason,
                     'source' => 'manual',
-                    'description' => 'Hủy vận đơn GHN: ' . $reason,
+                    'description' => 'Hủy vận đơn GHN: '.$reason,
                     'happened_at' => now(),
                 ]);
             }
 
             return response()->json($result);
         } catch (\Throwable $e) {
-            Log::error('GhnController cancelOrder error: ' . $e->getMessage());
+            Log::error('GhnController cancelOrder error: '.$e->getMessage());
+
             return response()->json([
                 'code' => 400,
                 'status' => 'error',
-                'message' => 'Lỗi hủy vận đơn: ' . $e->getMessage(),
+                'message' => 'Lỗi hủy vận đơn: '.$e->getMessage(),
             ], 400);
         }
     }
@@ -311,18 +366,21 @@ class GhnController extends Controller
             if ($isOceanExpress) {
                 $trackingNumber = ($order && $order->tracking_number) ? $order->tracking_number : $orderCode;
                 $result = OceanExpressService::printLabel($trackingNumber);
+
                 return response()->json($result);
             }
 
             // 2. Đơn GHN
             $ghnCode = ($order && $order->ghn_order_code) ? $order->ghn_order_code : $orderCode;
+
             return response()->json(GHNService::printLabel($ghnCode));
         } catch (\Throwable $e) {
-            Log::error('GhnController printLabel error: ' . $e->getMessage());
+            Log::error('GhnController printLabel error: '.$e->getMessage());
+
             return response()->json([
                 'code' => 400,
                 'status' => 'error',
-                'message' => 'Lỗi in vận đơn: ' . $e->getMessage(),
+                'message' => 'Lỗi in vận đơn: '.$e->getMessage(),
             ], 400);
         }
     }

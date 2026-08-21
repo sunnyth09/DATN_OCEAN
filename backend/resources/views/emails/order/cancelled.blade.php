@@ -1,10 +1,10 @@
 @component('mail::message')
-# ❌ Đơn hàng đã bị hủy
+# ❌ Thông Báo Hủy Đơn Hàng
 
 Xin chào **{{ $userName }}**,
 
 @if($cancelledBy === 'admin')
-Chúng tôi rất tiếc phải thông báo rằng đơn hàng của bạn đã bị **hủy bởi cửa hàng**.
+Chúng tôi rất tiếc phải thông báo rằng đơn hàng của bạn đã bị **hủy bởi hệ thống/cửa hàng**.
 @else
 Đơn hàng của bạn đã được **hủy thành công** theo yêu cầu.
 @endif
@@ -22,13 +22,14 @@ Chúng tôi rất tiếc phải thông báo rằng đơn hàng của bạn đã 
 
 ---
 
-@component('mail::button', ['url' => config('app.frontend_url', 'http://localhost:5173') . '/products', 'color' => 'primary'])
-🛍️ Tiếp tục mua sắm
+@component('mail::button', ['url' => rtrim(config('app.frontend_url', 'http://localhost:3302'), '/') . '/product', 'color' => 'primary'])
+🛍️ Khám phá sản phẩm khác
 @endcomponent
 
-Chúng tôi xin lỗi vì sự bất tiện này và mong sớm được phục vụ bạn trong lần tới.
+Chúng tôi xin lỗi vì sự bất tiện này và mong sớm có cơ hội được phục vụ bạn!
 
-**{{ config('app.name') }}**
+**OCEAN SPORT — CỬA HÀNG THỂ THAO CAO CẤP**<br>
+Hotline: **1900 6868** | Email: **contact@oceansport.vn**
 
-<small>Email này được gửi tự động, vui lòng không reply.</small>
+<small>Email này được gửi tự động từ hệ thống Ocean Sport.</small>
 @endcomponent

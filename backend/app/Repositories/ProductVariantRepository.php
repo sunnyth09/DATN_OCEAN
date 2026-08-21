@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\ProductVariant;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class ProductVariantRepository
@@ -62,6 +63,6 @@ class ProductVariantRepository
         foreach ($productQuantities as $productId => $qty) {
             DB::table('products')->where('product_id', $productId)->decrement('sold_count', $qty);
         }
-        \Illuminate\Support\Facades\Cache::tags(['products:best-selling'])->flush();
+        Cache::tags(['products:best-selling'])->flush();
     }
 }

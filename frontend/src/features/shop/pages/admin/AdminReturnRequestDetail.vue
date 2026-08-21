@@ -113,6 +113,16 @@ const imageUrl = (path) => {
 };
 const isStatus = (...statuses) => statuses.includes(detail.value?.status);
 
+const getReasonTone = (reason) => {
+  if (!reason) return 'neutral';
+  const r = reason.toLowerCase();
+  if (r.includes('lỗi') || r.includes('hư') || r.includes('hỏng') || r.includes('rách') || r.includes('vỡ') || r.includes('kém chất lượng')) return 'danger';
+  if (r.includes('mô tả') || r.includes('sai') || r.includes('thiếu') || r.includes('nhầm') || r.includes('giao sai')) return 'warning';
+  if (r.includes('size') || r.includes('vừa') || r.includes('kích') || r.includes('màu')) return 'info';
+  if (r.includes('đổi ý') || r.includes('nhu cầu') || r.includes('không thích') || r.includes('mua nhầm')) return 'purple';
+  return 'neutral';
+};
+
 const refreshDetail = async () => {
   await store.fetchAdminReturnRequestDetail(route.params.id);
 
@@ -265,7 +275,38 @@ onMounted(() => {
         <div class="info-list">
           <div class="info-row"><span>Khách hàng</span><strong>{{ detail.user?.full_name || detail.order?.recipient_name }}</strong></div>
           <div class="info-row"><span>Email / SĐT</span><strong>{{ detail.user?.email || detail.order?.recipient_phone || '—' }}</strong></div>
-          <div class="info-row"><span>Lý do</span><strong>{{ detail.reason }}</strong></div>
+          <div class="info-row">
+            <span>Lý do</span>
+            <div class="reason-pill" :class="`reason-pill--${getReasonTone(detail.reason)}`">
+              <span class="reason-icon">
+                <svg v-if="getReasonTone(detail.reason) === 'danger'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <svg v-else-if="getReasonTone(detail.reason) === 'warning'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <svg v-else-if="getReasonTone(detail.reason) === 'info'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                  <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                </svg>
+                <svg v-else-if="getReasonTone(detail.reason) === 'purple'" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+              </span>
+              <strong class="reason-text">{{ detail.reason }}</strong>
+            </div>
+          </div>
           <div class="info-row"><span>Đơn hàng</span><strong>{{ getOrderStatusLabel(detail.order?.fulfillment_status) }}</strong></div>
           <div class="info-row"><span>Thanh toán</span><strong>{{ getPaymentStatusLabel(detail.order?.payment_status) }}</strong></div>
           <div class="info-row"><span>Hoàn tiền</span><strong>{{ getReturnRefundStatusLabel(detail.refund_status) }}</strong></div>
@@ -635,6 +676,7 @@ onMounted(() => {
 .info-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 12px;
@@ -644,6 +686,81 @@ onMounted(() => {
 
 .info-row span:first-child {
   color: var(--text-muted);
+}
+
+.reason-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.reason-pill--danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.reason-pill--warning {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.reason-pill--info {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.reason-pill--purple {
+  background: #faf5ff;
+  color: #7e22ce;
+  border-color: #e9d5ff;
+}
+
+.reason-pill--neutral {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #e2e8f0;
+}
+
+:global(html.dark) .reason-pill--danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+:global(html.dark) .reason-pill--warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+:global(html.dark) .reason-pill--info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+:global(html.dark) .reason-pill--purple {
+  background: rgba(168, 85, 247, 0.15);
+  color: #d8b4fe;
+  border-color: rgba(168, 85, 247, 0.3);
+}
+:global(html.dark) .reason-pill--neutral {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.reason-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .detail-block {

@@ -61,11 +61,11 @@ class ProductVariant extends Model
             try {
                 self::$activeFlashSaleCache = FlashSaleItem::whereHas('flashSale', function ($q) {
                     $q->where('status', 'active')
-                      ->where('start_time', '<=', now())
-                      ->where('end_time', '>=', now());
+                        ->where('start_time', '<=', now())
+                        ->where('end_time', '>=', now());
                 })
-                ->pluck('campaign_price', 'product_id')
-                ->toArray();
+                    ->pluck('campaign_price', 'product_id')
+                    ->toArray();
             } catch (\Throwable $e) {
                 self::$activeFlashSaleCache = [];
             }

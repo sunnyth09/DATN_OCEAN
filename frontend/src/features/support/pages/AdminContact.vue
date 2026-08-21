@@ -1,154 +1,238 @@
 <template>
-  <div class="admin-contact animate-in">
+  <div class="admin-contact">
+    <!-- Header -->
     <div class="page-header">
-      <div class="header-left">
-        <h2 class="section-title">
-          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
-          Quản lý Liên hệ
-        </h2>
-        <p class="section-desc">Xem và phản hồi yêu cầu hỗ trợ từ khách hàng.</p>
+      <div>
+        <h1 class="page-title">Quản lý Liên hệ</h1>
+        <p class="page-subtitle">Xem và phản hồi các yêu cầu hỗ trợ, câu hỏi từ khách hàng</p>
+      </div>
+      <div class="header-badge">
+        <span>{{ pagination.total }} liên hệ</span>
       </div>
     </div>
 
-    <!-- Search & Filter -->
-    <div class="search-bar ocean-card">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </svg>
-      <input v-model="searchQuery" @input="debouncedFetch" type="text" placeholder="Tìm kiếm theo tên, email hoặc tiêu đề..." class="search-input" />
-      <div class="filter-tabs">
-        <button :class="['filter-tab', { active: statusFilter === '' }]" @click="filterByStatus('')">Tất cả</button>
-        <button :class="['filter-tab', { active: statusFilter === 'pending' }]" @click="filterByStatus('pending')">Chờ xử lý</button>
-        <button :class="['filter-tab', { active: statusFilter === 'replied' }]" @click="filterByStatus('replied')">Đã phản hồi</button>
+    <!-- Filters Bar -->
+    <div class="filters-bar">
+      <!-- Search -->
+      <div class="search-wrap">
+        <AppIcon name="search" size="16" class="search-icon" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Tìm kiếm theo tên, email hoặc tiêu đề..."
+          class="search-input"
+          @input="debouncedFetch"
+        />
       </div>
-      <span class="contact-count">{{ contacts.length }} liên hệ</span>
+
+      <!-- Filter status tabs -->
+      <div class="filter-tabs">
+        <button
+          v-for="tab in [{ v: '', l: 'Tất cả' }, { v: 'pending', l: 'Chờ xử lý' }, { v: 'replied', l: 'Đã phản hồi' }]"
+          :key="tab.v"
+          class="tab-btn"
+          :class="{ 'tab-btn--active': statusFilter === tab.v }"
+          @click="filterByStatus(tab.v)"
+        >
+          {{ tab.l }}
+        </button>
+      </div>
     </div>
 
     <!-- Table -->
-    <AdminTableSkeleton v-if="isLoading" :columns="5" :rows="5" />
-    <div v-else class="ocean-card table-wrapper">
-      <table class="contact-table">
+    <AdminTableSkeleton v-if="isLoading" :columns="6" :rows="5" />
+
+    <div v-else class="table-wrap">
+      <table class="review-table">
         <thead>
           <tr>
             <th>Người gửi</th>
-            <th>Tiêu đề</th>
+            <th>Chủ đề</th>
             <th>Nội dung</th>
             <th>Ngày gửi</th>
-            <th class="actions-th">Thao tác</th>
+            <th>Trạng thái</th>
+            <th class="text-center">Thao tác</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="contacts.length === 0">
-            <td colspan="5" class="empty-cell">Chưa có liên hệ nào.</td>
-          </tr>
-          <tr v-for="c in contacts" :key="c.id" class="contact-row">
-            <td>
-              <div class="sender-info">
-                <span class="sender-name">{{ c.name }}</span>
-                <span class="sender-email">{{ c.email }}</span>
-                <span :class="['status-badge', c.status]">{{ c.status === 'pending' ? 'Chờ xử lý' : 'Đã phản hồi' }}</span>
+            <td colspan="6" class="empty-cell">
+              <div class="empty-state">
+                <p>Không có yêu cầu liên hệ nào phù hợp</p>
               </div>
             </td>
-            <td><span class="subject-text">{{ c.subject }}</span></td>
-            <td><span class="message-preview">{{ c.message }}</span></td>
-            <td class="date-cell">{{ formatDate(c.created_at) }}</td>
-            <td class="actions-cell">
-              <button v-if="c.status === 'pending'" class="btn-action reply" title="Phản hồi" @click="openReplyModal(c)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              </button>
-              <button class="btn-action delete" title="Xóa" @click="openDeleteConfirm(c)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-              </button>
+          </tr>
+
+          <tr
+            v-for="c in contacts"
+            :key="c.id"
+            class="review-row"
+            :class="{ 'row--pending': c.status === 'pending' }"
+          >
+            <!-- Người gửi -->
+            <td>
+              <div class="user-cell">
+                <img
+                  :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(c.name || 'Khách')}&background=e63b6f&color=fff&size=40`"
+                  class="user-avatar"
+                  alt="avatar"
+                />
+                <div>
+                  <div class="user-name">{{ c.name }}</div>
+                  <div class="user-email">{{ c.email }}</div>
+                </div>
+              </div>
+            </td>
+
+            <!-- Tiêu đề / Chủ đề -->
+            <td>
+              <span class="subject-badge">{{ c.subject }}</span>
+            </td>
+
+            <!-- Nội dung -->
+            <td>
+              <div class="review-content" :title="c.message">
+                {{ c.message }}
+              </div>
+            </td>
+
+            <!-- Ngày gửi -->
+            <td class="date-cell">
+              {{ formatDate(c.created_at) }}
+            </td>
+
+            <!-- Trạng thái -->
+            <td>
+              <span class="status-badge" :class="c.status === 'pending' ? 'badge--pending' : 'badge--approved'">
+                {{ c.status === 'pending' ? 'Chờ xử lý' : 'Đã phản hồi' }}
+              </span>
+            </td>
+
+            <!-- Thao tác -->
+            <td>
+              <div class="action-btns" style="align-items: center; justify-content: center;">
+                <button
+                  class="btn-action"
+                  :class="c.status === 'pending' ? 'btn-primary-action' : 'btn-view'"
+                  :title="c.status === 'pending' ? 'Phản hồi khách hàng' : 'Xem chi tiết'"
+                  @click="openReplyModal(c)"
+                >
+                  {{ c.status === 'pending' ? 'Phản hồi' : 'Xem' }}
+                </button>
+                <button
+                  class="btn-action btn-danger"
+                  title="Xóa liên hệ"
+                  @click="openDeleteConfirm(c)"
+                >
+                  Xóa
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <!-- Reply Modal -->
-    <Teleport to="body">
-    <Transition name="contact-modal">
-      <div v-if="showReplyModal" class="contact-modal-overlay" @click.self="showReplyModal = false">
-        <div class="contact-modal-box">
-          <div class="contact-modal-head">
-            <h3>Phản hồi khách hàng</h3>
-            <button class="contact-btn-close" @click="showReplyModal = false">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+    <!-- Pagination -->
+    <div class="pagination" v-if="pagination.last_page > 1">
+      <button
+        class="page-btn"
+        :disabled="pagination.current_page <= 1"
+        @click="changePage(pagination.current_page - 1)"
+      >
+        ← Trước
+      </button>
+      <span class="page-info">Trang {{ pagination.current_page }} / {{ pagination.last_page }}</span>
+      <button
+        class="page-btn"
+        :disabled="pagination.current_page >= pagination.last_page"
+        @click="changePage(pagination.current_page + 1)"
+      >
+        Tiếp →
+      </button>
+    </div>
+
+    <!-- Reply / Detail Modal -->
+    <Transition name="modal">
+      <div v-if="showReplyModal && replyingContact" class="modal-overlay" @click.self="showReplyModal = false">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>Chi tiết & Phản hồi Liên hệ #{{ replyingContact.id }}</h3>
+            <button class="btn-close-modal" @click="showReplyModal = false">&times;</button>
           </div>
-          <div class="contact-modal-body">
-            <div class="reply-info">
-              <p class="reply-label">Người nhận:</p>
-              <p class="reply-value">{{ replyingContact?.name }} ({{ replyingContact?.email }})</p>
+
+          <div class="modal-body">
+            <div class="info-grid">
+              <div class="info-group">
+                <label>Người gửi:</label>
+                <p>{{ replyingContact.name }}</p>
+              </div>
+              <div class="info-group">
+                <label>Email:</label>
+                <p>{{ replyingContact.email }}</p>
+              </div>
+              <div class="info-group">
+                <label>Chủ đề:</label>
+                <p>{{ replyingContact.subject }}</p>
+              </div>
+              <div class="info-group">
+                <label>Ngày gửi:</label>
+                <p>{{ formatDate(replyingContact.created_at) }}</p>
+              </div>
+              <div class="info-group" style="grid-column: span 2;">
+                <label>Trạng thái hiện tại:</label>
+                <p>
+                  <span class="status-badge" :class="replyingContact.status === 'pending' ? 'badge--pending' : 'badge--approved'">
+                    {{ replyingContact.status === 'pending' ? 'Chờ xử lý' : 'Đã phản hồi' }}
+                  </span>
+                </p>
+              </div>
             </div>
-            <div class="reply-info">
-              <p class="reply-label">Tiêu đề gốc:</p>
-              <p class="reply-value">{{ replyingContact?.subject }}</p>
+
+            <!-- Nội dung liên hệ -->
+            <div class="ticket-content">
+              <h4>Nội dung tin nhắn:</h4>
+              <div class="description-box">
+                {{ replyingContact.message }}
+              </div>
             </div>
-            <div class="reply-info">
-              <p class="reply-label">Nội dung gốc:</p>
-              <p class="reply-value reply-message">{{ replyingContact?.message }}</p>
+
+            <!-- Form phản hồi qua Email -->
+            <div class="reply-section">
+              <h4>Phản hồi khách hàng (Gửi qua Email)</h4>
+              <textarea
+                v-model="replyContent"
+                placeholder="Nhập nội dung phản hồi chi tiết cho khách hàng..."
+                class="reply-input"
+                rows="4"
+              ></textarea>
+              <div v-if="replyError" class="reply-error-msg">{{ replyError }}</div>
             </div>
-            <div class="contact-form-group">
-              <label>Nội dung phản hồi:</label>
-              <textarea v-model="replyContent" rows="5" class="contact-form-control" placeholder="Nhập nội dung phản hồi..."></textarea>
-            </div>
-            <div v-if="replyError" class="contact-form-error">{{ replyError }}</div>
-            <div class="contact-modal-footer">
-              <button type="button" @click="showReplyModal = false" class="contact-btn-outline">Hủy</button>
-              <button type="button" @click="submitReply" class="contact-btn-primary" :disabled="isReplying">
-                <span v-if="isReplying" class="contact-spinner-sm"></span>
-                {{ isReplying ? 'Đang gửi...' : 'Gửi phản hồi' }}
-              </button>
-            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="showReplyModal = false">Đóng</button>
+            <button
+              class="btn btn-primary"
+              :disabled="isReplying"
+              @click="submitReply"
+            >
+              <span v-if="isReplying" class="spinner-small"></span>
+              <span v-else>{{ replyingContact.status === 'pending' ? 'Gửi phản hồi Email' : 'Gửi lại Email' }}</span>
+            </button>
           </div>
         </div>
       </div>
     </Transition>
-    </Teleport>
-
-    <!-- Delete Modal -->
-    <Teleport to="body">
-    <Transition name="contact-modal">
-      <div v-if="showDeleteModal" class="contact-modal-overlay" @click.self="showDeleteModal = false">
-        <div class="contact-modal-box" style="max-width:440px">
-          <div class="contact-modal-head contact-modal-head-danger">
-            <h3>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              Xóa liên hệ?
-            </h3>
-            <button class="contact-btn-close" @click="showDeleteModal = false">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="contact-modal-body">
-            <p>Bạn có chắc chắn muốn xóa liên hệ từ <strong>{{ deletingContact?.name }}</strong>?</p>
-            <p class="contact-text-hint">Hành động này không thể hoàn tác.</p>
-            <div class="contact-modal-footer">
-              <button type="button" @click="showDeleteModal = false" class="contact-btn-outline">Giữ lại</button>
-              <button type="button" @click="confirmDelete" class="contact-btn-danger">Đồng ý xóa</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-    </Teleport>
-
-    <!-- Toast -->
-    <Teleport to="body">
-    <Transition name="contact-toast">
-      <div v-if="toastVisible" class="contact-toast" :class="'contact-toast-' + toast.type">
-        {{ toast.message }}
-      </div>
-    </Transition>
-    </Teleport>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
+import AppIcon from '@/components/AppIcon.vue';
 import api from '@/axios';
+import Swal from 'sweetalert2';
 import { useUiStore } from '@/stores/ui';
 
 const uiStore = useUiStore();
@@ -159,42 +243,61 @@ const searchQuery = ref('');
 const statusFilter = ref('');
 const isReplying = ref(false);
 const showReplyModal = ref(false);
-const showDeleteModal = ref(false);
 const replyingContact = ref(null);
-const deletingContact = ref(null);
 const replyContent = ref('');
 const replyError = ref('');
-const toastVisible = ref(false);
-const toast = ref({ message: '', type: 'success' });
+const pagination = ref({ current_page: 1, last_page: 1, total: 0 });
 
 let searchTimer = null;
-let toastTimer = null;
 
 const showToast = (message, type = 'success') => {
-  toast.value = { message, type };
-  toastVisible.value = true;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toastVisible.value = false; }, 3000);
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : type,
+    showConfirmButton: false,
+    timer: 3000,
+  });
 };
 
 const debouncedFetch = () => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => fetchContacts(), 500);
+  searchTimer = setTimeout(() => fetchContacts(1), 400);
 };
 
 const filterByStatus = (status) => {
   statusFilter.value = status;
-  fetchContacts();
+  fetchContacts(1);
 };
 
-const fetchContacts = async () => {
+const changePage = (page) => {
+  if (page >= 1 && page <= pagination.value.last_page) {
+    fetchContacts(page);
+  }
+};
+
+const fetchContacts = async (page = 1) => {
   isLoading.value = true;
   try {
     const res = await api.get('/admin/contacts', {
-      params: { search: searchQuery.value, status: statusFilter.value }
+      params: {
+        page,
+        search: searchQuery.value || undefined,
+        status: statusFilter.value || undefined,
+      },
     });
-    contacts.value = res.data.data;
+    if (res.data.status === 'success') {
+      contacts.value = res.data.data || [];
+      pagination.value = {
+        current_page: res.data.current_page || 1,
+        last_page: res.data.last_page || 1,
+        total: res.data.total || contacts.value.length,
+      };
+    }
   } catch (error) {
+    console.error('Lỗi tải danh sách liên hệ:', error);
     showToast('Lỗi tải danh sách liên hệ!', 'error');
   } finally {
     isLoading.value = false;
@@ -216,12 +319,14 @@ const submitReply = async () => {
   replyError.value = '';
   isReplying.value = true;
   try {
-    await api.post(`/admin/contacts/${replyingContact.value.id}/reply`, { reply: replyContent.value });
+    await api.post(`/admin/contacts/${replyingContact.value.id}/reply`, {
+      reply: replyContent.value,
+    });
     showReplyModal.value = false;
-    showToast('Đã gửi phản hồi thành công!', 'success');
+    showToast('Đã gửi phản hồi email thành công!', 'success');
     window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     window.dispatchEvent(new Event('admin-notification-received'));
-    fetchContacts();
+    fetchContacts(pagination.value.current_page);
     refreshPendingCount();
   } catch (error) {
     replyError.value = error.response?.data?.message || 'Gửi phản hồi thất bại.';
@@ -230,23 +335,28 @@ const submitReply = async () => {
   }
 };
 
-const openDeleteConfirm = (contact) => {
-  deletingContact.value = contact;
-  showDeleteModal.value = true;
-};
+const openDeleteConfirm = async (contact) => {
+  const result = await Swal.fire({
+    title: 'Xác nhận xóa',
+    text: `Bạn có chắc muốn xóa yêu cầu liên hệ từ "${contact.name}"? Hành động này không thể hoàn tác!`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'Đồng ý xóa',
+    cancelButtonText: 'Hủy',
+  });
 
-const confirmDelete = async () => {
-  if (!deletingContact.value) return;
+  if (!result.isConfirmed) return;
+
   try {
-    await api.delete(`/admin/contacts/${deletingContact.value.id}`);
-    showDeleteModal.value = false;
+    await api.delete(`/admin/contacts/${contact.id}`);
     showToast('Đã xóa liên hệ thành công!', 'success');
     window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
     window.dispatchEvent(new Event('admin-notification-received'));
-    fetchContacts();
+    fetchContacts(pagination.value.current_page);
     refreshPendingCount();
   } catch (error) {
-    showDeleteModal.value = false;
     showToast(error.response?.data?.message || 'Xóa thất bại.', 'error');
   }
 };
@@ -254,7 +364,13 @@ const confirmDelete = async () => {
 const formatDate = (dateStr) => {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
-  return d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 };
 
 const refreshPendingCount = async () => {
@@ -268,161 +384,520 @@ const refreshPendingCount = async () => {
   }
 };
 
-onMounted(fetchContacts);
+onMounted(() => {
+  fetchContacts();
+});
 </script>
 
 <style scoped>
-/* ===== Page Header ===== */
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-.section-title { font-size: 1.4rem; font-weight: 700; color: var(--text-main); }
-.section-desc { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; }
-
-/* ===== Search ===== */
-.search-bar {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 16px; margin-bottom: 16px; flex-wrap: wrap;
+.admin-contact {
+  padding: 24px 20px;
+  min-height: calc(100vh - 70px);
+  box-sizing: border-box;
+  max-width: 100%;
 }
-.search-bar svg { color: var(--text-light); flex-shrink: 0; }
-.search-input { flex: 1; min-width: 200px; background: transparent; border: none; outline: none; font-size: 0.9rem; color: var(--text-main); font-family: var(--font-inter); }
-.search-input::placeholder { color: var(--text-light); }
-.filter-tabs { display: flex; gap: 4px; margin-left: auto; }
-.filter-tab {
-  padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border-color);
-  background: var(--ocean-deepest); color: var(--text-muted);
-  font-family: var(--font-inter); font-size: 0.78rem; font-weight: 600;
-  cursor: pointer; transition: all 0.2s;
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
 }
-.filter-tab:hover { border-color: var(--primary); color: var(--primary); }
-.filter-tab.active { background: rgba(230, 59, 111,0.1); border-color: rgba(230, 59, 111,0.3); color: var(--primary); }
-.contact-count { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; background: var(--ocean-deepest); padding: 4px 10px; border-radius: 20px; }
-
-/* ===== Table ===== */
-.table-wrapper { overflow-x: auto; }
-.contact-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.contact-table th {
-  text-align: left; padding: 14px 16px; font-weight: 700; font-size: 0.72rem;
-  text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--text-muted); border-bottom: 1px solid var(--border-color); background: var(--ocean-deepest);
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--text-main);
 }
-.contact-table td { padding: 14px 16px; border-bottom: 1px solid var(--border-color); vertical-align: top; }
-.contact-row { transition: background 0.15s; }
-.contact-row:hover { background: var(--hover-bg); }
-.empty-cell { text-align: center; padding: 40px !important; color: var(--text-light); }
+.page-subtitle {
+  color: #6c757d;
+  font-size: 0.92rem;
+  margin: 0;
+}
+.header-badge {
+  background: var(--primary);
+  color: #fff;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
 
-.sender-info { display: flex; flex-direction: column; gap: 2px; min-width: 180px; }
-.sender-name { font-weight: 700; color: var(--text-main); font-size: 0.9rem; }
-.sender-email { font-size: 0.8rem; color: var(--text-muted); }
-.status-badge { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; margin-top: 4px; width: fit-content; }
-.status-badge.pending { background: #fff3e0; color: #e65100; }
-.status-badge.replied { background: #e8f5e9; color: #2e7d32; }
+/* Filters Bar */
+.filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
 
-.subject-text { font-weight: 700; color: var(--text-main); }
-.message-preview { color: var(--text-muted); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 280px; }
-.date-cell { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
-.actions-th { text-align: center !important; }
-.actions-cell { text-align: center; white-space: nowrap; }
+.search-wrap {
+  position: relative;
+  flex: 1 1 220px;
+}
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: #aaa;
+}
+.search-input {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border 0.2s;
+  box-sizing: border-box;
+  background: transparent;
+  color: var(--text-main);
+}
+.search-input:focus {
+  border-color: var(--primary);
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 6px;
+}
+.tab-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  background: var(--card-bg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #495057;
+}
+.tab-btn:hover {
+  background: #fdf2f8;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.tab-btn--active {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: var(--primary) !important;
+}
+
+/* Table Wrapper */
+.table-wrap {
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+.table-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.table-wrap::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.review-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.review-table thead tr {
+  background: var(--surface-container);
+}
+.review-table th {
+  padding: 13px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e9ecef;
+  white-space: nowrap;
+}
+.review-row {
+  border-bottom: 1px solid #f0f2f5;
+  transition: background 0.15s;
+  background: #ffffff;
+}
+.review-row:hover {
+  background: #fafbff;
+}
+.review-row.row--pending {
+  background: #fff0f6;
+}
+.review-table td {
+  padding: 14px 16px;
+  vertical-align: middle;
+  color: #374151;
+}
+
+/* User cell */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 160px;
+}
+.user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
+.user-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--text-main);
+}
+.user-email {
+  font-size: 0.78rem;
+  color: var(--text-muted, #64748b);
+}
+
+/* Subject badge */
+.subject-badge {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #1e293b;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Content preview */
+.review-content {
+  margin: 0;
+  max-width: 260px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.date-cell {
+  font-size: 0.8rem;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+}
+
+/* Status badge */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge--approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+.badge--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Action buttons */
+.action-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+  width: 72px;
+}
 .btn-action {
-  width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--border-color);
-  background: var(--ocean-deepest); color: var(--text-muted);
-  display: inline-flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all 0.2s; margin: 0 2px;
+  width: 72px;
+  padding: 5px 0;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-sizing: border-box;
 }
-.btn-action.reply:hover { background: #e3f2fd; color: #1565c0; border-color: #bbdefb; }
-.btn-action.delete:hover { background: #ffebee; color: #c62828; border-color: #ffcdd2; }
-</style>
+.btn-action:active {
+  transform: scale(0.96);
+}
+.btn-primary-action {
+  background: #fdf2f8;
+  color: var(--primary);
+  border: 1px solid #fbcfe8;
+}
+.btn-primary-action:hover {
+  background: #fce7f3;
+}
+.btn-view {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.btn-view:hover {
+  background: #e2e8f0;
+}
+.btn-danger {
+  background: #fef3c7;
+  color: #92400e;
+  border: none;
+}
+.btn-danger:hover {
+  background: #fde68a;
+}
 
-<!-- Non-scoped styles for Teleported elements -->
-<style>
-/* ===== Contact Modal ===== */
-.contact-modal-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center; z-index: 1000;
+/* Empty state */
+.empty-cell {
+  padding: 0 !important;
 }
-.contact-modal-box {
-  width: 100%; max-width: 520px; padding: 0;
-  background: var(--card-bg, #fff); border: 1px solid var(--border-color, #d9e8f0);
-  border-radius: 16px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px;
+  color: var(--text-light, #94a3b8);
+  font-size: 0.95rem;
 }
-.contact-modal-head {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 20px 24px; border-bottom: 1px solid var(--border-color, #d9e8f0);
-}
-.contact-modal-head h3 { font-size: 1.1rem; font-weight: 800; color: var(--text-main, #102a43); }
-.contact-modal-head-danger { background: #ffebee; }
-.contact-modal-head-danger h3 { color: #c62828; }
-.contact-btn-close {
-  background: none; border: none; cursor: pointer;
-  color: var(--text-muted, #627d98); display: flex; align-items: center; justify-content: center;
-  padding: 4px; border-radius: 6px; transition: all 0.2s;
-}
-.contact-btn-close:hover { background: var(--hover-bg, #e6f4fa); color: var(--coral, #ef5350); }
-.contact-modal-body { padding: 24px; }
-.contact-modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 
-.reply-info { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color, #eee); }
-.reply-label { font-size: 0.8rem; font-weight: 700; color: var(--text-main, #102a43); margin: 0 0 4px; }
-.reply-value { font-size: 0.9rem; color: var(--text-muted, #627d98); margin: 0; }
-.reply-message { white-space: pre-wrap; background: var(--ocean-deepest, #f0f7fa); padding: 10px; border-radius: 8px; }
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+.page-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  background: var(--card-bg);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.page-btn:hover:not(:disabled) {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.page-info {
+  font-size: 0.88rem;
+  color: #6c757d;
+}
 
-.contact-form-group { margin-bottom: 8px; }
-.contact-form-group label { display: block; font-size: 0.8rem; font-weight: 700; color: var(--text-main, #102a43); margin-bottom: 8px; }
-.contact-form-control {
-  width: 100%; padding: 10px 14px; border-radius: 8px;
-  border: 1px solid var(--border-color, #d9e8f0); background: var(--ocean-deepest, #f0f7fa);
-  color: var(--text-main, #102a43); font-family: var(--font-inter, 'Inter', sans-serif);
-  font-size: 0.85rem; transition: all 0.2s; box-sizing: border-box; resize: vertical;
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
 }
-.contact-form-control:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(230, 59, 111,0.1); }
-.contact-form-control::placeholder { color: var(--text-light, #9fb3c8); }
-.contact-form-error {
-  padding: 10px 14px; background: #ffebee; border: 1px solid #ffcdd2;
-  border-radius: 8px; color: #c62828; font-size: 0.85rem; font-weight: 500; margin-bottom: 8px;
+.modal-box {
+  background: white;
+  width: 100%;
+  max-width: 620px;
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
 }
-.contact-text-hint { color: var(--text-muted, #627d98); font-size: 0.85rem; margin-top: 8px; }
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #102a43;
+}
+.btn-close-modal {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+}
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.info-group label {
+  display: block;
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+.info-group p {
+  margin: 0;
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.9rem;
+}
 
-/* Buttons */
-.contact-btn-outline {
-  padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border-color, #d9e8f0);
-  background: var(--card-bg); color: var(--text-main, #102a43); font-size: 0.85rem; font-weight: 600;
-  cursor: pointer; transition: all 0.2s; font-family: var(--font-inter, 'Inter', sans-serif);
+.ticket-content {
+  background: #f8fafc;
+  padding: 16px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid #e2e8f0;
 }
-.contact-btn-outline:hover { border-color: var(--ocean-mid, #b3e0f2); background: var(--ocean-deepest, #f0f7fa); }
-.contact-btn-primary {
-  padding: 10px 20px; border-radius: 8px; border: none;
-  background: var(--primary); color: #fff; font-size: 0.85rem; font-weight: 600;
-  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
-  font-family: var(--font-inter, 'Inter', sans-serif);
+.ticket-content h4 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: #0369a1;
+  font-weight: 700;
 }
-.contact-btn-primary:hover { background: #d82f65; }
-.contact-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.contact-btn-danger {
-  padding: 10px 20px; border-radius: 8px; border: none;
-  background: var(--coral, #ef5350); color: #fff; font-size: 0.85rem; font-weight: 600;
-  cursor: pointer; transition: all 0.2s; font-family: var(--font-inter, 'Inter', sans-serif);
+.description-box {
+  color: #334155;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
 }
-.contact-btn-danger:hover { background: #e53935; }
-.contact-spinner-sm {
-  width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff; border-radius: 50%; animation: contactSpin 0.6s linear infinite; display: inline-block;
-}
-@keyframes contactSpin { to { transform: rotate(360deg); } }
 
-/* Toast */
-.contact-toast {
-  position: fixed; top: 24px; right: 24px; z-index: 2000;
-  padding: 14px 22px; border-radius: 10px; color: #fff;
-  font-size: 0.85rem; font-weight: 600; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+.reply-section h4 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #102a43;
 }
-.contact-toast-success { background: var(--seafoam, #26a69a); }
-.contact-toast-error { background: var(--coral, #ef5350); }
+.reply-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.reply-input:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+.reply-error-msg {
+  color: #dc2626;
+  font-size: 0.82rem;
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  font-size: 0.88rem;
+}
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+.btn-secondary:hover {
+  background: #e2e8f0;
+}
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #d82f65;
+}
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* Transitions */
-.contact-modal-enter-active, .contact-modal-leave-active { transition: all 0.25s ease; }
-.contact-modal-enter-from, .contact-modal-leave-to { opacity: 0; }
-.contact-modal-enter-from .contact-modal-box, .contact-modal-leave-to .contact-modal-box { transform: scale(0.95) translateY(10px); }
-.contact-toast-enter-active { transition: all 0.3s ease; }
-.contact-toast-leave-active { transition: all 0.2s ease; }
-.contact-toast-enter-from { opacity: 0; transform: translateX(40px); }
-.contact-toast-leave-to { opacity: 0; transform: translateX(40px); }
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.3s ease;
+}
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
 </style>

@@ -53,33 +53,23 @@ const carrierStatusNames = {
   returned: 'Đã hoàn hàng',
 };
 
-const getEffectiveTime = (h) => {
-  if (!h) return 0;
-  if (h.happened_at && h.created_at) {
-    const tHap = new Date(h.happened_at).getTime();
-    const tCre = new Date(h.created_at).getTime();
-    if (tCre > tHap && (tCre - tHap) > 2 * 3600 * 1000) {
-      return tCre;
-    }
-  }
-  return new Date(h.happened_at || h.created_at || 0).getTime();
-};
-
 const getEffectiveDate = (h) => {
   if (!h) return '';
-  if (h.happened_at && h.created_at) {
-    const tHap = new Date(h.happened_at).getTime();
-    const tCre = new Date(h.created_at).getTime();
-    if (tCre > tHap && (tCre - tHap) > 2 * 3600 * 1000) {
-      return h.created_at;
-    }
-  }
-  return h.happened_at || h.created_at;
+  return h.happened_at || h.created_at || '';
+};
+
+const getEffectiveTime = (h) => {
+  const dt = getEffectiveDate(h);
+  if (!dt) return 0;
+  const time = new Date(dt).getTime();
+  return isNaN(time) ? 0 : time;
 };
 
 const sortedHistories = () => {
   const list = Array.isArray(props.histories) ? [...props.histories] : [];
-  return list.sort((a, b) => {
+
+  // Sắp xếp thời gian mới nhất lên trên
+  list.sort((a, b) => {
     const idA = Number(a.history_id || a.id || 0);
     const idB = Number(b.history_id || b.id || 0);
     if (idA > 0 && idB > 0 && idA !== idB) {
@@ -89,6 +79,29 @@ const sortedHistories = () => {
     const bTime = getEffectiveTime(b);
     return bTime - aTime;
   });
+
+  // Lọc bỏ các bản ghi webhook retry trùng lặp liên tiếp
+  const result = [];
+  for (let i = 0; i < list.length; i++) {
+    const curr = list[i];
+    const prev = result[result.length - 1];
+
+    if (prev) {
+      const sameOld = (prev.old_status || '') === (curr.old_status || '');
+      const sameNew = (prev.new_status || '') === (curr.new_status || '');
+      const sameGhn = (prev.ghn_status || '') === (curr.ghn_status || '');
+      const sameNote = (prev.note || '') === (curr.note || '');
+      const sameDesc = (prev.description || '') === (curr.description || '');
+
+      // Nếu 2 bản ghi liên tiếp hoàn toàn giống nhau về trạng thái và nội dung mô tả, coi là trùng lặp và bỏ qua
+      if (sameOld && sameNew && sameGhn && sameNote && sameDesc) {
+        continue;
+      }
+    }
+    result.push(curr);
+  }
+
+  return result;
 };
 
 const readableFallback = (value) => String(value || '').replace(/_/g, ' ');
@@ -218,8 +231,9 @@ const shouldShowDescription = (h) => {
   left: 6px;
   top: 18px;
   bottom: 0;
-  width: 2px;
-  background: #e2e8f0;
+  width: 2.5px;
+  background: linear-gradient(180deg, #3b82f6 0%, #8b5cf6 50%, #cbd5e1 100%);
+  border-radius: 2px;
 }
 
 .history-dot-wrap {
@@ -228,33 +242,34 @@ const shouldShowDescription = (h) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
+  width: 16px;
   margin-top: 4px;
   flex-shrink: 0;
 }
 
 .history-dot {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #94a3b8;
   border: 2.5px solid #ffffff;
-  box-shadow: 0 0 0 1.5px #cbd5e1;
+  box-shadow: 0 0 0 2px #cbd5e1;
   position: relative;
+  transition: all 0.2s ease;
 }
 
 .history-item.latest-entry .history-dot {
-  box-shadow: 0 0 0 2px #3b82f6, 0 0 8px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 0 3px #3b82f6, 0 0 10px rgba(59, 130, 246, 0.45);
 }
 
 .history-dot-pulse {
   position: absolute;
-  top: -4px;
-  left: -4px;
-  right: -4px;
-  bottom: -4px;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
   border-radius: 50%;
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(59, 130, 246, 0.25);
   animation: dotPulse 2s infinite cubic-bezier(0.45, 0, 0.55, 1);
 }
 
@@ -267,17 +282,24 @@ const shouldShowDescription = (h) => {
 .history-content {
   flex: 1;
   min-width: 0;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 10px 14px;
-  transition: all 0.2s ease;
+  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 11px 16px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.history-item:hover .history-content {
+  transform: translateX(3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 .history-item.latest-entry .history-content {
-  background: #ffffff;
-  border-color: #cbd5e1;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+  border-color: #bfdbfe;
+  border-left: 4px solid #3b82f6;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.06);
 }
 
 .history-transition {
@@ -297,7 +319,7 @@ const shouldShowDescription = (h) => {
   margin: 4px 0 2px;
   font-size: 0.86rem;
   color: #334155;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.45;
   word-break: break-word;
 }
@@ -315,86 +337,122 @@ const shouldShowDescription = (h) => {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px dashed #f1f5f9;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #e2e8f0;
 }
 
 .history-location {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 0.78rem;
-  color: #0369a1;
-  font-weight: 600;
+  color: #0284c7;
+  font-weight: 700;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 
 .history-time {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 0.76rem;
   color: #64748b;
+  font-weight: 600;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 
-/* Badges */
+/* Badges with vivid modern gradients */
 .status-badge.sm {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .carrier-badge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .badge-carrier-oe {
-  background: #0284c7;
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff;
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
 }
 
 .badge-carrier-ghn {
-  background: #ea580c;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
   color: #ffffff;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.25);
 }
 
 .badge-carrier-admin {
-  background: #6366f1;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
   color: #ffffff;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
 }
 
 .badge-carrier-system {
-  background: #475569;
+  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
   color: #ffffff;
 }
 
 .badge-carrier-other {
-  background: #0891b2;
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
   color: #ffffff;
 }
 
-.badge-warning { background: #f59e0b; color: white; }
-.badge-primary { background: #3b82f6; color: white; }
-.badge-info { background: #06b6d4; color: white; }
-.badge-success { background: #10b981; color: white; }
-.badge-danger { background: #ef4444; color: white; }
-.badge-secondary { background: #64748b; color: white; }
+.badge-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.25);
+}
+.badge-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.25);
+}
+.badge-info {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(6, 182, 212, 0.25);
+}
+.badge-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);
+}
+.badge-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+.badge-secondary {
+  background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+  color: white;
+}
 
 @media (max-width: 576px) {
-  .history-item { gap: 10px; padding-bottom: 16px; }
-  .history-content { padding: 8px 10px; }
-  .status-badge.sm, .carrier-badge { font-size: 0.68rem; padding: 2px 8px; }
-  .history-note { font-size: 0.8rem; }
+  .history-item { gap: 12px; padding-bottom: 18px; }
+  .history-content { padding: 9px 12px; }
+  .status-badge.sm, .carrier-badge { font-size: 0.7rem; padding: 3px 9px; }
+  .history-note { font-size: 0.82rem; }
   .history-meta-row { gap: 8px; }
 }
 </style>

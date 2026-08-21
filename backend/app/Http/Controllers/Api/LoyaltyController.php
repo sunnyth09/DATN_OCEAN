@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Reward;
 use App\Models\UserReward;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -30,7 +31,7 @@ class LoyaltyController extends Controller
                 'tier' => $tier,
                 'last_check_in_at' => $user->last_check_in_at,
                 'check_in_streak' => $user->check_in_streak ?? 0,
-                'has_checked_in_today' => $user->last_check_in_at && \Carbon\Carbon::parse($user->last_check_in_at)->isToday(),
+                'has_checked_in_today' => $user->last_check_in_at && Carbon::parse($user->last_check_in_at)->isToday(),
             ],
         ]);
     }

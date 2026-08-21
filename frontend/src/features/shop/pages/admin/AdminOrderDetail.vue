@@ -129,6 +129,93 @@ const getShippingBadgeStyle = (item) => {
   };
 };
 
+const getShippingLogStageTheme = (log) => {
+  const rawKey = (log?.ghn_status || log?.status || log?.mapped_status || log?.local_status || '').toLowerCase();
+  const title = getShippingStatusTitle(log).toLowerCase();
+
+  if (rawKey === 'delivered' || title.includes('giao thành công') || title.includes('đã giao')) {
+    return {
+      stageClass: 'stage-delivered',
+      icon: 'check',
+      label: 'Thành công',
+    };
+  }
+  if (
+    rawKey.includes('delivering') ||
+    rawKey.includes('hub_outbound') ||
+    rawKey.includes('shipping') ||
+    title.includes('đang giao') ||
+    title.includes('xuất kho giao') ||
+    title.includes('đang vận chuyển')
+  ) {
+    return {
+      stageClass: 'stage-delivering',
+      icon: 'truck',
+      label: 'Đang giao',
+    };
+  }
+  if (
+    rawKey.includes('stored') ||
+    rawKey.includes('storing') ||
+    rawKey.includes('in_transit') ||
+    rawKey.includes('transporting') ||
+    rawKey.includes('hub_inbound') ||
+    rawKey.includes('in_hub') ||
+    title.includes('nhập kho') ||
+    title.includes('trung chuyển') ||
+    title.includes('lưu kho')
+  ) {
+    return {
+      stageClass: 'stage-transit',
+      icon: 'box',
+      label: 'Trung chuyển',
+    };
+  }
+  if (
+    rawKey.includes('picked') ||
+    rawKey.includes('picking') ||
+    title.includes('lấy hàng') ||
+    title.includes('đã lấy')
+  ) {
+    return {
+      stageClass: 'stage-picking',
+      icon: 'package',
+      label: 'Lấy hàng',
+    };
+  }
+  if (
+    rawKey.includes('ready_to_pick') ||
+    rawKey.includes('awaiting_pickup') ||
+    title.includes('chờ lấy') ||
+    title.includes('chờ hãng')
+  ) {
+    return {
+      stageClass: 'stage-waiting',
+      icon: 'clock',
+      label: 'Chờ lấy',
+    };
+  }
+  if (
+    rawKey.includes('fail') ||
+    rawKey.includes('cancel') ||
+    rawKey.includes('return') ||
+    title.includes('thất bại') ||
+    title.includes('hủy') ||
+    title.includes('hoàn')
+  ) {
+    return {
+      stageClass: 'stage-failed',
+      icon: 'x',
+      label: 'Ngoại lệ',
+    };
+  }
+  return {
+    stageClass: 'stage-default',
+    icon: 'package',
+    label: 'Cập nhật',
+  };
+};
+
 // statusTransitions was removed because we use backend available_transitions now
 
 const isLockedFulfillmentStatus = (status) => {
@@ -328,7 +415,9 @@ const getStatusBadgeClass = (status) => {
   const map = {
     pending: 'badge-warning',
     confirmed: 'badge-primary',
+    processing: 'badge-info',
     packing: 'badge-info',
+    awaiting_pickup: 'badge-info',
     shipping: 'badge-info',
     delivered: 'badge-success',
     completed: 'badge-success',
@@ -546,9 +635,107 @@ onMounted(() => fetchOrder());
 
 <template>
   <div class="order-detail-page">
-    <!-- Loading -->
-    <div v-if="loading" class="loading-box">
-      <div class="spinner-border text-primary" role="status"></div>
+    <!-- Modern Skeleton Loading -->
+    <div v-if="loading" class="order-detail-skeleton">
+      <!-- Header Skeleton -->
+      <div class="skeleton-header">
+        <div class="skeleton-header-left">
+          <div class="skeleton-box" style="width: 100px; height: 38px; border-radius: 8px;"></div>
+          <div>
+            <div class="skeleton-box" style="width: 240px; height: 30px; border-radius: 8px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 180px; height: 16px; border-radius: 6px;"></div>
+          </div>
+        </div>
+        <div class="skeleton-header-right">
+          <div class="skeleton-box" style="width: 90px; height: 32px; border-radius: 20px;"></div>
+          <div class="skeleton-box" style="width: 110px; height: 32px; border-radius: 20px;"></div>
+        </div>
+      </div>
+
+      <!-- Timeline Skeleton Card -->
+      <div class="skeleton-card" style="margin-bottom: 24px; padding: 28px 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="skeleton-box" style="width: 38px; height: 38px; border-radius: 10px;"></div>
+            <div class="skeleton-box" style="width: 160px; height: 22px; border-radius: 6px;"></div>
+          </div>
+          <div class="skeleton-box" style="width: 90px; height: 28px; border-radius: 20px;"></div>
+        </div>
+        <div class="skeleton-timeline-steps">
+          <div v-for="i in 6" :key="i" class="skeleton-step-item">
+            <div class="skeleton-box" style="width: 48px; height: 48px; border-radius: 50%; margin: 0 auto 12px;"></div>
+            <div class="skeleton-box" style="width: 70px; height: 14px; margin: 0 auto 6px; border-radius: 4px;"></div>
+            <div class="skeleton-box" style="width: 50px; height: 10px; margin: 0 auto; border-radius: 4px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid Skeleton -->
+      <div class="detail-grid">
+        <!-- Left: Products & Histories Skeleton -->
+        <div class="detail-main">
+          <!-- Products Card Skeleton -->
+          <div class="skeleton-card" style="margin-bottom: 24px;">
+            <div class="skeleton-box" style="width: 140px; height: 22px; margin-bottom: 20px; border-radius: 6px;"></div>
+            <div v-for="i in 2" :key="i" style="display: flex; gap: 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border-color, #f1f5f9);">
+              <div class="skeleton-box" style="width: 64px; height: 64px; border-radius: 10px; flex-shrink: 0;"></div>
+              <div style="flex: 1;">
+                <div class="skeleton-box" style="width: 65%; height: 18px; margin-bottom: 8px; border-radius: 4px;"></div>
+                <div class="skeleton-box" style="width: 35%; height: 14px; border-radius: 4px;"></div>
+              </div>
+              <div class="skeleton-box" style="width: 40px; height: 16px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 4px;"></div>
+            </div>
+            <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 80px; height: 14px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px;"></div></div>
+              <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 80px; height: 14px; border-radius: 4px;"></div></div>
+              <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 130px; height: 22px; border-radius: 6px;"></div></div>
+            </div>
+          </div>
+
+          <!-- History Card Skeleton -->
+          <div class="skeleton-card">
+            <div class="skeleton-box" style="width: 160px; height: 22px; margin-bottom: 20px; border-radius: 6px;"></div>
+            <div v-for="i in 3" :key="i" style="display: flex; gap: 14px; margin-bottom: 16px;">
+              <div class="skeleton-box" style="width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; flex-shrink: 0;"></div>
+              <div style="flex: 1;">
+                <div class="skeleton-box" style="width: 45%; height: 16px; margin-bottom: 6px; border-radius: 4px;"></div>
+                <div class="skeleton-box" style="width: 30%; height: 12px; border-radius: 4px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Sidebar Skeleton -->
+        <div class="detail-sidebar">
+          <!-- Status Action Card Skeleton -->
+          <div class="skeleton-card" style="margin-bottom: 24px;">
+            <div class="skeleton-box" style="width: 170px; height: 22px; margin-bottom: 16px; border-radius: 6px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 42px; border-radius: 8px; margin-bottom: 16px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 38px; border-radius: 8px;"></div>
+          </div>
+
+          <!-- Customer Card Skeleton -->
+          <div class="skeleton-card" style="margin-bottom: 24px;">
+            <div class="skeleton-box" style="width: 130px; height: 22px; margin-bottom: 16px; border-radius: 6px;"></div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div class="skeleton-box" style="width: 70%; height: 14px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 85%; height: 14px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 60%; height: 14px; border-radius: 4px;"></div>
+            </div>
+          </div>
+
+          <!-- Shipping Card Skeleton -->
+          <div class="skeleton-card">
+            <div class="skeleton-box" style="width: 120px; height: 22px; margin-bottom: 16px; border-radius: 6px;"></div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div class="skeleton-box" style="width: 60%; height: 14px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 50%; height: 14px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 90%; height: 14px; border-radius: 4px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <template v-if="order && !loading">
@@ -822,13 +1009,8 @@ onMounted(() => fetchOrder());
             <div v-if="ghnLookup" class="shipping-carrier-panel">
               <div class="shipping-panel-header">
                 <div class="carrier-brand">
-                  <div class="carrier-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="1" y="3" width="15" height="13"></rect>
-                      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
-                      <circle cx="5.5" cy="18.5" r="2.5"></circle>
-                      <circle cx="18.5" cy="18.5" r="2.5"></circle>
-                    </svg>
+                  <div class="carrier-icon" :class="order.tracking_number?.startsWith('OE-') ? 'is-oe' : 'is-ghn'">
+                    <AppIcon name="truck" size="20" stroke-width="2.5" />
                   </div>
                   <div>
                     <div class="carrier-name">{{ ghnLookup.carrier || (order.tracking_number?.startsWith('OE-') ? 'Ocean Express' : 'Giao Hàng Nhanh') }}</div>
@@ -847,7 +1029,7 @@ onMounted(() => fetchOrder());
               <!-- Mô tả trạng thái thực tế -->
               <div class="shipping-status-desc" v-if="getShippingStatusDesc(ghnLookup)">
                 <div class="desc-icon">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                  <AppIcon name="alert-circle" size="16" />
                 </div>
                 <p>{{ getShippingStatusDesc(ghnLookup) }}</p>
               </div>
@@ -855,32 +1037,59 @@ onMounted(() => fetchOrder());
               <!-- Chi tiết thông tin -->
               <div class="shipping-info-grid">
                 <div class="shipping-info-item" v-if="ghnLookup.happened_at">
-                  <span class="info-k">Cập nhật:</span>
+                  <span class="info-k">
+                    <AppIcon name="clock" size="13" /> Cập nhật:
+                  </span>
                   <span class="info-v">{{ formatDate(ghnLookup.happened_at) }}</span>
                 </div>
                 <div class="shipping-info-item" v-if="ghnLookup.location">
-                  <span class="info-k">Địa chỉ phát:</span>
+                  <span class="info-k">
+                    <AppIcon name="map-pin" size="13" /> Địa chỉ phát:
+                  </span>
                   <span class="info-v">{{ ghnLookup.location }}</span>
                 </div>
               </div>
 
               <!-- Lịch sử hành trình / Tracking Logs nếu có -->
               <div v-if="sortedShippingLogs.length > 0" class="shipping-logs-section">
-                <div class="logs-title">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                  Hành trình vận đơn ({{ sortedShippingLogs.length }} mốc)
+                <div class="logs-title-bar">
+                  <div class="logs-title-left">
+                    <span class="logs-title-icon">
+                      <AppIcon name="clock" size="14" />
+                    </span>
+                    <span class="logs-title-text">Hành trình vận đơn</span>
+                  </div>
+                  <span class="logs-count-chip">{{ sortedShippingLogs.length }} mốc</span>
                 </div>
+
                 <div class="shipping-logs-timeline">
-                  <div v-for="(log, idx) in sortedShippingLogs" :key="idx" class="log-item" :class="{ 'latest': idx === 0 }">
+                  <div
+                    v-for="(log, idx) in sortedShippingLogs"
+                    :key="idx"
+                    class="log-item"
+                    :class="[getShippingLogStageTheme(log).stageClass, { 'latest': idx === 0 }]"
+                  >
                     <div class="log-dot">
+                      <span class="log-dot-icon">
+                        <AppIcon :name="getShippingLogStageTheme(log).icon" size="10" stroke-width="3" />
+                      </span>
                       <div v-if="idx === 0" class="log-dot-pulse"></div>
                     </div>
                     <div class="log-content">
                       <div class="log-status-row">
-                        <span class="log-status">{{ getShippingStatusTitle(log) }}</span>
-                        <span class="log-time">{{ formatDate(log.created_at || log.timestamp || log.happened_at) }}</span>
+                        <div class="log-title-group">
+                          <span class="log-status">{{ getShippingStatusTitle(log) }}</span>
+                          <span v-if="idx === 0" class="badge-latest-pill">Mới nhất</span>
+                        </div>
+                        <span class="log-time">
+                          <AppIcon name="clock" size="11" />
+                          {{ formatDate(log.created_at || log.timestamp || log.happened_at) }}
+                        </span>
                       </div>
-                      <div class="log-note" v-if="log.note">{{ log.note }}</div>
+                      <div class="log-note" v-if="log.note">
+                        <span class="log-note-bar"></span>
+                        <p class="log-note-text">{{ log.note }}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -934,8 +1143,85 @@ onMounted(() => fetchOrder());
   font-family: var(--font-primary);
 }
  
-/* Loading */
-.loading-box { text-align: center; padding: 80px 0; }
+/* ===== Modern Skeleton Loading ===== */
+.order-detail-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.skeleton-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.skeleton-header-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border-color, #e9ecef);
+  box-shadow: var(--shadow-card, 0 4px 15px rgba(45, 52, 70, 0.08));
+}
+
+.skeleton-timeline-steps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .skeleton-timeline-steps {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+}
+
+.skeleton-step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.35) 30%,
+    rgba(255, 255, 255, 0.7) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
  
 /* Header */
 .detail-header {
@@ -1386,10 +1672,10 @@ onMounted(() => fetchOrder());
 .shipping-carrier-panel {
   margin-top: 16px;
   padding: 16px;
-  border: 1px solid #bfdbfe;
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border: 1.5px solid #e2e8f0;
   border-radius: 14px;
-  background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
-  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
 }
 .shipping-panel-header {
   display: flex;
@@ -1397,6 +1683,8 @@ onMounted(() => fetchOrder());
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
   flex-wrap: wrap;
 }
 .carrier-brand {
@@ -1405,58 +1693,69 @@ onMounted(() => fetchOrder());
   gap: 10px;
 }
 .carrier-icon {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
-  background: #2563eb;
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25);
   flex-shrink: 0;
+}
+.carrier-icon.is-ghn {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  box-shadow: 0 4px 10px rgba(234, 88, 12, 0.25);
 }
 .carrier-name {
   font-size: 0.92rem;
   font-weight: 800;
-  color: #1e3a8a;
-  line-height: 1.2;
+  color: #0f172a;
 }
 .carrier-code-wrap {
-  font-size: 0.78rem;
-  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 2px;
 }
 .carrier-code-label {
-  margin-right: 4px;
+  font-size: 0.76rem;
+  color: #64748b;
 }
 .carrier-tracking-code {
-  color: #2563eb;
+  font-size: 0.84rem;
   font-family: monospace;
-  font-size: 0.82rem;
+  color: #0284c7;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 1px 6px;
+  border-radius: 5px;
+  letter-spacing: 0.3px;
 }
 .carrier-status-badge {
-  padding: 5px 12px;
-  border-radius: 9999px;
   font-size: 0.8rem;
   font-weight: 700;
-  border-width: 1px;
-  border-style: solid;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid;
   letter-spacing: 0.2px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 .shipping-status-desc {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: rgba(239, 246, 255, 0.8);
-  border: 1px solid #dbeafe;
-  margin-bottom: 12px;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+  border: 1px solid #bfdbfe;
+  margin-bottom: 14px;
 }
 .shipping-status-desc .desc-icon {
   color: #2563eb;
-  margin-top: 2px;
+  margin-top: 1px;
   flex-shrink: 0;
 }
 .shipping-status-desc p {
@@ -1464,101 +1763,146 @@ onMounted(() => fetchOrder());
   font-size: 0.82rem;
   color: #1e40af;
   line-height: 1.45;
-  font-weight: 500;
+  font-weight: 600;
 }
 .shipping-info-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 6px;
-  padding-bottom: 4px;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
 }
 .shipping-info-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 0.82rem;
-  line-height: 1.4;
 }
 .shipping-info-item .info-k {
   color: #64748b;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 .shipping-info-item .info-v {
-  font-weight: 600;
-  color: #1e293b;
+  font-weight: 700;
+  color: #0f172a;
   text-align: right;
 }
 .shipping-logs-section {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px dashed #cbd5e1;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1.5px dashed #cbd5e1;
 }
-.logs-title {
+.logs-title-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.84rem;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 12px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #f1f5f9;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
-.shipping-logs-timeline {
+.logs-title-left {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-  position: relative;
-  padding-left: 18px;
-  border-left: 2px solid #e2e8f0;
-  margin-left: 8px;
+  align-items: center;
+  gap: 8px;
 }
-.log-item {
-  position: relative;
-  transition: all 0.2s ease;
-}
-.log-dot {
-  position: absolute;
-  left: -25px;
-  top: 3px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #cbd5e1;
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 0 1.5px #cbd5e1;
+.logs-title-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: #e0f2fe;
+  color: #0284c7;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.log-item.latest .log-dot {
-  background: #0284c7;
-  box-shadow: 0 0 0 2px #0284c7;
+.logs-title-text {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+.logs-count-chip {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+}
+.shipping-logs-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  padding-left: 26px;
+  margin-left: 10px;
+}
+.shipping-logs-timeline::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 2px;
+  width: 3px;
+  background: linear-gradient(180deg, #10b981 0%, #3b82f6 30%, #8b5cf6 60%, #06b6d4 85%, #cbd5e1 100%);
+  border-radius: 2px;
+}
+.log-item {
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.log-item:hover {
+  transform: translateX(3px);
+}
+.log-dot {
+  position: absolute;
+  left: -33px;
+  top: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 0 0 3px #f1f5f9;
+  transition: all 0.2s ease;
+}
+.log-dot-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
 }
 .log-dot-pulse {
   position: absolute;
-  top: -4px;
-  left: -4px;
-  right: -4px;
-  bottom: -4px;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
   border-radius: 50%;
-  background: rgba(2, 132, 199, 0.25);
-  animation: shippingDotPulse 2s infinite ease-in-out;
+  animation: logDotPulseAnim 2s infinite cubic-bezier(0.45, 0, 0.55, 1);
 }
-@keyframes shippingDotPulse {
+@keyframes logDotPulseAnim {
   0% { transform: scale(0.9); opacity: 0.8; }
   50% { transform: scale(1.6); opacity: 0; }
   100% { transform: scale(0.9); opacity: 0; }
 }
 .log-content {
-  font-size: 0.82rem;
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-  border-radius: 8px;
-  padding: 6px 10px;
-}
-.log-item.latest .log-content {
+  border-radius: 12px;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
   background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+.log-item:hover .log-content {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
 }
 .log-status-row {
   display: flex;
@@ -1567,25 +1911,247 @@ onMounted(() => fetchOrder());
   gap: 8px;
   flex-wrap: wrap;
 }
-.log-status {
-  font-weight: 700;
-  color: #334155;
-  font-size: 0.82rem;
+.log-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.log-item.latest .log-status {
-  color: #0284c7;
+.log-status {
+  font-weight: 800;
+  font-size: 0.86rem;
+  letter-spacing: 0.1px;
+}
+.badge-latest-pill {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 .log-time {
   font-size: 0.74rem;
-  color: #94a3b8;
-  font-weight: 500;
+  font-weight: 600;
+  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 6px;
 }
 .log-note {
-  font-size: 0.78rem;
-  color: #475569;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+.log-note-bar {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.5;
   margin-top: 3px;
-  line-height: 1.4;
+  flex-shrink: 0;
+}
+.log-note-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #475569;
+  line-height: 1.45;
   word-break: break-word;
+}
+
+/* === STAGE THEMES (Rich Vibrant Colors) === */
+
+/* 1. DELIVERED (Giao thành công) */
+.log-item.stage-delivered .log-dot {
+  background: #10b981;
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 0 3.5px #d1fae5, 0 2px 8px rgba(16, 185, 129, 0.35);
+}
+.log-item.stage-delivered .log-dot-pulse {
+  background: rgba(16, 185, 129, 0.3);
+}
+.log-item.stage-delivered .log-content {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+  border: 1.5px solid #a7f3d0;
+  border-left: 4.5px solid #10b981;
+}
+.log-item.stage-delivered .log-status {
+  color: #047857;
+}
+
+/* 2. DELIVERING (Đang giao hàng / Xuất kho giao) */
+.log-item.stage-delivering .log-dot {
+  background: #2563eb;
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 0 3.5px #dbeafe, 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+.log-item.stage-delivering .log-dot-pulse {
+  background: rgba(37, 99, 235, 0.3);
+}
+.log-item.stage-delivering .log-content {
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+  border: 1.5px solid #bfdbfe;
+  border-left: 4.5px solid #2563eb;
+}
+.log-item.stage-delivering .log-status {
+  color: #1d4ed8;
+}
+
+/* 3. TRANSIT (Nhập kho / Đang trung chuyển) */
+.log-item.stage-transit .log-dot {
+  background: #8b5cf6;
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 0 3.5px #ede9fe, 0 2px 8px rgba(139, 92, 246, 0.35);
+}
+.log-item.stage-transit .log-dot-pulse {
+  background: rgba(139, 92, 246, 0.3);
+}
+.log-item.stage-transit .log-content {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%);
+  border: 1.5px solid #ddd6fe;
+  border-left: 4.5px solid #8b5cf6;
+}
+.log-item.stage-transit .log-status {
+  color: #6d28d9;
+}
+
+/* 4. PICKING (Đã lấy hàng / Đang lấy hàng) */
+.log-item.stage-picking .log-dot {
+  background: #06b6d4;
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 0 3.5px #cffafe, 0 2px 8px rgba(6, 182, 212, 0.35);
+}
+.log-item.stage-picking .log-dot-pulse {
+  background: rgba(6, 182, 212, 0.3);
+}
+.log-item.stage-picking .log-content {
+  background: linear-gradient(135deg, #ecfeff 0%, #ffffff 100%);
+  border: 1.5px solid #a5f3fc;
+  border-left: 4.5px solid #06b6d4;
+}
+.log-item.stage-picking .log-status {
+  color: #0e7490;
+}
+
+/* 5. WAITING (Chờ lấy hàng / Tạo đơn) */
+.log-item.stage-waiting .log-dot {
+  background: #f59e0b;
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 0 3.5px #fef3c7, 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+.log-item.stage-waiting .log-dot-pulse {
+  background: rgba(245, 158, 11, 0.3);
+}
+.log-item.stage-waiting .log-content {
+  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+  border: 1.5px solid #fde68a;
+  border-left: 4.5px solid #f59e0b;
+}
+.log-item.stage-waiting .log-status {
+  color: #b45309;
+}
+
+/* 6. FAILED / CANCELLED / RETURN */
+.log-item.stage-failed .log-dot {
+  background: #ef4444;
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 0 3.5px #fee2e2, 0 2px 8px rgba(239, 68, 68, 0.35);
+}
+.log-item.stage-failed .log-dot-pulse {
+  background: rgba(239, 68, 68, 0.3);
+}
+.log-item.stage-failed .log-content {
+  background: linear-gradient(135deg, #fff1f2 0%, #ffffff 100%);
+  border: 1.5px solid #fecdd3;
+  border-left: 4.5px solid #ef4444;
+}
+.log-item.stage-failed .log-status {
+  color: #be123c;
+}
+
+/* 7. DEFAULT / FALLBACK */
+.log-item.stage-default .log-dot {
+  background: #64748b;
+  border-color: #ffffff;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px #f1f5f9;
+}
+.log-item.stage-default .log-content {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 4.5px solid #64748b;
+}
+.log-item.stage-default .log-status {
+  color: #334155;
+}
+
+/* Dark mode adjustments */
+:global(html.dark) .shipping-carrier-panel {
+  background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+  border-color: #334155;
+}
+:global(html.dark) .carrier-name { color: #f8fafc; }
+:global(html.dark) .shipping-info-grid {
+  background: #1e293b;
+  border-color: #334155;
+}
+:global(html.dark) .shipping-info-item .info-v { color: #f8fafc; }
+:global(html.dark) .logs-title-text { color: #f8fafc; }
+:global(html.dark) .log-content {
+  background: #1e293b;
+  border-color: #334155;
+}
+:global(html.dark) .log-item.stage-delivered .log-content {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.25) 0%, #1e293b 100%);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+:global(html.dark) .log-item.stage-delivered .log-status { color: #34d399; }
+:global(html.dark) .log-item.stage-delivering .log-content {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, #1e293b 100%);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+:global(html.dark) .log-item.stage-delivering .log-status { color: #60a5fa; }
+:global(html.dark) .log-item.stage-transit .log-content {
+  background: linear-gradient(135deg, rgba(91, 33, 182, 0.25) 0%, #1e293b 100%);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+:global(html.dark) .log-item.stage-transit .log-status { color: #a78bfa; }
+:global(html.dark) .log-item.stage-picking .log-content {
+  background: linear-gradient(135deg, rgba(21, 94, 117, 0.25) 0%, #1e293b 100%);
+  border-color: rgba(6, 182, 212, 0.4);
+}
+:global(html.dark) .log-item.stage-picking .log-status { color: #22d3ee; }
+:global(html.dark) .log-item.stage-waiting .log-content {
+  background: linear-gradient(135deg, rgba(146, 64, 14, 0.25) 0%, #1e293b 100%);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+:global(html.dark) .log-item.stage-waiting .log-status { color: #fbbf24; }
+:global(html.dark) .log-item.stage-failed .log-content {
+  background: linear-gradient(135deg, rgba(159, 18, 57, 0.25) 0%, #1e293b 100%);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+:global(html.dark) .log-item.stage-failed .log-status { color: #f87171; }
+:global(html.dark) .log-note-text { color: #94a3b8; }
+:global(html.dark) .log-time {
+  background: #0f172a;
+  border-color: #334155;
+  color: #94a3b8;
 }
  
 /* Responsive */

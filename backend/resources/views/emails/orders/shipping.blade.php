@@ -1,26 +1,28 @@
 @component('mail::message')
-# Đơn hàng của bạn đã được tạo vận đơn GHN
+# 🚚 Đơn Hàng Đang Được Vận Chuyển
 
-Xin chào {{ $customerName }},
+Xin chào **{{ $customerName }}**,
 
-Đơn hàng **#{{ $orderCode }}** đã được đồng bộ sang Giao Hàng Nhanh.
+Đơn hàng **#{{ $orderCode }}** của bạn đã được đóng gói và bàn giao cho đơn vị vận chuyển.
 
-@if($ghnOrderCode)
-**Mã vận đơn GHN:** {{ $ghnOrderCode }}
+@if(!empty($trackingCode))
+**Mã vận đơn:** `{{ $trackingCode }}`
 @endif
 
-@if($trackingUrl)
-@component('mail::button', ['url' => $trackingUrl])
-Theo dõi đơn hàng
+---
+
+@if(!empty($trackingUrl))
+@component('mail::button', ['url' => $trackingUrl, 'color' => 'primary'])
+📍 Theo dõi hành trình đơn hàng
 @endcomponent
 @endif
 
-@if($ghnTrackingUrl)
-Bạn cũng có thể tra cứu trực tiếp trên GHN tại: [{{ $ghnTrackingUrl }}]({{ $ghnTrackingUrl }})
-@endif
+Chúng tôi sẽ liên tục cập nhật trạng thái đơn hàng đến bạn cho tới khi kiện hàng được giao thành công.
 
-Cảm ơn bạn đã mua sắm tại Ocean Sport.
+Cảm ơn bạn đã đồng hành và mua sắm tại Ocean Sport!
 
-Trân trọng,<br>
-{{ config('app.name') }}
+**OCEAN SPORT — CỬA HÀNG THỂ THAO CAO CẤP**<br>
+Hotline: **1900 6868** | Email: **contact@oceansport.vn**
+
+<small>Email này được gửi tự động từ hệ thống Ocean Sport.</small>
 @endcomponent

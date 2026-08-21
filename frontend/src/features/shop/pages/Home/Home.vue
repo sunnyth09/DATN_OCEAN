@@ -96,10 +96,11 @@ const isLoadingFlashSale = ref(true);
 const fetchRealFlashSale = async () => {
     try {
         isLoadingFlashSale.value = true;
-        const { data } = await api.get('flash-sale');
-        if (data && data.data && data.data.length > 0) {
+        const { data } = await api.get('flash-sale', { params: { filter: 'ongoing' } });
+        const list = data?.data ?? [];
+        if (list.length > 0) {
             // Lấy danh sách sản phẩm và giới hạn 4 sản phẩm
-            flashSaleProducts.value = data.data.slice(0, 4).map(p => {
+            flashSaleProducts.value = list.slice(0, 4).map(p => {
                 const flashPrice = Number(p.sale_price ?? p.flash_price ?? p.min_price ?? p.price ?? 0);
                 const originalPrice = Number(p.original_price ?? p.originalPrice ?? flashPrice);
                 const totalStock = Number(p.total_stock ?? p.total_quantity ?? 0);

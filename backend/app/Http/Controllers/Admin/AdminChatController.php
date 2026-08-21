@@ -134,7 +134,7 @@ class AdminChatController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'count'  => $count,
+            'count' => $count,
         ]);
     }
 }

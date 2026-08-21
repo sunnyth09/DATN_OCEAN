@@ -73,7 +73,7 @@ class ProductController extends Controller
 
         // Ghi lịch sử tìm kiếm nếu có từ khoá
         if ($request->filled('search')) {
-            $userId    = auth('api')->id();
+            $userId = auth('api')->id();
             $sessionId = $request->header('X-Session-ID') ?? $request->query('session_id');
 
             if ($userId || $sessionId) {
@@ -85,14 +85,14 @@ class ProductController extends Controller
                 $record = $query->first();
                 if ($record) {
                     $record->update([
-                        'updated_at'    => now(),
+                        'updated_at' => now(),
                         'results_count' => $result['total'] ?? 0,
                     ]);
                 } else {
                     SearchHistory::create([
-                        'user_id'       => $userId,
-                        'session_id'    => $userId ? null : $sessionId,
-                        'keyword'       => $request->search,
+                        'user_id' => $userId,
+                        'session_id' => $userId ? null : $sessionId,
+                        'keyword' => $request->search,
                         'results_count' => $result['total'] ?? 0,
                     ]);
                 }
@@ -101,8 +101,6 @@ class ProductController extends Controller
 
         return response()->json($result);
     }
-
-
 
     /**
      * Sản phẩm nổi bật (client — có limit)
@@ -378,7 +376,7 @@ class ProductController extends Controller
         $path = $request->file('image')->store('product_descriptions', 'public');
 
         return response()->json([
-            'url' => '/storage/' . $path,
+            'url' => '/storage/'.$path,
         ]);
     }
 }

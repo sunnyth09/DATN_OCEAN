@@ -12,6 +12,7 @@ use App\Models\InventoryTransaction;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\RefundTransaction;
 use App\Models\ReturnRequest;
@@ -20,6 +21,7 @@ use App\Repositories\OrderRepository;
 use App\Repositories\ReturnRequestRepository;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -648,8 +650,8 @@ class ReturnRequestService
         ProductVariant::where('variant_id', $item->variant_id)->lockForUpdate()->increment('stock', $quantity);
         $variant = ProductVariant::find($item->variant_id);
         if ($variant && $variant->product_id) {
-            \App\Models\Product::where('product_id', $variant->product_id)->decrement('sold_count', $quantity);
-            \Illuminate\Support\Facades\Cache::tags(['products:best-selling'])->flush();
+            Product::where('product_id', $variant->product_id)->decrement('sold_count', $quantity);
+            Cache::tags(['products:best-selling'])->flush();
         }
 
         InventoryTransaction::create([

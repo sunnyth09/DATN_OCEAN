@@ -23,16 +23,16 @@ class StatisticsRepository
             $q->where('payment_status', PaymentStatus::PAID->value)
                 ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
         })
-        ->whereNotIn('fulfillment_status', [
-            OrderStatus::CANCELLED->value,
-            OrderStatus::RETURN_APPROVED->value,
-            OrderStatus::RETURNED->value,
-            OrderStatus::REFUNDED->value,
-        ])
-        ->where(function ($q) {
-            $q->whereNull('is_abandoned_checkout')
-                ->orWhere('is_abandoned_checkout', 0);
-        });
+            ->whereNotIn('fulfillment_status', [
+                OrderStatus::CANCELLED->value,
+                OrderStatus::RETURN_APPROVED->value,
+                OrderStatus::RETURNED->value,
+                OrderStatus::REFUNDED->value,
+            ])
+            ->where(function ($q) {
+                $q->whereNull('is_abandoned_checkout')
+                    ->orWhere('is_abandoned_checkout', 0);
+            });
     }
 
     /**
@@ -256,9 +256,9 @@ class StatisticsRepository
     /**
      * Lấy danh sách sản phẩm tồn kho lâu & bán chậm (Dead Stock / Slow Moving Inventory)
      *
-     * @param int $daysThreshold Số ngày đăng bán tối thiểu (mặc định 60 ngày)
-     * @param int $salesLimit Ngưỡng số lượng bán ra trong 30 ngày qua (mặc định <= 2 đơn vị)
-     * @param int $limit Số lượng bản ghi tối đa
+     * @param  int  $daysThreshold  Số ngày đăng bán tối thiểu (mặc định 60 ngày)
+     * @param  int  $salesLimit  Ngưỡng số lượng bán ra trong 30 ngày qua (mặc định <= 2 đơn vị)
+     * @param  int  $limit  Số lượng bản ghi tối đa
      */
     public function getSlowMovingProducts(int $daysThreshold = 60, int $salesLimit = 2, int $limit = 20)
     {
@@ -266,16 +266,16 @@ class StatisticsRepository
         $salesWindow = Carbon::now()->subDays(30);
 
         return Product::select(
-                'products.product_id',
-                'products.name',
-                'products.slug',
-                'products.thumbnail_url',
-                'products.min_price',
-                'products.category_id',
-                'products.brand_id',
-                'products.created_at',
-                'products.published_at'
-            )
+            'products.product_id',
+            'products.name',
+            'products.slug',
+            'products.thumbnail_url',
+            'products.min_price',
+            'products.category_id',
+            'products.brand_id',
+            'products.created_at',
+            'products.published_at'
+        )
             ->with(['category:category_id,name', 'brand:brand_id,name'])
             ->withSum('variants as total_stock', 'stock')
             ->withSum(['orderItems as recent_sold' => function ($q) use ($salesWindow) {

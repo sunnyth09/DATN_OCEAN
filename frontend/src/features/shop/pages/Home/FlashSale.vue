@@ -9,19 +9,35 @@ const route = useRoute();
 const targetId = route.query.id ? parseInt(route.query.id) : null;
 const items = ref([]);
 const loading = ref(true);
+const activeTab = ref('ongoing'); // 'ongoing' | 'upcoming'
+
+const ongoingCount = computed(() => items.value.filter(i => i.is_ongoing || !i.is_upcoming).length);
+const upcomingCount = computed(() => items.value.filter(i => i.is_upcoming).length);
+
+const tabItems = computed(() => {
+  if (activeTab.value === 'upcoming') {
+    return items.value.filter(i => i.is_upcoming);
+  }
+  return items.value.filter(i => i.is_ongoing || !i.is_upcoming);
+});
 
 // ── Phân trang ──
 const currentPage = ref(1);
 const perPage = ref(6); // 6 sản phẩm/trang (3 cột x 2 hàng)
 
 const totalPages = computed(() => {
-  return Math.ceil(items.value.length / perPage.value) || 1;
+  return Math.ceil(tabItems.value.length / perPage.value) || 1;
 });
 
 const paginatedItems = computed(() => {
   const start = (currentPage.value - 1) * perPage.value;
-  return items.value.slice(start, start + perPage.value);
+  return tabItems.value.slice(start, start + perPage.value);
 });
+
+const setTab = (tab) => {
+  activeTab.value = tab;
+  currentPage.value = 1;
+};
 
 const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
@@ -36,7 +52,7 @@ onMounted(async () => {
     const { data } = await api.get('flash-sale');
     const list = data.data ?? [];
     if (targetId) {
-      items.value = list.filter(item => item.id === targetId);
+      items.value = list.filter(item => item.id === targetId || item.item_id === targetId);
     } else {
       items.value = list;
     }
@@ -88,6 +104,28 @@ onMounted(async () => {
         </div>
       </section>
 
+      <!-- ══ TABS FILTER ══ -->
+      <div class="fs-tabs-bar">
+        <button 
+          class="fs-tab-btn" 
+          :class="{ active: activeTab === 'ongoing' }"
+          @click="setTab('ongoing')"
+        >
+          <AppIcon name="zap" size="16" />
+          <span>Đang diễn ra</span>
+          <span class="tab-badge" v-if="ongoingCount > 0">{{ ongoingCount }}</span>
+        </button>
+        <button 
+          class="fs-tab-btn" 
+          :class="{ active: activeTab === 'upcoming' }"
+          @click="setTab('upcoming')"
+        >
+          <AppIcon name="clock" size="16" />
+          <span>Sắp diễn ra</span>
+          <span class="tab-badge upcoming" v-if="upcomingCount > 0">{{ upcomingCount }}</span>
+        </button>
+      </div>
+
       <!-- ══ DANH SÁCH SẢN PHẨM FLASH SALE ══ -->
       <section class="content">
         <!-- Đang tải -->
@@ -99,10 +137,10 @@ onMounted(async () => {
         </div>
 
         <!-- Co danh sach sản phẩm -->
-        <div v-else-if="items.length > 0">
+        <div v-else-if="tabItems.length > 0">
           <div class="toolbar-info mb-3 d-flex justify-content-between align-items-center">
             <span class="toolbar-count">
-              Hiển thị <strong>{{ paginatedItems.length }}</strong> trong tổng số <strong>{{ items.length }}</strong> deal Flash Sale
+              Hiển thị <strong>{{ paginatedItems.length }}</strong> trong tổng số <strong>{{ tabItems.length }}</strong> deal {{ activeTab === 'ongoing' ? 'đang diễn ra' : 'sắp diễn ra' }}
             </span>
             <span v-if="totalPages > 1" class="page-indicator">
               Trang {{ currentPage }} / {{ totalPages }}
@@ -110,8 +148,8 @@ onMounted(async () => {
           </div>
 
           <div class="boards-container">
-            <div class="board-wrapper" v-for="item in paginatedItems" :key="item.item_id">
-              <FlashSaleBoard :item-id="item.item_id" />
+            <div class="board-wrapper" v-for="item in paginatedItems" :key="item.item_id || item.id">
+              <FlashSaleBoard :item-id="item.item_id" :flash-sale-id="item.flash_sale_id || item.id" />
             </div>
           </div>
 
@@ -269,6 +307,68 @@ onMounted(async () => {
   border-radius: 50%;
   width: 20px;
   height: 20px;
+}
+
+/* ── TABS BAR ── */
+.fs-tabs-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.fs-tab-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fs-tab-btn:hover {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.fs-tab-btn.active {
+  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
+}
+
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.fs-tab-btn:not(.active) .tab-badge {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.fs-tab-btn:not(.active) .tab-badge.upcoming {
+  background: #e0f2fe;
+  color: #0284c7;
 }
 
 /* ── TOOLBAR INFO ── */

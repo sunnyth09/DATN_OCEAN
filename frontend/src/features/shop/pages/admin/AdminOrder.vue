@@ -43,15 +43,13 @@ const statuses = [
   { value: 'all', label: 'Tất cả' },
   { value: 'pending', label: 'Chờ duyệt' },
   { value: 'confirmed', label: 'Đã duyệt' },
+  { value: 'processing', label: 'Đang xử lý' },
   { value: 'packing', label: 'Đóng gói' },
+  { value: 'awaiting_pickup', label: 'Chờ lấy hàng' },
   { value: 'shipping', label: 'Đang giao' },
   { value: 'delivered', label: 'Đã giao' },
   { value: 'completed', label: 'Hoàn thành' },
-  { value: 'cancelled', label: 'Đã hủy' }
-];
-
-statuses.splice(3, 0, { value: 'processing', label: 'Đang xử lý' });
-statuses.push(
+  { value: 'cancelled', label: 'Đã hủy' },
   { value: 'return_requested', label: 'Yêu cầu hoàn' },
   { value: 'return_approved', label: 'Đã duyệt hoàn' },
   { value: 'return_rejected', label: 'Từ chối hoàn' },
@@ -61,7 +59,7 @@ statuses.push(
   { value: 'inspected_ok', label: 'Kiểm tra đạt' },
   { value: 'returned', label: 'Đã nhận hàng hoàn' },
   { value: 'refunded', label: 'Đã hoàn tiền' },
-);
+];
 const fulfillmentOptions = statuses.filter(s => s.value !== 'all');
 
 // Removed statusTransitions because we use backend available_transitions now
@@ -458,7 +456,9 @@ onUnmounted(() => {
             <button class="filter-btn" :class="{ active: !currentStatus }" @click="handleFilterStatus('')">Tất cả</button>
             <button class="filter-btn" :class="{ active: currentStatus === 'pending' }" @click="handleFilterStatus('pending')">Chờ duyệt</button>
             <button class="filter-btn" :class="{ active: currentStatus === 'confirmed' }" @click="handleFilterStatus('confirmed')">Đã duyệt</button>
+            <button class="filter-btn" :class="{ active: currentStatus === 'processing' }" @click="handleFilterStatus('processing')">Đang xử lý</button>
             <button class="filter-btn" :class="{ active: currentStatus === 'packing' }" @click="handleFilterStatus('packing')">Đóng gói</button>
+            <button class="filter-btn" :class="{ active: currentStatus === 'awaiting_pickup' }" @click="handleFilterStatus('awaiting_pickup')">Chờ lấy hàng</button>
             <button class="filter-btn" :class="{ active: currentStatus === 'shipping' }" @click="handleFilterStatus('shipping')">Đang giao</button>
             <button class="filter-btn" :class="{ active: currentStatus === 'delivered' }" @click="handleFilterStatus('delivered')">Đã giao</button>
             <button class="filter-btn" :class="{ active: currentStatus === 'completed' }" @click="handleFilterStatus('completed')">Hoàn thành</button>
@@ -769,7 +769,7 @@ onUnmounted(() => {
 .f-returned, .f-refunded { background: rgba(148, 163, 184, 0.18); color: #475569; }
 :global(html.dark) .f-pending { background: rgba(255, 167, 38, 0.15) !important; color: #ffb74d !important; }
 :global(html.dark) .f-confirmed { background: rgba(230, 59, 111, 0.15) !important; color: #ffb2bf !important; }
-:global(html.dark) .f-packing, :global(html.dark) .f-shipping { background: rgba(0, 188, 212, 0.15) !important; color: #4fc3f7 !important; }
+:global(html.dark) .f-packing, :global(html.dark) .f-awaiting_pickup, :global(html.dark) .f-shipping { background: rgba(0, 188, 212, 0.15) !important; color: #4fc3f7 !important; }
 :global(html.dark) .f-delivered, :global(html.dark) .f-completed { background: rgba(38, 166, 154, 0.15) !important; color: #4db6ac !important; }
 :global(html.dark) .f-cancelled { background: rgba(239, 83, 80, 0.15) !important; color: #e57373 !important; }
 :global(html.dark) .f-return_requested, :global(html.dark) .f-return_approved { background: rgba(245, 158, 11, 0.16) !important; color: #fdba74 !important; }

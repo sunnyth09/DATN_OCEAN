@@ -450,9 +450,10 @@ const fetchPendingReviewCount = async () => {
   align-items: center;
   gap: 10px;
   padding: 0 16px;
-  height: 56px;
+  height: var(--shell-header-height, 56px);
   border-bottom: 1px solid var(--border-color, #eee);
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .brand-icon {

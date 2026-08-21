@@ -244,6 +244,7 @@ class OceanExpressService
             }
 
             Log::warning('OceanExpress cancelOrder failed: '.$response->body());
+
             return [
                 'code' => $response->status(),
                 'status' => 'error',
@@ -251,6 +252,7 @@ class OceanExpressService
             ];
         } catch (\Throwable $e) {
             Log::error('OceanExpress cancelOrder error: '.$e->getMessage());
+
             return [
                 'code' => 500,
                 'status' => 'error',

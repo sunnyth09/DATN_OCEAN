@@ -25,7 +25,7 @@ class CourtBookingCreatedMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '[Đặt Sân] Xác nhận đặt sân #'.$this->booking->booking_code,
+            subject: '[Ocean Sport] Xác nhận yêu cầu đặt sân #'.$this->booking->booking_code,
         );
     }
 

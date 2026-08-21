@@ -55,14 +55,16 @@ class AbandonedCartNotification extends Notification
      */
     public function toMail(mixed $notifiable): MailMessage
     {
+        $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
+
         return (new MailMessage)
-            ->subject('🛒 Giỏ hàng của bạn đang chờ - Ocean Shop')
+            ->subject('[Ocean Sport] 🛒 Giỏ hàng của bạn đang chờ — Hoàn tất đơn nhận ngay ưu đãi!')
             ->greeting("Xin chào {$notifiable->full_name}! 👋")
-            ->line("Bạn có **{$this->itemCount} sản phẩm** đang nằm trong giỏ hàng, có vẻ bạn đã bận quên mất rồi nhỉ? 😊")
-            ->line('Đừng lo, chúng tôi đã giữ giỏ hàng cho bạn!')
-            ->line("🎁 Ngoài ra, Ocean Shop tặng bạn **{$this->pointsAwarded} điểm thưởng** vào tài khoản để bạn đổi quà sau này nhé!")
-            ->action('🛒 Xem giỏ hàng', url('/cart'))
-            ->line('Nếu bạn cần hỗ trợ, đừng ngần ngại liên hệ chúng tôi nhé! 💙');
+            ->line("Bạn có **{$this->itemCount} sản phẩm** đang nằm trong giỏ hàng, đừng để lỡ mất những món đồ thể thao yêu thích nhé! 😊")
+            ->line('Ocean Sport vẫn đang lưu giữ giỏ hàng cho bạn để bạn có thể tiếp tục thanh toán bất kỳ lúc nào.')
+            ->line("🎁 Ngoài ra, Ocean Sport tặng thêm cho bạn **{$this->pointsAwarded} điểm thưởng** vào tài khoản tích điểm!")
+            ->action('🛒 Quay lại giỏ hàng & Đặt ngay ➔', $frontendUrl.'/cart')
+            ->line('Nếu bạn cần hỗ trợ thêm, hãy liên hệ Hotline 1900 6868 của chúng tôi nhé! 💙');
     }
 
     /**
