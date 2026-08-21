@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Helpers\OceanTimestampHelper;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Repositories\AdminOrderRepository;
@@ -117,7 +118,6 @@ class OceanExpressOrderStatusSyncService
     private function isDuplicate(Order $order, string $oeStatus, array $payload): bool
     {
         $happenedAt = $this->parseHappenedAt($payload);
-        $mappedStatus = $this->mapStatus($oeStatus);
 
         // 1. Chặn trùng chính xác theo order_id, ghn_status và mốc happened_at
         $exactDuplicate = OrderStatusHistory::where('order_id', $order->order_id)
@@ -129,16 +129,23 @@ class OceanExpressOrderStatusSyncService
             return true;
         }
 
-        // 2. Chặn webhook retry liên tục khi đơn hàng không thay đổi trạng thái
+        // 2. Chặn trùng lặp khi đã có log cùng ghn_status trong khoảng 12 giờ
+        $hasRecentSameGhnStatus = OrderStatusHistory::where('order_id', $order->order_id)
+            ->where('ghn_status', $oeStatus)
+            ->whereRaw('ABS(TIMESTAMPDIFF(MINUTE, happened_at, ?)) < 720', [$happenedAt->format('Y-m-d H:i:s')])
+            ->exists();
+
+        if ($hasRecentSameGhnStatus) {
+            return true;
+        }
+
+        // 3. Chặn webhook retry liên tục khi đơn hàng không thay đổi trạng thái
         $latestHistory = OrderStatusHistory::where('order_id', $order->order_id)
             ->latest('history_id')
             ->first();
 
         if ($latestHistory && $latestHistory->ghn_status === $oeStatus) {
-            $latestTime = $latestHistory->happened_at ?? $latestHistory->created_at;
-            if ($latestTime && abs($happenedAt->diffInMinutes($latestTime)) < 30) {
-                return true;
-            }
+            return true;
         }
 
         return false;
@@ -269,33 +276,6 @@ class OceanExpressOrderStatusSyncService
 
     public function parseHappenedAt(array $data): Carbon
     {
-        $tz = config('app.timezone', 'Asia/Ho_Chi_Minh');
-        $time = $data['timestamp'] ?? $data['created_at'] ?? $data['happened_at'] ?? null;
-
-        if (is_numeric($time)) {
-            $ts = (int) $time;
-            if ($ts > 10000000000) {
-                $ts = (int) ($ts / 1000);
-            }
-
-            return Carbon::createFromTimestamp($ts, $tz);
-        }
-
-        if (is_string($time) && trim($time) !== '') {
-            $time = trim($time);
-            try {
-                // Có định dạng múi giờ rõ ràng (ISO Z hoặc +07:00 / +00:00)
-                if (str_ends_with($time, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $time)) {
-                    return Carbon::parse($time)->setTimezone($tz);
-                }
-
-                // Định dạng ngày giờ thông thường (mặc định hiểu là giờ địa phương Việt Nam)
-                return Carbon::parse($time, $tz);
-            } catch (\Throwable) {
-                return now($tz);
-            }
-        }
-
-        return now($tz);
+        return OceanTimestampHelper::parseOceanTimestamp($data);
     }
 }

@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Helpers\OceanTimestampHelper;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
-use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -263,26 +263,10 @@ class OrderTrackingService
     private function formatTime(mixed $value): string
     {
         try {
-            if (is_numeric($value)) {
-                return Carbon::createFromTimestamp((int) $value)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
-            }
-
-            if (is_string($value) && $value !== '') {
-                if (str_contains($value, 'T') || str_ends_with($value, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $value)) {
-                    return Carbon::parse($value)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
-                }
-
-                if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/', $value)) {
-                    return Carbon::parse($value, 'UTC')->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
-                }
-
-                return Carbon::parse($value)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
-            }
+            return OceanTimestampHelper::parseOceanTimestamp(['timestamp' => $value])->toIso8601String();
         } catch (\Throwable) {
-            // fallback below
+            return now(config('app.timezone', 'Asia/Ho_Chi_Minh'))->toIso8601String();
         }
-
-        return now()->toIso8601String();
     }
 
     /**
