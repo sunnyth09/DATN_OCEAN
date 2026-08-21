@@ -222,7 +222,8 @@ const handleConfirmAddToCart = async () => {
                 image: variantImageUrl.value || productImageUrl.value
             });
             showVariantModal.value = false;
-            cartStore.fetchCount()
+            await cartStore.fetchCount();
+            window.dispatchEvent(new Event('cart-updated'));
             return;
         }
 
@@ -238,7 +239,8 @@ const handleConfirmAddToCart = async () => {
             image: variantImageUrl.value || productImageUrl.value
         });
         showVariantModal.value = false;
-        cartStore.fetchCount()
+        await cartStore.fetchCount();
+        window.dispatchEvent(new Event('cart-updated'));
     } catch (error) {
         const message = error.response?.data?.message || "Không thể thêm vào giỏ hàng.";
         showToast(message, "danger");
@@ -248,8 +250,10 @@ const handleConfirmAddToCart = async () => {
 };
 
 const handleAddToCart = async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
 
     if (isAddingToCart.value) return;
 
@@ -270,9 +274,14 @@ const handleAddToCart = async (event) => {
     const hasSelectable = variants.value.length > 0 && (variants.value.some(v => v.color) || variants.value.some(v => v.size));
 
     if (hasSelectable) {
-        // Reset selections and open modal
-        selectedColor.value = null;
-        selectedSize.value = null;
+        // Auto-select valid initial variant or default
+        const defaultVar = (defaultVariantId.value ? variants.value.find(v => v.variant_id === defaultVariantId.value) : null)
+            || variants.value.find(v => v.stock > 0)
+            || variants.value[0];
+        if (defaultVar) {
+            selectedColor.value = defaultVar.color || null;
+            selectedSize.value = defaultVar.size || null;
+        }
         quantity.value = 1;
         showVariantModal.value = true;
     } else {
@@ -317,7 +326,8 @@ const handleAddToCart = async (event) => {
                     qty: 1,
                     image: productImageUrl.value
                 });
-                cartStore.fetchCount()
+                await cartStore.fetchCount();
+                window.dispatchEvent(new Event('cart-updated'));
                 return;
             }
 
@@ -332,7 +342,8 @@ const handleAddToCart = async (event) => {
                 qty: 1,
                 image: productImageUrl.value
             });
-            cartStore.fetchCount()
+            await cartStore.fetchCount();
+            window.dispatchEvent(new Event('cart-updated'));
         } catch (error) {
             const message = error.response?.data?.message || "Không thể thêm vào giỏ hàng.";
             showToast(message, "danger");
@@ -352,7 +363,7 @@ const handleAddToCart = async (event) => {
                 </span>
 
                 <button class="icon-btn favorite-btn" :class="{ 'is-active': isFavorited(productId) }"
-                    @click="handleToggleFav" title="Yêu thích" aria-label="Yêu thích">
+                    @click.stop.prevent="handleToggleFav" title="Yêu thích" aria-label="Yêu thích">
                     <AppIcon name="heart" size="18" stroke-width="1.8" />
                 </button>
 
@@ -398,7 +409,7 @@ const handleAddToCart = async (event) => {
                         </span>
                     </div>
 
-                    <button class="icon-btn cart-btn" @click="handleAddToCart"
+                    <button class="icon-btn cart-btn" @click.stop.prevent="handleAddToCart"
                         :disabled="isAddingToCart || isOutOfStock" :class="{ 'is-disabled': isOutOfStock }"
                         :title="isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ'"
                         :aria-label="isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'">

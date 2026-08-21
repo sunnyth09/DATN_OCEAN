@@ -435,7 +435,7 @@ class CartService
             ->where('status', 'active')
             ->first();
 
-        return $cart ? $cart->items()->count() : 0;
+        return $cart ? (int) $cart->items()->sum('quantity') : 0;
     }
 
     // ─── BUY AGAIN ─────────────────────────────────────────────────────

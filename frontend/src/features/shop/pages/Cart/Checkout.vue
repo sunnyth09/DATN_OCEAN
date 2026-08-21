@@ -704,16 +704,33 @@ const placeOrder = async () => {
             localStorage.removeItem('affiliate_ref');
 
             if (isBuyNow.value) {
-                // Mua nhanh: chỉ dọn item tạm, KHÔNG đụng giỏ hàng
+                // Mua nhanh: dọn item tạm
                 sessionStorage.removeItem('buy_now_item');
-            } else if (!isFlashSale.value) {
-                // Đặt từ giỏ hàng: backend đã xóa item khỏi giỏ (user đăng nhập),
-                // guest thì xóa giỏ local. Bắn cart-updated để badge refresh cho CẢ HAI.
-                if (!authStore.isAuthenticated) {
-                    localStorage.removeItem('cart_items');
-                }
-                cartStore.fetchCount()
             }
+            
+            // Xóa các sản phẩm đã mua khỏi giỏ hàng local nếu là khách vãng lai
+            if (!authStore.isAuthenticated) {
+                const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+                if (isBuyNow.value && buyNowItem.value) {
+                    const remaining = localItems.filter(i => i.variant_id !== buyNowItem.value.variant_id);
+                    if (remaining.length > 0) {
+                        localStorage.setItem('cart_items', JSON.stringify(remaining));
+                    } else {
+                        localStorage.removeItem('cart_items');
+                    }
+                } else if (!isFlashSale.value) {
+                    const remaining = localItems.filter(i => i.selected === false);
+                    if (remaining.length > 0) {
+                        localStorage.setItem('cart_items', JSON.stringify(remaining));
+                    } else {
+                        localStorage.removeItem('cart_items');
+                    }
+                }
+            }
+
+            // Đồng bộ và làm mới số lượng giỏ hàng
+            await cartStore.fetchCount();
+            window.dispatchEvent(new Event('cart-updated'));
             if (res.data.payment_method === 'vnpay' && res.data.vnpay_url) {
                 showToast('Đang chuyển đến cổng thanh toán VNPay...', 'success');
                 setTimeout(() => {

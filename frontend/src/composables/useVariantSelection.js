@@ -47,6 +47,9 @@ export function useVariantSelection() {
 
         if (!vars.length) return null;
 
+        if (!hasColors.value && !availableSizes.value.some(s => s.size)) {
+            return vars[0] || null;
+        }
         if (!hasColors.value && size) {
             return vars.find(v => v.size === size) || null;
         }
@@ -75,9 +78,10 @@ export function useVariantSelection() {
 
     const selectColor = (color) => {
         selectedColor.value = color;
-        const currentSizeOpt = availableSizes.value.find(s => s.size === selectedSize.value);
-        if (!currentSizeOpt || currentSizeOpt.stock <= 0) {
-            const firstAvailable = availableSizes.value.find(s => s.stock > 0);
+        const varsForColor = variants.value.filter(v => v.color === color);
+        const currentSizeMatch = varsForColor.find(v => v.size === selectedSize.value && v.stock > 0);
+        if (!currentSizeMatch) {
+            const firstAvailable = varsForColor.find(v => v.stock > 0) || varsForColor[0];
             selectedSize.value = firstAvailable ? firstAvailable.size : null;
         }
         quantity.value = 1;
@@ -93,15 +97,12 @@ export function useVariantSelection() {
                 }));
                 hasFetchedVariants.value = true;
                 
-                if (variants.value.length === 1) {
-                    selectedColor.value = variants.value[0].color;
-                    selectedSize.value = variants.value[0].size;
-                } else if (defaultVariantId) {
-                    const defaultVar = variants.value.find(v => v.variant_id === defaultVariantId);
-                    if (defaultVar) {
-                        selectedColor.value = defaultVar.color;
-                        selectedSize.value = defaultVar.size;
-                    }
+                const defaultVar = (defaultVariantId ? variants.value.find(v => v.variant_id === defaultVariantId) : null)
+                    || variants.value.find(v => v.stock > 0)
+                    || variants.value[0];
+                if (defaultVar) {
+                    selectedColor.value = defaultVar.color || null;
+                    selectedSize.value = defaultVar.size || null;
                 }
             }
         } catch (error) {

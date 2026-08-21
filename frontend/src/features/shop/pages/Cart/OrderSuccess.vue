@@ -5,11 +5,13 @@ import ProductCard from "@/components/ProductCard.vue";
 import { catalogService } from "@/services/catalogService";
 import { orderService } from "@/services/orderService";
 import { useAuthStore } from "@/stores/auth";
+import { useCartStore } from "@/stores/cart";
 import api from "@/axios";
 
 const route = useRoute();
 const orderCode = route.params.order_code || "";
 const authStore = useAuthStore();
+const cartStore = useCartStore();
 const relatedProducts = ref([]);
 const loading = ref(true);
 const orderId = ref(null);
@@ -96,6 +98,8 @@ onMounted(() => {
     fetchRelatedProducts();
     // Bắt đầu polling để phát hiện payment thành công (bank transfer)
     startPaymentPolling();
+    cartStore.fetchCount();
+    window.dispatchEvent(new Event('cart-updated'));
 });
 
 onUnmounted(() => {
