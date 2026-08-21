@@ -241,6 +241,7 @@ Route::middleware(['auth:api,admin', 'role:admin,seller,staff'])->prefix('admin'
 // ==========================================
 // NHÓM KHO / IMPORT (Khai báo trước các route động như products/{id} để tránh shadowing)
 Route::middleware(['auth:api,admin', 'role:admin,staff'])->group(function () {
+    Route::get('products/export', [ProductController::class, 'exportExcel']);
     Route::post('products/import', [ProductController::class, 'importExcel']);
     Route::post('products/import/process-chunk', [ProductController::class, 'processImportChunk']);
 });

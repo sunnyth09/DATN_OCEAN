@@ -560,6 +560,68 @@ const goToPage = (page) => {
     }
 };
 
+// ===== Export Excel =====
+const showExportModal = ref(false);
+const exportDatePreset = ref('today'); // 'today', 'this_week', 'this_month', 'custom'
+const exportFromDate = ref('');
+const exportToDate = ref('');
+const exportStatus = ref('all');
+const exportCategoryId = ref('');
+const exportBrandId = ref('');
+const exportType = ref('variant');
+const isExporting = ref(false);
+
+const openExportModal = () => {
+    showExportModal.value = true;
+};
+
+const closeExportModal = () => {
+    showExportModal.value = false;
+};
+
+const handleExportExcel = async () => {
+    isExporting.value = true;
+    try {
+        const params = new URLSearchParams({
+            date_preset: exportDatePreset.value,
+            export_type: exportType.value,
+            status: exportStatus.value,
+        });
+
+        if (exportDatePreset.value === 'custom') {
+            if (exportFromDate.value) params.append('from_date', exportFromDate.value);
+            if (exportToDate.value) params.append('to_date', exportToDate.value);
+        }
+        if (exportCategoryId.value) params.append('category_id', exportCategoryId.value);
+        if (exportBrandId.value) params.append('brand_id', exportBrandId.value);
+
+        const response = await api.get(`/products/export?${params.toString()}`, {
+            responseType: 'blob',
+        });
+
+        const blob = new Blob([response.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const nowStr = new Date().toISOString().slice(0, 10);
+        link.setAttribute('download', `danh_sach_san_pham_${nowStr}.xlsx`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+
+        showToastMsg('Xuất file Excel thành công!', 'success');
+        closeExportModal();
+    } catch (error) {
+        console.error('Export error:', error);
+        showToastMsg('Có lỗi xảy ra khi xuất file Excel.', 'danger');
+    } finally {
+        isExporting.value = false;
+    }
+};
+
 // ===== Import Excel =====
 const showImportModal = ref(false);
 const importFile = ref(null);
@@ -775,7 +837,7 @@ const formatDate = (dateString) => {
                 <p class="page-subtitle">Quản lý kho hàng cửa hàng Ocean</p>
             </div>
             <div class="header-btns">
-                <button class="btn-import" id="export-excel-btn" @click="showToastMsg('Chức năng Xuất Excel đang phát triển', 'info')">
+                <button class="btn-import" id="export-excel-btn" @click="openExportModal">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
@@ -1362,6 +1424,97 @@ const formatDate = (dateString) => {
                 </div>
             </div>
         </Teleport>
+
+        <!-- ===== Export Excel Modal ===== -->
+        <Teleport to="body">
+            <div class="import-backdrop" v-if="showExportModal" @click.self="closeExportModal">
+                <div class="import-modal animate-in" style="max-width: 540px;">
+                    <div class="import-header">
+                        <h2>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#167a70" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            Xuất Dữ Liệu Sản Phẩm Excel
+                        </h2>
+                        <button class="import-close" @click="closeExportModal">×</button>
+                    </div>
+
+                    <div class="import-body">
+                        <!-- Chọn khoảng thời gian -->
+                        <div class="export-group">
+                            <label class="export-label">Khoảng thời gian tạo sản phẩm</label>
+                            <div class="export-presets">
+                                <button type="button" class="preset-btn" :class="{ active: exportDatePreset === 'today' }" @click="exportDatePreset = 'today'">Hôm nay</button>
+                                <button type="button" class="preset-btn" :class="{ active: exportDatePreset === 'this_week' }" @click="exportDatePreset = 'this_week'">Tuần này</button>
+                                <button type="button" class="preset-btn" :class="{ active: exportDatePreset === 'this_month' }" @click="exportDatePreset = 'this_month'">Tháng này</button>
+                                <button type="button" class="preset-btn" :class="{ active: exportDatePreset === 'custom' }" @click="exportDatePreset = 'custom'">Tùy chọn</button>
+                            </div>
+                            <div v-if="exportDatePreset === 'custom'" class="export-custom-dates">
+                                <div class="date-input-group">
+                                    <span>Từ ngày:</span>
+                                    <input type="date" v-model="exportFromDate" class="export-date-input" />
+                                </div>
+                                <div class="date-input-group">
+                                    <span>Đến ngày:</span>
+                                    <input type="date" v-model="exportToDate" class="export-date-input" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Chế độ xuất -->
+                        <div class="export-group">
+                            <label class="export-label">Chế độ xuất dữ liệu</label>
+                            <div class="export-radio-group">
+                                <label class="export-radio-item">
+                                    <input type="radio" v-model="exportType" value="variant" />
+                                    <span>Chi tiết từng biến thể (Mã SKU, Màu, Size, Giá, Tồn kho)</span>
+                                </label>
+                                <label class="export-radio-item">
+                                    <input type="radio" v-model="exportType" value="summary" />
+                                    <span>Tổng quan sản phẩm (ID, Tên SP, Loại, Giá min/max, Tổng kho)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Bộ lọc khác (Trạng thái & Danh mục) -->
+                        <div class="export-group-row">
+                            <div class="export-group" style="flex: 1;">
+                                <label class="export-label">Trạng thái</label>
+                                <select v-model="exportStatus" class="export-select">
+                                    <option value="all">Tất cả trạng thái</option>
+                                    <option value="active">Đang bán</option>
+                                    <option value="draft">Bản nháp</option>
+                                    <option value="inactive">Tạm ẩn</option>
+                                    <option value="out_of_stock">Hết hàng</option>
+                                    <option value="deleted">Đã xóa</option>
+                                </select>
+                            </div>
+                            <div class="export-group" style="flex: 1;">
+                                <label class="export-label">Danh mục</label>
+                                <select v-model="exportCategoryId" class="export-select">
+                                    <option value="">Tất cả danh mục</option>
+                                    <option v-for="cat in categories" :key="cat.category_id" :value="cat.category_id">{{ cat.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="import-footer">
+                        <button class="btn-outline" @click="closeExportModal">Hủy</button>
+                        <button class="btn-primary" :disabled="isExporting" @click="handleExportExcel">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            {{ isExporting ? 'Đang xuất Excel...' : 'Tải File Excel' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </div>
 </template>
 
@@ -1868,5 +2021,31 @@ const formatDate = (dateString) => {
     opacity: 0.6;
     pointer-events: none;
     transition: opacity 0.2s ease;
+}
+
+/* ===== Export Modal Styles ===== */
+.export-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.export-group-row { display: flex; gap: 16px; margin-bottom: 8px; }
+.export-label { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
+.export-presets { display: flex; gap: 8px; flex-wrap: wrap; }
+.preset-btn {
+    padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: #f8fafc; color: var(--text-muted); font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+}
+.preset-btn:hover { border-color: var(--primary); color: var(--primary); }
+.preset-btn.active { background: #167a70; color: white; border-color: #167a70; }
+.export-custom-dates { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+.date-input-group { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-muted); }
+.export-date-input {
+    padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border-color);
+    font-size: 0.82rem; color: var(--text-main); outline: none;
+}
+.export-radio-group { display: flex; flex-direction: column; gap: 8px; background: #f8fafc; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border-color); }
+.export-radio-item { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; cursor: pointer; color: var(--text-main); }
+.export-radio-item input[type="radio"] { accent-color: #167a70; width: 16px; height: 16px; cursor: pointer; }
+.export-select {
+    width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color);
+    background: white; font-size: 0.85rem; color: var(--text-main); outline: none;
 }
 </style>

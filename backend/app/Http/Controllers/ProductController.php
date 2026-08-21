@@ -360,6 +360,14 @@ class ProductController extends Controller
     }
 
     /**
+     * Xuất danh sách sản phẩm ra file Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        return $this->productService->exportProducts($request);
+    }
+
+    /**
      * Upload ảnh cho editor mô tả sản phẩm (Quill)
      */
     public function uploadEditorImage(Request $request)
