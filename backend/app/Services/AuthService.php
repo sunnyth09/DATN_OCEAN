@@ -371,7 +371,7 @@ class AuthService
                 }
             }
 
-            if (!$email) {
+            if (! $email) {
                 return ['_status' => 422, 'status' => 'error', 'message' => 'Không tìm thấy thông tin email từ Google!'];
             }
 

@@ -49,11 +49,11 @@ class OrderPaymentUpdated implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'order_id'         => $this->order->order_id,
-            'order_code'       => $this->order->order_code,
-            'payment_status'   => $this->order->payment_status,
-            'payment_method'   => $this->order->payment_method,
-            'grand_total'      => $this->order->grand_total,
+            'order_id' => $this->order->order_id,
+            'order_code' => $this->order->order_code,
+            'payment_status' => $this->order->payment_status,
+            'payment_method' => $this->order->payment_method,
+            'grand_total' => $this->order->grand_total,
         ];
     }
 }

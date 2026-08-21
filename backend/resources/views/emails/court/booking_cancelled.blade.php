@@ -37,13 +37,14 @@ Không có khoản hoàn tiền cho lần hủy này @if($cancelledBy === 'user'
 
 ---
 
-@component('mail::button', ['url' => config('app.frontend_url', 'http://localhost:5173') . '/courts', 'color' => 'primary'])
-🏸 Đặt sân khác
+@component('mail::button', ['url' => rtrim(config('app.frontend_url', 'http://localhost:3302'), '/') . '/courts', 'color' => 'primary'])
+🏸 Khám phá & Đặt sân khác
 @endcomponent
 
-Chúng tôi xin lỗi vì sự bất tiện này và mong sớm được phục vụ bạn trong lần tới.
+Chúng tôi xin lỗi vì sự bất tiện này và mong sớm được phục vụ bạn trong lần tới!
 
-**{{ config('app.name') }}**
+**OCEAN SPORT — HỆ THỐNG SÂN CẦU LÔNG CHUYÊN NGHIỆP**<br>
+Hotline: **1900 6868** | Email: **contact@oceansport.vn**
 
-<small>Email này được gửi tự động, vui lòng không reply.</small>
+<small>Email này được gửi tự động từ hệ thống Ocean Sport.</small>
 @endcomponent

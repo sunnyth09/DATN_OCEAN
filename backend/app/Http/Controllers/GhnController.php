@@ -19,26 +19,78 @@ class GhnController extends Controller
 
     public function calculateFee(Request $request)
     {
-        $data = $request->validate([
-            'to_district_id' => 'required|integer',
-            'to_ward_code' => 'required|string',
-            'weight' => 'required|integer|min:1',
-            'insurance_value' => 'nullable|integer|min:0',
-            'coupon_code' => 'nullable|string',
-        ]);
+        $wardCode = $request->input('ward_code') ?? $request->input('to_ward_code');
+        $districtId = $request->input('district_id') ?? $request->input('to_district_id');
+        $weight = max((int) $request->input('weight', 500), 10);
+
+        if (! $wardCode && ! $districtId) {
+            $fallback = (int) config('ocean_express.fallback_fee', 30000);
+
+            return response()->json([
+                'code' => 200,
+                'status' => 'success',
+                'data' => [
+                    'total' => $fallback,
+                    'fee' => $fallback,
+                    'service_fee' => $fallback,
+                ],
+            ]);
+        }
 
         try {
-            $feeData = GHNService::calculateFee(
-                toDistrictId: (int) $data['to_district_id'],
-                toWardCode: $data['to_ward_code'],
-                weight: (int) $data['weight'],
-                insuranceValue: (int) ($data['insurance_value'] ?? 0),
-                couponCode: $data['coupon_code'] ?? null
-            );
+            // 1. Nếu là mã địa điểm Ocean Express (bắt đầu bằng VN- hoặc không có district_id)
+            if ($wardCode && (str_starts_with((string) $wardCode, 'VN-') || ! $districtId)) {
+                $oeRate = OceanExpressService::calculateRateDetailed((string) $wardCode, $weight);
+                $fee = (int) ($oeRate['fee'] ?? config('ocean_express.fallback_fee', 30000));
 
-            return response()->json($feeData);
+                return response()->json([
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'Tính phí vận chuyển Ocean Express thành công',
+                    'data' => [
+                        'total' => $fee,
+                        'fee' => $fee,
+                        'service_fee' => $fee,
+                        'insurance_fee' => 0,
+                    ],
+                ]);
+            }
+
+            // 2. Nếu là mã GHN (có to_district_id và to_ward_code)
+            $feeData = GHNService::calculateFee([
+                'to_district_id' => (int) $districtId,
+                'to_ward_code' => (string) $wardCode,
+                'weight' => $weight,
+                'insurance_value' => (int) $request->input('insurance_value', 0),
+                'coupon_code' => $request->input('coupon_code'),
+            ]);
+
+            $total = $feeData['data']['total'] ?? $feeData['data']['service_fee'] ?? (int) config('ocean_express.fallback_fee', 30000);
+
+            return response()->json([
+                'code' => 200,
+                'status' => 'success',
+                'data' => [
+                    'total' => $total,
+                    'fee' => $total,
+                    'service_fee' => $feeData['data']['service_fee'] ?? $total,
+                    'insurance_fee' => $feeData['data']['insurance_fee'] ?? 0,
+                    'raw' => $feeData,
+                ],
+            ]);
         } catch (\Throwable $e) {
-            return response()->json(['code' => 400, 'message' => $e->getMessage()], 400);
+            Log::warning('GhnController calculateFee fallback: '.$e->getMessage());
+            $fallback = (int) config('ocean_express.fallback_fee', 30000);
+
+            return response()->json([
+                'code' => 200,
+                'status' => 'success',
+                'data' => [
+                    'total' => $fallback,
+                    'fee' => $fallback,
+                    'service_fee' => $fallback,
+                ],
+            ]);
         }
     }
 

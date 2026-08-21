@@ -1,13 +1,12 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
 Broadcast::routes(['middleware' => ['api', 'auth:api,admin']]);
 
 use App\Http\Controllers\Admin\AdminChatController;
-use App\Http\Controllers\PostCommentController;
+use App\Http\Controllers\Admin\SizeGuideController;
 use App\Http\Controllers\AdminAffiliateController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
@@ -24,24 +23,16 @@ use App\Http\Controllers\ComboController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\FaceEncodingController;
-use App\Http\Controllers\FlashSaleController;
 use App\Http\Controllers\LoyaltyController;
-use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PosController;
+use App\Http\Controllers\PostCommentController;
 use App\Http\Controllers\ProductCommentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\TicketController;
-use App\Http\Controllers\Admin\SizeGuideController;
 use App\Http\Controllers\WorkLocationController;
 use App\Http\Controllers\WorkShiftController;
-use App\Models\Cart;
-use App\Models\Order;
-use App\Services\FcmService;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 
 // use Illuminate\Http\Request;
-
 
 // ==========================================
 // NHÓM 1: QUAN TRỊ VIÊN CẤP CAO (admin)

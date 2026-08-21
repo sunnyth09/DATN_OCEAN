@@ -53,33 +53,23 @@ const carrierStatusNames = {
   returned: 'Đã hoàn hàng',
 };
 
-const getEffectiveTime = (h) => {
-  if (!h) return 0;
-  if (h.happened_at && h.created_at) {
-    const tHap = new Date(h.happened_at).getTime();
-    const tCre = new Date(h.created_at).getTime();
-    if (tCre > tHap && (tCre - tHap) > 2 * 3600 * 1000) {
-      return tCre;
-    }
-  }
-  return new Date(h.happened_at || h.created_at || 0).getTime();
-};
-
 const getEffectiveDate = (h) => {
   if (!h) return '';
-  if (h.happened_at && h.created_at) {
-    const tHap = new Date(h.happened_at).getTime();
-    const tCre = new Date(h.created_at).getTime();
-    if (tCre > tHap && (tCre - tHap) > 2 * 3600 * 1000) {
-      return h.created_at;
-    }
-  }
-  return h.happened_at || h.created_at;
+  return h.happened_at || h.created_at || '';
+};
+
+const getEffectiveTime = (h) => {
+  const dt = getEffectiveDate(h);
+  if (!dt) return 0;
+  const time = new Date(dt).getTime();
+  return isNaN(time) ? 0 : time;
 };
 
 const sortedHistories = () => {
   const list = Array.isArray(props.histories) ? [...props.histories] : [];
-  return list.sort((a, b) => {
+
+  // Sắp xếp thời gian mới nhất lên trên
+  list.sort((a, b) => {
     const idA = Number(a.history_id || a.id || 0);
     const idB = Number(b.history_id || b.id || 0);
     if (idA > 0 && idB > 0 && idA !== idB) {
@@ -89,6 +79,31 @@ const sortedHistories = () => {
     const bTime = getEffectiveTime(b);
     return bTime - aTime;
   });
+
+  // Lọc bỏ các bản ghi webhook retry trùng lặp liên tiếp
+  const result = [];
+  for (let i = 0; i < list.length; i++) {
+    const curr = list[i];
+    const prev = result[result.length - 1];
+
+    if (prev) {
+      const sameOld = (prev.old_status || '') === (curr.old_status || '');
+      const sameNew = (prev.new_status || '') === (curr.new_status || '');
+      const sameGhn = (prev.ghn_status || '') === (curr.ghn_status || '');
+      const sameNote = (prev.note || '') === (curr.note || '');
+      const sameDesc = (prev.description || '') === (curr.description || '');
+      const prevTime = getEffectiveTime(prev);
+      const currTime = getEffectiveTime(curr);
+      const isClose = Math.abs(prevTime - currTime) < 300000; // Trong vòng 5 phút
+
+      if (sameOld && sameNew && sameGhn && sameNote && sameDesc && isClose) {
+        continue;
+      }
+    }
+    result.push(curr);
+  }
+
+  return result;
 };
 
 const readableFallback = (value) => String(value || '').replace(/_/g, ' ');

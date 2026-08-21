@@ -31,13 +31,14 @@ Chúng tôi đã nhận được yêu cầu đặt sân của bạn. Vui lòng c
 
 Khi đến sân, bạn có thể **xuất mã QR** từ trang lịch đặt sân của mình để nhân viên quét nhanh. Vui lòng đến sớm **ít nhất 10 phút** trước giờ chơi.
 
-@component('mail::button', ['url' => config('app.frontend_url', 'http://localhost:5173') . '/my-bookings', 'color' => 'success'])
-Xem lịch đặt sân
+@component('mail::button', ['url' => rtrim(config('app.frontend_url', 'http://localhost:3302'), '/') . '/profile/court-bookings', 'color' => 'success'])
+📱 Xem chi tiết lịch đặt sân
 @endcomponent
 
 Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ của chúng tôi!
 
-**{{ config('app.name') }}**
+**OCEAN SPORT — HỆ THỐNG SÂN CẦU LÔNG CHUYÊN NGHIỆP**<br>
+Hotline: **1900 6868** | Email: **contact@oceansport.vn**
 
-<small>Email này được gửi tự động, vui lòng không reply.</small>
+<small>Email này được gửi tự động từ hệ thống Ocean Sport.</small>
 @endcomponent

@@ -31,7 +31,7 @@ class CourtBookingCancelledMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '[Đặt Sân] Lịch đặt sân #'.$this->booking->booking_code.' đã bị hủy',
+            subject: '[Ocean Sport] Lịch đặt sân #'.$this->booking->booking_code.' đã bị hủy',
         );
     }
 

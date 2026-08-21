@@ -82,7 +82,7 @@ class ProductRepository
                         // Tìm theo biến thể (SKU, barcode)
                         $sub->orWhereHas('variants', function ($vq) use ($searchClean) {
                             $vq->where('sku', 'like', "%{$searchClean}%")
-                               ->orWhere('barcode', 'like', "%{$searchClean}%");
+                                ->orWhere('barcode', 'like', "%{$searchClean}%");
                         });
                     });
                 }
@@ -126,8 +126,8 @@ class ProductRepository
         if (! empty($filters['price_range'])) {
             $rangeParts = explode('-', $filters['price_range']);
             if (count($rangeParts) === 2) {
-                $minPrice = $rangeParts[0] !== '' ? (int)$rangeParts[0] : null;
-                $maxPrice = $rangeParts[1] !== '' ? (int)$rangeParts[1] : null;
+                $minPrice = $rangeParts[0] !== '' ? (int) $rangeParts[0] : null;
+                $maxPrice = $rangeParts[1] !== '' ? (int) $rangeParts[1] : null;
                 if ($minPrice !== null && $maxPrice !== null) {
                     $query->whereBetween('min_price', [$minPrice, $maxPrice]);
                 } elseif ($minPrice !== null) {
@@ -173,11 +173,11 @@ class ProductRepository
         $maxPriceLimit = Product::where('status', 'active')->max('max_price') ?? 10000000;
 
         return [
-            'data'            => $products,
-            'total'           => $total,
-            'total_pages'     => ceil($total / $limit),
-            'page'            => $page,
-            'limit'           => $limit,
+            'data' => $products,
+            'total' => $total,
+            'total_pages' => ceil($total / $limit),
+            'page' => $page,
+            'limit' => $limit,
             'max_price_limit' => (float) $maxPriceLimit,
         ];
     }
@@ -190,7 +190,7 @@ class ProductRepository
      * sản phẩm draft/inactive/deleted cho người dùng cuối.
      *
      * @param  array|null  $matchedIds  IDs từ Meilisearch (null = không search, [] = không dùng)
-     * @param  array       $filters     [max_price, brand_ids, sort_by, category_ids, search_like]
+     * @param  array  $filters  [max_price, brand_ids, sort_by, category_ids, search_like]
      */
     public function getClientProducts(?array $matchedIds, array $filters, int $page, int $limit): array
     {
@@ -229,10 +229,10 @@ class ProductRepository
         $query->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC');
 
         match ($filters['sort_by'] ?? null) {
-            'oldest'     => $query->orderBy('created_at', 'asc'),
-            'price-asc'  => $query->orderBy('min_price', 'asc'),
+            'oldest' => $query->orderBy('created_at', 'asc'),
+            'price-asc' => $query->orderBy('min_price', 'asc'),
             'price-desc' => $query->orderBy('min_price', 'desc'),
-            default      => $query->orderBy('product_id', 'desc'),
+            default => $query->orderBy('product_id', 'desc'),
         };
 
         $products = $query->offset($offset)->limit($limit)->get();
@@ -242,11 +242,11 @@ class ProductRepository
             ->max('max_price') ?? 10000000;
 
         return [
-            'data'            => $products,
-            'total'           => $total,
-            'total_pages'     => (int) ceil($total / $limit),
-            'page'            => $page,
-            'limit'           => $limit,
+            'data' => $products,
+            'total' => $total,
+            'total_pages' => (int) ceil($total / $limit),
+            'page' => $page,
+            'limit' => $limit,
             'max_price_limit' => (float) $maxPriceLimit,
         ];
     }
@@ -450,7 +450,7 @@ class ProductRepository
             ->where('status', 'active')
             ->whereNull('deleted_at')
             // Ưu tiên 1: Cùng thương hiệu -> Sản phẩm tương tự sát nhất
-            ->orderByRaw($brandId ? "brand_id = {$brandId} DESC" : "1=1")
+            ->orderByRaw($brandId ? "brand_id = {$brandId} DESC" : '1=1')
             // Ưu tiên 2: Sản phẩm nổi bật (cần đẩy bán)
             ->orderBy('is_featured', 'desc')
             // Ưu tiên 3: Sản phẩm bán chạy (tăng doanh thu)

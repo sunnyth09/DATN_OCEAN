@@ -238,23 +238,54 @@ class ContactController extends Controller
             }
 
             $replyContent = $request->reply;
-            $subject = "Re: {$contact->subject} — Ocean Store";
+            $subject = "[Ocean Sport] Phản hồi hỗ trợ: {$contact->subject}";
 
             $htmlBody = '
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-                <div style="background:#E63B6F;padding:24px;border-radius:12px 12px 0 0;text-align:center">
-                    <h2 style="color:#fff;margin:0;font-size:20px">Ocean Store — Phản hồi hỗ trợ</h2>
-                </div>
-                <div style="background:#fff;padding:24px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
-                    <p style="color:#4b5563;margin:0 0 8px"><strong>Xin chào '.htmlspecialchars($contact->name).',</strong></p>
-                    <p style="color:#6b7280;font-size:14px;margin:0 0 16px">Cảm ơn bạn đã liên hệ với chúng tôi về: <em>"'.htmlspecialchars($contact->subject).'"</em></p>
-                    <div style="background:#FFF0F3;border-left:4px solid #E63B6F;padding:16px;border-radius:8px;margin:0 0 16px">
-                        <p style="color:#1a1a2e;margin:0;white-space:pre-wrap">'.htmlspecialchars($replyContent).'</p>
-                    </div>
-                    <p style="color:#6b7280;font-size:13px;margin:0">Nếu cần thêm hỗ trợ, hãy trả lời email này hoặc liên hệ Hotline 1900-OCEAN.</p>
-                </div>
-                <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px">© 2026 Ocean Store. All rights reserved.</p>
-            </div>';
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Phản hồi hỗ trợ từ Ocean Sport</title>
+            </head>
+            <body style="margin: 0; padding: 30px 15px; background: #f8f9fa; font-family: \'Plus Jakarta Sans\', -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Arial, sans-serif;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr><td align="center">
+                        <table width="560" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(230, 59, 111, 0.08); border: 1px solid #f1f3f5;">
+                            <!-- Header -->
+                            <tr><td style="background: linear-gradient(135deg, #E63B6F 0%, #b50c4d 100%); padding: 32px 24px; text-align: center;">
+                                <div style="font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; color: #ffd9de;">OCEAN SPORT</div>
+                                <h1 style="color: #ffffff; font-size: 22px; margin: 0; font-weight: 800;">Phản Hồi Yêu Cầu Hỗ Trợ</h1>
+                                <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Bộ phận Chăm sóc Khách hàng Ocean Sport</p>
+                            </td></tr>
+
+                            <!-- Body -->
+                            <tr><td style="padding: 32px 28px 24px;">
+                                <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">'.htmlspecialchars($contact->name).'</strong>,</p>
+                                <p style="color: #64748b; font-size: 14px; margin: 0 0 20px; line-height: 1.6;">Cảm ơn bạn đã liên hệ với chúng tôi về chủ đề: <em>"'.htmlspecialchars($contact->subject).'"</em>. Dưới đây là phản hồi từ đội ngũ hỗ trợ:</p>
+
+                                <div style="background: #FFF0F3; border-left: 4px solid #E63B6F; padding: 18px 20px; border-radius: 10px; margin: 0 0 24px;">
+                                    <p style="color: #1e293b; margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">'.htmlspecialchars($replyContent).'</p>
+                                </div>
+
+                                <p style="color: #64748b; font-size: 13px; margin: 0; line-height: 1.5;">
+                                    Nếu bạn cần thêm bất kỳ thông tin nào, hãy phản hồi trực tiếp email này hoặc liên hệ hotline <strong style="color: #E63B6F;">1900 6868</strong> để được hỗ trợ tức thì.
+                                </p>
+                            </td></tr>
+
+                            <!-- Footer -->
+                            <tr><td style="background: #f8fafc; padding: 20px 24px; border-top: 1px solid #f1f5f9; text-align: center;">
+                                <div style="font-weight: 700; color: #64748b; font-size: 12px; margin-bottom: 4px;">OCEAN SPORT — CỬA HÀNG THỂ THAO CAO CẤP</div>
+                                <div style="font-size: 11px; color: #94a3b8; line-height: 1.5;">
+                                    Hotline: <strong style="color: #E63B6F;">1900 6868</strong> | Email: <strong style="color: #E63B6F;">contact@oceansport.vn</strong><br>
+                                    © '.date('Y').' Ocean Sport. All rights reserved.
+                                </div>
+                            </td></tr>
+                        </table>
+                    </td></tr>
+                </table>
+            </body>
+            </html>';
 
             $transport = new EsmtpTransport(
                 'smtp.gmail.com', 587, false

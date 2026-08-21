@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Coupon;
 use App\Models\LoyaltyRule;
+use App\Models\LuckyWheelPrize;
+use App\Models\UserCoupon;
 use App\Services\LoyaltyService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * LoyaltyController
@@ -41,11 +46,11 @@ class LoyaltyController extends Controller
         }
 
         $summary = $this->loyaltyService->getSummary($user->user_id);
-        
+
         // Add checkin info to summary
         $summary['last_check_in_at'] = $user->last_check_in_at;
         $summary['check_in_streak'] = $user->check_in_streak ?? 0;
-        $summary['has_checked_in_today'] = $user->last_check_in_at && \Carbon\Carbon::parse($user->last_check_in_at)->isToday();
+        $summary['has_checked_in_today'] = $user->last_check_in_at && Carbon::parse($user->last_check_in_at)->isToday();
 
         return response()->json(['status' => 'success', 'data' => $summary]);
     }
@@ -62,7 +67,7 @@ class LoyaltyController extends Controller
         }
 
         $today = now()->toDateString();
-        $lastCheckIn = $user->last_check_in_at ? \Carbon\Carbon::parse($user->last_check_in_at)->toDateString() : null;
+        $lastCheckIn = $user->last_check_in_at ? Carbon::parse($user->last_check_in_at)->toDateString() : null;
 
         if ($lastCheckIn === $today) {
             return response()->json([
@@ -71,18 +76,18 @@ class LoyaltyController extends Controller
                 'data' => [
                     'check_in_streak' => $user->check_in_streak,
                     'reward_points' => $user->reward_points,
-                ]
+                ],
             ], 400);
         }
 
         $yesterday = now()->subDay()->toDateString();
-        
+
         if ($lastCheckIn === $yesterday) {
             $user->check_in_streak += 1;
         } else {
             $user->check_in_streak = 1;
         }
-        
+
         $user->last_check_in_at = now();
         $user->save();
 
@@ -96,7 +101,7 @@ class LoyaltyController extends Controller
                 'points_earned' => $tx ? $tx->points : 0,
                 'check_in_streak' => $user->check_in_streak,
                 'reward_points' => $user->reward_points,
-            ]
+            ],
         ]);
     }
 
@@ -106,10 +111,11 @@ class LoyaltyController extends Controller
      */
     public function luckyWheelPrizes(): JsonResponse
     {
-        $prizes = \App\Models\LuckyWheelPrize::where('is_active', true)->get();
+        $prizes = LuckyWheelPrize::where('is_active', true)->get();
+
         return response()->json([
             'status' => 'success',
-            'data' => $prizes
+            'data' => $prizes,
         ]);
     }
 
@@ -138,7 +144,7 @@ class LoyaltyController extends Controller
         $user->reward_points -= $costPerSpin;
         $user->save();
 
-        \Illuminate\Support\Facades\DB::table('loyalty_transactions')->insert([
+        DB::table('loyalty_transactions')->insert([
             'user_id' => $user->user_id,
             'type' => 'burn',
             'points' => $costPerSpin,
@@ -150,10 +156,10 @@ class LoyaltyController extends Controller
         ]);
 
         // Tính toán phần thưởng dựa trên probability
-        $prizes = \App\Models\LuckyWheelPrize::where('is_active', true)->get();
+        $prizes = LuckyWheelPrize::where('is_active', true)->get();
         $totalWeight = $prizes->sum('probability');
         $random = mt_rand(1, (int) ($totalWeight * 100)) / 100;
-        
+
         $currentWeight = 0;
         $winningPrize = null;
         $winningIndex = 0;
@@ -167,7 +173,7 @@ class LoyaltyController extends Controller
             }
         }
 
-        if (!$winningPrize) {
+        if (! $winningPrize) {
             $winningPrize = $prizes->last();
             $winningIndex = $prizes->count() - 1;
         }
@@ -178,16 +184,16 @@ class LoyaltyController extends Controller
                 $user->user_id,
                 $winningPrize->value,
                 'earn',
-                'Trúng thưởng vòng quay: ' . $winningPrize->name
+                'Trúng thưởng vòng quay: '.$winningPrize->name
             );
             $user->refresh();
         } elseif ($winningPrize && $winningPrize->type === 'voucher' && $winningPrize->value > 0) {
-            $coupon = \App\Models\Coupon::where('type', 'percent')
+            $coupon = Coupon::where('type', 'percent')
                 ->where('value', $winningPrize->value)
                 ->where('is_active', true)
                 ->first();
             if ($coupon) {
-                \App\Models\UserCoupon::firstOrCreate(
+                UserCoupon::firstOrCreate(
                     ['user_id' => $user->user_id, 'coupon_id' => $coupon->id],
                     ['is_saved' => true, 'used_count' => 0]
                 );
@@ -201,7 +207,7 @@ class LoyaltyController extends Controller
                 'prize' => $winningPrize,
                 'prize_index' => $winningIndex,
                 'reward_points' => $user->reward_points,
-            ]
+            ],
         ]);
     }
 

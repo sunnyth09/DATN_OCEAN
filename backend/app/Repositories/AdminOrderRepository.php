@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AdminOrderRepository
@@ -128,7 +129,7 @@ class AdminOrderRepository
             foreach ($productQuantities as $productId => $qty) {
                 DB::table('products')->where('product_id', $productId)->decrement('sold_count', $qty);
             }
-            \Illuminate\Support\Facades\Cache::tags(['products:best-selling'])->flush();
+            Cache::tags(['products:best-selling'])->flush();
         }
     }
 }

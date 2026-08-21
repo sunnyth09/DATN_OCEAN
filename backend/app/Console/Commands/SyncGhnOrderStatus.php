@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Order;
-use App\Models\OrderStatusHistory;
 use App\Services\GhnOrderStatusSyncService;
 use App\Services\GHNService;
 use App\Services\OceanExpressOrderStatusSyncService;
@@ -49,32 +48,26 @@ class SyncGhnOrderStatus extends Command
                     }
 
                     $oeStatus = $detail['status'] ?? null;
-                    $oeSyncService = app(OceanExpressOrderStatusSyncService::class);
-                    $mappedStatus = $oeStatus ? $oeSyncService->mapStatus($oeStatus) : null;
-
-                    if ($mappedStatus && $mappedStatus !== $order->fulfillment_status) {
-                        $oldStatus = $order->fulfillment_status;
-                        $order->update(['fulfillment_status' => $mappedStatus]);
-
+                    if ($oeStatus) {
+                        $oeSyncService = app(OceanExpressOrderStatusSyncService::class);
                         $rawLogs = $detail['tracking_logs'] ?? $detail['logs'] ?? [];
                         $latestLog = collect($rawLogs)->sortByDesc('created_at')->first() ?? collect($rawLogs)->sortByDesc('timestamp')->first();
                         $logTime = ! empty($latestLog['created_at'])
                             ? $latestLog['created_at']
                             : (! empty($latestLog['timestamp']) ? $latestLog['timestamp'] : now());
 
-                        OrderStatusHistory::create([
-                            'order_id' => $order->order_id,
-                            'old_status' => $oldStatus,
-                            'new_status' => $mappedStatus,
-                            'note' => 'Auto-sync từ Ocean Express',
-                            'source' => 'system',
-                            'description' => $latestLog['note'] ?? ($detail['status_description'] ?? $oeStatus),
-                            'happened_at' => $oeSyncService->parseHappenedAt(['timestamp' => $logTime]),
+                        $syncResult = $oeSyncService->syncFromWebhookPayload($order, [
+                            'status' => $oeStatus,
+                            'timestamp' => $logTime,
+                            'note' => $latestLog['note'] ?? ($detail['status_description'] ?? $oeStatus),
                             'location' => $detail['receiver_address_detail'] ?? $detail['receiver_address'] ?? null,
-                            'ghn_status' => $oeStatus,
+                            'source' => 'system',
                         ]);
-                        $synced++;
-                        $this->info("Order #{$order->order_id} (OE): {$oeStatus} -> {$mappedStatus} (changed)");
+
+                        if ($syncResult['changed'] ?? false) {
+                            $synced++;
+                            $this->info("Order #{$order->order_id} (OE): {$oeStatus} -> {$syncResult['new_status']} (changed)");
+                        }
                     }
                 } else {
                     // Fallback GHN cũ

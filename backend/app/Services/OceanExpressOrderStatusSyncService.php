@@ -113,21 +113,35 @@ class OceanExpressOrderStatusSyncService
 
     /**
      * Đã có bản ghi lịch sử cùng trạng thái + cùng mốc thời gian từ hãng vận chuyển?
-     *
-     * Chỉ chống trùng khi payload CÓ `timestamp`. Nếu thiếu timestamp thì
-     * parseHappenedAt() trả về now(), không thể dùng làm khoá so sánh — khi đó
-     * cho đi tiếp và dựa vào shouldUpdateOrder() để không đổi trạng thái sai.
      */
     private function isDuplicate(Order $order, string $oeStatus, array $payload): bool
     {
-        if (empty($payload['timestamp'])) {
-            return false;
+        $happenedAt = $this->parseHappenedAt($payload);
+        $mappedStatus = $this->mapStatus($oeStatus);
+
+        // 1. Chặn trùng chính xác theo order_id, ghn_status và mốc happened_at
+        $exactDuplicate = OrderStatusHistory::where('order_id', $order->order_id)
+            ->where('ghn_status', $oeStatus)
+            ->where('happened_at', $happenedAt)
+            ->exists();
+
+        if ($exactDuplicate) {
+            return true;
         }
 
-        return OrderStatusHistory::where('order_id', $order->order_id)
-            ->where('ghn_status', $oeStatus)
-            ->where('happened_at', $this->parseHappenedAt($payload))
-            ->exists();
+        // 2. Chặn webhook retry liên tục khi đơn hàng không thay đổi trạng thái
+        $latestHistory = OrderStatusHistory::where('order_id', $order->order_id)
+            ->latest('history_id')
+            ->first();
+
+        if ($latestHistory && $latestHistory->ghn_status === $oeStatus) {
+            $latestTime = $latestHistory->happened_at ?? $latestHistory->created_at;
+            if ($latestTime && abs($happenedAt->diffInMinutes($latestTime)) < 30) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function applyStatus(
@@ -255,28 +269,33 @@ class OceanExpressOrderStatusSyncService
 
     public function parseHappenedAt(array $data): Carbon
     {
+        $tz = config('app.timezone', 'Asia/Ho_Chi_Minh');
         $time = $data['timestamp'] ?? $data['created_at'] ?? $data['happened_at'] ?? null;
 
         if (is_numeric($time)) {
-            return Carbon::createFromTimestamp((int) $time)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
+            $ts = (int) $time;
+            if ($ts > 10000000000) {
+                $ts = (int) ($ts / 1000);
+            }
+
+            return Carbon::createFromTimestamp($ts, $tz);
         }
 
-        if (is_string($time) && $time !== '') {
+        if (is_string($time) && trim($time) !== '') {
+            $time = trim($time);
             try {
-                if (str_contains($time, 'T') || str_ends_with($time, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $time)) {
-                    return Carbon::parse($time)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
+                // Có định dạng múi giờ rõ ràng (ISO Z hoặc +07:00 / +00:00)
+                if (str_ends_with($time, 'Z') || preg_match('/[+-]\d{2}:\d{2}$/', $time)) {
+                    return Carbon::parse($time)->setTimezone($tz);
                 }
 
-                if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/', $time)) {
-                    return Carbon::parse($time, 'UTC')->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
-                }
-
-                return Carbon::parse($time)->setTimezone(config('app.timezone', 'Asia/Ho_Chi_Minh'));
+                // Định dạng ngày giờ thông thường (mặc định hiểu là giờ địa phương Việt Nam)
+                return Carbon::parse($time, $tz);
             } catch (\Throwable) {
-                return now();
+                return now($tz);
             }
         }
 
-        return now();
+        return now($tz);
     }
 }

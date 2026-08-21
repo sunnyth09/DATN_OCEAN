@@ -97,13 +97,13 @@ class ProductService
                     $matchedIds = $ids;
                     Log::info('Admin Product Search: Sử dụng Meilisearch thành công', [
                         'query' => $search,
-                        'results_count' => count($matchedIds)
+                        'results_count' => count($matchedIds),
                     ]);
                 }
             } catch (\Exception $e) {
                 Log::warning('Admin Product Search: Meilisearch exception', [
                     'error' => $e->getMessage(),
-                    'query' => $search
+                    'query' => $search,
                 ]);
             }
         }
@@ -134,14 +134,14 @@ class ProductService
      */
     public function listClientProducts(Request $request): array
     {
-        $page  = (int) $request->query('page', 1);
+        $page = (int) $request->query('page', 1);
         $limit = (int) $request->query('limit', 12);
         $search = trim($request->query('search', ''));
 
         $filters = [
-            'max_price'  => $request->query('max_price'),
-            'brand_ids'  => $request->query('brand_ids'),
-            'sort_by'    => $request->query('sort_by'),
+            'max_price' => $request->query('max_price'),
+            'brand_ids' => $request->query('brand_ids'),
+            'sort_by' => $request->query('sort_by'),
         ];
 
         // ── Tìm kiếm qua Meilisearch + Database ──────────────────────
@@ -154,7 +154,7 @@ class ProductService
                 if (! empty($ids)) {
                     $matchedIds = $ids;
                     Log::info('Client Product Search: Meilisearch thành công', [
-                        'query'   => $search,
+                        'query' => $search,
                         'results' => count($ids),
                     ]);
                 }

@@ -244,66 +244,7 @@ const fetchSidebarBadges = async () => {
   }
 };
 
-let globalAudioCtx = null;
-const initAudioContext = () => {
-  if (!globalAudioCtx) {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (AudioCtx) {
-      globalAudioCtx = new AudioCtx();
-    }
-  }
-  if (globalAudioCtx && globalAudioCtx.state === 'suspended') {
-    globalAudioCtx.resume();
-  }
-};
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('click', initAudioContext, { once: false });
-  window.addEventListener('keydown', initAudioContext, { once: false });
-}
-
-const playNotificationSound = () => {
-  try {
-    initAudioContext();
-    if (!globalAudioCtx) return;
-
-    const ctx = globalAudioCtx;
-    const now = ctx.currentTime;
-
-    // Tiếng Yahoo Messenger Chime huyền thoại (D5 -> A5 -> D6)
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const osc3 = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc1.type = 'sine';
-    osc2.type = 'sine';
-    osc3.type = 'sine';
-
-    osc1.frequency.setValueAtTime(587.33, now);        // D5
-    osc2.frequency.setValueAtTime(880.00, now + 0.08); // A5
-    osc3.frequency.setValueAtTime(1174.66, now + 0.16); // D6
-
-    gain.gain.setValueAtTime(0.7, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    osc3.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc1.start(now);
-    osc1.stop(now + 0.12);
-
-    osc2.start(now + 0.08);
-    osc2.stop(now + 0.20);
-
-    osc3.start(now + 0.16);
-    osc3.stop(now + 0.55);
-  } catch (e) {
-    console.warn('Không thể phát âm thanh thông báo:', e);
-  }
-};
+import { playNotificationSound } from '@/utils/sound';
 
 onMounted(() => {
   syncSidebarForViewport();

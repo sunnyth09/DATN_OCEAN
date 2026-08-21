@@ -409,8 +409,8 @@ class ProductCommentController extends Controller
                     'status' => 'error',
                     'message' => 'Dữ liệu không hợp lệ.',
                     'errors' => [
-                        "items.{$index}.content" => ['Nội dung đánh giá chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.']
-                    ]
+                        "items.{$index}.content" => ['Nội dung đánh giá chứa từ ngữ không phù hợp. Vui lòng chỉnh sửa lại.'],
+                    ],
                 ], 422);
             }
 
@@ -529,7 +529,7 @@ class ProductCommentController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'count'  => $count,
+            'count' => $count,
         ]);
     }
 }

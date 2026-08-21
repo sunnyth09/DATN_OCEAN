@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Coupon;
 use App\Models\LuckyWheelPrize;
 use App\Models\User;
-use App\Models\UserCoupon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -101,7 +100,7 @@ class LuckyWheelAndCheckInTest extends TestCase
             $table->timestamps();
         });
 
-        $this->user = new User();
+        $this->user = new User;
         $this->user->full_name = 'John Doe';
         $this->user->email = 'john@example.com';
         $this->user->reward_points = 100;
@@ -162,7 +161,7 @@ class LuckyWheelAndCheckInTest extends TestCase
 
     public function test_spin_lucky_wheel_insufficient_points(): void
     {
-        $poorUser = new User();
+        $poorUser = new User;
         $poorUser->full_name = 'Poor User';
         $poorUser->email = 'poor@example.com';
         $poorUser->reward_points = 10;

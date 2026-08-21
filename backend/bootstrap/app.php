@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -26,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware('api')
                 ->prefix('api')
                 ->group(base_path('routes/api_admin.php'));
-            
+
             Route::middleware('api')
                 ->prefix('api')
                 ->group(base_path('routes/api_webhook.php'));
@@ -81,7 +82,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 || $e instanceof AuthorizationException
                 || $e instanceof HttpExceptionInterface
                 || $e instanceof ModelNotFoundException
-                || $e instanceof \Illuminate\Http\Exceptions\HttpResponseException
+                || $e instanceof HttpResponseException
             ) {
                 return null;
             }

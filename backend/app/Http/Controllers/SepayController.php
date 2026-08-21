@@ -39,15 +39,14 @@ class SepayController extends Controller
 
         if (! hash_equals($expectedKey, $apiKey)) {
             Log::warning('SePay Webhook: Unauthorized webhook call', [
-    'ip' => $request->ip(),
-    'has_authorization' => $authHeader !== '',
-    'auth_scheme' => str_contains($authHeader, ' ') ? strtok($authHeader, ' ') : 'raw',
-    'expected_len' => strlen($expectedKey),
-    'received_len' => strlen($apiKey),
-    'expected_sha' => substr(hash('sha256', $expectedKey), 0, 12),
-    'received_sha' => substr(hash('sha256', $apiKey), 0, 12),
-]);
-
+                'ip' => $request->ip(),
+                'has_authorization' => $authHeader !== '',
+                'auth_scheme' => str_contains($authHeader, ' ') ? strtok($authHeader, ' ') : 'raw',
+                'expected_len' => strlen($expectedKey),
+                'received_len' => strlen($apiKey),
+                'expected_sha' => substr(hash('sha256', $expectedKey), 0, 12),
+                'received_sha' => substr(hash('sha256', $apiKey), 0, 12),
+            ]);
 
             return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 401);
         }
@@ -57,13 +56,13 @@ class SepayController extends Controller
         // 2. Extract transaction fields from SePay payload
         // FIX #3: dùng filter() để bỏ qua cả null lẫn chuỗi rỗng "" — PHP ?? chỉ skip null.
         $transferContent = collect([
-            $payload['code']        ?? null,
-            $payload['content']     ?? null,
+            $payload['code'] ?? null,
+            $payload['content'] ?? null,
             $payload['description'] ?? null,
         ])->filter(fn ($v) => ! empty($v))->first() ?? '';
 
         $transferAmount = (float) ($payload['transferAmount'] ?? 0);  // Transferred amount
-        $transactionId  = (string) ($payload['id'] ?? '');            // Transaction code
+        $transactionId = (string) ($payload['id'] ?? '');            // Transaction code
 
         Log::info('SePay Webhook: Processing bank transfer', [
             'transaction_id' => $transactionId,
@@ -156,7 +155,7 @@ class SepayController extends Controller
                     // bù bởi Scheduler polling job nếu cần.
                     Log::error('SePay Webhook: Post-payment side-effects failed (payment still recorded)', [
                         'order_code' => $order->order_code,
-                        'error'      => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
 
@@ -167,7 +166,7 @@ class SepayController extends Controller
                 } catch (\Throwable $e) {
                     Log::warning('SePay Webhook: OrderPaymentUpdated broadcast failed', [
                         'order_code' => $order->order_code,
-                        'error'      => $e->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }

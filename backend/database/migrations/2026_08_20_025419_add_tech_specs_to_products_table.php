@@ -12,16 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            if (!Schema::hasColumn('products', 'sku')) {
+            if (! Schema::hasColumn('products', 'sku')) {
                 $table->string('sku', 100)->nullable()->after('brand_id')->comment('Mã sản phẩm chung');
             }
-            if (!Schema::hasColumn('products', 'material')) {
+            if (! Schema::hasColumn('products', 'material')) {
                 $table->string('material', 150)->nullable()->after('short_description')->comment('Chất liệu');
             }
-            if (!Schema::hasColumn('products', 'origin')) {
+            if (! Schema::hasColumn('products', 'origin')) {
                 $table->string('origin', 150)->nullable()->after('material')->comment('Xuất xứ');
             }
-            if (!Schema::hasColumn('products', 'style')) {
+            if (! Schema::hasColumn('products', 'style')) {
                 $table->string('style', 150)->nullable()->after('origin')->comment('Kiểu dáng');
             }
         });
