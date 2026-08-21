@@ -626,7 +626,7 @@ onMounted(() => {
                     </p>
                 </div>
                 <div class="header-actions">
-                    <button type="button" class="btn-outline">Hủy bỏ</button>
+                    <router-link to="/admin/product" class="btn-outline">Hủy bỏ</router-link>
                     <button type="submit" class="btn-primary">
                         <svg
                             width="18"
@@ -1651,6 +1651,7 @@ onMounted(() => {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    text-decoration: none;
 }
 
 .btn-outline:hover {
