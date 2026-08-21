@@ -1049,19 +1049,25 @@ onUnmounted(() => {
 /* Action buttons */
 .action-btns {
   display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: nowrap;
+  flex-direction: column;
+  gap: 5px;
+  align-items: stretch;
+  min-width: 65px;
+  max-width: 80px;
 }
 .btn-action {
-  padding: 6px 12px;
+  padding: 4px 10px;
   border-radius: 6px;
   border: none;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
+  transition: opacity 0.2s, transform 0.1s;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 .btn-action:active { transform: scale(0.96); }
 .btn-success { background: #d1fae5; color: #065f46; }

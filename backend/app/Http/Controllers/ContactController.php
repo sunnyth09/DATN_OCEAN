@@ -187,7 +187,7 @@ class ContactController extends Controller
             $query->where('status', $status);
         }
 
-        $contacts = $query->paginate(20);
+        $contacts = $query->paginate(10);
 
         return response()->json([
             'status' => 'success',
