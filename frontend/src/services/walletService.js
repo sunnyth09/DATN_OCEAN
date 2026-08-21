@@ -47,4 +47,7 @@ export const walletService = {
   setDefaultBankAccount(id) {
     return api.post(`/wallet/bank-accounts/${id}/default`);
   },
+  verifyBankAccount(data) {
+    return api.post('/wallet/bank-accounts/verify', data);
+  },
 };
