@@ -18,6 +18,13 @@ import {
 import api from '@/axios';
 import { getStorageUrl } from '@/utils/url';
 import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline.vue';
+import SepayPaymentModal from '@/components/SepayPaymentModal.vue';
+
+const showSepayModal = ref(false);
+const onSepaySuccess = () => {
+  showToast('Thanh toán đơn hàng thành công!', 'success');
+  fetchOrderDetail();
+};
 
 const toastData = ref({ message: '', type: 'success' });
 const showToast = (message, type = 'success') => {
@@ -472,13 +479,15 @@ watch(orderId, (newId) => {
     <div class="page-header">
       <div class="header-left">
         <button class="btn-back" @click="goBack">
-          <span>&larr;</span> Quay lại
+          <AppIcon name="arrow-left" size="16" /> Quay lại
         </button>
         <h2 class="page-title">Chi tiết đơn hàng</h2>
       </div>
       <div v-if="order" class="header-right" style="display: flex; align-items: center; gap: 8px;">
         <span class="order-code">#{{ order.order_code }}</span>
-        <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; font-weight: 700;">⚡ Flash Sale</span>
+        <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+          <AppIcon name="zap" size="13" /> Flash Sale
+        </span>
       </div>
     </div>
 
@@ -499,6 +508,7 @@ watch(orderId, (newId) => {
           <span class="order-date">Đặt lúc: {{ formatDate(order.created_at) }}</span>
         </div>
         <div class="status-actions">
+         
           <button 
             v-if="order.fulfillment_status === 'pending'" 
             class="btn-action btn-cancel-order"
@@ -506,7 +516,7 @@ watch(orderId, (newId) => {
             :disabled="actionLoading"
           >
             <span v-if="actionLoading" class="spinner-small"></span>
-            <span v-else>⊗ Yêu cầu hủy đơn</span>
+            <span v-else class="btn-inner"><AppIcon name="x" size="15" /> Yêu cầu hủy đơn</span>
           </button>
           <button
             v-if="order.can_request_return"
@@ -515,9 +525,25 @@ watch(orderId, (newId) => {
             :disabled="submittingReturnRequest"
           >
             <span v-if="submittingReturnRequest" class="spinner-small"></span>
-            <span v-else>↺ Yêu cầu hoàn hàng</span>
+            <span v-else class="btn-inner"><AppIcon name="rotate-ccw" size="15" /> Yêu cầu hoàn hàng</span>
           </button>
         </div>
+      </div>
+
+      <!-- Banner Cảnh Báo Chưa Thanh Toán -->
+      <div v-if="order.payment_method === 'bank_transfer' && order.payment_status !== 'paid' && order.fulfillment_status !== 'cancelled'" class="unpaid-detail-banner">
+        <div class="unpaid-banner-content">
+          <div class="unpaid-icon-box">
+            <AppIcon name="alert-circle" size="22" color="#b45309" />
+          </div>
+          <div class="unpaid-banner-text">
+            <strong class="unpaid-banner-title">Sản phẩm/Đơn hàng bạn chưa thanh toán!</strong>
+            <p class="unpaid-banner-sub">Vui lòng chuyển khoản ngân hàng trong thời hạn 15 phút để hoàn tất đơn hàng.</p>
+          </div>
+        </div>
+        <button class="btn-banner-pay" @click="showSepayModal = true">
+          <AppIcon name="credit-card" size="16" /> Thanh toán ngay
+        </button>
       </div>
 
       <div v-if="order.latest_return_request" class="return-request-banner">
@@ -627,7 +653,7 @@ watch(orderId, (newId) => {
                   class="btn-ticket mt-2"
                   @click="openTicketModal(item)"
                 >
-                  ⚠ Khiếu nại
+                  <AppIcon name="shield" size="14" /> Khiếu nại
                 </button>
               </div>
               <div class="item-price">
@@ -656,6 +682,17 @@ watch(orderId, (newId) => {
       </div>
       
     </div>
+
+    <!-- SePay Modal -->
+    <SepayPaymentModal
+        :show="showSepayModal"
+        :order-code="order?.order_code || ''"
+        :amount="order?.grand_total || 0"
+        :created-at="order?.created_at"
+        :is-guest="false"
+        @close="showSepayModal = false"
+        @success="onSepaySuccess"
+    />
 
     <!-- Cancel Reason Modal -->
     <Transition name="modal">
@@ -1016,6 +1053,23 @@ watch(orderId, (newId) => {
   align-items: center;
   gap: 6px;
 }
+.btn-continue-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  border-color: #0284c7;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+.btn-continue-pay:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+  transform: translateY(-1px);
+}
+.btn-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 .btn-cancel-order {
   border-color: #fca5a5;
   color: #ef4444;
@@ -1030,6 +1084,84 @@ watch(orderId, (newId) => {
 }
 .btn-return-order:hover:not(:disabled) {
   background: #fff7ed;
+}
+
+/* Unpaid Detail Banner */
+.unpaid-detail-banner {
+  background: linear-gradient(135deg, #fffbe6 0%, #fef3c7 100%);
+  border: 1.5px solid #fde68a;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.08);
+}
+
+.unpaid-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.unpaid-icon-box {
+  width: 42px;
+  height: 42px;
+  background: rgba(245, 158, 11, 0.18);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.unpaid-banner-title {
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.unpaid-banner-sub {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: #b45309;
+}
+
+.btn-banner-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+}
+
+.btn-banner-pay:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+}
+
+@media (max-width: 640px) {
+  .unpaid-detail-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .btn-banner-pay {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .return-request-banner {
@@ -1542,4 +1674,88 @@ watch(orderId, (newId) => {
   text-decoration: none;
 }
 .ghn-tracking-link:hover { background: #dbeafe; }
+
+.unpaid-detail-banner {
+  background: linear-gradient(135deg, #fffbe6 0%, #fff1b8 100%);
+  border: 1.5px solid #ffe58f;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 4px 12px rgba(212, 107, 8, 0.08);
+}
+
+.unpaid-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.unpaid-icon {
+  font-size: 1.8rem;
+}
+
+.unpaid-banner-content strong {
+  display: block;
+  font-size: 1rem;
+  color: #d46b08;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.unpaid-banner-content p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #8c4b00;
+}
+
+.btn-banner-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-banner-pay:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.4);
+}
+
+.btn-continue-pay {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 700 !important;
+  padding: 6px 14px !important;
+  border-radius: 20px !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 8px rgba(3, 105, 161, 0.25) !important;
+  transition: all 0.2s !important;
+}
+
+.btn-continue-pay:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.35) !important;
+}
+
+@media (max-width: 640px) {
+  .unpaid-detail-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .btn-banner-pay {
+    text-align: center;
+    width: 100%;
+  }
+}
 </style>
