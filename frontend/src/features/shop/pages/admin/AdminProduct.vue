@@ -1282,6 +1282,10 @@ const formatDate = (dateString) => {
                                 <span class="col-tag">mo_ta_chi_tiet</span>
                                 <span class="col-tag">trang_thai</span>
                                 <span class="col-tag">noi_bat</span>
+                                <span class="col-tag">ma_sku</span>
+                                <span class="col-tag">chat_lieu</span>
+                                <span class="col-tag">xuat_xu</span>
+                                <span class="col-tag">kieu_dang</span>
                             </div>
                         </div>
 
