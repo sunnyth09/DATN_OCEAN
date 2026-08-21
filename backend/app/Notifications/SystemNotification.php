@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Channels\FcmChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\BroadcastMessage;
@@ -40,11 +41,26 @@ class SystemNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * Kênh gửi thông báo (Lưu DB + Bắn Realtime).
+     * Kênh gửi thông báo (Lưu DB + Bắn Realtime Web + Push Notification Mobile FCM).
      */
     public function via($notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database', 'broadcast', FcmChannel::class];
+    }
+
+    /**
+     * Định dạng dữ liệu đẩy qua Firebase Cloud Messaging (FCM).
+     */
+    public function toFcm($notifiable): array
+    {
+        return [
+            'title' => $this->title,
+            'body' => $this->message,
+            'data' => array_merge([
+                'url_redirect' => (string) ($this->urlRedirect ?? ''),
+                'icon' => (string) ($this->icon ?? 'bell'),
+            ], array_map(fn ($val) => is_array($val) ? json_encode($val) : (string) $val, $this->extraData)),
+        ];
     }
 
     /**

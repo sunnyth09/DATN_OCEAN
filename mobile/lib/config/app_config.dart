@@ -8,7 +8,7 @@ class AppConfig {
       'https://apiocean.bcbdev.id.vn/storage';
 
   static const String kGoogleClientId =
-      '69477374031-v9nattjdc51dj9hb20qntpq6dkqedem8.apps.googleusercontent.com';
+      '333508728729-6r70j2v9tp9nbl703jae043upneq39jn.apps.googleusercontent.com';
   static const String kGoogleRedirectUri =
       'http://localhost:3302/client/auth/google/callback';
 

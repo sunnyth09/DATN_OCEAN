@@ -32,7 +32,12 @@ class AppHttpOverrides extends HttpOverrides {
     client.maxConnectionsPerHost = 20;
 
     client.connectionFactory = (Uri uri, String? proxyHost, int? proxyPort) {
-      final targetIp = (uri.host == 'apiocean.bcbdev.id.vn') ? '116.118.6.160' : uri.host;
+      if (uri.host != 'apiocean.bcbdev.id.vn') {
+        // Giữ nguyên kết nối mặc định cho Firebase, Google và các domain khác
+        return Socket.startConnect(proxyHost ?? uri.host, proxyPort ?? uri.port);
+      }
+
+      const targetIp = '116.118.6.160';
 
       final Future<Socket> futureSocket = Socket.connect(
         targetIp,
