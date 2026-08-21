@@ -124,24 +124,26 @@ class ProductRepository
 
         // Price range
         if (! empty($filters['price_range'])) {
-            $rangeParts = explode('-', $filters['price_range']);
-            if (count($rangeParts) === 2) {
-                $minPrice = $rangeParts[0] !== '' ? (int) $rangeParts[0] : null;
-                $maxPrice = $rangeParts[1] !== '' ? (int) $rangeParts[1] : null;
-                if ($minPrice !== null && $maxPrice !== null) {
-                    $query->whereBetween('min_price', [$minPrice, $maxPrice]);
-                } elseif ($minPrice !== null) {
-                    $query->where('min_price', '>=', $minPrice);
-                } elseif ($maxPrice !== null) {
-                    $query->where('min_price', '<=', $maxPrice);
-                }
-            } else {
+            $predefinedRanges = ['under-500k', '500k-1m', 'above-1m'];
+            if (in_array($filters['price_range'], $predefinedRanges)) {
                 match ($filters['price_range']) {
                     'under-500k' => $query->where('min_price', '<', 500000),
                     '500k-1m' => $query->whereBetween('min_price', [500000, 1000000]),
                     'above-1m' => $query->where('min_price', '>', 1000000),
-                    default => null,
                 };
+            } else {
+                $rangeParts = explode('-', $filters['price_range']);
+                if (count($rangeParts) === 2) {
+                    $minPrice = $rangeParts[0] !== '' ? (int) $rangeParts[0] : null;
+                    $maxPrice = $rangeParts[1] !== '' ? (int) $rangeParts[1] : null;
+                    if ($minPrice !== null && $maxPrice !== null) {
+                        $query->whereBetween('min_price', [$minPrice, $maxPrice]);
+                    } elseif ($minPrice !== null) {
+                        $query->where('min_price', '>=', $minPrice);
+                    } elseif ($maxPrice !== null) {
+                        $query->where('min_price', '<=', $maxPrice);
+                    }
+                }
             }
         }
 
