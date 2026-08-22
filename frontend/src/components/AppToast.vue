@@ -161,7 +161,7 @@ onUnmounted(() => {
           
           <div class="d-flex gap-2 mt-3 pt-3 border-top border-light">
             <router-link to="/cart" class="btn btn-light btn-sm flex-grow-1 fw-medium" data-bs-dismiss="toast" style="font-size: 0.85rem;">Xem giỏ hàng</router-link>
-            <button @click="handleBuyNow" class="btn btn-primary btn-sm flex-grow-1 fw-medium text-white" style="font-size: 0.85rem;">Thanh toán ngay</button>
+            <button @click="handleBuyNow" class="btn btn-brand-checkout btn-sm flex-grow-1 fw-medium text-white" style="font-size: 0.85rem; background: var(--primary, #E63B6F); border-color: var(--primary, #E63B6F);">Thanh toán ngay</button>
           </div>
         </template>
       </div>
@@ -286,5 +286,12 @@ onUnmounted(() => {
     transform: translateX(0);
     opacity: 1;
   }
+}
+
+.btn-brand-checkout:hover,
+.btn-brand-checkout:focus {
+  background: #c4305d !important;
+  border-color: #c4305d !important;
+  color: #fff;
 }
 </style>
