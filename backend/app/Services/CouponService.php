@@ -167,6 +167,15 @@ class CouponService
             return ['state' => 'not_found', 'message' => 'Mã giảm giá không tồn tại hoặc đã hết hạn!'];
         }
 
+        if ($coupon->is_first_order) {
+            $hasOrders = Order::where('user_id', $userId)
+                ->where('fulfillment_status', '!=', 'cancelled')
+                ->exists();
+            if ($hasOrders) {
+                return ['state' => 'not_eligible', 'message' => 'Mã giảm giá này chỉ dành cho khách hàng chưa từng đặt đơn hàng nào!'];
+            }
+        }
+
         $record = UserCoupon::where('user_id', $userId)->where('coupon_id', $coupon->id)->first();
         if ($record && $record->is_saved) {
             return ['state' => 'already_saved', 'message' => 'Bạn đã lưu mã giảm giá này rồi!'];
@@ -187,20 +196,27 @@ class CouponService
     }
 
     /**
-     * Danh sách coupon đã lưu của user (ẩn mã không còn khả dụng hoặc đã dùng hết lượt).
+     * Danh sách coupon đã lưu của user (ẩn mã không còn khả dụng, đã dùng hết lượt, hoặc không đủ điều kiện đơn đầu).
      */
     public function getSavedForUser(int $userId)
     {
+        $hasOrders = Order::where('user_id', $userId)
+            ->where('fulfillment_status', '!=', 'cancelled')
+            ->exists();
+
         return UserCoupon::with('coupon')
             ->where('user_id', $userId)
             ->where('is_saved', true)
             ->get()
-            ->filter(function ($userCoupon) {
+            ->filter(function ($userCoupon) use ($hasOrders) {
                 $coupon = $userCoupon->coupon;
                 if (! $coupon || ! $this->isCouponSaveable($coupon)) {
                     return false;
                 }
                 if ($coupon->user_usage_limit && $userCoupon->used_count >= $coupon->user_usage_limit) {
+                    return false;
+                }
+                if ($coupon->is_first_order && $hasOrders) {
                     return false;
                 }
 
@@ -330,7 +346,11 @@ class CouponService
         }
 
         // Kiểm tra mã chỉ dành cho đơn hàng đầu tiên
-        if ($coupon->is_first_order && $userId > 0) {
+        if ($coupon->is_first_order) {
+            if ($userId <= 0) {
+                return $this->invalid('Vui lòng đăng nhập để sử dụng mã giảm giá cho đơn hàng đầu tiên!');
+            }
+
             $existingOrderCount = Order::where('user_id', $userId)
                 ->where('fulfillment_status', '!=', 'cancelled')
                 ->count();

@@ -533,6 +533,8 @@ const promptLoginForCoupon = () => {
     router.push({ name: 'login', query: { redirect: route.fullPath || '/checkout' } });
 };
 
+const formatVND = (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(val) || 0);
+
 const applyCoupon = async () => {
     if (!authStore.isAuthenticated) {
         promptLoginForCoupon();
@@ -541,31 +543,26 @@ const applyCoupon = async () => {
     if (!couponCode.value.trim()) return;
 
     const code = couponCode.value.trim().toUpperCase();
-    const found = availableCoupons.value.find(c => c.code.toUpperCase() === code);
-    if (found) {
-        selectCoupon(found);
-    } else {
-        checkingCoupon.value = true;
-        try {
-            const response = await api.post('/profile/coupons/check', {
-                code: code,
-                subtotal: subtotal.value
-            });
-            if (response.data?.status === 'success') {
-                const couponData = response.data.data;
-                selectCoupon(couponData);
-            } else {
-                showToast(response.data?.message || 'Mã giảm giá không hợp lệ', 'error');
-                appliedCoupon.value = null;
-            }
-        } catch (error) {
-            console.error('Lỗi kiểm tra mã giảm giá:', error);
-            const msg = error.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn';
-            showToast(msg, 'error');
+    checkingCoupon.value = true;
+    try {
+        const response = await api.post('/profile/coupons/check', {
+            code: code,
+            subtotal: subtotal.value
+        });
+        if (response.data?.status === 'success') {
+            const couponData = response.data.data;
+            selectCoupon(couponData);
+        } else {
+            showToast(response.data?.message || 'Mã giảm giá không hợp lệ', 'error');
             appliedCoupon.value = null;
-        } finally {
-            checkingCoupon.value = false;
         }
+    } catch (error) {
+        console.error('Lỗi kiểm tra mã giảm giá:', error);
+        const msg = error.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn';
+        showToast(msg, 'error');
+        appliedCoupon.value = null;
+    } finally {
+        checkingCoupon.value = false;
     }
 };
 
@@ -582,6 +579,10 @@ const selectCoupon = (coupon) => {
         promptLoginForCoupon();
         return;
     }
+    if (coupon.min_order_value && subtotal.value < parseFloat(coupon.min_order_value)) {
+        showToast(`Đơn hàng tối thiểu ${formatVND(coupon.min_order_value)} để áp dụng mã này!`, 'error');
+        return;
+    }
     if (coupon.type === 'free_ship' && subtotal.value >= (upsellState.freeshipThreshold || 500000)) {
         showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển!', 'warning');
         return;
@@ -590,7 +591,8 @@ const selectCoupon = (coupon) => {
         code: coupon.code,
         type: coupon.type,
         value: coupon.value,
-        max_discount_value: coupon.max_discount_value
+        max_discount_value: coupon.max_discount_value,
+        min_order_value: coupon.min_order_value
     };
     couponCode.value = coupon.code;
     showCouponModal.value = false;
@@ -603,10 +605,16 @@ const removingCoupon = () => {
 };
 
 watch(subtotal, (newSubtotal) => {
-    if (newSubtotal >= (upsellState.freeshipThreshold || 500000) && appliedCoupon.value && appliedCoupon.value.type === 'free_ship') {
-        appliedCoupon.value = null;
-        couponCode.value = '';
-        showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển. Mã freeship đã được gỡ bỏ!', 'warning');
+    if (appliedCoupon.value) {
+        if (newSubtotal >= (upsellState.freeshipThreshold || 500000) && appliedCoupon.value.type === 'free_ship') {
+            appliedCoupon.value = null;
+            couponCode.value = '';
+            showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển. Mã freeship đã được gỡ bỏ!', 'warning');
+        } else if (appliedCoupon.value.min_order_value && newSubtotal < parseFloat(appliedCoupon.value.min_order_value)) {
+            appliedCoupon.value = null;
+            couponCode.value = '';
+            showToast(`Tổng tiền đơn hàng không còn đủ ${formatVND(appliedCoupon.value.min_order_value)} để áp dụng mã giảm giá.`, 'warning');
+        }
     }
 });
 
