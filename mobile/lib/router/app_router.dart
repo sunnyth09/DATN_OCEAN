@@ -280,6 +280,7 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       ),
       GoRoute(
         path: '/create-return/:orderId',
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final orderId = state.pathParameters['orderId']!;
           return CreateReturnRequestScreen(orderId: orderId);
@@ -287,10 +288,12 @@ GoRouter createRouter({required bool isFirstLaunch}) {
       ),
       GoRoute(
         path: '/loyalty',
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const LoyaltyScreen(),
       ),
       GoRoute(
         path: '/chat',
+        parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => ChatScreen(
           inquiryProduct: state.extra as Map<String, dynamic>?,
         ),
