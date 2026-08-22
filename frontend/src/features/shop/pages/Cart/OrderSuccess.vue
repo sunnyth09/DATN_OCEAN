@@ -5,11 +5,13 @@ import ProductCard from "@/components/ProductCard.vue";
 import { catalogService } from "@/services/catalogService";
 import { orderService } from "@/services/orderService";
 import { useAuthStore } from "@/stores/auth";
+import { useCartStore } from "@/stores/cart";
 import api from "@/axios";
 
 const route = useRoute();
 const orderCode = route.params.order_code || "";
 const authStore = useAuthStore();
+const cartStore = useCartStore();
 const relatedProducts = ref([]);
 const loading = ref(true);
 const orderId = ref(null);
@@ -96,6 +98,8 @@ onMounted(() => {
     fetchRelatedProducts();
     // Bắt đầu polling để phát hiện payment thành công (bank transfer)
     startPaymentPolling();
+    cartStore.fetchCount();
+    window.dispatchEvent(new Event('cart-updated'));
 });
 
 onUnmounted(() => {
@@ -136,16 +140,12 @@ onUnmounted(() => {
                 <span class="code">#{{ orderCode }}</span>
             </div>
 
-            <!-- Badge trạng thái thanh toán (chỉ hiển thị khi có kết quả polling) -->
+            <!-- Badge trạng thái thanh toán (chỉ hiển thị khi đã thanh toán thành công) -->
             <div v-if="paymentStatus === 'paid'" class="payment-status-badge paid">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
                 </svg>
                 Thanh toán đã được xác nhận!
-            </div>
-            <div v-else-if="paymentStatus && paymentStatus !== 'paid'" class="payment-status-badge pending">
-                <span class="spinner-dot"></span>
-                Đang chờ xác nhận thanh toán...
             </div>
 
             <p class="email-notice">

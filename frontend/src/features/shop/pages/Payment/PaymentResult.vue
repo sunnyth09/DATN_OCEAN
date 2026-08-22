@@ -3,8 +3,11 @@ import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '@/axios';
 
+import { useCartStore } from '@/stores/cart';
+
 const router = useRouter();
 const route = useRoute();
+const cartStore = useCartStore();
 
 const loading = ref(true);
 const paymentResult = ref(null);
@@ -83,8 +86,10 @@ const formatPayDate = (dateStr) => {
     return `${h}:${mi}:${s} ${d}/${m}/${y}`;
 };
 
-onMounted(() => {
+onMounted(async () => {
     verifyPayment();
+    await cartStore.fetchCount();
+    window.dispatchEvent(new Event('cart-updated'));
 });
 </script>
 

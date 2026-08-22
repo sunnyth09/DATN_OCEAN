@@ -58,6 +58,7 @@ export const useCartStore = defineStore('cart', () => {
     });
 
     await fetchCount();
+    window.dispatchEvent(new Event('cart-updated'));
     return response.data;
   };
 
@@ -78,6 +79,7 @@ export const useCartStore = defineStore('cart', () => {
       });
       localStorage.removeItem('cart_items');
       await fetchCount();
+      window.dispatchEvent(new Event('cart-updated'));
     } catch (error) {
       console.error("Failed to sync cart:", error);
     }

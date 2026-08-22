@@ -1511,7 +1511,7 @@ watch(
     top: 100%;
     right: 0;
     padding-top: 12px;
-    min-width: 220px;
+    width: 260px;
     z-index: 200;
 }
 
@@ -1521,6 +1521,9 @@ watch(
     border-radius: 12px;
     padding: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .dropdown-user {
@@ -1528,6 +1531,13 @@ watch(
     align-items: center;
     gap: 10px;
     padding: 10px;
+    overflow: hidden;
+}
+
+.dropdown-user-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .dropdown-avatar-img {
@@ -1552,11 +1562,17 @@ watch(
 .dropdown-name {
     font-size: 0.9rem;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dropdown-email {
     font-size: 0.75rem;
     color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dropdown-divider {

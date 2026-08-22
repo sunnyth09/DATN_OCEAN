@@ -123,25 +123,25 @@
 
     <!-- Quick Stats -->
     <div class="quick-stats">
-      <div class="stat-card">
+      <router-link to="/profile/orders" class="stat-card">
         <div class="stat-icon stat-icon--blue">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
         </div>
         <div class="stat-info">
-          <span class="stat-number">0</span>
+          <span class="stat-number">{{ orderCount }}</span>
           <span class="stat-label">Đơn hàng</span>
         </div>
-      </div>
-      <div class="stat-card">
+      </router-link>
+      <router-link to="/profile/wishlist" class="stat-card">
         <div class="stat-icon stat-icon--pink">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
         </div>
         <div class="stat-info">
-          <span class="stat-number">0</span>
+          <span class="stat-number">{{ favoriteCount }}</span>
           <span class="stat-label">Yêu thích</span>
         </div>
-      </div>
-      <div class="stat-card">
+      </router-link>
+      <router-link to="/profile/addresses" class="stat-card">
         <div class="stat-icon stat-icon--green">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
         </div>
@@ -149,7 +149,7 @@
           <span class="stat-number">{{ addressCount }}</span>
           <span class="stat-label">Địa chỉ</span>
         </div>
-      </div>
+      </router-link>
     </div>
   </div>
 </template>
@@ -175,6 +175,8 @@ const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
 const VN_PHONE_REGEX = /^(0[2-9]|\+84[2-9])[0-9]{8,9}$/;
 
 const user = ref({});
+const orderCount = ref(0);
+const favoriteCount = ref(0);
 const addressCount = ref(0);
 const form = ref({ full_name: '', phone: '', date_of_birth: '' });
 const avatarFile = ref(null);
@@ -425,10 +427,20 @@ onMounted(async () => {
     }
   }
 
-  // Đếm địa chỉ
+  // Lấy dữ liệu thống kê (Đơn hàng, Yêu thích, Địa chỉ)
   try {
-    const res = await api.get('/profile/addresses');
-    addressCount.value = Array.isArray(res.data?.data) ? res.data.data.length : 0;
+    const resOrders = await api.get('/profile/orders');
+    orderCount.value = resOrders.data?.data?.total ?? (Array.isArray(resOrders.data?.data) ? resOrders.data.data.length : 0);
+  } catch (_) {}
+
+  try {
+    const resFavs = await api.get('/profile/favorites');
+    favoriteCount.value = Array.isArray(resFavs.data?.data) ? resFavs.data.data.length : 0;
+  } catch (_) {}
+
+  try {
+    const resAddr = await api.get('/profile/addresses');
+    addressCount.value = Array.isArray(resAddr.data?.data) ? resAddr.data.data.length : 0;
   } catch (_) {}
 });
 
@@ -652,9 +664,16 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
-.stat-card:hover { border-color: #c7d2fe; box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
+.stat-card:hover {
+  border-color: var(--primary, #E63B6F);
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.12);
+  transform: translateY(-2px);
+}
 
 .stat-icon {
   width: 48px;
