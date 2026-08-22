@@ -10,7 +10,6 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
-import FlashSaleBuyModal from '@/features/shop/components/FlashSaleBuyModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
 import { sanitizeHtml } from '@/utils/sanitize';
@@ -27,7 +26,6 @@ const isLoading = ref(true);
 const isNotFound = ref(false);
 
 // ── Flash Sale Integration ──
-const showFlashSaleBuyModal = ref(false);
 const hasFlashSale = computed(() => !!product.value?.flash_sale);
 const flashSaleData = computed(() => product.value?.flash_sale || null);
 
@@ -51,22 +49,6 @@ const flashFillPercent = computed(() => {
   const total = flashSaleData.value.total_stock || 1;
   const sold = flashSaleData.value.sold_count || flashSaleData.value.sold || 0;
   return Math.min(100, Math.round((sold / total) * 100));
-});
-
-const flashSaleItemPayload = computed(() => {
-  if (!flashSaleData.value || !product.value) return {};
-  return {
-    flash_sale_id: flashSaleData.value.flash_sale_id,
-    product_id: product.value.product_id,
-    product_name: product.value.name,
-    sale_price: flashSaleData.value.flash_price || flashSaleData.value.campaign_price,
-    flash_price: flashSaleData.value.flash_price || flashSaleData.value.campaign_price,
-    original_price: displayPriceInfo.value.current || product.value.min_price,
-    thumbnail_url: product.value.thumbnail_url,
-    discount_percent: flashDiscountPercent.value,
-    total_stock: flashSaleData.value.total_stock,
-    remaining: flashSaleData.value.remaining,
-  };
 });
 
 const flashRemainingTime = ref({ hours: '00', minutes: '00', seconds: '00' });
@@ -111,13 +93,6 @@ onBeforeUnmount(() => {
   if (flashTimerInterval) clearInterval(flashTimerInterval);
 });
 
-const handleFlashSaleBuyNow = () => {
-  showFlashSaleBuyModal.value = true;
-};
-
-const onFlashSaleOrderSuccess = () => {
-  fetchProduct(slug.value);
-};
 const safeDescription = computed(() => sanitizeHtml(product.value?.description));
 const safeShortDescription = computed(() => sanitizeHtml(product.value?.short_description));
 const productImageRef = ref(null);
@@ -998,19 +973,6 @@ onBeforeUnmount(() => {
           {{ ctaDisabledReason }}
         </p>
 
-        <!-- ═══ FLASH SALE SPECIAL CTA ═══ -->
-        <div v-if="hasFlashSale && !isFlashSaleEnded" class="pd-flash-cta mb-3">
-          <button
-            class="pd-btn-flash-buy"
-            @click="handleFlashSaleBuyNow"
-            :disabled="flashSaleData.is_sold_out"
-          >
-            <AppIcon name="zap" size="20" stroke-width="2.5" />
-            <span v-if="flashSaleData.is_sold_out">HẾT SUẤT FLASH SALE</span>
-            <span v-else>⚡ SĂN DEAL FLASH SALE (Freeship 100%)</span>
-          </button>
-        </div>
-
         <!-- CTA Thường -->
         <div class="pd-cta">
           <button class="pd-btn-cart" @click="addToCart"
@@ -1025,13 +987,6 @@ onBeforeUnmount(() => {
             {{ buyingNow ? 'Đang chuyển...' : 'Đặt Hàng Nhanh' }}
           </button>
         </div>
-
-        <!-- Flash Sale Fast Checkout Modal -->
-        <FlashSaleBuyModal
-          v-model="showFlashSaleBuyModal"
-          :sale-item="flashSaleItemPayload"
-          @success="onFlashSaleOrderSuccess"
-        />
 
         <!-- AI Try-On -->
         <button v-if="tryOnEnabled" class="pd-btn-tryon" @click="showTryOn = true" title="Thử đồ bằng AI">
@@ -1593,41 +1548,7 @@ onBeforeUnmount(() => {
   transition: width 0.3s ease;
 }
 
-/* Flash Sale CTA Button */
-.pd-flash-cta {
-  width: 100%;
-}
 
-.pd-btn-flash-buy {
-  width: 100%;
-  padding: 14px 20px;
-  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 28px;
-  font-size: 1rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.35);
-  transition: all 0.2s;
-  font-family: inherit;
-}
-
-.pd-btn-flash-buy:hover:not(:disabled) {
-  background: linear-gradient(135deg, #be123c 0%, #9f1239 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.45);
-}
-
-.pd-btn-flash-buy:disabled {
-  background: #94a3b8;
-  box-shadow: none;
-  cursor: not-allowed;
-}
 
 .pd-price-row {
   display: flex;
