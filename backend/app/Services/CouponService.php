@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\OrderException;
 use App\Models\Coupon;
+use App\Models\Order;
 use App\Models\UserCoupon;
 use App\Repositories\CouponRepository;
 use Illuminate\Support\Facades\Cache;
@@ -325,6 +326,17 @@ class CouponService
 
             if ($userUsedCount >= $coupon->user_usage_limit) {
                 return $this->invalid('Bạn đã hết lượt sử dụng mã này!');
+            }
+        }
+
+        // Kiểm tra mã chỉ dành cho đơn hàng đầu tiên
+        if ($coupon->is_first_order && $userId > 0) {
+            $existingOrderCount = Order::where('user_id', $userId)
+                ->where('fulfillment_status', '!=', 'cancelled')
+                ->count();
+
+            if ($existingOrderCount > 0) {
+                return $this->invalid('Mã giảm giá này chỉ áp dụng cho đơn hàng đầu tiên!');
             }
         }
 
