@@ -427,7 +427,9 @@ const handleAddToCart = async (event) => {
     <ProductVariantAddToCartModal :show="showVariantModal" :product-name="product.name" :image-url="variantImageUrl"
         :variants="variants" :unique-colors="uniqueColors" :has-colors="hasColors" :available-sizes="availableSizes"
         :selected-variant="selectedVariant" :selected-color="selectedColor" :selected-size="selectedSize"
-        :quantity="quantity" :confirming="confirming" @close="showVariantModal = false" @select-color="selectColor"
+        :quantity="quantity" :confirming="confirming"
+        :original-price="product.original_price || product.originalPrice || product.max_price"
+        @close="showVariantModal = false" @select-color="selectColor"
         @update:selected-size="selectedSize = $event" @update:quantity="quantity = $event" @increase="increaseQuantity"
         @decrease="decreaseQuantity" @confirm="handleConfirmAddToCart" />
 </template>

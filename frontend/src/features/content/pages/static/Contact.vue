@@ -35,8 +35,8 @@
               <circle cx="12" cy="10" r="3" />
             </svg></div>
           <h3>Showroom</h3>
-          <p class="contact-value">101 Y Ngông</p>
-          <p class="contact-note">Phường Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+          <p class="contact-value">99 Nguyễn Văn Linh</p>
+          <p class="contact-note">Phường Tân An, TP. Buôn Ma Thuột, Đắk Lắk</p>
         </div>
         <div class="contact-card">
           <div class="contact-icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -53,13 +53,18 @@
       <div class="contact-layout">
         <div class="info-panel">
           <div class="mini-map">
-            <iframe src="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk&output=embed" loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade" title="Mini map Ocean Sport"></iframe>
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3893.1!2d108.0978176!3d12.7244343!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3171f7b6e379b675%3A0x72662967145555c0!2zVHLGsOG7nW5nIENhbyDEkeG6s25nIEZQVCBQb2x5dGVjaG5pYyBUw6J5IE5ndXnDqm4!5e0!3m2!1svi!2svn!4v1700000000000"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              title="Trường Cao đẳng FPT Polytechnic Tây Nguyên"
+              allowfullscreen=""
+            ></iframe>
           </div>
           <div class="location-meta">
             <h3>Showroom OCEAN SPORT</h3>
-            <p>101 Y Ngông, Phường Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
-            <a href="https://www.google.com/maps?q=101+Y+Ngông,+Buôn+Ma+Thuột,+Đắk+Lắk" target="_blank"
+            <p>99 Nguyễn Văn Linh, Phường Tân An, TP. Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
+            <a href="https://www.google.com/maps/place/Tr%C6%B0%E1%BB%9Dng+Cao+%C4%91%E1%BA%B3ng+FPT+Polytechnic+T%C3%A2y+Nguy%C3%AAn/@12.7244343,108.0978176,17z/data=!4m6!3m5!1s0x3171f7b6e379b675:0x72662967145555c0!8m2!3d12.7244343!4d108.0978176!16s%2Fg%2F11v614p6nr" target="_blank"
               rel="noopener noreferrer">
               Xem bản đồ lớn
             </a>

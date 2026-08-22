@@ -34,6 +34,9 @@
                                     <span class="vmodal-badge">Chọn phân loại hàng</span>
                                     <h3 id="vmodal-title" class="vmodal-product-title">{{ productName }}</h3>
                                     <div class="vmodal-price-range">
+                                        <span class="vmodal-price-original" v-if="displayOriginalPrice">
+                                            {{ displayOriginalPrice }}
+                                        </span>
                                         <span class="vmodal-price-active">
                                             {{ selectedVariant ? formatCurrency(selectedVariant.price) : priceRangeLabel
                                             }}
@@ -107,7 +110,9 @@
                                     <span>
                                         Đã chọn:
                                         <strong>{{ [selectedVariant.color, selectedVariant.size].filter(Boolean).join(' / ') || selectedVariant.variant_name }}</strong>
-                                        — {{ formatCurrency(selectedVariant.price) }}
+                                        —
+                                        <span class="vmodal-sel-orig" v-if="displayOriginalPrice">{{ displayOriginalPrice }}</span>
+                                        <span class="vmodal-sel-sale">{{ formatCurrency(selectedVariant.price) }}</span>
                                         <span v-if="selectedVariant.stock <= 5" class="vmodal-low-stock">(còn {{ selectedVariant.stock }})</span>
                                     </span>
                                 </div>
@@ -159,6 +164,7 @@ const props = defineProps({
     selectedSize: { type: [String, Number], default: null },
     quantity: { type: Number, default: 1 },
     confirming: { type: Boolean, default: false },
+    originalPrice: { type: [Number, String], default: null },
 });
 
 const emit = defineEmits(['close', 'select-color', 'update:selected-size', 'update:quantity', 'increase', 'decrease', 'confirm']);
@@ -193,6 +199,50 @@ const priceRangeLabel = computed(() => {
     const max = Math.max(...prices);
     if (min === max) return formatCurrency(min);
     return `${formatCurrency(min)} - ${formatCurrency(max)}`;
+});
+
+// Tính toán giá gốc (gạch ngang) nếu có giảm giá
+const displayOriginalPrice = computed(() => {
+    if (props.selectedVariant) {
+        const salePrice = Number(props.selectedVariant.price || 0);
+        const origPrice = Number(
+            props.selectedVariant.original_price ??
+            props.selectedVariant.originalPrice ??
+            props.selectedVariant.compare_at_price ??
+            props.selectedVariant.old_price ??
+            props.selectedVariant.max_price ??
+            props.originalPrice ??
+            0
+        );
+        if (origPrice > salePrice && origPrice > 0) {
+            return formatCurrency(origPrice);
+        }
+        return '';
+    }
+
+    const baseOrig = Number(props.originalPrice || 0);
+    const minSalePrice = props.variants?.length
+        ? Math.min(...props.variants.map(v => Number(v.price || 0)).filter(p => p > 0))
+        : 0;
+
+    if (baseOrig > minSalePrice && baseOrig > 0) {
+        return formatCurrency(baseOrig);
+    }
+
+    const variantOrigs = props.variants
+        ?.map(v => Number(v.original_price ?? v.originalPrice ?? v.compare_at_price ?? 0))
+        .filter(p => p > 0) || [];
+
+    if (variantOrigs.length > 0) {
+        const minOrig = Math.min(...variantOrigs);
+        const maxOrig = Math.max(...variantOrigs);
+        if (minOrig > minSalePrice) {
+            if (minOrig === maxOrig) return formatCurrency(minOrig);
+            return `${formatCurrency(minOrig)} - ${formatCurrency(maxOrig)}`;
+        }
+    }
+
+    return '';
 });
 
 // Khi đổi màu sắc -> cập nhật ảnh xem trước sang variant màu đầu tiên tìm thấy
@@ -432,11 +482,33 @@ function getHexCode(colorName) {
 
 .vmodal-price-range {
     margin-top: 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.vmodal-price-original {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-decoration: line-through;
 }
 
 .vmodal-price-active {
     font-size: 1.5rem;
     font-weight: 900;
+    color: #E63B6F;
+}
+
+.vmodal-sel-orig {
+    text-decoration: line-through;
+    color: #94a3b8;
+    margin-right: 4px;
+}
+
+.vmodal-sel-sale {
+    font-weight: 700;
     color: #E63B6F;
 }
 

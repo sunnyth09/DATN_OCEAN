@@ -13,6 +13,8 @@ import {
   getReturnShippingMethodLabel,
 } from '@/utils/orderStatus';
 
+import MediaPreviewModal from '@/components/MediaPreviewModal.vue';
+
 const route = useRoute();
 const router = useRouter();
 const store = useReturnRequestStore();
@@ -20,6 +22,34 @@ const { currentRequest, detailLoading } = storeToRefs(store);
 const APP_URL = import.meta.env.VITE_BASE_URL || window.location.origin;
 
 const detail = computed(() => currentRequest.value);
+
+const mediaList = computed(() => {
+  const list = [];
+  if (detail.value?.images?.length) {
+    detail.value.images.forEach((img) => {
+      list.push({ url: imageUrl(img), type: 'image' });
+    });
+  }
+  if (detail.value?.videos?.length) {
+    detail.value.videos.forEach((vid) => {
+      list.push({ url: imageUrl(vid), type: 'video' });
+    });
+  }
+  return list;
+});
+
+const previewShow = ref(false);
+const previewIndex = ref(0);
+
+const openPreview = (url) => {
+  const foundIdx = mediaList.value.findIndex((item) => item.url === url);
+  previewIndex.value = foundIdx >= 0 ? foundIdx : 0;
+  previewShow.value = true;
+};
+
+const closePreview = () => {
+  previewShow.value = false;
+};
 
 const formatDate = (value) => {
   if (!value) return '—';
@@ -89,10 +119,29 @@ const goBack = () => {
           <div v-if="detail.images?.length || detail.videos?.length" class="detail-block">
             <h3>Minh chứng</h3>
             <div v-if="detail.images?.length" class="evidence-grid">
-              <img v-for="image in detail.images" :key="image" :src="imageUrl(image)" alt="Ảnh minh chứng hoàn hàng" />
+              <img
+                v-for="image in detail.images"
+                :key="image"
+                :src="imageUrl(image)"
+                alt="Ảnh minh chứng hoàn hàng"
+                class="clickable-evidence"
+                @click="openPreview(imageUrl(image))"
+              />
             </div>
             <div v-if="detail.videos?.length" class="evidence-grid evidence-grid--video">
-              <video v-for="video in detail.videos" :key="video" :src="imageUrl(video)" controls />
+              <div
+                v-for="video in detail.videos"
+                :key="video"
+                class="video-thumbnail-container"
+                @click="openPreview(imageUrl(video))"
+              >
+                <video :src="imageUrl(video)" preload="metadata" />
+                <div class="play-overlay">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -109,10 +158,6 @@ const goBack = () => {
             </p>
           </div>
 
-          <div v-if="detail.refund_method === 'vnpay' && detail.refund_status === 'pending'" class="detail-block refund-pending-note">
-            <h3>Hoàn tiền VNPay</h3>
-            <p>Hoàn tiền VNPay đang chờ xử lý/đối soát. Shop sẽ cập nhật sau khi hoàn tất.</p>
-          </div>
 
           <div v-if="detail.items?.length" class="detail-block">
             <h3>Sản phẩm hoàn hàng</h3>
@@ -219,6 +264,14 @@ const goBack = () => {
         </div>
       </aside>
     </div>
+
+    <!-- Media Preview Lightbox Modal -->
+    <MediaPreviewModal
+      :show="previewShow"
+      :media-list="mediaList"
+      :initial-index="previewIndex"
+      @close="closePreview"
+    />
   </div>
 </template>
 
@@ -351,9 +404,18 @@ const goBack = () => {
 .evidence-grid img,
 .evidence-grid video {
   width: 100%;
-  height: auto;
+  height: 120px;
+  object-fit: cover;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.evidence-grid img:hover,
+.evidence-grid video:hover {
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .return-items-table {

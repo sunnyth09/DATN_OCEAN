@@ -10,7 +10,6 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
-import FlashSaleBuyModal from '@/features/shop/components/FlashSaleBuyModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
 import { sanitizeHtml } from '@/utils/sanitize';
@@ -27,7 +26,6 @@ const isLoading = ref(true);
 const isNotFound = ref(false);
 
 // ── Flash Sale Integration ──
-const showFlashSaleBuyModal = ref(false);
 const hasFlashSale = computed(() => !!product.value?.flash_sale);
 const flashSaleData = computed(() => product.value?.flash_sale || null);
 
@@ -36,12 +34,48 @@ const isFlashSaleEnded = computed(() => {
   return new Date(flashSaleData.value.end_time).getTime() <= Date.now();
 });
 
+const flashSaleOriginalPrice = computed(() => {
+  if (!flashSaleData.value) return 0;
+  const flashPrice = Number(flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0);
+
+  const fsOrig = Number(flashSaleData.value.original_price || flashSaleData.value.compare_at_price || 0);
+  if (fsOrig > flashPrice) return fsOrig;
+
+  if (selectedVariant.value) {
+    const vOrig = Number(
+      selectedVariant.value.original_price ||
+      selectedVariant.value.originalPrice ||
+      selectedVariant.value.compare_at_price ||
+      selectedVariant.value.price ||
+      0
+    );
+    if (vOrig > flashPrice) return vOrig;
+  }
+
+  const infoOrig = Number(displayPriceInfo.value.original || 0);
+  if (infoOrig > flashPrice) return infoOrig;
+
+  if (product.value) {
+    const prodOrig = Number(
+      product.value.original_price ||
+      product.value.originalPrice ||
+      product.value.compare_at_price ||
+      product.value.max_price ||
+      product.value.min_price ||
+      0
+    );
+    if (prodOrig > flashPrice) return prodOrig;
+  }
+
+  return 0;
+});
+
 const flashDiscountPercent = computed(() => {
   if (!flashSaleData.value) return 0;
-  const currentBase = displayPriceInfo.value.current || product.value?.min_price || 0;
-  const flashPrice = flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0;
-  if (currentBase > flashPrice && currentBase > 0) {
-    return Math.round(((currentBase - flashPrice) / currentBase) * 100);
+  const flashPrice = Number(flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0);
+  const orig = flashSaleOriginalPrice.value;
+  if (orig > flashPrice && orig > 0) {
+    return Math.round(((orig - flashPrice) / orig) * 100);
   }
   return 0;
 });
@@ -51,22 +85,6 @@ const flashFillPercent = computed(() => {
   const total = flashSaleData.value.total_stock || 1;
   const sold = flashSaleData.value.sold_count || flashSaleData.value.sold || 0;
   return Math.min(100, Math.round((sold / total) * 100));
-});
-
-const flashSaleItemPayload = computed(() => {
-  if (!flashSaleData.value || !product.value) return {};
-  return {
-    flash_sale_id: flashSaleData.value.flash_sale_id,
-    product_id: product.value.product_id,
-    product_name: product.value.name,
-    sale_price: flashSaleData.value.flash_price || flashSaleData.value.campaign_price,
-    flash_price: flashSaleData.value.flash_price || flashSaleData.value.campaign_price,
-    original_price: displayPriceInfo.value.current || product.value.min_price,
-    thumbnail_url: product.value.thumbnail_url,
-    discount_percent: flashDiscountPercent.value,
-    total_stock: flashSaleData.value.total_stock,
-    remaining: flashSaleData.value.remaining,
-  };
 });
 
 const flashRemainingTime = ref({ hours: '00', minutes: '00', seconds: '00' });
@@ -111,13 +129,6 @@ onBeforeUnmount(() => {
   if (flashTimerInterval) clearInterval(flashTimerInterval);
 });
 
-const handleFlashSaleBuyNow = () => {
-  showFlashSaleBuyModal.value = true;
-};
-
-const onFlashSaleOrderSuccess = () => {
-  fetchProduct(slug.value);
-};
 const safeDescription = computed(() => sanitizeHtml(product.value?.description));
 const safeShortDescription = computed(() => sanitizeHtml(product.value?.short_description));
 const productImageRef = ref(null);
@@ -884,7 +895,7 @@ onBeforeUnmount(() => {
           <div class="pd-fs-header">
             <div class="pd-fs-title-box">
               <span class="pd-fs-fire">⚡</span>
-              <span class="pd-fs-title">FLASH SALE GIÁ SỐC</span>
+              <span class="pd-fs-title">FLASH SALE</span>
             </div>
             <div class="pd-fs-countdown" v-if="!isFlashSaleEnded">
               <span class="pd-fs-cd-label">KẾT THÚC TRONG</span>
@@ -898,26 +909,26 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="pd-fs-price-row">
+          <div class="pd-fs-body">
             <div class="pd-fs-price-main">
               <span class="pd-fs-price">{{ formatPrice(flashSaleData.flash_price || flashSaleData.campaign_price) }}</span>
-              <span class="pd-fs-origin-price" v-if="displayPriceInfo.current > (flashSaleData.flash_price || flashSaleData.campaign_price)">
-                {{ formatPrice(displayPriceInfo.current) }}
+              <span class="pd-fs-origin-price" v-if="flashSaleOriginalPrice > (flashSaleData.flash_price || flashSaleData.campaign_price)">
+                {{ formatPrice(flashSaleOriginalPrice) }}
+              </span>
+              <span class="pd-fs-discount-tag" v-if="flashDiscountPercent > 0">
+                -{{ flashDiscountPercent }}%
               </span>
             </div>
-            <span class="pd-fs-discount-tag" v-if="flashDiscountPercent > 0">
-              -{{ flashDiscountPercent }}%
-            </span>
-          </div>
 
-          <!-- Progress stock -->
-          <div class="pd-fs-stock-bar">
-            <div class="pd-fs-stock-info">
-              <span>Đã bán: <strong>{{ flashSaleData.sold_count || flashSaleData.sold || 0 }}</strong> / {{ flashSaleData.total_stock }} suất</span>
-              <span class="pd-fs-remain">Còn lại: <strong>{{ flashSaleData.remaining }}</strong></span>
-            </div>
-            <div class="pd-fs-track">
-              <div class="pd-fs-fill" :style="{ width: flashFillPercent + '%' }"></div>
+            <!-- Compact stock progress -->
+            <div class="pd-fs-stock-compact">
+              <div class="pd-fs-stock-info">
+                <span>Đã bán: <strong>{{ flashSaleData.sold_count || flashSaleData.sold || 0 }}</strong>/{{ flashSaleData.total_stock }}</span>
+                <span class="pd-fs-remain">Còn: <strong>{{ flashSaleData.remaining }}</strong></span>
+              </div>
+              <div class="pd-fs-track">
+                <div class="pd-fs-fill" :style="{ width: flashFillPercent + '%' }"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -998,40 +1009,20 @@ onBeforeUnmount(() => {
           {{ ctaDisabledReason }}
         </p>
 
-        <!-- ═══ FLASH SALE SPECIAL CTA ═══ -->
-        <div v-if="hasFlashSale && !isFlashSaleEnded" class="pd-flash-cta mb-3">
-          <button
-            class="pd-btn-flash-buy"
-            @click="handleFlashSaleBuyNow"
-            :disabled="flashSaleData.is_sold_out"
-          >
-            <AppIcon name="zap" size="20" stroke-width="2.5" />
-            <span v-if="flashSaleData.is_sold_out">HẾT SUẤT FLASH SALE</span>
-            <span v-else>⚡ SĂN DEAL FLASH SALE (Freeship 100%)</span>
-          </button>
-        </div>
-
-        <!-- CTA Thường -->
+        <!-- CTA Buttons -->
         <div class="pd-cta">
           <button class="pd-btn-cart" @click="addToCart"
             :disabled="addingToCart || buyingNow || !canPurchaseSelectedVariant"
             :title="ctaDisabledReason || 'Thêm vào giỏ hàng'">
-            <AppIcon name="cart" size="18" />
-            {{ addingToCart ? 'Đang thêm...' : 'Thêm Vào Giỏ Hàng' }}
+            <AppIcon name="cart" size="18" stroke-width="2" />
+            <span>{{ addingToCart ? 'Đang thêm...' : 'Thêm Vào Giỏ' }}</span>
           </button>
           <button class="pd-btn-buy" @click="buyNow"
             :disabled="addingToCart || buyingNow || !canPurchaseSelectedVariant"
             :title="ctaDisabledReason || 'Đặt hàng nhanh'">
-            {{ buyingNow ? 'Đang chuyển...' : 'Đặt Hàng Nhanh' }}
+            <span>{{ buyingNow ? 'Đang chuyển...' : 'Đặt Hàng Nhanh' }}</span>
           </button>
         </div>
-
-        <!-- Flash Sale Fast Checkout Modal -->
-        <FlashSaleBuyModal
-          v-model="showFlashSaleBuyModal"
-          :sale-item="flashSaleItemPayload"
-          @success="onFlashSaleOrderSuccess"
-        />
 
         <!-- AI Try-On -->
         <button v-if="tryOnEnabled" class="pd-btn-tryon" @click="showTryOn = true" title="Thử đồ bằng AI">
@@ -1452,127 +1443,140 @@ onBeforeUnmount(() => {
   color: #636E72;
 }
 
-/* ═══ FLASH SALE CARD STYLING ═══ */
+/* ═══ FLASH SALE CARD STYLING (COMPACT & SLEEK) ═══ */
 .pd-flash-sale-card {
-  background: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
-  border: 2px solid #fecdd3;
-  border-radius: 16px;
-  padding: 16px 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 15px rgba(225, 29, 72, 0.08);
+  background: linear-gradient(135deg, #FFF5F7 0%, #FFEBF0 100%);
+  border: 1.5px solid #FECDD3;
+  border-radius: 12px;
+  padding: 10px 16px 12px;
+  margin-bottom: 18px;
+  box-shadow: 0 2px 10px rgba(225, 29, 72, 0.05);
 }
 
 .pd-fs-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px dashed #f43f5e33;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(225, 29, 72, 0.18);
 }
 
 .pd-fs-title-box {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pd-fs-fire {
+  font-size: 1rem;
+  color: #E11D48;
+}
+
+.pd-fs-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #E11D48;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pd-fs-countdown {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-.pd-fs-fire {
-  font-size: 1.2rem;
-  animation: pulse 1.5s infinite;
-}
-
-.pd-fs-title {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #e11d48;
-  letter-spacing: 0.5px;
-}
-
-.pd-fs-countdown {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .pd-fs-cd-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: #64748b;
+  letter-spacing: 0.02em;
 }
 
 .pd-fs-timer {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
 }
 
 .pd-fs-digit {
-  background: #0f172a;
+  background: #1e293b;
   color: #ffffff;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  padding: 3px 6px;
-  border-radius: 6px;
-  font-family: monospace;
+  padding: 1px 5px;
+  border-radius: 4px;
+  min-width: 22px;
+  text-align: center;
+  font-family: inherit;
 }
 
 .pd-fs-colon {
   font-weight: 800;
-  color: #0f172a;
+  font-size: 0.8rem;
+  color: #1e293b;
+  margin: 0 1px;
 }
 
-.pd-fs-price-row {
+.pd-fs-body {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .pd-fs-price-main {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .pd-fs-price {
-  font-size: 1.9rem;
+  font-size: 1.55rem;
   font-weight: 800;
-  color: #e11d48;
+  color: #E11D48;
+  line-height: 1.1;
 }
 
 .pd-fs-origin-price {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: #94a3b8;
   text-decoration: line-through;
 }
 
 .pd-fs-discount-tag {
-  background: #e11d48;
+  background: #E11D48;
   color: #ffffff;
-  font-size: 0.85rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.2;
 }
 
-.pd-fs-stock-bar {
+.pd-fs-stock-compact {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  min-width: 160px;
 }
 
 .pd-fs-stock-info {
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
-  color: #475569;
+  align-items: center;
+  font-size: 0.72rem;
+  color: #64748b;
+  gap: 8px;
 }
 
 .pd-fs-stock-info strong {
-  color: #e11d48;
+  color: #E11D48;
+  font-weight: 700;
 }
 
 .pd-fs-remain {
@@ -1580,54 +1584,20 @@ onBeforeUnmount(() => {
 }
 
 .pd-fs-track {
-  height: 8px;
-  background: #cbd5e1;
+  height: 6px;
+  background: #e2e8f0;
   border-radius: 999px;
   overflow: hidden;
 }
 
 .pd-fs-fill {
   height: 100%;
-  background: linear-gradient(90deg, #f43f5e 0%, #e11d48 100%);
+  background: linear-gradient(90deg, #F43F5E 0%, #E11D48 100%);
   border-radius: 999px;
   transition: width 0.3s ease;
 }
 
-/* Flash Sale CTA Button */
-.pd-flash-cta {
-  width: 100%;
-}
 
-.pd-btn-flash-buy {
-  width: 100%;
-  padding: 14px 20px;
-  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: 28px;
-  font-size: 1rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(225, 29, 72, 0.35);
-  transition: all 0.2s;
-  font-family: inherit;
-}
-
-.pd-btn-flash-buy:hover:not(:disabled) {
-  background: linear-gradient(135deg, #be123c 0%, #9f1239 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.45);
-}
-
-.pd-btn-flash-buy:disabled {
-  background: #94a3b8;
-  box-shadow: none;
-  cursor: not-allowed;
-}
 
 .pd-price-row {
   display: flex;
@@ -1789,73 +1759,99 @@ onBeforeUnmount(() => {
 /* CTA Buttons */
 .pd-cta {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  align-items: stretch;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .pd-btn-cart {
   flex: 1;
-  display: flex;
+  min-height: 48px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 12px;
-  background: var(--primary);
-  color: #fff;
-  border: 2px solid var(--primary);
+  padding: 12px 18px;
+  background: #FFF0F3;
+  color: var(--primary);
+  border: 1.5px solid var(--primary);
   border-radius: 28px;
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
+  white-space: nowrap;
 }
 
-.pd-btn-cart:hover {
-  background: #C4305D;
+.pd-btn-cart:hover:not(:disabled) {
+  background: rgba(230, 59, 111, 0.15);
   border-color: #C4305D;
+  color: #C4305D;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.15);
 }
 
 .pd-btn-cart:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  transform: none;
 }
 
 .pd-btn-buy {
-  flex: 1;
-  padding: 12px 12px;
-  background: var(--card-bg);
-  color: var(--primary);
-  border: 2px solid var(--primary);
+  flex: 1.55; /* Nút Đặt Hàng Nhanh rộng hơn nổi bật */
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--primary) 0%, #D6285A 100%);
+  color: #fff;
+  border: 1.5px solid transparent;
   border-radius: 28px;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: inherit;
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.3);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
-.pd-btn-buy:hover {
-  background: var(--primary);
-  color: #fff;
+.pd-btn-buy:hover:not(:disabled) {
+  background: linear-gradient(135deg, #D6285A 0%, #B81846 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(230, 59, 111, 0.45);
+}
+
+.pd-btn-buy:disabled {
+  opacity: 0.55;
+  background: #cbd5e1;
+  color: #64748b;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* AR Try-On Button */
 .pd-btn-tryon {
   width: 100%;
-  display: flex;
+  min-height: 44px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 20px;
-  background: #FFF0F3;
+  padding: 10px 20px;
+  background: #FFF5F7;
   color: var(--primary);
-  border: 2px dashed #FFB8CC;
-  border-radius: 8px;
-  font-size: 0.95rem;
+  border: 1.5px dashed #FFB8CC;
+  border-radius: 28px;
+  font-size: 0.92rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   margin-bottom: 20px;
   font-family: inherit;
 }
@@ -1863,6 +1859,7 @@ onBeforeUnmount(() => {
 .pd-btn-tryon:hover {
   background: #FFE4E9;
   border-color: var(--primary);
+  transform: translateY(-1px);
 }
 
 /* Perks */

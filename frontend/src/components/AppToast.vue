@@ -14,20 +14,13 @@ const router = useRouter();
 const { toast } = useToast(props.toastId);
 
 const handleBuyNow = () => {
-  if (toast.value.data && toast.value.data.variant_id) {
-    sessionStorage.setItem('buy_now_item', JSON.stringify({
-      variant_id: toast.value.data.variant_id,
-      quantity: toast.value.data.qty || 1,
-    }));
-  }
-  
   const toastEl = document.getElementById(props.toastId);
   if (toastEl) {
     const bsToast = window.bootstrap?.Toast.getInstance(toastEl);
     if (bsToast) bsToast.hide();
   }
   
-  router.push({ path: '/checkout', query: { buy_now: '1' } });
+  router.push({ path: '/checkout' });
 };
 
 // Lấy màu và icon dựa trên loại thông báo
@@ -161,7 +154,7 @@ onUnmounted(() => {
           
           <div class="d-flex gap-2 mt-3 pt-3 border-top border-light">
             <router-link to="/cart" class="btn btn-light btn-sm flex-grow-1 fw-medium" data-bs-dismiss="toast" style="font-size: 0.85rem;">Xem giỏ hàng</router-link>
-            <button @click="handleBuyNow" class="btn btn-primary btn-sm flex-grow-1 fw-medium text-white" style="font-size: 0.85rem;">Thanh toán ngay</button>
+            <button @click="handleBuyNow" class="btn btn-brand-checkout btn-sm flex-grow-1 fw-medium text-white" style="font-size: 0.85rem; background: var(--primary, #E63B6F); border-color: var(--primary, #E63B6F);">Thanh toán ngay</button>
           </div>
         </template>
       </div>
@@ -286,5 +279,12 @@ onUnmounted(() => {
     transform: translateX(0);
     opacity: 1;
   }
+}
+
+.btn-brand-checkout:hover,
+.btn-brand-checkout:focus {
+  background: #c4305d !important;
+  border-color: #c4305d !important;
+  color: #fff;
 }
 </style>

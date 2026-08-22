@@ -542,6 +542,41 @@ const selectedItems = computed(() => cartItems.value.filter(i => i.selected));
 const totalSelectedQuantity = computed(() => selectedItems.value.reduce((sum, i) => sum + i.quantity, 0));
 const totalPrice = computed(() => selectedItems.value.reduce((sum, i) => sum + (i.variant?.price || 0) * i.quantity, 0));
 
+// Lấy giá gốc của item trong giỏ (nếu có giảm giá)
+const getItemOriginalPrice = (item) => {
+    if (!item || !item.variant) return null;
+    const salePrice = Number(item.variant.price || 0);
+    const origPrice = Number(
+        item.variant.compare_at_price ??
+        item.variant.original_price ??
+        item.variant.originalPrice ??
+        item.variant.old_price ??
+        item.product?.original_price ??
+        item.product?.originalPrice ??
+        item.product?.compare_at_price ??
+        item.product?.max_price ??
+        0
+    );
+    if (origPrice > salePrice && origPrice > 0) {
+        return origPrice;
+    }
+    return null;
+};
+
+// Tổng giá gốc của các sản phẩm được chọn
+const totalOriginalPrice = computed(() => {
+    return selectedItems.value.reduce((sum, item) => {
+        const orig = getItemOriginalPrice(item) || item.variant?.price || 0;
+        return sum + orig * item.quantity;
+    }, 0);
+});
+
+// Tiết kiệm từ giảm giá sản phẩm
+const totalProductDiscount = computed(() => {
+    const diff = totalOriginalPrice.value - totalPrice.value;
+    return Math.max(0, diff);
+});
+
 // Format tiền VND
 const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
@@ -795,8 +830,12 @@ onUnmounted(() => {
                                 Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
                             </div>
                             
-                            <!-- Moved price inside details -->
-                            <div class="item-price">{{ formatPrice(item.variant?.price) }}</div>
+                            <div class="item-price-row">
+                                <span class="item-price-original" v-if="getItemOriginalPrice(item)">
+                                    {{ formatPrice(getItemOriginalPrice(item)) }}
+                                </span>
+                                <span class="item-price">{{ formatPrice(item.variant?.price) }}</span>
+                            </div>
                         </div>
 
                         <!-- Spacer -->
@@ -849,11 +888,13 @@ onUnmounted(() => {
 
                     <div class="summary-row">
                         <span>Tạm tính ({{ totalSelectedQuantity }} sản phẩm)</span>
-                        <strong>{{ formatPrice(totalPrice) }}</strong>
+                        <strong>{{ formatPrice(totalProductDiscount > 0 ? totalOriginalPrice : totalPrice) }}</strong>
                     </div>
                     <div class="summary-row">
                         <span>Giảm giá</span>
-                        <strong style="color: #22c55e;">- 0đ</strong>
+                        <strong :style="totalProductDiscount > 0 ? 'color: #22c55e;' : ''">
+                            {{ totalProductDiscount > 0 ? `- ${formatPrice(totalProductDiscount)}` : '0đ' }}
+                        </strong>
                     </div>
                     <div class="summary-row">
                         <span>Phí giao hàng</span>
@@ -1329,11 +1370,25 @@ onUnmounted(() => {
 }
 
 /* Price & Quantity */
+.item-price-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.item-price-original {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-decoration: line-through;
+}
+
 .item-price {
     font-size: 1.05rem;
     font-weight: 800;
     color: #E63B6F;
-    margin-top: 4px;
 }
 
 .item-spacer {

@@ -140,6 +140,10 @@ class CouponController extends Controller
             return response()->json(['status' => 'error', 'message' => $result['message']], 404);
         }
 
+        if ($result['state'] === 'not_eligible') {
+            return response()->json(['status' => 'error', 'message' => $result['message']], 400);
+        }
+
         if ($result['state'] === 'already_saved') {
             return response()->json(['status' => 'info', 'message' => $result['message']]);
         }

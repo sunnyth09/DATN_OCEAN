@@ -138,9 +138,6 @@ export const RETURN_REQUEST_CUSTOMER_STATUS_OPTIONS = [
 export const RETURN_REQUEST_REFUND_METHOD_OPTIONS = [
   { value: 'wallet', label: 'Hoàn vào ví' },
   { value: 'bank_transfer', label: 'Chuyển khoản' },
-  { value: 'cash', label: 'Tiền mặt' },
-  { value: 'vnpay', label: 'VNPay' },
-  { value: 'other', label: 'Khác' },
 ];
 
 export const RETURN_SHIPPING_METHOD_OPTIONS = [
