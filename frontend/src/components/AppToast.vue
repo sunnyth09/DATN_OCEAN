@@ -14,20 +14,13 @@ const router = useRouter();
 const { toast } = useToast(props.toastId);
 
 const handleBuyNow = () => {
-  if (toast.value.data && toast.value.data.variant_id) {
-    sessionStorage.setItem('buy_now_item', JSON.stringify({
-      variant_id: toast.value.data.variant_id,
-      quantity: toast.value.data.qty || 1,
-    }));
-  }
-  
   const toastEl = document.getElementById(props.toastId);
   if (toastEl) {
     const bsToast = window.bootstrap?.Toast.getInstance(toastEl);
     if (bsToast) bsToast.hide();
   }
   
-  router.push({ path: '/checkout', query: { buy_now: '1' } });
+  router.push({ path: '/checkout' });
 };
 
 // Lấy màu và icon dựa trên loại thông báo

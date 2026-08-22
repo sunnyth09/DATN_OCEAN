@@ -716,23 +716,14 @@ const placeOrder = async () => {
                 sessionStorage.removeItem('buy_now_item');
             }
             
-            // Xóa các sản phẩm đã mua khỏi giỏ hàng local nếu là khách vãng lai
-            if (!authStore.isAuthenticated) {
+            // Xóa các sản phẩm đã mua khỏi giỏ hàng local nếu là khách vãng lai và thanh toán từ giỏ hàng
+            if (!authStore.isAuthenticated && !isBuyNow.value && !isFlashSale.value) {
                 const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
-                if (isBuyNow.value && buyNowItem.value) {
-                    const remaining = localItems.filter(i => i.variant_id !== buyNowItem.value.variant_id);
-                    if (remaining.length > 0) {
-                        localStorage.setItem('cart_items', JSON.stringify(remaining));
-                    } else {
-                        localStorage.removeItem('cart_items');
-                    }
-                } else if (!isFlashSale.value) {
-                    const remaining = localItems.filter(i => i.selected === false);
-                    if (remaining.length > 0) {
-                        localStorage.setItem('cart_items', JSON.stringify(remaining));
-                    } else {
-                        localStorage.removeItem('cart_items');
-                    }
+                const remaining = localItems.filter(i => i.selected === false);
+                if (remaining.length > 0) {
+                    localStorage.setItem('cart_items', JSON.stringify(remaining));
+                } else {
+                    localStorage.removeItem('cart_items');
                 }
             }
 
