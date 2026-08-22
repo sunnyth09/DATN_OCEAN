@@ -34,12 +34,48 @@ const isFlashSaleEnded = computed(() => {
   return new Date(flashSaleData.value.end_time).getTime() <= Date.now();
 });
 
+const flashSaleOriginalPrice = computed(() => {
+  if (!flashSaleData.value) return 0;
+  const flashPrice = Number(flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0);
+
+  const fsOrig = Number(flashSaleData.value.original_price || flashSaleData.value.compare_at_price || 0);
+  if (fsOrig > flashPrice) return fsOrig;
+
+  if (selectedVariant.value) {
+    const vOrig = Number(
+      selectedVariant.value.original_price ||
+      selectedVariant.value.originalPrice ||
+      selectedVariant.value.compare_at_price ||
+      selectedVariant.value.price ||
+      0
+    );
+    if (vOrig > flashPrice) return vOrig;
+  }
+
+  const infoOrig = Number(displayPriceInfo.value.original || 0);
+  if (infoOrig > flashPrice) return infoOrig;
+
+  if (product.value) {
+    const prodOrig = Number(
+      product.value.original_price ||
+      product.value.originalPrice ||
+      product.value.compare_at_price ||
+      product.value.max_price ||
+      product.value.min_price ||
+      0
+    );
+    if (prodOrig > flashPrice) return prodOrig;
+  }
+
+  return 0;
+});
+
 const flashDiscountPercent = computed(() => {
   if (!flashSaleData.value) return 0;
-  const currentBase = displayPriceInfo.value.current || product.value?.min_price || 0;
-  const flashPrice = flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0;
-  if (currentBase > flashPrice && currentBase > 0) {
-    return Math.round(((currentBase - flashPrice) / currentBase) * 100);
+  const flashPrice = Number(flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0);
+  const orig = flashSaleOriginalPrice.value;
+  if (orig > flashPrice && orig > 0) {
+    return Math.round(((orig - flashPrice) / orig) * 100);
   }
   return 0;
 });
@@ -876,8 +912,8 @@ onBeforeUnmount(() => {
           <div class="pd-fs-body">
             <div class="pd-fs-price-main">
               <span class="pd-fs-price">{{ formatPrice(flashSaleData.flash_price || flashSaleData.campaign_price) }}</span>
-              <span class="pd-fs-origin-price" v-if="displayPriceInfo.current > (flashSaleData.flash_price || flashSaleData.campaign_price)">
-                {{ formatPrice(displayPriceInfo.current) }}
+              <span class="pd-fs-origin-price" v-if="flashSaleOriginalPrice > (flashSaleData.flash_price || flashSaleData.campaign_price)">
+                {{ formatPrice(flashSaleOriginalPrice) }}
               </span>
               <span class="pd-fs-discount-tag" v-if="flashDiscountPercent > 0">
                 -{{ flashDiscountPercent }}%

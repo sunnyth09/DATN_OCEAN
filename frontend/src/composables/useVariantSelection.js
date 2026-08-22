@@ -84,7 +84,10 @@ export function useVariantSelection() {
             const firstAvailable = varsForColor.find(v => v.stock > 0) || varsForColor[0];
             selectedSize.value = firstAvailable ? firstAvailable.size : null;
         }
-        quantity.value = 1;
+        const activeVar = selectedVariant.value || (varsForColor.length > 0 ? varsForColor[0] : null);
+        const stock = activeVar ? Number(activeVar.stock || 0) : 999;
+        const currentQty = normalizeQuantity(quantity.value);
+        quantity.value = Math.max(1, Math.min(currentQty, stock > 0 ? stock : 1));
     };
 
     const fetchVariants = async (productId, defaultVariantId) => {
