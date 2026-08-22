@@ -229,8 +229,8 @@ const refund = () => {
 
   return runAction(() => store.refundReturnRequest(route.params.id, {
     refund_amount: Number(refundForm.refund_amount),
-    refund_method: refundForm.refund_method,
-    admin_note: refundForm.admin_note || null,
+    refund_method: refundForm.refund_method || detail.value?.refund_method || 'wallet',
+    admin_note: adminNote.value || null,
   }));
 };
 
@@ -315,7 +315,7 @@ onMounted(() => {
 
         <div class="detail-block">
           <h3>Mô tả</h3>
-          <p>{{ detail.description || 'Không có mô tả bổ sung.' }}</p>
+          <div class="description-content" v-html="detail.description || 'Không có mô tả bổ sung.'"></div>
         </div>
 
         <div v-if="detail.images?.length || detail.videos?.length" class="detail-block">
@@ -523,9 +523,6 @@ onMounted(() => {
           <p v-else class="method-help-text">
             💡 Admin thực hiện chuyển khoản thủ công cho khách hàng theo thông tin tài khoản bên dưới, sau đó bấm Xác nhận.
           </p>
-
-          <label class="field-label">Ghi chú hoàn tiền</label>
-          <textarea v-model="refundForm.admin_note" class="field-textarea" placeholder="Nhập thông tin hoàn tiền..."></textarea>
 
           <button class="action-btn action-btn--refund" :disabled="actionLoading" @click="refund">
             {{ isStatus('refund_failed', 'refund_pending') ? 'Thử hoàn tiền lại' : 'Xác nhận hoàn tiền' }}
