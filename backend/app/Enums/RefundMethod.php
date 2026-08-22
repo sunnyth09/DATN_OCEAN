@@ -10,4 +10,13 @@ enum RefundMethod: string
     case VNPAY = 'vnpay';
     case MOMO = 'momo';
     case OTHER = 'other';
+
+    public static function returnRequestValues(): array
+    {
+        return [
+            self::WALLET->value,
+            self::BANK_TRANSFER->value,
+        ];
+    }
 }
+

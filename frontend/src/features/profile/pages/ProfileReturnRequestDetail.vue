@@ -109,10 +109,6 @@ const goBack = () => {
             </p>
           </div>
 
-          <div v-if="detail.refund_method === 'vnpay' && detail.refund_status === 'pending'" class="detail-block refund-pending-note">
-            <h3>Hoàn tiền VNPay</h3>
-            <p>Hoàn tiền VNPay đang chờ xử lý/đối soát. Shop sẽ cập nhật sau khi hoàn tất.</p>
-          </div>
 
           <div v-if="detail.items?.length" class="detail-block">
             <h3>Sản phẩm hoàn hàng</h3>

@@ -22,10 +22,7 @@ class StoreReturnRequestRequest extends FormRequest
         return [
             'reason' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
-            'refund_method' => ['required', Rule::in(array_map(
-                static fn (RefundMethod $method) => $method->value,
-                RefundMethod::cases()
-            ))],
+            'refund_method' => ['required', Rule::in(RefundMethod::returnRequestValues())],
             'idempotency_key' => 'nullable|string|max:120',
             'return_shipping_method' => ['required', Rule::in(['pickup_original_address', 'dropoff_post_office'])],
             'items' => 'required|array|min:1',
