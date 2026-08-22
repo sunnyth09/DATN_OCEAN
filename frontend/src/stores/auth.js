@@ -1,8 +1,8 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
-import { broadcastLogout } from '@/sessionSync';
-import { authService } from '@/services/authService';
-import { getAppBaseUrl } from '@/utils/url';
+import { broadcastLogout } from '../sessionSync';
+import { authService } from '../services/authService';
+import { getAppBaseUrl } from '../utils/url';
 
 const ADMIN_ROLES = ['admin', 'seller', 'staff'];
 const STORAGE_KEYS = {
@@ -104,7 +104,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     if (token.value && user.value) {
       try {
-        const { useCartStore } = await import('@/stores/cart');
+        const { useCartStore } = await import('./cart');
         const cartStore = useCartStore();
         await cartStore.syncCart();
       } catch (err) {
