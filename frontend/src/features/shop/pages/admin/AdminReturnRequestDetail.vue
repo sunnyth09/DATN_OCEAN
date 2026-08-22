@@ -36,19 +36,32 @@ const logisticsForm = reactive({
 const receivedItems = ref({});
 const inspectionItems = ref({});
 
+const mediaList = computed(() => {
+  const list = [];
+  if (detail.value?.images?.length) {
+    detail.value.images.forEach((img) => {
+      list.push({ url: imageUrl(img), type: 'image' });
+    });
+  }
+  if (detail.value?.videos?.length) {
+    detail.value.videos.forEach((vid) => {
+      list.push({ url: imageUrl(vid), type: 'video' });
+    });
+  }
+  return list;
+});
+
 const previewShow = ref(false);
-const previewUrl = ref('');
-const previewType = ref('image');
+const previewIndex = ref(0);
 
 const openPreview = (url, type = 'image') => {
-  previewUrl.value = url;
-  previewType.value = type;
+  const foundIdx = mediaList.value.findIndex((item) => item.url === url);
+  previewIndex.value = foundIdx >= 0 ? foundIdx : 0;
   previewShow.value = true;
 };
 
 const closePreview = () => {
   previewShow.value = false;
-  previewUrl.value = '';
 };
 
 const refundAmountDisplay = ref('');
@@ -553,8 +566,8 @@ onMounted(() => {
     <!-- Image & Video Media Preview Lightbox -->
     <MediaPreviewModal
       :show="previewShow"
-      :media-url="previewUrl"
-      :media-type="previewType"
+      :media-list="mediaList"
+      :initial-index="previewIndex"
       @close="closePreview"
     />
   </div>
