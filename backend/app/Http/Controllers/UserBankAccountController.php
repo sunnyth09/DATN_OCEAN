@@ -236,7 +236,7 @@ class UserBankAccountController extends Controller
             if ($request->account_number === '0945388951') {
                 $mockName = 'NGUYEN DAI DUONG';
             } else {
-                $mockNames = ['NGUYEN VAN A', 'TRAN THI BICH', 'LE HOANG LONG', 'PHAM THU TRANG', 'TRINH VAN DOAN', 'HOANG NGOC DIEP'];
+                $mockNames = ['BUI TRONG THANH', 'TRAN THI BICH', 'LE HOANG LONG', 'BUI TRONG THANH', 'TRINH VAN DOAN', 'HOANG NGOC DIEP'];
                 $index = abs(crc32($request->account_number)) % count($mockNames);
                 $mockName = $mockNames[$index];
             }
