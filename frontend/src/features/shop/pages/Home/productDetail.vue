@@ -595,10 +595,11 @@ const addToCart = async () => {
         await flyToCart(productImageRef.value, '#cart-icon');
       }
       const msg = 'Đã thêm vào giỏ hàng!';
+      const variantLabel = [selectedVariant.value.color, selectedVariant.value.size].filter(Boolean).join(' / ');
       showToast(msg, 'cart', {
         name: product.value.name,
         variant_id: selectedVariant.value.variant_id,
-        variant: (selectedVariant.value.color || '') + ' ' + (selectedVariant.value.size || ''),
+        variant: variantLabel || '',
         qty: quantity.value,
         is_stock_exceeded: isExceeded,
         available_stock: selectedVariant.value.stock,
@@ -618,10 +619,11 @@ const addToCart = async () => {
       if (productImageRef.value) {
         await flyToCart(productImageRef.value, '#cart-icon');
       }
+      const variantLabel = [selectedVariant.value.color, selectedVariant.value.size].filter(Boolean).join(' / ');
       showToast('Đã thêm vào giỏ hàng!', 'cart', {
         name: product.value.name,
         variant_id: selectedVariant.value.variant_id,
-        variant: (selectedVariant.value.color || '') + ' ' + (selectedVariant.value.size || ''),
+        variant: variantLabel || '',
         qty: quantity.value,
         is_stock_exceeded: response.is_stock_exceeded || false,
         available_stock: response.available_stock || selectedVariant.value.stock,
