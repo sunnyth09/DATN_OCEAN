@@ -895,7 +895,7 @@ onUnmounted(() => {
                     </div>
                     <div class="summary-row">
                         <span>Giảm giá</span>
-                        <strong :style="totalProductDiscount > 0 ? 'color: #22c55e;' : ''">
+                        <strong :style="totalProductDiscount > 0 ? 'color: #E63B6F;' : ''">
                             {{ totalProductDiscount > 0 ? `- ${formatPrice(totalProductDiscount)}` : '0đ' }}
                         </strong>
                     </div>
