@@ -380,6 +380,11 @@ const submitQuantityUpdate = async (item, targetQuantity) => {
     updating.value[item.cart_item_id] = true;
     try {
         await api.put(`/cart/items/${item.cart_item_id}`, { quantity: targetQuantity });
+        // Đồng bộ lại in-memory với giá trị đã lưu DB
+        item.quantity = targetQuantity;
+        if (item.variant) {
+            item.line_total = item.variant.price * targetQuantity;
+        }
         originalQuantities.delete(key);
     } catch (error) {
         // Rollback nếu API lỗi
@@ -403,15 +408,10 @@ const changeQuantity = (item, rawQuantity) => {
         return;
     }
     
-    const newQuantity = normalizeQuantity(rawQuantity);
+    let newQuantity = normalizeQuantity(rawQuantity);
 
     if (newQuantity === null || newQuantity < 1) {
         showToast('Số lượng tối thiểu là 1.', 'error');
-        return;
-    }
-
-    if (newQuantity > 999) {
-        showToast('Số lượng tối đa là 999.', 'error');
         return;
     }
 
@@ -479,8 +479,12 @@ const handleQuantityInputBlur = (item, event) => {
     const sanitized = String(event.target.value || '').replace(/[^0-9]/g, '').slice(0, 6);
     const nextQuantity = normalizeQuantity(sanitized);
     if (nextQuantity === null || nextQuantity < 1) {
+        // Giá trị không hợp lệ → hoàn về số cũ
         event.target.value = item.quantity;
         showToast('Vui lòng nhập số lượng hợp lệ.', 'error');
+    } else {
+        // Trigger changeQuantity để đảm bảo giá trị được lưu khi click ra ngoài
+        changeQuantity(item, nextQuantity);
     }
 };
 
