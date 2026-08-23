@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import ProductCard from "@/components/ProductCard.vue";
 import ProductSkeleton from "@/components/ProductSkeleton.vue";
+import AppIcon from "@/components/AppIcon.vue";
 import { catalogService } from "@/services/catalogService";
 import { useCatalogStore } from "@/stores/catalog";
 import { getStorageUrl } from '@/utils/url';
@@ -549,7 +550,9 @@ onUnmounted(() => {
 
                     <!-- Empty State -->
                     <div v-else class="empty-state">
-                        <div class="empty-icon">🔍</div>
+                        <div class="empty-icon">
+                            <AppIcon name="search" size="54" stroke-width="1.5" />
+                        </div>
                         <h3>Không tìm thấy sản phẩm nào!</h3>
                         <p v-if="searchQuery">Không có sản phẩm nào khớp với từ khoá <strong>"{{ searchQuery }}"</strong>.</p>
                         <p v-else>Không có sản phẩm nào phù hợp với bộ lọc bạn vừa chọn.</p>
@@ -966,7 +969,10 @@ onUnmounted(() => {
     padding: 80px 24px;
 }
 .empty-icon {
-    font-size: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
     margin-bottom: 16px;
 }
 .empty-state h3 {

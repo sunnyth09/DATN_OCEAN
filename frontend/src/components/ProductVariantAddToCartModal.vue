@@ -54,8 +54,6 @@
                                             class="vmodal-opt-btn color-opt"
                                             :class="{ active: selectedColor === color }" type="button"
                                             @click="onColorSelect(color)" :title="color">
-                                            <span class="color-swatch-circle"
-                                                :style="{ backgroundColor: getHexCode(color) }"></span>
                                             {{ color }}
                                         </button>
                                     </div>
@@ -203,34 +201,40 @@ const priceRangeLabel = computed(() => {
 
 // Tính toán giá gốc (gạch ngang) nếu có giảm giá
 const displayOriginalPrice = computed(() => {
+    const findValidOrig = (candidates, salePrice) => {
+        const minSale = Number(salePrice || 0);
+        for (const val of candidates) {
+            const num = Number(val);
+            if (Number.isFinite(num) && num > minSale) {
+                return num;
+            }
+        }
+        return 0;
+    };
+
     if (props.selectedVariant) {
         const salePrice = Number(props.selectedVariant.price || 0);
-        const origPrice = Number(
-            props.selectedVariant.original_price ??
-            props.selectedVariant.originalPrice ??
-            props.selectedVariant.compare_at_price ??
-            props.selectedVariant.old_price ??
-            props.selectedVariant.max_price ??
-            props.originalPrice ??
-            0
-        );
-        if (origPrice > salePrice && origPrice > 0) {
+        const candidates = [
+            props.selectedVariant.compare_at_price,
+            props.selectedVariant.original_price,
+            props.selectedVariant.originalPrice,
+            props.selectedVariant.old_price,
+            props.selectedVariant.max_price,
+            props.originalPrice,
+        ];
+        const origPrice = findValidOrig(candidates, salePrice);
+        if (origPrice > 0) {
             return formatCurrency(origPrice);
         }
         return '';
     }
 
-    const baseOrig = Number(props.originalPrice || 0);
     const minSalePrice = props.variants?.length
         ? Math.min(...props.variants.map(v => Number(v.price || 0)).filter(p => p > 0))
         : 0;
 
-    if (baseOrig > minSalePrice && baseOrig > 0) {
-        return formatCurrency(baseOrig);
-    }
-
     const variantOrigs = props.variants
-        ?.map(v => Number(v.original_price ?? v.originalPrice ?? v.compare_at_price ?? 0))
+        ?.map(v => findValidOrig([v.compare_at_price, v.original_price, v.originalPrice, props.originalPrice], v.price))
         .filter(p => p > 0) || [];
 
     if (variantOrigs.length > 0) {
@@ -240,6 +244,11 @@ const displayOriginalPrice = computed(() => {
             if (minOrig === maxOrig) return formatCurrency(minOrig);
             return `${formatCurrency(minOrig)} - ${formatCurrency(maxOrig)}`;
         }
+    }
+
+    const baseOrig = findValidOrig([props.originalPrice], minSalePrice);
+    if (baseOrig > 0) {
+        return formatCurrency(baseOrig);
     }
 
     return '';
@@ -285,9 +294,8 @@ function onQuantityInput(event) {
 
 function onQuantityBlur(event) {
     const nextQuantity = normalizeQuantity(event.target.value);
-    const stock = props.selectedVariant?.stock || 999;
     let safeQuantity = (nextQuantity ?? props.quantity) || 1;
-    safeQuantity = Math.max(1, Math.min(safeQuantity, stock, 999));
+    safeQuantity = Math.max(1, Math.min(safeQuantity, 999));
     event.target.value = safeQuantity;
     emit('update:quantity', safeQuantity);
 }
@@ -296,24 +304,6 @@ function formatCurrency(value) {
     const num = Number(value);
     if (!Number.isFinite(num)) return value || 'Liên hệ';
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
-}
-
-function getHexCode(colorName) {
-    if (!colorName) return '#ccc';
-    const colorMap = {
-        'đỏ': '#ef4444', red: '#ef4444',
-        'xanh dương': '#2563eb', 'xanh': '#2563eb', blue: '#2563eb',
-        'xanh lá': '#10b981', green: '#10b981',
-        'vàng': '#fbbf24', yellow: '#fbbf24',
-        'đen': '#18181b', black: '#18181b',
-        'trắng': '#ffffff', white: '#ffffff',
-        'hồng': '#f43f5e', pink: '#f43f5e',
-        'tím': '#8b5cf6', purple: '#8b5cf6',
-        'nâu': '#78350f', brown: '#78350f',
-        'cam': '#f97316', orange: '#f97316',
-        'xám': '#71717a', grey: '#71717a', gray: '#71717a',
-    };
-    return colorMap[colorName.toString().toLowerCase().trim()] || '#e4e4e7';
 }
 </script>
 
@@ -579,13 +569,7 @@ function getHexCode(colorName) {
     opacity: 0.75;
 }
 
-.color-swatch-circle {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    box-shadow: inset 0 0 0 1.5px #ffffff;
-}
+
 
 /* Quantity selector */
 .vmodal-qty-section {
