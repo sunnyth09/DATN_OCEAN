@@ -54,8 +54,6 @@
                                             class="vmodal-opt-btn color-opt"
                                             :class="{ active: selectedColor === color }" type="button"
                                             @click="onColorSelect(color)" :title="color">
-                                            <span class="color-swatch-circle"
-                                                :style="{ backgroundColor: getHexCode(color) }"></span>
                                             {{ color }}
                                         </button>
                                     </div>
@@ -307,24 +305,6 @@ function formatCurrency(value) {
     const num = Number(value);
     if (!Number.isFinite(num)) return value || 'Liên hệ';
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(num);
-}
-
-function getHexCode(colorName) {
-    if (!colorName) return '#ccc';
-    const colorMap = {
-        'đỏ': '#ef4444', red: '#ef4444',
-        'xanh dương': '#2563eb', 'xanh': '#2563eb', blue: '#2563eb',
-        'xanh lá': '#10b981', green: '#10b981',
-        'vàng': '#fbbf24', yellow: '#fbbf24',
-        'đen': '#18181b', black: '#18181b',
-        'trắng': '#ffffff', white: '#ffffff',
-        'hồng': '#f43f5e', pink: '#f43f5e',
-        'tím': '#8b5cf6', purple: '#8b5cf6',
-        'nâu': '#78350f', brown: '#78350f',
-        'cam': '#f97316', orange: '#f97316',
-        'xám': '#71717a', grey: '#71717a', gray: '#71717a',
-    };
-    return colorMap[colorName.toString().toLowerCase().trim()] || '#e4e4e7';
 }
 </script>
 
@@ -590,13 +570,7 @@ function getHexCode(colorName) {
     opacity: 0.75;
 }
 
-.color-swatch-circle {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    box-shadow: inset 0 0 0 1.5px #ffffff;
-}
+
 
 /* Quantity selector */
 .vmodal-qty-section {
