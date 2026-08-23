@@ -145,9 +145,12 @@ onUnmounted(() => {
             <img :src="toast.data.image" class="rounded object-fit-cover shadow-sm" style="width: 55px; height: 55px; border: 1px solid #f1f5f9;" v-if="toast.data.image" />
             <div class="ms-3 flex-grow-1 overflow-hidden">
               <div class="fw-bold text-truncate" style="font-size: 0.9rem; color: #1e293b;">{{ toast.data.name }}</div>
-              <div class="text-muted mt-1 d-flex align-items-center gap-2" style="font-size: 0.8rem;">
-                <span v-if="toast.data.variant" class="badge bg-light text-dark border">{{ toast.data.variant }}</span>
+              <div class="text-muted mt-1 d-flex align-items-center gap-2 flex-wrap" style="font-size: 0.8rem;">
+                <span v-if="toast.data.variant && String(toast.data.variant).trim()" class="badge bg-light text-dark border">{{ String(toast.data.variant).trim() }}</span>
                 <span v-if="toast.data.qty">SL: <b>{{ toast.data.qty }}</b></span>
+                <span v-if="toast.data.is_stock_exceeded" class="badge bg-warning-subtle text-warning border border-warning-subtle" style="font-size: 0.75rem; border-color: #fcd34d !important; color: #d97706 !important;">
+                  Vượt tồn kho {{ toast.data.available_stock ? `(Tối đa ${toast.data.available_stock})` : '' }}
+                </span>
               </div>
             </div>
           </div>

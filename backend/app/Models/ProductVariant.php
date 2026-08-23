@@ -43,7 +43,7 @@ class ProductVariant extends Model
     /**
      * Computed attributes tự động append vào JSON response.
      */
-    protected $appends = ['effective_price', 'is_on_sale', 'discount_percent'];
+    protected $appends = ['effective_price', 'is_on_sale', 'discount_percent', 'original_price'];
 
     /**
      * Cache tĩnh active Flash Sale theo request để tối ưu tốc độ.
@@ -164,6 +164,20 @@ class ProductVariant extends Model
         }
 
         return (int) round(($this->price - $effectivePrice) / $this->price * 100);
+    }
+
+    /**
+     * Giá gốc (gạch ngang) nếu variant có giảm giá hoặc compare_at_price > effective_price.
+     */
+    public function getOriginalPriceAttribute(): ?float
+    {
+        if ($this->compare_at_price && (float) $this->compare_at_price > $this->effective_price) {
+            return (float) $this->compare_at_price;
+        }
+        if ($this->effective_price < (float) $this->price) {
+            return (float) $this->price;
+        }
+        return null;
     }
 
     // ── Relationships ────────────────────────────────────────────────────────
