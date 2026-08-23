@@ -294,9 +294,8 @@ function onQuantityInput(event) {
 
 function onQuantityBlur(event) {
     const nextQuantity = normalizeQuantity(event.target.value);
-    const stock = props.selectedVariant?.stock || 999;
     let safeQuantity = (nextQuantity ?? props.quantity) || 1;
-    safeQuantity = Math.max(1, Math.min(safeQuantity, stock, 999));
+    safeQuantity = Math.max(1, Math.min(safeQuantity, 999));
     event.target.value = safeQuantity;
     emit('update:quantity', safeQuantity);
 }
