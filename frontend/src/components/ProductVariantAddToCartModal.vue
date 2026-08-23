@@ -203,34 +203,40 @@ const priceRangeLabel = computed(() => {
 
 // Tính toán giá gốc (gạch ngang) nếu có giảm giá
 const displayOriginalPrice = computed(() => {
+    const findValidOrig = (candidates, salePrice) => {
+        const minSale = Number(salePrice || 0);
+        for (const val of candidates) {
+            const num = Number(val);
+            if (Number.isFinite(num) && num > minSale) {
+                return num;
+            }
+        }
+        return 0;
+    };
+
     if (props.selectedVariant) {
         const salePrice = Number(props.selectedVariant.price || 0);
-        const origPrice = Number(
-            props.selectedVariant.original_price ??
-            props.selectedVariant.originalPrice ??
-            props.selectedVariant.compare_at_price ??
-            props.selectedVariant.old_price ??
-            props.selectedVariant.max_price ??
-            props.originalPrice ??
-            0
-        );
-        if (origPrice > salePrice && origPrice > 0) {
+        const candidates = [
+            props.selectedVariant.compare_at_price,
+            props.selectedVariant.original_price,
+            props.selectedVariant.originalPrice,
+            props.selectedVariant.old_price,
+            props.selectedVariant.max_price,
+            props.originalPrice,
+        ];
+        const origPrice = findValidOrig(candidates, salePrice);
+        if (origPrice > 0) {
             return formatCurrency(origPrice);
         }
         return '';
     }
 
-    const baseOrig = Number(props.originalPrice || 0);
     const minSalePrice = props.variants?.length
         ? Math.min(...props.variants.map(v => Number(v.price || 0)).filter(p => p > 0))
         : 0;
 
-    if (baseOrig > minSalePrice && baseOrig > 0) {
-        return formatCurrency(baseOrig);
-    }
-
     const variantOrigs = props.variants
-        ?.map(v => Number(v.original_price ?? v.originalPrice ?? v.compare_at_price ?? 0))
+        ?.map(v => findValidOrig([v.compare_at_price, v.original_price, v.originalPrice, props.originalPrice], v.price))
         .filter(p => p > 0) || [];
 
     if (variantOrigs.length > 0) {
@@ -240,6 +246,11 @@ const displayOriginalPrice = computed(() => {
             if (minOrig === maxOrig) return formatCurrency(minOrig);
             return `${formatCurrency(minOrig)} - ${formatCurrency(maxOrig)}`;
         }
+    }
+
+    const baseOrig = findValidOrig([props.originalPrice], minSalePrice);
+    if (baseOrig > 0) {
+        return formatCurrency(baseOrig);
     }
 
     return '';

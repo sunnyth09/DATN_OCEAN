@@ -147,9 +147,12 @@ const defaultVariantId = computed(() =>
 );
 const currentPrice = computed(() => formatCurrency(props.product.min_price || 0));
 const originalPrice = computed(() => {
-    if (!props.product.original_price) return "";
-    if (props.product.original_price === props.product.min_price) return "";
-    return formatCurrency(props.product.original_price);
+    const orig = Number(props.product.original_price || props.product.compare_at_price || props.product.max_price || 0);
+    const curr = Number(props.product.min_price || props.product.price || 0);
+    if (orig > curr && curr > 0) {
+        return formatCurrency(orig);
+    }
+    return "";
 });
 
 const handleToggleFav = async (event) => {
@@ -428,7 +431,7 @@ const handleAddToCart = async (event) => {
         :variants="variants" :unique-colors="uniqueColors" :has-colors="hasColors" :available-sizes="availableSizes"
         :selected-variant="selectedVariant" :selected-color="selectedColor" :selected-size="selectedSize"
         :quantity="quantity" :confirming="confirming"
-        :original-price="product.original_price || product.originalPrice || product.max_price"
+        :original-price="product.compare_at_price || product.original_price || product.originalPrice || product.max_price"
         @close="showVariantModal = false" @select-color="selectColor"
         @update:selected-size="selectedSize = $event" @update:quantity="quantity = $event" @increase="increaseQuantity"
         @decrease="decreaseQuantity" @confirm="handleConfirmAddToCart" />

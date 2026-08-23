@@ -546,19 +546,22 @@ const totalPrice = computed(() => selectedItems.value.reduce((sum, i) => sum + (
 const getItemOriginalPrice = (item) => {
     if (!item || !item.variant) return null;
     const salePrice = Number(item.variant.price || 0);
-    const origPrice = Number(
-        item.variant.compare_at_price ??
-        item.variant.original_price ??
-        item.variant.originalPrice ??
-        item.variant.old_price ??
-        item.product?.original_price ??
-        item.product?.originalPrice ??
-        item.product?.compare_at_price ??
-        item.product?.max_price ??
-        0
-    );
-    if (origPrice > salePrice && origPrice > 0) {
-        return origPrice;
+    const candidates = [
+        item.variant.original_price,
+        item.variant.compare_at_price,
+        item.variant.originalPrice,
+        item.variant.old_price,
+        item.product?.original_price,
+        item.product?.compare_at_price,
+        item.product?.originalPrice,
+        item.product?.max_price,
+        item.original_price,
+    ];
+    for (const val of candidates) {
+        const num = Number(val);
+        if (Number.isFinite(num) && num > salePrice) {
+            return num;
+        }
     }
     return null;
 };
