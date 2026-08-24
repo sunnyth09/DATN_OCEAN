@@ -163,8 +163,18 @@ class CartService
                 ->where('variant_id', $data['variant_id'])
                 ->first();
 
-            $newQuantity = min($existingItem ? $existingItem->quantity + $data['quantity'] : $data['quantity'], 999);
-            $isStockExceeded = $variant->stock > 0 && $newQuantity > $variant->stock;
+            $newQuantity = $existingItem
+                ? $existingItem->quantity + $data['quantity']
+                : $data['quantity'];
+
+            if ($newQuantity > $variant->stock) {
+                return [
+                    '_status' => 422,
+                    'status' => 'error',
+                    'message' => "Số lượng vượt quá tồn kho. Chỉ còn {$variant->stock} sản phẩm.",
+                    'available_stock' => $variant->stock,
+                ];
+            }
 
             if ($existingItem) {
                 $existingItem->update(['quantity' => $newQuantity]);
@@ -173,21 +183,19 @@ class CartService
                 CartItem::create([
                     'cart_id' => $cart->cart_id,
                     'variant_id' => $data['variant_id'],
-                    'quantity' => $newQuantity,
+                    'quantity' => $data['quantity'],
                     'selected' => true,
                 ]);
                 $message = 'Đã thêm sản phẩm vào giỏ hàng!';
             }
 
-            $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
+            $totalItems = CartItem::where('cart_id', $cart->cart_id)->count();
 
             return [
                 '_status' => 200,
                 'status' => 'success',
                 'message' => $message,
                 'total_items' => $totalItems,
-                'is_stock_exceeded' => $isStockExceeded,
-                'available_stock' => $variant->stock,
             ];
         });
     }
@@ -214,7 +222,15 @@ class CartService
             if (! $isAvailable) {
                 return ['_status' => 422, 'status' => 'error', 'message' => 'Sản phẩm này hiện không khả dụng hoặc đã bị xóa.'];
             }
-            $updateData['quantity'] = min((int) $data['quantity'], 999);
+            if ($variant && $data['quantity'] > $variant->stock) {
+                return [
+                    '_status' => 422,
+                    'status' => 'error',
+                    'message' => "Số lượng vượt quá tồn kho. Chỉ còn {$variant->stock} sản phẩm.",
+                    'available_stock' => $variant->stock,
+                ];
+            }
+            $updateData['quantity'] = $data['quantity'];
         }
 
         if (isset($data['selected'])) {
@@ -424,7 +440,7 @@ class CartService
             ->where('status', 'active')
             ->first();
 
-        return $cart ? (int) $cart->items()->sum('quantity') : 0;
+        return $cart ? (int) $cart->items()->count() : 0;
     }
 
     // ─── BUY AGAIN ─────────────────────────────────────────────────────
@@ -499,7 +515,7 @@ class CartService
                 $totalAdded++;
             }
 
-            $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
+            $totalItems = CartItem::where('cart_id', $cart->cart_id)->count();
 
             if ($totalAdded === 0 && count($errorMessages) > 0) {
                 return [

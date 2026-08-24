@@ -293,7 +293,7 @@ class PostController extends Controller
         $path = $request->file('image')->store('uploads/post_content', 'public');
 
         return response()->json([
-            'url' => '/storage/'.$path,
+            'url' => \Illuminate\Support\Facades\Storage::disk('public')->url($path),
         ]);
     }
 
