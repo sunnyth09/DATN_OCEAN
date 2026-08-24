@@ -257,22 +257,13 @@ const fetchCart = async (showGlobalLoading = true) => {
 };
 
 
-const isItemStockExceeded = (item) => {
-    return !!(item && item.variant && item.variant.stock !== null && item.variant.stock !== undefined && item.quantity > item.variant.stock);
-};
-
-const isItemSelectable = (item) => {
-    return item && item.is_available !== false && item.variant?.status === 'active' && item.variant?.stock > 0 && !isItemStockExceeded(item);
-};
-
 // Cập nhật trạng thái "Chọn tất cả"
 const updateSelectAllState = () => {
-    const selectable = cartItems.value.filter(item => isItemSelectable(item));
-    if (selectable.length === 0) {
+    if (cartItems.value.length === 0) {
         selectAll.value = false;
         return;
     }
-    selectAll.value = selectable.every(item => item.selected);
+    selectAll.value = cartItems.value.every(item => item.selected);
 };
 
 // Toggle chọn tất cả
@@ -283,14 +274,14 @@ const toggleSelectAll = async () => {
     if (!authStore.isAuthenticated) {
         let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
         localItems.forEach(item => {
-            const currentItem = cartItems.value.find(ci => ci.variant_id === item.variant_id);
-            if (currentItem && isItemSelectable(currentItem)) {
+            // Ignore unavailable items (assumes local items could be fetched and verified first, but guest cart logic is similar)
+            if (item.is_available !== false) {
                 item.selected = newState;
             }
         });
         localStorage.setItem('cart_items', JSON.stringify(localItems));
         cartItems.value.forEach(item => {
-            if (isItemSelectable(item)) {
+            if (item.is_available !== false) {
                 item.selected = newState;
             }
         });
@@ -299,7 +290,7 @@ const toggleSelectAll = async () => {
     
     // Cập nhật UI lập tức
     cartItems.value.forEach(item => { 
-        if (isItemSelectable(item)) {
+        if (item.is_available !== false) {
             item.selected = newState; 
         }
     });
@@ -317,14 +308,8 @@ const toggleSelectAll = async () => {
 
 // Toggle chọn 1 item
 const toggleSelect = async (item) => {
-    if (item.is_available === false || item.variant?.status !== 'active') {
+    if (item.is_available === false) {
         showToast('Không thể chọn sản phẩm không khả dụng.', 'error');
-        return;
-    }
-
-    if (isItemStockExceeded(item)) {
-        const pName = item.variant?.product?.name || item.product?.name || 'Sản phẩm';
-        showToast(`Sản phẩm "${pName}" đang vượt quá tồn kho (Tối đa: ${item.variant.stock}). Vui lòng giảm số lượng để chọn thanh toán.`, 'error');
         return;
     }
     
@@ -380,11 +365,6 @@ const submitQuantityUpdate = async (item, targetQuantity) => {
     updating.value[item.cart_item_id] = true;
     try {
         await api.put(`/cart/items/${item.cart_item_id}`, { quantity: targetQuantity });
-        // Đồng bộ lại in-memory với giá trị đã lưu DB
-        item.quantity = targetQuantity;
-        if (item.variant) {
-            item.line_total = item.variant.price * targetQuantity;
-        }
         originalQuantities.delete(key);
     } catch (error) {
         // Rollback nếu API lỗi
@@ -408,14 +388,22 @@ const changeQuantity = (item, rawQuantity) => {
         return;
     }
     
-    let newQuantity = normalizeQuantity(rawQuantity);
+    const newQuantity = normalizeQuantity(rawQuantity);
 
     if (newQuantity === null || newQuantity < 1) {
         showToast('Số lượng tối thiểu là 1.', 'error');
         return;
     }
 
-    newQuantity = Math.min(newQuantity, 999);
+    if (newQuantity > 999) {
+        showToast('Số lượng tối đa là 999.', 'error');
+        return;
+    }
+
+    if (!item.variant || newQuantity > item.variant.stock) {
+        showToast(`Chỉ còn ${item.variant?.stock || 0} sản phẩm trong kho.`, 'error');
+        return;
+    }
 
     if (newQuantity === item.quantity) {
         return;
@@ -479,12 +467,8 @@ const handleQuantityInputBlur = (item, event) => {
     const sanitized = String(event.target.value || '').replace(/[^0-9]/g, '').slice(0, 6);
     const nextQuantity = normalizeQuantity(sanitized);
     if (nextQuantity === null || nextQuantity < 1) {
-        // Giá trị không hợp lệ → hoàn về số cũ
         event.target.value = item.quantity;
         showToast('Vui lòng nhập số lượng hợp lệ.', 'error');
-    } else {
-        // Trigger changeQuantity để đảm bảo giá trị được lưu khi click ra ngoài
-        changeQuantity(item, nextQuantity);
     }
 };
 
@@ -554,7 +538,7 @@ const clearCart = async () => {
 
 
 // Tính tổng
-const selectedItems = computed(() => cartItems.value.filter(i => i.selected && isItemSelectable(i)));
+const selectedItems = computed(() => cartItems.value.filter(i => i.selected));
 const totalSelectedQuantity = computed(() => selectedItems.value.reduce((sum, i) => sum + i.quantity, 0));
 const totalPrice = computed(() => selectedItems.value.reduce((sum, i) => sum + (i.variant?.price || 0) * i.quantity, 0));
 
@@ -631,17 +615,8 @@ const isAnyItemUpdating = computed(() => {
 // Chuyển tới trang thanh toán
 const proceedToCheckout = () => {
     if (selectedItems.value.length === 0) return;
-
-    const exceededItems = selectedItems.value.filter(item => item.variant && item.quantity > item.variant.stock);
-    if (exceededItems.length > 0) {
-        const first = exceededItems[0];
-        const pName = first.variant?.product?.name || 'Sản phẩm';
-        showToast(`Sản phẩm "${pName}" đang vượt quá tồn kho (Chỉ còn ${first.variant.stock} sản phẩm). Vui lòng giảm số lượng để thanh toán.`, 'error');
-        return;
-    }
-
     if (hasInvalidStockSelected.value) {
-        showToast('Vui lòng bỏ chọn hoặc loại bỏ các sản phẩm không khả dụng/hết hàng để thanh toán.', 'error');
+        showToast('Vui lòng loại bỏ hoặc đổi phân loại các sản phẩm hết hàng/vượt quá tồn kho.', 'error');
         return;
     }
     router.push('/checkout');
@@ -811,9 +786,9 @@ onUnmounted(() => {
                         <div v-for="item in cartItems" :key="item.cart_item_id" class="cart-item-card"
                             :class="{ 'item-unavailable': item.is_available === false || item.variant?.status !== 'active' }">
                         <!-- Checkbox -->
-                        <div class="item-checkbox" @click="toggleSelect(item)" :style="!isItemSelectable(item) ? 'cursor: not-allowed; opacity: 0.5;' : ''">
-                            <div class="custom-checkbox" :class="{ checked: item.selected && isItemSelectable(item), disabled: !isItemSelectable(item) }">
-                                <svg v-if="item.selected && isItemSelectable(item)" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                        <div class="item-checkbox" @click="toggleSelect(item)" :style="item.is_available === false ? 'cursor: not-allowed; opacity: 0.5;' : ''">
+                            <div class="custom-checkbox" :class="{ checked: item.selected, disabled: item.is_available === false }">
+                                <svg v-if="item.selected" width="12" height="12" viewBox="0 0 24 24" fill="none"
                                     stroke="white" stroke-width="4">
                                     <polyline points="20 6 9 17 4 12" />
                                 </svg>
@@ -888,7 +863,7 @@ onUnmounted(() => {
                                 @blur="handleQuantityInputBlur(item, $event)"
                             />
                             <button class="qty-btn" @click="changeQuantity(item, item.quantity + 1)"
-                                :disabled="item.quantity >= 999 || updating[item.cart_item_id] || item.is_available === false">
+                                :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id] || item.is_available === false">
                                 +
                             </button>
                         </div>
