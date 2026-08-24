@@ -93,7 +93,7 @@ const isFlashSale = computed(() => {
 
 const badgeLabel = computed(() => {
     if (isFlashSale.value) {
-        return numericDiscount.value > 0 ? `⚡ -${numericDiscount.value}%` : "⚡ Flash Sale";
+        return numericDiscount.value > 0 ? `-${numericDiscount.value}%` : "Flash Sale";
     }
 
     if (numericDiscount.value > 0) {
@@ -362,6 +362,7 @@ const handleAddToCart = async (event) => {
         <router-link :to="productLink" class="card-link">
             <div class="media">
                 <span v-if="badgeLabel" class="product-badge" :class="badgeClass">
+                    <AppIcon v-if="isFlashSale" name="zap" size="13" style="margin-right: 2px;" />
                     {{ badgeLabel }}
                 </span>
 

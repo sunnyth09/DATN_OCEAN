@@ -869,7 +869,7 @@ onBeforeUnmount(() => {
         <div v-if="hasFlashSale" class="pd-flash-sale-card">
           <div class="pd-fs-header">
             <div class="pd-fs-title-box">
-              <span class="pd-fs-fire">⚡</span>
+              <span class="pd-fs-fire" style="display: inline-flex; align-items: center;"><AppIcon name="zap" size="18" /></span>
               <span class="pd-fs-title">FLASH SALE</span>
             </div>
             <div class="pd-fs-countdown" v-if="!isFlashSaleEnded">

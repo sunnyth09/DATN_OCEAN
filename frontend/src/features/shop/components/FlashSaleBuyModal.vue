@@ -209,7 +209,7 @@ const handleConfirmBuy = async () => {
 
       Swal.fire({
         icon: 'success',
-        title: '⚡ SĂN DEAL THÀNH CÔNG!',
+        title: 'SĂN DEAL THÀNH CÔNG!',
         html: `
           <div style="text-align: left; font-size: 0.95rem; line-height: 1.6; margin-top: 10px;">
             <p>Mã đơn hàng: <strong style="color: #E63B6F; font-size: 1.1rem;">#${res.data.order_code}</strong></p>
@@ -436,7 +436,7 @@ const handleConfirmBuy = async () => {
             <button class="fs-btn-submit" @click="handleConfirmBuy" :disabled="isSubmitting">
               <AppIcon name="zap" size="18" stroke-width="2.5" v-if="!isSubmitting" />
               <span v-if="isSubmitting" class="spinner-border spinner-border-sm me-2"></span>
-              <span>{{ isSubmitting ? 'Đang xác nhận đặt hàng...' : '⚡ XÁC NHẬN SĂN DEAL NGAY' }}</span>
+              <span>{{ isSubmitting ? 'Đang xác nhận đặt hàng...' : 'XÁC NHẬN SĂN DEAL NGAY' }}</span>
             </button>
           </div>
         </div>
