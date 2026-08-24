@@ -51,7 +51,7 @@ const initQuill = () => {
                     const res = await api.post("/posts/upload-image", fd, {
                         headers: { "Content-Type": "multipart/form-data" },
                     });
-                    const url = res.data.url;
+                    const url = getStorageUrl(res.data.url);
                     const range = quillContent.getSelection();
                     if(range){
                         quillContent.insertEmbed(range.index, "image", url);
@@ -86,7 +86,7 @@ const initQuill = () => {
             modules,
         });
         if (post.content) {
-            quillContent.root.innerHTML = post.content;
+            quillContent.root.innerHTML = post.content.replace(/src=["']([^"']+)["']/gi, (match, src) => `src="${getStorageUrl(src)}"`);
         }
         quillContent.on("text-change", () => {
             post.content =

@@ -277,6 +277,27 @@ class PostController extends Controller
     }
 
     /**
+     * Upload ảnh nội dung bài viết cho editor Quill
+     */
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+        ], [
+            'image.required' => 'Vui lòng chọn ảnh.',
+            'image.image'    => 'File phải là ảnh.',
+            'image.mimes'    => 'Chỉ hỗ trợ định dạng: JPEG, PNG, JPG, GIF, WEBP.',
+            'image.max'      => 'Ảnh không được vượt quá 4MB.',
+        ]);
+
+        $path = $request->file('image')->store('uploads/post_content', 'public');
+
+        return response()->json([
+            'url' => \Illuminate\Support\Facades\Storage::disk('public')->url($path),
+        ]);
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy($id)

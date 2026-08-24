@@ -506,18 +506,28 @@ const selectedVariantRemainingQty = computed(() => {
 
 const canPurchaseSelectedVariant = computed(() => {
   return isVariantPurchasable(selectedVariant.value)
-    && quantity.value >= 1;
+    && quantity.value >= 1
+    && quantity.value <= selectedVariant.value.stock
+    && (authStore.isAuthenticated || quantity.value <= selectedVariantRemainingQty.value);
 });
 
 const ctaDisabledReason = computed(() => {
   if (productTotalStock.value <= 0) return 'Hết hàng';
   if (!selectedVariant.value) return 'Vui lòng chọn phiên bản';
   if (!isVariantPurchasable(selectedVariant.value)) return 'Phiên bản hết hàng';
+  if (quantity.value > selectedVariant.value.stock) return `Chỉ còn ${selectedVariant.value.stock} sản phẩm`;
   if (quantity.value < 1) return 'Số lượng tối thiểu là 1';
+  if (!authStore.isAuthenticated && selectedVariantRemainingQty.value <= 0) {
+    return `Đã đạt tối đa tồn kho (${selectedVariant.value.stock})`;
+  }
+  if (!authStore.isAuthenticated && quantity.value > selectedVariantRemainingQty.value) {
+    return `Chỉ thêm được ${selectedVariantRemainingQty.value} sản phẩm nữa`;
+  }
   return '';
 });
 
 const normalizeQuantity = () => {
+  const max = selectedVariant.value?.stock || null;
   const raw = Number.parseInt(quantity.value, 10);
 
   if (!Number.isFinite(raw) || raw < 1) {
@@ -525,7 +535,12 @@ const normalizeQuantity = () => {
     return;
   }
 
-  quantity.value = Math.min(raw, 999);
+  if (max && raw > max) {
+    quantity.value = max;
+    return;
+  }
+
+  quantity.value = raw;
 };
 
 const onQuantityInput = (event) => {
@@ -536,9 +551,11 @@ const onQuantityInput = (event) => {
 
 const increaseQuantity = () => {
   normalizeQuantity();
-  if (quantity.value < 999) {
-    quantity.value++;
+  const max = selectedVariant.value?.stock;
+  if (max && quantity.value >= max) {
+    return;
   }
+  quantity.value++;
 };
 const decreaseQuantity = () => {
   normalizeQuantity();
@@ -562,6 +579,11 @@ const addToCart = async () => {
     return false;
   }
 
+  if (quantity.value > selectedVariant.value.stock) {
+    showToast(`Số lượng trong kho không đủ (chỉ còn ${selectedVariant.value.stock} sản phẩm)!`, 'error');
+    return false;
+  }
+
   if (quantity.value < 1) {
     showToast('Số lượng tối thiểu là 1!', 'error');
     return false;
@@ -576,15 +598,25 @@ const addToCart = async () => {
       const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
       const idx = localItems.findIndex(i => i.variant_id === selectedVariant.value.variant_id);
       const currentCartQty = idx !== -1 ? Number(localItems[idx].quantity || 0) : 0;
-      const nextCartQty = Math.min(currentCartQty + quantity.value, 999);
-      const isExceeded = selectedVariant.value.stock > 0 && nextCartQty > selectedVariant.value.stock;
+      const nextCartQty = currentCartQty + quantity.value;
+
+      if (nextCartQty > selectedVariant.value.stock) {
+        const remaining = Math.max(selectedVariant.value.stock - currentCartQty, 0);
+        showToast(
+          remaining > 0
+            ? `Bạn đã có ${currentCartQty} sản phẩm trong giỏ. Chỉ có thể thêm tối đa ${remaining} sản phẩm nữa!`
+            : `Sản phẩm này trong giỏ đã đạt tối đa tồn kho (${selectedVariant.value.stock})!`,
+          'error'
+        );
+        return false;
+      }
 
       if (idx !== -1) {
         localItems[idx].quantity = nextCartQty;
       } else {
         localItems.push({
           variant_id: selectedVariant.value.variant_id,
-          quantity: Math.min(quantity.value, 999),
+          quantity: quantity.value,
           selected: true,
         });
       }
@@ -594,15 +626,11 @@ const addToCart = async () => {
       if (productImageRef.value) {
         await flyToCart(productImageRef.value, '#cart-icon');
       }
-      const msg = 'Đã thêm vào giỏ hàng!';
-      const variantLabel = [selectedVariant.value.color, selectedVariant.value.size].filter(Boolean).join(' / ');
-      showToast(msg, 'cart', {
+      showToast('Đã thêm vào giỏ hàng!', 'cart', {
         name: product.value.name,
         variant_id: selectedVariant.value.variant_id,
-        variant: variantLabel || '',
+        variant: (selectedVariant.value.color || '') + ' ' + (selectedVariant.value.size || ''),
         qty: quantity.value,
-        is_stock_exceeded: isExceeded,
-        available_stock: selectedVariant.value.stock,
         image: selectedVariant.value.image_url ? getImageUrl(selectedVariant.value.image_url) : getImageUrl(allImages.value[0]?.image_url)
       });
       return true;
@@ -619,14 +647,11 @@ const addToCart = async () => {
       if (productImageRef.value) {
         await flyToCart(productImageRef.value, '#cart-icon');
       }
-      const variantLabel = [selectedVariant.value.color, selectedVariant.value.size].filter(Boolean).join(' / ');
-      showToast('Đã thêm vào giỏ hàng!', 'cart', {
+      showToast(response.message, 'cart', {
         name: product.value.name,
         variant_id: selectedVariant.value.variant_id,
-        variant: variantLabel || '',
+        variant: (selectedVariant.value.color || '') + ' ' + (selectedVariant.value.size || ''),
         qty: quantity.value,
-        is_stock_exceeded: response.is_stock_exceeded || false,
-        available_stock: response.available_stock || selectedVariant.value.stock,
         image: selectedVariant.value.image_url ? getImageUrl(selectedVariant.value.image_url) : getImageUrl(allImages.value[0]?.image_url)
       });
       return true;
@@ -869,7 +894,7 @@ onBeforeUnmount(() => {
         <div v-if="hasFlashSale" class="pd-flash-sale-card">
           <div class="pd-fs-header">
             <div class="pd-fs-title-box">
-              <span class="pd-fs-fire">⚡</span>
+              <span class="pd-fs-fire" style="display: inline-flex; align-items: center;"><AppIcon name="zap" size="18" /></span>
               <span class="pd-fs-title">FLASH SALE</span>
             </div>
             <div class="pd-fs-countdown" v-if="!isFlashSaleEnded">
@@ -964,7 +989,7 @@ onBeforeUnmount(() => {
               @blur="normalizeQuantity()"
               @keydown.enter.prevent="normalizeQuantity()"
             />
-            <button type="button" @click="increaseQuantity" :disabled="quantity >= 999" class="qty-btn-align">
+            <button type="button" @click="increaseQuantity" :disabled="selectedVariant && quantity >= selectedVariant.stock" class="qty-btn-align">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>

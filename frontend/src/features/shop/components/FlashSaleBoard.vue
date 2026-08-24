@@ -4,7 +4,7 @@
     <!-- ── HEADER ── -->
     <div class="board-header">
       <div class="sale-badge">
-        <span>⚡</span>
+        <AppIcon name="zap" size="14" />
         <span class="badge-text">FLASH SALE</span>
       </div>
       <span class="hot-chip" v-if="stockPercent >= 70 && !isEnded">🔥 Sắp hết hàng</span>
@@ -85,7 +85,7 @@
           <span v-else-if="isBuying">Đang xử lý...</span>
           <span v-else-if="soldOut">Đã hết hàng</span>
           <span v-else-if="isUpcoming">⏳ Sắp Mở Bán</span>
-          <span v-else>⚡ Săn Deal Ngay</span>
+          <span v-else style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><AppIcon name="zap" size="16" /> Săn Deal Ngay</span>
         </button>
         <p class="auth-note" v-if="!isLoggedIn && !isUpcoming">
           <router-link to="/client/login">Đăng nhập</router-link> để tham gia
@@ -117,6 +117,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api, { getUser } from '@/axios.js';
 import FlashSaleBuyModal from '@/features/shop/components/FlashSaleBuyModal.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const router = useRouter();
 const showBuyModal = ref(false);
