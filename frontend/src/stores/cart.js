@@ -19,7 +19,7 @@ export const useCartStore = defineStore('cart', () => {
 
     if (!authStore.isAuthenticated || authStore.isAdminUser) {
       const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
-      count.value = localItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      count.value = localItems.length;
       return count.value;
     }
 

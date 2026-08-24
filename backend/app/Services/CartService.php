@@ -189,7 +189,7 @@ class CartService
                 $message = 'Đã thêm sản phẩm vào giỏ hàng!';
             }
 
-            $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
+            $totalItems = CartItem::where('cart_id', $cart->cart_id)->count();
 
             return [
                 '_status' => 200,
@@ -440,7 +440,7 @@ class CartService
             ->where('status', 'active')
             ->first();
 
-        return $cart ? (int) $cart->items()->sum('quantity') : 0;
+        return $cart ? (int) $cart->items()->count() : 0;
     }
 
     // ─── BUY AGAIN ─────────────────────────────────────────────────────
@@ -515,7 +515,7 @@ class CartService
                 $totalAdded++;
             }
 
-            $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
+            $totalItems = CartItem::where('cart_id', $cart->cart_id)->count();
 
             if ($totalAdded === 0 && count($errorMessages) > 0) {
                 return [
