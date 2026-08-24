@@ -521,7 +521,7 @@ onUnmounted(() => {
                             <div class="order-code-cell">
                                 <div style="display: flex; align-items: center; gap: 6px;">
                                     <span class="badge-id">#{{ order.order_code }}</span>
-                                    <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">⚡ Flash Sale</span>
+                                    <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark d-inline-flex align-items-center gap-1" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;"><AppIcon name="zap" size="10" /> Flash Sale</span>
                                 </div>
                                 <span class="order-date">{{ formatDate(order.created_at) }}</span>
                             </div>

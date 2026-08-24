@@ -1,6 +1,7 @@
 <script setup>
 import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
+import AppIcon from '@/components/AppIcon.vue';
 </script>
 <template>
         <section class="py-5 reveal-on-scroll">
@@ -49,7 +50,7 @@ import ProductSkeleton from '@/components/ProductSkeleton.vue';
                             <div class="promo-banner-deco">
                                 <div class="deco-circle deco-c3"></div>
                                 <div class="deco-circle deco-c4"></div>
-                                <span class="deco-badge deco-badge--light">⚡ HOT</span>
+                                <span class="deco-badge deco-badge--light" style="display: flex; align-items: center; gap: 4px;"><AppIcon name="zap" size="18" /> HOT</span>
                             </div>
                         </div>
                     </div>
