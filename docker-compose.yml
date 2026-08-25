@@ -87,6 +87,36 @@ services:
         limits:
           memory: 150M
 
+  reverb:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - .env
+    environment:
+      CACHE_STORE: redis
+    volumes:
+      - ./backend:/var/www
+      - ./.env:/var/www/.env
+      - backend_vendor:/var/www/vendor
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    healthcheck:
+      test: ["CMD-SHELL", "php -r '$$sock = @fsockopen(\"127.0.0.1\", 8080); exit($$sock ? 0 : 1);'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+
   nginx_backend:
     image: nginx:alpine
     restart: always
@@ -98,6 +128,8 @@ services:
       - ./backend:/var/www:ro
     depends_on:
       backend:
+        condition: service_healthy
+      reverb:
         condition: service_healthy
     deploy:
       resources:
