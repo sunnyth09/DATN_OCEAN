@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import api from '@/axios';
 import { useRouter } from 'vue-router';
-import { Toast } from 'bootstrap';
+import Swal from 'sweetalert2';
 import CouponDetailModal from '@/features/shop/components/CouponDetailModal.vue';
 import AppIcon from '@/components/AppIcon.vue';
 
@@ -14,13 +14,15 @@ const selectedCoupon = ref(null);
 const visibleLimit = ref(8);
 const router = useRouter();
 
-const toast = ref({ message: '', type: 'success' });
-
 const showToast = (message, type = 'success') => {
-  toast.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('couponToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : (type === 'info' ? 'info' : 'success'),
+    showConfirmButton: false,
+    timer: 3500
   });
 };
 
@@ -306,19 +308,6 @@ onUnmounted(() => {
       @copy="copyCode"
       @view-all="closeCouponDetail"
     />
-
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000; margin-top: 80px;">
-      <div class="toast align-items-center border-0 shadow-sm rounded-3" :class="{
-        'text-bg-success': toast.type === 'success',
-        'text-bg-danger': toast.type === 'danger',
-        'text-bg-info': toast.type === 'info'
-      }" id="couponToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body small fw-bold">{{ toast.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    </div>
   </main>
 </template>
 

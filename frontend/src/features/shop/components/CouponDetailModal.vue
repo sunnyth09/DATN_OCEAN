@@ -3,6 +3,19 @@ import { ref, computed, watch, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import api from '@/axios';
+import Swal from 'sweetalert2';
+
+const showToast = (message, type = 'success') => {
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : (type === 'info' ? 'info' : 'success'),
+    showConfirmButton: false,
+    timer: 3500
+  });
+};
 
 const props = defineProps({
   coupon: {
@@ -78,9 +91,12 @@ const handleSaveCoupon = async () => {
     if (res.data?.status === 'success' || res.data?.status === 'info') {
       localIsSaved.value = true;
       window.dispatchEvent(new Event('coupon-saved'));
+      showToast(res.data.message || 'Lưu mã thành công!', res.data.status);
     }
   } catch (e) {
     console.error('Lỗi lưu coupon:', e);
+    const msg = e.response?.data?.message || 'Không thể lưu mã giảm giá!';
+    showToast(msg, 'danger');
   } finally {
     isSaving.value = false;
   }
