@@ -175,6 +175,10 @@ onUnmounted(() => {
               </div>
 
               <div class="coupon-detail-list">
+                <div class="coupon-detail-row" v-if="coupon.is_first_order">
+                  <span>Đối tượng áp dụng</span>
+                  <strong style="color: #e63b6f;">Chỉ dành cho đơn hàng đầu tiên</strong>
+                </div>
                 <div class="coupon-detail-row">
                   <span>Điều kiện đơn hàng</span>
                   <strong v-if="coupon.min_order_value">Từ {{ formatCurrency(coupon.min_order_value) }}</strong>

@@ -245,7 +245,8 @@ onUnmounted(() => {
                 <AppIcon :name="getCouponIcon(coupon)" width="14" height="14" :stroke-width="2.2" />
                 {{ getCouponLabel(coupon) }}
               </span>
-              <span v-if="isDisabled(coupon)" class="coupon-status">Hết hiệu lực</span>
+              <span v-if="coupon.is_first_order" class="coupon-first-order-badge">Đơn đầu tiên</span>
+              <span v-else-if="isDisabled(coupon)" class="coupon-status">Hết hiệu lực</span>
             </div>
 
             <button class="coupon-code-box" type="button" @click.stop="copyCode(coupon.code)">
@@ -257,10 +258,13 @@ onUnmounted(() => {
             </button>
 
             <div class="coupon-value">{{ formatValue(coupon) }}</div>
-            <p class="coupon-condition" v-if="coupon.min_order_value">
-              Đơn từ <strong>{{ formatCurrency(coupon.min_order_value) }}</strong>
+            <p class="coupon-condition">
+              <span v-if="coupon.is_first_order" class="first-order-tag" style="color: #e63b6f; font-weight: 700; display: block; margin-bottom: 2px;">★ Dành cho đơn hàng đầu tiên</span>
+              <template v-if="coupon.min_order_value">
+                Đơn từ <strong>{{ formatCurrency(coupon.min_order_value) }}</strong>
+              </template>
+              <template v-else>Không yêu cầu đơn tối thiểu</template>
             </p>
-            <p class="coupon-condition" v-else>Không yêu cầu đơn tối thiểu</p>
 
             <div class="coupon-divider"></div>
 
@@ -621,7 +625,8 @@ onUnmounted(() => {
 }
 
 .coupon-type-pill,
-.coupon-status {
+.coupon-status,
+.coupon-first-order-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -634,6 +639,13 @@ onUnmounted(() => {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+}
+
+.coupon-first-order-badge {
+  color: #c80f55;
+  background: #fff0f3;
+  border-color: #ffb3c6;
+  white-space: nowrap;
 }
 
 .coupon-status {
