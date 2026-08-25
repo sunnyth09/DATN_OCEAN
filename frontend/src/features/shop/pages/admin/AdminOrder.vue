@@ -1,5 +1,6 @@
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue';
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
@@ -21,6 +22,9 @@ const toast = {
   error: (msg) => showToastNotify(msg, 'danger'),
   info: (msg) => showToastNotify(msg, 'info'),
 };
+
+const route = useRoute();
+const router = useRouter();
 
 const orders = ref([]);
 const loading = ref(true);
@@ -133,8 +137,12 @@ const handleFilterStatus = (status) => {
 };
 
 const changePage = (page) => {
-  if(page >= 1 && page <= pagination.value.last_page) {
-      fetchOrders(page);
+  if (page >= 1 && page <= pagination.value.last_page) {
+    // Sync trang vào URL để khi bấm Back trên trình duyệt URL đúng
+    const q = { ...route.query };
+    if (page <= 1) { delete q.page; } else { q.page = String(page); }
+    router.replace({ query: q });
+    fetchOrders(page);
   }
 }
 
@@ -368,8 +376,46 @@ const applyBulkStatus = async () => {
     }
 };
 
+// Lưu trạng thái trang khi rời khỏi trang danh sách (sang chi tiết đơn hàng)
+const ORDER_STATE_KEY = 'admin_order_list_state';
+onBeforeRouteLeave(() => {
+  sessionStorage.setItem(ORDER_STATE_KEY, JSON.stringify({
+    page: pagination.value.current_page,
+    status: currentStatus.value,
+    search: searchQuery.value,
+    dateFrom: dateFrom.value,
+    dateTo: dateTo.value,
+  }));
+});
+
 onMounted(() => {
-  fetchOrders();
+  // Ưu tiên URL query (?page=2), sau đó sessionStorage (khi back từ chi tiết đơn)
+  const urlPage = parseInt(route.query.page);
+  const savedRaw = sessionStorage.getItem(ORDER_STATE_KEY);
+
+  if (urlPage && urlPage > 1) {
+    // URL có page → dùng luôn (trường hợp user share link hay reload)
+    sessionStorage.removeItem(ORDER_STATE_KEY);
+    fetchOrders(urlPage);
+  } else if (savedRaw) {
+    // Có state lưu từ lần rời trang trước → khôi phục toàn bộ
+    sessionStorage.removeItem(ORDER_STATE_KEY);
+    try {
+      const state = JSON.parse(savedRaw);
+      currentStatus.value = state.status || '';
+      searchQuery.value   = state.search  || '';
+      dateFrom.value      = state.dateFrom || '';
+      dateTo.value        = state.dateTo   || '';
+      const pg = parseInt(state.page) || 1;
+      // Cập nhật URL cho đúng
+      if (pg > 1) router.replace({ query: { ...route.query, page: String(pg) } });
+      fetchOrders(pg);
+    } catch {
+      fetchOrders(1);
+    }
+  } else {
+    fetchOrders(1);
+  }
 
   if (window.Echo) {
     window.Echo.private('admin-notifications')
