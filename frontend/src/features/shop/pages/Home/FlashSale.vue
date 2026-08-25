@@ -128,12 +128,20 @@ onMounted(async () => {
 
       <!-- ══ DANH SÁCH SẢN PHẨM FLASH SALE ══ -->
       <section class="content">
-        <!-- Đang tải -->
-        <div v-if="loading" class="text-center py-5">
-          <div class="spinner-border text-pink" role="status">
-            <span class="visually-hidden">Đang tải...</span>
+        <!-- Modern Skeleton Loading -->
+        <div v-if="loading" class="flash-sale-skeleton-grid">
+          <div v-for="i in 4" :key="i" class="fs-skeleton-card">
+            <div class="fs-skeleton-img skeleton-box"></div>
+            <div class="fs-skeleton-body">
+              <div class="skeleton-box" style="width: 75%; height: 20px; border-radius: 4px; margin-bottom: 12px;"></div>
+              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 16px;">
+                <div class="skeleton-box" style="width: 100px; height: 24px; border-radius: 6px;"></div>
+                <div class="skeleton-box" style="width: 70px; height: 16px; border-radius: 4px;"></div>
+              </div>
+              <div class="skeleton-box" style="width: 100%; height: 14px; border-radius: 20px; margin-bottom: 16px;"></div>
+              <div class="skeleton-box" style="width: 100%; height: 42px; border-radius: 10px;"></div>
+            </div>
           </div>
-          <p class="text-muted mt-2">Đang tải sản phẩm Flash Sale...</p>
         </div>
 
         <!-- Co danh sach sản phẩm -->
@@ -491,5 +499,56 @@ onMounted(async () => {
   .hero-rules-bar { gap: 6px; }
   .rule-chip { font-size: 0.76rem; padding: 4px 10px; }
   .boards-container { grid-template-columns: 1fr; }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.flash-sale-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.fs-skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.fs-skeleton-img {
+  width: 100%;
+  height: 220px;
+}
+
+.fs-skeleton-body {
+  padding: 16px;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

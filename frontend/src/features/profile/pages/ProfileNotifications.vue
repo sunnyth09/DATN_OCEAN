@@ -8,8 +8,16 @@
     </div>
     
     <div class="profile-card-body p-0">
-      <div v-if="loading" class="notifications-skeleton" style="padding:20px;">
-        <div class="skeleton-pulse" style="height:80px; border-radius:12px; margin-bottom: 12px;" v-for="i in 5" :key="i"></div>
+      <!-- Modern Skeleton Loading -->
+      <div v-if="loading" class="notifications-skeleton">
+        <div v-for="i in 5" :key="i" class="skeleton-noti-item">
+          <div class="skeleton-box" style="width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;"></div>
+          <div style="flex: 1;">
+            <div class="skeleton-box" style="width: 45%; height: 18px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 75%; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 90px; height: 12px; border-radius: 4px;"></div>
+          </div>
+        </div>
       </div>
       
       <div v-else-if="notifications.length === 0" class="empty-state">
@@ -401,5 +409,46 @@ const getIconClass = (type) => {
   font-size: 0.95rem;
   color: #64748b;
   font-weight: 500;
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.notifications-skeleton {
+  padding: 8px 0;
+  pointer-events: none;
+}
+
+.skeleton-noti-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  align-items: center;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

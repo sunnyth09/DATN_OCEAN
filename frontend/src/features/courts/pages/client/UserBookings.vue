@@ -243,10 +243,27 @@ const goToDetail = (courtId) => {
                 </button>
             </div>
 
-            <!-- Loading -->
-            <div v-if="store.loading" class="text-center py-5">
-                <div class="spinner-border mb-2" style="color: var(--court-primary);" role="status"></div>
-                <p class="text-muted" style="font-size: 0.9rem;">Đang tải lịch sử...</p>
+            <!-- Modern Skeleton Loading -->
+            <div v-if="store.loading" class="d-flex flex-column gap-4">
+                <div v-for="i in 3" :key="i" class="skeleton-booking-card">
+                    <div class="skeleton-booking-header">
+                        <div class="skeleton-box" style="width: 160px; height: 18px; border-radius: 4px;"></div>
+                        <div class="skeleton-box" style="width: 100px; height: 24px; border-radius: 20px;"></div>
+                    </div>
+                    <div class="skeleton-booking-body">
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <div class="skeleton-box" style="width: 50%; height: 22px; border-radius: 4px; margin-bottom: 10px;"></div>
+                                <div class="skeleton-box" style="width: 70%; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                                <div class="skeleton-box" style="width: 40%; height: 14px; border-radius: 4px;"></div>
+                            </div>
+                            <div class="col-md-4 text-md-end">
+                                <div class="skeleton-box" style="width: 90px; height: 24px; border-radius: 4px; margin-bottom: 8px; margin-left: auto;"></div>
+                                <div class="skeleton-box" style="width: 120px; height: 14px; border-radius: 4px; margin-left: auto;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Empty State -->
@@ -374,5 +391,55 @@ const goToDetail = (courtId) => {
         border-left: 1px solid var(--border-color, rgba(0,0,0,0.06));
         padding-left: 20px;
     }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.skeleton-booking-card {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #eef2f6;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    pointer-events: none;
+}
+
+.skeleton-booking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: #f8f9fb;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+
+.skeleton-booking-body {
+    padding: 20px;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

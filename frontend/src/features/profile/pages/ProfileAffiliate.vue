@@ -211,10 +211,39 @@ onMounted(async () => {
 
 <template>
   <div class="aff-page">
-    <!-- LOADING -->
-    <div v-if="loading" class="aff-loading">
-      <div class="aff-spinner"></div>
-      <p>Đang tải thông tin affiliate...</p>
+    <!-- Modern Skeleton Loading -->
+    <div v-if="loading" class="affiliate-skeleton">
+      <div class="skeleton-info-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+          <div>
+            <div class="skeleton-box" style="width: 180px; height: 26px; border-radius: 6px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 140px; height: 16px; border-radius: 4px;"></div>
+          </div>
+          <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <div class="skeleton-box" style="width: 160px; height: 50px; border-radius: 10px;"></div>
+            <div class="skeleton-box" style="width: 220px; height: 50px; border-radius: 10px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="skeleton-stats-grid" style="margin-top: 24px;">
+        <div v-for="i in 4" :key="i" class="skeleton-stat-card">
+          <div class="skeleton-box" style="width: 44px; height: 44px; border-radius: 12px;"></div>
+          <div style="flex: 1;">
+            <div class="skeleton-box" style="width: 60%; height: 24px; border-radius: 4px; margin-bottom: 6px;"></div>
+            <div class="skeleton-box" style="width: 40%; height: 14px; border-radius: 4px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="skeleton-card" style="margin-top: 24px; padding: 24px;">
+        <div class="skeleton-box" style="width: 160px; height: 22px; border-radius: 4px; margin-bottom: 20px;"></div>
+        <div v-for="i in 3" :key="i" style="display: flex; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #f1f5f9;">
+          <div class="skeleton-box" style="width: 25%; height: 16px; border-radius: 4px;"></div>
+          <div class="skeleton-box" style="width: 20%; height: 16px; border-radius: 4px;"></div>
+          <div class="skeleton-box" style="width: 15%; height: 16px; border-radius: 4px;"></div>
+        </div>
+      </div>
     </div>
 
     <template v-else>
@@ -906,6 +935,68 @@ onMounted(async () => {
   }
   .aff-section {
     padding: 16px;
+  }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.affiliate-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-info-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.skeleton-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-stat-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 </style>

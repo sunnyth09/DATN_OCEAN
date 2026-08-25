@@ -133,9 +133,37 @@ onMounted(loadByToken);
         </button>
       </form>
 
+      <!-- Modern Skeleton Loading -->
       <div v-if="loading && token" class="tracking-skeleton" style="margin-top: 30px;">
-        <div class="skeleton-pulse" style="height:150px; border-radius:12px; margin-bottom: 20px;"></div>
-        <div class="skeleton-pulse" style="height:350px; border-radius:12px;"></div>
+        <!-- Result Header Skeleton -->
+        <div class="skeleton-tracking-header">
+          <div>
+            <div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 180px; height: 28px; border-radius: 6px;"></div>
+          </div>
+          <div class="skeleton-box" style="width: 120px; height: 32px; border-radius: 20px;"></div>
+        </div>
+
+        <!-- Result Grid Skeleton -->
+        <div class="skeleton-tracking-grid">
+          <div v-for="i in 3" :key="i" class="skeleton-info-card">
+            <div class="skeleton-box" style="width: 80px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 140px; height: 18px; border-radius: 4px;"></div>
+          </div>
+        </div>
+
+        <!-- Items Card Skeleton -->
+        <div class="skeleton-tracking-card" style="margin-top: 24px;">
+          <div class="skeleton-box" style="width: 160px; height: 20px; border-radius: 6px; margin-bottom: 20px;"></div>
+          <div v-for="i in 2" :key="i" class="skeleton-tracking-item">
+            <div class="skeleton-box" style="width: 60px; height: 60px; border-radius: 8px; flex-shrink: 0;"></div>
+            <div style="flex: 1;">
+              <div class="skeleton-box" style="width: 60%; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+              <div class="skeleton-box" style="width: 30%; height: 13px; border-radius: 4px;"></div>
+            </div>
+            <div class="skeleton-box" style="width: 80px; height: 18px; border-radius: 4px;"></div>
+          </div>
+        </div>
       </div>
 
       <p v-if="errorMessage" class="tracking-error">{{ errorMessage }}</p>
@@ -527,6 +555,82 @@ onMounted(loadByToken);
 
   .tracking-card {
     padding: 20px;
+  }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.tracking-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-tracking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+
+.skeleton-tracking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-info-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.skeleton-tracking-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.skeleton-tracking-item {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+}
+
+.skeleton-tracking-item:last-child {
+  border-bottom: none;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 </style>

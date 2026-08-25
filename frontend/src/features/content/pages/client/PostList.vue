@@ -887,4 +887,37 @@ const getAuthorAvatarUrl = (author) => {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.post-list-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-pulse {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-pulse::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
 </style>
