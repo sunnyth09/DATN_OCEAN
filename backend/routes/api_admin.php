@@ -177,7 +177,6 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::put('/orders/bulk-status', [AdminOrderController::class, 'bulkUpdateStatus']);
     Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
     Route::put('/orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
-    Route::put('/orders/{id}/force-status', [AdminOrderController::class, 'forceStatus']);
     Route::get('/orders/{id}/available-transitions', [AdminOrderController::class, 'availableTransitions']);
     Route::post('/orders/{id}/ghn-sync', [AdminOrderController::class, 'syncGHN']);
     Route::post('/orders/{id}/self-delivery', [AdminOrderController::class, 'selfDelivery']);

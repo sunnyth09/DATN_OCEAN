@@ -227,8 +227,6 @@ const statusActionDefinitions = {
   processing: { icon: 'clock', label: 'Chuyển sang đang xử lý', success: 'Đã chuyển đơn sang đang xử lý!' },
   packing: { icon: 'clipboard-list', label: 'Chuyển sang đóng gói', success: 'Đã chuyển đơn sang đóng gói!' },
   awaiting_pickup: { icon: 'package', label: 'Chờ lấy hàng', success: 'Đã chuyển đơn sang chờ lấy hàng!' },
-  shipping: { icon: 'truck', label: 'Chuyển sang đang giao', success: 'Đã chuyển đơn sang đang giao!' },
-  delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
   completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
   cancelled: { icon: 'x', label: 'Hủy đơn', success: 'Đã hủy đơn hàng thành công!' },
   return_requested: { icon: 'rotate-ccw', label: 'Yêu cầu hoàn trả', success: 'Đã chuyển sang yêu cầu hoàn trả!' },
@@ -236,7 +234,6 @@ const statusActionDefinitions = {
   return_rejected: { icon: 'x', label: 'Từ chối hoàn trả', success: 'Đã từ chối yêu cầu hoàn trả!' },
   returned: { icon: 'package-check', label: 'Đã nhận hàng hoàn', success: 'Đã xác nhận nhận hàng hoàn!' },
   refunded: { icon: 'corner-down-left', label: 'Đã hoàn tiền', success: 'Đã hoàn tiền thành công!' },
-  returning: { icon: 'truck', label: 'Khách đang gửi trả', success: 'Khách hàng đang gửi trả sản phẩm!' },
   warehouse_received: { icon: 'box', label: 'Kho đã nhận', success: 'Kho đã nhận sản phẩm hoàn trả!' },
   inspection_failed: { icon: 'x-circle', label: 'Không đạt kiểm tra', success: 'Hàng hoàn trả không đạt yêu cầu!' },
   inspected_ok: { icon: 'check-circle', label: 'Đạt kiểm tra', success: 'Hàng hoàn trả đạt yêu cầu!' },
@@ -959,10 +956,10 @@ onMounted(() => fetchOrder());
               </div>
               
               <!-- Khối thao tác đẩy đơn/tự giao -->
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="!order.tracking_number && order.available_transitions?.includes('shipping')">
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="!order.tracking_number && ['confirmed', 'processing', 'packing', 'awaiting_pickup'].includes(order.fulfillment_status)">
                 <button class="btn-lookup-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
                    <AppIcon name="truck" size="16" class="me-1" />
-                   {{ isSyncingGhn ? 'Đang đẩy...' : 'Giao qua đối tác' }}
+                   {{ isSyncingGhn ? 'Đang đẩy...' : 'Đẩy đơn cho nhà vận chuyển' }}
                 </button>
                 <button class="btn-print" style="background-color: #28a745" @click="confirmSelfDelivery" :disabled="isSelfDelivering || order.fulfillment_status === 'cancelled'">
                    <AppIcon name="user" size="16" class="me-1" />
