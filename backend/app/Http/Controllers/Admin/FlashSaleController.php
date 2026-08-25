@@ -65,7 +65,7 @@ class FlashSaleController extends Controller
                         'product' => $product ? [
                             'product_id' => $product->product_id,
                             'name' => $product->name,
-                            'thumbnail' => $product->thumbnail_url,
+                            'thumbnail' => $product->thumbnail_url ?: ($product->mainImage?->image_url ?: ($product->images?->first()?->image_url ?: null)),
                             'base_price' => $basePrice,
                         ] : null,
                     ];
@@ -85,7 +85,7 @@ class FlashSaleController extends Controller
         $limit = max(1, min($limit, 100));
 
         $q = Product::where('status', 'active')
-            ->with(['category', 'variants']);
+            ->with(['category', 'variants', 'mainImage', 'images']);
 
         if ($query !== '') {
             $q->where(function ($sub) use ($query) {
@@ -111,7 +111,7 @@ class FlashSaleController extends Controller
                 'sku' => $product->sku,
                 'category_name' => $product->category?->name ?? '',
                 'category_id' => $product->category_id,
-                'thumbnail' => $product->thumbnail_url,
+                'thumbnail' => $product->thumbnail_url ?: ($product->mainImage?->image_url ?: ($product->images?->first()?->image_url ?: null)),
                 'base_price' => (float) ($product->min_price ?? 0),
                 'stock' => $totalStock,
             ];

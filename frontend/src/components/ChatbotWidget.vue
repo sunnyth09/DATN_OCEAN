@@ -80,6 +80,7 @@
                 @go-to-product="goToProduct"
                 @add-variant="addVariantToCart"
                 @show-variant-picker="showVariantPicker"
+                @buy-now="buyNowVariant"
               />
 
               <!-- Product Detail Card -->
@@ -109,6 +110,7 @@
                 v-if="msg.data && msg.type === 'variant_picker'"
                 :product="msg.data"
                 @add-variant="addVariantToCart"
+                @buy-now="buyNowVariant"
               />
 
               <!-- Order Card -->
@@ -254,17 +256,18 @@
               <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
           </button>
-          <input
+          <textarea
             ref="chatInput"
             v-model="inputMessage"
-            type="text"
             placeholder="Nhập tin nhắn..."
             class="chat-input"
-            @keyup.enter="sendMessage"
+            @keydown.enter.exact.prevent="sendMessage"
+            @input="autoResize"
             :disabled="isTyping"
             id="chatbot-input"
             maxlength="1000"
-          />
+            rows="1"
+          ></textarea>
           <button class="chat-send-btn" @click="sendMessage" :disabled="!inputMessage.trim() || isTyping" id="chatbot-send-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -487,6 +490,30 @@ async function addVariantToCart(product, variant) {
   }
 }
 
+/**
+ * Mua ngay: thêm variant vào giỏ hàng rồi chuyển thẳng đến trang thanh toán
+ */
+async function buyNowVariant(product, variant) {
+  if (!variant?.variant_id || isTyping.value) return;
+  isTyping.value = true;
+  try {
+    await api.post('/chatbot/cart/add', {
+      product_id: product.product_id,
+      variant_id: variant.variant_id,
+      quantity: 1,
+    });
+    cartStore.fetchCount();
+    isOpen.value = false;
+    router.push('/checkout');
+  } catch (error) {
+    const message = getAuthFriendlyMessage(error, 'Không thể thêm sản phẩm vào giỏ hàng.');
+    const type = error.response?.status === 401 ? 'requires_login' : 'error';
+    pushAssistantMessage(message, type, null);
+  } finally {
+    isTyping.value = false;
+  }
+}
+
 async function getAddressesForOrder() {
   if (isTyping.value) return;
   isTyping.value = true;
@@ -630,9 +657,21 @@ function connectLiveChat() {
   }
 }
 
+function autoResize() {
+  const el = chatInput.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
 async function sendMessage() {
   const msg = inputMessage.value.trim();
   if (!msg || isTyping.value) return;
+
+  // Reset textarea height
+  if (chatInput.value) {
+    chatInput.value.style.height = 'auto';
+  }
 
   // Add user message to UI
   messages.value.push({
@@ -1353,7 +1392,7 @@ async function sendMessage() {
 /* ==================== INPUT AREA ==================== */
 .chat-input-area {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid #e5e7eb;
@@ -1372,6 +1411,11 @@ async function sendMessage() {
   background: #f8fafc;
   outline: none;
   transition: border-color 0.2s;
+  resize: none;
+  overflow-y: auto;
+  min-height: 40px;
+  max-height: 120px;
+  line-height: 1.4;
 }
 
 .chat-input:focus {
