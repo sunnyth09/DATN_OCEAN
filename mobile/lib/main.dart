@@ -20,43 +20,12 @@ import 'services/notification_service.dart';
 import 'widgets/offline_banner.dart';
 import 'router/app_router.dart';
 
-/// HttpOverrides giúp toàn bộ Image.network, CachedNetworkImage, SvgPicture kết nối trực tiếp
-/// tới IP máy chủ với TLS SNI chuẩn, loại bỏ 100% lỗi nghẽn DNS IPv6 trên Android Emulator.
+/// HttpOverrides cho phép ứng dụng kết nối mạng an toàn và bỏ qua lỗi chứng chỉ self-signed trên môi trường dev/emulator.
 class AppHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
     client.badCertificateCallback = (cert, host, port) => true;
-    client.connectionTimeout = const Duration(seconds: 15);
-    client.idleTimeout = const Duration(seconds: 30);
-    client.maxConnectionsPerHost = 20;
-
-    client.connectionFactory = (Uri uri, String? proxyHost, int? proxyPort) {
-      if (uri.host != 'apiocean.bcbdev.id.vn') {
-        // Giữ nguyên kết nối mặc định cho Firebase, Google và các domain khác
-        return Socket.startConnect(proxyHost ?? uri.host, proxyPort ?? uri.port);
-      }
-
-      const targetIp = '116.118.6.160';
-
-      final Future<Socket> futureSocket = Socket.connect(
-        targetIp,
-        uri.port,
-        timeout: const Duration(seconds: 15),
-      ).then<Socket>((rawSocket) {
-        if (uri.scheme == 'https') {
-          return SecureSocket.secure(
-            rawSocket,
-            host: uri.host, // Thiết lập TLS SNI 'apiocean.bcbdev.id.vn'
-            onBadCertificate: (cert) => true,
-          );
-        }
-        return rawSocket;
-      });
-
-      return Future.value(ConnectionTask.fromSocket(futureSocket, () {}));
-    };
-
     return client;
   }
 }

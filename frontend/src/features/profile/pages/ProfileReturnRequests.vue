@@ -45,8 +45,16 @@ onMounted(() => {
     </div>
 
 
+    <!-- Modern Skeleton Loading -->
     <div v-if="myLoading" class="profile-returns-skeleton">
-      <div class="skeleton-pulse" style="height:120px; border-radius:12px; margin-bottom: 20px;" v-for="i in 3" :key="i"></div>
+      <div v-for="i in 3" :key="i" class="skeleton-return-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div class="skeleton-box" style="width: 140px; height: 20px; border-radius: 4px;"></div>
+          <div class="skeleton-box" style="width: 100px; height: 24px; border-radius: 20px;"></div>
+        </div>
+        <div class="skeleton-box" style="width: 60%; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+        <div class="skeleton-box" style="width: 40%; height: 14px; border-radius: 4px;"></div>
+      </div>
     </div>
 
     <div v-else-if="myRequests.length === 0" class="empty-state">
@@ -267,5 +275,48 @@ onMounted(() => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.profile-returns-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.skeleton-return-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

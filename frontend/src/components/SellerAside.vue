@@ -118,6 +118,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import Swal from 'sweetalert2';
 import { useUiStore } from '@/stores/ui';
+import { useAuthStore } from '@/stores/auth';
 import { getAbsoluteUrl } from '@/utils/url';
 
 const props = defineProps({
@@ -129,8 +130,9 @@ const props = defineProps({
 
 const router = useRouter();
 const uiStore = useUiStore();
+const authStore = useAuthStore();
 const userName = ref('Seller');
-const userRole = ref('Seller');
+const userRole = ref('Nhân viên Bán hàng');
 const userAvatar = ref('');
 
 const toggleSidebar = () => {
@@ -138,37 +140,29 @@ const toggleSidebar = () => {
 };
 
 onMounted(() => {
-  const userData = sessionStorage.getItem('user');
-  if (userData) {
-    try {
-      const user = JSON.parse(userData);
-      const path = user.avatar_url || '';
-      
-      userName.value = user.full_name || user.name || 'Seller';
-      userAvatar.value = path ? getAbsoluteUrl(path) : '';
-      userRole.value = 'Nhân viên Bán hàng';
-    } catch (e) {
-      console.error("Failed to parse user data", e);
-    }
+  // Đọc user từ authStore (ưu tiên localStorage)
+  const user = authStore.user;
+  if (user) {
+    const path = user.avatar_url || '';
+    userName.value = user.full_name || user.name || 'Seller';
+    userAvatar.value = path ? getAbsoluteUrl(path) : '';
   }
 });
 
 const handleLogout = async () => {
   const result = await Swal.fire({
-      title: 'Xác nhận',
-      text: 'Bạn có chắc chắn muốn đăng xuất?',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Đăng xuất',
-      cancelButtonText: 'Hủy'
+    title: 'Xác nhận',
+    text: 'Bạn có chắc chắn muốn đăng xuất?',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Đăng xuất',
+    cancelButtonText: 'Hủy'
   });
-  if (result.isConfirmed) {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
-    sessionStorage.removeItem('auth_token');
-    sessionStorage.removeItem('user');
-    router.push('/client/login');
-  }
+  if (!result.isConfirmed) return;
+
+  // authStore.logout() gọi API /logout, broadcast sang các tab, và xóa session
+  await authStore.logout();
+  router.push('/client/login');
 };
 </script>
 

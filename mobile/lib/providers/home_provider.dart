@@ -138,23 +138,24 @@ class HomeProvider extends ChangeNotifier {
 
   Future<void> fetchHomeCollections() async {
     try {
-      final res = await ApiClient().get('/products/home/best-selling');
-      final bsData = res.data;
-      if (bsData is Map && bsData['data'] is List) {
-        bestSellingProducts = bsData['data'];
-      } else if (bsData is List) {
-        bestSellingProducts = bsData;
-      }
-    } catch (_) {}
-
-    try {
-      final res = await ApiClient().get('/products/home/on-sale');
-      final saleData = res.data;
-      if (saleData is Map && saleData['data'] is List) {
-        onSaleProducts = saleData['data'];
-      } else if (saleData is List) {
-        onSaleProducts = saleData;
-      }
+      await Future.wait([
+        ApiClient().get('/products/home/best-selling').then((res) {
+          final bsData = res.data;
+          if (bsData is Map && bsData['data'] is List) {
+            bestSellingProducts = bsData['data'];
+          } else if (bsData is List) {
+            bestSellingProducts = bsData;
+          }
+        }).catchError((_) {}),
+        ApiClient().get('/products/home/on-sale').then((res) {
+          final saleData = res.data;
+          if (saleData is Map && saleData['data'] is List) {
+            onSaleProducts = saleData['data'];
+          } else if (saleData is List) {
+            onSaleProducts = saleData;
+          }
+        }).catchError((_) {}),
+      ]);
     } catch (_) {}
 
     notifyListeners();
@@ -165,20 +166,21 @@ class HomeProvider extends ChangeNotifier {
 
   Future<void> fetchVouchers() async {
     try {
-      final res = await ApiClient().get('/coupons/public');
-      final data = res.data;
-      if (data is Map && data['data'] is List) {
-        homeVouchers = data['data'];
-      } else if (data is List) {
-        homeVouchers = data;
-      }
-    } catch (_) {}
-
-    try {
-      final myRes = await ApiClient().dio.get('/profile/coupons');
-      final myData = myRes.data;
-      final list = myData is List ? myData : (myData is Map && myData['data'] is List ? myData['data'] : []);
-      savedCouponIds = list.map<int>((c) => int.tryParse((c['coupon_id'] ?? c['id'] ?? 0).toString()) ?? 0).toSet();
+      await Future.wait([
+        ApiClient().get('/coupons/public').then((res) {
+          final data = res.data;
+          if (data is Map && data['data'] is List) {
+            homeVouchers = data['data'];
+          } else if (data is List) {
+            homeVouchers = data;
+          }
+        }).catchError((_) {}),
+        ApiClient().dio.get('/profile/coupons').then((myRes) {
+          final myData = myRes.data;
+          final list = myData is List ? myData : (myData is Map && myData['data'] is List ? myData['data'] : []);
+          savedCouponIds = list.map<int>((c) => int.tryParse((c['coupon_id'] ?? c['id'] ?? 0).toString()) ?? 0).toSet();
+        }).catchError((_) {}),
+      ]);
     } catch (_) {}
 
     notifyListeners();

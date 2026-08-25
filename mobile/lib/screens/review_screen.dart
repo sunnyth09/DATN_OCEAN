@@ -180,19 +180,26 @@ class _ReviewScreenState extends State<ReviewScreen> {
                 children: [
                   const Text('Chất lượng sản phẩm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A))),
                   const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (i) {
-                      final filled = i < _rating;
-                      return GestureDetector(
-                        onTap: () => setState(() => _rating = i + 1),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          child: Icon(filled ? Icons.star : Icons.star_border, size: 44, color: filled ? Colors.amber : const Color(0xFFCBD5E1)),
-                        ),
-                      );
-                    }),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (i) {
+                        final filled = i < _rating;
+                        return GestureDetector(
+                          onTap: () => setState(() => _rating = i + 1),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            child: Icon(
+                              filled ? Icons.star_rounded : Icons.star_outline_rounded,
+                              size: 42,
+                              color: filled ? Colors.amber : const Color(0xFFCBD5E1),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(

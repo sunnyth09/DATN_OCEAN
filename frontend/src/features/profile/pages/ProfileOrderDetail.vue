@@ -491,10 +491,70 @@ watch(orderId, (newId) => {
       </div>
     </div>
 
+    <!-- Modern Skeleton Loading -->
     <div v-if="loading" class="profile-order-detail-skeleton">
-      <div class="skeleton-pulse" style="height:100px; border-radius:12px; margin-bottom:20px;"></div>
-      <div class="skeleton-pulse" style="height:300px; border-radius:12px; margin-bottom:20px;"></div>
-      <div class="skeleton-pulse" style="height:200px; border-radius:12px;"></div>
+      <!-- Status Section Skeleton -->
+      <div class="skeleton-status-section">
+        <div class="skeleton-status-info">
+          <div class="skeleton-box" style="width: 140px; height: 32px; border-radius: 20px;"></div>
+          <div class="skeleton-box" style="width: 180px; height: 16px; border-radius: 6px;"></div>
+        </div>
+        <div class="skeleton-status-actions">
+          <div class="skeleton-box" style="width: 130px; height: 38px; border-radius: 10px;"></div>
+        </div>
+      </div>
+
+      <!-- Detail Grid Skeleton: Address & Summary -->
+      <div class="skeleton-detail-grid">
+        <!-- Address Card Skeleton -->
+        <div class="skeleton-card">
+          <div class="skeleton-box" style="width: 150px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+          <div class="skeleton-box" style="width: 120px; height: 18px; border-radius: 4px; margin-bottom: 8px;"></div>
+          <div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+          <div class="skeleton-box" style="width: 85%; height: 14px; border-radius: 4px; margin-bottom: 6px;"></div>
+          <div class="skeleton-box" style="width: 60%; height: 14px; border-radius: 4px;"></div>
+        </div>
+
+        <!-- Summary Card Skeleton -->
+        <div class="skeleton-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div class="skeleton-box" style="width: 160px; height: 20px; border-radius: 6px;"></div>
+            <div class="skeleton-box" style="width: 70px; height: 22px; border-radius: 6px;"></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 70px; height: 14px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 90px; height: 14px; border-radius: 4px;"></div></div>
+            <div style="display: flex; justify-content: space-between;"><div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 70px; height: 14px; border-radius: 4px;"></div></div>
+            <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid var(--border-color, #e9ecef);"><div class="skeleton-box" style="width: 80px; height: 18px; border-radius: 4px;"></div><div class="skeleton-box" style="width: 110px; height: 22px; border-radius: 6px;"></div></div>
+          </div>
+          <div class="skeleton-box" style="width: 160px; height: 26px; border-radius: 20px;"></div>
+        </div>
+      </div>
+
+      <!-- Items List Card Skeleton -->
+      <div class="skeleton-card" style="margin-top: 24px;">
+        <div class="skeleton-box" style="width: 140px; height: 20px; border-radius: 6px; margin-bottom: 20px;"></div>
+        <div v-for="i in 2" :key="i" class="skeleton-item-row">
+          <div class="skeleton-box" style="width: 72px; height: 72px; border-radius: 10px; flex-shrink: 0;"></div>
+          <div style="flex: 1; min-width: 0;">
+            <div class="skeleton-box" style="width: 60%; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 30%; height: 13px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 40px; height: 13px; border-radius: 4px;"></div>
+          </div>
+          <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 4px;"></div>
+        </div>
+      </div>
+
+      <!-- History Card Skeleton -->
+      <div class="skeleton-card" style="margin-top: 24px;">
+        <div class="skeleton-box" style="width: 150px; height: 20px; border-radius: 6px; margin-bottom: 20px;"></div>
+        <div v-for="i in 3" :key="i" style="display: flex; gap: 14px; margin-bottom: 16px;">
+          <div class="skeleton-box" style="width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; flex-shrink: 0;"></div>
+          <div style="flex: 1;">
+            <div class="skeleton-box" style="width: 35%; height: 15px; border-radius: 4px; margin-bottom: 6px;"></div>
+            <div class="skeleton-box" style="width: 20%; height: 12px; border-radius: 4px;"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="order" class="order-content">
@@ -1756,6 +1816,94 @@ watch(orderId, (newId) => {
   .btn-banner-pay {
     text-align: center;
     width: 100%;
+  }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.profile-order-detail-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-status-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e9ecef);
+  border-radius: var(--radius-lg, 16px);
+  margin-bottom: 24px;
+}
+
+.skeleton-status-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.skeleton-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .skeleton-detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .skeleton-status-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+}
+
+.skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e9ecef);
+  border-radius: var(--radius-lg, 16px);
+  padding: 24px;
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(45, 52, 70, 0.04));
+}
+
+.skeleton-item-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+}
+
+.skeleton-item-row:last-child {
+  border-bottom: none;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
   }
 }
 </style>

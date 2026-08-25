@@ -1007,4 +1007,32 @@ const deleteMaintenance = async (id) => {
 .court-management-page {
     max-width: 100%;
 }
+
+.court-skeleton {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.court-skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
 </style>
