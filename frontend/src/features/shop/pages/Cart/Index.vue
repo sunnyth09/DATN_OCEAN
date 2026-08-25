@@ -806,13 +806,16 @@ onUnmounted(() => {
                                 {{ item.product?.name || 'Sản phẩm' }}
                             </router-link>
 
-                            <!-- Variant Tag -->
+                            <!-- Variant Tag (Clickable to change) -->
                             <div class="item-variant-row" v-if="item.variant">
-                                <span class="item-variant-text">
-                                    {{ item.variant.color && item.variant.size ? `Màu: ${item.variant.color} / Size:
-                                    ${item.variant.size}` : (item.variant.color ? `Màu: ${item.variant.color}` :
-                                        (item.variant.size ? `Size: ${item.variant.size}` : item.variant.variant_name)) }}
-                                </span>
+                                <button type="button" class="item-variant-btn" @click.stop="openVariantModal(item)" title="Bấm để đổi màu sắc / kích thước">
+                                    <span class="item-variant-text">
+                                        {{ item.variant.color && item.variant.size ? `Phân loại: ${item.variant.color} - ${item.variant.size}` : (item.variant.color ? `Màu: ${item.variant.color}` : (item.variant.size ? `Size: ${item.variant.size}` : item.variant.variant_name)) }}
+                                    </span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="variant-caret">
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </button>
                             </div>
 
                             <div class="item-stock" v-if="item.variant?.stock <= 5 && item.variant?.stock > 0 && item.quantity <= item.variant.stock && item.is_available !== false">
@@ -1330,10 +1333,49 @@ onUnmounted(() => {
     color: #E63B6F;
 }
 
+.item-variant-row {
+    margin-top: 5px;
+    margin-bottom: 2px;
+}
+
+.item-variant-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    max-width: 100%;
+}
+
+.item-variant-btn:hover {
+    background: #fff0f5;
+    border-color: #fbcfe8;
+}
+
+.item-variant-btn:hover .item-variant-text {
+    color: #E63B6F;
+}
+
+.item-variant-btn .variant-caret {
+    color: #94a3b8;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.item-variant-btn:hover .variant-caret {
+    color: #E63B6F;
+    transform: translateY(1px);
+}
+
 .item-variant-text {
-    font-size: 0.85rem;
-    color: #627d98;
-    margin-top: 4px;
+    font-size: 0.8rem;
+    color: #475569;
+    font-weight: 500;
     display: inline-block;
 }
 
@@ -2074,7 +2116,7 @@ onUnmounted(() => {
     padding: 11px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #E63B6F, #039be5);
+    background: #E63B6F;
     color: #fff;
     font-size: 0.95rem;
     font-weight: 700;
@@ -2085,8 +2127,9 @@ onUnmounted(() => {
 }
 
 .vmodal-btn-confirm:hover:not(:disabled) {
-    background: linear-gradient(135deg, #C4305D, #E63B6F);
+    background: #C4305D;
     transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.4);
 }
 
 .vmodal-btn-confirm:disabled {
