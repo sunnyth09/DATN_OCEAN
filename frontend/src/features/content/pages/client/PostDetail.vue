@@ -24,9 +24,17 @@ const isSubmitting = ref(false);
 const commentsPage = ref(1);
 const commentsLastPage = ref(1);
 
-const sanitizedContent = computed(() => DOMPurify.sanitize(post.value?.content || '', {
-  USE_PROFILES: { html: true },
-}));
+const sanitizedContent = computed(() => {
+  let content = post.value?.content || '';
+  if (content) {
+    content = content.replace(/src=["']([^"']+)["']/gi, (match, src) => {
+      return `src="${getStorageUrl(src)}"`;
+    });
+  }
+  return DOMPurify.sanitize(content, {
+    USE_PROFILES: { html: true },
+  });
+});
 
 const fetchPostDetail = async (idOrSlug) => {
   try {

@@ -57,7 +57,7 @@
           <div class="noti-content">
             <h4 class="noti-title" style="display: flex; align-items: center; gap: 8px;">
                 {{ notification.data.title }}
-                <span v-if="notification.data.is_flash_sale || (notification.data.title && notification.data.title.includes('Flash Sale'))" class="badge bg-warning text-dark" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; display: inline-block;">⚡ Flash Sale</span>
+                <span v-if="notification.data.is_flash_sale || (notification.data.title && notification.data.title.includes('Flash Sale'))" class="badge bg-warning text-dark d-inline-flex align-items-center gap-1" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;"><AppIcon name="zap" size="10" /> Flash Sale</span>
             </h4>
             <div class="noti-message">{{ notification.data.message }}</div>
             <div class="noti-time">{{ formatTime(notification.created_at) }}</div>
@@ -96,6 +96,7 @@ import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import api from '@/axios';
 import { useAuthStore } from '@/stores/auth';
+import AppIcon from '@/components/AppIcon.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();

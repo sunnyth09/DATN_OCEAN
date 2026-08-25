@@ -36,19 +36,32 @@ const logisticsForm = reactive({
 const receivedItems = ref({});
 const inspectionItems = ref({});
 
+const mediaList = computed(() => {
+  const list = [];
+  if (detail.value?.images?.length) {
+    detail.value.images.forEach((img) => {
+      list.push({ url: imageUrl(img), type: 'image' });
+    });
+  }
+  if (detail.value?.videos?.length) {
+    detail.value.videos.forEach((vid) => {
+      list.push({ url: imageUrl(vid), type: 'video' });
+    });
+  }
+  return list;
+});
+
 const previewShow = ref(false);
-const previewUrl = ref('');
-const previewType = ref('image');
+const previewIndex = ref(0);
 
 const openPreview = (url, type = 'image') => {
-  previewUrl.value = url;
-  previewType.value = type;
+  const foundIdx = mediaList.value.findIndex((item) => item.url === url);
+  previewIndex.value = foundIdx >= 0 ? foundIdx : 0;
   previewShow.value = true;
 };
 
 const closePreview = () => {
   previewShow.value = false;
-  previewUrl.value = '';
 };
 
 const refundAmountDisplay = ref('');
@@ -229,8 +242,8 @@ const refund = () => {
 
   return runAction(() => store.refundReturnRequest(route.params.id, {
     refund_amount: Number(refundForm.refund_amount),
-    refund_method: refundForm.refund_method,
-    admin_note: refundForm.admin_note || null,
+    refund_method: refundForm.refund_method || detail.value?.refund_method || 'wallet',
+    admin_note: adminNote.value || null,
   }));
 };
 
@@ -361,7 +374,7 @@ onMounted(() => {
 
         <div class="detail-block">
           <h3>Mô tả</h3>
-          <p>{{ detail.description || 'Không có mô tả bổ sung.' }}</p>
+          <div class="description-content" v-html="detail.description || 'Không có mô tả bổ sung.'"></div>
         </div>
 
         <div v-if="detail.images?.length || detail.videos?.length" class="detail-block">
@@ -555,15 +568,20 @@ onMounted(() => {
             <span class="currency-unit">VND</span>
           </div>
 
-          <label class="field-label">Phương thức hoàn tiền</label>
-          <select v-model="refundForm.refund_method" class="field-input">
-            <option v-for="method in RETURN_REQUEST_REFUND_METHOD_OPTIONS" :key="method.value" :value="method.value">
-              {{ method.label }}
-            </option>
-          </select>
-
-          <label class="field-label">Ghi chú hoàn tiền</label>
-          <textarea v-model="refundForm.admin_note" class="field-textarea" placeholder="Nhập thông tin hoàn tiền..."></textarea>
+          <label class="field-label">Phương thức hoàn tiền (Khách đã chọn)</label>
+          <div class="refund-method-readonly-badge">
+            <span class="method-icon">
+              <svg v-if="refundForm.refund_method === 'wallet'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>
+              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </span>
+            <strong>{{ getRefundMethodLabel(refundForm.refund_method) }}</strong>
+          </div>
+          <p v-if="refundForm.refund_method === 'wallet'" class="method-help-text">
+            💡 Tiền sẽ được <strong>tự động cộng vào Ví điện tử</strong> của khách hàng ngay sau khi bấm Xác nhận.
+          </p>
+          <p v-else class="method-help-text">
+            💡 Admin thực hiện chuyển khoản thủ công cho khách hàng theo thông tin tài khoản bên dưới, sau đó bấm Xác nhận.
+          </p>
 
           <button class="action-btn action-btn--refund" :disabled="actionLoading" @click="refund">
             {{ isStatus('refund_failed', 'refund_pending') ? 'Thử hoàn tiền lại' : 'Xác nhận hoàn tiền' }}
@@ -594,8 +612,8 @@ onMounted(() => {
     <!-- Image & Video Media Preview Lightbox -->
     <MediaPreviewModal
       :show="previewShow"
-      :media-url="previewUrl"
-      :media-type="previewType"
+      :media-list="mediaList"
+      :initial-index="previewIndex"
       @close="closePreview"
     />
   </div>
@@ -1204,6 +1222,36 @@ onMounted(() => {
 
 .text-center {
   text-align: center;
+}
+
+.refund-method-readonly-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface-container-low);
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.method-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+
+.method-help-text {
+  margin: 6px 0 12px;
+  font-size: 0.84rem;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 8px 12px;
+  border-radius: 8px;
+  line-height: 1.45;
 }
 
 /* ===== Modern Skeleton Loading Styles ===== */

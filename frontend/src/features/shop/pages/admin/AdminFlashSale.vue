@@ -6,6 +6,7 @@ import { getStorageUrl } from '@/utils/url';
 import Swal from 'sweetalert2';
 import { Toast, Modal } from 'bootstrap';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
+import AppIcon from '@/components/AppIcon.vue';
 
 const route = useRoute();
 
@@ -415,7 +416,7 @@ const checkClearanceParam = () => {
 
         form.value = {
             id: null,
-            name: `⚡ Xả Hàng Tồn Kho - Tháng ${monthYear}`,
+            name: `Xả Hàng Tồn Kho - Tháng ${monthYear}`,
             start_time: nowStr,
             end_time: endStr,
             status: 'draft',
@@ -532,7 +533,7 @@ onMounted(async () => {
       <div v-if="isModalOpen" class="ws-modal-overlay" @click.self="isModalOpen = false">
         <div class="ws-modal-box fs-modal-box">
           <div class="ws-modal-head">
-            <h3 style="font-size: 0.98rem; font-weight: 700; margin: 0; color: var(--text-main);">{{ isEditing ? '✏️ Chỉnh sửa Chiến Dịch Flash Sale' : '⚡ Tạo Mới Chiến Dịch Flash Sale' }}</h3>
+            <h3 style="font-size: 0.98rem; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 6px;"><AppIcon name="zap" size="16" v-if="!isEditing" /><span v-else>✏️</span> {{ isEditing ? 'Chỉnh sửa Chiến Dịch Flash Sale' : 'Tạo Mới Chiến Dịch Flash Sale' }}</h3>
             <button class="ws-btn-close" @click="isModalOpen = false">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -686,7 +687,7 @@ onMounted(async () => {
             <!-- Fast Settings Bar (Pink Theme) -->
             <div class="p-2 px-3 mb-2 rounded-3" style="background: #fff1f2; border: 1px solid #fecdd3; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
               <div class="d-flex align-items-center gap-1">
-                <span style="font-size: 0.76rem; font-weight: 700; color: #be123c;">⚡ Thiết lập sẵn cho SP chọn:</span>
+                <span style="font-size: 0.76rem; font-weight: 700; color: #be123c; display: inline-flex; align-items: center; gap: 4px;"><AppIcon name="zap" size="14" /> Thiết lập sẵn cho SP chọn:</span>
               </div>
               <div class="d-flex align-items-center gap-2 flex-wrap">
                 <div class="d-flex align-items-center gap-1">

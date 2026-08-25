@@ -5,6 +5,7 @@ import api from '@/axios';
 import { useRouter } from 'vue-router';
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
+import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
 
@@ -47,7 +48,7 @@ const initQuill = () => {
                     const res = await api.post("/posts/upload-image", fd, {
                         headers: { "Content-Type": "multipart/form-data" },
                     });
-                    const url = res.data.url;
+                    const url = getStorageUrl(res.data.url);
                     const range = quillContent.getSelection();
                     if(range){
                         quillContent.insertEmbed(range.index, "image", url);

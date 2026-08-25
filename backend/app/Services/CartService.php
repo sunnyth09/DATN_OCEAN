@@ -108,7 +108,8 @@ class CartService
                     'color' => $variant->color,
                     'size' => $variant->size,
                     'price' => $variant->effective_price,
-                    'compare_at_price' => $variant->compare_at_price,
+                    'original_price' => $variant->original_price,
+                    'compare_at_price' => $variant->original_price ?: $variant->compare_at_price,
                     'stock' => $variant->stock,
                     'image_url' => $variant->image_url,
                     'status' => $variant->status,
@@ -119,6 +120,10 @@ class CartService
                     'slug' => $product->slug,
                     'thumbnail_url' => $product->thumbnail_url,
                     'main_image' => $mainImage ? $mainImage->image_url : null,
+                    'original_price' => $product->original_price,
+                    'compare_at_price' => $product->compare_at_price,
+                    'max_price' => $product->max_price,
+                    'min_price' => $product->min_price,
                 ] : null,
                 'line_total' => $variant ? $variant->effective_price * $item->quantity : 0,
             ];
@@ -184,7 +189,7 @@ class CartService
                 $message = 'Đã thêm sản phẩm vào giỏ hàng!';
             }
 
-            $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
+            $totalItems = CartItem::where('cart_id', $cart->cart_id)->count();
 
             return [
                 '_status' => 200,
@@ -435,7 +440,7 @@ class CartService
             ->where('status', 'active')
             ->first();
 
-        return $cart ? (int) $cart->items()->sum('quantity') : 0;
+        return $cart ? (int) $cart->items()->count() : 0;
     }
 
     // ─── BUY AGAIN ─────────────────────────────────────────────────────
@@ -510,7 +515,7 @@ class CartService
                 $totalAdded++;
             }
 
-            $totalItems = CartItem::where('cart_id', $cart->cart_id)->sum('quantity');
+            $totalItems = CartItem::where('cart_id', $cart->cart_id)->count();
 
             if ($totalAdded === 0 && count($errorMessages) > 0) {
                 return [

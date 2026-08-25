@@ -749,7 +749,7 @@ onMounted(() => fetchOrder());
           <div>
             <h1 class="page-title" style="display: flex; align-items: center; gap: 8px;">
                 Đơn hàng <span class="order-code">#{{ order.order_code }}</span>
-                <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center;">⚡ Flash Sale</span>
+                <span v-if="order.order_code && order.order_code.startsWith('FS-')" class="badge bg-warning text-dark" style="font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;"><AppIcon name="zap" size="14" /> Flash Sale</span>
             </h1>
             <p class="page-sub">Ngày đặt: {{ formatDate(order.created_at) }}</p>
           </div>

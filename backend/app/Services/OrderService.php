@@ -336,21 +336,10 @@ class OrderService
                     );
                 }
 
-                // Xóa item khỏi giỏ hàng
+                // Xóa item khỏi giỏ hàng nếu là đơn đặt từ giỏ hàng
                 $cartItemIds = $cartItems->pluck('cart_item_id')->filter()->values()->toArray();
                 if (! empty($cartItemIds)) {
                     $this->cartRepository->deleteItems($cartItemIds);
-                } elseif ($userId && ! empty($data['items'])) {
-                    // Nếu là direct order / buy now, cũng xóa các variant đã mua khỏi giỏ hàng của user (nếu có)
-                    $purchasedVariantIds = collect($data['items'])->pluck('variant_id')->filter()->toArray();
-                    if (! empty($purchasedVariantIds)) {
-                        $activeCart = $this->cartRepository->getActiveCart($userId);
-                        if ($activeCart) {
-                            \App\Models\CartItem::where('cart_id', $activeCart->cart_id)
-                                ->whereIn('variant_id', $purchasedVariantIds)
-                                ->delete();
-                        }
-                    }
                 }
 
                 // Reset trạng thái giỏ hàng bỏ quên
