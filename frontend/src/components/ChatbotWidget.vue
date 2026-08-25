@@ -256,17 +256,18 @@
               <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
           </button>
-          <input
+          <textarea
             ref="chatInput"
             v-model="inputMessage"
-            type="text"
             placeholder="Nhập tin nhắn..."
             class="chat-input"
-            @keyup.enter="sendMessage"
+            @keydown.enter.exact.prevent="sendMessage"
+            @input="autoResize"
             :disabled="isTyping"
             id="chatbot-input"
             maxlength="1000"
-          />
+            rows="1"
+          ></textarea>
           <button class="chat-send-btn" @click="sendMessage" :disabled="!inputMessage.trim() || isTyping" id="chatbot-send-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
@@ -656,9 +657,21 @@ function connectLiveChat() {
   }
 }
 
+function autoResize() {
+  const el = chatInput.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
 async function sendMessage() {
   const msg = inputMessage.value.trim();
   if (!msg || isTyping.value) return;
+
+  // Reset textarea height
+  if (chatInput.value) {
+    chatInput.value.style.height = 'auto';
+  }
 
   // Add user message to UI
   messages.value.push({
@@ -1379,7 +1392,7 @@ async function sendMessage() {
 /* ==================== INPUT AREA ==================== */
 .chat-input-area {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid #e5e7eb;
@@ -1398,6 +1411,11 @@ async function sendMessage() {
   background: #f8fafc;
   outline: none;
   transition: border-color 0.2s;
+  resize: none;
+  overflow-y: auto;
+  min-height: 40px;
+  max-height: 120px;
+  line-height: 1.4;
 }
 
 .chat-input:focus {
