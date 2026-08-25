@@ -138,14 +138,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       _safeFitBounds();
     } catch (e) {
       if (!mounted) return;
-      // Dữ liệu mô phỏng chuẩn xác 100% khớp hệ thống web (TP.HCM -> Sơn La 1548.1 km)
-      final mock = OrderTrackingService.getMockOrder(trackingNumber: code);
       setState(() {
-        _order = mock;
+        _order = null;
         _isLoading = false;
       });
-
-      _safeFitBounds();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không tìm thấy thông tin vận đơn: $code'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
