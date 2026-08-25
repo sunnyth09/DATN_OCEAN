@@ -2116,7 +2116,7 @@ onUnmounted(() => {
     padding: 11px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #E63B6F, #039be5);
+    background: #E63B6F;
     color: #fff;
     font-size: 0.95rem;
     font-weight: 700;
@@ -2127,8 +2127,9 @@ onUnmounted(() => {
 }
 
 .vmodal-btn-confirm:hover:not(:disabled) {
-    background: linear-gradient(135deg, #C4305D, #E63B6F);
+    background: #C4305D;
     transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.4);
 }
 
 .vmodal-btn-confirm:disabled {
