@@ -44,8 +44,6 @@ const handleScroll = () => {
     }
 };
 
-const notifPage = ref(1);
-const notifTotalPages = ref(1);
 const isFetchingNotif = ref(false);
 
 // Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
@@ -92,22 +90,15 @@ const toggleNotifMenu = async () => {
     }
 };
 
-const fetchNotificationsList = async (page = 1) => {
+const fetchNotificationsList = async () => {
     const token = sessionStorage.getItem("auth_token");
     if (!token) return;
     isFetchingNotif.value = true;
     try {
-        const response = await api.get(`/profile/notifications?limit=5&page=${page}`);
+        const response = await api.get('/profile/notifications?limit=5');
         if (response.data && response.data.data) {
-            // Check if it's a paginator object (Laravel default)
             if (response.data.data.data && Array.isArray(response.data.data.data)) {
-                if (page === 1) {
-                    notificationsList.value = response.data.data.data;
-                } else {
-                    notificationsList.value = [...notificationsList.value, ...response.data.data.data];
-                }
-                notifPage.value = response.data.data.current_page || 1;
-                notifTotalPages.value = response.data.data.last_page || 1;
+                notificationsList.value = response.data.data.data;
             } else {
                 notificationsList.value = response.data.data;
             }
@@ -121,9 +112,25 @@ const fetchNotificationsList = async (page = 1) => {
     }
 };
 
-const loadMoreNotifications = async () => {
-    if (notifPage.value < notifTotalPages.value && !isFetchingNotif.value) {
-        await fetchNotificationsList(notifPage.value + 1);
+const isMarkingAllNotif = ref(false);
+const markAllNotificationsAsRead = async () => {
+    if (isMarkingAllNotif.value) return;
+    const unreadItems = notificationsList.value.filter(n => !n.read_at);
+    if (unreadItems.length === 0) return;
+
+    isMarkingAllNotif.value = true;
+    try {
+        await Promise.all(
+            unreadItems.map(n => api.post(`/profile/notifications/${n.id}/read`))
+        );
+        unreadItems.forEach(n => {
+            n.read_at = new Date().toISOString();
+            authStore.decrementUnreadNotificationCount();
+        });
+    } catch (e) {
+        console.error("Failed to mark displayed notifications as read", e);
+    } finally {
+        isMarkingAllNotif.value = false;
     }
 };
 
@@ -708,8 +715,9 @@ watch(
                         <div class="notif-menu-inner">
                             <div class="notif-header">
                                 <h3>Thông báo mới</h3>
-                                <router-link to="/profile/notifications" @click="showNotifDropdown = false"
-                                    class="notif-view-all">Xem tất cả</router-link>
+                                <button type="button" class="notif-view-all" @click.stop="markAllNotificationsAsRead" :disabled="isMarkingAllNotif">
+                                    {{ isMarkingAllNotif ? 'Đang xử lý...' : 'Đánh dấu đã đọc' }}
+                                </button>
                             </div>
                             <div class="notif-list" v-if="isFetchingNotif && notificationsList.length === 0">
                                 <div class="notif-item" v-for="i in 3" :key="'skeleton-' + i">
@@ -738,11 +746,10 @@ watch(
                             <div class="notif-empty" v-else>
                                 Không có thông báo nào.
                             </div>
-                            <div class="notif-footer" v-if="notifPage < notifTotalPages">
-                                <button class="btn-notif-loadmore" @click.stop="loadMoreNotifications"
-                                    :disabled="isFetchingNotif">
-                                    {{ isFetchingNotif ? 'Đang tải...' : 'Tải thêm' }}
-                                </button>
+                            <div class="notif-footer">
+                                <router-link to="/profile/notifications" class="btn-notif-loadmore" @click="showNotifDropdown = false">
+                                    Xem tất cả
+                                </router-link>
                             </div>
                         </div>
                     </div>
@@ -1441,6 +1448,21 @@ watch(
     color: #E63B6F;
     text-decoration: none;
     font-weight: 600;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: opacity 0.2s;
+}
+
+.notif-view-all:hover:not(:disabled) {
+    opacity: 0.8;
+    text-decoration: underline;
+}
+
+.notif-view-all:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .notif-list {
@@ -2028,6 +2050,8 @@ watch(
     font-weight: 600;
     cursor: pointer;
     transition: color 0.2s;
+    text-decoration: none;
+    display: inline-block;
 }
 
 .btn-notif-loadmore:hover:not(:disabled) {

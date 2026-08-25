@@ -374,7 +374,7 @@ const selectedCategoryNames = computed(() => {
                                 <div class="condition-info">
                                     <div v-if="coupon.min_order_value">Từ: <b>{{ formatCurrency(coupon.min_order_value) }}</b></div>
                                     <div v-else>Mọi đơn hàng</div>
-                                    <span v-if="coupon.is_first_order" class="badge-first-order" title="Chỉ áp dụng đơn đầu tiên">Chỉ mở bát</span>
+                                    <span v-if="coupon.is_first_order" class="badge-first-order" title="Chỉ áp dụng đơn đầu tiên">Đơn đầu tiên</span>
                                     <span v-if="coupon.user_usage_limit" class="badge-user-limit" title="Số lượt dùng mỗi User">User: {{ coupon.user_usage_limit }} lần</span>
                                 </div>
                             </td>
