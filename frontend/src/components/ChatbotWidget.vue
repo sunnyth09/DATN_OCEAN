@@ -80,6 +80,7 @@
                 @go-to-product="goToProduct"
                 @add-variant="addVariantToCart"
                 @show-variant-picker="showVariantPicker"
+                @buy-now="buyNowVariant"
               />
 
               <!-- Product Detail Card -->
@@ -109,6 +110,7 @@
                 v-if="msg.data && msg.type === 'variant_picker'"
                 :product="msg.data"
                 @add-variant="addVariantToCart"
+                @buy-now="buyNowVariant"
               />
 
               <!-- Order Card -->
@@ -481,6 +483,30 @@ async function addVariantToCart(product, variant) {
   } catch (error) {
     const message = getAuthFriendlyMessage(error, 'Sản phẩm hiện không khả dụng hoặc không thể thêm vào giỏ hàng.');
     const type = error.response?.status === 401 ? 'requires_login' : (error.response?.data?.type || 'error');
+    pushAssistantMessage(message, type, null);
+  } finally {
+    isTyping.value = false;
+  }
+}
+
+/**
+ * Mua ngay: thêm variant vào giỏ hàng rồi chuyển thẳng đến trang thanh toán
+ */
+async function buyNowVariant(product, variant) {
+  if (!variant?.variant_id || isTyping.value) return;
+  isTyping.value = true;
+  try {
+    await api.post('/chatbot/cart/add', {
+      product_id: product.product_id,
+      variant_id: variant.variant_id,
+      quantity: 1,
+    });
+    cartStore.fetchCount();
+    isOpen.value = false;
+    router.push('/checkout');
+  } catch (error) {
+    const message = getAuthFriendlyMessage(error, 'Không thể thêm sản phẩm vào giỏ hàng.');
+    const type = error.response?.status === 401 ? 'requires_login' : 'error';
     pushAssistantMessage(message, type, null);
   } finally {
     isTyping.value = false;
