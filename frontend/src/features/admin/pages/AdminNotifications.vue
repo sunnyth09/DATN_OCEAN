@@ -19,7 +19,19 @@
                 </ul>
             </div>
             
-            <div class="list-group list-group-flush" v-if="notifications.length > 0">
+            <!-- Skeleton Loading -->
+            <div class="list-group list-group-flush" v-if="isLoading">
+                <div v-for="i in 5" :key="i" class="list-group-item d-flex gap-3 py-3">
+                    <div class="skeleton-box" style="width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;"></div>
+                    <div style="flex: 1;">
+                        <div class="skeleton-box" style="width: 45%; height: 18px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 75%; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 100px; height: 12px; border-radius: 4px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="list-group list-group-flush" v-else-if="notifications.length > 0">
                 <div v-for="noti in notifications" :key="noti.id" 
                     class="list-group-item list-group-item-action d-flex gap-3 py-3"
                     :class="{ 'bg-light': !noti.read_at }"
@@ -167,7 +179,10 @@ const getFulfillmentBadgeClass = (status) => {
     }
 };
 
+const isLoading = ref(true);
+
 const fetchNotifications = async () => {
+    isLoading.value = true;
     try {
         const unreadOnly = filter.value === 'unread' ? 'true' : 'false';
         const res = await api.get('/admin/notifications', {
@@ -183,6 +198,8 @@ const fetchNotifications = async () => {
         }
     } catch (error) {
         console.error('Lỗi khi tải thông báo', error);
+    } finally {
+        isLoading.value = false;
     }
 };
 
@@ -299,4 +316,32 @@ onUnmounted(() => {
 .page-btn.active { background: var(--primary, #E63B6F); color: white; border-color: var(--primary, #E63B6F); }
 .page-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #f8fafc; }
 .page-dots { font-weight: 700; color: #64748b; padding: 0 4px; }
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
 </style>

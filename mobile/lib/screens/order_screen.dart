@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'review_screen.dart';
 import '../config/app_config.dart';
 import '../config/app_theme.dart';
 import '../services/api_client.dart';
@@ -94,34 +95,54 @@ class _OrderScreenState extends State<OrderScreen>
     }
   }
 
+  String _getOrderCategory(dynamic order) {
+    if (order is! Map) return 'pending_confirmation';
+    final String rawStatus = (order['status'] ?? '').toString().toLowerCase().trim();
+    final String rawOrderSt = (order['order_status'] ?? '').toString().toLowerCase().trim();
+    final String rawFulfillment = (order['fulfillment_status'] ?? '').toString().toLowerCase().trim();
+
+    // 1. Trả hàng / Hoàn tiền
+    if (rawStatus.contains('return') || rawStatus.contains('refund') ||
+        rawOrderSt.contains('return') || rawOrderSt.contains('refund') ||
+        rawFulfillment.contains('return') || rawFulfillment.contains('refund')) {
+      return 'returns';
+    }
+
+    // 2. Đã hủy / Thất bại
+    if (rawStatus.contains('cancel') || rawStatus == 'failed' ||
+        rawOrderSt.contains('cancel') || rawOrderSt == 'failed' ||
+        rawFulfillment.contains('cancel') || rawFulfillment == 'failed') {
+      return 'cancelled';
+    }
+
+    // 3. Hoàn thành / Đã nhận hàng -> Đánh giá
+    if (rawStatus.contains('completed') || rawStatus.contains('delivered') || rawStatus == 'success' ||
+        rawOrderSt.contains('completed') || rawOrderSt.contains('delivered') || rawOrderSt == 'success' ||
+        rawFulfillment.contains('completed') || rawFulfillment.contains('delivered') || rawFulfillment == 'success') {
+      return 'to_review';
+    }
+
+    // 4. Đang giao hàng (Đã giao cho shipper / trên đường đi phát)
+    if (rawStatus.contains('shipping') || rawStatus.contains('delivering') || rawStatus.contains('transit') ||
+        rawOrderSt.contains('shipping') || rawOrderSt.contains('delivering') || rawOrderSt.contains('transit') ||
+        rawFulfillment.contains('shipping') || rawFulfillment.contains('delivering') || rawFulfillment.contains('transit')) {
+      return 'shipping';
+    }
+
+    // 5. Chờ lấy hàng / Đang chuẩn bị (Shop đã xác nhận, đang đóng gói hoặc shipper chờ lấy)
+    if (rawStatus.contains('confirmed') || rawStatus.contains('processing') || rawStatus.contains('packing') || rawStatus.contains('ready') || rawStatus.contains('pickup') ||
+        rawOrderSt.contains('confirmed') || rawOrderSt.contains('processing') || rawOrderSt.contains('packing') || rawOrderSt.contains('ready') || rawOrderSt.contains('pickup') ||
+        rawFulfillment.contains('processing') || rawFulfillment.contains('packing') || rawFulfillment.contains('ready') || rawFulfillment.contains('pickup') || rawFulfillment.contains('fulfilled')) {
+      return 'processing';
+    }
+
+    // 6. Chờ xác nhận (Đơn mới tạo, chờ shop duyệt, chờ thanh toán)
+    return 'pending_confirmation';
+  }
+
   int _getCountForFilter(String filter) {
     if (filter == 'all') return allOrders.length;
-    return allOrders.where((order) {
-      // P1-06: Ưu tiên fulfillment_status, fallback về order_status
-      // Dùng exact match / ưu tiên rõ ràng để tránh overlap giữa các tab
-      final st = (order['fulfillment_status'] ?? order['status'] ?? '').toString().toLowerCase().trim();
-      final orderSt = (order['order_status'] ?? order['status'] ?? '').toString().toLowerCase().trim();
-      // Xác định trạng thái chính theo thứ tự ưu tiên
-      final effectiveSt = st.isNotEmpty ? st : orderSt;
-
-      // Tab trả hàng/hoàn tiền — ưu tiên kiểm tra TRƯỚC to_review để tránh overlap
-      final isReturn = effectiveSt.contains('return') || effectiveSt.contains('refund');
-      final isCancelled = effectiveSt.contains('cancel') || effectiveSt == 'failed';
-      final isCompleted = (effectiveSt.contains('completed') || effectiveSt.contains('delivered') || effectiveSt == 'success') && !isReturn;
-      final isShipping = (effectiveSt.contains('shipping') || effectiveSt.contains('delivering') || effectiveSt.contains('transit')) && !isReturn && !isCancelled;
-      final isProcessing = (effectiveSt.contains('processing') || effectiveSt.contains('confirmed') || effectiveSt.contains('ready') || effectiveSt.contains('pickup') || effectiveSt.contains('packing')) && !isShipping && !isReturn && !isCancelled;
-      final isPending = (effectiveSt == 'pending' || effectiveSt == 'unpaid' || effectiveSt.contains('waiting')) && !isProcessing && !isShipping && !isReturn && !isCancelled;
-
-      switch (filter) {
-        case 'pending_confirmation': return isPending;
-        case 'processing': return isProcessing;
-        case 'shipping': return isShipping;
-        case 'to_review': return isCompleted;
-        case 'returns': return isReturn;
-        case 'cancelled': return isCancelled;
-        default: return false;
-      }
-    }).length;
+    return allOrders.where((order) => _getOrderCategory(order) == filter).length;
   }
 
   Widget _buildTabItem(String title, int count) {
@@ -252,34 +273,7 @@ class _OrderScreenState extends State<OrderScreen>
   Widget _buildOrderList(String statusFilter) {
     List<dynamic> filtered = allOrders;
     if (statusFilter != 'all') {
-      filtered = allOrders.where((order) {
-        String st = (order['fulfillment_status'] ?? order['status'] ?? '')
-            .toString()
-            .toLowerCase();
-        String orderStatus = (order['order_status'] ?? order['status'] ?? '')
-            .toString()
-            .toLowerCase();
-
-        if (statusFilter == 'pending_confirmation') {
-          return (st == 'pending' || orderStatus == 'pending' || orderStatus.contains('unpaid') || orderStatus.contains('waiting'));
-        }
-        if (statusFilter == 'processing') {
-          return (st.contains('processing') || st.contains('confirmed') || st.contains('ready') || st.contains('pickup') || orderStatus.contains('processing') || orderStatus.contains('confirmed'));
-        }
-        if (statusFilter == 'shipping') {
-          return (st.contains('shipping') || st.contains('delivering') || st.contains('transit') || orderStatus.contains('shipping') || orderStatus.contains('delivering'));
-        }
-        if (statusFilter == 'to_review') {
-          return (st.contains('completed') || st.contains('delivered') || st.contains('success') || orderStatus.contains('completed') || orderStatus.contains('delivered'));
-        }
-        if (statusFilter == 'returns') {
-          return (st.contains('return') || st.contains('refund') || orderStatus.contains('return') || orderStatus.contains('refund'));
-        }
-        if (statusFilter == 'cancelled') {
-          return (st.contains('cancel') || st.contains('fail') || orderStatus.contains('cancel') || orderStatus.contains('fail'));
-        }
-        return false;
-      }).toList();
+      filtered = allOrders.where((order) => _getOrderCategory(order) == statusFilter).toList();
     }
 
     if (filtered.isEmpty) {
@@ -304,35 +298,35 @@ class _OrderScreenState extends State<OrderScreen>
           final orderCode = order['order_code'] ?? order['id'].toString();
           final date = FormatUtils.formatDate(order['created_at']);
           final total = order['grand_total'] ?? order['total'] ?? 0;
-          final rawStatus = (order['fulfillment_status'] ?? order['status'] ?? 'Unknown').toString();
-          final statusText = FormatUtils.translateStatus(rawStatus);
+          final category = _getOrderCategory(order);
 
-          Color statusColor = const Color(0xFF64748B);
-          Color statusBg = const Color(0xFFF1F5F9);
-          Color statusBorder = const Color(0xFFE2E8F0);
+          String statusText = 'Chờ xác nhận';
+          Color statusColor = const Color(0xFFD97706);
+          Color statusBg = const Color(0xFFFEF3C7);
+          Color statusBorder = const Color(0xFFFDE68A);
 
-          final stUpper = rawStatus.toUpperCase();
-          if (stUpper == 'PENDING' || stUpper.contains('UNPAID') || stUpper.contains('WAITING')) {
-            statusColor = const Color(0xFFD97706);
-            statusBg = const Color(0xFFFEF3C7);
-            statusBorder = const Color(0xFFFDE68A);
-          } else if (stUpper.contains('CONFIRMED') || stUpper.contains('PROCESSING') || stUpper.contains('PACKING') || stUpper.contains('READY') || stUpper.contains('PICKUP')) {
+          if (category == 'processing') {
+            statusText = 'Chờ lấy hàng';
             statusColor = const Color(0xFF7C3AED);
             statusBg = const Color(0xFFF5F3FF);
             statusBorder = const Color(0xFFDDD6FE);
-          } else if (stUpper.contains('SHIP') || stUpper.contains('DELIVERING') || stUpper.contains('TRANSIT')) {
+          } else if (category == 'shipping') {
+            statusText = 'Đang giao hàng';
             statusColor = const Color(0xFF2563EB);
             statusBg = const Color(0xFFEFF6FF);
             statusBorder = const Color(0xFFBFDBFE);
-          } else if (stUpper.contains('COMPLETED') || stUpper.contains('DELIVERED') || stUpper.contains('SUCCESS')) {
+          } else if (category == 'to_review') {
+            statusText = 'Hoàn thành';
             statusColor = const Color(0xFF16A34A);
             statusBg = const Color(0xFFF0FDF4);
             statusBorder = const Color(0xFFBBF7D0);
-          } else if (stUpper.contains('RETURN') || stUpper.contains('REFUND')) {
+          } else if (category == 'returns') {
+            statusText = 'Trả hàng / Hoàn tiền';
             statusColor = const Color(0xFFEA580C);
             statusBg = const Color(0xFFFFF7ED);
             statusBorder = const Color(0xFFFFEDD5);
-          } else if (stUpper.contains('CANCEL') || stUpper.contains('FAIL')) {
+          } else if (category == 'cancelled') {
+            statusText = 'Đã hủy';
             statusColor = const Color(0xFFDC2626);
             statusBg = const Color(0xFFFEF2F2);
             statusBorder = const Color(0xFFFECACA);
@@ -419,7 +413,7 @@ class _OrderScreenState extends State<OrderScreen>
                           ...items.take(2).map((item) {
                             final product = item['product'] is Map ? item['product'] : null;
                             final variant = item['variant'] is Map ? item['variant'] : null;
-                            final productName = product?['name']?.toString() ?? 'Sản phẩm thể thao';
+                            final productName = product?['name']?.toString() ?? item['name']?.toString() ?? 'Sản phẩm thể thao';
                             final itemQty = item['quantity']?.toString() ?? '1';
                             final itemPrice = item['price'] ?? variant?['price'] ?? product?['price'] ?? 0;
 
@@ -428,6 +422,8 @@ class _OrderScreenState extends State<OrderScreen>
                               itemImg = AppConfig.imageUrl(variant['image_url'].toString());
                             } else if (product != null) {
                               itemImg = AppConfig.productImageUrl(product);
+                            } else if (item['thumbnail_url'] != null) {
+                              itemImg = AppConfig.imageUrl(item['thumbnail_url'].toString());
                             }
 
                             final variantParts = <String>[];
@@ -440,68 +436,121 @@ class _OrderScreenState extends State<OrderScreen>
                             final variantLabel = variantParts.join(' | ');
 
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      width: 56,
-                                      height: 56,
-                                      color: Colors.white,
-                                      child: NetworkImageWidget(
-                                        imageUrl: itemImg,
-                                        width: 56,
-                                        height: 56,
-                                        fit: BoxFit.cover,
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Container(
+                                          width: 56,
+                                          height: 56,
+                                          color: Colors.white,
+                                          child: NetworkImageWidget(
+                                            imageUrl: itemImg,
+                                            width: 56,
+                                            height: 56,
+                                            fit: BoxFit.cover,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              productName,
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF1E293B),
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            if (variantLabel.isNotEmpty) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Phân loại: $variantLabel',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Color(0xFF64748B),
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              'x$itemQty',
+                                              style: const TextStyle(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF94A3B8),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      PriceTag(
+                                        price: itemPrice,
+                                        fontSize: 13,
+                                        color: const Color(0xFF334155),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ],
+                                  ),
+                                  if (statusFilter == 'to_review') ...[
+                                    const SizedBox(height: 6),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: InkWell(
+                                        onTap: () async {
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => ReviewScreen(
+                                                orderItem: item,
+                                                productId: item['product_id'] ?? product?['id'] ?? 0,
+                                                productName: productName,
+                                                productImage: itemImg,
+                                              ),
+                                            ),
+                                          );
+                                          fetchOrders();
+                                        },
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFFBEB),
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: const Color(0xFFFCD34D)),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.star_rounded, size: 13, color: Color(0xFFD97706)),
+                                              SizedBox(width: 3),
+                                              Text(
+                                                'Đánh giá sản phẩm',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFFD97706),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          productName,
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF1E293B),
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        if (variantLabel.isNotEmpty) ...[
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            'Phân loại: $variantLabel',
-                                            style: const TextStyle(
-                                              fontSize: 11,
-                                              color: Color(0xFF64748B),
-                                            ),
-                                          ),
-                                        ],
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          'x$itemQty',
-                                          style: const TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w700,
-                                            color: Color(0xFF94A3B8),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  PriceTag(
-                                    price: itemPrice,
-                                    fontSize: 13,
-                                    color: const Color(0xFF334155),
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  ],
                                 ],
                               ),
                             );
@@ -545,13 +594,18 @@ class _OrderScreenState extends State<OrderScreen>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              '${itemsCount > 0 ? itemsCount : items.length} sản phẩm · $date',
-                              style: const TextStyle(
-                                fontSize: 11.5,
-                                color: Color(0xFF64748B),
+                            Expanded(
+                              child: Text(
+                                '${itemsCount > 0 ? itemsCount : items.length} sản phẩm · $date',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: Color(0xFF64748B),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            const SizedBox(width: 8),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -582,7 +636,7 @@ class _OrderScreenState extends State<OrderScreen>
                                 fetchOrders();
                               },
                               style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 minimumSize: Size.zero,
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                 side: const BorderSide(color: Color(0xFFCBD5E1)),
@@ -598,31 +652,77 @@ class _OrderScreenState extends State<OrderScreen>
                               ),
                             ),
                             const SizedBox(width: 8),
-                            ElevatedButton(
-                              onPressed: () {
-                                if (stUpper.contains('COMPLETED') || stUpper.contains('DELIVERED') || stUpper.contains('SUCCESS') || stUpper.contains('CANCEL')) {
-                                  context.push('/shop');
-                                } else {
-                                  context.push('/order-detail', extra: orderId);
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              child: Text(
-                                (stUpper.contains('COMPLETED') || stUpper.contains('CANCEL')) ? 'Mua lại' : 'Theo dõi đơn',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
+                            if (statusFilter == 'to_review') ...[
+                              ElevatedButton.icon(
+                                onPressed: () async {
+                                  if (items.length == 1) {
+                                    final singleItem = items.first;
+                                    final singleProduct = singleItem['product'] is Map ? singleItem['product'] : null;
+                                    final singleName = singleProduct?['name']?.toString() ?? singleItem['name']?.toString() ?? 'Sản phẩm';
+                                    final singleImg = singleItem['thumbnail_url'] ?? singleItem['image_url'] ?? (singleProduct != null ? AppConfig.productImageUrl(singleProduct) : null);
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ReviewScreen(
+                                          orderItem: singleItem,
+                                          productId: singleItem['product_id'] ?? singleProduct?['id'] ?? 0,
+                                          productName: singleName,
+                                          productImage: singleImg,
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    await context.push('/order-detail', extra: orderId);
+                                  }
+                                  fetchOrders();
+                                },
+                                icon: const Icon(Icons.star_rounded, size: 15, color: Colors.white),
+                                label: const Text(
+                                  'Đánh giá',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFD97706),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                 ),
                               ),
-                            ),
+                            ] else ...[
+                              ElevatedButton(
+                                onPressed: () {
+                                  if (category == 'to_review' || category == 'cancelled') {
+                                    context.push('/shop');
+                                  } else if (category == 'shipping') {
+                                    context.push('/tracking?code=$orderCode');
+                                  } else {
+                                    context.push('/order-detail', extra: orderId);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: Text(
+                                  (category == 'to_review' || category == 'cancelled') ? 'Mua lại' : 'Theo dõi đơn',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ],

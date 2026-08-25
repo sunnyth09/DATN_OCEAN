@@ -263,9 +263,55 @@ onMounted(() => {
       </div>
     </div>
 
-    <div v-if="detailLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải chi tiết yêu cầu hoàn hàng...</p>
+    <!-- Modern Skeleton Loading -->
+    <div v-if="detailLoading" class="admin-return-detail-skeleton">
+      <div class="detail-grid">
+        <!-- Main Card Skeleton -->
+        <section class="detail-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div class="skeleton-box" style="width: 42px; height: 42px; border-radius: 10px;"></div>
+              <div>
+                <div class="skeleton-box" style="width: 130px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                <div class="skeleton-box" style="width: 220px; height: 26px; border-radius: 6px;"></div>
+              </div>
+            </div>
+            <div class="skeleton-box" style="width: 110px; height: 32px; border-radius: 20px;"></div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px;">
+            <div v-for="i in 3" :key="i" style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid #f1f5f9;">
+              <div class="skeleton-box" style="width: 90px; height: 16px; border-radius: 4px;"></div>
+              <div class="skeleton-box" style="width: 180px; height: 16px; border-radius: 4px;"></div>
+            </div>
+          </div>
+
+          <div class="skeleton-box" style="width: 140px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+          <div class="skeleton-box" style="width: 100%; height: 60px; border-radius: 8px; margin-bottom: 24px;"></div>
+
+          <div class="skeleton-box" style="width: 160px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+          <div class="skeleton-box" style="width: 100%; height: 120px; border-radius: 10px;"></div>
+        </section>
+
+        <!-- Sidebar Card Skeleton -->
+        <aside class="sidebar-cards">
+          <section class="sidebar-card">
+            <div class="skeleton-box" style="width: 140px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 42px; border-radius: 8px; margin-bottom: 12px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 80px; border-radius: 8px;"></div>
+          </section>
+          <section class="sidebar-card" style="margin-top: 20px;">
+            <div class="skeleton-box" style="width: 120px; height: 20px; border-radius: 6px; margin-bottom: 16px;"></div>
+            <div v-for="i in 3" :key="i" style="display: flex; gap: 10px; margin-bottom: 12px;">
+              <div class="skeleton-box" style="width: 10px; height: 10px; border-radius: 50%; margin-top: 4px;"></div>
+              <div style="flex: 1;">
+                <div class="skeleton-box" style="width: 70%; height: 14px; border-radius: 4px; margin-bottom: 4px;"></div>
+                <div class="skeleton-box" style="width: 40%; height: 12px; border-radius: 4px;"></div>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
     </div>
 
     <div v-else-if="detail" class="detail-grid">
@@ -1206,5 +1252,38 @@ onMounted(() => {
   padding: 8px 12px;
   border-radius: 8px;
   line-height: 1.45;
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.admin-return-detail-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

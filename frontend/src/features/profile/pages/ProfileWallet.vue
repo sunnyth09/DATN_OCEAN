@@ -379,10 +379,42 @@ onMounted(async () => {
 
 <template>
   <div class="wallet-page">
-    <!-- Loading -->
-    <div v-if="loading" class="wallet-loading">
-      <div class="wallet-spinner"></div>
-      <p>Đang tải thông tin ví...</p>
+    <!-- Modern Skeleton Loading -->
+    <div v-if="loading" class="wallet-skeleton">
+      <div class="skeleton-main-card">
+        <div style="display: flex; gap: 16px; align-items: center;">
+          <div class="skeleton-box" style="width: 56px; height: 56px; border-radius: 50%;"></div>
+          <div>
+            <div class="skeleton-box" style="width: 120px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 200px; height: 32px; border-radius: 6px;"></div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <div class="skeleton-box" style="width: 120px; height: 44px; border-radius: 12px;"></div>
+          <div class="skeleton-box" style="width: 120px; height: 44px; border-radius: 12px;"></div>
+        </div>
+      </div>
+
+      <div class="skeleton-balance-grid" style="margin-top: 20px;">
+        <div v-for="i in 3" :key="i" class="skeleton-card" style="padding: 20px;">
+          <div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 10px;"></div>
+          <div class="skeleton-box" style="width: 140px; height: 24px; border-radius: 6px;"></div>
+        </div>
+      </div>
+
+      <div class="skeleton-card" style="margin-top: 24px; padding: 24px;">
+        <div class="skeleton-box" style="width: 180px; height: 22px; border-radius: 6px; margin-bottom: 20px;"></div>
+        <div v-for="i in 4" :key="i" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #f1f5f9;">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <div class="skeleton-box" style="width: 40px; height: 40px; border-radius: 10px;"></div>
+            <div>
+              <div class="skeleton-box" style="width: 160px; height: 16px; border-radius: 4px; margin-bottom: 6px;"></div>
+              <div class="skeleton-box" style="width: 100px; height: 12px; border-radius: 4px;"></div>
+            </div>
+          </div>
+          <div class="skeleton-box" style="width: 90px; height: 20px; border-radius: 4px;"></div>
+        </div>
+      </div>
     </div>
 
     <template v-else>
@@ -1242,5 +1274,63 @@ onMounted(async () => {
   .balance-detail-cards { grid-template-columns: 1fr; }
   .wallet-stats { grid-template-columns: repeat(2, 1fr); }
   .history-header { flex-direction: column; align-items: flex-start; }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.wallet-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-main-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+
+.skeleton-balance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

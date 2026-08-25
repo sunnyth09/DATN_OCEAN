@@ -117,19 +117,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       int returnCount = 0;
 
       for (var order in fetchedOrders) {
-        final st = (order['fulfillment_status'] ?? order['status'] ?? '').toString().toLowerCase();
-        final orderStatus = (order['order_status'] ?? order['status'] ?? '').toString().toLowerCase();
+        if (order is! Map) continue;
+        final rawStatus = (order['status'] ?? '').toString().toLowerCase().trim();
+        final rawOrderSt = (order['order_status'] ?? '').toString().toLowerCase().trim();
+        final rawFulfillment = (order['fulfillment_status'] ?? '').toString().toLowerCase().trim();
 
-        if (st.contains('pending') || orderStatus.contains('pending') || orderStatus.contains('unpaid') || orderStatus.contains('waiting')) {
-          pendingCount++;
-        } else if (st.contains('processing') || st.contains('confirmed') || st.contains('ready') || st.contains('pickup')) {
-          pickupCount++;
-        } else if (st.contains('shipping') || st.contains('delivering') || st.contains('transit')) {
-          shippingCount++;
-        } else if (st.contains('completed') || st.contains('delivered') || st.contains('success') || orderStatus.contains('completed')) {
-          reviewCount++;
-        } else if (st.contains('return') || st.contains('refund') || orderStatus.contains('return')) {
+        if (rawStatus.contains('return') || rawStatus.contains('refund') ||
+            rawOrderSt.contains('return') || rawOrderSt.contains('refund') ||
+            rawFulfillment.contains('return') || rawFulfillment.contains('refund')) {
           returnCount++;
+        } else if (rawStatus.contains('cancel') || rawStatus == 'failed' ||
+            rawOrderSt.contains('cancel') || rawOrderSt == 'failed' ||
+            rawFulfillment.contains('cancel') || rawFulfillment == 'failed') {
+          // Cancelled - do nothing for active count
+        } else if (rawStatus.contains('completed') || rawStatus.contains('delivered') || rawStatus == 'success' ||
+            rawOrderSt.contains('completed') || rawOrderSt.contains('delivered') || rawOrderSt == 'success' ||
+            rawFulfillment.contains('completed') || rawFulfillment.contains('delivered') || rawFulfillment == 'success') {
+          reviewCount++;
+        } else if (rawStatus.contains('shipping') || rawStatus.contains('delivering') || rawStatus.contains('transit') ||
+            rawOrderSt.contains('shipping') || rawOrderSt.contains('delivering') || rawOrderSt.contains('transit') ||
+            rawFulfillment.contains('shipping') || rawFulfillment.contains('delivering') || rawFulfillment.contains('transit')) {
+          shippingCount++;
+        } else if (rawStatus.contains('confirmed') || rawStatus.contains('processing') || rawStatus.contains('packing') || rawStatus.contains('ready') || rawStatus.contains('pickup') ||
+            rawOrderSt.contains('confirmed') || rawOrderSt.contains('processing') || rawOrderSt.contains('packing') || rawOrderSt.contains('ready') || rawOrderSt.contains('pickup') ||
+            rawFulfillment.contains('processing') || rawFulfillment.contains('packing') || rawFulfillment.contains('ready') || rawFulfillment.contains('pickup') || rawFulfillment.contains('fulfilled')) {
+          pickupCount++;
+        } else {
+          pendingCount++;
         }
       }
 

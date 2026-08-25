@@ -3,7 +3,6 @@ import { ref, onMounted, onUnmounted, onBeforeUnmount, watch, computed } from "v
 import { storeToRefs } from "pinia";
 import { useRoute, useRouter } from "vue-router";
 import api from "../axios.js";
-import { broadcastLogout } from "../sessionSync.js";
 import Swal from "sweetalert2";
 import AppIcon from "@/components/AppIcon.vue";
 import { useCartStore } from "@/stores/cart";
@@ -297,39 +296,38 @@ const handleViewportResize = () => {
 };
 
 const checkAuth = () => {
-    const userData = sessionStorage.getItem("user");
-    if (userData) {
-        try {
-            const user = JSON.parse(userData);
-            isLoggedIn.value = true;
-            userName.value = user.full_name || user.name || user.email;
-            userEmail.value = user.email || "";
-            isAdmin.value = ["admin", "staff", "seller"].includes(user.role);
+    // Đọc từ authStore (localStorage-backed) thay vì sessionStorage
+    // Đảm bảo hoạt động đúng khi mở tab mới hoặc reload trang
+    const user = authStore.user;
+    const token = authStore.token;
 
-            const path = user.avatar_url;
-            if (path) {
-                userAvatar.value = path.startsWith("http")
-                    ? path
-                    : `${BASE_URL}${path}`;
-            } else {
-                userAvatar.value = null;
-            }
-        } catch (e) {
-            isLoggedIn.value = false;
+    if (user && token) {
+        isLoggedIn.value = true;
+        userName.value = user.full_name || user.name || user.email;
+        userEmail.value = user.email || "";
+        isAdmin.value = ["admin", "staff", "seller"].includes(user.role);
+
+        const path = user.avatar_url;
+        if (path) {
+            userAvatar.value = path.startsWith("http")
+                ? path
+                : `${BASE_URL}${path}`;
+        } else {
+            userAvatar.value = null;
         }
     } else {
         isLoggedIn.value = false;
         userName.value = "";
         userEmail.value = "";
         isAdmin.value = false;
+        userAvatar.value = null;
     }
 };
 
 const fetchUnreadNotificationCount = () => authStore.fetchUnreadNotificationCount();
 
 const fetchHeaderRewardPoints = async () => {
-    const token = sessionStorage.getItem("auth_token");
-    if (!token) { headerRewardPoints.value = 0; return; }
+    if (!authStore.isAuthenticated) { headerRewardPoints.value = 0; return; }
     try {
         const res = await loyaltyService.getSummary();
         headerRewardPoints.value = res.data?.data?.current_balance ?? 0;
@@ -351,7 +349,8 @@ import { playNotificationSound } from '@/utils/sound';
 
 const setupUserWebSocket = () => {
     if (!window.Echo) return;
-    const userData = authStore.user || JSON.parse(sessionStorage.getItem("user") || "{}");
+    // Ư u tiên authStore (localStorage-backed), không fallback sessionStorage
+    const userData = authStore.user;
     const userId = userData?.user_id || userData?.id;
 
     if (userId) {
@@ -391,6 +390,14 @@ const setupUserWebSocket = () => {
     }
 };
 
+// Re-check auth state khi authStore thay đổi (login/logout/refresh)
+watch(
+    () => authStore.isAuthenticated,
+    () => { checkAuth(); },
+    { immediate: true }
+);
+
+// Side-effects khi trạng thái đăng nhập thay đổi
 watch(isLoggedIn, (val) => {
     if (val) {
         fetchUnreadNotificationCount();
@@ -404,8 +411,21 @@ watch(isLoggedIn, (val) => {
 }, { immediate: true });
 
 onMounted(() => {
+    checkAuth();
     window.addEventListener('has-new-unread-notifications', playNotificationSound);
     window.addEventListener('play-notif-sound', playNotificationSound);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleViewportResize);
+    document.addEventListener('click', handleDocumentClick);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('has-new-unread-notifications', playNotificationSound);
+    window.removeEventListener('play-notif-sound', playNotificationSound);
+    window.removeEventListener('scroll', handleScroll);
+    window.removeEventListener('resize', handleViewportResize);
+    document.removeEventListener('click', handleDocumentClick);
+    leaveNotificationChannel();
 });
 
 onBeforeUnmount(() => {
@@ -414,24 +434,12 @@ onBeforeUnmount(() => {
 });
 
 const handleLogout = async () => {
-    try {
-        await api.post("/logout");
-    } catch (e) {
-        /* ignore */
-    }
-    broadcastLogout();
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("ocean_live_chat_token");
-    sessionStorage.removeItem("auth_token");
-    sessionStorage.removeItem("user");
-    sessionStorage.removeItem("ocean_chatbot_messages");
-    sessionStorage.removeItem("ocean_chatbot_history");
-    isLoggedIn.value = false;
     closeAccountMenu();
     closeMobileMenu();
 
-    window.location.reload();
+    // authStore.logout() gọi API /logout + broadcast cross-tab + xóa toàn bộ session
+    await authStore.logout();
+    router.push('/client/login');
 };
 
 /* DRAGGABLE FLASH SALE LOGIC */

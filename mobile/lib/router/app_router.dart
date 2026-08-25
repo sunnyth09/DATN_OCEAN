@@ -35,6 +35,7 @@ import '../screens/create_return_request_screen.dart';
 import '../screens/loyalty_screen.dart';
 import '../screens/lucky_wheel_screen.dart';
 import '../screens/chat_screen.dart';
+import '../screens/order_tracking_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> shellNavigatorHomeKey = GlobalKey<NavigatorState>(debugLabel: 'homeTab');
@@ -297,6 +298,22 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         builder: (context, state) => ChatScreen(
           inquiryProduct: state.extra as Map<String, dynamic>?,
         ),
+      ),
+      GoRoute(
+        path: '/tracking',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final trackingNumber = state.uri.queryParameters['code'] ?? (state.extra as String?);
+          return OrderTrackingScreen(trackingNumber: trackingNumber);
+        },
+      ),
+      GoRoute(
+        path: '/tracking/:trackingNumber',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+          final code = state.pathParameters['trackingNumber'];
+          return OrderTrackingScreen(trackingNumber: code);
+        },
       ),
     ],
   );

@@ -295,9 +295,42 @@ const handleSubmit = async () => {
 
 <template>
     <div class="edit-post-page">
-        <div v-if="isLoading">
-            <div class="spinner-border text-primary text-center" role="status">
-                <span class="visually-hidden">Loading...</span>
+        <!-- Modern Skeleton Loading -->
+        <div v-if="isLoading" class="edit-post-skeleton">
+            <div class="page-header">
+                <div class="header-info">
+                    <div class="skeleton-box" style="width: 200px; height: 28px; border-radius: 6px; margin-bottom: 6px;"></div>
+                    <div class="skeleton-box" style="width: 160px; height: 16px; border-radius: 4px;"></div>
+                </div>
+                <div class="header-actions">
+                    <div class="skeleton-box" style="width: 80px; height: 40px; border-radius: 8px;"></div>
+                    <div class="skeleton-box" style="width: 130px; height: 40px; border-radius: 8px;"></div>
+                </div>
+            </div>
+
+            <div class="form-grid" style="margin-top: 24px;">
+                <div class="content-col">
+                    <div class="ocean-card form-section">
+                        <div class="skeleton-box" style="width: 140px; height: 20px; border-radius: 4px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 80px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 80px; border-radius: 8px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 220px; border-radius: 8px;"></div>
+                    </div>
+                </div>
+                <div class="sidebar-col">
+                    <div class="ocean-card form-section">
+                        <div class="skeleton-box" style="width: 120px; height: 20px; border-radius: 4px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px; margin-bottom: 16px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px;"></div>
+                    </div>
+                    <div class="ocean-card form-section" style="margin-top: 20px;">
+                        <div class="skeleton-box" style="width: 120px; height: 20px; border-radius: 4px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 160px; border-radius: 10px;"></div>
+                    </div>
+                </div>
             </div>
         </div>
         <template v-else>
@@ -644,5 +677,38 @@ const handleSubmit = async () => {
     color: var(--text-main);
     font-family: var(--font-inter);
     font-size: 0.85rem;
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.edit-post-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

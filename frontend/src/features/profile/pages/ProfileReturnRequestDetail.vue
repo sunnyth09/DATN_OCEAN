@@ -91,10 +91,35 @@ const goBack = () => {
         <span class="order-code">{{ detail.return_code || `#${detail.order?.order_code || detail.order_id}` }}</span>
       </div>
     </div>
+    <!-- Modern Skeleton Loading -->
     <div v-if="detailLoading" class="profile-order-detail-skeleton">
-      <div class="skeleton-pulse" style="height:100px; border-radius:12px; margin-bottom:20px;"></div>
-      <div class="skeleton-pulse" style="height:300px; border-radius:12px; margin-bottom:20px;"></div>
-      <div class="skeleton-pulse" style="height:200px; border-radius:12px;"></div>
+      <div class="skeleton-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div class="skeleton-box" style="width: 180px; height: 22px; border-radius: 6px;"></div>
+          <div class="skeleton-box" style="width: 120px; height: 28px; border-radius: 20px;"></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div>
+            <div class="skeleton-box" style="width: 80px; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 50%; height: 16px; border-radius: 4px;"></div>
+          </div>
+          <div>
+            <div class="skeleton-box" style="width: 120px; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 80%; height: 14px; border-radius: 4px; margin-bottom: 6px;"></div>
+            <div class="skeleton-box" style="width: 60%; height: 14px; border-radius: 4px;"></div>
+          </div>
+          <div>
+            <div class="skeleton-box" style="width: 140px; height: 16px; border-radius: 4px; margin-bottom: 12px;"></div>
+            <div style="display: flex; gap: 12px;">
+              <div v-for="i in 3" :key="i" class="skeleton-box" style="width: 80px; height: 80px; border-radius: 8px;"></div>
+            </div>
+          </div>
+          <div style="margin-top: 10px;">
+            <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px;"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="detail" class="detail-grid">
@@ -574,5 +599,46 @@ const goBack = () => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.profile-order-detail-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.profile-order-detail-skeleton .skeleton-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(45, 52, 70, 0.04);
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

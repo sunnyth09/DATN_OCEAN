@@ -618,6 +618,156 @@ watch(subtotal, (newSubtotal) => {
     }
 });
 
+// ====== VARIANT CHANGE IN CHECKOUT ======
+const variantModal = ref({
+    show: false,
+    item: null,
+    variants: [],
+    loadingVariants: false,
+    selectedColor: null,
+    selectedSize: null,
+    confirming: false,
+});
+
+const openVariantModal = async (item) => {
+    if (isFlashSaleOrder.value) {
+        showToast('Sản phẩm Flash Sale không hỗ trợ đổi phân loại.', 'warning');
+        return;
+    }
+    const productId = item.product?.product_id || item.product?.id;
+    if (!productId) return;
+
+    variantModal.value.show = true;
+    variantModal.value.item = item;
+    variantModal.value.variants = [];
+    variantModal.value.loadingVariants = true;
+    variantModal.value.selectedColor = item.variant?.color || null;
+    variantModal.value.selectedSize = item.variant?.size || null;
+
+    try {
+        const res = await api.get(`/products/${productId}/variants`);
+        variantModal.value.variants = res.data.data || [];
+    } catch (e) {
+        showToast('Không thể tải thông tin phân loại sản phẩm.', 'error');
+        variantModal.value.show = false;
+    } finally {
+        variantModal.value.loadingVariants = false;
+    }
+};
+
+const closeVariantModal = () => {
+    variantModal.value.show = false;
+    variantModal.value.item = null;
+};
+
+const modalUniqueColors = computed(() => {
+    return [...new Set(variantModal.value.variants.map(v => v.color).filter(Boolean))];
+});
+
+const modalHasColors = computed(() => modalUniqueColors.value.length > 0);
+
+const modalAvailableSizes = computed(() => {
+    const variants = variantModal.value.variants;
+    if (!variants.length) return [];
+
+    const filtered = variantModal.value.selectedColor
+        ? variants.filter(v => v.color === variantModal.value.selectedColor)
+        : variants;
+
+    const sizeMap = {};
+    filtered.forEach(v => {
+        const key = v.size || '__no_size__';
+        if (!sizeMap[key]) sizeMap[key] = { size: v.size, stock: 0, variant_id: v.variant_id };
+        sizeMap[key].stock += v.stock;
+        sizeMap[key].variant_id = v.variant_id;
+    });
+    return Object.values(sizeMap);
+});
+
+const modalSelectedVariant = computed(() => {
+    const vars = variantModal.value.variants;
+    const color = variantModal.value.selectedColor;
+    const size = variantModal.value.selectedSize;
+
+    if (!vars.length) return null;
+
+    if (!modalHasColors.value && size) {
+        return vars.find(v => v.size === size) || null;
+    }
+    if (color && size) {
+        return vars.find(v => v.color === color && v.size === size) || null;
+    }
+    if (color && !modalAvailableSizes.value.some(s => s.size)) {
+        return vars.find(v => v.color === color) || null;
+    }
+    return null;
+});
+
+const onModalColorSelect = (color) => {
+    variantModal.value.selectedColor = color;
+    const available = variantModal.value.variants
+        .filter(v => v.color === color)
+        .map(v => v.size);
+    if (!available.includes(variantModal.value.selectedSize)) {
+        variantModal.value.selectedSize = null;
+    }
+};
+
+const confirmVariantChange = async () => {
+    if (!modalSelectedVariant.value) return;
+    const item = variantModal.value.item;
+    if (!item) return;
+
+    variantModal.value.confirming = true;
+    const newVariantId = modalSelectedVariant.value.variant_id;
+
+    try {
+        if (isDirectOrder.value) {
+            // Mua ngay
+            buyNowItem.value = {
+                variant_id: newVariantId,
+                quantity: item.quantity || 1,
+            };
+            sessionStorage.setItem('buy_now_item', JSON.stringify(buyNowItem.value));
+            await fetchBuyNowItem();
+            showToast('Đã cập nhật phân loại sản phẩm!', 'success');
+            closeVariantModal();
+        } else if (!authStore.isAuthenticated) {
+            // Khách vãng lai
+            let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+            const idx = localItems.findIndex(i => i.variant_id === item.variant_id);
+            if (idx !== -1) {
+                const existingIdx = localItems.findIndex(i => i.variant_id === newVariantId);
+                if (existingIdx !== -1 && existingIdx !== idx) {
+                    localItems[existingIdx].quantity += item.quantity;
+                    localItems.splice(idx, 1);
+                } else {
+                    localItems[idx].variant_id = newVariantId;
+                }
+                localStorage.setItem('cart_items', JSON.stringify(localItems));
+            }
+            await fetchCart();
+            showToast('Đã cập nhật phân loại sản phẩm!', 'success');
+            closeVariantModal();
+        } else {
+            // User đã đăng nhập
+            const res = await api.put(`/cart/items/${item.cart_item_id}/variant`, {
+                variant_id: newVariantId,
+            });
+            if (res.data.status === 'success') {
+                showToast('Đã cập nhật phân loại sản phẩm!', 'success');
+                closeVariantModal();
+                await fetchCart();
+            }
+        }
+    } catch (e) {
+        const msg = e.response?.data?.message || 'Không thể đổi phân loại sản phẩm.';
+        showToast(msg, 'error');
+    } finally {
+        variantModal.value.confirming = false;
+    }
+};
+
 // Đặt hàng
 const placingOrder = ref(false);
 const placeOrder = async () => {
@@ -1098,12 +1248,14 @@ onMounted(async () => {
                                         </div>
                                         <div class="bill-item-info">
                                             <h4 class="bill-item-name">{{ item.product?.name }}</h4>
-                                            <p class="bill-item-variant">
-                                                {{ item.variant?.color || '' }}
-                                                <span v-if="item.variant?.color && item.variant?.size"
-                                                    class="variant-divider">•</span>
-                                                {{ item.variant?.size || '' }}
-                                            </p>
+                                            <button type="button" class="bill-item-variant-btn" @click="openVariantModal(item)" title="Bấm để đổi màu sắc / kích thước">
+                                                <span class="bill-item-variant-text">
+                                                    {{ item.variant?.color && item.variant?.size ? `${item.variant?.color} • ${item.variant?.size}` : (item.variant?.color || item.variant?.size || item.variant?.variant_name || 'Chọn phân loại') }}
+                                                </span>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="variant-caret">
+                                                    <polyline points="6 9 12 15 18 9" />
+                                                </svg>
+                                            </button>
                                         </div>
                                         <div class="bill-item-price-col">
                                             <div class="bill-item-price">{{ formatPrice((item.variant?.price || 0) *
@@ -1338,6 +1490,108 @@ onMounted(async () => {
                                 <p>Rất tiếc! Hiện không có mã giảm giá nào phù hợp cho bạn.</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </transition>
+        </teleport>
+
+        <!-- ====== VARIANT CHANGE MODAL ====== -->
+        <teleport to="body">
+            <transition name="vmodal">
+                <div v-if="variantModal.show" class="vmodal-overlay" @click.self="closeVariantModal">
+                    <div class="vmodal-box">
+                        <!-- Header -->
+                        <div class="vmodal-header">
+                            <div class="vmodal-product-snippet" v-if="variantModal.item">
+                                <img :src="modalSelectedVariant?.image_url && modalSelectedVariant?.image_url !== '0' ? getStorageUrl(modalSelectedVariant.image_url) : getProductImage(variantModal.item)"
+                                    :alt="variantModal.item.product?.name" class="vmodal-product-img" />
+                                <div class="vmodal-product-info">
+                                    <h3 class="vmodal-title">Đổi phân loại hàng</h3>
+                                    <p class="vmodal-product-name" :title="variantModal.item.product?.name">{{
+                                        variantModal.item.product?.name }}</p>
+                                </div>
+                            </div>
+                            <button class="vmodal-close" @click="closeVariantModal" title="Đóng">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Loading -->
+                        <div v-if="variantModal.loadingVariants" class="vmodal-loading">
+                            <div class="vmodal-spinner"></div>
+                            <span>Đang tải biến thể...</span>
+                        </div>
+
+                        <template v-else>
+                            <!-- Chọn màu sắc -->
+                            <div class="vmodal-section" v-if="modalHasColors">
+                                <p class="vmodal-label">Màu sắc:</p>
+                                <div class="vmodal-options">
+                                    <button v-for="color in modalUniqueColors" :key="color" class="vmodal-opt-btn"
+                                        :class="{ active: variantModal.selectedColor === color }"
+                                        @click="onModalColorSelect(color)">{{ color }}</button>
+                                </div>
+                            </div>
+
+                            <!-- Chọn kích thước -->
+                            <div class="vmodal-section" v-if="modalAvailableSizes.some(s => s.size)">
+                                <p class="vmodal-label">Kích thước:</p>
+                                <div class="vmodal-options">
+                                    <button v-for="s in modalAvailableSizes" :key="s.size" class="vmodal-opt-btn"
+                                        :class="{ active: variantModal.selectedSize === s.size, 'out-of-stock': s.stock <= 0 }"
+                                        :disabled="s.stock <= 0" @click="variantModal.selectedSize = s.size">
+                                        {{ s.size }}
+                                        <span v-if="s.stock > 0 && s.stock <= 5" class="vmodal-opt-stock">(còn {{ s.stock }})</span>
+                                        <span v-else-if="s.stock <= 0" class="vmodal-opt-stock">Hết</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Thông tin variant đã chọn -->
+                            <div class="vmodal-selected-info" v-if="modalSelectedVariant">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E63B6F"
+                                    stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                <span>
+                                    Đã chọn:
+                                    <strong>{{ [modalSelectedVariant.color,
+                                    modalSelectedVariant.size].filter(Boolean).join(' / ') ||
+                                        modalSelectedVariant.variant_name }}</strong>
+                                    — {{ new Intl.NumberFormat('vi-VN', {
+                                        style: 'currency', currency: 'VND'
+                                    }).format(modalSelectedVariant.price) }}
+                                    <span v-if="modalSelectedVariant.stock <= 5" class="vmodal-low-stock">(còn {{
+                                        modalSelectedVariant.stock }})</span>
+                                </span>
+                            </div>
+                            <div class="vmodal-selected-info vmodal-unselected" v-else>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <line x1="12" y1="8" x2="12" y2="12" />
+                                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                                </svg>
+                                <span>Vui lòng chọn {{ modalHasColors ? 'màu sắc' : '' }}{{modalHasColors &&
+                                    modalAvailableSizes.some(s=>s.size) ? ' và ' : '' }}{{
+                                        modalAvailableSizes.some(s => s.size) ? 'kích thước' : '' }}</span>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="vmodal-footer">
+                                <button class="vmodal-btn-cancel" @click="closeVariantModal">Hủy bỏ</button>
+                                <button class="vmodal-btn-confirm"
+                                    :disabled="!modalSelectedVariant || variantModal.confirming"
+                                    @click="confirmVariantChange">
+                                    <span v-if="variantModal.confirming">Đang cập nhật...</span>
+                                    <span v-else>Xác nhận</span>
+                                </button>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </transition>
@@ -2143,6 +2397,47 @@ textarea.note-input {
     -webkit-box-orient: vertical;
     overflow: hidden;
     line-height: 1.4;
+}
+
+.bill-item-variant-btn {
+    margin: 4px 0 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    max-width: 100%;
+}
+
+.bill-item-variant-btn:hover {
+    background: #fff0f5;
+    border-color: #fbcfe8;
+}
+
+.bill-item-variant-btn:hover .bill-item-variant-text {
+    color: #E63B6F;
+}
+
+.bill-item-variant-btn .variant-caret {
+    color: #94a3b8;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.bill-item-variant-btn:hover .variant-caret {
+    color: #E63B6F;
+    transform: translateY(1px);
+}
+
+.bill-item-variant-text {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 500;
 }
 
 .bill-item-variant {
@@ -3007,5 +3302,278 @@ textarea.note-input {
         width: 180px;
         height: 180px;
     }
+}
+
+/* ====== VARIANT MODAL ====== */
+.vmodal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 20, 40, 0.55);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 16px;
+}
+
+.vmodal-box {
+    background: #fff;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 24px 60px rgba(230, 59, 111, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+}
+
+.vmodal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f4f8;
+    gap: 16px;
+}
+
+.vmodal-product-snippet {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.vmodal-product-img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #eef2f6;
+    flex-shrink: 0;
+}
+
+.vmodal-product-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.vmodal-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #1a2b4a;
+    margin: 0 0 4px;
+}
+
+.vmodal-product-name {
+    font-size: 0.85rem;
+    color: #627d98;
+    margin: 0;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vmodal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    transition: all 0.18s;
+    flex-shrink: 0;
+}
+
+.vmodal-close:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.vmodal-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px 24px;
+    color: #627d98;
+    font-size: 0.9rem;
+}
+
+.vmodal-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #E63B6F;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.vmodal-section {
+    padding: 16px 24px 0;
+}
+
+.vmodal-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #334e68;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 10px;
+}
+
+.vmodal-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.vmodal-opt-btn {
+    padding: 7px 16px;
+    border: 1.5px solid #d9e2ec;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #334e68;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vmodal-opt-btn:hover:not(:disabled) {
+    border-color: #E63B6F;
+    color: #E63B6F;
+}
+
+.vmodal-opt-btn.active {
+    border-color: #E63B6F;
+    background: #E63B6F;
+    color: #fff;
+}
+
+.vmodal-opt-btn.out-of-stock {
+    opacity: 0.4;
+    cursor: not-allowed;
+    text-decoration: line-through;
+}
+
+.vmodal-opt-stock {
+    font-size: 0.72rem;
+    font-weight: 500;
+    opacity: 0.85;
+}
+
+.vmodal-selected-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 24px 0;
+    padding: 12px 16px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    color: #0369a1;
+}
+
+.vmodal-selected-info strong {
+    font-weight: 700;
+}
+
+.vmodal-low-stock {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.vmodal-unselected {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+    color: #94a3b8;
+}
+
+.vmodal-footer {
+    display: flex;
+    gap: 10px;
+    padding: 20px 24px;
+    border-top: 1px solid #f0f4f8;
+    margin-top: 16px;
+}
+
+.vmodal-btn-cancel {
+    flex: 1;
+    padding: 11px;
+    border: 1.5px solid #d9e2ec;
+    border-radius: 10px;
+    background: #fff;
+    color: #627d98;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.18s;
+}
+
+.vmodal-btn-cancel:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+}
+
+.vmodal-btn-confirm {
+    flex: 2;
+    padding: 11px;
+    border: none;
+    border-radius: 10px;
+    background: #E63B6F;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.3);
+}
+
+.vmodal-btn-confirm:hover:not(:disabled) {
+    background: #C4305D;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.4);
+}
+
+.vmodal-btn-confirm:disabled {
+    background: #c8d6e0;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Modal Transition */
+.vmodal-enter-active,
+.vmodal-leave-active {
+    transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vmodal-enter-from,
+.vmodal-leave-to {
+    opacity: 0;
+}
+
+.vmodal-enter-from .vmodal-box,
+.vmodal-leave-to .vmodal-box {
+    transform: scale(0.94) translateY(20px);
 }
 </style>
