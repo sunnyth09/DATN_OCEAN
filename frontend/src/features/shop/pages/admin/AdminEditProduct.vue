@@ -465,9 +465,55 @@ onMounted(() => { handleFetchCategories(); handleFetchBrands(); fetchProduct(); 
 
 <template>
     <div class="create-product-page">
-        <div v-if="isLoading" class="loading-state">
-            <div class="spinner"></div>
-            <p>Đang tải thông tin sản phẩm...</p>
+        <!-- Modern Skeleton Loading -->
+        <div v-if="isLoading" class="edit-product-skeleton">
+            <div class="page-header">
+                <div class="header-info">
+                    <div class="skeleton-box" style="width: 80px; height: 18px; border-radius: 4px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-box" style="width: 240px; height: 32px; border-radius: 6px; margin-bottom: 6px;"></div>
+                    <div class="skeleton-box" style="width: 180px; height: 16px; border-radius: 4px;"></div>
+                </div>
+                <div class="header-actions">
+                    <div class="skeleton-box" style="width: 90px; height: 42px; border-radius: 8px;"></div>
+                    <div class="skeleton-box" style="width: 140px; height: 42px; border-radius: 8px;"></div>
+                </div>
+            </div>
+
+            <div class="form-container">
+                <!-- Left Column Skeleton -->
+                <div class="form-column main-col">
+                    <div class="ocean-card form-card">
+                        <div class="skeleton-box" style="width: 160px; height: 22px; border-radius: 6px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 120px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 100px; border-radius: 8px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 120px; height: 14px; border-radius: 4px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 160px; border-radius: 8px;"></div>
+                    </div>
+                    <div class="ocean-card form-card" style="margin-top: 24px;">
+                        <div class="skeleton-box" style="width: 180px; height: 22px; border-radius: 6px; margin-bottom: 20px;"></div>
+                        <div class="row g-3">
+                            <div class="col-md-6"><div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px;"></div></div>
+                            <div class="col-md-6"><div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px;"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column Skeleton -->
+                <div class="form-column side-col">
+                    <div class="ocean-card form-card">
+                        <div class="skeleton-box" style="width: 140px; height: 22px; border-radius: 6px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 200px; border-radius: 12px; margin-bottom: 16px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 40px; border-radius: 8px;"></div>
+                    </div>
+                    <div class="ocean-card form-card" style="margin-top: 24px;">
+                        <div class="skeleton-box" style="width: 150px; height: 22px; border-radius: 6px; margin-bottom: 20px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px; margin-bottom: 16px;"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 8px;"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <form v-else @submit.prevent="handleSubmit" novalidate enctype="multipart/form-data">
@@ -1077,5 +1123,38 @@ onMounted(() => { handleFetchCategories(); handleFetchBrands(); fetchProduct(); 
 .slide-fade-leave-to {
   transform: translateY(-10px);
   opacity: 0;
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.edit-product-skeleton {
+  width: 100%;
+  pointer-events: none;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

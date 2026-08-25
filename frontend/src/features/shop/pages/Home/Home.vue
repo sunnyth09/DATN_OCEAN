@@ -272,9 +272,13 @@ const fetchCategories = async () => {
         Categories.value = flatData.map(cat => ({
             id: cat.category_id || cat.id,
             name: cat.displayName || cat.name,
+            rawName: cat.name,
+            parentName: cat.parentName || '',
+            parent_id: cat.parent_id || 0,
             slug: cat.slug || '',
             image: getCategoryImage(cat),
             product_count: cat.products_count || cat.product_count || 0,
+            children: cat.children || [],
         }));
     } catch (e) {
         console.error('Lỗi tải danh mục:', e);
@@ -488,8 +492,13 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
             />
             <FlashSaleSection :flashSaleProducts="flashSaleProducts" :isLoadingFlashSale="isLoadingFlashSale"
                 :countdown="countdown" />
-            <CategoriesSection :Categories="Categories" :isLoadingCategories="isLoadingCategories"
-                :getCatIcon="getCatIcon" :getCatGradient="getCatGradient" />
+            <CategoriesSection 
+                :Categories="Categories" 
+                :topCategories="storeCategories"
+                :isLoadingCategories="isLoadingCategories"
+                :getCatIcon="getCatIcon" 
+                :getCatGradient="getCatGradient" 
+            />
             <BannerSection :activeTab="activeTab" :filteredProducts="filteredProducts"
                 :isLoadingFeatured="isLoadingFeatured" :isLoadingSale="isLoadingSale"
                 @update:activeTab="activeTab = $event" />

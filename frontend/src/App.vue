@@ -4,14 +4,10 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
 import AppToast from './components/AppToast.vue';
-
-onMounted(() => {
-  // Dọn dẹp token/user cũ ở localStorage (di sản từ phiên bản cũ dùng localStorage)
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem('user');
-});
+// NOTE: Không được xóa auth_token/user ở đây.
+// Token được quản lý tập trung bởi authStore (stores/auth.js).
+// Việc xóa storage tại đây sẽ gây văng trang ngay khi app khởi động.
 </script>
 
 <style>

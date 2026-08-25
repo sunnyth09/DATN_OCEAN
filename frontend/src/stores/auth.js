@@ -20,24 +20,32 @@ const parseStoredUser = (raw) => {
   }
 };
 
-const getStorageUser = () => parseStoredUser(sessionStorage.getItem(STORAGE_KEYS.user));
-const getStorageToken = () => sessionStorage.getItem(STORAGE_KEYS.token) || '';
+const getStorageUser = () => {
+  const raw = localStorage.getItem(STORAGE_KEYS.user) || sessionStorage.getItem(STORAGE_KEYS.user);
+  return parseStoredUser(raw);
+};
+
+const getStorageToken = () => {
+  return localStorage.getItem(STORAGE_KEYS.token) || sessionStorage.getItem(STORAGE_KEYS.token) || '';
+};
 
 const persistSession = (token, user) => {
   if (token) {
+    localStorage.setItem(STORAGE_KEYS.token, token);
     sessionStorage.setItem(STORAGE_KEYS.token, token);
   } else {
+    localStorage.removeItem(STORAGE_KEYS.token);
     sessionStorage.removeItem(STORAGE_KEYS.token);
   }
 
   if (user) {
-    sessionStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user));
+    const userStr = JSON.stringify(user);
+    localStorage.setItem(STORAGE_KEYS.user, userStr);
+    sessionStorage.setItem(STORAGE_KEYS.user, userStr);
   } else {
+    localStorage.removeItem(STORAGE_KEYS.user);
     sessionStorage.removeItem(STORAGE_KEYS.user);
   }
-
-  localStorage.removeItem(STORAGE_KEYS.token);
-  localStorage.removeItem(STORAGE_KEYS.user);
 };
 
 const clearPersistedSession = () => {
@@ -153,6 +161,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     clearSession();
+
+    // Thông báo cho tất cả listener trên tab hiện tại (cartStore.reset, v.v.)
+    window.dispatchEvent(new CustomEvent('auth-logout'));
   };
 
   const fetchUnreadNotificationCount = async () => {

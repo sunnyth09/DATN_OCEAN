@@ -233,8 +233,33 @@ onMounted(() => {
       </button>
     </div>
 
+    <!-- Modern Skeleton Loading -->
     <div v-if="loading" class="profile-orders-skeleton">
-      <div class="skeleton-pulse" style="height:150px; border-radius:12px; margin-bottom: 20px;" v-for="i in 3" :key="i"></div>
+      <div v-for="i in 3" :key="i" class="skeleton-order-card">
+        <div class="skeleton-order-header">
+          <div class="skeleton-order-header-left">
+            <div class="skeleton-box" style="width: 140px; height: 22px; border-radius: 6px; margin-bottom: 8px;"></div>
+            <div class="skeleton-box" style="width: 180px; height: 14px; border-radius: 4px;"></div>
+          </div>
+          <div class="skeleton-order-header-center">
+            <div class="skeleton-box" style="width: 110px; height: 28px; border-radius: 20px;"></div>
+          </div>
+          <div class="skeleton-order-header-right">
+            <div class="skeleton-box" style="width: 120px; height: 24px; border-radius: 6px; margin-bottom: 6px;"></div>
+            <div class="skeleton-box" style="width: 90px; height: 20px; border-radius: 20px;"></div>
+          </div>
+        </div>
+        <div class="skeleton-order-body">
+          <div v-for="j in 2" :key="j" class="skeleton-order-item">
+            <div class="skeleton-box" style="width: 64px; height: 64px; border-radius: 8px; flex-shrink: 0;"></div>
+            <div style="flex: 1;">
+              <div class="skeleton-box" style="width: 55%; height: 16px; border-radius: 4px; margin-bottom: 8px;"></div>
+              <div class="skeleton-box" style="width: 25%; height: 13px; border-radius: 4px;"></div>
+            </div>
+            <div class="skeleton-box" style="width: 80px; height: 16px; border-radius: 4px;"></div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div v-else-if="orders.length === 0" class="empty-state">
@@ -786,5 +811,71 @@ onMounted(() => {
 .btn-continue-pay:hover {
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 12px rgba(3, 105, 161, 0.35) !important;
+}
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.profile-orders-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  pointer-events: none;
+}
+
+.skeleton-order-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e9ecef);
+  border-radius: var(--radius-lg, 16px);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-sm, 0 2px 4px rgba(45, 52, 70, 0.04));
+}
+
+.skeleton-order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.skeleton-order-body {
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.skeleton-order-item {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.skeleton-box {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-box::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 </style>

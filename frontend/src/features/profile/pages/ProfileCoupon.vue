@@ -647,4 +647,64 @@ onMounted(fetchUserCoupons);
     font-size: 1.05rem;
   }
 }
+
+/* ===== Modern Skeleton Loading Styles ===== */
+.coupon-list-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+  pointer-events: none;
+}
+
+.coupon-list-skeleton .skeleton-card {
+  display: flex;
+  height: 120px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.sk-left {
+  width: 90px;
+  height: 100%;
+}
+
+.sk-mid {
+  flex: 1;
+  margin: 16px;
+  border-radius: 8px;
+}
+
+.sk-right {
+  width: 100px;
+  height: 100%;
+}
+
+.skeleton-pulse {
+  background: var(--surface-container, #e2e8f0);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-pulse::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.4) 30%,
+    rgba(255, 255, 255, 0.75) 60%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
 </style>
