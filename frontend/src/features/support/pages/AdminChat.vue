@@ -696,7 +696,8 @@ const formatDateLabel = (isoString) => {
 /* Main Container */
 .admin-chat-layout {
   display: flex;
-  height: calc(100vh - 100px);
+  width: 100%;
+  height: calc(100vh - 85px);
   background: #ffffff;
   border-radius: 16px;
   overflow: hidden;

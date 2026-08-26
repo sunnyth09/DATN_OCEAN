@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   AppConfig._();
 
-  static const String kProductionBaseUrl = 'https://apiocean.bcbdev.id.vn/api';
+  static const String kProductionBaseUrl = 'https://api.oceansport.pro.vn/api';
   static const String kProductionStorageUrl =
-      'https://apiocean.bcbdev.id.vn/storage';
+      'https://api.oceansport.pro.vn/storage';
 
   static const String kGoogleClientId =
       '333508728729-6r70j2v9tp9nbl703jae043upneq39jn.apps.googleusercontent.com';
@@ -17,7 +17,7 @@ class AppConfig {
 
   static String get reverbWsUrl {
     if (isProduction) {
-      return 'wss://apiocean.bcbdev.id.vn/app/$kReverbAppKey?protocol=7&client=dart&version=1.0';
+      return 'wss://api.oceansport.pro.vn/app/$kReverbAppKey?protocol=7&client=dart&version=1.0';
     }
     final host = kIsWeb ? '127.0.0.1' : _localIp;
     return 'ws://$host:$kReverbPort/app/$kReverbAppKey?protocol=7&client=dart&version=1.0';
@@ -41,8 +41,8 @@ class AppConfig {
     return _apiIpOverride.isNotEmpty ? _apiIpOverride : '10.0.2.2';
   }
 
-  static String get kLocalBaseUrl => 'https://apiocean.bcbdev.id.vn/api';
-  static String get kLocalStorageUrl => 'https://apiocean.bcbdev.id.vn/storage';
+  static String get kLocalBaseUrl => 'https://api.oceansport.pro.vn/api';
+  static String get kLocalStorageUrl => 'https://api.oceansport.pro.vn/storage';
 
   static String get kBaseUrl {
     if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
