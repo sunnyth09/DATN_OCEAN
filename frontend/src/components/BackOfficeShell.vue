@@ -365,6 +365,7 @@ onMounted(() => {
       });
 
     // Listen to chat messages globally to update sidebar badges
+    window.Echo.leave('admin.chats');
     window.Echo.channel('admin.chats')
       .listen('.message.sent', (e) => {
         fetchSidebarBadges();
@@ -380,6 +381,7 @@ onUnmounted(() => {
   window.removeEventListener('update-sidebar-badges', fetchSidebarBadges);
   if (window.Echo) {
     window.Echo.leave('admin-notifications');
+    window.Echo.leave('admin.chats');
   }
 });
 </script>

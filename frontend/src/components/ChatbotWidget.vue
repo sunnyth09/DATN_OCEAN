@@ -263,7 +263,6 @@
             class="chat-input"
             @keydown.enter.exact.prevent="sendMessage"
             @input="autoResize"
-            :disabled="isTyping"
             id="chatbot-input"
             maxlength="1000"
             rows="1"
@@ -647,7 +646,16 @@ function connectLiveChat() {
               return;
            }
            
-           messages.value.push({ role: 'assistant', content: e.message.message });
+           if (e.message?.id) {
+             const exists = messages.value.some(m => m.id && String(m.id) === String(e.message.id));
+             if (exists) return;
+           }
+           
+           messages.value.push({ 
+             id: e.message?.id,
+             role: 'assistant', 
+             content: e.message.message 
+           });
            scrollToBottom();
            if (!isOpen.value) hasUnread.value = true;
         }
@@ -767,6 +775,9 @@ async function sendMessage() {
   } finally {
     isTyping.value = false;
     scrollToBottom();
+    nextTick(() => {
+      chatInput.value?.focus();
+    });
   }
 }
 </script>
@@ -865,6 +876,12 @@ async function sendMessage() {
 .icon-swap-leave-to { opacity: 0; transform: rotate(90deg) scale(0.5); }
 
 /* ==================== CHAT WINDOW ==================== */
+.chatbot-widget {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 .chatbot-window {
   position: absolute;
   bottom: 72px;
@@ -880,6 +897,7 @@ async function sendMessage() {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(229, 231, 235, 0.6);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Window transition */
@@ -959,12 +977,15 @@ async function sendMessage() {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   background: #f8fafc;
   scroll-behavior: smooth;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .chat-messages::-webkit-scrollbar { width: 4px; }
@@ -997,7 +1018,9 @@ async function sendMessage() {
 .message-item {
   display: flex;
   gap: 8px;
-  max-width: 92%;
+  max-width: 90%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 .message-item.user {
   align-self: flex-end;
@@ -1023,9 +1046,13 @@ async function sendMessage() {
 .msg-bubble {
   padding: 10px 14px;
   border-radius: 16px;
-  font-size: 0.88rem;
-  line-height: 1.55;
+  font-size: 0.86rem;
+  line-height: 1.5;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .msg-bubble.user {
@@ -1042,7 +1069,12 @@ async function sendMessage() {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.msg-text { white-space: pre-wrap; }
+.msg-text { 
+  white-space: pre-wrap; 
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
 
 /* ==================== PRODUCT CARDS ==================== */
 .product-cards {
@@ -1313,16 +1345,22 @@ async function sendMessage() {
 /* ==================== QUICK ACTIONS ==================== */
 .quick-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 12px;
   background: #f8fafc;
   border-top: 1px solid #f0f0f0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.quick-actions::-webkit-scrollbar {
+  display: none;
 }
 
 .quick-slide-enter-active, .quick-slide-leave-active {
   transition: all 0.25s ease;
-  max-height: 80px;
+  max-height: 50px;
   overflow: hidden;
 }
 .quick-slide-enter-from, .quick-slide-leave-to {
@@ -1336,17 +1374,18 @@ async function sendMessage() {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 7px 12px;
+  padding: 6px 12px;
   border-radius: 20px;
   border: 1px solid #e5e7eb;
   background: var(--card-bg);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 500;
   color: #374151;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.2s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Toggle button */
@@ -1416,6 +1455,14 @@ async function sendMessage() {
   min-height: 40px;
   max-height: 120px;
   line-height: 1.4;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / Edge */
+}
+
+.chat-input::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
 }
 
 .chat-input:focus {

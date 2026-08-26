@@ -73,9 +73,13 @@ class IntentParserService
             return $this->buildResult('get_available_coupons');
         }
 
-        // 5. Trạng thái đơn hàng
-        if (preg_match('/\b(don hang|order cua toi|xem don|trang thai don|don cua toi)\b/u', $normalized)) {
-            return $this->buildResult('get_order_status');
+        // 5. Trạng thái đơn hàng / Tra cứu vận đơn
+        if (preg_match('/\b(don hang|order cua toi|xem don|trang thai don|don cua toi|tra cuu don|van don|kiem tra don|kiem tra van don)\b/u', $normalized) || preg_match('/\b(ord-[a-z0-9-]+)\b/i', $message, $mOrder)) {
+            $entities = [];
+            if (preg_match('/\b(ord-[a-z0-9-]+)\b/i', $message, $mOrder)) {
+                $entities['order_code'] = strtoupper($mOrder[1]);
+            }
+            return $this->buildResult('get_order_status', $entities);
         }
 
         // 6. Địa chỉ

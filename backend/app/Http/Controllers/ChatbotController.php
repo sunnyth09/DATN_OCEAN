@@ -443,11 +443,36 @@ class ChatbotController extends Controller
 
     private function buildOrderFallback($data): string
     {
-        if (! is_array($data)) {
-            return 'Không tìm thấy đơn hàng.';
+        if (! is_array($data) || empty($data)) {
+            return 'Không tìm thấy thông tin đơn hàng.';
         }
 
-        return 'Dạ đây là thông tin đơn hàng của bạn ạ.';
+        // Nếu là 1 đơn hàng cụ thể
+        if (isset($data['order_code'])) {
+            $lines = [
+                "📦 **Đơn hàng: {$data['order_code']}**",
+                "🚚 **Trạng thái vận chuyển**: {$data['status']}",
+                "💳 **Thanh toán**: {$data['payment_status']} ({$data['payment_method']})",
+                "💰 **Tổng tiền**: {$data['grand_total']}",
+            ];
+            if (! empty($data['items'])) {
+                $lines[] = "\n**Sản phẩm trong đơn**:";
+                foreach ($data['items'] as $item) {
+                    $lines[] = "• {$item['product_name']} ({$item['variant']}) x{$item['quantity']} - {$item['unit_price']}";
+                }
+            }
+            if (! empty($data['shipping_address'])) {
+                $lines[] = "📍 **Địa chỉ nhận hàng**: {$data['shipping_address']}";
+            }
+            return implode("\n", $lines);
+        }
+
+        // Nếu là danh sách nhiều đơn hàng
+        $lines = ["Tìm thấy ".count($data)." đơn hàng gần đây của bạn:"];
+        foreach ($data as $order) {
+            $lines[] = "• **{$order['order_code']}** ({$order['created_at']}): {$order['status']} - {$order['grand_total']}";
+        }
+        return implode("\n", $lines);
     }
 
     private function buildCouponFallback(array $data): string
