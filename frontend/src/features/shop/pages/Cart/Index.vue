@@ -124,12 +124,20 @@ const modalSelectedVariant = computed(() => {
 
 const onModalColorSelect = (color) => {
     variantModal.value.selectedColor = color;
-    // Reset size nếu size hiện tại không có trong màu mới
-    const available = variantModal.value.variants
-        .filter(v => v.color === color)
-        .map(v => v.size);
-    if (!available.includes(variantModal.value.selectedSize)) {
-        variantModal.value.selectedSize = null;
+    const varsForColor = variantModal.value.variants.filter(v => v.color === color);
+    if (!varsForColor.length) return;
+
+    // Nếu size hiện tại có ở màu mới và còn hàng thì giữ nguyên
+    const currentMatch = varsForColor.find(v => v.size === variantModal.value.selectedSize && (v.stock || 0) > 0);
+    if (currentMatch) {
+        return;
+    }
+    // Nếu không, tự động chọn size đầu tiên còn hàng của màu mới
+    const inStockMatch = varsForColor.find(v => (v.stock || 0) > 0);
+    if (inStockMatch) {
+        variantModal.value.selectedSize = inStockMatch.size || null;
+    } else {
+        variantModal.value.selectedSize = varsForColor[0]?.size || null;
     }
 };
 
@@ -199,6 +207,35 @@ const getVariantLabel = (item) => {
 
 // ====== END VARIANT MODAL ======
 
+// Helper: Kiểm tra item có khả dụng để mua hàng không
+const isItemAvailable = (item) => {
+    if (!item) return false;
+    if (item.is_available === false) return false;
+    if (!item.product || item.product.is_active === false || item.product.status === 'inactive') return false;
+    if (!item.variant || item.variant.status !== 'active') return false;
+    if ((item.variant.stock ?? 0) <= 0) return false;
+    return true;
+};
+
+// Helper: Lấy lý do không khả dụng để hiển thị
+const getItemUnavailableReason = (item) => {
+    if (!item) return 'Sản phẩm không tồn tại';
+    if (item.is_available === false && item.error_message) return item.error_message;
+    if (!item.product || item.product.is_active === false || item.product.status === 'inactive') {
+        return 'Sản phẩm ngừng kinh doanh hoặc đã bị gỡ';
+    }
+    if (!item.variant || item.variant.status !== 'active') {
+        return 'Phân loại hàng ngừng kinh doanh';
+    }
+    if ((item.variant.stock ?? 0) <= 0) {
+        return 'Sản phẩm tạm thời hết hàng';
+    }
+    if (item.quantity > item.variant.stock) {
+        return `Vượt quá tồn kho (Tối đa: ${item.variant.stock})`;
+    }
+    return null;
+};
+
 // Lấy giỏ hàng
 const fetchCart = async (showGlobalLoading = true) => {
     if (cartRequest) {
@@ -213,7 +250,14 @@ const fetchCart = async (showGlobalLoading = true) => {
                 const response = await api.get('/cart');
                 if (response.data.status === 'success') {
                     cartId.value = response.data.data.cart_id;
-                    cartItems.value = response.data.data.items || [];
+                    const items = response.data.data.items || [];
+                    // Tự động bỏ chọn các sản phẩm không khả dụng
+                    items.forEach(item => {
+                        if (!isItemAvailable(item)) {
+                            item.selected = false;
+                        }
+                    });
+                    cartItems.value = items;
                     updateSelectAllState();
                 }
             } else {
@@ -226,7 +270,13 @@ const fetchCart = async (showGlobalLoading = true) => {
                     const response = await api.post('/cart/guest-details', { items: localItems });
                     if (response.data.status === 'success') {
                         cartId.value = null;
-                        cartItems.value = response.data.data.items || [];
+                        const items = response.data.data.items || [];
+                        items.forEach(item => {
+                            if (!isItemAvailable(item)) {
+                                item.selected = false;
+                            }
+                        });
+                        cartItems.value = items;
                         updateSelectAllState();
 
                         if (response.data.data.freeship_threshold) {
@@ -257,50 +307,67 @@ const fetchCart = async (showGlobalLoading = true) => {
 };
 
 
-// Cập nhật trạng thái "Chọn tất cả"
+// Computed danh sách sản phẩm khả dụng & không khả dụng
+const availableItems = computed(() => cartItems.value.filter(isItemAvailable));
+const availableCount = computed(() => availableItems.value.length);
+const unavailableItems = computed(() => cartItems.value.filter(item => !isItemAvailable(item)));
+const unavailableCount = computed(() => unavailableItems.value.length);
+
+// Cập nhật trạng thái "Chọn tất cả" (chỉ xét các item khả dụng)
 const updateSelectAllState = () => {
-    if (cartItems.value.length === 0) {
+    if (availableItems.value.length === 0) {
         selectAll.value = false;
         return;
     }
-    selectAll.value = cartItems.value.every(item => item.selected);
+    selectAll.value = availableItems.value.every(item => item.selected);
 };
 
-// Toggle chọn tất cả
+// Toggle chọn tất cả (chỉ tác động đến item khả dụng)
 const toggleSelectAll = async () => {
+    if (availableItems.value.length === 0) return;
     const newState = !selectAll.value;
     selectAll.value = newState;
     
     if (!authStore.isAuthenticated) {
         let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
         localItems.forEach(item => {
-            // Ignore unavailable items (assumes local items could be fetched and verified first, but guest cart logic is similar)
-            if (item.is_available !== false) {
+            const inMemory = cartItems.value.find(ci => ci.variant_id === item.variant_id);
+            if (inMemory && isItemAvailable(inMemory)) {
                 item.selected = newState;
+            } else {
+                item.selected = false;
             }
         });
         localStorage.setItem('cart_items', JSON.stringify(localItems));
         cartItems.value.forEach(item => {
-            if (item.is_available !== false) {
+            if (isItemAvailable(item)) {
                 item.selected = newState;
+            } else {
+                item.selected = false;
             }
         });
         return;
     }
     
-    // Cập nhật UI lập tức
+    // Cập nhật UI lập tức cho các item khả dụng
     cartItems.value.forEach(item => { 
-        if (item.is_available !== false) {
+        if (isItemAvailable(item)) {
             item.selected = newState; 
+        } else {
+            item.selected = false;
         }
     });
 
-    // Gửi 1 request batch duy nhất thay vì N request song song (tránh vượt rate limit)
+    // Gửi 1 request batch duy nhất
     try {
         await api.put('/cart/select-all', { selected: newState });
     } catch (error) {
         // Rollback UI nếu lỗi
-        cartItems.value.forEach(item => { item.selected = !newState; });
+        cartItems.value.forEach(item => { 
+            if (isItemAvailable(item)) {
+                item.selected = !newState; 
+            }
+        });
         selectAll.value = !newState;
         showToast('Không thể cập nhật. Vui lòng thử lại.', 'error');
     }
@@ -308,8 +375,8 @@ const toggleSelectAll = async () => {
 
 // Toggle chọn 1 item
 const toggleSelect = async (item) => {
-    if (item.is_available === false) {
-        showToast('Không thể chọn sản phẩm không khả dụng.', 'error');
+    if (!isItemAvailable(item)) {
+        showToast(getItemUnavailableReason(item) || 'Sản phẩm không khả dụng, không thể chọn.', 'warning');
         return;
     }
     
@@ -537,8 +604,55 @@ const clearCart = async () => {
 };
 
 
-// Tính tổng
-const selectedItems = computed(() => cartItems.value.filter(i => i.selected));
+// Xóa toàn bộ sản phẩm không khả dụng / hết hàng
+const isClearingUnavailable = ref(false);
+const removeAllUnavailable = async () => {
+    if (unavailableCount.value === 0) return;
+    const result = await Swal.fire({
+        title: 'Xóa sản phẩm hết hàng',
+        text: `Bạn có muốn xóa ${unavailableCount.value} sản phẩm hết hàng / không khả dụng khỏi giỏ hàng?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#E63B6F',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Đồng ý xóa',
+        cancelButtonText: 'Hủy'
+    });
+    if (!result.isConfirmed) return;
+
+    isClearingUnavailable.value = true;
+    if (!authStore.isAuthenticated) {
+        let localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+        const unavailVids = unavailableItems.value.map(i => i.variant_id);
+        localItems = localItems.filter(i => !unavailVids.includes(i.variant_id));
+        localStorage.setItem('cart_items', JSON.stringify(localItems));
+        cartItems.value = cartItems.value.filter(isItemAvailable);
+        showToast('Đã xóa các sản phẩm không khả dụng!', 'success');
+        updateSelectAllState();
+        cartStore.fetchCount();
+        isClearingUnavailable.value = false;
+        return;
+    }
+
+    try {
+        for (const item of unavailableItems.value) {
+            if (item.cart_item_id) {
+                await api.delete(`/cart/items/${item.cart_item_id}`).catch(() => {});
+            }
+        }
+        cartItems.value = cartItems.value.filter(isItemAvailable);
+        showToast('Đã dọn dẹp các sản phẩm không khả dụng!', 'success');
+        updateSelectAllState();
+        cartStore.fetchCount();
+    } catch (e) {
+        showToast('Không thể xóa sản phẩm. Vui lòng thử lại.', 'error');
+    } finally {
+        isClearingUnavailable.value = false;
+    }
+};
+
+// Tính tổng: Chỉ tính các sản phẩm vừa được chọn VÀ còn khả dụng
+const selectedItems = computed(() => cartItems.value.filter(i => i.selected && isItemAvailable(i)));
 const totalSelectedQuantity = computed(() => selectedItems.value.reduce((sum, i) => sum + i.quantity, 0));
 const totalPrice = computed(() => selectedItems.value.reduce((sum, i) => sum + (i.variant?.price || 0) * i.quantity, 0));
 
@@ -761,15 +875,30 @@ onUnmounted(() => {
 
                 <!-- Vùng chứa khối liền mạch -->
                 <div class="seamless-cart-container">
+                    <!-- Banner cảnh báo nếu có sản phẩm hết hàng / không khả dụng -->
+                    <div class="cart-notice-banner" v-if="unavailableCount > 0">
+                        <div class="cart-notice-left">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#e11d48" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <span>Có <strong>{{ unavailableCount }}</strong> sản phẩm tạm hết hàng hoặc ngừng bán đã tự động được bỏ chọn.</span>
+                        </div>
+                        <button type="button" class="btn-clear-unavailable" @click="removeAllUnavailable" :disabled="isClearingUnavailable">
+                            {{ isClearingUnavailable ? 'Đang xóa...' : 'Xóa sản phẩm hết hàng' }}
+                        </button>
+                    </div>
+
                     <div class="cart-action-bar">
-                        <label class="checkbox-wrapper" @click.prevent="toggleSelectAll">
-                            <div class="custom-checkbox" :class="{ checked: selectAll }">
-                                <svg v-if="selectAll" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white"
+                        <label class="checkbox-wrapper" @click.prevent="toggleSelectAll" :class="{ 'wrapper-disabled': availableCount === 0 }">
+                            <div class="custom-checkbox" :class="{ checked: selectAll && availableCount > 0, disabled: availableCount === 0 }">
+                                <svg v-if="selectAll && availableCount > 0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white"
                                     stroke-width="4">
                                     <polyline points="20 6 9 17 4 12" />
                                 </svg>
                             </div>
-                            <span>Chọn tất cả ({{ cartItems.length }})</span>
+                            <span>Chọn tất cả ({{ availableCount }})</span>
                         </label>
                         <button class="btn-clear" @click="clearCart" v-if="cartItems.length > 0">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -783,27 +912,32 @@ onUnmounted(() => {
     
                     <!-- Cart Items List -->
                     <TransitionGroup name="cart-item" tag="div" class="items-list">
-                        <div v-for="item in cartItems" :key="item.cart_item_id" class="cart-item-card"
-                            :class="{ 'item-unavailable': item.is_available === false || item.variant?.status !== 'active' }">
+                        <div v-for="item in cartItems" :key="item.cart_item_id || item.variant_id" class="cart-item-card"
+                            :class="{ 'item-unavailable': !isItemAvailable(item) }">
                         <!-- Checkbox -->
-                        <div class="item-checkbox" @click="toggleSelect(item)" :style="item.is_available === false ? 'cursor: not-allowed; opacity: 0.5;' : ''">
-                            <div class="custom-checkbox" :class="{ checked: item.selected, disabled: item.is_available === false }">
-                                <svg v-if="item.selected" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                        <div class="item-checkbox" @click="toggleSelect(item)" :class="{ 'checkbox-disabled': !isItemAvailable(item) }"
+                            :title="!isItemAvailable(item) ? (getItemUnavailableReason(item) || 'Sản phẩm không khả dụng') : 'Chọn sản phẩm'">
+                            <div class="custom-checkbox" :class="{ checked: item.selected && isItemAvailable(item), disabled: !isItemAvailable(item) }">
+                                <svg v-if="item.selected && isItemAvailable(item)" width="12" height="12" viewBox="0 0 24 24" fill="none"
                                     stroke="white" stroke-width="4">
                                     <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                <svg v-else-if="!isItemAvailable(item)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
                                 </svg>
                             </div>
                         </div>
 
                         <!-- Product Image -->
                         <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-image-link">
-                            <img :src="getProductImage(item)" :alt="item.product?.name" class="item-image" />
+                            <img :src="getProductImage(item)" :alt="item.product?.name" class="item-image" :class="{ 'img-grayscale': !isItemAvailable(item) }" />
                         </router-link>
 
                         <!-- Product Info & Price -->
                         <div class="item-details">
                             <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-name">
-                                {{ item.product?.name || 'Sản phẩm' }}
+                                {{ item.product?.name || 'Sản phẩm không tồn tại' }}
                             </router-link>
 
                             <!-- Variant Tag (Clickable to change) -->
@@ -818,22 +952,20 @@ onUnmounted(() => {
                                 </button>
                             </div>
 
-                            <div class="item-stock" v-if="item.variant?.stock <= 5 && item.variant?.stock > 0 && item.quantity <= item.variant.stock && item.is_available !== false">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                Chỉ còn {{ item.variant.stock }} sản phẩm
-                            </div>
-                            
-                            <div class="item-unavailable-badge" v-if="item.is_available === false">
-                                {{ item.error_message || 'Sản phẩm ngừng kinh doanh' }}
-                            </div>
-                            <div class="item-unavailable-badge" v-else-if="item.variant?.status !== 'active'">
-                                Sản phẩm ngừng kinh doanh
-                            </div>
-                            <div class="item-unavailable-badge out-of-stock" v-else-if="item.variant?.stock <= 0">
-                                Sản phẩm tạm hết hàng
+                            <!-- Alert Box & Badges -->
+                            <div class="unavailable-alert-box" v-if="!isItemAvailable(item)">
+                                <span class="alert-icon">⚠️</span>
+                                <span class="alert-msg">{{ getItemUnavailableReason(item) }}</span>
+                                <button v-if="item.product" type="button" class="btn-inline-change-var" @click.stop="openVariantModal(item)">
+                                    Đổi phân loại
+                                </button>
                             </div>
                             <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
-                                Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
+                                ⚠️ Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
+                            </div>
+                            <div class="item-stock" v-else-if="item.variant?.stock <= 5 && item.variant?.stock > 0">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                Chỉ còn {{ item.variant.stock }} sản phẩm
                             </div>
                             
                             <div class="item-price-row">
@@ -848,9 +980,9 @@ onUnmounted(() => {
                         <div class="item-spacer"></div>
 
                         <!-- Quantity -->
-                        <div class="quantity-control" :style="item.is_available === false ? 'opacity: 0.5; pointer-events: none;' : ''">
+                        <div class="quantity-control" :class="{ 'qty-disabled': !isItemAvailable(item) }">
                             <button class="qty-btn" @click="changeQuantity(item, item.quantity - 1)"
-                                :disabled="item.quantity <= 1 || updating[item.cart_item_id] || item.is_available === false">
+                                :disabled="item.quantity <= 1 || updating[item.cart_item_id] || !isItemAvailable(item)">
                                 -
                             </button>
                             <input
@@ -860,13 +992,13 @@ onUnmounted(() => {
                                 inputmode="numeric"
                                 autocomplete="off"
                                 :value="item.quantity"
-                                :disabled="updating[item.cart_item_id] || item.is_available === false"
+                                :disabled="updating[item.cart_item_id] || !isItemAvailable(item)"
                                 @input="scheduleQuantityInputUpdate(item, $event)"
                                 @keydown.enter.prevent="scheduleQuantityInputUpdate(item, $event)"
                                 @blur="handleQuantityInputBlur(item, $event)"
                             />
                             <button class="qty-btn" @click="changeQuantity(item, item.quantity + 1)"
-                                :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id] || item.is_available === false">
+                                :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id] || !isItemAvailable(item)">
                                 +
                             </button>
                         </div>
@@ -1377,6 +1509,119 @@ onUnmounted(() => {
     color: #475569;
     font-weight: 500;
     display: inline-block;
+}
+
+/* Cart Notice Banner */
+.cart-notice-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: #fff1f2;
+    border-bottom: 1px solid #fecdd3;
+    padding: 10px 16px;
+    transition: all 0.3s ease;
+}
+
+.cart-notice-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #9f1239;
+}
+
+.cart-notice-left strong {
+    color: #e11d48;
+    font-weight: 700;
+}
+
+.btn-clear-unavailable {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    background: #e11d48;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-clear-unavailable:hover:not(:disabled) {
+    background: #be123c;
+    box-shadow: 0 2px 8px rgba(225, 29, 72, 0.25);
+}
+
+.btn-clear-unavailable:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.wrapper-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.checkbox-disabled {
+    cursor: not-allowed !important;
+}
+
+.custom-checkbox.disabled {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    cursor: not-allowed;
+}
+
+.img-grayscale {
+    filter: grayscale(80%) opacity(0.75);
+}
+
+.unavailable-alert-box {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    border-radius: 6px;
+    padding: 4px 10px;
+    margin-top: 6px;
+}
+
+.unavailable-alert-box .alert-icon {
+    font-size: 0.85rem;
+}
+
+.unavailable-alert-box .alert-msg {
+    font-size: 0.78rem;
+    color: #e11d48;
+    font-weight: 600;
+}
+
+.btn-inline-change-var {
+    background: #e11d48;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 4px;
+    font-family: inherit;
+}
+
+.btn-inline-change-var:hover {
+    background: #be123c;
+}
+
+.qty-disabled {
+    opacity: 0.45;
+    pointer-events: none;
 }
 
 .item-stock {
