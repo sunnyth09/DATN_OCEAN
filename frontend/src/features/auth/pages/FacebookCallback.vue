@@ -21,7 +21,8 @@ onMounted(async () => {
   }
 
   try {
-    const response = await authService.exchangeFacebookCode(code);
+    const redirectUri = `${window.location.origin}/client/auth/facebook/callback`;
+    const response = await authService.exchangeFacebookCode(code, redirectUri);
 
     if (response.data.status === 'success') {
       await authStore.setSession(response.data.access_token, {

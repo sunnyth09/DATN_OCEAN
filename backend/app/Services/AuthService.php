@@ -267,15 +267,16 @@ class AuthService
 
     // ─── GOOGLE OAUTH ──────────────────────────────────────────────────
 
-    public function googleCallback(string $code): array
+    public function googleCallback(string $code, ?string $redirectUri = null): array
     {
         try {
+            $redirect = ! empty($redirectUri) ? $redirectUri : config('services.google.redirect');
             // Exchange code for token
             $tokenResponse = Http::asForm()->post('https://oauth2.googleapis.com/token', [
                 'code' => $code,
-                'client_id' => config('services.google.client_id'),
-                'client_secret' => config('services.google.client_secret'),
-                'redirect_uri' => config('services.google.redirect'),
+                'client_id' => trim((string) config('services.google.client_id')),
+                'client_secret' => trim((string) config('services.google.client_secret')),
+                'redirect_uri' => trim((string) $redirect),
                 'grant_type' => 'authorization_code',
             ]);
 
@@ -427,14 +428,15 @@ class AuthService
 
     // ─── FACEBOOK OAUTH ────────────────────────────────────────────────
 
-    public function facebookCallback(string $code): array
+    public function facebookCallback(string $code, ?string $redirectUri = null): array
     {
         try {
+            $redirect = ! empty($redirectUri) ? $redirectUri : config('services.facebook.redirect');
             // Exchange code for token
             $tokenResponse = Http::get('https://graph.facebook.com/v19.0/oauth/access_token', [
-                'client_id' => config('services.facebook.client_id'),
-                'client_secret' => config('services.facebook.client_secret'),
-                'redirect_uri' => config('services.facebook.redirect'),
+                'client_id' => trim((string) config('services.facebook.client_id')),
+                'client_secret' => trim((string) config('services.facebook.client_secret')),
+                'redirect_uri' => trim((string) $redirect),
                 'code' => $code,
             ]);
 

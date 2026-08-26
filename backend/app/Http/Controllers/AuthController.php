@@ -54,6 +54,7 @@ class AuthController extends Controller
     public function googleCallback(Request $request)
     {
         $code = $request->input('code');
+        $redirectUri = $request->input('redirect_uri');
 
         if (! $code) {
             return response()->json([
@@ -62,7 +63,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $result = $this->authService->googleCallback($code);
+        $result = $this->authService->googleCallback($code, $redirectUri);
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
 
@@ -93,6 +94,7 @@ class AuthController extends Controller
     public function facebookCallback(Request $request)
     {
         $code = $request->input('code');
+        $redirectUri = $request->input('redirect_uri');
 
         if (! $code) {
             return response()->json([
@@ -101,7 +103,7 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $result = $this->authService->facebookCallback($code);
+        $result = $this->authService->facebookCallback($code, $redirectUri);
         $status = $result['_status'] ?? 200;
         unset($result['_status']);
 

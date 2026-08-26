@@ -21,7 +21,8 @@ onMounted(async () => {
   }
 
   try {
-    const response = await authService.exchangeGoogleCode(code);
+    const redirectUri = `${window.location.origin}/client/auth/google/callback`;
+    const response = await authService.exchangeGoogleCode(code, redirectUri);
 
     if (response.data.status === 'success') {
       await authStore.setSession(response.data.access_token, {
