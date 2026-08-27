@@ -702,6 +702,44 @@ const buyNow = async () => {
 };
 
 /**
+ * handleTryOnBuyNow: Phương án C — dùng variant đang chọn trên trang product detail.
+ * Nếu đã chọn variant còn hàng → thêm vào cart → redirect checkout.
+ * Nếu chưa chọn → đóng modal, scroll đến phần chọn variant.
+ */
+const handleTryOnBuyNow = () => {
+  showTryOn.value = false;
+
+  if (selectedVariant.value && selectedVariant.value.stock > 0) {
+    // Có variant đang chọn + còn hàng → mua ngay luôn
+    buyingNow.value = true;
+    sessionStorage.setItem('buy_now_item', JSON.stringify({
+      variant_id: selectedVariant.value.variant_id,
+      quantity: 1,
+    }));
+    router.push({ path: '/checkout', query: { buy_now: '1' } });
+  } else {
+    // Chưa chọn variant hoặc hết hàng → scroll đến phần chọn variant
+    showToast('Vui lòng chọn phiên bản sản phẩm trước khi mua!', 'info');
+    nextTick(() => {
+      const variantSection = document.querySelector('.pd-variants');
+      if (variantSection) {
+        variantSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }
+};
+
+/**
+ * handleTryOnGoToProduct: Navigate đến sản phẩm gợi ý, đóng modal.
+ */
+const handleTryOnGoToProduct = (slug) => {
+  showTryOn.value = false;
+  if (slug) {
+    router.push(`/product/${slug}`);
+  }
+};
+
+/**
  * sortedVariants: danh sách variants active, sắp xếp theo giá tăng dần.
  * API đã sort sẵn, nhưng computed này đảm bảo thứ tự đúng ở client.
  */
@@ -1182,7 +1220,9 @@ onBeforeUnmount(() => {
 
   <!-- Virtual Try-On Modal -->
   <VirtualTryOnModal v-if="product?.product_id" :show="showTryOn" :product-id="product?.product_id" :product-name="product?.name"
-    :product-image-url="mainImageUrl" @close="showTryOn = false" />
+    :product-image-url="mainImageUrl" :product-slug="product?.slug" :product-price="displayPriceInfo.current"
+    :has-selected-variant="!!selectedVariant && selectedVariant.stock > 0"
+    @close="showTryOn = false" @buy-now="handleTryOnBuyNow" @go-to-product="handleTryOnGoToProduct" />
 
   <!-- Modal Bảng Size -->
   <teleport to="body">

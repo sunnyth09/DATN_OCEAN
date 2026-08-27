@@ -257,6 +257,7 @@ Route::get('products', [ProductController::class, 'index']);
 Route::get('products/slug/{slug}', [ProductController::class, 'show']);
 Route::get('products/{id}/variants', [ProductController::class, 'getVariants']);
 Route::get('products/{slug}/related', [ProductController::class, 'related']);
+Route::get('products/{slug}/matching', [ProductController::class, 'matching']);
 Route::get('products/{product_id}/comments', [ProductCommentController::class, 'getByProduct']);
 Route::get('products/{id}', [ProductController::class, 'show']);
 Route::get('productFeatured', [ProductController::class, 'productFeatured']);
