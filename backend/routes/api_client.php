@@ -199,6 +199,12 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::middleware('throttle:3,1')->post('/tickets', [TicketController::class, 'clientStore']);
 });
 
+// Alias for tickets route outside profile prefix
+Route::middleware('auth:api,admin')->group(function () {
+    Route::get('/tickets', [TicketController::class, 'clientIndex']);
+    Route::middleware('throttle:3,1')->post('/tickets', [TicketController::class, 'clientStore']);
+});
+
 // Tracking routes (Public, optional auth logic handled inside controller)
 Route::prefix('tracking')->group(function () {
     Route::middleware('throttle:120,1')->post('/view-product', [TrackingController::class, 'viewProduct']);
