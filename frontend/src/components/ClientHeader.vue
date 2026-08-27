@@ -2169,8 +2169,9 @@ watch(
 .floating-flash-sale {
     position: fixed;
     z-index: 9999;
-    bottom: 120px;
-    right: 20px;
+    bottom: 84px;
+    right: 24px;
+    left: auto;
     cursor: pointer;
     user-select: none;
     /* transition: transform 0.2s ease, opacity 0.2s ease; */
@@ -2235,8 +2236,9 @@ watch(
 
 @media (max-width: 1024px) and (min-width: 769px) {
     .floating-flash-sale {
-        bottom: 75px;
+        bottom: 74px;
         right: 20px;
+        left: auto;
     }
     .flash-sale-badge {
         height: 42px;
@@ -2247,9 +2249,9 @@ watch(
 
 @media (max-width: 768px) {
     .floating-flash-sale {
-        bottom: 102px;
-        left: 12px;
-        right: auto;
+        bottom: 70px;
+        right: 17px;
+        left: auto;
     }
     .flash-sale-badge {
         height: 38px;

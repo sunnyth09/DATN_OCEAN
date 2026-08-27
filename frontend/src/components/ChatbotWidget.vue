@@ -1,11 +1,18 @@
 <template>
-  <div v-if="!isHiddenPage" class="chatbot-wrapper" :class="{ 'on-product-detail': isProductDetailPage }" id="ocean-chatbot">
+  <div
+    v-if="!isHiddenPage"
+    class="chatbot-wrapper"
+    :class="{ 'on-product-detail': isProductDetailPage, 'is-open': isOpen }"
+    id="ocean-chatbot"
+    @click.self="isOpen = false"
+  >
     <!-- Floating Bubble -->
     <button
       class="chatbot-bubble"
       :class="{ 'is-open': isOpen, 'has-unread': hasUnread && !isOpen }"
       @click="toggleChat"
       id="chatbot-toggle-btn"
+      aria-label="Mở trợ lý chat"
     >
       <transition name="icon-swap" mode="out-in">
         <svg v-if="!isOpen" key="chat" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -36,9 +43,9 @@
               <p class="chat-subtitle">{{ mode === 'live' ? 'Sẵn sàng hỗ trợ bạn' : 'Trợ lý mua sắm thông minh' }}</p>
             </div>
           </div>
-          <button class="chat-close-btn" @click="isOpen = false">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12"/>
+          <button class="chat-close-btn" @click="isOpen = false" aria-label="Đóng chat" title="Đóng">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
         </div>
@@ -1664,6 +1671,12 @@ async function sendMessage() {
     width: 20px;
     height: 20px;
   }
+  .chatbot-window {
+    width: 380px;
+    height: 540px;
+    bottom: 60px;
+    right: 0;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1685,16 +1698,65 @@ async function sendMessage() {
     width: 19px;
     height: 19px;
   }
-  .chatbot-window {
-    width: calc(100vw - 24px);
-    height: calc(100dvh - 80px);
-    bottom: 48px;
+
+  /* Khi Chatbot mở trên Mobile: Full Bottom Sheet Drawer Modal chuẩn app */
+  .chatbot-wrapper.is-open {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    bottom: 0;
+    left: 0;
     right: 0;
-    left: auto;
-    border-radius: 16px;
+    top: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    z-index: 100000;
   }
+
+  .chatbot-wrapper.is-open .chatbot-bubble {
+    display: none !important;
+  }
+
+  .chatbot-window {
+    position: relative;
+    width: 100vw;
+    height: 88dvh;
+    max-height: 88dvh;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 20px 20px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+  }
+
   .chatbot-wrapper.on-product-detail .chatbot-window {
-    bottom: 50px;
+    bottom: 0;
+    height: 88dvh;
+  }
+
+  .chat-header {
+    border-radius: 20px 20px 0 0;
+    padding: 14px 16px;
+  }
+
+  .chat-messages {
+    flex: 1;
+    padding: 12px 14px;
+  }
+
+  .chat-input-area {
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
   }
 }
 </style>
