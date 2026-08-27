@@ -715,3 +715,20 @@ html.dark .court-tab--active {
   margin: 4px 0;
   border-color: var(--border-color, rgba(0,0,0,0.06));
 }
+
+/* ─── Responsive for Client Court ─── */
+@media (max-width: 768px) {
+  .court-hero {
+    padding: 20px 16px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+  }
+
+  .court-hero__title {
+    font-size: 1.3rem;
+  }
+
+  .court-hero__subtitle {
+    font-size: 0.85rem;
+  }
+}

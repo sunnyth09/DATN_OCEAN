@@ -1579,13 +1579,21 @@ async function sendMessage() {
 @media (max-width: 480px) {
   .chatbot-wrapper {
     bottom: 16px;
-    right: 16px;
+    right: 14px;
+  }
+  .chatbot-bubble {
+    width: 48px;
+    height: 48px;
+  }
+  .chatbot-bubble svg {
+    width: 22px;
+    height: 22px;
   }
   .chatbot-window {
-    width: calc(100vw - 32px);
-    height: calc(100dvh - 100px);
-    bottom: 68px;
-    right: -16px;
+    width: calc(100vw - 28px);
+    height: calc(100dvh - 90px);
+    bottom: 60px;
+    right: -14px;
     border-radius: 16px;
   }
 }

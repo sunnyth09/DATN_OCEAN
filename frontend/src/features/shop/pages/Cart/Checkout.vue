@@ -3576,4 +3576,137 @@ textarea.note-input {
 .vmodal-leave-to .vmodal-box {
     transform: scale(0.94) translateY(20px);
 }
+
+/* =======================================================
+   RESPONSIVE BREAKPOINTS FOR CHECKOUT
+   ======================================================= */
+@media (max-width: 992px) {
+    .checkout-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .sticky-sidebar {
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .checkout-page {
+        padding: 12px 0 60px;
+    }
+
+    .page-header {
+        margin-bottom: 12px;
+    }
+
+    .back-link {
+        font-size: 0.88rem;
+        padding: 6px 10px;
+    }
+
+    .checkout-section {
+        margin-bottom: 18px;
+    }
+
+    .section-header {
+        margin-bottom: 12px;
+    }
+
+    .section-header h2 {
+        font-size: 1.15rem;
+    }
+
+    .block-border {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .address-tabs {
+        padding: 4px;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .add-tab {
+        font-size: 0.82rem;
+        padding: 8px 12px;
+    }
+
+    .form-box {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .form-group {
+        margin-bottom: 12px;
+    }
+
+    .form-label {
+        font-size: 0.85rem;
+    }
+
+    .form-input {
+        padding: 9px 12px;
+        font-size: 0.88rem;
+    }
+
+    .address-card {
+        padding: 12px 14px;
+        border-radius: 10px;
+        gap: 12px;
+    }
+
+    .addr-name {
+        font-size: 0.95rem;
+    }
+
+    .addr-phone {
+        font-size: 0.85rem;
+    }
+
+    .addr-body {
+        font-size: 0.85rem;
+    }
+
+    .payment-card-simple {
+        padding: 12px 14px;
+    }
+
+    .payment-name-simple {
+        font-size: 0.9rem;
+    }
+
+    .bill-summary-card {
+        border-radius: 14px;
+    }
+
+    .bill-header {
+        padding: 14px 16px;
+        font-size: 1.1rem;
+    }
+
+    .bill-body {
+        padding: 16px;
+    }
+
+    .bill-item-img {
+        width: 48px;
+        height: 48px;
+    }
+
+    .bill-item-name {
+        font-size: 0.85rem;
+    }
+
+    .btn-checkout {
+        padding: 14px;
+        font-size: 0.95rem;
+    }
+}
 </style>

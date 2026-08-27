@@ -2154,4 +2154,89 @@ onUnmounted(() => {
 .vmodal-leave-to .vmodal-box {
     transform: scale(0.94) translateY(20px);
 }
+
+/* =======================================================
+   RESPONSIVE BREAKPOINTS FOR CART
+   ======================================================= */
+@media (max-width: 992px) {
+    .cart-layout {
+        flex-direction: column;
+        gap: 20px;
+        padding-bottom: 60px;
+    }
+
+    .cart-items-section {
+        width: 100%;
+    }
+
+    .order-summary {
+        width: 100%;
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .cart-page {
+        padding: 16px 0 40px;
+    }
+
+    .page-header {
+        margin-bottom: 16px;
+    }
+
+    .page-header h1 {
+        font-size: 1.35rem;
+    }
+
+    .upsell-title {
+        font-size: 1.35rem;
+        margin-bottom: 16px;
+    }
+
+    .cart-action-bar {
+        padding: 8px 12px;
+    }
+
+    .checkbox-wrapper {
+        font-size: 0.85rem;
+    }
+
+    .cart-item-card {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+
+    .item-image {
+        width: 56px;
+        height: 56px;
+        border-radius: 8px;
+    }
+
+    .item-name {
+        font-size: 0.85rem;
+    }
+
+    .item-price {
+        font-size: 0.95rem;
+    }
+
+    .item-price-original {
+        font-size: 0.78rem;
+    }
+
+    .summary-card {
+        padding: 14px;
+    }
+
+    .summary-title {
+        font-size: 1.05rem;
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+    }
+
+    .btn-checkout {
+        padding: 12px;
+        font-size: 0.92rem;
+    }
+}
 </style>
