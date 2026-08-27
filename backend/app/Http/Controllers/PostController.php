@@ -285,15 +285,15 @@ class PostController extends Controller
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
         ], [
             'image.required' => 'Vui lòng chọn ảnh.',
-            'image.image'    => 'File phải là ảnh.',
-            'image.mimes'    => 'Chỉ hỗ trợ định dạng: JPEG, PNG, JPG, GIF, WEBP.',
-            'image.max'      => 'Ảnh không được vượt quá 4MB.',
+            'image.image' => 'File phải là ảnh.',
+            'image.mimes' => 'Chỉ hỗ trợ định dạng: JPEG, PNG, JPG, GIF, WEBP.',
+            'image.max' => 'Ảnh không được vượt quá 4MB.',
         ]);
 
         $path = $request->file('image')->store('uploads/post_content', 'public');
 
         return response()->json([
-            'url' => \Illuminate\Support\Facades\Storage::disk('public')->url($path),
+            'url' => Storage::disk('public')->url($path),
         ]);
     }
 

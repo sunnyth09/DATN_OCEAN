@@ -274,5 +274,11 @@ const clearFilters = () => {
     transform: translateY(-1px);
     color: #fff;
 }
+
+@media (max-width: 768px) {
+    .container {
+        padding-bottom: 75px !important;
+    }
+}
 </style>
 

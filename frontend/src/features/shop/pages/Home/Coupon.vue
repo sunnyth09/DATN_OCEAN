@@ -854,6 +854,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 576px) {
+  .coupon-page {
+    padding-bottom: 70px;
+  }
+
   .coupon-hero {
     padding: 52px 0;
   }

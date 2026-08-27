@@ -73,6 +73,10 @@ const isRouteActive = (routeName) => {
     return route.name === routeName;
 };
 
+const showFloatingFlashSale = computed(() => {
+    return ['home', 'product-list'].includes(route.name);
+});
+
 const closeAccountMenu = () => {
     showDropdown.value = false;
 };
@@ -417,6 +421,24 @@ watch(isLoggedIn, (val) => {
     }
 }, { immediate: true });
 
+// Khóa cuộn trang nền khi mở mobile menu
+watch(isMobileMenuOpen, (isOpen) => {
+    if (isOpen) {
+        document.body.style.overflow = "hidden";
+    } else {
+        document.body.style.overflow = "";
+    }
+});
+
+// Tự động đóng mobile menu khi chuyển route
+watch(
+    () => route.fullPath,
+    () => {
+        closeMobileMenu();
+        closeAccountMenu();
+    }
+);
+
 onMounted(() => {
     checkAuth();
     window.addEventListener('has-new-unread-notifications', playNotificationSound);
@@ -427,6 +449,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    document.body.style.overflow = "";
     window.removeEventListener('has-new-unread-notifications', playNotificationSound);
     window.removeEventListener('play-notif-sound', playNotificationSound);
     window.removeEventListener('scroll', handleScroll);
@@ -841,159 +864,195 @@ watch(
                         <p class="mobile-nav-eyebrow">Ocean Sport</p>
                         <h2 class="mobile-nav-title">Khám phá nhanh</h2>
                     </div>
-                    <button type="button" class="icon-btn mobile-nav-close" @click="closeMobileMenu">
+                    <button type="button" class="icon-btn mobile-nav-close" @click="closeMobileMenu" aria-label="Đóng menu">
                         <AppIcon name="x" size="18" stroke-width="2.5" />
                     </button>
                 </div>
 
-                <div class="mobile-search-wrapper" style="position: relative; margin-bottom: 24px;">
-                    <form class="mobile-search-box" @submit.prevent="executeSearch(); closeMobileMenu()">
-                        <AppIcon name="search" size="18" class="mobile-search-icon" />
-                        <input type="search" class="mobile-search-input" placeholder="Tìm kiếm sản phẩm..."
-                            v-model="searchQuery" @focus="handleSearchFocus" @blur="handleSearchBlur" />
-                    </form>
+                <div class="mobile-nav-body">
+                    <div class="mobile-search-wrapper">
+                        <form class="mobile-search-box" @submit.prevent="executeSearch(); closeMobileMenu()">
+                            <AppIcon name="search" size="16" class="mobile-search-icon" />
+                            <input type="search" class="mobile-search-input" placeholder="Tìm kiếm sản phẩm..."
+                                v-model="searchQuery" @focus="handleSearchFocus" @blur="handleSearchBlur" />
+                        </form>
 
-                    <!-- Search dropdown results for Mobile -->
-                    <div class="search-dropdown-box mobile-dropdown" v-if="showDropdownResult"
-                        style="position: absolute; top: calc(100% + 8px); right: auto; left: 0; width: 100%; z-index: 1000;">
-                        <div v-if="isSearching" class="search-msg">Đang tìm kiếm...</div>
+                        <!-- Search dropdown results for Mobile -->
+                        <div class="search-dropdown-box mobile-dropdown" v-if="showDropdownResult">
+                            <div v-if="isSearching" class="search-msg">Đang tìm kiếm...</div>
 
-                        <!-- Lịch sử tìm kiếm & Gợi ý (khi chưa gõ) -->
-                        <div v-else-if="!searchQuery" class="search-suggestions">
-                            <div class="search-history-section" v-if="searchHistory.length">
-                                <div class="suggestion-header"
-                                    style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF; display:flex; justify-content: space-between">
-                                    <span>Lịch sử tìm kiếm</span>
-                                </div>
-                                <ul class="search-list">
-                                    <li v-for="(history, i) in searchHistory" :key="'hm-' + i" class="search-item"
-                                        @click.stop="executeSearch(history.keyword); closeMobileMenu()">
-                                        <AppIcon name="search" size="14" style="margin-right: 8px; color: #636E72" />
-                                        <div class="search-item-info">
-                                            <div class="search-item-name" style="font-weight: 500;">{{ history.keyword
-                                                }}
-                                            </div>
-                                        </div>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div class="recently-viewed-section" v-if="recentlyViewed.length">
-                                <div class="suggestion-header"
-                                    style="padding: 10px 16px; font-weight: 600; font-size: 0.9rem; color: #2D3436; border-bottom: 1px solid #E9ECEF;">
-                                    <span>Sản phẩm vừa xem</span>
-                                </div>
-                                <ul class="search-list">
-                                    <li v-for="item in recentlyViewed" :key="'rm-' + item.product_id" class="search-item"
-                                        @click.stop="goToProduct(item.product.slug); closeMobileMenu()">
-                                        <img :src="getImageUrl(item.product)" class="search-item-img" />
-                                        <div class="search-item-info">
-                                            <div class="search-item-name">{{ item.product.name }}</div>
-                                            <div class="search-item-price">{{ formatPrice(item.product.min_price) }}
-                                            </div>
-                                        </div>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <div v-if="!searchHistory.length && !recentlyViewed.length" class="search-msg">
-                                Nhập từ khóa để tìm kiếm...
-                            </div>
-                        </div>
-
-                        <!-- Kết quả tìm kiếm -->
-                        <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản
-                            phẩm phù hợp.</div>
-                        <template v-else>
-                            <ul class="search-list">
-                                <li v-for="item in searchResults" :key="'sm-' + item.product_id" class="search-item"
-                                    @click.stop="goToProduct(item.slug); closeMobileMenu()">
-                                    <img :src="getImageUrl(item)" class="search-item-img" />
-                                    <div class="search-item-info">
-                                        <div class="search-item-name">{{ item.name }}</div>
-                                        <div class="search-item-price">{{ formatPrice(item.min_price) }}</div>
+                            <!-- Lịch sử tìm kiếm & Gợi ý (khi chưa gõ) -->
+                            <div v-else-if="!searchQuery" class="search-suggestions">
+                                <div class="search-history-section" v-if="searchHistory.length">
+                                    <div class="suggestion-header">
+                                        <span>Lịch sử tìm kiếm</span>
                                     </div>
-                                </li>
-                            </ul>
-                            <div v-if="searchResults.length > 0" class="search-view-all"
-                                @click.stop="executeSearch(); closeMobileMenu()">
-                                Xem tất cả kết quả
+                                    <ul class="search-list">
+                                        <li v-for="(history, i) in searchHistory" :key="'hm-' + i" class="search-item"
+                                            @click.stop="executeSearch(history.keyword); closeMobileMenu()">
+                                            <AppIcon name="search" size="14" style="margin-right: 8px; color: #636E72" />
+                                            <div class="search-item-info">
+                                                <div class="search-item-name" style="font-weight: 500;">{{ history.keyword }}</div>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div class="recently-viewed-section" v-if="recentlyViewed.length">
+                                    <div class="suggestion-header">
+                                        <span>Sản phẩm vừa xem</span>
+                                    </div>
+                                    <ul class="search-list">
+                                        <li v-for="item in recentlyViewed" :key="'rm-' + item.product_id" class="search-item"
+                                            @click.stop="goToProduct(item.product.slug); closeMobileMenu()">
+                                            <img :src="getImageUrl(item.product)" class="search-item-img" />
+                                            <div class="search-item-info">
+                                                <div class="search-item-name">{{ item.product.name }}</div>
+                                                <div class="search-item-price">{{ formatPrice(item.product.min_price) }}</div>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div v-if="!searchHistory.length && !recentlyViewed.length" class="search-msg">
+                                    Nhập từ khóa để tìm kiếm...
+                                </div>
+                            </div>
+
+                            <!-- Kết quả tìm kiếm -->
+                            <div v-else-if="searchResults.length === 0 && searchQuery" class="search-msg">Không tìm thấy sản
+                                phẩm phù hợp.</div>
+                            <template v-else>
+                                <ul class="search-list">
+                                    <li v-for="item in searchResults" :key="'sm-' + item.product_id" class="search-item"
+                                        @click.stop="goToProduct(item.slug); closeMobileMenu()">
+                                        <img :src="getImageUrl(item)" class="search-item-img" />
+                                        <div class="search-item-info">
+                                            <div class="search-item-name">{{ item.name }}</div>
+                                            <div class="search-item-price">{{ formatPrice(item.min_price) }}</div>
+                                        </div>
+                                    </li>
+                                </ul>
+                                <div v-if="searchResults.length > 0" class="search-view-all"
+                                    @click.stop="executeSearch(); closeMobileMenu()">
+                                    Xem tất cả kết quả
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Categories Pills -->
+                    <div class="mobile-section" v-if="topCategories && topCategories.length">
+                        <div class="mobile-section-label">Danh mục nổi bật</div>
+                        <div class="mobile-category-grid">
+                            <router-link v-for="cat in topCategories" :key="`mobile-${getCategoryId(cat)}`"
+                                :to="getCategoryRoute(cat)" class="mobile-category-pill"
+                                :class="{ active: isCategoryActive(cat) }" @click="closeMobileMenu">
+                                {{ cat.name }}
+                            </router-link>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Pages -->
+                    <div class="mobile-section">
+                        <div class="mobile-section-label">Khám phá</div>
+                        <nav class="mobile-nav-links">
+                            <router-link
+                                to="/courts"
+                                class="mobile-nav-link"
+                                :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
+                                @click="closeMobileMenu"
+                            >
+                                <span class="mobile-nav-link-left">
+                                    <AppIcon name="map-pin" size="16" class="mobile-link-icon" />
+                                    <span>Sân thể thao</span>
+                                </span>
+                                <span class="mobile-link-arrow">›</span>
+                            </router-link>
+                            <router-link
+                                to="/posts"
+                                class="mobile-nav-link"
+                                :class="{ active: isRouteActive('post-list') || isRouteActive('post-detail') }"
+                                @click="closeMobileMenu"
+                            >
+                                <span class="mobile-nav-link-left">
+                                    <AppIcon name="clipboard-list" size="16" class="mobile-link-icon" />
+                                    <span>Tin tức</span>
+                                </span>
+                                <span class="mobile-link-arrow">›</span>
+                            </router-link>
+                            <router-link
+                                to="/contact"
+                                class="mobile-nav-link"
+                                :class="{ active: isRouteActive('contact') }"
+                                @click="closeMobileMenu"
+                            >
+                                <span class="mobile-nav-link-left">
+                                    <AppIcon name="contact" size="16" class="mobile-link-icon" />
+                                    <span>Liên hệ</span>
+                                </span>
+                                <span class="mobile-link-arrow">›</span>
+                            </router-link>
+                            <router-link to="/coupon" class="mobile-nav-link mobile-coupon-link"
+                                :class="{ active: isRouteActive('coupon') }" @click="closeMobileMenu">
+                                <span class="mobile-nav-link-left">
+                                    <AppIcon name="tag" size="16" class="mobile-link-icon coupon-icon" />
+                                    <span>Săn voucher</span>
+                                </span>
+                                <span class="mobile-badge-hot">Ưu đãi</span>
+                            </router-link>
+                        </nav>
+                    </div>
+
+                    <!-- Auth / Account Section -->
+                    <div class="mobile-nav-account">
+                        <template v-if="isLoggedIn">
+                            <div class="mobile-account-summary">
+                                <img v-if="userAvatar" :src="userAvatar" class="header-user-avatar" />
+                                <div v-else class="header-user-avatar-fallback">
+                                    {{ (userName || "?")[0].toUpperCase() }}
+                                </div>
+                                <div class="mobile-account-text">
+                                    <strong>{{ userName }}</strong>
+                                    <span>{{ userEmail }}</span>
+                                </div>
+                            </div>
+                            <div class="mobile-account-grid">
+                                <router-link to="/profile" class="mobile-account-btn" @click="closeMobileMenu">
+                                    <AppIcon name="user" size="14" />
+                                    Tài khoản
+                                </router-link>
+                                <router-link v-if="isAdmin" to="/admin" class="mobile-account-btn" @click="closeMobileMenu">
+                                    <AppIcon name="dashboard" size="14" />
+                                    Quản trị
+                                </router-link>
+                                <router-link to="/profile/notifications" class="mobile-account-btn" @click="closeMobileMenu">
+                                    <AppIcon name="bell" size="14" />
+                                    Thông báo
+                                </router-link>
+                            </div>
+                            <button type="button" class="mobile-logout-btn" @click="handleLogout">
+                                <AppIcon name="rotate-ccw" size="14" />
+                                Đăng xuất
+                            </button>
+                        </template>
+                        <template v-else>
+                            <div class="mobile-auth-grid">
+                                <router-link to="/client/login" class="btn-auth-mobile btn-login-mobile" @click="closeMobileMenu">
+                                    Đăng nhập
+                                </router-link>
+                                <router-link to="/client/register" class="btn-auth-mobile btn-register-mobile" @click="closeMobileMenu">
+                                    Đăng ký
+                                </router-link>
                             </div>
                         </template>
                     </div>
-                </div>
-
-                <nav class="mobile-nav-links">
-                    <router-link v-for="cat in topCategories" :key="`mobile-${getCategoryId(cat)}`"
-                        :to="getCategoryRoute(cat)" class="mobile-nav-link" :class="{ active: isCategoryActive(cat) }"
-                        @click="closeMobileMenu">
-                        {{ cat.name }}
-                    </router-link>
-                    <router-link
-                        to="/courts"
-                        class="mobile-nav-link"
-                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
-                        @click="closeMobileMenu"
-                    >
-                        Sân thể thao
-                    </router-link>
-                    <router-link
-                        to="/posts"
-                        class="mobile-nav-link"
-                        :class="{ active: isRouteActive('post-list') || isRouteActive('post-detail') }"
-                        @click="closeMobileMenu"
-                    >
-                        Tin tức
-                    </router-link>
-                    <router-link
-                        to="/contact"
-                        class="mobile-nav-link"
-                        :class="{ active: isRouteActive('contact') }"
-                        @click="closeMobileMenu"
-                    >
-                        Liên hệ
-                    </router-link>
-                    <router-link to="/coupon" class="mobile-nav-link" :class="{ active: isRouteActive('coupon') }"
-                        @click="closeMobileMenu">
-                        Săn voucher
-                    </router-link>
-                </nav>
-
-                <div class="mobile-nav-account">
-                    <template v-if="isLoggedIn">
-                        <div class="mobile-account-summary">
-                            <img v-if="userAvatar" :src="userAvatar" class="header-user-avatar" />
-                            <div v-else class="header-user-avatar-fallback">
-                                {{ (userName || "?")[0].toUpperCase() }}
-                            </div>
-                            <div class="mobile-account-text">
-                                <strong>{{ userName }}</strong>
-                                <span>{{ userEmail }}</span>
-                            </div>
-                        </div>
-                        <router-link to="/profile" class="mobile-account-link" @click="closeMobileMenu">Tài khoản của
-                            tôi</router-link>
-                        <router-link v-if="isAdmin" to="/admin" class="mobile-account-link"
-                            @click="closeMobileMenu">Quản trị</router-link>
-                        <router-link to="/profile/notifications" class="mobile-account-link"
-                            @click="closeMobileMenu">Thông báo</router-link>
-                        <button type="button" class="mobile-account-link mobile-account-link--danger"
-                            @click="handleLogout">
-                            Đăng xuất
-                        </button>
-                    </template>
-                    <template v-else>
-                        <router-link to="/client/login" class="mobile-account-link" @click="closeMobileMenu">Đăng
-                            nhập</router-link>
-                        <router-link to="/client/register" class="mobile-account-link" @click="closeMobileMenu">Đăng
-                            ký</router-link>
-                    </template>
                 </div>
             </div>
         </div>
     </Transition>
 
-    <div class="floating-flash-sale" @click="handleFlashSaleClick">
+    <div v-if="showFloatingFlashSale" class="floating-flash-sale" @click="handleFlashSaleClick">
         <div class="flash-sale-badge">
             <AppIcon name="zap" class="flash-sale-icon" size="24" />
             <span class="flash-sale-text">FLASH SALE</span>
@@ -1685,22 +1744,25 @@ watch(
     inset: 0;
     z-index: 10000;
     background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(4px);
-    padding: 12px;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     display: flex;
     justify-content: flex-end;
 }
 
 .mobile-nav-panel {
-    width: min(88vw, 360px);
-    height: calc(100vh - 24px);
-    background: var(--card-bg);
-    border-radius: 24px;
-    padding: 18px;
+    width: min(85vw, 340px);
+    height: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    background: var(--card-bg, #ffffff);
+    border-radius: 24px 0 0 24px;
+    padding: 18px 16px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.24);
+    gap: 12px;
+    box-shadow: -10px 0 40px rgba(15, 23, 42, 0.18);
+    overflow: hidden;
 }
 
 .mobile-nav-header {
@@ -1708,49 +1770,97 @@ watch(
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+    flex-shrink: 0;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #f1f5f9;
 }
 
 .mobile-nav-eyebrow {
-    margin: 0 0 4px;
-    font-size: 0.74rem;
+    margin: 0 0 2px;
+    font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #94a3b8;
+    color: var(--primary, #e63b6f);
 }
 
 .mobile-nav-title {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: 1.15rem;
     font-weight: 800;
-    color: var(--text-main);
+    color: var(--text-main, #1e293b);
 }
 
 .mobile-nav-close {
     flex-shrink: 0;
-}
-
-.mobile-search-box,
-.mobile-account-link {
-    width: 100%;
-    border: 1px solid #e2e8f0;
-    background: var(--card-bg);
-    color: var(--text-main);
-    border-radius: 14px;
-    padding: 14px 16px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    text-decoration: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    border: none;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    color: #64748b;
+    cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.mobile-search-box:focus-within,
-.mobile-account-link:hover {
-    border-color: rgba(230, 59, 111, 0.28);
-    background: #fff7f9;
+.mobile-nav-close:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+.mobile-nav-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 2px;
+    padding-bottom: 14px;
+}
+
+.mobile-nav-body::-webkit-scrollbar {
+    width: 4px;
+}
+
+.mobile-nav-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.mobile-nav-body::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 4px;
+}
+
+.mobile-search-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.mobile-search-box {
+    width: 100%;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    color: var(--text-main);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.mobile-search-box:focus-within {
+    border-color: var(--primary, #e63b6f);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.12);
 }
 
 .mobile-search-input {
@@ -1758,7 +1868,7 @@ watch(
     border: none;
     background: transparent;
     outline: none;
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     font-weight: 500;
     font-family: inherit;
     color: inherit;
@@ -1767,49 +1877,200 @@ watch(
 
 .mobile-search-input::placeholder {
     color: #94a3b8;
-    font-weight: 500;
+    font-weight: 400;
 }
 
 .mobile-search-icon {
-    color: #64748b;
+    color: #94a3b8;
+    flex-shrink: 0;
 }
 
-.mobile-nav-links,
-.mobile-nav-account {
+.mobile-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    z-index: 100;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+.mobile-dropdown .search-list {
+    max-height: 220px;
+}
+
+.mobile-section {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 5px;
+    flex-shrink: 0;
 }
 
+.mobile-section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94a3b8;
+    padding: 0 2px;
+}
+
+/* Category Grid (Pills) */
+.mobile-category-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.mobile-category-pill {
+    padding: 7px 10px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #334155;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.2s ease;
+}
+
+.mobile-category-pill:hover,
+.mobile-category-pill.active {
+    color: var(--primary, #e63b6f);
+    background: #fff1f4;
+    border-color: rgba(230, 59, 111, 0.3);
+}
+
+/* Main Navigation Links */
 .mobile-nav-links {
-    padding-bottom: 18px;
-    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
 }
 
 .mobile-nav-link {
-    display: block;
-    padding: 12px 14px;
-    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    border-radius: 10px;
     text-decoration: none;
     color: #334155;
     font-weight: 600;
-    background: #f8fafc;
-    border: 1px solid transparent;
-    transition: all 0.2s ease;
+    font-size: 0.88rem;
+    background: transparent;
+    transition: all 0.18s ease;
+}
+
+.mobile-nav-link-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mobile-link-icon {
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.mobile-link-arrow {
+    color: #cbd5e1;
+    font-size: 1rem;
+    font-weight: 400;
 }
 
 .mobile-nav-link:hover,
 .mobile-nav-link.active {
-    color: var(--primary);
+    color: var(--primary, #e63b6f);
     background: #fff1f4;
-    border-color: rgba(230, 59, 111, 0.18);
 }
 
+.mobile-nav-link:hover .mobile-link-icon,
+.mobile-nav-link.active .mobile-link-icon {
+    color: var(--primary, #e63b6f);
+}
+
+.mobile-coupon-link {
+    background: linear-gradient(135deg, #fff7ed 0%, #fff1f2 100%);
+    border: 1px dashed #fca5a5;
+}
+
+.mobile-coupon-link .coupon-icon {
+    color: #ef4444;
+}
+
+.mobile-badge-hot {
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Auth / Account Section */
+.mobile-nav-account {
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+    flex-shrink: 0;
+}
+
+.mobile-auth-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.btn-auth-mobile {
+    padding: 9px 8px;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.btn-login-mobile {
+    background: #f8fafc;
+    color: #334155;
+    border: 1.5px solid #e2e8f0;
+}
+
+.btn-login-mobile:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+.btn-register-mobile {
+    background: var(--primary, #e63b6f);
+    color: #ffffff;
+    border: 1.5px solid transparent;
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25);
+}
+
+.btn-register-mobile:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.35);
+}
+
+/* Logged in view */
 .mobile-account-summary {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 4px 2px 10px;
+    gap: 10px;
+    padding: 2px 2px 6px;
 }
 
 .mobile-account-text {
@@ -1820,24 +2081,78 @@ watch(
 
 .mobile-account-text strong {
     color: var(--text-main);
-    font-size: 0.96rem;
+    font-size: 0.88rem;
 }
 
 .mobile-account-text span {
     color: #64748b;
-    font-size: 0.82rem;
+    font-size: 0.75rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.mobile-account-link--danger {
-    color: #dc2626;
+.mobile-account-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    margin-bottom: 6px;
 }
 
+.mobile-account-btn {
+    padding: 6px 4px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.mobile-account-btn:hover {
+    background: #fff1f4;
+    border-color: rgba(230, 59, 111, 0.3);
+    color: var(--primary);
+}
+
+.mobile-logout-btn {
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid #fee2e2;
+    background: #fef2f2;
+    color: #dc2626;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.mobile-logout-btn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
+/* Animations */
 .mobile-menu-fade-enter-active,
 .mobile-menu-fade-leave-active {
-    transition: opacity 0.2s ease;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mobile-menu-fade-enter-active .mobile-nav-panel,
+.mobile-menu-fade-leave-active .mobile-nav-panel {
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mobile-menu-fade-enter-from,
@@ -1845,12 +2160,18 @@ watch(
     opacity: 0;
 }
 
+.mobile-menu-fade-enter-from .mobile-nav-panel,
+.mobile-menu-fade-leave-to .mobile-nav-panel {
+    transform: translateX(100%);
+}
+
 /* FLOATING FLASH SALE (FIXED) */
 .floating-flash-sale {
     position: fixed;
     z-index: 9999;
-    bottom: 120px;
-    right: 20px;
+    bottom: 84px;
+    right: 24px;
+    left: auto;
     cursor: pointer;
     user-select: none;
     /* transition: transform 0.2s ease, opacity 0.2s ease; */
@@ -1869,37 +2190,37 @@ watch(
     align-items: center;
     background: var(--primary);
     color: #fff;
-    height: 60px;
-    width: 60px;
-    border-radius: 30px;
-    padding: 0 18px;
-    /* 18px + 18px + 24px icon = 60px */
+    height: 46px;
+    width: 46px;
+    border-radius: 23px;
+    padding: 0 13px;
     overflow: hidden;
     white-space: nowrap;
-    box-shadow: 0 4px 15px rgba(230, 59, 111, 0.4);
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.3);
     position: relative;
     z-index: 1;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    /* Bouncy effect */
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .floating-flash-sale:hover .flash-sale-badge {
-    width: 170px;
-    box-shadow: 0 8px 25px rgba(230, 59, 111, 0.5);
+    width: 150px;
+    box-shadow: 0 6px 18px rgba(230, 59, 111, 0.4);
 }
 
 .flash-sale-icon {
     flex-shrink: 0;
+    width: 20px;
+    height: 20px;
 }
 
 .flash-sale-text {
     font-weight: 800;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     letter-spacing: 0.5px;
-    margin-left: 12px;
+    margin-left: 10px;
     opacity: 0;
-    transform: translateX(-15px);
-    transition: all 0.3s ease;
+    transform: translateX(-10px);
+    transition: all 0.25s ease;
 }
 
 .floating-flash-sale:hover .flash-sale-text {
@@ -1908,35 +2229,42 @@ watch(
     transition-delay: 0.05s;
 }
 
-/* Vòng tròn sóng lan tỏa (Sonar Ping) */
-.flash-sale-badge::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 30px;
-    background: var(--primary);
-    opacity: 0.6;
-    z-index: -1;
-    animation: sonar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
 .flash-sale-badge svg {
     color: #fff;
     fill: #fff;
 }
 
-@keyframes sonar-ping {
-    0% {
-        transform: scale(1);
-        opacity: 1;
+@media (max-width: 1024px) and (min-width: 769px) {
+    .floating-flash-sale {
+        bottom: 74px;
+        right: 20px;
+        left: auto;
     }
+    .flash-sale-badge {
+        height: 42px;
+        width: 42px;
+        border-radius: 21px;
+    }
+}
 
-    100% {
-        transform: scale(1.35, 1.6);
-        opacity: 0;
+@media (max-width: 768px) {
+    .floating-flash-sale {
+        bottom: 70px;
+        right: 17px;
+        left: auto;
+    }
+    .flash-sale-badge {
+        height: 38px;
+        width: 38px;
+        border-radius: 19px;
+        padding: 0 9px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    .floating-flash-sale:hover .flash-sale-badge {
+        width: 38px;
+    }
+    .floating-flash-sale:hover .flash-sale-text {
+        display: none;
     }
 }
 
@@ -2033,6 +2361,33 @@ watch(
     .flash-sale-icon {
         width: 18px;
         height: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .mobile-nav-panel {
+        width: min(86vw, 320px);
+        padding: 16px 14px;
+        gap: 10px;
+    }
+
+    .mobile-nav-title {
+        font-size: 1.08rem;
+    }
+
+    .mobile-category-pill {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+
+    .mobile-nav-link {
+        padding: 6px 8px;
+        font-size: 0.85rem;
+    }
+
+    .btn-auth-mobile {
+        padding: 8px 6px;
+        font-size: 0.84rem;
     }
 }
 
