@@ -344,6 +344,7 @@ const activeFilterTab = ref('all');
 const messagesContainer = ref(null);
 const replyInput = ref(null);
 let isConnectedEcho = false;
+let echoChannel = null;
 
 // Quick reply templates
 const quickReplies = [
@@ -424,6 +425,16 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('admin-chat-message', handleAdminChatMessage);
+  // Leave the Echo channel so we don't accumulate duplicate listeners on re-mount
+  if (echoChannel) {
+    try {
+      echoChannel.stopListening('.message.sent');
+      echoChannel.stopListening('MessageSent');
+      if (window.Echo) window.Echo.leave('admin.chats');
+    } catch (e) {}
+    echoChannel = null;
+  }
+  isConnectedEcho = false;
 });
 
 const handleAdminChatMessage = (event) => {
@@ -435,10 +446,16 @@ const handleAdminChatMessage = (event) => {
   const existingSession = sessions.value.find(s => s.id === sessionId);
   if (existingSession) {
     existingSession.last_message_at = new Date().toISOString();
-    if (e.senderType === 'user' && (!activeSession.value || activeSession.value.id !== sessionId)) {
+    if (activeSession.value && activeSession.value.id === sessionId) {
+      existingSession.unread_count = 0;
+      if (e.senderType === 'user') {
+        api.get(`/admin/live-chats/${sessionId}`).catch(() => {});
+      }
+    } else if (e.senderType === 'user') {
       existingSession.unread_count = (existingSession.unread_count || 0) + 1;
     }
     sessions.value.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+    window.dispatchEvent(new CustomEvent('update-sidebar-badges'));
   } else {
     fetchSessions();
   }
@@ -469,15 +486,31 @@ const handleAdminChatMessage = (event) => {
     // 3. Tin nhắn hợp lệ mới -> Push vào danh sách
     currentMessages.value.push(e.message);
     scrollToBottom();
-
-    // Nếu là tin nhắn từ user -> Gọi đánh dấu đã đọc
-    if (e.senderType === 'user') {
-      api.get(`/admin/live-chats/${sessionId}`).catch(() => {});
-    }
   }
 };
 
+function ensureEcho(callback, maxAttempts = 30) {
+  if (window.Echo) {
+    callback(window.Echo);
+  } else if (maxAttempts > 0) {
+    setTimeout(() => ensureEcho(callback, maxAttempts - 1), 200);
+  }
+}
+
 const setupEcho = () => {
+  ensureEcho((echo) => {
+    echoChannel = echo.channel('admin.chats');
+    echoChannel
+      .stopListening('.message.sent')
+      .listen('.message.sent', (e) => {
+        handleAdminChatMessage({ detail: e });
+      })
+      .stopListening('MessageSent')
+      .listen('MessageSent', (e) => {
+        handleAdminChatMessage({ detail: e });
+      });
+  });
+
   if (!isConnectedEcho) {
     window.addEventListener('admin-chat-message', handleAdminChatMessage);
     isConnectedEcho = true;

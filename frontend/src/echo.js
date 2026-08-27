@@ -24,11 +24,18 @@ if (reverbKey && isReverbEnabled) {
 
     try {
         const rawHost = import.meta.env.VITE_REVERB_HOST;
-        const wsHost = (rawHost && rawHost !== 'localhost')
-            ? rawHost
-            : (isHttps ? resolveDefaultWsHost() : (rawHost || 'localhost'));
+        const currentHostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
-        const wsPort = isHttps ? 443 : (import.meta.env.VITE_REVERB_PORT ? Number(import.meta.env.VITE_REVERB_PORT) : 8383);
+        let wsHost = currentHostname;
+        if (rawHost && rawHost !== 'localhost' && rawHost !== '127.0.0.1') {
+            wsHost = rawHost;
+        } else if (isHttps) {
+            wsHost = resolveDefaultWsHost();
+        }
+
+        const wsPort = isHttps 
+            ? 443 
+            : (import.meta.env.VITE_REVERB_PORT ? Number(import.meta.env.VITE_REVERB_PORT) : 8383);
         const useTls = isHttps || import.meta.env.VITE_REVERB_SCHEME === 'https';
 
         window.Echo = new Echo({
@@ -40,6 +47,11 @@ if (reverbKey && isReverbEnabled) {
             forceTLS: useTls,
             enabledTransports: useTls ? ['wss', 'ws'] : ['ws'],
             disableStats: true,
+            // Client-side heartbeat: send pusher:ping after 25s of inactivity.
+            // This MUST be less than the server-side activity_timeout (120s in reverb.php)
+            // to keep the WebSocket connection alive during idle periods.
+            activityTimeout: 25000,
+            pongTimeout: 10000,
             authEndpoint: broadcastingAuthEndpoint,
             authorizer: (channel, options) => {
                 return {
@@ -59,13 +71,74 @@ if (reverbKey && isReverbEnabled) {
             }
         });
 
-        if (window.Echo?.connector?.pusher?.connection) {
-            window.Echo.connector.pusher.connection.bind('error', (err) => {
-                console.debug('[Echo] Realtime connection:', err?.error?.data?.message || err?.message || 'Reconnecting...');
+        const pusherConn = window.Echo?.connector?.pusher?.connection;
+        if (pusherConn) {
+            pusherConn.bind('error', (err) => {
+                const msg = err?.error?.data?.message || err?.message || 'Reconnecting...';
+                console.debug('[Echo] Realtime connection info:', msg);
             });
-            window.Echo.connector.pusher.connection.bind('unavailable', () => {
-                console.debug('[Echo] Realtime service currently unavailable, falling back to REST APIs.');
+            pusherConn.bind('unavailable', () => {
+                console.debug('[Echo] Realtime service temporarily unavailable, will retry automatically.');
             });
+        }
+
+        // ==========================================
+        // Page Lifecycle & Back-Forward Cache (bfcache) Handling
+        // ==========================================
+        let isSuspended = false;
+
+        const handleDisconnect = () => {
+            if (window.Echo?.connector?.pusher) {
+                try {
+                    isSuspended = true;
+                    window.Echo.disconnect();
+                } catch (e) {
+                    // Ignore teardown errors
+                }
+            }
+        };
+
+        const handleReconnect = () => {
+            if (window.Echo?.connector?.pusher) {
+                try {
+                    isSuspended = false;
+                    const state = window.Echo.connector.pusher.connection?.state;
+                    if (state === 'disconnected' || state === 'unavailable' || state === 'failed') {
+                        window.Echo.connect();
+                    }
+                } catch (e) {
+                    // Ignore reconnect errors
+                }
+            }
+        };
+
+        if (typeof window !== 'undefined') {
+            // 1. Back-Forward Cache (bfcache) entry:
+            window.addEventListener('pagehide', () => {
+                handleDisconnect();
+            });
+
+            // 2. Back-Forward Cache (bfcache) restore:
+            window.addEventListener('pageshow', (event) => {
+                if (event.persisted || isSuspended) {
+                    handleReconnect();
+                }
+            });
+
+            // 3. Page Lifecycle API (freeze & resume for modern browsers / mobile devices)
+            document.addEventListener('freeze', handleDisconnect);
+            document.addEventListener('resume', handleReconnect);
+
+            // 4. Tab visibility change (reconnect if tab was backgrounded and woke up)
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    handleReconnect();
+                }
+            });
+
+            // 5. Network connectivity
+            window.addEventListener('online', handleReconnect);
+            window.addEventListener('offline', handleDisconnect);
         }
     } catch (e) {
         console.debug('[Echo] Initialization skipped, running in polling mode.');
@@ -73,3 +146,5 @@ if (reverbKey && isReverbEnabled) {
 } else {
     console.debug('[Echo] WebSocket realtime chưa được cấu hình hoặc đã tắt. Chạy chế độ dự phòng.');
 }
+
+export default window.Echo;
