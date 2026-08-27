@@ -5,10 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Admin\StoreCouponRequest;
 use App\Http\Requests\Admin\UpdateCouponRequest;
 use App\Jobs\SendBulkCouponEmail;
-use App\Notifications\SystemNotification;
 use App\Services\CouponService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Notification;
 
 class CouponController extends Controller
 {
@@ -136,24 +134,7 @@ class CouponController extends Controller
             'coupon_id' => 'required|integer',
         ]);
 
-        $couponId = (int) $validated['coupon_id'];
-        $coupon = \App\Models\Coupon::find($couponId);
-        $couponCode = $coupon ? $coupon->code : 'Mã giảm giá';
-
-        $result = $this->couponService->saveForUser($userId, $couponId);
-
-        if (in_array($result['state'], ['not_found', 'not_eligible'])) {
-            try {
-                Notification::sendNow($user, new SystemNotification(
-                    "Lưu mã giảm giá {$couponCode} không thành công",
-                    "Không thể lưu mã giảm giá {$couponCode}. Nguyên nhân: {$result['message']}",
-                    '/coupons',
-                    'voucher'
-                ));
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Notification error when saving coupon failed: ' . $e->getMessage());
-            }
-        }
+        $result = $this->couponService->saveForUser($userId, (int) $validated['coupon_id']);
 
         if ($result['state'] === 'not_found') {
             return response()->json(['status' => 'error', 'message' => $result['message']], 404);
