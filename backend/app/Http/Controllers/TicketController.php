@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Events\TicketCreatedAdmin;
+use App\Mail\TicketReplyMail;
 use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\SystemNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class TicketController extends Controller
@@ -98,18 +100,19 @@ class TicketController extends Controller
                         $message .= ' Admin: '.substr($ticket->admin_reply, 0, 60).'...';
                     }
 
-                    $notificationData = [
-                        'title' => $title,
-                        'message' => $message,
-                        'url_redirect' => '/profile', // user có thể xem trong profile
-                        'icon' => 'bell',
-                    ];
+                    // Gửi email thông báo
+                    try {
+                        Mail::to($user->email)->send(new TicketReplyMail($ticket));
+                    } catch (\Exception $mailEx) {
+                        Log::warning('TicketReplyMail failed: ' . $mailEx->getMessage());
+                    }
 
+                    // Gửi thông báo in-app
                     $user->notify(new SystemNotification(
-                        $notificationData['title'],
-                        $notificationData['message'],
-                        $notificationData['url_redirect'],
-                        $notificationData['icon']
+                        $title,
+                        $message,
+                        '/profile/tickets',
+                        'bell'
                     ));
                 }
             }
