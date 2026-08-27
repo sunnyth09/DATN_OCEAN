@@ -6,6 +6,7 @@ import { getStorageUrl } from '@/utils/url';
 const props = defineProps({
   productId: { type: Number, required: true },
   productImageUrl: { type: String, required: true },
+  productImagePath: { type: String, default: null },
   productName: { type: String, default: '' },
   productSlug: { type: String, default: '' },
   productPrice: { type: Number, default: 0 },
@@ -94,6 +95,9 @@ const submitTryOn = async () => {
   const formData = new FormData();
   formData.append('product_id', props.productId);
   formData.append('user_image', uploadedFile.value);
+  if (props.productImagePath) {
+    formData.append('product_image_path', props.productImagePath);
+  }
 
   try {
     const response = await api.post('/try-on', formData, {

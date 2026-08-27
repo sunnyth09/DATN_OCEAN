@@ -433,6 +433,13 @@ const mainImageUrl = computed(() => {
   return getImageUrl(imgs[idx]?.image_url);
 });
 
+const mainImageRawPath = computed(() => {
+  const imgs = allImages.value;
+  if (imgs.length === 0) return null;
+  const idx = activeImageIndex.value < imgs.length ? activeImageIndex.value : 0;
+  return imgs[idx]?.image_url;
+});
+
 const nextImage = () => {
   if (allImages.value.length === 0) return;
   activeImageIndex.value = (activeImageIndex.value + 1) % allImages.value.length;
@@ -1220,7 +1227,7 @@ onBeforeUnmount(() => {
 
   <!-- Virtual Try-On Modal -->
   <VirtualTryOnModal v-if="product?.product_id" :show="showTryOn" :product-id="product?.product_id" :product-name="product?.name"
-    :product-image-url="mainImageUrl" :product-slug="product?.slug" :product-price="displayPriceInfo.current"
+    :product-image-url="mainImageUrl" :product-image-path="mainImageRawPath" :product-slug="product?.slug" :product-price="displayPriceInfo.current"
     :has-selected-variant="!!selectedVariant && selectedVariant.stock > 0"
     @close="showTryOn = false" @buy-now="handleTryOnBuyNow" @go-to-product="handleTryOnGoToProduct" />
 
