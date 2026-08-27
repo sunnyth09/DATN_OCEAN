@@ -93,17 +93,24 @@
     }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
     .product-skeleton-card {
         min-height: unset;
+        border-radius: 12px;
+    }
+
+    .skeleton-media {
+        padding: 8px 8px 0;
     }
 
     .skeleton-img {
-        height: 150px;
+        height: 120px;
+        border-radius: 8px 8px 0 0;
     }
 
     .skeleton-info {
-        padding: 10px 12px 14px;
+        padding: 8px 10px 10px;
+        gap: 4px;
     }
 }
 </style>

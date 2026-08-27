@@ -59,7 +59,10 @@ onMounted(async () => {
       <!-- Success -->
       <template v-if="status === 'success'">
         <div class="callback-icon success">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
         </div>
         <h2>Đăng nhập thành công!</h2>
         <p>Đang chuyển hướng...</p>
@@ -68,7 +71,11 @@ onMounted(async () => {
       <!-- Error -->
       <template v-if="status === 'error'">
         <div class="callback-icon error">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </div>
         <h2>Đăng nhập thất bại</h2>
         <p>{{ errorMsg }}</p>
@@ -80,30 +87,76 @@ onMounted(async () => {
 
 <style scoped>
 .callback-page {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: #F8F9FA; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F8F9FA;
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
+
 .callback-card {
-  text-align: center; background: var(--card-bg); border-radius: 16px;
-  padding: 48px 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.06);
-  max-width: 400px; width: 100%;
+  text-align: center;
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 48px 40px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  max-width: 400px;
+  width: 100%;
 }
-.callback-card h2 { font-size: 1.3rem; font-weight: 700; color: var(--text-main); margin: 20px 0 8px; }
-.callback-card p { font-size: 0.9rem; color: #636E72; margin: 0; }
+
+.callback-card h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 20px 0 8px;
+}
+
+.callback-card p {
+  font-size: 0.9rem;
+  color: #636E72;
+  margin: 0;
+}
 
 .callback-spinner {
-  width: 48px; height: 48px; border: 4px solid #E9ECEF;
-  border-top-color: var(--primary); border-radius: 50%;
-  animation: spin 0.8s linear infinite; margin: 0 auto;
+  width: 48px;
+  height: 48px;
+  border: 4px solid #E9ECEF;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .callback-icon {
-  width: 64px; height: 64px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; margin: 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
 }
-.callback-icon.success { background: #dcfce7; color: #16a34a; }
-.callback-icon.error { background: #fee2e2; color: #dc2626; }
 
-.redirect-note { font-size: 0.78rem; color: #636E72; margin-top: 12px !important; }
+.callback-icon.success {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.callback-icon.error {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.redirect-note {
+  font-size: 0.78rem;
+  color: #636E72;
+  margin-top: 12px !important;
+}
 </style>

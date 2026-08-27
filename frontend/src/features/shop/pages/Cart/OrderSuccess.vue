@@ -236,7 +236,7 @@ onUnmounted(() => {
 }
 
 .order-success-page {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: var(--font-inter, 'Inter', sans-serif);
     background-color: #f8fafc;
     min-height: 100vh;
     padding: 60px 0;

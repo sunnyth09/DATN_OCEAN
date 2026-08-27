@@ -86,7 +86,7 @@
 <script setup></script>
 <style scoped>
 .static-page {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   padding-top: 24px;
 }
 .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }

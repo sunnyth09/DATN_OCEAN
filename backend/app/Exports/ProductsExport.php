@@ -13,9 +13,10 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ProductsExport implements FromQuery, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
+class ProductsExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapping, WithStyles
 {
     protected array $filters;
+
     protected int $rowNumber = 0;
 
     public function __construct(array $filters = [])
@@ -26,7 +27,7 @@ class ProductsExport implements FromQuery, WithHeadings, WithMapping, WithStyles
     public function query()
     {
         $status = $this->filters['status'] ?? '';
-        
+
         $query = Product::query()->with(['category', 'brand', 'variants']);
 
         if ($status === 'deleted') {
@@ -36,12 +37,12 @@ class ProductsExport implements FromQuery, WithHeadings, WithMapping, WithStyles
         }
 
         // Category filter
-        if (!empty($this->filters['category_id'])) {
+        if (! empty($this->filters['category_id'])) {
             $query->where('category_id', $this->filters['category_id']);
         }
 
         // Brand filter
-        if (!empty($this->filters['brand_id'])) {
+        if (! empty($this->filters['brand_id'])) {
             $query->where('brand_id', $this->filters['brand_id']);
         }
 
@@ -54,20 +55,20 @@ class ProductsExport implements FromQuery, WithHeadings, WithMapping, WithStyles
             case 'this_week':
                 $query->whereBetween('created_at', [
                     Carbon::now()->startOfWeek(),
-                    Carbon::now()->endOfWeek()
+                    Carbon::now()->endOfWeek(),
                 ]);
                 break;
             case 'this_month':
                 $query->whereBetween('created_at', [
                     Carbon::now()->startOfMonth(),
-                    Carbon::now()->endOfMonth()
+                    Carbon::now()->endOfMonth(),
                 ]);
                 break;
             case 'custom':
-                if (!empty($this->filters['from_date'])) {
+                if (! empty($this->filters['from_date'])) {
                     $query->whereDate('created_at', '>=', $this->filters['from_date']);
                 }
-                if (!empty($this->filters['to_date'])) {
+                if (! empty($this->filters['to_date'])) {
                     $query->whereDate('created_at', '<=', $this->filters['to_date']);
                 }
                 break;
@@ -138,6 +139,7 @@ class ProductsExport implements FromQuery, WithHeadings, WithMapping, WithStyles
         if ($exportType === 'summary') {
             $this->rowNumber++;
             $totalStock = $product->variants->sum('stock');
+
             return [
                 $this->rowNumber,
                 $product->product_id,

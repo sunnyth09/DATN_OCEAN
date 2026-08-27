@@ -143,7 +143,7 @@ const routes = [
                 path: "product",
                 name: "admin-product",
                 component: AdminProduct,
-                meta: { roles: ['admin', 'staff'], title: 'Quản lý sản phẩm' },
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý sản phẩm', fluid: true },
             },
             {
                 path: "product/create",
@@ -155,13 +155,13 @@ const routes = [
                 path: "pos",
                 name: "admin-pos",
                 component: () => import("@/features/shop/pages/admin/AdminPOS.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Bán Hàng Trực Tiếp (POS)' },
+                meta: { roles: ['admin', 'seller'], title: 'Bán Hàng Trực Tiếp (POS)', fluid: true },
             },
             {
                 path: "order",
                 name: "admin-order",
                 component: () => import("@/features/shop/pages/admin/AdminOrder.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Quản lý Đơn hàng' },
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý Đơn hàng', fluid: true },
             },
             {
                 path: "return-requests",
@@ -191,7 +191,7 @@ const routes = [
                 path: "users",
                 name: "admin-users",
                 component: AdminUsers,
-                meta: { roles: ['admin', 'seller'], title: 'Quản lý khách hàng' },
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý khách hàng', fluid: true },
             },
             {
                 path: "category",
@@ -227,7 +227,7 @@ const routes = [
                 path: "chat",
                 name: "admin-chat",
                 component: () => import("@/features/support/pages/AdminChat.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Tin nhắn khách hàng' },
+                meta: { roles: ['admin', 'seller'], title: 'Tin nhắn khách hàng', fluid: true },
             },
             {
                 path: "coupon",
@@ -318,7 +318,7 @@ const routes = [
                 path: "tickets",
                 name: "admin-tickets",
                 component: () => import("@/features/support/pages/AdminTicketList.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Quản lý khiếu nại' },
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý khiếu nại', fluid: true },
             },
             {
                 path: "attendance",
@@ -342,7 +342,7 @@ const routes = [
                 path: "stats",
                 name: "admin-stats",
                 component: () => import("@/features/admin/pages/AdminStats.vue"),
-                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thống kê' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thống kê', fluid: true },
             },
             {
                 path: "attendance-list",
@@ -367,19 +367,19 @@ const routes = [
                 path: "courts",
                 name: "admin-courts",
                 component: () => import("@/features/courts/pages/admin/AdminCourtManagement.vue"),
-                meta: { roles: ['admin', 'seller', 'staff'], title: 'Quản lý Hệ thống Sân' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Quản lý Hệ thống Sân', fluid: true },
             },
             {
                 path: "court-bookings",
                 name: "admin-court-bookings",
                 component: () => import("@/features/courts/pages/admin/AdminBookingManagement.vue"),
-                meta: { roles: ['admin', 'staff', 'seller'], title: 'Quản lý Đặt Sân' },
+                meta: { roles: ['admin', 'staff', 'seller'], title: 'Quản lý Đặt Sân', fluid: true },
             },
             {
                 path: "court-dashboard",
                 name: "admin-court-dashboard",
                 component: () => import("@/features/courts/pages/admin/AdminCourtDashboard.vue"),
-                meta: { roles: ['admin', 'staff', 'seller'], title: 'Dashboard Lễ Tân' },
+                meta: { roles: ['admin', 'staff', 'seller'], title: 'Dashboard Lễ Tân', fluid: true },
             },
             {
                 path: "court-reports",

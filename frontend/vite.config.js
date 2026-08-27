@@ -15,7 +15,7 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: true, // Cho phép mọi tên miền/tunnel (như oceansport.bcbdev.id.vn, ngrok, cloudflare) truy cập dev server
+    allowedHosts: true, // Cho phép mọi tên miền/tunnel (như oceansport.pro.vn, ngrok, cloudflare) truy cập dev server
     watch: {
       usePolling: true,
       // Giảm polling interval → giảm CPU usage trong Docker

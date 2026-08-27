@@ -403,7 +403,7 @@ const getUserAvatarUrl = (user) => {
 
 <style scoped>
 .static-page {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   padding-top: 24px;
 }
 

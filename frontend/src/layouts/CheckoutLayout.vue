@@ -48,7 +48,7 @@ const BASE_URL = getAppBaseUrl();
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   color: var(--text-main);
   background: var(--card-bg);
 }

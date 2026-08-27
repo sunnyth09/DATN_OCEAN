@@ -63,12 +63,18 @@ const autoSelectVariant = () => {
 
 const onSelectColor = (color) => {
   selectedColor.value = color;
-  const matched = variants.value.find(
-    (v) => v.color === color && (selectedSize.value ? v.size === selectedSize.value : true)
-  ) || variants.value.find((v) => v.color === color);
+  const varsForColor = variants.value.filter((v) => v.color === color);
+  if (varsForColor.length === 0) return;
+
+  const currentSizeMatch = selectedSize.value
+    ? varsForColor.find((v) => v.size === selectedSize.value && (v.stock || 0) > 0)
+    : null;
+  const inStockMatch = varsForColor.find((v) => (v.stock || 0) > 0);
+  const matched = currentSizeMatch || inStockMatch || varsForColor[0];
+
   if (matched) {
     selectedVariantId.value = matched.variant_id;
-    if (matched.size) selectedSize.value = matched.size;
+    selectedSize.value = matched.size || null;
   }
 };
 
