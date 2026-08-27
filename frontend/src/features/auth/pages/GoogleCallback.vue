@@ -92,7 +92,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   background: #F8F9FA;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 .callback-card {

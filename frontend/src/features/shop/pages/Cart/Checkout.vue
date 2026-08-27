@@ -1698,7 +1698,7 @@ onMounted(async () => {
 
 .checkout-page {
     padding: 16px 0 80px;
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
     color: var(--text-main);
     min-height: 80vh;
 }
@@ -3338,7 +3338,7 @@ textarea.note-input {
     max-width: 480px;
     box-shadow: 0 24px 60px rgba(230, 59, 111, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 .vmodal-header {

@@ -246,11 +246,19 @@ const fetchCart = async (showGlobalLoading = true) => {
     if (showGlobalLoading) loading.value = true;
     cartRequest = (async () => {
         try {
-            if (authStore.isAuthenticated) {
+            if (!authStore.isHydrated) {
+                authStore.hydrate();
+            }
+
+            const token = authStore.token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+            const hasAuth = !!token;
+
+            if (hasAuth) {
                 const response = await api.get('/cart');
-                if (response.data.status === 'success') {
-                    cartId.value = response.data.data.cart_id;
-                    const items = response.data.data.items || [];
+                if (response.data && (response.data.status === 'success' || response.data.data)) {
+                    const data = response.data.data || response.data;
+                    cartId.value = data.cart_id;
+                    const items = data.items || [];
                     // Tự động bỏ chọn các sản phẩm không khả dụng
                     items.forEach(item => {
                         if (!isItemAvailable(item)) {
@@ -259,6 +267,7 @@ const fetchCart = async (showGlobalLoading = true) => {
                     });
                     cartItems.value = items;
                     updateSelectAllState();
+                    cartStore.count = items.length;
                 }
             } else {
                 const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
@@ -266,29 +275,54 @@ const fetchCart = async (showGlobalLoading = true) => {
                     cartId.value = null;
                     cartItems.value = [];
                     selectAll.value = false;
+                    cartStore.count = 0;
                 } else {
-                    const response = await api.post('/cart/guest-details', { items: localItems });
-                    if (response.data.status === 'success') {
-                        cartId.value = null;
-                        const items = response.data.data.items || [];
-                        items.forEach(item => {
-                            if (!isItemAvailable(item)) {
-                                item.selected = false;
-                            }
-                        });
-                        cartItems.value = items;
-                        updateSelectAllState();
+                    try {
+                        const response = await api.post('/cart/guest-details', { items: localItems });
+                        if (response.data && (response.data.status === 'success' || response.data.data)) {
+                            const guestData = response.data.data || response.data;
+                            cartId.value = null;
+                            const items = guestData.items || [];
+                            items.forEach(item => {
+                                if (!isItemAvailable(item)) {
+                                    item.selected = false;
+                                }
+                            });
+                            cartItems.value = items;
+                            updateSelectAllState();
 
-                        if (response.data.data.freeship_threshold) {
-                            upsellState.freeshipThreshold = response.data.data.freeship_threshold;
+                            // Đồng bộ lại localStorage và cart badge với những sản phẩm còn tồn tại thực tế
+                            const validVariantIds = items.map(i => i.variant_id);
+                            const validLocalItems = localItems.filter(li => validVariantIds.includes(li.variant_id));
+                            if (validLocalItems.length !== localItems.length) {
+                                localStorage.setItem('cart_items', JSON.stringify(validLocalItems));
+                            }
+                            cartStore.count = validLocalItems.length;
+
+                            if (guestData.freeship_threshold) {
+                                upsellState.freeshipThreshold = guestData.freeship_threshold;
+                            }
+                        }
+                    } catch (guestErr) {
+                        console.error('Lỗi lấy chi tiết giỏ hàng guest:', guestErr);
+                        if (guestErr.response?.status === 422) {
+                            localStorage.removeItem('cart_items');
+                            cartItems.value = [];
+                            cartStore.count = 0;
                         }
                     }
                 }
             }
         } catch (error) {
             console.error('Error fetching cart:', error);
-            if (error.response?.status === 401 && authStore.isAuthenticated) {
-                router.push({ name: 'login', query: { redirect: '/cart' } });
+            if (error.response?.status === 403) {
+                cartItems.value = [];
+                cartStore.count = 0;
+                showToast(error.response?.data?.message || 'Tài khoản nhân viên/quản trị không thể sử dụng giỏ hàng khách hàng.', 'warning');
+            } else if (error.response?.status === 401) {
+                const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+                cartItems.value = [];
+                cartStore.count = localItems.length;
             }
         } finally {
             if (showGlobalLoading) loading.value = false;
@@ -754,7 +788,30 @@ watch(totalPrice, (val) => {
     setTotalPrice(val);
 }, { immediate: true });
 
+// Theo dõi thay đổi trạng thái đăng nhập để tự động tải lại giỏ hàng đúng
+watch(() => authStore.isAuthenticated, async (newVal, oldVal) => {
+    if (newVal !== oldVal) {
+        await fetchCart(false);
+        fetchUpsellData();
+    }
+});
+
+watch(() => authStore.user, async (newVal, oldVal) => {
+    if (newVal && !oldVal) {
+        await fetchCart(false);
+        fetchUpsellData();
+    }
+});
+
 const handleCartUpdated = async () => {
+    await fetchCart(false);
+    fetchUpsellData();
+};
+
+const handleAuthChanged = async () => {
+    if (!authStore.isHydrated) {
+        authStore.hydrate();
+    }
     await fetchCart(false);
     fetchUpsellData();
 };
@@ -766,10 +823,14 @@ onMounted(async () => {
 
     // Khi QuickAddSlider thêm sản phẩm → cập nhật lại giỏ + upsell
     window.addEventListener('cart-updated', handleCartUpdated);
+    window.addEventListener('user-updated', handleAuthChanged);
+    window.addEventListener('auth-logout', handleAuthChanged);
 });
 
 onUnmounted(() => {
     window.removeEventListener('cart-updated', handleCartUpdated);
+    window.removeEventListener('user-updated', handleAuthChanged);
+    window.removeEventListener('auth-logout', handleAuthChanged);
     quantityInputTimers.forEach((timer) => clearTimeout(timer));
     quantityInputTimers.clear();
 });
@@ -1198,16 +1259,16 @@ onUnmounted(() => {
         </Transition>
     </Teleport>
 
-    <section class="upsell-section container mb-5">
+    <section class="upsell-section container mb-4 mb-md-5">
         <h2 class="upsell-title">Có thể bạn cũng thích</h2>
         <div v-if="productRelated.length">
-            <div class="row mt-3">
-                <div class="col-lg-3 mt-4" v-for="product in productRelated" :key="product.id">
+            <div class="row g-2 g-md-3 mt-1">
+                <div class="col-6 col-md-4 col-lg-3" v-for="product in productRelated" :key="product.id || product.product_id">
                     <ProductCard :product="product" />
                 </div>
             </div>
         </div>
-        <div v-else class="empty-state mt-4">
+        <div v-else class="empty-state mt-3">
             <p>Không có sản phẩm liên quan</p>
         </div>
 
@@ -1217,7 +1278,7 @@ onUnmounted(() => {
 <style scoped>
 .cart-page {
     padding: 24px 0 60px;
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
     color: #102a43;
     min-height: 60vh;
 }
@@ -2318,13 +2379,45 @@ onUnmounted(() => {
         padding: 12px;
     }
 
-    .upsell-title {
-        font-size: 1.2rem;
+    /* Empty Cart Mobile */
+    .empty-cart {
+        padding: 28px 14px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+
+    .empty-icon {
         margin-bottom: 10px;
     }
 
+    .empty-icon svg {
+        width: 48px;
+        height: 48px;
+    }
+
+    .empty-cart h2 {
+        font-size: 1.15rem;
+        margin-bottom: 4px;
+    }
+
+    .empty-cart p {
+        font-size: 0.82rem;
+        margin-bottom: 16px;
+    }
+
+    .btn-shop {
+        padding: 8px 18px;
+        font-size: 0.85rem;
+        border-radius: 8px;
+    }
+
+    .upsell-title {
+        font-size: 1.05rem;
+        margin-bottom: 8px;
+    }
+
     .upsell-section {
-        padding-bottom: 80px;
+        padding-bottom: 30px;
     }
 
     .vmodal-footer {
@@ -2390,7 +2483,7 @@ onUnmounted(() => {
     max-width: 480px;
     box-shadow: 0 24px 60px rgba(230, 59, 111, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 .vmodal-header {

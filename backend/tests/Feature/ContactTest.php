@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class ContactTest extends TestCase
@@ -16,10 +17,10 @@ class ContactTest extends TestCase
         parent::setUp();
         // Disable ThrottleRequests middleware for these tests to avoid 429
         $this->withoutMiddleware(ThrottleRequests::class);
-        \Illuminate\Support\Facades\RateLimiter::clear('newsletter:127.0.0.1');
-        \Illuminate\Support\Facades\RateLimiter::clear('contact:ip:127.0.0.1');
-        \Illuminate\Support\Facades\RateLimiter::clear('contact:email:'.md5('john@example.com'));
-        \Illuminate\Support\Facades\RateLimiter::clear('contact:email:'.md5('test@example.com'));
+        RateLimiter::clear('newsletter:127.0.0.1');
+        RateLimiter::clear('contact:ip:127.0.0.1');
+        RateLimiter::clear('contact:email:'.md5('john@example.com'));
+        RateLimiter::clear('contact:email:'.md5('test@example.com'));
     }
 
     public function test_submit_contact_fails_without_turnstile()

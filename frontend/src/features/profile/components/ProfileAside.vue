@@ -502,6 +502,32 @@ const handleLogout = async () => {
 @media (max-width: 768px) {
   .profile-aside {
     width: 100%;
+    border-radius: 14px;
+  }
+
+  .aside-user-card {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .aside-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 1.05rem;
+  }
+
+  .aside-user-name {
+    font-size: 0.92rem;
+  }
+
+  .aside-user-email {
+    font-size: 0.74rem;
+  }
+
+  .aside-points-badge {
+    margin-top: 2px;
+    padding: 2px 7px;
+    font-size: 0.7rem;
   }
 
   /* --- MOBILE STYLES --- */
@@ -510,11 +536,11 @@ const handleLogout = async () => {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 16px 20px;
+    padding: 10px 14px;
     background: #fff;
     border: none;
-    border-bottom: 1px solid #e5e7eb;
-    font-size: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.88rem;
     font-weight: 600;
     color: var(--text-main);
     cursor: pointer;
@@ -522,8 +548,8 @@ const handleLogout = async () => {
   
   .aside-nav {
     display: none; /* Ẩn đi mặc định trên mobile */
-    padding: 12px;
-    gap: 4px;
+    padding: 8px;
+    gap: 2px;
   }
   
   .aside-nav.aside-nav--open {
@@ -531,8 +557,9 @@ const handleLogout = async () => {
   }
 
   .aside-nav-item {
-    padding: 12px 16px;
-    font-size: 0.9rem;
+    padding: 9px 12px;
+    font-size: 0.85rem;
+    border-radius: 8px;
   }
 
   .aside-nav-divider {

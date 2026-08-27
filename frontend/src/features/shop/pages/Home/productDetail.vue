@@ -1250,7 +1250,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .pd-wrapper {
   padding: 0 0 40px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   color: var(--text-main);
 }
 

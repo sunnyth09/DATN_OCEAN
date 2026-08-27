@@ -322,7 +322,7 @@ onUnmounted(() => {
 .coupon-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #fff 0%, #fff7fb 42%, #f8fafc 100%);
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   padding-bottom: 72px;
 }
 
