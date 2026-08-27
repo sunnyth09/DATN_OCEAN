@@ -693,7 +693,9 @@ async function sendMessage() {
   if (!msg || isTyping.value) return;
 
   // Reset textarea height
-  if (chatInput.value) chatInput.value.style.height = 'auto';
+  if (chatInput.value) {
+    chatInput.value.style.height = 'auto';
+  }
 
   // Add user message to UI
   messages.value.push({
@@ -1442,9 +1444,16 @@ async function sendMessage() {
   resize: none;
   overflow-y: auto;
   min-height: 40px;
-  max-height: 76px;
+  max-height: 120px;
   line-height: 1.4;
-  word-break: break-word;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / Edge */
+}
+
+.chat-input::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+  width: 0;
+  height: 0;
 }
 
 .chat-input:focus {

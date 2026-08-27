@@ -332,42 +332,6 @@ class ProductService
     }
 
     /**
-     * Sản phẩm phối đồ (matching)
-     */
-    public function getMatchingProducts($slug): array
-    {
-        $product = Cache::remember("product:identifier:{$slug}", 1800, function () use ($slug) {
-            return $this->productRepository->findByIdentifierBasic($slug);
-        });
-
-        if (! $product) {
-            return ['_status' => 404, 'status' => 'error', 'message' => 'Product not found'];
-        }
-
-        $cacheKey = "products:matching:{$product->product_id}";
-        $matching = Cache::remember($cacheKey, 900, function () use ($product) {
-            return $this->productRepository->getMatchingProducts(
-                $product->product_id,
-                $product->category_id
-            )->map(function ($p) {
-                return [
-                    'product_id' => $p->product_id,
-                    'name' => $p->name,
-                    'slug' => $p->slug,
-                    'min_price' => $p->min_price,
-                    'thumbnail_url' => $p->mainImage?->image_url ?? $p->thumbnail_url,
-                ];
-            });
-        });
-
-        return [
-            '_status' => 200,
-            'status' => 'success',
-            'data' => $matching,
-        ];
-    }
-
-    /**
      * Lấy danh sách biến thể active của sản phẩm
      */
     public function getProductVariants(int $id): array
