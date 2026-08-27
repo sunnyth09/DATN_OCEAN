@@ -7,9 +7,11 @@ use App\Mail\CourtBookingConfirmedMail;
 use App\Mail\CourtBookingCreatedMail;
 use App\Mail\OrderCancelledMail;
 use App\Mail\OrderShippingMail;
+use App\Mail\TicketReplyMail;
 use App\Models\Court;
 use App\Models\CourtBooking;
 use App\Models\Order;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\AbandonedCartNotification;
 use App\Notifications\BirthdayNotification;
@@ -153,17 +155,24 @@ class SendTestBatchEmail extends Command
         });
         $this->info('-> Đã gửi: 11. Đặt sân - Đã xác nhận');
 
-        // --- 12. Mail Hủy Lịch Đặt Sân ---
-        $this->line('12/12. Đang gửi email [Đặt Sân Cầu Lông - Đã Hủy]...');
-        $fakeBooking->cancel_reason = 'Khách có lịch bận đột xuất';
-        $bookingCancelledMail = new CourtBookingCancelledMail($fakeBooking, 300000, 'user');
-        Mail::html((string) $bookingCancelledMail->render(), function ($message) use ($targetEmail, $bookingCancelledMail) {
-            $message->to($targetEmail)->subject($bookingCancelledMail->envelope()->subject);
+        // --- 13. Mail Phản Hồi Khiếu Nại (Ticket Reply) ---
+        $this->line('13/13. Đang gửi email [Phản Hồi Khiếu Nại / Ticket]...');
+        $fakeTicket = new Ticket([
+            'ticket_id' => 99,
+            'reason' => 'Phản hồi đánh giá thấp (1 sao) & yêu cầu đổi hàng',
+            'status' => 'resolved',
+            'admin_reply' => 'Chào bạn, Ocean Sport đã tiếp nhận khiếu nại và đồng ý đổi mới sản phẩm cho bạn. Đơn đổi hàng đã được tạo và gửi đi.',
+        ]);
+        $fakeTicket->setRelation('user', $fakeUser);
+        $fakeTicket->setRelation('order', $fakeOrder);
+        $ticketReplyMail = new TicketReplyMail($fakeTicket);
+        Mail::html((string) $ticketReplyMail->render(), function ($message) use ($targetEmail, $ticketReplyMail) {
+            $message->to($targetEmail)->subject($ticketReplyMail->envelope()->subject);
         });
-        $this->info('-> Đã gửi: 12. Đặt sân - Đã hủy');
+        $this->info('-> Đã gửi: 13. Phản hồi khiếu nại / Ticket');
 
         $this->newLine();
-        $this->info("🎉 HOÀN TẤT! Toàn bộ 12 email kiểm thử đã được gửi thành công đến {$targetEmail}.");
+        $this->info("🎉 HOÀN TẤT! Toàn bộ 13 email kiểm thử đã được gửi thành công đến {$targetEmail}.");
 
         return 0;
     }
@@ -187,7 +196,7 @@ class SendTestBatchEmail extends Command
                 </div>
                 <div style="padding: 28px 24px;">
                     <p style="font-size: 15px; line-height: 1.6; margin-top: 0; color: #334155;">
-                        Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,<br>
+                        Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,<br>
                         Ocean Sport xin cảm ơn bạn đã mua sắm! Đơn hàng của bạn đã được thanh toán thành công vào lúc <strong>'.now()->format('H:i d/m/Y').'</strong> và đang được nhân viên chuẩn bị đóng gói chuyển đi.
                     </p>
                     <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 14px 18px; margin: 20px 0;">
@@ -288,7 +297,7 @@ class SendTestBatchEmail extends Command
                 </div>
                 <div style="padding: 28px 24px;">
                     <p style="font-size: 15px; line-height: 1.6; margin-top: 0; color: #334155;">
-                        Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,<br>
+                        Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,<br>
                         Cảm ơn bạn đã đặt hàng tại Ocean Sport! Chúng tôi đã nhận được đơn hàng của bạn và đang tiến hành xử lý đóng gói.
                     </p>
                     <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px 18px; margin: 20px 0;">
@@ -346,7 +355,7 @@ class SendTestBatchEmail extends Command
                             <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Bảo mật thông tin tài khoản của bạn</p>
                         </td></tr>
                         <tr><td style="padding: 32px 28px 24px;">
-                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,</p>
+                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,</p>
                             <p style="color: #64748b; font-size: 14px; margin: 0 0 24px; line-height: 1.6;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng nhập mã xác thực OTP 6 số bên dưới để tiếp tục:</p>
                             <table cellpadding="0" cellspacing="0" style="margin: 0 auto 24px;">
                                 <tr>'.$otpBoxes.'</tr>
@@ -391,7 +400,7 @@ class SendTestBatchEmail extends Command
                             <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Ocean Sport trân trọng gửi tặng bạn ưu đãi đặc biệt</p>
                         </td></tr>
                         <tr><td style="padding: 32px 28px 24px;">
-                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,</p>
+                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,</p>
                             <p style="color: #64748b; font-size: 14px; margin: 0 0 24px; line-height: 1.6;">Ocean Sport gửi tặng bạn voucher ưu đãi để bạn thỏa sức mua sắm các sản phẩm thể thao yêu thích:</p>
                             <div style="background: #FFF0F3; border: 2px dashed #E63B6F; border-radius: 14px; padding: 24px; text-align: center; margin-bottom: 24px;">
                                 <p style="color: #b50c4d; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px;">GIẢM GIÁ TIỀN MẶT</p>
@@ -436,7 +445,7 @@ class SendTestBatchEmail extends Command
                             <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Bộ phận Chăm sóc Khách hàng Ocean Sport</p>
                         </td></tr>
                         <tr><td style="padding: 32px 28px 24px;">
-                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,</p>
+                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,</p>
                             <p style="color: #64748b; font-size: 14px; margin: 0 0 20px; line-height: 1.6;">Cảm ơn bạn đã liên hệ với chúng tôi về chủ đề: <em>"Tư vấn chọn vợt cầu lông cho người mới chơi"</em>. Dưới đây là phản hồi từ đội ngũ kỹ thuật viên:</p>
                             <div style="background: #FFF0F3; border-left: 4px solid #E63B6F; padding: 18px 20px; border-radius: 10px; margin: 0 0 24px;">
                                 <p style="color: #1e293b; margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">Dạ chào anh Bình, với người mới chơi cần sự linh hoạt và dễ thuần, bên em khuyến nghị anh nên chọn dòng vợt thân dẻo hoặc trung bình, đầu vợt cân bằng (như dòng Yonex Nanoflare 001 hoặc Lining Windstorm 72) với mức căng cước khoảng 9.5kg - 10kg để tránh chấn thương cổ tay anh nhé!</p>
