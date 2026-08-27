@@ -46,11 +46,9 @@ const handleScroll = () => {
 
 const isFetchingNotif = ref(false);
 
-// Lấy danh mục chính hiển thị trên header (tối đa 3 danh mục chính để header luôn thoáng đẹp)
+// Lấy 3 danh mục bán chạy nhất (ở đây giả sử là 3 root category đầu tiên trả về từ API)
 const topCategories = computed(() => {
-    return categories.value
-        .filter(cat => !cat.parent_id || cat.parent_id === 0)
-        .slice(0, 3);
+    return categories.value.slice(0, 4);
 });
 
 const getCategoryId = (category) => {
@@ -1100,9 +1098,9 @@ watch(
 .header-left {
     display: flex;
     align-items: center;
-    gap: 32px;
+    gap: 40px;
+    /* distance between logo and nav */
     height: 100%;
-    min-width: 0;
 }
 
 /* LOGO */
@@ -1110,12 +1108,11 @@ watch(
     text-decoration: none;
     display: flex;
     align-items: center;
-    flex-shrink: 0;
 }
 
 .logo-container {
-    width: 60px;
-    height: 60px;
+    width: 65px;
+    height: 65px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1130,34 +1127,31 @@ watch(
 }
 
 .site-header.is-scrolled .logo-container {
-    width: 48px;
-    height: 48px;
+    width: 50px;
+    height: 50px;
 }
 
 /* NAVIGATION */
 .main-nav {
     display: flex;
-    align-items: center;
-    gap: 22px;
+    align-items: stretch;
+    gap: 32px;
     height: 100%;
-    white-space: nowrap;
 }
 
 .nav-link {
     display: inline-flex;
     align-items: center;
     height: 100%;
-    padding: 0 4px;
+    padding: 0 2px;
     text-decoration: none;
-    color: #475569;
+    color: #555;
     font-weight: 600;
-    font-size: 0.92rem;
-    line-height: 1.4;
-    white-space: nowrap;
-    flex-shrink: 0;
+    font-size: 0.95rem;
+    line-height: 1;
     position: relative;
-    transition: color 0.2s ease;
-    text-transform: none;
+    transition: color 0.2s;
+    text-transform: capitalize;
 }
 
 .nav-link:hover {
@@ -1166,36 +1160,27 @@ watch(
 
 .nav-link.active {
     color: var(--primary);
-    font-weight: 700;
-}
-
-.nav-link::after {
-    content: "";
-    position: absolute;
-    left: 4px;
-    right: 4px;
-    bottom: 14px;
-    height: 2.5px;
-    background-color: var(--primary);
-    border-radius: 3px;
-    opacity: 0;
-    transform: scaleX(0);
-    transform-origin: center;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .nav-link.active::after {
+    content: "";
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    bottom: calc(50% - 18px);
+    height: 2px;
+    background-color: var(--primary);
+    border-radius: 2px;
     opacity: 1;
     transform: scaleX(1);
+    transform-origin: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.nav-link:hover::after {
-    opacity: 0.6;
-    transform: scaleX(1);
-}
-
-.site-header.is-scrolled .nav-link::after {
-    bottom: 8px;
+.site-header.is-scrolled .nav-link.active::after {
+    bottom: 12px;
+    opacity: 0;
+    transform: scaleX(0);
 }
 
 /* HEADER ACTIONS */
@@ -2331,31 +2316,9 @@ watch(
     transform: translateY(-10px);
 }
 
-@media (max-width: 1280px) {
-    .header-inner {
-        padding: 0 20px;
-    }
-    .header-left {
+@media (max-width: 1024px) {
+    .main-nav {
         gap: 20px;
-    }
-    .main-nav {
-        gap: 16px;
-    }
-    .nav-link {
-        font-size: 0.88rem;
-        padding: 0 2px;
-    }
-    .header-actions {
-        gap: 14px;
-    }
-}
-
-@media (max-width: 1100px) {
-    .main-nav {
-        gap: 12px;
-    }
-    .nav-link {
-        font-size: 0.84rem;
     }
 }
 

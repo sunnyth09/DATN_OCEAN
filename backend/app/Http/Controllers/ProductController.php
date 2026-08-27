@@ -137,18 +137,6 @@ class ProductController extends Controller
     }
 
     /**
-     * Sản phẩm phối đồ theo slug
-     */
-    public function matching($slug)
-    {
-        $result = $this->productService->getMatchingProducts($slug);
-        $status = $result['_status'] ?? 200;
-        unset($result['_status']);
-
-        return response()->json($result, $status);
-    }
-
-    /**
      * Danh sách sản phẩm nổi bật (all)
      */
     public function featured()

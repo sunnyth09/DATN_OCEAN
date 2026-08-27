@@ -188,41 +188,27 @@ const ticketLoading = ref(false);
 const actionLoading = ref(false);
 const ticketSearchQuery = ref('');
 const ticketFilterStatus = ref('all');
-const ticketPagination = ref({ current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null, total: 0 });
 
 const showTicketModal = ref(false);
 const selectedTicket = ref(null);
 const replyContent = ref('');
 const updateStatus = ref('pending');
 
-const fetchTickets = async (page = 1) => {
+let hasFetchedTickets = false;
+
+const fetchTickets = async () => {
   if (ticketLoading.value) return;
   ticketLoading.value = true;
+  hasFetchedTickets = true;
   try {
     const res = await api.get('/admin/tickets', {
       params: {
-        page,
-        search: ticketSearchQuery.value || undefined,
+        search: ticketSearchQuery.value,
         status: ticketFilterStatus.value
       }
     });
     if (res.data.status === 'success') {
-      const d = res.data.data;
-      // API có thể trả về paginated hoặc plain array
-      if (d && d.data !== undefined) {
-        tickets.value = d.data || [];
-        ticketPagination.value = {
-          current_page: d.current_page || 1,
-          last_page:    d.last_page    || 1,
-          prev_page_url: d.prev_page_url || null,
-          next_page_url: d.next_page_url || null,
-          total: d.total || 0,
-        };
-      } else {
-        // plain array
-        tickets.value = Array.isArray(d) ? d : [];
-        ticketPagination.value = { current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null, total: tickets.value.length };
-      }
+      tickets.value = res.data.data.data || [];
     }
   } catch (error) {
     console.error("Lỗi lấy danh sách khiếu nại:", error);
@@ -232,11 +218,7 @@ const fetchTickets = async (page = 1) => {
   }
 };
 
-const changeTicketPage = (p) => {
-  if (p >= 1 && p <= ticketPagination.value.last_page) fetchTickets(p);
-};
-
-const applyTicketFilter = () => fetchTickets(1);
+const applyTicketFilter = () => fetchTickets();
 
 const getStatusText = (status) => {
   const map = { 'pending': 'Chờ xử lý', 'processing': 'Đang xử lý', 'resolved': 'Đã giải quyết', 'closed': 'Đã đóng' };
@@ -340,7 +322,8 @@ const onKeydown = (e) => {
 };
 
 watch(viewMode, (newVal) => {
-  if (newVal === 'tickets' && tickets.value.length === 0) fetchTickets();
+  if (newVal === 'reviews' && reviews.value.length === 0) fetchReviews();
+  else if (newVal === 'tickets' && !hasFetchedTickets) fetchTickets();
 });
 
 onMounted(() => {
@@ -363,7 +346,7 @@ onUnmounted(() => {
       </div>
       <div class="header-badge">
         <span v-if="viewMode === 'reviews'">{{ reviewPagination.total }} đánh giá</span>
-        <span v-else>{{ ticketPagination.total || tickets.length }} khiếu nại</span>
+        <span v-else>{{ tickets.length }} khiếu nại</span>
       </div>
     </div>
 
@@ -619,13 +602,6 @@ onUnmounted(() => {
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <!-- Ticket Pagination -->
-      <div class="pagination" v-if="ticketPagination.last_page > 1">
-        <button class="page-btn" :disabled="!ticketPagination.prev_page_url" @click="changeTicketPage(ticketPagination.current_page - 1)">← Trước</button>
-        <span class="page-info">Trang {{ ticketPagination.current_page }} / {{ ticketPagination.last_page }}</span>
-        <button class="page-btn" :disabled="!ticketPagination.next_page_url" @click="changeTicketPage(ticketPagination.current_page + 1)">Tiếp →</button>
       </div>
     </div>
 
@@ -1383,17 +1359,6 @@ onUnmounted(() => {
 
 .mt-3 { margin-top: 16px; }
 .w-100 { width: 100%; box-sizing: border-box; }
-
-.spinner-small {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255,255,255,0.4);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-}
-
 .filter-select {
   padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px;
   font-size: 0.95rem; outline: none; background: white;
