@@ -464,14 +464,16 @@ class ChatbotController extends Controller
             if (! empty($data['shipping_address'])) {
                 $lines[] = "📍 **Địa chỉ nhận hàng**: {$data['shipping_address']}";
             }
+
             return implode("\n", $lines);
         }
 
         // Nếu là danh sách nhiều đơn hàng
-        $lines = ["Tìm thấy ".count($data)." đơn hàng gần đây của bạn:"];
+        $lines = ['Tìm thấy '.count($data).' đơn hàng gần đây của bạn:'];
         foreach ($data as $order) {
             $lines[] = "• **{$order['order_code']}** ({$order['created_at']}): {$order['status']} - {$order['grand_total']}";
         }
+
         return implode("\n", $lines);
     }
 

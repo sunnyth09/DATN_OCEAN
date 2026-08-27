@@ -316,18 +316,18 @@ class ChatbotInfoService
 
         if (! $isFullyVerified) {
             if ($recipientPhone && strlen($recipientPhone) >= 7) {
-                $recipientPhone = substr($recipientPhone, 0, 3) . '****' . substr($recipientPhone, -3);
+                $recipientPhone = substr($recipientPhone, 0, 3).'****'.substr($recipientPhone, -3);
             }
             if ($recipientName) {
                 $words = explode(' ', trim($recipientName));
                 if (count($words) > 1) {
-                    $recipientName = $words[0] . ' *** ' . end($words);
+                    $recipientName = $words[0].' *** '.end($words);
                 }
             }
             if ($shippingAddress) {
                 $parts = explode(',', $shippingAddress);
                 if (count($parts) > 1) {
-                    $shippingAddress = '***, ' . trim(implode(', ', array_slice($parts, 1)));
+                    $shippingAddress = '***, '.trim(implode(', ', array_slice($parts, 1)));
                 } else {
                     $shippingAddress = '*** (Đã bảo mật)';
                 }

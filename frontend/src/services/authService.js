@@ -25,16 +25,12 @@ export const authService = {
     return api.post('/forgot-password/reset', payload);
   },
 
-  exchangeGoogleCode(code, redirectUri = null) {
-    const payload = { code };
-    if (redirectUri) payload.redirect_uri = redirectUri;
-    return api.post('/auth/google/callback', payload);
+  exchangeGoogleCode(code) {
+    return api.post('/auth/google/callback', { code });
   },
 
-  exchangeFacebookCode(code, redirectUri = null) {
-    const payload = { code };
-    if (redirectUri) payload.redirect_uri = redirectUri;
-    return api.post('/auth/facebook/callback', payload);
+  exchangeFacebookCode(code) {
+    return api.post('/auth/facebook/callback', { code });
   },
 
   fetchProfileNotifications(params = {}) {

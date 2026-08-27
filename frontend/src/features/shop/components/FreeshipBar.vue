@@ -19,8 +19,7 @@ const barStyle = computed(() => ({
         <div class="freeship-header">
             <div class="freeship-icon-label">
                 <span class="truck-icon">
-                    <!-- Truck SVG -->
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="1" y="3" width="15" height="13" rx="2"/>
                         <path d="M16 8h4l3 4v5h-7V8z"/>
@@ -30,8 +29,8 @@ const barStyle = computed(() => ({
                 </span>
                 <Transition name="fade-msg" mode="out-in">
                     <span v-if="hasFreeship" key="done" class="freeship-msg freeship-done">
-                        <svg class="freeship-celebrate-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3L2 22l10.7-3.8"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="M22 2l-2.24.75a2.9 2.9 0 00-1.96 3.12v0c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="M22 13l-1.34-.75a2.9 2.9 0 00-3.12-1.96v0c-.86.1-1.63-.57-1.63-1.45V8.46c0-.86-.6-1.6-1.44-1.76L13 6.5"/></svg>
-                        Chúc mừng! Bạn đã được <strong>Freeship</strong>!
+                        <svg class="freeship-celebrate-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.8 11.3L2 22l10.7-3.8"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="M22 2l-2.24.75a2.9 2.9 0 00-1.96 3.12v0c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="M22 13l-1.34-.75a2.9 2.9 0 00-3.12-1.96v0c-.86.1-1.63-.57-1.63-1.45V8.46c0-.86-.6-1.6-1.44-1.76L13 6.5"/></svg>
+                        <span>Chúc mừng! Bạn được <strong>Freeship</strong>!</span>
                     </span>
                     <span v-else key="progress" class="freeship-msg">
                         Mua thêm
@@ -48,16 +47,14 @@ const barStyle = computed(() => ({
         <!-- Track -->
         <div class="freeship-track">
             <div class="freeship-fill" :style="barStyle">
-                <!-- Shimmer animation -->
                 <span class="fill-shimmer"></span>
             </div>
-            <!-- Milestone marker -->
             <div
                 class="freeship-milestone"
                 :class="{ 'milestone-reached': hasFreeship }"
                 title="Mốc Freeship"
             >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                 </svg>
             </div>
@@ -80,6 +77,7 @@ const barStyle = computed(() => ({
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     margin-bottom: 10px;
 }
 
@@ -87,14 +85,16 @@ const barStyle = computed(() => ({
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 1;
+    min-width: 0;
 }
 
 .truck-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     background: linear-gradient(135deg, #fff3e0 0%, #e8f5e9 100%);
     border-radius: 50%;
     color: var(--primary);
@@ -102,14 +102,15 @@ const barStyle = computed(() => ({
 }
 
 .freeship-msg {
-    font-size: 0.875rem;
+    font-size: 0.85rem;
     color: #475569;
     font-weight: 500;
+    line-height: 1.35;
 }
 
 .freeship-msg.freeship-done {
     color: #16a34a;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -125,14 +126,16 @@ const barStyle = computed(() => ({
 }
 
 .freeship-badge {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
-    padding: 3px 10px;
+    padding: 3px 8px;
     border-radius: 999px;
     background: #f1f5f9;
     color: #64748b;
     letter-spacing: 0.3px;
     transition: all 0.4s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .freeship-badge.badge-done {
@@ -161,7 +164,6 @@ const barStyle = computed(() => ({
     overflow: hidden;
 }
 
-/* Shimmer effect trên fill */
 .fill-shimmer {
     position: absolute;
     top: 0;
@@ -183,14 +185,13 @@ const barStyle = computed(() => ({
     100% { left: 120%; }
 }
 
-/* Milestone marker (bolt icon ở cuối track) */
 .freeship-milestone {
     position: absolute;
-    right: -5px;
+    right: -4px;
     top: 50%;
     transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: #e2e8f0;
     border: 2px solid #cbd5e1;
@@ -210,7 +211,6 @@ const barStyle = computed(() => ({
     box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
 }
 
-/* ── Fade transition cho text ── */
 .fade-msg-enter-active,
 .fade-msg-leave-active {
     transition: opacity 0.3s ease, transform 0.3s ease;
@@ -222,5 +222,30 @@ const barStyle = computed(() => ({
 .fade-msg-leave-to {
     opacity: 0;
     transform: translateY(6px);
+}
+
+@media (max-width: 480px) {
+    .freeship-bar-wrapper {
+        padding: 8px 10px;
+        margin-bottom: 10px;
+    }
+
+    .truck-icon {
+        width: 26px;
+        height: 26px;
+    }
+
+    .freeship-msg {
+        font-size: 0.76rem;
+    }
+
+    .freeship-msg.freeship-done {
+        font-size: 0.78rem;
+    }
+
+    .freeship-badge {
+        font-size: 0.68rem;
+        padding: 2px 6px;
+    }
 }
 </style>

@@ -79,6 +79,7 @@ class IntentParserService
             if (preg_match('/\b(ord-[a-z0-9-]+)\b/i', $message, $mOrder)) {
                 $entities['order_code'] = strtoupper($mOrder[1]);
             }
+
             return $this->buildResult('get_order_status', $entities);
         }
 

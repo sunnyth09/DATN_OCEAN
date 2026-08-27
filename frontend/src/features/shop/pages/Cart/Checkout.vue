@@ -2400,18 +2400,26 @@ textarea.note-input {
 }
 
 .bill-item-variant-btn {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 2px 8px;
-    background: #f8fafc;
+    gap: 4px;
+    height: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    padding: 0 7px;
+    background: #f1f5f9;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     text-align: left;
     max-width: 100%;
+    box-sizing: border-box;
+    line-height: 1;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: #475569;
 }
 
 .bill-item-variant-btn:hover {
@@ -2424,9 +2432,11 @@ textarea.note-input {
 }
 
 .bill-item-variant-btn .variant-caret {
+    width: 9px;
+    height: 9px;
     color: #94a3b8;
     flex-shrink: 0;
-    transition: all 0.2s ease;
+    transition: transform 0.15s ease;
 }
 
 .bill-item-variant-btn:hover .variant-caret {
@@ -2435,8 +2445,9 @@ textarea.note-input {
 }
 
 .bill-item-variant-text {
-    font-size: 0.78rem;
-    color: #64748b;
+    font-size: 0.72rem;
+    line-height: 1;
+    color: #475569;
     font-weight: 500;
 }
 
@@ -2506,8 +2517,11 @@ textarea.note-input {
 }
 
 .btn-apply-coupon {
-    padding: 0 20px;
+    padding: 0 16px;
     font-weight: 600;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
     background: var(--primary);
     color: white;
     border: none;

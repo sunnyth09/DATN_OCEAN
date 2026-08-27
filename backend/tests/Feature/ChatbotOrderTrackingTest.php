@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\User;
 use App\Services\Chatbot\ChatbotInfoService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -20,7 +19,6 @@ class ChatbotOrderTrackingTest extends TestCase
         foreach (['order_items', 'orders', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
-        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id('user_id');
@@ -53,7 +51,7 @@ class ChatbotOrderTrackingTest extends TestCase
         });
 
         Schema::create('order_items', function (Blueprint $table) {
-            $table->id('item_id');
+            $table->id('order_item_id');
             $table->unsignedBigInteger('order_id');
             $table->unsignedBigInteger('product_id')->default(1);
             $table->unsignedBigInteger('variant_id')->nullable();
@@ -64,6 +62,8 @@ class ChatbotOrderTrackingTest extends TestCase
             $table->decimal('line_total', 15, 2)->default(250000);
             $table->timestamps();
         });
+
+        Schema::enableForeignKeyConstraints();
     }
 
     public function test_guest_can_lookup_order_by_code_only_with_masked_info(): void
@@ -89,14 +89,14 @@ class ChatbotOrderTrackingTest extends TestCase
             'line_total' => 250000,
         ]);
 
-        $service = new ChatbotInfoService();
+        $service = new ChatbotInfoService;
         $result = $service->getOrderStatus(['order_code' => 'ORD-2026-TEST01']);
 
         $this->assertEquals('success', $result['status']);
         $this->assertNotEmpty($result['data']);
         $this->assertEquals('ORD-2026-TEST01', $result['data']['order_code']);
         $this->assertEquals('Đang giao hàng', $result['data']['status']);
-        
+
         // Kiểm tra bảo mật (masking) thông tin khách vãng lai
         $this->assertStringContainsString('****', $result['data']['recipient_phone']);
         $this->assertStringContainsString('***', $result['data']['shipping_address']);
@@ -105,7 +105,7 @@ class ChatbotOrderTrackingTest extends TestCase
 
     public function test_guest_lookup_invalid_order_code_returns_not_found(): void
     {
-        $service = new ChatbotInfoService();
+        $service = new ChatbotInfoService;
         $result = $service->getOrderStatus(['order_code' => 'ORD-INVALID-999999']);
 
         $this->assertEquals('not_found', $result['status']);

@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { useCartStore } from '@/stores/cart';
 const cartStore = useCartStore();
 import { ref } from 'vue';
@@ -383,4 +383,37 @@ const handleQuickAdd = async (item) => {
     flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 600px) {
+    .qs-wrapper {
+        padding: 12px 14px 16px;
+        margin-bottom: 16px;
+    }
+    .qs-title {
+        font-size: 0.95rem;
+    }
+    .qs-subtitle {
+        font-size: 0.76rem;
+    }
+    .qs-tag {
+        display: none;
+    }
+    .qs-card {
+        flex: 0 0 150px;
+        width: 150px;
+        padding: 10px;
+    }
+    .qs-img-wrap {
+        height: 110px;
+    }
+    .qs-name {
+        font-size: 0.78rem;
+    }
+    .qs-price-discounted {
+        font-size: 0.88rem;
+    }
+    .qs-price-original {
+        font-size: 0.72rem;
+    }
+}
 </style>

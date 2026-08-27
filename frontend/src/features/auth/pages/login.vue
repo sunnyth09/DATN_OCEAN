@@ -91,7 +91,7 @@ const loginWithGoogle = () => {
   if (redirect) {
     sessionStorage.setItem('auth_redirect', redirect);
   }
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '305541227432-7u1qt6nh7814p9qlv7bm8282fhp1163j.apps.googleusercontent.com';
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI || `${window.location.origin}/client/auth/google/callback`;
   const scope = 'openid email profile';
   const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scope)}&access_type=offline&prompt=consent`;
@@ -176,7 +176,8 @@ const login = async () => {
 
             <div class="brand">
               <router-link to="/" class="brand-logo-link">
-                <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="Ocean Sport" class="brand-logo-img" />
+                <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="Ocean Sport"
+                  class="brand-logo-img" />
               </router-link>
               <span class="brand-text">Ocean Sport</span>
             </div>

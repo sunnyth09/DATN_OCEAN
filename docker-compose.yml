@@ -34,6 +34,7 @@ services:
           memory: 50M
 
   backend:
+    image: ocean-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -64,6 +65,7 @@ services:
           memory: 200M
 
   queue_worker:
+    image: ocean-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -88,6 +90,7 @@ services:
           memory: 150M
 
   reverb:
+    image: ocean-backend
     build:
       context: ./backend
       dockerfile: Dockerfile

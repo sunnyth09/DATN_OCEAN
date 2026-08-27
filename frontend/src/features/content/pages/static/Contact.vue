@@ -541,24 +541,75 @@ const submitContact = async () => {
   }
 
   .page-hero .container {
-    padding: 40px 18px;
+    padding: 36px 16px;
     border-radius: 18px;
   }
 
   .page-content {
-    padding: 36px 24px 56px;
+    padding: 24px 16px 56px;
   }
 
   .contact-grid {
     grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .contact-card {
+    padding: 14px 10px;
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .contact-value {
+    word-break: break-word;
+    font-size: 0.8rem;
+  }
+
+  .contact-note {
+    word-break: break-word;
+    font-size: 0.72rem;
+    line-height: 1.3;
   }
 
   .contact-layout {
     grid-template-columns: 1fr;
+    gap: 32px;
   }
 
   .form-row-2 {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .contact-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 14px;
+    padding: 14px 16px;
+  }
+
+  .contact-icon {
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .contact-card h3 {
+    margin: 0 0 2px;
+  }
+
+  .contact-value {
+    margin-bottom: 2px;
   }
 }
 </style>

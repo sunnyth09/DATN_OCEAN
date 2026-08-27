@@ -914,105 +914,105 @@ onUnmounted(() => {
                     <TransitionGroup name="cart-item" tag="div" class="items-list">
                         <div v-for="item in cartItems" :key="item.cart_item_id || item.variant_id" class="cart-item-card"
                             :class="{ 'item-unavailable': !isItemAvailable(item) }">
-                        <!-- Checkbox -->
-                        <div class="item-checkbox" @click="toggleSelect(item)" :class="{ 'checkbox-disabled': !isItemAvailable(item) }"
-                            :title="!isItemAvailable(item) ? (getItemUnavailableReason(item) || 'Sản phẩm không khả dụng') : 'Chọn sản phẩm'">
-                            <div class="custom-checkbox" :class="{ checked: item.selected && isItemAvailable(item), disabled: !isItemAvailable(item) }">
-                                <svg v-if="item.selected && isItemAvailable(item)" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                    stroke="white" stroke-width="4">
-                                    <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                                <svg v-else-if="!isItemAvailable(item)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
+                            <!-- Checkbox -->
+                            <div class="item-checkbox" @click="toggleSelect(item)" :class="{ 'checkbox-disabled': !isItemAvailable(item) }"
+                                :title="!isItemAvailable(item) ? (getItemUnavailableReason(item) || 'Sản phẩm không khả dụng') : 'Chọn sản phẩm'">
+                                <div class="custom-checkbox" :class="{ checked: item.selected && isItemAvailable(item), disabled: !isItemAvailable(item) }">
+                                    <svg v-if="item.selected && isItemAvailable(item)" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                        stroke="white" stroke-width="4">
+                                        <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                    <svg v-else-if="!isItemAvailable(item)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5">
+                                        <line x1="18" y1="6" x2="6" y2="18" />
+                                        <line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Product Image -->
-                        <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-image-link">
-                            <img :src="getProductImage(item)" :alt="item.product?.name" class="item-image" :class="{ 'img-grayscale': !isItemAvailable(item) }" />
-                        </router-link>
-
-                        <!-- Product Info & Price -->
-                        <div class="item-details">
-                            <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-name">
-                                {{ item.product?.name || 'Sản phẩm không tồn tại' }}
+                            <!-- Product Image -->
+                            <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-image-link">
+                                <img :src="getProductImage(item)" :alt="item.product?.name" class="item-image" :class="{ 'img-grayscale': !isItemAvailable(item) }" />
                             </router-link>
 
-                            <!-- Variant Tag (Clickable to change) -->
-                            <div class="item-variant-row" v-if="item.variant">
-                                <button type="button" class="item-variant-btn" @click.stop="openVariantModal(item)" title="Bấm để đổi màu sắc / kích thước">
-                                    <span class="item-variant-text">
-                                        {{ item.variant.color && item.variant.size ? `Phân loại: ${item.variant.color} - ${item.variant.size}` : (item.variant.color ? `Màu: ${item.variant.color}` : (item.variant.size ? `Size: ${item.variant.size}` : item.variant.variant_name)) }}
-                                    </span>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="variant-caret">
-                                        <polyline points="6 9 12 15 18 9" />
-                                    </svg>
-                                </button>
-                            </div>
+                            <!-- Product Info & Actions -->
+                            <div class="item-details">
+                                <div class="item-title-row">
+                                    <router-link :to="item.product ? '/product/' + item.product.slug : '#'" class="item-name">
+                                        {{ item.product?.name || 'Sản phẩm không tồn tại' }}
+                                    </router-link>
+                                    <button class="btn-remove" @click="removeItem(item)" title="Xóa sản phẩm">
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2.2">
+                                            <line x1="18" y1="6" x2="6" y2="18" />
+                                            <line x1="6" y1="6" x2="18" y2="18" />
+                                        </svg>
+                                    </button>
+                                </div>
 
-                            <!-- Alert Box & Badges -->
-                            <div class="unavailable-alert-box" v-if="!isItemAvailable(item)">
-                                <span class="alert-icon">⚠️</span>
-                                <span class="alert-msg">{{ getItemUnavailableReason(item) }}</span>
-                                <button v-if="item.product" type="button" class="btn-inline-change-var" @click.stop="openVariantModal(item)">
-                                    Đổi phân loại
-                                </button>
-                            </div>
-                            <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
-                                ⚠️ Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
-                            </div>
-                            <div class="item-stock" v-else-if="item.variant?.stock <= 5 && item.variant?.stock > 0">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                                Chỉ còn {{ item.variant.stock }} sản phẩm
-                            </div>
-                            
-                            <div class="item-price-row">
-                                <span class="item-price-original" v-if="getItemOriginalPrice(item)">
-                                    {{ formatPrice(getItemOriginalPrice(item)) }}
-                                </span>
-                                <span class="item-price">{{ formatPrice(item.variant?.price) }}</span>
+                                <!-- Variant Tag (Clickable to change) -->
+                                <div class="item-variant-row" v-if="item.variant">
+                                    <button type="button" class="item-variant-btn" @click.stop="openVariantModal(item)" title="Bấm để đổi màu sắc / kích thước">
+                                        <span class="item-variant-text">
+                                            {{ item.variant.color && item.variant.size ? `Phân loại: ${item.variant.color} - ${item.variant.size}` : (item.variant.color ? `Màu: ${item.variant.color}` : (item.variant.size ? `Size: ${item.variant.size}` : item.variant.variant_name)) }}
+                                        </span>
+                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="variant-caret">
+                                            <polyline points="6 9 12 15 18 9" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Alert Box & Badges -->
+                                <div class="unavailable-alert-box" v-if="!isItemAvailable(item)">
+                                    <span class="alert-icon">⚠️</span>
+                                    <span class="alert-msg">{{ getItemUnavailableReason(item) }}</span>
+                                    <button v-if="item.product" type="button" class="btn-inline-change-var" @click.stop="openVariantModal(item)">
+                                        Đổi phân loại
+                                    </button>
+                                </div>
+                                <div class="item-low-stock-badge" v-else-if="item.quantity > item.variant?.stock">
+                                    ⚠️ Vượt quá tồn kho (Tối đa: {{ item.variant.stock }})
+                                </div>
+                                <div class="item-stock" v-else-if="item.variant?.stock <= 5 && item.variant?.stock > 0">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                    Chỉ còn {{ item.variant.stock }} sản phẩm
+                                </div>
+
+                                <!-- Bottom Row: Price & Quantity Stepper -->
+                                <div class="item-bottom-row">
+                                    <div class="item-price-row">
+                                        <span class="item-price">{{ formatPrice(item.variant?.price) }}</span>
+                                        <span class="item-price-original" v-if="getItemOriginalPrice(item)">
+                                            {{ formatPrice(getItemOriginalPrice(item)) }}
+                                        </span>
+                                    </div>
+
+                                    <!-- Quantity Stepper -->
+                                    <div class="quantity-control" :class="{ 'qty-disabled': !isItemAvailable(item) }">
+                                        <button class="qty-btn" @click="changeQuantity(item, item.quantity - 1)"
+                                            :disabled="item.quantity <= 1 || updating[item.cart_item_id] || !isItemAvailable(item)">
+                                            -
+                                        </button>
+                                        <input
+                                            class="qty-display qty-input"
+                                            :class="{ 'qty-updating': updating[item.cart_item_id] }"
+                                            type="text"
+                                            inputmode="numeric"
+                                            autocomplete="off"
+                                            :value="item.quantity"
+                                            :disabled="updating[item.cart_item_id] || !isItemAvailable(item)"
+                                            @input="scheduleQuantityInputUpdate(item, $event)"
+                                            @keydown.enter.prevent="scheduleQuantityInputUpdate(item, $event)"
+                                            @blur="handleQuantityInputBlur(item, $event)"
+                                        />
+                                        <button class="qty-btn" @click="changeQuantity(item, item.quantity + 1)"
+                                            :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id] || !isItemAvailable(item)">
+                                            +
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
-                        <!-- Spacer -->
-                        <div class="item-spacer"></div>
-
-                        <!-- Quantity -->
-                        <div class="quantity-control" :class="{ 'qty-disabled': !isItemAvailable(item) }">
-                            <button class="qty-btn" @click="changeQuantity(item, item.quantity - 1)"
-                                :disabled="item.quantity <= 1 || updating[item.cart_item_id] || !isItemAvailable(item)">
-                                -
-                            </button>
-                            <input
-                                class="qty-display qty-input"
-                                :class="{ 'qty-updating': updating[item.cart_item_id] }"
-                                type="text"
-                                inputmode="numeric"
-                                autocomplete="off"
-                                :value="item.quantity"
-                                :disabled="updating[item.cart_item_id] || !isItemAvailable(item)"
-                                @input="scheduleQuantityInputUpdate(item, $event)"
-                                @keydown.enter.prevent="scheduleQuantityInputUpdate(item, $event)"
-                                @blur="handleQuantityInputBlur(item, $event)"
-                            />
-                            <button class="qty-btn" @click="changeQuantity(item, item.quantity + 1)"
-                                :disabled="item.quantity >= (item.variant?.stock || 0) || updating[item.cart_item_id] || !isItemAvailable(item)">
-                                +
-                            </button>
-                        </div>
-
-                        <!-- Remove Button -->
-                        <button class="btn-remove" @click="removeItem(item)" title="Xóa">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <line x1="18" y1="6" x2="6" y2="18" />
-                                <line x1="6" y1="6" x2="18" y2="18" />
-                            </svg>
-                        </button>
-                    </div>
-                </TransitionGroup>
+                    </TransitionGroup>
                 </div> <!-- END seamless-cart-container -->
 
                 <!-- ── Quick Add Slider ── -->
@@ -1069,6 +1069,28 @@ onUnmounted(() => {
                     </router-link>
                 </div>
             </div>
+        </div>
+
+        <!-- Mobile Sticky Checkout Bar (Hiển thị khi màn hình mobile) -->
+        <div v-if="!loading && cartItems.length > 0" class="mobile-sticky-checkout-bar">
+            <label class="mobile-sticky-select-all" @click.prevent="toggleSelectAll" :class="{ 'wrapper-disabled': availableCount === 0 }">
+                <div class="custom-checkbox" :class="{ checked: selectAll && availableCount > 0, disabled: availableCount === 0 }">
+                    <svg v-if="selectAll && availableCount > 0" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="4">
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                </div>
+                <span>Tất cả ({{ availableCount }})</span>
+            </label>
+
+            <div class="mobile-sticky-price-box">
+                <div class="mobile-sticky-label">Tổng cộng:</div>
+                <div class="mobile-sticky-total">{{ formatPrice(totalPrice > 0 ? totalPrice + 35000 : 0) }}</div>
+            </div>
+
+            <button class="btn-mobile-sticky-checkout" @click="proceedToCheckout" :disabled="selectedItems.length === 0 || isAnyItemUpdating">
+                <span v-if="isAnyItemUpdating" class="vmodal-spinner" style="width: 14px; height: 14px; border-width: 2px; border-top-color: #fff"></span>
+                <span>Thanh toán ({{ totalSelectedQuantity }})</span>
+            </button>
         </div>
     </div>
 
@@ -1201,10 +1223,14 @@ onUnmounted(() => {
 }
 
 .upsell-title {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 800;
     color: #102a43;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+}
+
+.upsell-section {
+    padding-bottom: 40px;
 }
 
 /* Page Header */
@@ -1388,17 +1414,17 @@ onUnmounted(() => {
 }
 
 /* Cart Items */
+/* Cart Items */
 .items-list {
     display: flex;
     flex-direction: column;
-    /* Remove gap to use border-bottom instead */
 }
 
 .cart-item-card {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 14px 16px;
     background: #fff;
     border-bottom: 1px solid #e8ecf1;
     transition: all 0.25s ease;
@@ -1421,34 +1447,47 @@ onUnmounted(() => {
 .item-checkbox {
     cursor: pointer;
     flex-shrink: 0;
+    padding-top: 2px;
 }
 
 /* Product Image */
 .item-image-link {
     flex-shrink: 0;
+    display: block;
 }
 
 .item-image {
-    width: 70px;
-    height: 70px;
+    width: 75px;
+    height: 75px;
     object-fit: cover;
     border-radius: 10px;
     border: 1px solid #eef2f6;
+    display: block;
     transition: transform 0.3s;
 }
 
 .item-image:hover {
-    transform: scale(1.05);
+    transform: scale(1.04);
 }
 
 /* Product Details */
 .item-details {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.item-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
 }
 
 .item-name {
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     font-weight: 700;
     color: #1a2b4a;
     text-decoration: none;
@@ -1457,7 +1496,9 @@ onUnmounted(() => {
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    line-height: 1.4;
+    line-height: 1.35;
+    flex: 1;
+    min-width: 0;
     transition: color 0.2s;
 }
 
@@ -1465,23 +1506,54 @@ onUnmounted(() => {
     color: #E63B6F;
 }
 
+/* Remove Button */
+.btn-remove {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: #f8fafc;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.btn-remove:hover {
+    color: #E63B6F;
+    background: #fff0f4;
+}
+
 .item-variant-row {
-    margin-top: 5px;
-    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    margin: 2px 0 4px;
 }
 
 .item-variant-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 3px 9px;
-    background: #f8fafc;
+    gap: 4px;
+    height: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    padding: 0 7px;
+    background: #f1f5f9;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     text-align: left;
     max-width: 100%;
+    box-sizing: border-box;
+    line-height: 1;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: #475569;
 }
 
 .item-variant-btn:hover {
@@ -1494,9 +1566,11 @@ onUnmounted(() => {
 }
 
 .item-variant-btn .variant-caret {
+    width: 9px;
+    height: 9px;
     color: #94a3b8;
     flex-shrink: 0;
-    transition: all 0.2s ease;
+    transition: transform 0.15s ease;
 }
 
 .item-variant-btn:hover .variant-caret {
@@ -1505,10 +1579,13 @@ onUnmounted(() => {
 }
 
 .item-variant-text {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
+    line-height: 1;
     color: #475569;
     font-weight: 500;
-    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Cart Notice Banner */
@@ -1587,16 +1664,16 @@ onUnmounted(() => {
     background: #fff1f2;
     border: 1px solid #fecdd3;
     border-radius: 6px;
-    padding: 4px 10px;
-    margin-top: 6px;
+    padding: 4px 8px;
+    margin-top: 4px;
 }
 
 .unavailable-alert-box .alert-icon {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 
 .unavailable-alert-box .alert-msg {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     color: #e11d48;
     font-weight: 600;
 }
@@ -1606,12 +1683,12 @@ onUnmounted(() => {
     color: #fff;
     border: none;
     border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 0.74rem;
+    padding: 2px 7px;
+    font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    margin-left: 4px;
+    margin-left: 2px;
     font-family: inherit;
 }
 
@@ -1628,24 +1705,26 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.78rem;
-    color: #f59e0b;
+    font-size: 0.76rem;
+    color: #d97706;
     font-weight: 600;
-    margin-top: 6px;
+    margin-top: 2px;
 }
 
 .item-unavailable-badge {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     color: #dc2626;
     font-weight: 600;
-    margin-top: 6px;
+    margin-top: 2px;
 }
+
 .item-low-stock-badge {
-    font-size: 0.78rem;
-    color: #f59e0b;
+    font-size: 0.76rem;
+    color: #d97706;
     font-weight: 600;
-    margin-top: 6px;
+    margin-top: 2px;
 }
+
 .stock-warning-text {
     font-size: 0.8rem;
     color: #dc2626;
@@ -1659,30 +1738,33 @@ onUnmounted(() => {
     line-height: 1.4;
 }
 
-/* Price & Quantity */
+/* Bottom Row: Price & Quantity */
+.item-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 6px;
+}
+
 .item-price-row {
     display: flex;
     align-items: baseline;
-    gap: 8px;
-    margin-top: 4px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
 .item-price-original {
-    font-size: 0.88rem;
-    font-weight: 600;
+    font-size: 0.8rem;
+    font-weight: 500;
     color: #94a3b8;
     text-decoration: line-through;
 }
 
 .item-price {
-    font-size: 1.05rem;
+    font-size: 1.02rem;
     font-weight: 800;
     color: #E63B6F;
-}
-
-.item-spacer {
-    flex: 1;
 }
 
 .quantity-control {
@@ -1692,10 +1774,12 @@ onUnmounted(() => {
     border-radius: 8px;
     overflow: hidden;
     background: #fff;
+    height: 28px;
+    flex-shrink: 0;
 }
 
 .qty-btn {
-    width: 28px;
+    width: 26px;
     height: 28px;
     border: none;
     background: transparent;
@@ -1704,7 +1788,9 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     color: #486581;
+    font-size: 0.95rem;
     transition: all 0.15s;
+    padding: 0;
 }
 
 .qty-btn:hover:not(:disabled) {
@@ -1718,7 +1804,7 @@ onUnmounted(() => {
 }
 
 .qty-display {
-    width: 36px;
+    width: 32px;
     height: 28px;
     text-align: center;
     font-size: 0.85rem;
@@ -1730,6 +1816,7 @@ onUnmounted(() => {
     line-height: 28px;
     outline: none;
     background: #fff;
+    padding: 0;
 }
 
 .qty-input:focus {
@@ -1742,26 +1829,9 @@ onUnmounted(() => {
     background: #f8fafc;
 }
 
-/* Remove Button */
-.btn-remove {
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: #f8fafc;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #94a3b8;
-    transition: all 0.2s;
-    flex-shrink: 0;
-    margin-left: 8px;
-}
-
-.btn-remove:hover {
-    color: #E63B6F;
-    background: #fff5f8;
+/* Mobile Sticky Checkout Bar */
+.mobile-sticky-checkout-bar {
+    display: none;
 }
 
 /* Order Summary */
@@ -2048,6 +2118,8 @@ onUnmounted(() => {
 @media (max-width: 900px) {
     .cart-layout {
         flex-direction: column;
+        gap: 20px;
+        padding-bottom: 90px;
     }
 
     .cart-items-section,
@@ -2055,76 +2127,247 @@ onUnmounted(() => {
         width: 100%;
         position: static;
     }
+}
 
-    .cart-item-card {
-        flex-wrap: wrap;
-        gap: 12px;
+@media (max-width: 768px) {
+    .cart-layout {
+        padding-bottom: 120px;
     }
 
-    .item-price-qty {
-        flex-direction: row;
-        min-width: auto;
-        gap: 12px;
-        width: 100%;
+    .summary-card .btn-checkout,
+    .summary-card .btn-continue {
+        display: none;
+    }
+
+    .summary-card {
+        margin-bottom: 20px;
+    }
+
+    .mobile-sticky-checkout-bar {
+        display: flex;
+        align-items: center;
         justify-content: space-between;
-        padding-left: 36px;
+        gap: 8px;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 9990;
+        background: #ffffff;
+        padding: 6px 12px;
+        border-top: 1px solid #eef2f6;
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .mobile-sticky-select-all {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #334155;
+        cursor: pointer;
+        user-select: none;
+        flex-shrink: 0;
+    }
+
+    .mobile-sticky-price-box {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        flex: 1;
+        min-width: 0;
+        padding: 0 4px;
+    }
+
+    .mobile-sticky-label {
+        font-size: 0.65rem;
+        color: #64748b;
+        font-weight: 500;
+        line-height: 1.1;
+    }
+
+    .mobile-sticky-total {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #E63B6F;
+        white-space: nowrap;
+        line-height: 1.2;
+    }
+
+    .btn-mobile-sticky-checkout {
+        flex-shrink: 0;
+        padding: 7px 14px;
+        background: var(--primary, #E63B6F);
+        color: #ffffff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        box-shadow: 0 2px 8px rgba(230, 59, 111, 0.25);
+        transition: all 0.2s;
+        font-family: inherit;
+    }
+
+    .btn-mobile-sticky-checkout:hover:not(:disabled) {
+        background: #C4305D;
+    }
+
+    .btn-mobile-sticky-checkout:disabled {
+        background: #cbd5e1;
+        cursor: not-allowed;
+        box-shadow: none;
     }
 }
 
 @media (max-width: 600px) {
+    .cart-page {
+        padding: 14px 0 80px;
+    }
+
+    .page-header {
+        margin-bottom: 12px;
+    }
+
+    .page-header h1 {
+        font-size: 1.25rem;
+        margin-bottom: 4px;
+    }
+
     .item-image {
-        width: 70px;
-        height: 70px;
+        width: 64px;
+        height: 64px;
+        border-radius: 8px;
     }
 
     .cart-item-card {
-        padding: 12px 14px;
+        padding: 10px 12px;
+        gap: 10px;
+    }
+
+    .item-name {
+        font-size: 0.86rem;
+        line-height: 1.3;
+    }
+
+    .item-price {
+        font-size: 0.95rem;
+    }
+
+    .item-price-original {
+        font-size: 0.74rem;
+    }
+
+    .item-variant-row {
+        margin: 1px 0 3px;
+    }
+
+    .item-variant-btn {
+        height: 20px;
+        min-height: 20px;
+        max-height: 20px;
+        padding: 0 6px;
+        font-size: 0.7rem;
+        gap: 3px;
+        border-radius: 4px;
+    }
+
+    .item-variant-text {
+        font-size: 0.7rem;
+        line-height: 1;
+    }
+
+    .item-variant-btn .variant-caret {
+        width: 8px;
+        height: 8px;
+    }
+
+    .btn-remove {
+        width: 22px;
+        height: 22px;
+        border-radius: 5px;
+    }
+
+    .quantity-control {
+        height: 26px;
+        border-radius: 6px;
+    }
+
+    .qty-btn {
+        width: 24px;
+        height: 26px;
+        font-size: 0.85rem;
+    }
+
+    .qty-display {
+        width: 28px;
+        height: 26px;
+        font-size: 0.8rem;
+        line-height: 26px;
+    }
+
+    .cart-action-bar {
+        padding: 6px 12px;
+    }
+
+    .summary-card {
+        padding: 12px;
+    }
+
+    .upsell-title {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+    }
+
+    .upsell-section {
+        padding-bottom: 80px;
+    }
+
+    .vmodal-footer {
+        padding: 12px 16px;
+        margin-top: 10px;
+    }
+
+    .vmodal-btn-cancel,
+    .vmodal-btn-confirm {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        border-radius: 8px;
     }
 }
 
-/* ====== VARIANT ROW + CHANGE BTN ====== */
-.item-variant-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 4px;
-    flex-wrap: wrap;
-}
+@media (max-width: 380px) {
+    .item-image {
+        width: 56px;
+        height: 56px;
+    }
 
-.item-variant-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.8rem;
-    color: #627d98;
-    font-weight: 500;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 3px 10px;
-    line-height: 1.4;
-}
+    .cart-item-card {
+        padding: 8px 10px;
+        gap: 8px;
+    }
 
-.btn-change-variant {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
-    border: 1px solid #E63B6F;
-    border-radius: 20px;
-    background: transparent;
-    color: #E63B6F;
-    font-size: 0.78rem;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.18s;
-    white-space: nowrap;
-}
+    .item-name {
+        font-size: 0.82rem;
+    }
 
-.btn-change-variant:hover {
-    background: #E63B6F;
-    color: white;
+    .item-price {
+        font-size: 0.88rem;
+    }
+
+    .btn-mobile-sticky-checkout {
+        padding: 6px 10px;
+        font-size: 0.78rem;
+        border-radius: 6px;
+    }
+
+    .mobile-sticky-total {
+        font-size: 0.88rem;
+    }
 }
 
 /* ====== VARIANT MODAL ====== */

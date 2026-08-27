@@ -1,5 +1,5 @@
 <template>
-  <div class="chatbot-wrapper" id="ocean-chatbot">
+  <div v-if="!isHiddenPage" class="chatbot-wrapper" :class="{ 'on-product-detail': isProductDetailPage }" id="ocean-chatbot">
     <!-- Floating Bubble -->
     <button
       class="chatbot-bubble"
@@ -282,14 +282,23 @@
 import { useCartStore } from '@/stores/cart';
 const cartStore = useCartStore();
 import { ref, nextTick, onMounted, watch, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import api from '../axios.js';
 import { getAppBaseUrl } from '@/utils/url';
 import ProductCards from './chatbot/ProductCards.vue';
 import VariantPickerCard from './chatbot/VariantPickerCard.vue';
 
 const router = useRouter();
+const route = useRoute();
 const BASE_URL = getAppBaseUrl();
+
+const isHiddenPage = computed(() => {
+  return ['cart', 'checkout'].includes(route?.name);
+});
+
+const isProductDetailPage = computed(() => {
+  return route?.name === 'product-detail';
+});
 
 const isOpen = ref(false);
 const hasUnread = ref(false);
@@ -794,8 +803,8 @@ async function sendMessage() {
 
 /* ==================== FLOATING BUBBLE ==================== */
 .chatbot-bubble {
-  width: 60px;
-  height: 60px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary) 0%, #ff6b8b 50%, var(--primary-dark) 100%);
   border: none;
@@ -804,51 +813,26 @@ async function sendMessage() {
   align-items: center;
   justify-content: center;
   color: #fff;
-  box-shadow:
-    0 4px 20px rgba(230, 59, 111, 0.4),
-    0 0 0 0 rgba(230, 59, 111, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.3);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   z-index: 1;
 }
 
-.chatbot-bubble::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 50%;
-  background: rgba(230, 59, 111, 0.6);
-  z-index: -1;
-  animation: sonar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
 .chatbot-bubble:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 28px rgba(230, 59, 111, 0.5);
+  transform: scale(1.06);
+  box-shadow: 0 6px 18px rgba(230, 59, 111, 0.4);
 }
 
 .chatbot-bubble.is-open {
   animation: none;
   background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.chatbot-bubble.is-open::before {
-  display: none;
-}
-
-@keyframes sonar-ping {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
+.chatbot-bubble svg {
+  width: 22px;
+  height: 22px;
 }
 
 .unread-dot {
@@ -1667,17 +1651,50 @@ async function sendMessage() {
 }
 
 /* ==================== RESPONSIVE ==================== */
-@media (max-width: 480px) {
+@media (max-width: 1024px) and (min-width: 769px) {
   .chatbot-wrapper {
-    bottom: 16px;
+    bottom: 20px;
+    right: 20px;
+  }
+  .chatbot-bubble {
+    width: 44px;
+    height: 44px;
+  }
+  .chatbot-bubble svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chatbot-wrapper {
+    bottom: 20px;
     right: 16px;
+    left: auto;
+  }
+  .chatbot-wrapper.on-product-detail {
+    bottom: 78px;
+    right: 14px;
+  }
+  .chatbot-bubble {
+    width: 40px;
+    height: 40px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  .chatbot-bubble svg {
+    width: 19px;
+    height: 19px;
   }
   .chatbot-window {
-    width: calc(100vw - 32px);
-    height: calc(100dvh - 100px);
-    bottom: 68px;
-    right: -16px;
+    width: calc(100vw - 24px);
+    height: calc(100dvh - 80px);
+    bottom: 48px;
+    right: 0;
+    left: auto;
     border-radius: 16px;
+  }
+  .chatbot-wrapper.on-product-detail .chatbot-window {
+    bottom: 50px;
   }
 }
 </style>
