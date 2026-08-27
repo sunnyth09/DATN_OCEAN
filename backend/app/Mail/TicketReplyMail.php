@@ -16,10 +16,11 @@ class TicketReplyMail extends Mailable
     public Ticket $ticket;
     public string $statusText;
     public string $frontendUrl;
+    public string $profileUrl;
 
     public function __construct(Ticket $ticket)
     {
-        $this->ticket = $ticket;
+        $this->ticket = $ticket->loadMissing(['user', 'order']);
         $this->statusText = match ($ticket->status) {
             'pending'    => 'Chờ xử lý',
             'processing' => 'Đang xử lý',
@@ -27,20 +28,35 @@ class TicketReplyMail extends Mailable
             'closed'     => 'Đã đóng',
             default      => $ticket->status,
         };
-        $this->frontendUrl = rtrim(env('FRONTEND_URL', 'https://oceansport.pro.vn'), '/');
+
+        $base = env('FRONTEND_URL') ?? config('app.frontend_url') ?? (env('APP_ENV') === 'local' ? 'http://localhost:3302' : 'https://oceansport.pro.vn');
+        $this->frontendUrl = rtrim((string) $base, '/');
+        $this->profileUrl = $this->frontendUrl . '/profile/tickets';
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Cập nhật khiếu nại #' . $this->ticket->ticket_id . ' - Ocean Sport',
+            subject: '[Ocean Sport] Cập nhật khiếu nại #' . $this->ticket->ticket_id,
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            view: 'emails.ticket.reply',
+            markdown: 'emails.ticket.reply',
+            with: [
+                'ticket'       => $this->ticket,
+                'customerName' => $this->ticket->user?->full_name ?? 'Quý khách',
+                'ticketId'     => $this->ticket->ticket_id,
+                'reason'       => $this->ticket->reason,
+                'statusText'   => $this->statusText,
+                'status'       => $this->ticket->status,
+                'adminReply'   => $this->ticket->admin_reply,
+                'orderCode'    => $this->ticket->order?->order_code,
+                'profileUrl'   => $this->profileUrl,
+            ],
         );
     }
 }
+
