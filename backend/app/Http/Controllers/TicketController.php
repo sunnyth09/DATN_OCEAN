@@ -108,7 +108,7 @@ class TicketController extends Controller
                     $user->notify(new SystemNotification(
                         $title,
                         $message,
-                        '/profile',
+                        '/profile/tickets',
                         'bell'
                     ));
 

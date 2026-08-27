@@ -53,7 +53,7 @@ class TicketReplyMail extends Mailable
                 'status'      => $this->ticket->status,
                 'adminReply'  => $this->ticket->admin_reply,
                 'orderCode'   => $this->ticket->order?->order_code,
-                'profileUrl'  => $this->frontendUrl . '/profile',
+                'profileUrl'  => $this->frontendUrl . '/profile/tickets',
             ],
         );
     }

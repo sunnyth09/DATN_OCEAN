@@ -73,6 +73,7 @@ const routes = [
                     { path: "wallet", name: "profile-wallet", component: () => import("@/features/profile/pages/ProfileWallet.vue"), meta: { title: 'Ví của tôi' } },
                     { path: "loyalty", name: "profile-loyalty", component: () => import("@/features/profile/pages/ProfileLoyalty.vue"), meta: { title: 'Điểm thưởng' } },
                     { path: "court-bookings", name: "profile-court-bookings", component: () => import("@/features/courts/pages/client/UserBookings.vue"), meta: { title: 'Lịch sử đặt sân' } },
+                    { path: "tickets", name: "profile-tickets", component: () => import("@/features/profile/pages/ProfileTickets.vue"), meta: { title: 'Khiếu nại của tôi' } },
                     { path: "notifications", name: "profile-notifications", component: () => import("@/features/profile/pages/ProfileNotifications.vue"), meta: { title: 'Thông báo' } },
                 ],
             },

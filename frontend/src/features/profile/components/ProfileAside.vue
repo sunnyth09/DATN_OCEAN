@@ -92,6 +92,23 @@
       </router-link>
 
       <router-link
+        to="/profile/tickets"
+        class="aside-nav-item"
+        active-class="aside-nav-item--active"
+      >
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+        <span>Khiếu nại của tôi</span>
+      </router-link>
+
+      <router-link
         to="/profile/wishlist"
         class="aside-nav-item"
         active-class="aside-nav-item--active"
@@ -242,6 +259,7 @@ const menuLabels = {
   '/profile/addresses': 'Sổ địa chỉ',
   '/profile/orders': 'Đơn hàng của tôi',
   '/profile/return-requests': 'Yêu cầu hoàn hàng',
+  '/profile/tickets': 'Khiếu nại của tôi',
   '/profile/wishlist': 'Sản phẩm yêu thích',
   '/profile/coupons': 'Mã giảm giá của tôi',
   '/profile/affiliate': 'Affiliate',
