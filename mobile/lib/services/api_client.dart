@@ -28,14 +28,14 @@ class ApiClient {
   /// Giải quyết lỗi DNS IPv6 treo trên Android Emulator:
   /// Phân giải trực tiếp sang IPv4 hoặc fallback về IP tĩnh '116.118.6.160'
   static Future<String> getEffectiveHost() async {
-    if (kIsWeb) return 'apiocean.bcbdev.id.vn';
+    if (kIsWeb) return 'api.oceansport.pro.vn';
     if (_resolvedIp != null &&
         _lastDnsLookup != null &&
         DateTime.now().difference(_lastDnsLookup!).inMinutes < 10) {
       return _resolvedIp!;
     }
     try {
-      final list = await InternetAddress.lookup('apiocean.bcbdev.id.vn', type: InternetAddressType.IPv4)
+      final list = await InternetAddress.lookup('api.oceansport.pro.vn', type: InternetAddressType.IPv4)
           .timeout(const Duration(milliseconds: 1500));
       if (list.isNotEmpty) {
         _resolvedIp = list.first.address;
@@ -80,7 +80,7 @@ class ApiClient {
           // 1. Mở kết nối TCP trực tiếp tới IP máy chủ '116.118.6.160' (< 50ms)
           // 2. Nâng cấp TLS bằng SecureSocket.secure với host: uri.host để thiết lập đầy đủ tiêu đề SNI hợp lệ
           client.connectionFactory = (Uri uri, String? proxyHost, int? proxyPort) {
-            final targetIp = (uri.host == 'apiocean.bcbdev.id.vn') ? '116.118.6.160' : uri.host;
+            final targetIp = (uri.host == 'api.oceansport.pro.vn' || uri.host == 'apiocean.bcbdev.id.vn') ? '116.118.6.160' : uri.host;
 
             final Future<Socket> futureSocket = Socket.connect(
               targetIp,
@@ -90,7 +90,7 @@ class ApiClient {
               if (uri.scheme == 'https') {
                 return SecureSocket.secure(
                   rawSocket,
-                  host: uri.host, // 'apiocean.bcbdev.id.vn' -> Thiết lập chuẩn tiêu đề TLS SNI!
+                  host: uri.host, // 'api.oceansport.pro.vn' -> Thiết lập chuẩn tiêu đề TLS SNI!
                   onBadCertificate: (cert) => true,
                 );
               }

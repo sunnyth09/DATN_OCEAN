@@ -91,9 +91,15 @@ watch([searchQuery, selectedCategory], () => {
   currentPage.value = 1;
 });
 
+const FALLBACK_POST_IMG = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
+
 const getImageUrl = (url) => {
-  if (!url || url === '0') return 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
+  if (!url || url === '0' || url === 'null') return FALLBACK_POST_IMG;
   return getStorageUrl(url);
+};
+
+const handleImgError = (e) => {
+  e.target.src = FALLBACK_POST_IMG;
 };
 
 const formatDate = (dateStr) => {
@@ -194,7 +200,7 @@ const getAuthorAvatarUrl = (author) => {
         <!-- Featured Post (only on page 1 of All/Category) -->
         <div v-if="featuredPost" class="featured-post-card">
           <router-link :to="'/posts/' + (featuredPost.slug || featuredPost.post_id)" class="featured-img-wrap">
-            <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img" />
+            <img :src="getImageUrl(featuredPost.thumbnail_url)" :alt="featuredPost.title" class="featured-img" @error="handleImgError" />
           </router-link>
           <div class="featured-info">
             <div class="post-meta">
@@ -244,7 +250,7 @@ const getAuthorAvatarUrl = (author) => {
         <div v-if="regularPosts.length > 0" class="posts-grid">
           <article v-for="post in visiblePosts" :key="post.post_id" class="post-card">
             <router-link :to="'/posts/' + (post.slug || post.post_id)" class="post-img-wrap">
-              <img :src="getImageUrl(post.thumbnail_url)" :alt="post.title" class="post-img" />
+              <img :src="getImageUrl(post.thumbnail_url)" :alt="post.title" class="post-img" @error="handleImgError" />
               <span class="post-card-tag">{{ post.category?.name || 'Tin tức' }}</span>
             </router-link>
             <div class="post-card-content">
@@ -293,7 +299,7 @@ const getAuthorAvatarUrl = (author) => {
 
 <style scoped>
 .static-page {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 /* Author elements */
@@ -863,7 +869,7 @@ const getAuthorAvatarUrl = (author) => {
   }
 
   .page-content {
-    padding: 36px 24px 56px;
+    padding: 24px 16px 75px;
   }
 
   .filter-section {

@@ -404,7 +404,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 .sepay-modal-card {

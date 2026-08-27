@@ -336,25 +336,33 @@ onMounted(async () => {
   justify-content: center;
   gap: 8px;
   padding: 12px 20px;
-  border: none;
+  border: 1.5px solid transparent;
   background: transparent;
   border-radius: 12px;
   font-weight: 700;
   font-size: 0.95rem;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.22s ease;
 }
 
-.fs-tab-btn:hover {
-  background: #f8fafc;
-  color: #1e293b;
+.fs-tab-btn:hover:not(.active) {
+  background: #fff0f5;
+  color: var(--primary, #E63B6F);
+  border-color: #ffd7e3;
+  transform: translateY(-1px);
+}
+
+.fs-tab-btn:hover:not(.active) .tab-badge {
+  background: #ffd7e3;
+  color: var(--primary, #E63B6F);
 }
 
 .fs-tab-btn.active {
-  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  background: linear-gradient(135deg, #E63B6F 0%, #C4305D 100%);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.35);
 }
 
 .tab-badge {
@@ -367,6 +375,7 @@ onMounted(async () => {
   font-weight: 800;
   background: rgba(255, 255, 255, 0.25);
   color: #ffffff;
+  transition: all 0.2s ease;
 }
 
 .fs-tab-btn:not(.active) .tab-badge {

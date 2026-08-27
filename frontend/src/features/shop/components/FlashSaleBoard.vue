@@ -7,7 +7,9 @@
         <AppIcon name="zap" size="14" />
         <span class="badge-text">FLASH SALE</span>
       </div>
-      <span class="hot-chip" v-if="stockPercent >= 70 && !isEnded">🔥 Sắp hết hàng</span>
+      <span class="hot-chip" v-if="stockPercent >= 70 && !isEnded">
+        <AppIcon name="fire" size="13" /> Sắp hết hàng
+      </span>
     </div>
 
     <!-- ── LOADING ── -->
@@ -34,13 +36,19 @@
             <span class="sale-price">{{ fmtPrice(sale.sale_price) }}</span>
             <span class="orig-price">{{ fmtPrice(sale.original_price) }}</span>
           </div>
-          <p class="limit-note">🛒 Tối đa {{ sale.max_per_user }} sản phẩm / khách</p>
+          <p class="limit-note">
+            <AppIcon name="cart" size="13" style="vertical-align: -1px; margin-right: 2px;" />
+            Tối đa {{ sale.max_per_user }} sản phẩm / khách
+          </p>
         </div>
       </div>
 
       <!-- ── COUNTDOWN — DOM refs, không dùng reactive ── -->
       <div class="timer-section">
-        <p class="timer-label" ref="timerLabelEl">⏰ Kết thúc sau:</p>
+        <p class="timer-label" ref="timerLabelEl">
+          <AppIcon name="clock" size="13" style="vertical-align: -1px; margin-right: 2px;" />
+          Kết thúc sau:
+        </p>
         <div class="countdown" ref="countdownEl">
           <div class="time-unit">
             <span class="time-num" ref="hoursEl">00</span>
@@ -81,10 +89,10 @@
           :disabled="isBuying || soldOut || isBought || isUpcoming"
           @click="handleBuy"
         >
-          <span v-if="isBought">✅ Đặt hàng thành công!</span>
+          <span v-if="isBought" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><AppIcon name="check-circle" size="16" /> Đặt hàng thành công!</span>
           <span v-else-if="isBuying">Đang xử lý...</span>
           <span v-else-if="soldOut">Đã hết hàng</span>
-          <span v-else-if="isUpcoming">⏳ Sắp Mở Bán</span>
+          <span v-else-if="isUpcoming" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><AppIcon name="clock" size="16" /> Sắp Mở Bán</span>
           <span v-else style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><AppIcon name="zap" size="16" /> Săn Deal Ngay</span>
         </button>
         <p class="auth-note" v-if="!isLoggedIn && !isUpcoming">
@@ -118,6 +126,7 @@ import { useRouter } from 'vue-router';
 import api, { getUser } from '@/axios.js';
 import FlashSaleBuyModal from '@/features/shop/components/FlashSaleBuyModal.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
 const showBuyModal = ref(false);
@@ -174,18 +183,19 @@ const btnClass = computed(() => {
 });
 const isEnded = computed(() => ended.value);
 const productThumb = computed(() => {
-  const t = sale.value?.product_thumbnail;
+  const t = sale.value?.product_thumbnail || sale.value?.thumbnail_url || sale.value?.image_url || sale.value?.image || sale.value?.thumbnail || sale.value?.product?.thumbnail;
   if (!t) return 'https://placehold.co/400x400/E63B6F/FFF?text=Sale';
-  if (t.startsWith('http')) return t;
-  const apiUrl = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8383/api`;
-  const base = apiUrl.replace('/api', '');
-  return `${base}/storage/${t}`;
+  return getStorageUrl(t);
 });
 
 // ── Helpers ──
 const pad      = n => String(n).padStart(2, '0');
 const fmtPrice = p => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
-const imgFallback = e => { e.target.src = 'https://placehold.co/400x400/E63B6F/FFF?text=Sale'; };
+const imgFallback = e => {
+  if (e.target.src !== 'https://placehold.co/400x400/E63B6F/FFF?text=Sale') {
+    e.target.src = 'https://placehold.co/400x400/E63B6F/FFF?text=Sale';
+  }
+};
 
 function showToast(type, msg, ms = 4000) {
   clearTimeout(toastTimer);
@@ -214,8 +224,8 @@ function tickTimer() {
 
   const target = now < start ? start : end;
 
-  if (now < start && timerLabelEl.value) timerLabelEl.value.textContent = '⏳ Bắt đầu sau:';
-  if (now >= start && timerLabelEl.value) timerLabelEl.value.textContent = '⏰ Kết thúc sau:';
+  if (now < start && timerLabelEl.value) timerLabelEl.value.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Bắt đầu sau:';
+  if (now >= start && timerLabelEl.value) timerLabelEl.value.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Kết thúc sau:';
 
   const diff = Math.max(0, target - now);
   const h = Math.floor(diff / 3_600_000);

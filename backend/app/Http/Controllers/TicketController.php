@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Events\TicketCreatedAdmin;
+use App\Mail\TicketReplyMail;
 use App\Models\Order;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\SystemNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class TicketController extends Controller
@@ -81,36 +83,41 @@ class TicketController extends Controller
             }
             $ticket->save();
 
-            // Gửi thông báo cho user nếu trạng thái thay đổi hoặc có phản hồi mới
-            if ($ticket->status != $oldStatus || ($ticket->admin_reply && $ticket->admin_reply != $oldReply)) {
+            // Gửi thông báo và email cho user nếu trạng thái thay đổi hoặc có phản hồi mới
+            $statusChanged = $ticket->status != $oldStatus;
+            $replyChanged  = $ticket->admin_reply && $ticket->admin_reply != $oldReply;
+
+            if ($statusChanged || $replyChanged) {
                 $user = User::find($ticket->user_id);
                 if ($user) {
                     $statusText = match ($ticket->status) {
-                        'pending' => 'Chờ xử lý',
+                        'pending'    => 'Chờ xử lý',
                         'processing' => 'Đang xử lý',
-                        'resolved' => 'Đã giải quyết',
-                        'closed' => 'Đã đóng',
-                        default => $ticket->status
+                        'resolved'   => 'Đã giải quyết',
+                        'closed'     => 'Đã đóng',
+                        default      => $ticket->status
                     };
-                    $title = 'Cập nhật khiếu nại #'.$ticket->ticket_id;
-                    $message = 'Khiếu nại của bạn đã chuyển sang: '.$statusText.'.';
-                    if ($ticket->admin_reply && $ticket->admin_reply != $oldReply) {
-                        $message .= ' Admin: '.substr($ticket->admin_reply, 0, 60).'...';
+
+                    // Gửi in-app notification
+                    $title = 'Cập nhật khiếu nại #' . $ticket->ticket_id;
+                    $message = 'Khiếu nại của bạn đã chuyển sang: ' . $statusText . '.';
+                    if ($replyChanged) {
+                        $message .= ' Admin: ' . substr($ticket->admin_reply, 0, 60) . '...';
                     }
 
-                    $notificationData = [
-                        'title' => $title,
-                        'message' => $message,
-                        'url_redirect' => '/profile', // user có thể xem trong profile
-                        'icon' => 'bell',
-                    ];
-
                     $user->notify(new SystemNotification(
-                        $notificationData['title'],
-                        $notificationData['message'],
-                        $notificationData['url_redirect'],
-                        $notificationData['icon']
+                        $title,
+                        $message,
+                        '/profile',
+                        'bell'
                     ));
+
+                    // Gửi email phản hồi cho user
+                    try {
+                        Mail::to($user->email)->send(new TicketReplyMail($ticket));
+                    } catch (\Exception $mailErr) {
+                        Log::error('Ticket reply mail error: ' . $mailErr->getMessage());
+                    }
                 }
             }
 

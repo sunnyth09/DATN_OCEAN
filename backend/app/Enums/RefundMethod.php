@@ -19,4 +19,3 @@ enum RefundMethod: string
         ];
     }
 }
-

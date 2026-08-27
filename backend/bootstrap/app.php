@@ -64,26 +64,66 @@ return Application::configure(basePath: dirname(__DIR__))
                 $message = 'Bạn đã thao tác quá nhiều lần. Vui lòng thử lại sau'.($retryAfter ? " {$retryAfter} giây." : '.');
 
                 return response()->json([
+                    'status' => 'error',
                     'message' => $message,
                 ], 429);
             }
         });
 
-        // Chuẩn hóa lỗi 500 chưa xử lý cho API: log chi tiết, trả generic (tránh leak stack trace / internal message)
+        // Xử lý tất cả các lỗi HttpException (403, 404, 400, 401,...) cho API: trả JSON sạch, không leak stack trace PHP
+        $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $statusCode = $e->getStatusCode();
+                $defaultMessages = [
+                    400 => 'Yêu cầu không hợp lệ.',
+                    401 => 'Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.',
+                    403 => 'Bạn không có quyền truy cập tính năng này.',
+                    404 => 'Không tìm thấy dữ liệu yêu cầu.',
+                    405 => 'Phương thức không được hỗ trợ.',
+                ];
+                $message = $e->getMessage() ?: ($defaultMessages[$statusCode] ?? 'Đã có lỗi xảy ra.');
+
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $message,
+                ], $statusCode, $e->getHeaders());
+            }
+        });
+
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Bạn chưa đăng nhập hoặc phiên làm việc đã kết thúc.',
+                ], 401);
+            }
+        });
+
+        $exceptions->render(function (AuthorizationException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => $e->getMessage() ?: 'Bạn không có quyền thực hiện hành động này.',
+                ], 403);
+            }
+        });
+
+        $exceptions->render(function (ModelNotFoundException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Không tìm thấy dữ liệu yêu cầu.',
+                ], 404);
+            }
+        });
+
+        // Chuẩn hóa lỗi 500 chưa xử lý cho API: log chi tiết, trả JSON sạch (hoàn toàn không leak file, line, trace ra client)
         $exceptions->render(function (Throwable $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null; // để Laravel xử lý mặc định (web)
             }
 
-            // Bỏ qua các exception đã có mapping chuẩn của Laravel (validation 422, auth 401, 403, 404, throttle 429, HttpException...)
-            if (
-                $e instanceof ValidationException
-                || $e instanceof AuthenticationException
-                || $e instanceof AuthorizationException
-                || $e instanceof HttpExceptionInterface
-                || $e instanceof ModelNotFoundException
-                || $e instanceof HttpResponseException
-            ) {
+            if ($e instanceof ValidationException || $e instanceof HttpResponseException) {
                 return null;
             }
 
@@ -95,7 +135,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return response()->json([
                 'status' => 'error',
-                'message' => config('app.debug') ? $e->getMessage() : 'Đã có lỗi xảy ra, vui lòng thử lại sau.',
+                'message' => 'Đã có lỗi xảy ra, vui lòng thử lại sau.',
             ], 500);
         });
     })->create();

@@ -10,6 +10,7 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
+import MediaPreviewModal from '@/components/MediaPreviewModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
 import { sanitizeHtml } from '@/utils/sanitize';
@@ -386,29 +387,34 @@ watch(selectedColor, (newColor) => {
     return;
   }
 
+  const colorVariants = product.value?.variants?.filter(v => v.color === newColor) || [];
+  if (colorVariants.length === 0) {
+    selectedSize.value = null;
+    selectedVariant.value = null;
+    return;
+  }
+
+  // 1. Nếu đang có size được chọn, kiểm tra xem size đó ở màu mới có còn hàng và khả dụng không
   if (selectedSize.value) {
     const match = findVariantForSelection(newColor, selectedSize.value);
     if (isVariantPurchasable(match)) {
       selectedVariant.value = match;
       return;
     }
-    selectedSize.value = null;
-    selectedVariant.value = null;
   }
 
-  const colorVariants = product.value?.variants?.filter(v => v.color === newColor) || [];
-  if (colorVariants.length === 1) {
-    selectedSize.value = colorVariants[0].size;
-    selectedVariant.value = colorVariants[0];
-  } else if (colorVariants.length > 1 && availableSizes.value.length === 0) {
-    // If there are multiple variants with the same color but NO sizes available,
-    // we should still select one so the user can purchase.
-    const active = colorVariants.find(v => isVariantPurchasable(v));
-    selectedVariant.value = active || colorVariants[0];
-  } else if (colorVariants.length > 1) {
-    // There are sizes to choose from, clear the selected variant until size is chosen
-    selectedVariant.value = null;
+  // 2. Nếu size cũ không còn hàng ở màu mới -> Tự động chọn size đầu tiên CÒN HÀNG của màu mới
+  const purchasableVariant = colorVariants.find(v => isVariantPurchasable(v));
+  if (purchasableVariant) {
+    selectedSize.value = purchasableVariant.size || null;
+    selectedVariant.value = purchasableVariant;
+    return;
   }
+
+  // 3. Nếu tất cả các size của màu mới đều hết hàng -> Fallback chọn size đầu tiên của màu đó
+  const fallbackVariant = colorVariants[0];
+  selectedSize.value = fallbackVariant?.size || null;
+  selectedVariant.value = fallbackVariant || null;
 });
 
 // Khi chọn size → tìm variant đúng theo màu hiện tại, không làm mất lựa chọn màu.
@@ -425,6 +431,13 @@ const mainImageUrl = computed(() => {
   if (imgs.length === 0) return getImageUrl(null);
   const idx = activeImageIndex.value < imgs.length ? activeImageIndex.value : 0;
   return getImageUrl(imgs[idx]?.image_url);
+});
+
+const mainImageRawPath = computed(() => {
+  const imgs = allImages.value;
+  if (imgs.length === 0) return null;
+  const idx = activeImageIndex.value < imgs.length ? activeImageIndex.value : 0;
+  return imgs[idx]?.image_url;
 });
 
 const nextImage = () => {
@@ -696,6 +709,44 @@ const buyNow = async () => {
 };
 
 /**
+ * handleTryOnBuyNow: Phương án C — dùng variant đang chọn trên trang product detail.
+ * Nếu đã chọn variant còn hàng → thêm vào cart → redirect checkout.
+ * Nếu chưa chọn → đóng modal, scroll đến phần chọn variant.
+ */
+const handleTryOnBuyNow = () => {
+  showTryOn.value = false;
+
+  if (selectedVariant.value && selectedVariant.value.stock > 0) {
+    // Có variant đang chọn + còn hàng → mua ngay luôn
+    buyingNow.value = true;
+    sessionStorage.setItem('buy_now_item', JSON.stringify({
+      variant_id: selectedVariant.value.variant_id,
+      quantity: 1,
+    }));
+    router.push({ path: '/checkout', query: { buy_now: '1' } });
+  } else {
+    // Chưa chọn variant hoặc hết hàng → scroll đến phần chọn variant
+    showToast('Vui lòng chọn phiên bản sản phẩm trước khi mua!', 'info');
+    nextTick(() => {
+      const variantSection = document.querySelector('.pd-variants');
+      if (variantSection) {
+        variantSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }
+};
+
+/**
+ * handleTryOnGoToProduct: Navigate đến sản phẩm gợi ý, đóng modal.
+ */
+const handleTryOnGoToProduct = (slug) => {
+  showTryOn.value = false;
+  if (slug) {
+    router.push(`/product/${slug}`);
+  }
+};
+
+/**
  * sortedVariants: danh sách variants active, sắp xếp theo giá tăng dần.
  * API đã sort sẵn, nhưng computed này đảm bảo thứ tự đúng ở client.
  */
@@ -730,10 +781,21 @@ const handleUpgrade = (premiumVariant) => {
   showToast(`Đã nâng cấp lên phiên bản ${premiumVariant.color || ''} ${premiumVariant.size || ''}`.trim(), 'success');
 };
 
+const previewModalShow = ref(false);
+const previewMediaList = ref([]);
+const previewInitialIndex = ref(0);
+
+const openImagePreview = (images, index = 0) => {
+  const parsed = Array.isArray(images) ? images : parseReviewImages(images);
+  if (!parsed || parsed.length === 0) return;
+  previewMediaList.value = parsed.map(img => getImageUrl(img));
+  previewInitialIndex.value = Math.max(0, Math.min(index, previewMediaList.value.length - 1));
+  previewModalShow.value = true;
+};
+
 const openImage = (img) => {
   if (!img) return;
-  const url = getImageUrl(img);
-  window.open(url, '_blank');
+  openImagePreview([img], 0);
 };
 
 const parseReviewImages = (images) => {
@@ -1133,7 +1195,7 @@ onBeforeUnmount(() => {
             </div>
             <div class="pd-review-text" v-html="sanitizeHtml(review.content)"></div>
             <div class="pd-review-images" v-if="parseReviewImages(review.images).length > 0">
-              <img v-for="(img, idx) in parseReviewImages(review.images)" :key="idx" :src="getImageUrl(img)" alt="Review image" @click="openImage(img)" style="cursor: pointer;" title="Nhấn để xem ảnh lớn" />
+              <img v-for="(img, idx) in parseReviewImages(review.images)" :key="idx" :src="getImageUrl(img)" alt="Review image" @click="openImagePreview(review.images, idx)" style="cursor: pointer;" title="Nhấn để xem ảnh phóng to" />
             </div>
           </div>
         </div>
@@ -1165,7 +1227,9 @@ onBeforeUnmount(() => {
 
   <!-- Virtual Try-On Modal -->
   <VirtualTryOnModal v-if="product?.product_id" :show="showTryOn" :product-id="product?.product_id" :product-name="product?.name"
-    :product-image-url="mainImageUrl" @close="showTryOn = false" />
+    :product-image-url="mainImageUrl" :product-image-path="mainImageRawPath" :product-slug="product?.slug" :product-price="displayPriceInfo.current"
+    :has-selected-variant="!!selectedVariant && selectedVariant.stock > 0"
+    @close="showTryOn = false" @buy-now="handleTryOnBuyNow" @go-to-product="handleTryOnGoToProduct" />
 
   <!-- Modal Bảng Size -->
   <teleport to="body">
@@ -1220,12 +1284,20 @@ onBeforeUnmount(() => {
       </div>
     </transition>
   </teleport>
+
+  <!-- Review Image Preview Lightbox Modal -->
+  <MediaPreviewModal
+    :show="previewModalShow"
+    :media-list="previewMediaList"
+    :initial-index="previewInitialIndex"
+    @close="previewModalShow = false"
+  />
 </template>
 
 <style scoped>
 .pd-wrapper {
   padding: 0 0 40px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   color: var(--text-main);
 }
 

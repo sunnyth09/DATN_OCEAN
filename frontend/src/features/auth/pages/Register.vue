@@ -273,7 +273,7 @@ const handleRegister = async () => {
 </template>
 
 <style scoped>
-.auth-page { flex: 1; padding: 48px 24px; display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+.auth-page { flex: 1; padding: 48px 24px; display: flex; align-items: center; justify-content: center; font-family: var(--font-inter, 'Inter', sans-serif); }
 .auth-card { width: 100%; max-width: 440px; background: var(--card-bg); border-radius: 16px; padding: 40px 36px 36px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04); }
 .auth-icon { width: 56px; height: 56px; border-radius: 14px; background: #FFF0F3; color: var(--primary); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
 .auth-title { text-align: center; font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }

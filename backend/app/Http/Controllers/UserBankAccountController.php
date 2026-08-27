@@ -6,6 +6,7 @@ use App\Models\UserBankAccount;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 /**
  * UserBankAccountController — Quản lý tài khoản ngân hàng liên kết.
@@ -201,7 +202,7 @@ class UserBankAccountController extends Controller
     {
         $request->validate([
             'bank_bin' => 'required|string',
-            'account_number' => 'required|string'
+            'account_number' => 'required|string',
         ]);
 
         $clientId = env('VIETQR_CLIENT_ID');
@@ -210,12 +211,12 @@ class UserBankAccountController extends Controller
         try {
             // Nếu có key thì gọi VietQR
             if ($clientId && $apiKey) {
-                $response = \Illuminate\Support\Facades\Http::withHeaders([
+                $response = Http::withHeaders([
                     'x-client-id' => $clientId,
                     'x-api-key' => $apiKey,
                 ])->post('https://api.vietqr.io/v2/lookup', [
                     'bin' => $request->bank_bin,
-                    'accountNumber' => $request->account_number
+                    'accountNumber' => $request->account_number,
                 ]);
 
                 $result = $response->json();
@@ -225,8 +226,8 @@ class UserBankAccountController extends Controller
                     return response()->json([
                         'status' => 'success',
                         'data' => [
-                            'accountName' => $result['data']['accountName']
-                        ]
+                            'accountName' => $result['data']['accountName'],
+                        ],
                     ]);
                 }
             }
@@ -240,19 +241,19 @@ class UserBankAccountController extends Controller
                 $index = abs(crc32($request->account_number)) % count($mockNames);
                 $mockName = $mockNames[$index];
             }
-            
+
             return response()->json([
                 'status' => 'success',
                 'data' => [
-                    'accountName' => $mockName
+                    'accountName' => $mockName,
                 ],
-                'message' => 'Lưu ý: Đang sử dụng chế độ giả lập (Mock) vì API Key chưa khả dụng.'
+                'message' => 'Lưu ý: Đang sử dụng chế độ giả lập (Mock) vì API Key chưa khả dụng.',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Lỗi kết nối tới hệ thống ngân hàng: ' . $e->getMessage()
+                'message' => 'Lỗi kết nối tới hệ thống ngân hàng: '.$e->getMessage(),
             ], 500);
         }
     }

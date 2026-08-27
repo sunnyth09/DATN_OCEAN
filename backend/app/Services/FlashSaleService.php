@@ -24,7 +24,7 @@ class FlashSaleService
         return Cache::remember($cacheKey, 5, function () use ($now, $filter) {
             $campaigns = FlashSale::where('status', 'active')
                 ->where('end_time', '>', $now)
-                ->with(['items.product.category', 'items.product.mainImage'])
+                ->with(['items.product.category', 'items.product.mainImage', 'items.product.images'])
                 ->orderBy('start_time', 'asc')
                 ->get();
 
@@ -46,6 +46,8 @@ class FlashSaleService
                     $redisStock = Redis::get($stockKey);
                     $remaining = $redisStock !== null ? (int) $redisStock : max(0, $item->campaign_stock - $item->sold);
 
+                    $thumbnailUrl = $product->thumbnail_url ?: ($product->mainImage?->image_url ?: ($product->images?->first()?->image_url ?: null));
+
                     $formatted[] = [
                         'id' => $fs->id,
                         'flash_sale_id' => $fs->id,
@@ -55,9 +57,10 @@ class FlashSaleService
                         'name' => $product->name ?? 'Sản phẩm Flash Sale',
                         'product_name' => $product->name ?? 'Sản phẩm Flash Sale',
                         'slug' => $product->slug ?? null,
-                        'product_thumbnail' => $product->thumbnail_url ?? null,
-                        'thumbnail_url' => $product->thumbnail_url ?? null,
-                        'image_url' => $product->thumbnail_url ?? null,
+                        'product_thumbnail' => $thumbnailUrl,
+                        'thumbnail_url' => $thumbnailUrl,
+                        'image_url' => $thumbnailUrl,
+                        'image' => $thumbnailUrl,
                         'sale_price' => (float) $item->campaign_price,
                         'flash_price' => (float) $item->campaign_price,
                         'min_price' => (float) $item->campaign_price,

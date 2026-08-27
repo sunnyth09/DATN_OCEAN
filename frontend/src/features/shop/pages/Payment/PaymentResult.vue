@@ -213,7 +213,7 @@ onMounted(async () => {
     justify-content: center;
     padding: 40px 16px;
     background: linear-gradient(135deg, #f0f4ff 0%, #fafbfd 50%, #fff5f0 100%);
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 /* Loading */

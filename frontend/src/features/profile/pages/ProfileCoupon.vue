@@ -104,26 +104,13 @@
         <span>Khám phá kho voucher</span>
       </router-link>
     </div>
-
-    <!-- Toast Thông báo sao chép -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-      <div class="toast align-items-center text-bg-success border-0 shadow-lg" id="profileCouponToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body d-flex align-items-center gap-2">
-            <AppIcon name="check" size="18" />
-            <span>Đã sao chép mã giảm giá vào bộ nhớ tạm!</span>
-          </div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted } from 'vue';
 import api from '@/axios';
-import { Toast } from 'bootstrap';
+import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
 
 const coupons = ref([]);
@@ -182,9 +169,14 @@ const copyCode = (code) => {
   navigator.clipboard.writeText(code);
   copiedCode.value = code;
 
-  nextTick(() => {
-    const el = document.getElementById('profileCouponToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 2200 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: 'Thành công',
+    text: `Đã sao chép mã giảm giá ${code} vào bộ nhớ tạm!`,
+    icon: 'success',
+    showConfirmButton: false,
+    timer: 3000
   });
 
   setTimeout(() => {

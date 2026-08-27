@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import api from '@/axios';
 import { useRouter } from 'vue-router';
-import { Toast } from 'bootstrap';
+import Swal from 'sweetalert2';
 import CouponDetailModal from '@/features/shop/components/CouponDetailModal.vue';
 import AppIcon from '@/components/AppIcon.vue';
 
@@ -14,13 +14,15 @@ const selectedCoupon = ref(null);
 const visibleLimit = ref(8);
 const router = useRouter();
 
-const toast = ref({ message: '', type: 'success' });
-
 const showToast = (message, type = 'success') => {
-  toast.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('couponToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
+  Swal.fire({
+    toast: true,
+    position: 'top-end',
+    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
+    text: message,
+    icon: type === 'danger' ? 'error' : (type === 'info' ? 'info' : 'success'),
+    showConfirmButton: false,
+    timer: 3500
   });
 };
 
@@ -245,7 +247,8 @@ onUnmounted(() => {
                 <AppIcon :name="getCouponIcon(coupon)" width="14" height="14" :stroke-width="2.2" />
                 {{ getCouponLabel(coupon) }}
               </span>
-              <span v-if="isDisabled(coupon)" class="coupon-status">Hết hiệu lực</span>
+              <span v-if="coupon.is_first_order" class="coupon-first-order-badge">Đơn đầu tiên</span>
+              <span v-else-if="isDisabled(coupon)" class="coupon-status">Hết hiệu lực</span>
             </div>
 
             <button class="coupon-code-box" type="button" @click.stop="copyCode(coupon.code)">
@@ -257,10 +260,13 @@ onUnmounted(() => {
             </button>
 
             <div class="coupon-value">{{ formatValue(coupon) }}</div>
-            <p class="coupon-condition" v-if="coupon.min_order_value">
-              Đơn từ <strong>{{ formatCurrency(coupon.min_order_value) }}</strong>
+            <p class="coupon-condition">
+              <span v-if="coupon.is_first_order" class="first-order-tag" style="color: #e63b6f; font-weight: 700; display: block; margin-bottom: 2px;">★ Dành cho đơn hàng đầu tiên</span>
+              <template v-if="coupon.min_order_value">
+                Đơn từ <strong>{{ formatCurrency(coupon.min_order_value) }}</strong>
+              </template>
+              <template v-else>Không yêu cầu đơn tối thiểu</template>
             </p>
-            <p class="coupon-condition" v-else>Không yêu cầu đơn tối thiểu</p>
 
             <div class="coupon-divider"></div>
 
@@ -302,19 +308,6 @@ onUnmounted(() => {
       @copy="copyCode"
       @view-all="closeCouponDetail"
     />
-
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000; margin-top: 80px;">
-      <div class="toast align-items-center border-0 shadow-sm rounded-3" :class="{
-        'text-bg-success': toast.type === 'success',
-        'text-bg-danger': toast.type === 'danger',
-        'text-bg-info': toast.type === 'info'
-      }" id="couponToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body small fw-bold">{{ toast.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    </div>
   </main>
 </template>
 
@@ -322,7 +315,7 @@ onUnmounted(() => {
 .coupon-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #fff 0%, #fff7fb 42%, #f8fafc 100%);
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   padding-bottom: 72px;
 }
 
@@ -621,7 +614,8 @@ onUnmounted(() => {
 }
 
 .coupon-type-pill,
-.coupon-status {
+.coupon-status,
+.coupon-first-order-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -634,6 +628,13 @@ onUnmounted(() => {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.4px;
+}
+
+.coupon-first-order-badge {
+  color: #c80f55;
+  background: #fff0f3;
+  border-color: #ffb3c6;
+  white-space: nowrap;
 }
 
 .coupon-status {
@@ -853,6 +854,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 576px) {
+  .coupon-page {
+    padding-bottom: 70px;
+  }
+
   .coupon-hero {
     padding: 52px 0;
   }

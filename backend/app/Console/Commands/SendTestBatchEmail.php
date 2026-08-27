@@ -7,9 +7,11 @@ use App\Mail\CourtBookingConfirmedMail;
 use App\Mail\CourtBookingCreatedMail;
 use App\Mail\OrderCancelledMail;
 use App\Mail\OrderShippingMail;
+use App\Mail\TicketReplyMail;
 use App\Models\Court;
 use App\Models\CourtBooking;
 use App\Models\Order;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Notifications\AbandonedCartNotification;
 use App\Notifications\BirthdayNotification;
@@ -19,7 +21,7 @@ use Symfony\Component\Mime\Email;
 
 class SendTestBatchEmail extends Command
 {
-    protected $signature = 'mail:test-batch {email=buichibinh2401@gmail.com}';
+    protected $signature = 'mail:test-batch {email=levanvu06102004kimanh@gmail.com}';
 
     protected $description = 'Gửi hàng loạt tất cả các mẫu email đã chuẩn hóa đến email kiểm thử';
 
@@ -28,7 +30,7 @@ class SendTestBatchEmail extends Command
         $targetEmail = $this->argument('email');
         $this->info("Bắt đầu gửi test hàng loạt email đến: {$targetEmail}");
 
-        $frontendUrl = rtrim((string) config('app.frontend_url', 'http://localhost:3302'), '/');
+        $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
 
         // --- 1. Email Thanh Toán Thành Công (Online Payment) ---
         $this->line('1/12. Đang gửi email [Thanh Toán Thành Công]...');
@@ -73,10 +75,10 @@ class SendTestBatchEmail extends Command
         // --- 6. Notification Chúc Mừng Sinh Nhật ---
         $this->line('6/12. Đang gửi email [Chúc Mừng Sinh Nhật]...');
         $fakeUser = new User([
-            'full_name' => 'Bùi Chí Bình',
+            'full_name' => 'Lê Văn Vũ',
             'email' => $targetEmail,
         ]);
-        $birthdayNotif = (new BirthdayNotification('BIRTHDAY-BUIBINH', '15%'))->toMail($fakeUser);
+        $birthdayNotif = (new BirthdayNotification('BIRTHDAY-LEVANVU', '15%'))->toMail($fakeUser);
         $birthdayHtml = (string) $birthdayNotif->render();
         Mail::html($birthdayHtml, function ($message) use ($targetEmail, $birthdayNotif) {
             $message->to($targetEmail)->subject($birthdayNotif->subject);
@@ -97,7 +99,7 @@ class SendTestBatchEmail extends Command
         $fakeOrder = new Order([
             'order_code' => 'ORD-SHIP-777',
             'order_id' => 123,
-            'recipient_name' => 'Bùi Chí Bình',
+            'recipient_name' => 'Lê Văn Vũ',
             'tracking_number' => 'OE-789321456',
             'tracking_token' => 'test-tracking-token-ocean-sport',
             'total_amount' => 1250000,
@@ -153,17 +155,24 @@ class SendTestBatchEmail extends Command
         });
         $this->info('-> Đã gửi: 11. Đặt sân - Đã xác nhận');
 
-        // --- 12. Mail Hủy Lịch Đặt Sân ---
-        $this->line('12/12. Đang gửi email [Đặt Sân Cầu Lông - Đã Hủy]...');
-        $fakeBooking->cancel_reason = 'Khách có lịch bận đột xuất';
-        $bookingCancelledMail = new CourtBookingCancelledMail($fakeBooking, 300000, 'user');
-        Mail::html((string) $bookingCancelledMail->render(), function ($message) use ($targetEmail, $bookingCancelledMail) {
-            $message->to($targetEmail)->subject($bookingCancelledMail->envelope()->subject);
+        // --- 13. Mail Phản Hồi Khiếu Nại (Ticket Reply) ---
+        $this->line('13/13. Đang gửi email [Phản Hồi Khiếu Nại / Ticket]...');
+        $fakeTicket = new Ticket([
+            'ticket_id' => 99,
+            'reason' => 'Phản hồi đánh giá thấp (1 sao) & yêu cầu đổi hàng',
+            'status' => 'resolved',
+            'admin_reply' => 'Chào bạn, Ocean Sport đã tiếp nhận khiếu nại và đồng ý đổi mới sản phẩm cho bạn. Đơn đổi hàng đã được tạo và gửi đi.',
+        ]);
+        $fakeTicket->setRelation('user', $fakeUser);
+        $fakeTicket->setRelation('order', $fakeOrder);
+        $ticketReplyMail = new TicketReplyMail($fakeTicket);
+        Mail::html((string) $ticketReplyMail->render(), function ($message) use ($targetEmail, $ticketReplyMail) {
+            $message->to($targetEmail)->subject($ticketReplyMail->envelope()->subject);
         });
-        $this->info('-> Đã gửi: 12. Đặt sân - Đã hủy');
+        $this->info('-> Đã gửi: 13. Phản hồi khiếu nại / Ticket');
 
         $this->newLine();
-        $this->info("🎉 HOÀN TẤT! Toàn bộ 12 email kiểm thử đã được gửi thành công đến {$targetEmail}.");
+        $this->info("🎉 HOÀN TẤT! Toàn bộ 13 email kiểm thử đã được gửi thành công đến {$targetEmail}.");
 
         return 0;
     }

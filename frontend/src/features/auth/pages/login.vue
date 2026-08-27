@@ -176,7 +176,8 @@ const login = async () => {
 
             <div class="brand">
               <router-link to="/" class="brand-logo-link">
-                <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="Ocean Sport" class="brand-logo-img" />
+                <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="Ocean Sport"
+                  class="brand-logo-img" />
               </router-link>
               <span class="brand-text">Ocean Sport</span>
             </div>

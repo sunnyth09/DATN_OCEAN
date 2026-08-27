@@ -16,11 +16,19 @@ class CurrentSportsCatalogSeeder extends Seeder
     {
         $this->now = Carbon::now()->toDateTimeString();
 
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        }
+
         $brandMap = $this->seedBrands();
         $categoryMap = $this->seedCategories();
 
         foreach ($this->products() as $product) {
             $this->upsertProduct($product, $brandMap, $categoryMap);
+        }
+
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
         }
 
         echo "✅ CurrentSportsCatalogSeeder hoàn tất: 20 sản phẩm cầu lông, bóng chuyền, pickleball.\n";

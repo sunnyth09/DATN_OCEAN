@@ -21,7 +21,7 @@ class ChatbotInfoService
     /**
      * Tra cứu đơn hàng — 2 chế độ:
      *  - User đã đăng nhập: liệt kê đơn (hoặc lọc theo order_code).
-     *  - Khách: cần order_code + email/phone để xác minh.
+     *  - Khách: chỉ cần order_code là tra cứu được ngay (tự động mask thông tin nhạy cảm).
      */
     public function getOrderStatus(array $args, $authUser = null): array
     {
@@ -32,52 +32,59 @@ class ChatbotInfoService
                 ->orderByDesc('created_at');
 
             if (! empty($args['order_code'])) {
-                $query->where('order_code', $args['order_code']);
+                $query->where('order_code', trim($args['order_code']));
             }
 
             $orders = $query->limit(5)->get();
 
             if ($orders->isEmpty()) {
+                // Nếu tìm theo mã đơn cụ thể trong tài khoản không thấy, thử tìm đơn đó trong toàn hệ thống
+                if (! empty($args['order_code'])) {
+                    $anyOrder = Order::where('order_code', trim($args['order_code']))->with(['items'])->first();
+                    if ($anyOrder) {
+                        return [
+                            'status' => 'success',
+                            'message' => 'Đã tìm thấy thông tin đơn hàng.',
+                            'data' => $this->formatOrderData($anyOrder, false),
+                        ];
+                    }
+                }
+
                 return [
                     'status' => 'no_orders',
-                    'message' => 'Bạn chưa có đơn hàng nào.',
+                    'message' => 'Bạn chưa có đơn hàng nào hoặc không tìm thấy mã đơn hàng này trong tài khoản.',
                     'data' => [],
                 ];
             }
 
-            $data = $orders->map(fn ($order) => $this->formatOrderData($order))->toArray();
+            $data = $orders->map(fn ($order) => $this->formatOrderData($order, true))->toArray();
 
             return [
                 'status' => 'success',
                 'count' => count($data),
                 'message' => 'Tìm thấy '.count($data).' đơn hàng.',
-                'data' => $data,
+                'data' => count($data) === 1 ? $data[0] : $data,
             ];
         }
 
-        // Chế độ 2: Khách chưa đăng nhập → cần order_code + email/phone
-        $orderCode = $args['order_code'] ?? null;
-        $email = $args['email'] ?? null;
-        $phone = $args['phone'] ?? null;
+        // Chế độ 2: Khách chưa đăng nhập → tra cứu bằng order_code
+        $orderCode = isset($args['order_code']) ? trim($args['order_code']) : null;
+        $email = isset($args['email']) ? trim($args['email']) : null;
+        $phone = isset($args['phone']) ? trim($args['phone']) : null;
 
         if (! $orderCode) {
             return [
                 'status' => 'need_info',
-                'message' => 'Vui lòng cung cấp mã đơn hàng để tra cứu.',
+                'message' => 'Vui lòng cung cấp mã đơn hàng (VD: ORD-XXXXXX) để tra cứu trạng thái vận chuyển.',
                 'data' => null,
             ];
         }
 
-        if (! $email && ! $phone) {
-            return [
-                'status' => 'need_verification',
-                'message' => 'Vui lòng cung cấp thêm email hoặc số điện thoại để xác minh đơn hàng.',
-                'data' => null,
-            ];
-        }
+        $query = Order::where('order_code', $orderCode);
 
-        $order = Order::where('order_code', $orderCode)
-            ->where(function ($q) use ($email, $phone) {
+        // Nếu có email hoặc phone thì kiểm tra khớp nếu có
+        if ($email || $phone) {
+            $query->where(function ($q) use ($email, $phone) {
                 if ($email) {
                     $q->whereHas('user', function ($uq) use ($email) {
                         $uq->where('email', $email);
@@ -86,22 +93,26 @@ class ChatbotInfoService
                 if ($phone) {
                     $q->orWhere('recipient_phone', $phone);
                 }
-            })
-            ->with(['items'])
-            ->first();
+            });
+        }
+
+        $order = $query->with(['items'])->first();
 
         if (! $order) {
             return [
                 'status' => 'not_found',
-                'message' => 'Không tìm thấy đơn hàng với thông tin đã cung cấp. Vui lòng kiểm tra lại mã đơn và email/SĐT.',
+                'message' => "Không tìm thấy đơn hàng với mã \"{$orderCode}\". Vui lòng kiểm tra lại chính xác mã đơn hàng đã nhập.",
                 'data' => null,
             ];
         }
 
+        // Khách vãng lai tra cứu không có xác thực email/sđt -> che bớt thông tin nhạy cảm
+        $isFullyVerified = ! empty($email) || ! empty($phone);
+
         return [
             'status' => 'success',
-            'message' => 'Đã tìm thấy đơn hàng.',
-            'data' => $this->formatOrderData($order),
+            'message' => 'Đã tìm thấy thông tin đơn hàng.',
+            'data' => $this->formatOrderData($order, $isFullyVerified),
         ];
     }
 
@@ -266,15 +277,28 @@ class ChatbotInfoService
     /**
      * Format dữ liệu đơn hàng để trả về cho chatbot.
      */
-    private function formatOrderData(Order $order): array
+    private function formatOrderData(Order $order, bool $isFullyVerified = true): array
     {
         $statusLabels = [
             'pending' => 'Chờ xác nhận',
             'confirmed' => 'Đã xác nhận',
+            'processing' => 'Đang xử lý / Chuẩn bị hàng',
+            'awaiting_pickup' => 'Chờ lấy hàng / Đang đóng gói',
             'shipping' => 'Đang giao hàng',
-            'delivered' => 'Đã giao hàng',
-            'completed' => 'Hoàn thành',
-            'cancelled' => 'Đã hủy',
+            'shipped' => 'Đã gửi hàng cho đơn vị vận chuyển',
+            'delivered' => 'Đã giao hàng thành công',
+            'completed' => 'Đã hoàn thành',
+            'cancelled' => 'Đã hủy đơn hàng',
+            'return_requested' => 'Yêu cầu đổi trả',
+            'returned' => 'Đã hoàn trả hàng',
+        ];
+
+        $paymentStatusLabels = [
+            'pending' => 'Chưa thanh toán (COD)',
+            'unpaid' => 'Chưa thanh toán',
+            'paid' => 'Đã thanh toán',
+            'refunded' => 'Đã hoàn tiền',
+            'failed' => 'Thanh toán thất bại',
         ];
 
         $items = $order->items->map(fn ($item) => [
@@ -285,20 +309,46 @@ class ChatbotInfoService
             'line_total' => number_format($item->line_total, 0, ',', '.').'đ',
         ])->toArray();
 
+        // Che bớt thông tin nếu khách vãng lai tra cứu
+        $recipientName = $order->recipient_name;
+        $recipientPhone = $order->recipient_phone;
+        $shippingAddress = $order->shipping_address;
+
+        if (! $isFullyVerified) {
+            if ($recipientPhone && strlen($recipientPhone) >= 7) {
+                $recipientPhone = substr($recipientPhone, 0, 3).'****'.substr($recipientPhone, -3);
+            }
+            if ($recipientName) {
+                $words = explode(' ', trim($recipientName));
+                if (count($words) > 1) {
+                    $recipientName = $words[0].' *** '.end($words);
+                }
+            }
+            if ($shippingAddress) {
+                $parts = explode(',', $shippingAddress);
+                if (count($parts) > 1) {
+                    $shippingAddress = '***, '.trim(implode(', ', array_slice($parts, 1)));
+                } else {
+                    $shippingAddress = '*** (Đã bảo mật)';
+                }
+            }
+        }
+
         return [
             'order_code' => $order->order_code,
             'status' => $statusLabels[$order->fulfillment_status] ?? $order->fulfillment_status,
             'status_raw' => $order->fulfillment_status,
-            'payment_method' => $order->payment_method === 'cod' ? 'Thanh toán khi nhận hàng' : 'Chuyển khoản',
-            'payment_status' => $order->payment_status,
+            'payment_method' => $order->payment_method === 'cod' ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản ngân hàng',
+            'payment_status' => $paymentStatusLabels[$order->payment_status] ?? $order->payment_status,
             'subtotal' => number_format($order->subtotal, 0, ',', '.').'đ',
             'discount' => number_format($order->discount_amount, 0, ',', '.').'đ',
             'shipping_fee' => number_format($order->shipping_fee, 0, ',', '.').'đ',
             'grand_total' => number_format($order->grand_total, 0, ',', '.').'đ',
-            'recipient_name' => $order->recipient_name,
-            'shipping_address' => $order->shipping_address,
+            'recipient_name' => $recipientName,
+            'recipient_phone' => $recipientPhone,
+            'shipping_address' => $shippingAddress,
             'items' => $items,
-            'created_at' => $order->created_at->format('d/m/Y H:i'),
+            'created_at' => $order->created_at ? $order->created_at->format('d/m/Y H:i') : '',
         ];
     }
 }

@@ -12,6 +12,16 @@
           <span v-if="product.compare_at_price" class="product-card-compare-price">{{ product.compare_at_price }}</span>
         </div>
         <span v-if="product.category" class="product-card-cat">{{ product.category }}</span>
+        <!-- Action buttons -->
+        <div class="product-card-actions">
+          <button class="card-action-btn cart-btn" @click.stop="handleAddToCart(product)" title="Thêm vào giỏ hàng">
+            Thêm giỏ
+          </button>
+          <button class="card-action-btn buy-btn" @click.stop="handleBuyNow(product)" title="Mua ngay">
+            Mua ngay
+          </button>
+        </div>
+
       </div>
     </div>
   </div>
@@ -21,20 +31,56 @@
 import { getAppBaseUrl } from '@/utils/url';
 const BASE_URL = getAppBaseUrl();
 
-defineProps({
+const props = defineProps({
   products: {
     type: Array,
     required: true
   }
 });
 
-defineEmits(['go-to-product', 'add-variant', 'show-variant-picker']);
+const emit = defineEmits(['go-to-product', 'add-variant', 'show-variant-picker', 'buy-now']);
 
 function getProductImage(thumbnail) {
   if (!thumbnail) return '';
   if (thumbnail.startsWith('http')) return thumbnail;
   const cleaned = thumbnail.replace(/^\/+/, '').replace(/^storage\//, '');
   return `${BASE_URL}/storage/${cleaned}`;
+}
+
+/**
+ * Nếu sản phẩm có đúng 1 variant còn hàng → thêm thẳng vào giỏ
+ * Nếu nhiều variant → mở variant picker để chọn
+ */
+function handleAddToCart(product) {
+  if (product.variants && product.variants.length > 0) {
+    const availableVariants = product.variants.filter(v => v.stock > 0);
+    if (availableVariants.length === 1) {
+      emit('add-variant', product, availableVariants[0]);
+    } else {
+      emit('show-variant-picker', product);
+    }
+  } else {
+    // Không có thông tin variant → mở variant picker để load từ API
+    emit('show-variant-picker', product);
+  }
+}
+
+/**
+ * Mua ngay: thêm vào giỏ hàng rồi chuyển thẳng trang thanh toán
+ * 1 variant còn hàng → buy-now luôn
+ * Nhiều variant → mở picker (user chọn xong sẽ buy-now từ picker)
+ */
+function handleBuyNow(product) {
+  if (product.variants && product.variants.length > 0) {
+    const availableVariants = product.variants.filter(v => v.stock > 0);
+    if (availableVariants.length === 1) {
+      emit('buy-now', product, availableVariants[0]);
+    } else {
+      emit('show-variant-picker', product);
+    }
+  } else {
+    emit('show-variant-picker', product);
+  }
 }
 </script>
 
@@ -52,6 +98,32 @@ function getProductImage(thumbnail) {
 .product-card-price { font-weight: 700; color: #E63B6F; font-size: 0.85rem; margin: 0; }
 .product-card-compare-price { font-size: 0.72rem; color: #9ca3af; text-decoration: line-through; font-weight: 400; }
 .product-card-cat { display: inline-block; font-size: 0.65rem; background: #f3f4f6; color: #4b5563; padding: 2px 8px; border-radius: 4px; margin-top: 4px; }
+
+/* ─── Action Buttons ─── */
+.product-card-actions { display: flex; gap: 6px; margin-top: 6px; }
+.card-action-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 16px;
+  font-size: 0.7rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s ease;
+  border: 1px solid transparent; line-height: 1;
+}
+.card-action-btn svg { flex-shrink: 0; }
+.cart-btn {
+  background: #f0fdf4; border-color: #86efac; color: #15803d;
+}
+.cart-btn:hover {
+  background: #16a34a; border-color: #16a34a; color: #fff;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
+}
+.buy-btn {
+  background: linear-gradient(135deg, #E63B6F, #d62e5f); border-color: #E63B6F; color: #fff;
+}
+.buy-btn:hover {
+  background: linear-gradient(135deg, #d62e5f, #b50c4d); border-color: #d62e5f;
+  box-shadow: 0 2px 8px rgba(230, 59, 111, 0.35);
+}
+
 .chatbot-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .chatbot-action-btn { background: #fff; border: 1px solid #d1d5db; color: #374151; padding: 5px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .chatbot-action-btn:hover { background: #f9fafb; border-color: #9ca3af; }
