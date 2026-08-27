@@ -19,7 +19,7 @@ use Symfony\Component\Mime\Email;
 
 class SendTestBatchEmail extends Command
 {
-    protected $signature = 'mail:test-batch {email=buichibinh2401@gmail.com}';
+    protected $signature = 'mail:test-batch {email=levanvu06102004kimanh@gmail.com}';
 
     protected $description = 'Gửi hàng loạt tất cả các mẫu email đã chuẩn hóa đến email kiểm thử';
 
@@ -28,7 +28,7 @@ class SendTestBatchEmail extends Command
         $targetEmail = $this->argument('email');
         $this->info("Bắt đầu gửi test hàng loạt email đến: {$targetEmail}");
 
-        $frontendUrl = rtrim((string) config('app.frontend_url', 'http://localhost:3302'), '/');
+        $frontendUrl = rtrim((string) config('app.frontend_url', config('app.url', 'http://localhost:3302')), '/');
 
         // --- 1. Email Thanh Toán Thành Công (Online Payment) ---
         $this->line('1/12. Đang gửi email [Thanh Toán Thành Công]...');
@@ -73,10 +73,10 @@ class SendTestBatchEmail extends Command
         // --- 6. Notification Chúc Mừng Sinh Nhật ---
         $this->line('6/12. Đang gửi email [Chúc Mừng Sinh Nhật]...');
         $fakeUser = new User([
-            'full_name' => 'Bùi Chí Bình',
+            'full_name' => 'Lê Văn Vũ',
             'email' => $targetEmail,
         ]);
-        $birthdayNotif = (new BirthdayNotification('BIRTHDAY-BUIBINH', '15%'))->toMail($fakeUser);
+        $birthdayNotif = (new BirthdayNotification('BIRTHDAY-LEVANVU', '15%'))->toMail($fakeUser);
         $birthdayHtml = (string) $birthdayNotif->render();
         Mail::html($birthdayHtml, function ($message) use ($targetEmail, $birthdayNotif) {
             $message->to($targetEmail)->subject($birthdayNotif->subject);
@@ -97,7 +97,7 @@ class SendTestBatchEmail extends Command
         $fakeOrder = new Order([
             'order_code' => 'ORD-SHIP-777',
             'order_id' => 123,
-            'recipient_name' => 'Bùi Chí Bình',
+            'recipient_name' => 'Lê Văn Vũ',
             'tracking_number' => 'OE-789321456',
             'tracking_token' => 'test-tracking-token-ocean-sport',
             'total_amount' => 1250000,
@@ -187,7 +187,7 @@ class SendTestBatchEmail extends Command
                 </div>
                 <div style="padding: 28px 24px;">
                     <p style="font-size: 15px; line-height: 1.6; margin-top: 0; color: #334155;">
-                        Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,<br>
+                        Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,<br>
                         Ocean Sport xin cảm ơn bạn đã mua sắm! Đơn hàng của bạn đã được thanh toán thành công vào lúc <strong>'.now()->format('H:i d/m/Y').'</strong> và đang được nhân viên chuẩn bị đóng gói chuyển đi.
                     </p>
                     <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 14px 18px; margin: 20px 0;">
@@ -288,7 +288,7 @@ class SendTestBatchEmail extends Command
                 </div>
                 <div style="padding: 28px 24px;">
                     <p style="font-size: 15px; line-height: 1.6; margin-top: 0; color: #334155;">
-                        Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,<br>
+                        Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,<br>
                         Cảm ơn bạn đã đặt hàng tại Ocean Sport! Chúng tôi đã nhận được đơn hàng của bạn và đang tiến hành xử lý đóng gói.
                     </p>
                     <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px 18px; margin: 20px 0;">
@@ -346,7 +346,7 @@ class SendTestBatchEmail extends Command
                             <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Bảo mật thông tin tài khoản của bạn</p>
                         </td></tr>
                         <tr><td style="padding: 32px 28px 24px;">
-                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,</p>
+                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,</p>
                             <p style="color: #64748b; font-size: 14px; margin: 0 0 24px; line-height: 1.6;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng nhập mã xác thực OTP 6 số bên dưới để tiếp tục:</p>
                             <table cellpadding="0" cellspacing="0" style="margin: 0 auto 24px;">
                                 <tr>'.$otpBoxes.'</tr>
@@ -391,7 +391,7 @@ class SendTestBatchEmail extends Command
                             <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Ocean Sport trân trọng gửi tặng bạn ưu đãi đặc biệt</p>
                         </td></tr>
                         <tr><td style="padding: 32px 28px 24px;">
-                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,</p>
+                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 16px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,</p>
                             <p style="color: #64748b; font-size: 14px; margin: 0 0 24px; line-height: 1.6;">Ocean Sport gửi tặng bạn voucher ưu đãi để bạn thỏa sức mua sắm các sản phẩm thể thao yêu thích:</p>
                             <div style="background: #FFF0F3; border: 2px dashed #E63B6F; border-radius: 14px; padding: 24px; text-align: center; margin-bottom: 24px;">
                                 <p style="color: #b50c4d; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px;">GIẢM GIÁ TIỀN MẶT</p>
@@ -436,7 +436,7 @@ class SendTestBatchEmail extends Command
                             <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Bộ phận Chăm sóc Khách hàng Ocean Sport</p>
                         </td></tr>
                         <tr><td style="padding: 32px 28px 24px;">
-                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Bùi Chí Bình</strong>,</p>
+                            <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">Lê Văn Vũ</strong>,</p>
                             <p style="color: #64748b; font-size: 14px; margin: 0 0 20px; line-height: 1.6;">Cảm ơn bạn đã liên hệ với chúng tôi về chủ đề: <em>"Tư vấn chọn vợt cầu lông cho người mới chơi"</em>. Dưới đây là phản hồi từ đội ngũ kỹ thuật viên:</p>
                             <div style="background: #FFF0F3; border-left: 4px solid #E63B6F; padding: 18px 20px; border-radius: 10px; margin: 0 0 24px;">
                                 <p style="color: #1e293b; margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">Dạ chào anh Bình, với người mới chơi cần sự linh hoạt và dễ thuần, bên em khuyến nghị anh nên chọn dòng vợt thân dẻo hoặc trung bình, đầu vợt cân bằng (như dòng Yonex Nanoflare 001 hoặc Lining Windstorm 72) với mức căng cước khoảng 9.5kg - 10kg để tránh chấn thương cổ tay anh nhé!</p>
