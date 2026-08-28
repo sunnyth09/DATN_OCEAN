@@ -130,8 +130,7 @@ services:
     image: nginx:alpine
     restart: always
     ports:
-      # Bind localhost — VPS host Nginx sẽ reverse proxy vào port này
-      - "127.0.0.1:8383:8383"
+      - "8383:8383"
     volumes:
       - ./nginx/backend.conf:/etc/nginx/conf.d/default.conf:ro
       - ./backend:/var/www:ro

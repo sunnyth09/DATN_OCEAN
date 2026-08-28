@@ -338,7 +338,7 @@ const checkAuth = () => {
 const fetchUnreadNotificationCount = () => authStore.fetchUnreadNotificationCount();
 
 const fetchHeaderRewardPoints = async () => {
-    if (!authStore.isAuthenticated) { headerRewardPoints.value = 0; return; }
+    if (!authStore.isAuthenticated || authStore.isAdminUser) { headerRewardPoints.value = 0; return; }
     try {
         const res = await loyaltyService.getSummary();
         headerRewardPoints.value = res.data?.data?.current_balance ?? 0;

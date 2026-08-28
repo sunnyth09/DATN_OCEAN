@@ -72,11 +72,6 @@ onMounted(() => {
       console.error("Failed to parse user data", e);
     }
   }
-
-  // Fetch pending contact count
-  fetchPendingContactCount();
-  fetchPendingChatCount();
-  fetchPendingReviewCount();
 });
 
 const handleLogout = async () => {
