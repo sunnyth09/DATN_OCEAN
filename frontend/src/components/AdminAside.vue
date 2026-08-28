@@ -21,11 +21,27 @@ const props = defineProps({
 const router = useRouter();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
-const userName = ref('Admin');
-const userEmail = ref('');
-const userAvatar = ref('');
-const userRole = ref('Manager');
-const userRoleRaw = ref('');
+const currentUser = computed(() => {
+  if (authStore.user) return authStore.user;
+  try {
+    const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+});
+
+const userRoleRaw = computed(() => currentUser.value?.role || authStore.userRole || 'admin');
+const userName = computed(() => currentUser.value?.full_name || currentUser.value?.name || 'Admin');
+const userEmail = computed(() => currentUser.value?.email || '');
+const userRole = computed(() => {
+  const role = userRoleRaw.value;
+  return role === 'admin' ? 'Super Admin' : (role === 'staff' ? 'Staff' : (role === 'seller' ? 'Seller' : 'Customer'));
+});
+const userAvatar = computed(() => {
+  const path = currentUser.value?.avatar_url;
+  return path ? getAbsoluteUrl(path) : '';
+});
 
 const openMenus = reactive({
   business: false,
@@ -53,27 +69,6 @@ const handleSubmenuClick = (menu) => {
   }
 };
 
-onMounted(() => {
-  const userData = sessionStorage.getItem('user');
-  if (userData) {
-    try {
-      const user = JSON.parse(userData);
-      const path = user.avatar_url;
-
-      userName.value = user.full_name || user.name || 'Admin';
-      userEmail.value = user.email || '';
-      userRoleRaw.value = user.role;
-      userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
-
-      if (path) {
-        userAvatar.value = getAbsoluteUrl(path);
-      }
-    } catch (e) {
-      console.error("Failed to parse user data", e);
-    }
-  }
-});
-
 const handleLogout = async () => {
   const result = await Swal.fire({
       title: 'Xác nhận',
@@ -86,39 +81,6 @@ const handleLogout = async () => {
   if (result.isConfirmed) {
     await authStore.logout();
     router.push('/client/login');
-  }
-};
-
-const fetchPendingContactCount = async () => {
-  try {
-    const res = await api.get('/admin/contacts/pending-count');
-    if (res.data.status === 'success') {
-      uiStore.setPendingContactCount(res.data.count || 0);
-    }
-  } catch (e) {
-    // Silently fail - non-critical
-  }
-};
-
-const fetchPendingChatCount = async () => {
-  try {
-    const res = await api.get('/admin/live-chats/pending-count');
-    if (res.data.status === 'success') {
-      uiStore.setPendingChatCount(res.data.count || 0);
-    }
-  } catch (e) {
-    // Silently fail
-  }
-};
-
-const fetchPendingReviewCount = async () => {
-  try {
-    const res = await api.get('/admin/reviews/pending-count');
-    if (res.data.status === 'success') {
-      uiStore.setPendingReviewCount(res.data.count || 0);
-    }
-  } catch (e) {
-    // Silently fail
   }
 };
 </script>
