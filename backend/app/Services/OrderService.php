@@ -6,6 +6,8 @@ use App\Enums\OrderStatus;
 use App\Events\OrderCreatedAdmin;
 use App\Exceptions\OrderException;
 use App\Models\Address;
+use App\Models\FlashSale;
+use App\Models\FlashSaleItem;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
@@ -299,6 +301,9 @@ class OrderService
                     if ($cartItem->variant->product_id) {
                         Product::where('product_id', $cartItem->variant->product_id)
                             ->increment('sold_count', $cartItem->quantity);
+
+                        // Đồng bộ số lượng đã bán vào Flash Sale nếu sản phẩm đang có chiến dịch active
+                        $this->syncFlashSaleSoldCount($cartItem->variant->product_id, $cartItem->quantity);
                     }
                 }
 
@@ -562,6 +567,9 @@ class OrderService
                     if ($cartItem->variant->product_id) {
                         Product::where('product_id', $cartItem->variant->product_id)
                             ->increment('sold_count', $cartItem->quantity);
+
+                        // Đồng bộ số lượng đã bán vào Flash Sale nếu sản phẩm đang có chiến dịch active
+                        $this->syncFlashSaleSoldCount($cartItem->variant->product_id, $cartItem->quantity);
                     }
                 }
 
@@ -898,5 +906,64 @@ class OrderService
                 'message' => $message,
             ],
         ];
+    }
+
+    /**
+     * Đồng bộ số lượng đã bán vào Flash Sale khi đặt hàng qua luồng thường.
+     *
+     * Khi người dùng mua sản phẩm qua checkout thông thường (không phải luồng
+     * Flash Sale riêng), hệ thống cần kiểm tra xem sản phẩm có đang nằm trong
+     * chiến dịch Flash Sale đang active hay không. Nếu có:
+     *   - Tăng cột `sold` trong bảng `flash_sale_items` để UI hiển thị đúng.
+     *   - Trừ Redis stock key tương ứng để thanh progress bar đồng bộ.
+     *
+     * Phương thức được thiết kế fire-and-forget (không throw), lỗi chỉ được
+     * ghi vào log để không ảnh hưởng đến luồng tạo đơn chính.
+     */
+    private function syncFlashSaleSoldCount(int $productId, int $quantity): void
+    {
+        try {
+            $now = now();
+
+            // Tìm Flash Sale item đang active cho sản phẩm này
+            $flashSaleItem = FlashSaleItem::where('product_id', $productId)
+                ->whereHas('flashSale', function ($q) use ($now) {
+                    $q->where('status', 'active')
+                        ->where('start_time', '<=', $now)
+                        ->where('end_time', '>=', $now);
+                })
+                ->with('flashSale')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $flashSaleItem) {
+                return; // Sản phẩm không thuộc Flash Sale nào đang active
+            }
+
+            $flashSale = $flashSaleItem->flashSale;
+
+            // Tăng sold trong flash_sale_items (không vượt quá campaign_stock)
+            $maxAdditional = max(0, $flashSaleItem->campaign_stock - $flashSaleItem->sold);
+            $actualIncrement = min($quantity, $maxAdditional);
+
+            if ($actualIncrement > 0) {
+                $flashSaleItem->increment('sold', $actualIncrement);
+
+                // Đồng bộ Redis stock key nếu đang tồn tại
+                $stockKey = "flash_sale_{$flashSale->id}_product_{$productId}_stock";
+                if (\Illuminate\Support\Facades\Redis::exists($stockKey)) {
+                    $remaining = \Illuminate\Support\Facades\Redis::decrby($stockKey, $actualIncrement);
+                    // Đảm bảo Redis không âm (phòng trường hợp race condition)
+                    if ($remaining < 0) {
+                        \Illuminate\Support\Facades\Redis::set($stockKey, 0);
+                    }
+                }
+
+                Log::info("[OrderService] Đã đồng bộ Flash Sale sold_count: product #{$productId}, +{$actualIncrement} sold, flash_sale #{$flashSale->id}");
+            }
+        } catch (\Throwable $e) {
+            // Fire-and-forget: không throw để không ảnh hưởng luồng tạo đơn
+            Log::error("[OrderService] syncFlashSaleSoldCount thất bại cho product #{$productId}: {$e->getMessage()}");
+        }
     }
 }
