@@ -26,7 +26,9 @@ initSessionSync().then(() => {
 
     authStore.hydrate();
     cartStore.bindWindowListeners();
-    cartStore.fetchCount();
+    if (!authStore.isAdminUser) {
+        cartStore.fetchCount();
+    }
     uiStore.initializeBackofficeTheme();
 
     window.addEventListener('user-updated', () => authStore.hydrate());

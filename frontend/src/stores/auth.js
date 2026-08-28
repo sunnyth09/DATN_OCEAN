@@ -110,7 +110,7 @@ export const useAuthStore = defineStore('auth', () => {
       hydrate()
     }
 
-    if (token.value && user.value) {
+    if (token.value && user.value && !ADMIN_ROLES.includes(user.value.role)) {
       try {
         const { useCartStore } = await import('./cart');
         const cartStore = useCartStore();
