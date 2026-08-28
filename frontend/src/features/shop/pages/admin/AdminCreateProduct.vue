@@ -252,9 +252,10 @@ const formatMoney = (val) => {
 
 const formatNumberWithCommas = (val) => {
     if (val === null || val === undefined || val === '') return '';
-    const clean = String(val).replace(/\D/g, '');
-    if (!clean) return '';
-    return new Intl.NumberFormat('vi-VN').format(clean);
+    const num = Number(val);
+    if (isNaN(num)) return '';
+    if (num === 0) return '0';
+    return new Intl.NumberFormat('vi-VN').format(Math.round(num));
 };
 
 const parseFormattedNumber = (val) => {
@@ -879,7 +880,7 @@ onMounted(() => {
                                     <span class="required">*</span></label
                                 >
                                 <div class="input-with-prefix" :class="{'is-invalid': errors.price}">
-                                    <span class="prefix">₫</span>
+                                    <span class="prefix">VNĐ</span>
                                     <input
                                         type="text" inputmode="numeric"
                                         :value="formatNumberWithCommas(product.price)"
@@ -895,7 +896,7 @@ onMounted(() => {
                             <div class="form-group">
                                 <label>Giá Gốc Trước Giảm</label>
                                 <div class="input-with-prefix">
-                                    <span class="prefix">₫</span>
+                                    <span class="prefix">VNĐ</span>
                                     <input
                                         type="text" inputmode="numeric"
                                         :value="formatNumberWithCommas(product.compare_at_price)"
@@ -1154,10 +1155,10 @@ onMounted(() => {
                                         <div class="bulk-fields">
                                             <div class="bulk-input-group">
                                                 <span class="bulk-label">Kho</span>
-                                                <input type="text" inputmode="numeric" :value="formatNumberWithCommas(variant.bulkStock)" @input="onNumericInput($event, variant, 'bulkStock')" placeholder="Số lượng" class="form-control input-xs text-center" />
+                                                <input type="text" inputmode="numeric" :value="formatNumberWithCommas(variant.bulkStock)" @input="onNumericInput($event, variant, 'bulkStock')" placeholder="Số lượng" class="form-control input-xs" />
                                             </div>
                                             <div class="bulk-input-group">
-                                                <span class="bulk-label">Giá ₫</span>
+                                                <span class="bulk-label">Giá VNĐ</span>
                                                 <input type="text" inputmode="numeric" :value="formatNumberWithCommas(variant.bulkPrice)" @input="onNumericInput($event, variant, 'bulkPrice')" placeholder="Giá bán" class="form-control input-xs" />
                                             </div>
                                             <button type="button" class="btn-bulk-apply" @click.prevent="applyBulkToVariant(vIndex)" title="Điền nhanh Kho và Giá cho tất cả size">
@@ -1171,7 +1172,7 @@ onMounted(() => {
                                             <tr>
                                                 <th style="width: 22%">Size (Kích cỡ)</th>
                                                 <th style="width: 20%">Kho (Tồn)</th>
-                                                <th style="width: 32%">Giá Bán (₫)</th>
+                                                <th style="width: 32%">Giá Bán (VNĐ)</th>
                                                 <th style="width: 16%; text-align: center">Khuyến Mãi</th>
                                                 <th style="width: 10%; text-align: center">Xóa</th>
                                             </tr>
@@ -1185,13 +1186,14 @@ onMounted(() => {
                                                     </td>
                                                     <td>
                                                         <div class="stock-input-wrapper">
-                                                            <input type="text" inputmode="numeric" :value="formatNumberWithCommas(s.stock)" @input="onNumericInput($event, s, 'stock')" class="form-control input-sm text-center" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.stock, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.stock }" placeholder="0" />
+                                                            <input type="text" inputmode="numeric" :value="formatNumberWithCommas(s.stock)" @input="onNumericInput($event, s, 'stock')" class="form-control input-sm" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.stock, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.stock }" placeholder="0" />
                                                         </div>
                                                         <span v-if="errors.variants?.[vIndex]?.sizes?.[sIndex]?.stock" class="field-error">{{ errors.variants[vIndex].sizes[sIndex].stock }}</span>
                                                     </td>
                                                     <td>
-                                                        <div class="price-input-wrapper">
-                                                            <input type="text" inputmode="numeric" :value="formatNumberWithCommas(s.price)" @input="onNumericInput($event, s, 'price')" class="form-control input-sm font-weight-600" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.price, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.price }" placeholder="0" />
+                                                        <div class="input-with-prefix input-prefix-sm" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.price, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.price }">
+                                                            <span class="prefix">VNĐ</span>
+                                                            <input type="text" inputmode="numeric" :value="formatNumberWithCommas(s.price)" @input="onNumericInput($event, s, 'price')" class="form-control input-sm font-weight-600" placeholder="0" />
                                                         </div>
                                                         <span v-if="errors.variants?.[vIndex]?.sizes?.[sIndex]?.price" class="field-error">{{ errors.variants[vIndex].sizes[sIndex].price }}</span>
                                                     </td>
@@ -1228,9 +1230,10 @@ onMounted(() => {
                                                             </div>
                                                             <div class="sale-inline-fields">
                                                                 <div class="sale-inline-field">
-                                                                    <label>Giá Khuyến Mãi (₫)</label>
-                                                                    <div class="price-input-wrapper">
-                                                                        <input type="text" inputmode="numeric" :value="formatNumberWithCommas(s.sale_price)" @input="onNumericInput($event, s, 'sale_price')" class="form-control input-sm font-weight-600" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price }" placeholder="0" />
+                                                                    <label>Giá Khuyến Mãi (VNĐ)</label>
+                                                                    <div class="input-with-prefix input-prefix-sm" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price }">
+                                                                        <span class="prefix">VNĐ</span>
+                                                                        <input type="text" inputmode="numeric" :value="formatNumberWithCommas(s.sale_price)" @input="onNumericInput($event, s, 'sale_price')" class="form-control input-sm font-weight-600" placeholder="0" />
                                                                     </div>
                                                                     <span v-if="errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price" class="field-error" style="margin-top:2px">{{ errors.variants[vIndex].sizes[sIndex].sale_price }}</span>
                                                                 </div>
@@ -2502,6 +2505,13 @@ onMounted(() => {
     transform: translateY(-1px);
     box-shadow: 0 3px 8px rgba(230, 59, 111, 0.25);
 }
+
+.input-with-prefix { display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--card-bg); transition: all 0.2s; }
+.input-with-prefix:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111,0.1); }
+.prefix { padding: 10px 14px; background: var(--ocean-deepest, #f8fafc); color: var(--text-muted); font-weight: 600; border-right: 1px solid var(--border-color); font-size: 0.85rem; }
+.input-with-prefix .form-control { border: none; border-radius: 0; box-shadow: none !important; }
+.input-prefix-sm { border-radius: 6px; }
+.input-prefix-sm .prefix { padding: 6px 10px; font-size: 0.78rem; font-weight: 700; color: var(--primary); background: #f8fafc; }
 
 /* Sizes Table Enhancements */
 .sizes-table {
