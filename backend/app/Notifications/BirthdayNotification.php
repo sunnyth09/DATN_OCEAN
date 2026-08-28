@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -16,7 +17,7 @@ use Illuminate\Notifications\Notification;
  * - Gửi email HTML chúc mừng sinh nhật kèm mã giảm giá
  * - Lưu notification vào bảng notifications để user xem trong inbox
  */
-class BirthdayNotification extends Notification
+class BirthdayNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
