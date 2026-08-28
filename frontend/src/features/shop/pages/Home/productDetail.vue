@@ -473,50 +473,64 @@ const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 };
 
+const getVariantDisplayPrice = (v) => {
+  if (!v) return { current: 0, original: null, discount: 0 };
+  const price = Number(v.price || 0);
+  const salePrice = Number(v.sale_price || 0);
+  const comparePrice = Number(v.compare_at_price || 0);
+
+  if (salePrice > 0 && salePrice < price) {
+    const disc = Math.round(((price - salePrice) / price) * 100);
+    return { current: salePrice, original: price, discount: disc };
+  }
+
+  if (comparePrice > price) {
+    const disc = Math.round(((comparePrice - price) / comparePrice) * 100);
+    return { current: price, original: comparePrice, discount: disc };
+  }
+
+  return { current: price, original: null, discount: 0 };
+};
+
 const displayPriceInfo = computed(() => {
   if (!product.value) return { current: 0, original: null, discount: 0 };
 
-  if (selectedVariant.value) {
-    let orig = null;
-    // Nếu Flash Sale hết quota hoặc kết thúc → bỏ qua sale price, hiện giá gốc
-    if (isFlashSaleSoldOut.value || isFlashSaleEnded.value) {
+  if (hasActiveFlashSale.value) {
+    if (selectedVariant.value) {
+      let orig = null;
+      if (selectedVariant.value.is_on_sale) orig = selectedVariant.value.price;
+      else if (selectedVariant.value.compare_at_price > selectedVariant.value.price) orig = selectedVariant.value.compare_at_price;
+
       return {
-        current: selectedVariant.value.price,
-        original: null,
-        discount: 0
+        current: selectedVariant.value.effective_price,
+        original: orig,
+        discount: selectedVariant.value.discount_percent || 0
       };
     }
-    if (selectedVariant.value.is_on_sale) orig = selectedVariant.value.price;
-    else if (selectedVariant.value.compare_at_price > selectedVariant.value.price) orig = selectedVariant.value.compare_at_price;
-
+    const variants = product.value.variants || [];
+    if (variants.length === 0) return { current: product.value.min_price || 0, original: null, discount: 0 };
+    const lowest = variants.reduce((min, v) => ((v.effective_price || v.price) < (min.effective_price || min.price) ? v : min), variants[0]);
+    let orig = null;
+    if (lowest.is_on_sale) orig = lowest.price;
+    else if (lowest.compare_at_price > lowest.price) orig = lowest.compare_at_price;
     return {
-      current: selectedVariant.value.effective_price,
+      current: lowest.effective_price || lowest.price,
       original: orig,
-      discount: selectedVariant.value.discount_percent || 0
+      discount: lowest.discount_percent || 0
     };
   }
 
-  // Nếu chưa chọn variant, tìm variant có effective_price thấp nhất
+  if (selectedVariant.value) {
+    return getVariantDisplayPrice(selectedVariant.value);
+  }
+
   const variants = product.value.variants || [];
   if (variants.length === 0) return { current: product.value.min_price || 0, original: null, discount: 0 };
 
-  // Nếu Flash Sale hết quota → dùng giá gốc (price)
-  if (isFlashSaleSoldOut.value || isFlashSaleEnded.value) {
-    const lowest = variants.reduce((min, v) => (v.price < min.price ? v : min), variants[0]);
-    return { current: lowest.price, original: null, discount: 0 };
-  }
+  const pricedVariants = variants.map(v => ({ variant: v, priceInfo: getVariantDisplayPrice(v) }));
+  const lowest = pricedVariants.reduce((min, item) => (item.priceInfo.current < min.priceInfo.current ? item : min), pricedVariants[0]);
 
-  const lowest = variants.reduce((min, v) => ((v.effective_price || v.price) < (min.effective_price || min.price) ? v : min), variants[0]);
-
-  let orig = null;
-  if (lowest.is_on_sale) orig = lowest.price;
-  else if (lowest.compare_at_price > lowest.price) orig = lowest.compare_at_price;
-
-  return {
-    current: lowest.effective_price || lowest.price,
-    original: orig,
-    discount: lowest.discount_percent || 0
-  };
+  return lowest.priceInfo;
 });
 
 const selectedVariantCartQty = computed(() => {

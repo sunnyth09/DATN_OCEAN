@@ -59,13 +59,24 @@ class ProductVariant extends Model
     {
         if (self::$activeFlashSaleCache === null) {
             try {
-                self::$activeFlashSaleCache = FlashSaleItem::whereHas('flashSale', function ($q) {
+                $now = now();
+                $items = FlashSaleItem::whereHas('flashSale', function ($q) use ($now) {
                     $q->where('status', 'active')
-                        ->where('start_time', '<=', now())
-                        ->where('end_time', '>=', now());
-                })
-                    ->pluck('campaign_price', 'product_id')
-                    ->toArray();
+                        ->where('start_time', '<=', $now)
+                        ->where('end_time', '>=', $now);
+                })->get();
+
+                self::$activeFlashSaleCache = [];
+                foreach ($items as $item) {
+                    $stockKey = "flash_sale_{$item->flash_sale_id}_product_{$item->product_id}_stock";
+                    $remaining = \Illuminate\Support\Facades\Redis::exists($stockKey)
+                        ? (int) \Illuminate\Support\Facades\Redis::get($stockKey)
+                        : ($item->campaign_stock - $item->sold);
+
+                    if ($remaining > 0) {
+                        self::$activeFlashSaleCache[$item->product_id] = (float) $item->campaign_price;
+                    }
+                }
             } catch (\Throwable $e) {
                 self::$activeFlashSaleCache = [];
             }
