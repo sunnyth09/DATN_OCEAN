@@ -35,6 +35,21 @@ const isFlashSaleEnded = computed(() => {
   return new Date(flashSaleData.value.end_time).getTime() <= Date.now();
 });
 
+// Flash Sale hết quota khi remaining = 0 (hoặc sold >= total_stock)
+const isFlashSaleSoldOut = computed(() => {
+  if (!flashSaleData.value) return false;
+  const remaining = flashSaleData.value.remaining ?? null;
+  if (remaining !== null) return remaining <= 0;
+  const total = flashSaleData.value.total_stock || flashSaleData.value.campaign_stock || 0;
+  const sold  = flashSaleData.value.sold_count  || flashSaleData.value.sold || 0;
+  return total > 0 && sold >= total;
+});
+
+// Chỉ hiện Flash Sale card khi: có FS, chưa kết thúc và CÒN quota
+const hasActiveFlashSale = computed(
+  () => hasFlashSale.value && !isFlashSaleEnded.value && !isFlashSaleSoldOut.value
+);
+
 const flashSaleOriginalPrice = computed(() => {
   if (!flashSaleData.value) return 0;
   const flashPrice = Number(flashSaleData.value.flash_price || flashSaleData.value.campaign_price || 0);
@@ -464,36 +479,64 @@ const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 };
 
+const getVariantDisplayPrice = (v) => {
+  if (!v) return { current: 0, original: null, discount: 0 };
+  const price = Number(v.price || 0);
+  const salePrice = Number(v.sale_price || 0);
+  const comparePrice = Number(v.compare_at_price || 0);
+
+  if (salePrice > 0 && salePrice < price) {
+    const disc = Math.round(((price - salePrice) / price) * 100);
+    return { current: salePrice, original: price, discount: disc };
+  }
+
+  if (comparePrice > price) {
+    const disc = Math.round(((comparePrice - price) / comparePrice) * 100);
+    return { current: price, original: comparePrice, discount: disc };
+  }
+
+  return { current: price, original: null, discount: 0 };
+};
+
 const displayPriceInfo = computed(() => {
   if (!product.value) return { current: 0, original: null, discount: 0 };
 
-  if (selectedVariant.value) {
-    let orig = null;
-    if (selectedVariant.value.is_on_sale) orig = selectedVariant.value.price;
-    else if (selectedVariant.value.compare_at_price > selectedVariant.value.price) orig = selectedVariant.value.compare_at_price;
+  if (hasActiveFlashSale.value) {
+    if (selectedVariant.value) {
+      let orig = null;
+      if (selectedVariant.value.is_on_sale) orig = selectedVariant.value.price;
+      else if (selectedVariant.value.compare_at_price > selectedVariant.value.price) orig = selectedVariant.value.compare_at_price;
 
+      return {
+        current: selectedVariant.value.effective_price,
+        original: orig,
+        discount: selectedVariant.value.discount_percent || 0
+      };
+    }
+    const variants = product.value.variants || [];
+    if (variants.length === 0) return { current: product.value.min_price || 0, original: null, discount: 0 };
+    const lowest = variants.reduce((min, v) => ((v.effective_price || v.price) < (min.effective_price || min.price) ? v : min), variants[0]);
+    let orig = null;
+    if (lowest.is_on_sale) orig = lowest.price;
+    else if (lowest.compare_at_price > lowest.price) orig = lowest.compare_at_price;
     return {
-      current: selectedVariant.value.effective_price,
+      current: lowest.effective_price || lowest.price,
       original: orig,
-      discount: selectedVariant.value.discount_percent || 0
+      discount: lowest.discount_percent || 0
     };
   }
 
-  // Nếu chưa chọn variant, tìm variant có effective_price thấp nhất
+  if (selectedVariant.value) {
+    return getVariantDisplayPrice(selectedVariant.value);
+  }
+
   const variants = product.value.variants || [];
   if (variants.length === 0) return { current: product.value.min_price || 0, original: null, discount: 0 };
 
-  const lowest = variants.reduce((min, v) => ((v.effective_price || v.price) < (min.effective_price || min.price) ? v : min), variants[0]);
+  const pricedVariants = variants.map(v => ({ variant: v, priceInfo: getVariantDisplayPrice(v) }));
+  const lowest = pricedVariants.reduce((min, item) => (item.priceInfo.current < min.priceInfo.current ? item : min), pricedVariants[0]);
 
-  let orig = null;
-  if (lowest.is_on_sale) orig = lowest.price;
-  else if (lowest.compare_at_price > lowest.price) orig = lowest.compare_at_price;
-
-  return {
-    current: lowest.effective_price || lowest.price,
-    original: orig,
-    discount: lowest.discount_percent || 0
-  };
+  return lowest.priceInfo;
 });
 
 const selectedVariantCartQty = computed(() => {
@@ -907,8 +950,8 @@ onBeforeUnmount(() => {
           <span class="pd-rating-text">({{ product.rating_count ?? 0 }} đánh giá)</span>
         </div>
 
-        <!-- ═══ FLASH SALE BANNER CARD (NẾU ĐANG DIỄN RA) ═══ -->
-        <div v-if="hasFlashSale" class="pd-flash-sale-card">
+        <!-- ═══ FLASH SALE BANNER CARD (NẾU ĐANG DIỄN RA VÀ CÒN QUOTA) ═══ -->
+        <div v-if="hasActiveFlashSale" class="pd-flash-sale-card">
           <div class="pd-fs-header">
             <div class="pd-fs-title-box">
               <span class="pd-fs-fire" style="display: inline-flex; align-items: center;"><AppIcon name="zap" size="18" /></span>
@@ -950,8 +993,34 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <!-- Standard Price (Ẩn hoặc làm phụ khi có Flash Sale) -->
-        <div class="pd-price-row" v-if="!hasFlashSale">
+        <!-- ═══ FLASH SALE ĐÃ HẾT QUOTA (SOLD OUT BANNER) ═══ -->
+        <div v-else-if="hasFlashSale && isFlashSaleSoldOut" class="pd-flash-sale-card pd-flash-sale-soldout">
+          <div class="pd-fs-header">
+            <div class="pd-fs-title-box">
+              <span class="pd-fs-fire" style="display: inline-flex; align-items: center;"><AppIcon name="zap" size="18" /></span>
+              <span class="pd-fs-title">FLASH SALE</span>
+            </div>
+            <span class="pd-fs-soldout-badge">ĐÃ HẾT SUẤT</span>
+          </div>
+          <div class="pd-fs-body">
+            <div class="pd-fs-price-main">
+              <span class="pd-fs-price pd-fs-price--strikethrough">{{ formatPrice(flashSaleData.flash_price || flashSaleData.campaign_price) }}</span>
+              <span class="pd-fs-soldout-note">Đã bán hết {{ flashSaleData.total_stock }} suất Flash Sale</span>
+            </div>
+            <div class="pd-fs-stock-compact">
+              <div class="pd-fs-stock-info">
+                <span>Đã bán: <strong>{{ flashSaleData.sold_count || flashSaleData.sold || 0 }}</strong>/{{ flashSaleData.total_stock }}</span>
+                <span class="pd-fs-remain pd-fs-remain--zero">Còn: <strong>0</strong></span>
+              </div>
+              <div class="pd-fs-track">
+                <div class="pd-fs-fill pd-fs-fill--full" style="width: 100%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Standard Price (Ẩn hoặc làm phụ khi có Flash Sale active) -->
+        <div class="pd-price-row" v-if="!hasActiveFlashSale">
           <span class="pd-price">{{ formatPrice(displayPriceInfo.current) }}</span>
           <span class="pd-price-old" v-if="displayPriceInfo.original">{{ formatPrice(displayPriceInfo.original) }}</span>
         </div>
@@ -1622,7 +1691,52 @@ onBeforeUnmount(() => {
   transition: width 0.3s ease;
 }
 
+/* ── Flash Sale Sold-Out State ── */
+.pd-flash-sale-soldout {
+  background: linear-gradient(135deg, #F8F9FA 0%, #F1F3F5 100%);
+  border-color: #CED4DA;
+  opacity: 0.92;
+}
 
+.pd-flash-sale-soldout .pd-fs-fire,
+.pd-flash-sale-soldout .pd-fs-title {
+  color: #868E96;
+}
+
+.pd-flash-sale-soldout .pd-fs-header {
+  border-bottom-color: rgba(134, 142, 150, 0.2);
+}
+
+.pd-fs-soldout-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #fff;
+  background: #868E96;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.pd-fs-price--strikethrough {
+  text-decoration: line-through;
+  color: #ADB5BD !important;
+  font-size: 1.25rem !important;
+}
+
+.pd-fs-soldout-note {
+  font-size: 0.8rem;
+  color: #868E96;
+  font-style: italic;
+}
+
+.pd-fs-remain--zero strong {
+  color: #868E96 !important;
+}
+
+.pd-fs-fill--full {
+  background: linear-gradient(90deg, #ADB5BD 0%, #868E96 100%) !important;
+}
 
 .pd-price-row {
   display: flex;

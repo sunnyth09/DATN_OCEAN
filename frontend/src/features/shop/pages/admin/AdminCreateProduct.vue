@@ -245,9 +245,76 @@ const simpleSalePercent = computed(() => {
     return Math.round((product.price - product.sale_price) / product.price * 100);
 });
 
+const formatMoney = (val) => {
+    if (!val || isNaN(val)) return '';
+    return new Intl.NumberFormat('vi-VN').format(val) + ' ₫';
+};
+
+const formatNumberWithCommas = (val) => {
+    if (val === null || val === undefined || val === '') return '';
+    const num = Number(val);
+    if (isNaN(num)) return '';
+    if (num === 0) return '0';
+    return new Intl.NumberFormat('vi-VN').format(Math.round(num));
+};
+
+const parseFormattedNumber = (val) => {
+    if (val === null || val === undefined || val === '') return '';
+    const clean = String(val).replace(/\D/g, '');
+    return clean ? Number(clean) : '';
+};
+
+const onNumericInput = (e, obj, key) => {
+    const raw = e.target.value || '';
+    const clean = raw.replace(/\D/g, '');
+    const formatted = clean ? new Intl.NumberFormat('vi-VN').format(clean) : '';
+    if (e.target.value !== formatted) {
+        e.target.value = formatted;
+    }
+    obj[key] = clean ? Number(clean) : '';
+};
+
+const applyBulkToVariant = (vi) => {
+    const v = product.variants[vi];
+    if (!v) return;
+    const bStock = v.bulkStock !== undefined && v.bulkStock !== "" ? Number(v.bulkStock) : null;
+    const bPrice = v.bulkPrice !== undefined && v.bulkPrice !== "" ? Number(v.bulkPrice) : null;
+    if (bStock === null && bPrice === null) return;
+    v.sizes.forEach(s => {
+        if (bStock !== null) s.stock = bStock;
+        if (bPrice !== null) s.price = bPrice;
+    });
+};
+
+const addPresetSizes = (vi, presetList = ['S', 'M', 'L', 'XL']) => {
+    const v = product.variants[vi];
+    if (!v) return;
+    const existingSizes = v.sizes.map(s => (s.size || '').trim().toUpperCase());
+    presetList.forEach(p => {
+        if (!existingSizes.includes(p)) {
+            const defaultPrice = v.sizes[0]?.price || v.bulkPrice || 0;
+            const defaultStock = v.sizes[0]?.stock || v.bulkStock || 0;
+            v.sizes.push({
+                size: p,
+                stock: defaultStock,
+                price: defaultPrice,
+                has_sale: false,
+                sale_price: "",
+                sale_starts_at: "",
+                sale_ends_at: ""
+            });
+        }
+    });
+    if (v.sizes.length > 1 && v.sizes[0].size === "" && !v.sizes[0].stock && !v.sizes[0].price) {
+        v.sizes.shift();
+    }
+};
+
 const addVariant = () => {
     product.variants.push({
         color: "",
+        bulkStock: "",
+        bulkPrice: "",
         images: [],
         imagePreviews: [],
         sizes: [{ size: "", stock: 0, price: 0, has_sale: false, sale_price: "", sale_starts_at: "", sale_ends_at: "" }],
@@ -813,10 +880,11 @@ onMounted(() => {
                                     <span class="required">*</span></label
                                 >
                                 <div class="input-with-prefix" :class="{'is-invalid': errors.price}">
-                                    <span class="prefix">₫</span>
+                                    <span class="prefix">VNĐ</span>
                                     <input
-                                        type="number" min="100000" oninput="if(this.value < 0) this.value = Math.abs(this.value)" @keydown="if(['-','e','E'].includes($event.key)) $event.preventDefault();"
-                                        v-model="product.price"
+                                        type="text" inputmode="numeric"
+                                        :value="formatNumberWithCommas(product.price)"
+                                        @input="product.price = parseFormattedNumber($event.target.value)"
                                         class="form-control"
                                         placeholder="0"
                                     />
@@ -828,10 +896,11 @@ onMounted(() => {
                             <div class="form-group">
                                 <label>Giá Gốc Trước Giảm</label>
                                 <div class="input-with-prefix">
-                                    <span class="prefix">₫</span>
+                                    <span class="prefix">VNĐ</span>
                                     <input
-                                        type="number" min="100000" oninput="if(this.value < 0) this.value = Math.abs(this.value)" @keydown="if(['-','e','E'].includes($event.key)) $event.preventDefault();"
-                                        v-model="product.compare_at_price"
+                                        type="text" inputmode="numeric"
+                                        :value="formatNumberWithCommas(product.compare_at_price)"
+                                        @input="product.compare_at_price = parseFormattedNumber($event.target.value)"
                                         class="form-control"
                                         placeholder="0"
                                     />
@@ -847,8 +916,9 @@ onMounted(() => {
                                     <span class="required">*</span></label
                                 >
                                 <input
-                                    type="number" min="0" oninput="if(this.value < 0) this.value = Math.abs(this.value)" @keydown="if(['-','e','E'].includes($event.key)) $event.preventDefault();"
-                                    v-model="product.stock"
+                                    type="text" inputmode="numeric"
+                                    :value="formatNumberWithCommas(product.stock)"
+                                    @input="product.stock = parseFormattedNumber($event.target.value)"
                                     class="form-control"
                                     :class="{'is-invalid': errors.stock}"
                                     placeholder="0"
@@ -883,7 +953,7 @@ onMounted(() => {
                                         <label>Giá Khuyến Mãi</label>
                                         <div class="input-with-prefix" :class="{'is-invalid': errors.sale_price}">
                                             <span class="prefix">₫</span>
-                                            <input type="number" min="1" oninput="if(this.value < 0) this.value = Math.abs(this.value)" @keydown="if(['-','e','E'].includes($event.key)) $event.preventDefault();" v-model="product.sale_price" class="form-control" placeholder="0" />
+                                            <input type="text" inputmode="numeric" :value="formatNumberWithCommas(product.sale_price)" @input="product.sale_price = parseFormattedNumber($event.target.value)" class="form-control" placeholder="0" />
                                         </div>
                                         <span v-if="errors.sale_price" class="field-error">{{ errors.sale_price }}</span>
                                         <span v-if="simpleSalePercent > 0 && !errors.sale_price" class="sale-preview-badge">Giảm {{ simpleSalePercent }}%</span>
@@ -1065,192 +1135,116 @@ onMounted(() => {
                                 </div>
 
                                 <div class="sizes-section">
-                                    <label>Kích Cỡ / Số Lượng</label>
+                                    <div class="sizes-header-flex">
+                                        <label class="sizes-title-label">
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                                                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                                            </svg>
+                                            Kích Cỡ / Số Lượng & Giá Bán
+                                        </label>
+                                        <span class="sizes-count-badge">{{ variant.sizes.length }} kích cỡ</span>
+                                    </div>
+
+                                    <!-- Bulk Quick Fill Bar -->
+                                    <div class="variant-bulk-bar">
+                                        <div class="bulk-title">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                            <span>Áp dụng nhanh cho tất cả size:</span>
+                                        </div>
+                                        <div class="bulk-fields">
+                                            <div class="bulk-input-group">
+                                                <span class="bulk-label">Kho</span>
+                                                <input type="text" inputmode="numeric" :value="formatNumberWithCommas(variant.bulkStock)" @input="onNumericInput($event, variant, 'bulkStock')" placeholder="Số lượng" class="form-control input-xs" />
+                                            </div>
+                                            <div class="bulk-input-group">
+                                                <span class="bulk-label">Giá VNĐ</span>
+                                                <input type="text" inputmode="numeric" :value="formatNumberWithCommas(variant.bulkPrice)" @input="onNumericInput($event, variant, 'bulkPrice')" placeholder="Giá bán" class="form-control input-xs" />
+                                            </div>
+                                            <button type="button" class="btn-bulk-apply" @click.prevent="applyBulkToVariant(vIndex)" title="Điền nhanh Kho và Giá cho tất cả size">
+                                                Áp Dụng
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <table class="sizes-table">
                                         <thead>
                                             <tr>
-                                                <th>Size (tùy chọn)</th>
-                                                <th>Số Lượng Kho</th>
-                                                <th>Giá (₫)</th>
-                                                <th></th>
+                                                <th style="width: 22%">Size (Kích cỡ)</th>
+                                                <th style="width: 20%">Kho (Tồn)</th>
+                                                <th style="width: 32%">Giá Bán (VNĐ)</th>
+                                                <th style="width: 16%; text-align: center">Khuyến Mãi</th>
+                                                <th style="width: 10%; text-align: center">Xóa</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <template
-                                                v-for="(
-                                                    s, sIndex
-                                                ) in variant.sizes"
-                                                :key="sIndex"
-                                            >
-                                                <tr>
+                                            <template v-for="(s, sIndex) in variant.sizes" :key="sIndex">
+                                                <tr class="size-main-row" :class="{'has-sale-active': s.has_sale}">
                                                     <td>
-                                                        <input
-                                                            type="text"
-                                                            v-model="s.size"
-                                                            class="form-control input-sm"
-                                                            :class="{
-                                                                'input-error':
-                                                                    errors.variants &&
-                                                                    errors
-                                                                        .variants[
-                                                                        vIndex
-                                                                    ]?.sizes?.[
-                                                                        sIndex
-                                                                    ]?.size,
-                                                            }"
-                                                            placeholder="Để trống nếu không cần"
-                                                        />
-                                                        <span
-                                                            v-if="
-                                                                errors.variants && errors.variants[
-                                                                    vIndex
-                                                                ]?.sizes?.[sIndex]
-                                                                    ?.size
-                                                            "
-                                                            class="field-error"
-                                                        >
-                                                            {{
-                                                                errors.variants[
-                                                                    vIndex
-                                                                ].sizes[sIndex]
-                                                                    .size
-                                                            }}
-                                                        </span>
+                                                        <input type="text" v-model="s.size" class="form-control input-sm font-weight-600" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.size, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.size }" placeholder="Ví dụ: L, M..." />
+                                                        <span v-if="errors.variants?.[vIndex]?.sizes?.[sIndex]?.size" class="field-error">{{ errors.variants[vIndex].sizes[sIndex].size }}</span>
                                                     </td>
                                                     <td>
-                                                        <input
-                                                            type="number" min="0" oninput="if(this.value < 0) this.value = Math.abs(this.value)" @keydown="if(['-','e','E'].includes($event.key)) $event.preventDefault();"
-                                                            v-model="s.stock"
-                                                            class="form-control input-sm"
-                                                            :class="{
-                                                                'input-error':
-                                                                    errors.variants &&
-                                                                    errors
-                                                                        .variants[
-                                                                        vIndex
-                                                                    ]?.sizes?.[
-                                                                        sIndex
-                                                                    ]?.stock,
-                                                            }"
-                                                            placeholder="0"
-                                                        />
-                                                        <span
-                                                            v-if="
-                                                                errors.variants && errors.variants[
-                                                                    vIndex
-                                                                ]?.sizes?.[sIndex]
-                                                                    ?.stock
-                                                            "
-                                                            class="field-error"
-                                                        >
-                                                            {{
-                                                                errors.variants[
-                                                                    vIndex
-                                                                ].sizes[sIndex]
-                                                                    .stock
-                                                            }}
-                                                        </span>
+                                                        <div class="stock-input-wrapper">
+                                                            <input type="text" inputmode="numeric" :value="formatNumberWithCommas(s.stock)" @input="onNumericInput($event, s, 'stock')" class="form-control input-sm" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.stock, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.stock }" placeholder="0" />
+                                                        </div>
+                                                        <span v-if="errors.variants?.[vIndex]?.sizes?.[sIndex]?.stock" class="field-error">{{ errors.variants[vIndex].sizes[sIndex].stock }}</span>
                                                     </td>
                                                     <td>
-                                                        <input
-                                                            type="number" min="100000" oninput="if(this.value < 0) this.value = Math.abs(this.value)" @keydown="if(['-','e','E'].includes($event.key)) $event.preventDefault();"
-                                                            v-model="s.price"
-                                                            class="form-control input-sm"
-                                                            :class="{
-                                                                'input-error':
-                                                                    errors.variants &&
-                                                                    errors
-                                                                        .variants[
-                                                                        vIndex
-                                                                    ]?.sizes?.[
-                                                                        sIndex
-                                                                    ]?.price,
-                                                            }"
-                                                            placeholder="0"
-                                                        />
-                                                        <span
-                                                            v-if="
-                                                                errors.variants && errors.variants[
-                                                                    vIndex
-                                                                ]?.sizes?.[sIndex]
-                                                                    ?.price
-                                                            "
-                                                            class="field-error"
-                                                        >
-                                                            {{
-                                                                errors.variants[
-                                                                    vIndex
-                                                                ].sizes[sIndex]
-                                                                    .price
-                                                            }}
-                                                        </span>
+                                                        <div class="input-with-prefix input-prefix-sm" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.price, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.price }">
+                                                            <span class="prefix">VNĐ</span>
+                                                            <input type="text" inputmode="numeric" :value="formatNumberWithCommas(s.price)" @input="onNumericInput($event, s, 'price')" class="form-control input-sm font-weight-600" placeholder="0" />
+                                                        </div>
+                                                        <span v-if="errors.variants?.[vIndex]?.sizes?.[sIndex]?.price" class="field-error">{{ errors.variants[vIndex].sizes[sIndex].price }}</span>
                                                     </td>
-                                                    <td class="action-cell">
-                                                        <button
-                                                            class="btn-sale-toggle"
-                                                            :class="{ active: s.has_sale }"
-                                                            type="button"
-                                                            title="Thiết lập khuyến mãi"
-                                                            @click.prevent="s.has_sale = !s.has_sale"
-                                                        >
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <td class="action-cell text-center">
+                                                        <button class="btn-sale-toggle" :class="{ active: s.has_sale }" type="button" :title="s.has_sale ? 'Đang mở Khuyến mãi (bấm để tắt)' : 'Bật khuyến mãi cho size này'" @click.prevent="s.has_sale = !s.has_sale">
+                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                                                                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/>
                                                                 <line x1="7" y1="7" x2="7.01" y2="7"/>
                                                             </svg>
+                                                            <span class="sale-btn-text">{{ s.has_sale ? 'Đang KM' : '+ KM' }}</span>
                                                         </button>
-                                                        <button
-                                                            class="btn-icon-danger square"
-                                                            type="button"
-                                                            @click.prevent="
-                                                                removeSize(
-                                                                    vIndex,
-                                                                    sIndex,
-                                                                )
-                                                            "
-                                                        >
-                                                            <svg
-                                                                width="14"
-                                                                height="14"
-                                                                viewBox="0 0 24 24"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                stroke-width="2"
-                                                            >
-                                                                <line
-                                                                    x1="18"
-                                                                    y1="6"
-                                                                    x2="6"
-                                                                    y2="18"
-                                                                ></line>
-                                                                <line
-                                                                    x1="6"
-                                                                    y1="6"
-                                                                    x2="18"
-                                                                    y2="18"
-                                                                ></line>
+                                                    </td>
+                                                    <td class="action-cell text-center">
+                                                        <button class="btn-icon-danger square" type="button" title="Xóa size này" @click.prevent="removeSize(vIndex, sIndex)">
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                                <line x1="6" y1="6" x2="18" y2="18"></line>
                                                             </svg>
                                                         </button>
                                                     </td>
                                                 </tr>
-                                                <!-- Sale row (expandable) -->
+                                                <!-- Redesigned Modern Sale Compact Box -->
                                                 <tr v-if="s.has_sale" class="sale-expand-row">
-                                                    <td colspan="4" class="sale-expand-cell">
-                                                        <div class="sale-inline-fields">
-                                                            <div class="sale-inline-field">
-                                                                <label>Giá KM (₫)</label>
-                                                                <input type="number" min="1" oninput="if(this.value < 0) this.value = Math.abs(this.value)" @keydown="if(['-','e','E'].includes($event.key)) $event.preventDefault();" v-model="s.sale_price" class="form-control input-sm" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price }" placeholder="0" />
-                                                                <span v-if="errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price" class="field-error" style="margin-top:2px">{{ errors.variants[vIndex].sizes[sIndex].sale_price }}</span>
-                                                                <span v-if="s.sale_price && s.price && !errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price" class="sale-preview-badge small">
-                                                                    -{{ Math.round((s.price - s.sale_price) / s.price * 100) }}%
+                                                    <td colspan="5" class="sale-expand-cell">
+                                                        <div class="sale-compact-card">
+                                                            <div class="sale-compact-header">
+                                                                <div class="sale-title-tag">
+                                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                                                                    <span>Thiết Lập Khuyến Mãi Cho Size {{ s.size || '#' + (sIndex + 1) }}</span>
+                                                                </div>
+                                                                <span v-if="s.sale_price && s.price && Number(s.price) > Number(s.sale_price)" class="sale-discount-pill">
+                                                                    Giảm -{{ Math.round((s.price - s.sale_price) / s.price * 100) }}%
                                                                 </span>
                                                             </div>
-                                                            <div class="sale-inline-field">
-                                                                <label>Bắt đầu</label>
-                                                                <input type="datetime-local" v-model="s.sale_starts_at" class="form-control input-sm" />
-                                                            </div>
-                                                            <div class="sale-inline-field">
-                                                                <label>Kết thúc</label>
-                                                                <input type="datetime-local" v-model="s.sale_ends_at" class="form-control input-sm" />
+                                                            <div class="sale-inline-fields">
+                                                                <div class="sale-inline-field">
+                                                                    <label>Giá Khuyến Mãi (VNĐ)</label>
+                                                                    <div class="input-with-prefix input-prefix-sm" :class="{ 'is-invalid': errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price, 'input-error': errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price }">
+                                                                        <span class="prefix">VNĐ</span>
+                                                                        <input type="text" inputmode="numeric" :value="formatNumberWithCommas(s.sale_price)" @input="onNumericInput($event, s, 'sale_price')" class="form-control input-sm font-weight-600" placeholder="0" />
+                                                                    </div>
+                                                                    <span v-if="errors.variants?.[vIndex]?.sizes?.[sIndex]?.sale_price" class="field-error" style="margin-top:2px">{{ errors.variants[vIndex].sizes[sIndex].sale_price }}</span>
+                                                                </div>
+                                                                <div class="sale-inline-field">
+                                                                    <label>Thời Gian Bắt Đầu</label>
+                                                                    <input type="datetime-local" v-model="s.sale_starts_at" class="form-control input-sm date-input" />
+                                                                </div>
+                                                                <div class="sale-inline-field">
+                                                                    <label>Thời Gian Kết Thúc</label>
+                                                                    <input type="datetime-local" v-model="s.sale_ends_at" class="form-control input-sm date-input" />
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </td>
@@ -1277,13 +1271,25 @@ onMounted(() => {
                                             </template>
                                         </tbody>
                                     </table>
-                                    <button
-                                        class="btn-text-link mt-2"
-                                        type="button"
-                                        @click.prevent="addSize(vIndex)"
-                                    >
-                                        + Thêm Kích Cỡ
-                                    </button>
+
+                                    <!-- Modern Footer Actions (Add size + Quick Presets) -->
+                                    <div class="size-footer-actions">
+                                        <button class="btn-add-size" type="button" @click.prevent="addSize(vIndex)">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                            Thêm Kích Cỡ
+                                        </button>
+
+                                        <div class="size-presets">
+                                            <span class="preset-label">Tạo nhanh:</span>
+                                            <button type="button" class="btn-preset-chip" @click.prevent="addPresetSizes(vIndex, ['S', 'M', 'L', 'XL'])">
+                                                + S, M, L, XL
+                                            </button>
+                                            <button type="button" class="btn-preset-chip" @click.prevent="addPresetSizes(vIndex, ['38', '39', '40', '41', '42'])">
+                                                + Size 38-42
+                                            </button>
+                                        </div>
+                                    </div>
+
                                     <span
                                         v-if="
                                             errors.variants &&
@@ -2408,62 +2414,286 @@ onMounted(() => {
     font-weight: 700;
     box-shadow: 0 2px 4px rgba(239, 83, 80, 0.2);
 }
-.sale-preview-badge.small {
-    position: static;
-    display: inline-block;
-    margin-top: 6px;
-    margin-left: 0;
-}
-.sale-expand-row td {
-    padding: 0 8px 12px 8px;
-    border-bottom: 2px dashed var(--border-color) !important;
-}
-.sale-expand-cell {
-    background-color: rgba(230, 59, 111, 0.03);
-    border-radius: 0 0 6px 6px;
-}
-.sale-inline-fields {
+/* ── Enhanced Sizes Section & Bulk Bar Styles ── */
+.sizes-header-flex {
     display: flex;
-    gap: 16px;
-    padding: 12px;
-}
-.sale-inline-field {
-    flex: 1;
-}
-.sale-inline-field label {
-    font-size: 0.75rem;
-    color: var(--primary);
-    margin-bottom: 4px;
-    display: block;
-    font-weight: 600;
-}
-.action-cell {
-    display: flex;
-    gap: 6px;
+    justify-content: space-between;
     align-items: center;
+    margin-bottom: 12px;
+}
+.sizes-title-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.sizes-count-badge {
+    background: rgba(230, 59, 111, 0.08);
+    color: var(--primary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+}
+
+/* Bulk Quick Fill Bar */
+.variant-bulk-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, rgba(230, 59, 111, 0.04) 0%, rgba(2, 132, 199, 0.04) 100%);
+    border: 1px dashed rgba(230, 59, 111, 0.25);
+    border-radius: 10px;
+    margin-bottom: 14px;
+}
+.bulk-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--primary);
+    white-space: nowrap;
+}
+.bulk-fields {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.bulk-input-group {
+    display: flex;
+    align-items: center;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.bulk-label {
+    padding: 4px 8px;
+    background: var(--ocean-deepest, #f8fafc);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    border-right: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+.input-xs {
+    padding: 4px 8px !important;
+    font-size: 0.78rem !important;
+    width: 90px !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+.btn-bulk-apply {
+    padding: 6px 14px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.btn-bulk-apply:hover {
+    background: var(--ocean-bright, #d81b60);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(230, 59, 111, 0.25);
+}
+
+.input-with-prefix { display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; background: var(--card-bg); transition: all 0.2s; }
+.input-with-prefix:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(230, 59, 111,0.1); }
+.prefix { padding: 10px 14px; background: var(--ocean-deepest, #f8fafc); color: var(--text-muted); font-weight: 600; border-right: 1px solid var(--border-color); font-size: 0.85rem; }
+.input-with-prefix .form-control { border: none; border-radius: 0; box-shadow: none !important; }
+.input-prefix-sm { border-radius: 6px; }
+.input-prefix-sm .prefix { padding: 6px 10px; font-size: 0.78rem; font-weight: 700; color: var(--primary); background: #f8fafc; }
+
+/* Sizes Table Enhancements */
+.sizes-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 4px;
+}
+.sizes-table th {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 8px 10px;
+    background: var(--ocean-deepest, #f8fafc);
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+.sizes-table th:first-child { border-top-left-radius: 8px; border-left: 1px solid var(--border-color); }
+.sizes-table th:last-child { border-top-right-radius: 8px; border-right: 1px solid var(--border-color); }
+
+.size-main-row td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--card-bg, #fff);
+    vertical-align: middle !important;
+    transition: background 0.2s;
+}
+.size-main-row.has-sale-active td {
+    background: rgba(230, 59, 111, 0.02);
+}
+
+.price-input-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.font-weight-600 { font-weight: 600 !important; }
+
+.action-cell {
+    text-align: center !important;
+    vertical-align: middle !important;
+    white-space: nowrap;
 }
 .btn-sale-toggle {
-    width: 32px;
-    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
     border-radius: 6px;
     border: 1px solid var(--border-color);
-    background: var(--surface-container);
+    background: var(--card-bg);
     color: var(--text-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s;
 }
 .btn-sale-toggle:hover {
-    background: var(--ocean-deepest);
+    background: rgba(230, 59, 111, 0.08);
     color: var(--primary);
+    border-color: rgba(230, 59, 111, 0.3);
 }
 .btn-sale-toggle.active {
-    background: rgba(230, 59, 111, 0.1);
-    color: var(--primary);
-    border-color: var(--primary);
+    background: #e11d48;
+    color: white;
+    border-color: #e11d48;
+    box-shadow: 0 2px 6px rgba(225, 29, 72, 0.3);
 }
+
+/* Redesigned Compact Sale Box */
+.sale-expand-row td {
+    padding: 0 10px 12px 10px !important;
+    border-bottom: 1px dashed rgba(230, 59, 111, 0.25) !important;
+    background: var(--card-bg, #fff);
+}
+.sale-compact-card {
+    background: linear-gradient(135deg, rgba(230, 59, 111, 0.03) 0%, rgba(230, 59, 111, 0.06) 100%);
+    border: 1px solid rgba(230, 59, 111, 0.18);
+    border-left: 3.5px solid #e11d48;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-top: 4px;
+}
+.sale-compact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed rgba(230, 59, 111, 0.15);
+}
+.sale-title-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #e11d48;
+}
+.sale-discount-pill {
+    background: #e11d48;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 12px;
+    letter-spacing: 0.02em;
+}
+.sale-inline-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+}
+.sale-inline-field label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 4px;
+    display: block;
+}
+.date-input {
+    font-size: 0.75rem !important;
+    padding: 6px 8px !important;
+}
+
+/* Footer Actions & Presets */
+.size-footer-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+}
+.btn-add-size {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: rgba(230, 59, 111, 0.08);
+    color: var(--primary);
+    border: 1px solid rgba(230, 59, 111, 0.2);
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-add-size:hover {
+    background: var(--primary);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(230, 59, 111, 0.25);
+}
+.size-presets {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.preset-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+.btn-preset-chip {
+    padding: 4px 10px;
+    background: var(--ocean-deepest, #f8fafc);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-preset-chip:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(230, 59, 111, 0.06);
+}
+
 .slide-fade-enter-active {
   transition: all 0.3s ease-out;
 }
