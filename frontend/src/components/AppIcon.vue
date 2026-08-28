@@ -159,6 +159,15 @@ const isDecorative = computed(() => props.decorative && !props.title);
     <template v-else-if="normalizedName === 'zap'">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </template>
+    <template v-else-if="normalizedName === 'flame'">
+      <path d="M8.5 14.5A4.5 4.5 0 0 0 12 22a6 6 0 0 0 6-6c0-3.5-2-5.5-4.5-8.5C12 10 10.5 11.5 10.5 14c-1.5-1-2-2.5-1.5-5C6.5 11 4 13.5 4 17a8 8 0 0 0 .4 2.4" />
+    </template>
+    <template v-else-if="normalizedName === 'hourglass'">
+      <path d="M6 2h12" />
+      <path d="M6 22h12" />
+      <path d="M7 2c0 5 5 6 5 10s-5 5-5 10" />
+      <path d="M17 2c0 5-5 6-5 10s5 5 5 10" />
+    </template>
     <template v-else-if="normalizedName === 'ticket'">
       <path d="M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
       <path d="M12 4l-2 2" />
