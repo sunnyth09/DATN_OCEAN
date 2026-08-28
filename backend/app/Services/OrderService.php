@@ -289,8 +289,8 @@ class OrderService
                         'color' => $cartItem->variant->color,
                         'size' => $cartItem->variant->size,
                         'quantity' => $cartItem->quantity,
-                        'unit_price' => $cartItem->variant->effective_price,
-                        'line_total' => $cartItem->variant->effective_price * $cartItem->quantity,
+                        'unit_price' => $this->resolveEffectivePrice($cartItem->variant),
+                        'line_total' => $this->resolveEffectivePrice($cartItem->variant) * $cartItem->quantity,
                     ]);
 
                     $this->variantRepository->decrementStock(
@@ -555,8 +555,8 @@ class OrderService
                         'color' => $cartItem->variant->color,
                         'size' => $cartItem->variant->size,
                         'quantity' => $cartItem->quantity,
-                        'unit_price' => $cartItem->variant->effective_price,
-                        'line_total' => $cartItem->variant->effective_price * $cartItem->quantity,
+                        'unit_price' => $this->resolveEffectivePrice($cartItem->variant),
+                        'line_total' => $this->resolveEffectivePrice($cartItem->variant) * $cartItem->quantity,
                     ]);
 
                     $this->variantRepository->decrementStock(
@@ -906,6 +906,65 @@ class OrderService
                 'message' => $message,
             ],
         ];
+    }
+
+    /**
+     * Trả về giá thực tế khi đặt hàng cho một variant.
+     *
+     * Logic:
+     *  - Nếu sản phẩm đang có Flash Sale active VÀ còn quota (remaining > 0)
+     *    → trả về effective_price (giá Flash Sale)
+     *  - Nếu Flash Sale đã hết quota (remaining <= 0)
+     *    → trả về giá gốc variant->price (không cho mua giá Flash Sale)
+     *  - Nếu không có Flash Sale → trả về effective_price bình thường
+     *
+     * @param  \App\Models\ProductVariant  $variant
+     * @return float
+     */
+    private function resolveEffectivePrice(ProductVariant $variant): float
+    {
+        $effectivePrice = (float) $variant->effective_price;
+        $regularPrice   = (float) $variant->price;
+
+        // Nếu giá không thấp hơn giá gốc → không có Flash Sale discount, return ngay
+        if ($effectivePrice >= $regularPrice) {
+            return $effectivePrice;
+        }
+
+        try {
+            $now = now();
+
+            $flashSaleItem = FlashSaleItem::where('product_id', $variant->product_id)
+                ->whereHas('flashSale', function ($q) use ($now) {
+                    $q->where('status', 'active')
+                        ->where('start_time', '<=', $now)
+                        ->where('end_time', '>=', $now);
+                })
+                ->first();
+
+            if (! $flashSaleItem) {
+                // Có discount nhưng không từ Flash Sale (sale thường) → giữ nguyên
+                return $effectivePrice;
+            }
+
+            // Kiểm tra quota còn lại
+            $stockKey  = "flash_sale_{$flashSaleItem->flash_sale_id}_product_{$variant->product_id}_stock";
+            $remaining = \Illuminate\Support\Facades\Redis::exists($stockKey)
+                ? (int) \Illuminate\Support\Facades\Redis::get($stockKey)
+                : ($flashSaleItem->campaign_stock - $flashSaleItem->sold);
+
+            if ($remaining <= 0) {
+                // Flash Sale hết quota → tính giá gốc
+                Log::info("[OrderService] Flash Sale hết quota, đặt giá gốc cho product #{$variant->product_id}: {$regularPrice}");
+                return $regularPrice;
+            }
+
+            return $effectivePrice;
+        } catch (\Throwable $e) {
+            // Nếu lỗi → fallback về effective_price để không block đơn hàng
+            Log::error("[OrderService] resolveEffectivePrice lỗi cho variant #{$variant->variant_id}: {$e->getMessage()}");
+            return $effectivePrice;
+        }
     }
 
     /**
