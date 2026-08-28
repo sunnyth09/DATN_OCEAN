@@ -105,5 +105,6 @@ class OrderTrackingService {
       LatLng(21.020000, 104.300000), // Yên Châu
       LatLng(21.200000, 104.050000), // Mai Sơn
       LatLng(21.328000, 103.914000), // Ghim Đỏ: TP. Sơn La / Xã Bình Thuận
+    ];
   }
 }
