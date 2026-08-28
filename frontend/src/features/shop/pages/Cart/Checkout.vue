@@ -619,6 +619,9 @@ watch(subtotal, (newSubtotal) => {
 });
 
 // ====== VARIANT CHANGE IN CHECKOUT ======
+const isFlashSaleOrder = computed(() => isFlashSale.value || cartItems.value.some(i => i.is_flash_sale || i.flash_sale_id));
+const isDirectOrder = isBuyNow;
+
 const variantModal = ref({
     show: false,
     item: null,
@@ -630,23 +633,23 @@ const variantModal = ref({
 });
 
 const openVariantModal = async (item) => {
-    if (isFlashSaleOrder.value) {
+    if (isFlashSale.value || item?.is_flash_sale || item?.flash_sale_id) {
         showToast('Sản phẩm Flash Sale không hỗ trợ đổi phân loại.', 'warning');
         return;
     }
-    const productId = item.product?.product_id || item.product?.id;
+    const productId = item?.product?.product_id || item?.product?.id || item?.product_id;
     if (!productId) return;
 
     variantModal.value.show = true;
     variantModal.value.item = item;
     variantModal.value.variants = [];
     variantModal.value.loadingVariants = true;
-    variantModal.value.selectedColor = item.variant?.color || null;
-    variantModal.value.selectedSize = item.variant?.size || null;
+    variantModal.value.selectedColor = item?.variant?.color || null;
+    variantModal.value.selectedSize = item?.variant?.size || null;
 
     try {
         const res = await api.get(`/products/${productId}/variants`);
-        variantModal.value.variants = res.data.data || [];
+        variantModal.value.variants = res.data?.data || [];
     } catch (e) {
         showToast('Không thể tải thông tin phân loại sản phẩm.', 'error');
         variantModal.value.show = false;
@@ -722,7 +725,7 @@ const confirmVariantChange = async () => {
     const newVariantId = modalSelectedVariant.value.variant_id;
 
     try {
-        if (isDirectOrder.value) {
+        if (isBuyNow.value) {
             // Mua ngay
             buyNowItem.value = {
                 variant_id: newVariantId,

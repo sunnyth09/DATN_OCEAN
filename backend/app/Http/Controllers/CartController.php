@@ -168,6 +168,10 @@ class CartController extends Controller
      */
     public function getCount()
     {
+        if (auth('admin')->check()) {
+            return response()->json(['count' => 0]);
+        }
+
         $userId = $this->cartService->getUserId();
 
         return response()->json(['count' => $this->cartService->getCartCount($userId)]);

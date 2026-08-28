@@ -65,6 +65,7 @@ const routes = [
                     { path: "orders/:id", name: "profile-order-detail", component: () => import("@/features/profile/pages/ProfileOrderDetail.vue"), meta: { title: 'Chi tiết đơn hàng' } },
                     { path: "return-requests", name: "profile-return-requests", component: () => import("@/features/profile/pages/ProfileReturnRequests.vue"), meta: { title: 'Yêu cầu hoàn hàng' } },
                     { path: "return-requests/:id", name: "profile-return-request-detail", component: () => import("@/features/profile/pages/ProfileReturnRequestDetail.vue"), meta: { title: 'Chi tiết yêu cầu hoàn hàng' } },
+                    { path: "tickets", name: "profile-tickets", component: () => import("@/features/profile/pages/ProfileTickets.vue"), meta: { title: 'Khiếu nại của tôi' } },
                     { path: "addresses", name: "profile-address", component: () => import("@/features/profile/pages/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
                     { path: "change-password", name: "profile-change-password", component: () => import("@/features/profile/pages/ProfileChangePassword.vue"), meta: { title: 'Đổi mật khẩu' } },
                     { path: "wishlist", name: "profile-wishlist", component: () => import("@/features/profile/pages/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },

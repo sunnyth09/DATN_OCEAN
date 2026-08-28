@@ -22,6 +22,12 @@ export const useCartStore = defineStore('cart', () => {
 
     const token = authStore.token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
 
+    // Admin/Staff không có giỏ hàng khách hàng
+    if (authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin' || authStore.user?.role === 'staff' || authStore.isAdmin || window.location.pathname.startsWith('/admin')) {
+      count.value = 0;
+      return 0;
+    }
+
     if (!token) {
       const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
       count.value = localItems.length;

@@ -1135,8 +1135,11 @@ watch(
 .main-nav {
     display: flex;
     align-items: stretch;
-    gap: 32px;
+    gap: 24px;
     height: 100%;
+    flex-wrap: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .nav-link {
@@ -1152,6 +1155,8 @@ watch(
     position: relative;
     transition: color 0.2s;
     text-transform: capitalize;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .nav-link:hover {
