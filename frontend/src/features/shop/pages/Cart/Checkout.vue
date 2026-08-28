@@ -619,6 +619,9 @@ watch(subtotal, (newSubtotal) => {
 });
 
 // ====== VARIANT CHANGE IN CHECKOUT ======
+const isFlashSaleOrder = computed(() => isFlashSale.value || cartItems.value.some(i => i.is_flash_sale || i.flash_sale_id));
+const isDirectOrder = isBuyNow;
+
 const variantModal = ref({
     show: false,
     item: null,
@@ -630,23 +633,23 @@ const variantModal = ref({
 });
 
 const openVariantModal = async (item) => {
-    if (isFlashSaleOrder.value) {
+    if (isFlashSale.value || item?.is_flash_sale || item?.flash_sale_id) {
         showToast('Sản phẩm Flash Sale không hỗ trợ đổi phân loại.', 'warning');
         return;
     }
-    const productId = item.product?.product_id || item.product?.id;
+    const productId = item?.product?.product_id || item?.product?.id || item?.product_id;
     if (!productId) return;
 
     variantModal.value.show = true;
     variantModal.value.item = item;
     variantModal.value.variants = [];
     variantModal.value.loadingVariants = true;
-    variantModal.value.selectedColor = item.variant?.color || null;
-    variantModal.value.selectedSize = item.variant?.size || null;
+    variantModal.value.selectedColor = item?.variant?.color || null;
+    variantModal.value.selectedSize = item?.variant?.size || null;
 
     try {
         const res = await api.get(`/products/${productId}/variants`);
-        variantModal.value.variants = res.data.data || [];
+        variantModal.value.variants = res.data?.data || [];
     } catch (e) {
         showToast('Không thể tải thông tin phân loại sản phẩm.', 'error');
         variantModal.value.show = false;
@@ -722,7 +725,7 @@ const confirmVariantChange = async () => {
     const newVariantId = modalSelectedVariant.value.variant_id;
 
     try {
-        if (isDirectOrder.value) {
+        if (isBuyNow.value) {
             // Mua ngay
             buyNowItem.value = {
                 variant_id: newVariantId,
@@ -1698,7 +1701,7 @@ onMounted(async () => {
 
 .checkout-page {
     padding: 16px 0 80px;
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
     color: var(--text-main);
     min-height: 80vh;
 }
@@ -2400,18 +2403,26 @@ textarea.note-input {
 }
 
 .bill-item-variant-btn {
-    margin: 4px 0 0;
+    margin: 3px 0 0;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 2px 8px;
-    background: #f8fafc;
+    gap: 4px;
+    height: 22px;
+    min-height: 22px;
+    max-height: 22px;
+    padding: 0 7px;
+    background: #f1f5f9;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     text-align: left;
     max-width: 100%;
+    box-sizing: border-box;
+    line-height: 1;
+    font-family: inherit;
+    font-size: 0.72rem;
+    color: #475569;
 }
 
 .bill-item-variant-btn:hover {
@@ -2424,9 +2435,11 @@ textarea.note-input {
 }
 
 .bill-item-variant-btn .variant-caret {
+    width: 9px;
+    height: 9px;
     color: #94a3b8;
     flex-shrink: 0;
-    transition: all 0.2s ease;
+    transition: transform 0.15s ease;
 }
 
 .bill-item-variant-btn:hover .variant-caret {
@@ -2435,8 +2448,9 @@ textarea.note-input {
 }
 
 .bill-item-variant-text {
-    font-size: 0.78rem;
-    color: #64748b;
+    font-size: 0.72rem;
+    line-height: 1;
+    color: #475569;
     font-weight: 500;
 }
 
@@ -2506,8 +2520,11 @@ textarea.note-input {
 }
 
 .btn-apply-coupon {
-    padding: 0 20px;
+    padding: 0 16px;
     font-weight: 600;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
     background: var(--primary);
     color: white;
     border: none;
@@ -3324,7 +3341,7 @@ textarea.note-input {
     max-width: 480px;
     box-shadow: 0 24px 60px rgba(230, 59, 111, 0.15), 0 8px 20px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 .vmodal-header {
@@ -3575,5 +3592,138 @@ textarea.note-input {
 .vmodal-enter-from .vmodal-box,
 .vmodal-leave-to .vmodal-box {
     transform: scale(0.94) translateY(20px);
+}
+
+/* =======================================================
+   RESPONSIVE BREAKPOINTS FOR CHECKOUT
+   ======================================================= */
+@media (max-width: 992px) {
+    .checkout-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .sticky-sidebar {
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .checkout-page {
+        padding: 12px 0 60px;
+    }
+
+    .page-header {
+        margin-bottom: 12px;
+    }
+
+    .back-link {
+        font-size: 0.88rem;
+        padding: 6px 10px;
+    }
+
+    .checkout-section {
+        margin-bottom: 18px;
+    }
+
+    .section-header {
+        margin-bottom: 12px;
+    }
+
+    .section-header h2 {
+        font-size: 1.15rem;
+    }
+
+    .block-border {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .address-tabs {
+        padding: 4px;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .add-tab {
+        font-size: 0.82rem;
+        padding: 8px 12px;
+    }
+
+    .form-box {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .form-group {
+        margin-bottom: 12px;
+    }
+
+    .form-label {
+        font-size: 0.85rem;
+    }
+
+    .form-input {
+        padding: 9px 12px;
+        font-size: 0.88rem;
+    }
+
+    .address-card {
+        padding: 12px 14px;
+        border-radius: 10px;
+        gap: 12px;
+    }
+
+    .addr-name {
+        font-size: 0.95rem;
+    }
+
+    .addr-phone {
+        font-size: 0.85rem;
+    }
+
+    .addr-body {
+        font-size: 0.85rem;
+    }
+
+    .payment-card-simple {
+        padding: 12px 14px;
+    }
+
+    .payment-name-simple {
+        font-size: 0.9rem;
+    }
+
+    .bill-summary-card {
+        border-radius: 14px;
+    }
+
+    .bill-header {
+        padding: 14px 16px;
+        font-size: 1.1rem;
+    }
+
+    .bill-body {
+        padding: 16px;
+    }
+
+    .bill-item-img {
+        width: 48px;
+        height: 48px;
+    }
+
+    .bill-item-name {
+        font-size: 0.85rem;
+    }
+
+    .btn-checkout {
+        padding: 14px;
+        font-size: 0.95rem;
+    }
 }
 </style>

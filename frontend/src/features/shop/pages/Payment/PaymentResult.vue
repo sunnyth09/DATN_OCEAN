@@ -213,7 +213,7 @@ onMounted(async () => {
     justify-content: center;
     padding: 40px 16px;
     background: linear-gradient(135deg, #f0f4ff 0%, #fafbfd 50%, #fff5f0 100%);
-    font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+    font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 /* Loading */
@@ -426,33 +426,69 @@ onMounted(async () => {
 }
 
 /* Responsive */
-@media (max-width: 560px) {
+@media (max-width: 640px) {
+    .payment-result-page {
+        padding: 24px 12px;
+        min-height: auto;
+    }
+
     .result-card {
-        padding: 32px 20px;
+        padding: 28px 16px;
         border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
     }
 
     .result-title {
-        font-size: 1.4rem;
+        font-size: 1.35rem;
+        margin-bottom: 8px;
     }
 
     .result-icon {
-        width: 80px;
-        height: 80px;
+        width: 64px;
+        height: 64px;
+        margin-bottom: 16px;
     }
 
     .result-icon svg {
-        width: 48px;
-        height: 48px;
+        width: 36px;
+        height: 36px;
+    }
+
+    .result-message {
+        font-size: 0.88rem;
+        line-height: 1.5;
+        margin-bottom: 20px;
+    }
+
+    .result-details {
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        border-radius: 10px;
+    }
+
+    .detail-row {
+        padding: 8px 0;
+    }
+
+    .detail-label {
+        font-size: 0.82rem;
+    }
+
+    .detail-value {
+        font-size: 0.85rem;
     }
 
     .result-actions {
         flex-direction: column;
+        gap: 10px;
     }
 
     .btn-primary, .btn-secondary {
         justify-content: center;
         width: 100%;
+        padding: 11px 18px;
+        font-size: 0.9rem;
+        border-radius: 10px;
     }
 }
 </style>

@@ -23,7 +23,8 @@ function setupListener() {
             window.dispatchEvent(new CustomEvent('auth-logout'));
 
             if (window.location.pathname.startsWith('/profile') || window.location.pathname.startsWith('/admin')) {
-                window.location.href = '/client/login';
+                const currentPath = window.location.pathname + window.location.search;
+                window.location.href = `/client/login?redirect=${encodeURIComponent(currentPath)}`;
             }
         }
     });

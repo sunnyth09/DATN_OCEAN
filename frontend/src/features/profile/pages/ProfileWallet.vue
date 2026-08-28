@@ -832,7 +832,7 @@ onMounted(async () => {
 
 <style scoped>
 .wallet-page {
-  font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 /* Loading */

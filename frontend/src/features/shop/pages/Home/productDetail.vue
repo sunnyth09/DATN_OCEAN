@@ -10,6 +10,7 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/components/AppIcon.vue';
 import VirtualTryOnModal from '@/features/shop/components/VirtualTryOnModal.vue';
+import MediaPreviewModal from '@/components/MediaPreviewModal.vue';
 import { useFlyToCart } from '@/composables/useFlyToCart';
 import { getStorageUrl } from '@/utils/url';
 import { sanitizeHtml } from '@/utils/sanitize';
@@ -401,29 +402,34 @@ watch(selectedColor, (newColor) => {
     return;
   }
 
+  const colorVariants = product.value?.variants?.filter(v => v.color === newColor) || [];
+  if (colorVariants.length === 0) {
+    selectedSize.value = null;
+    selectedVariant.value = null;
+    return;
+  }
+
+  // 1. Nếu đang có size được chọn, kiểm tra xem size đó ở màu mới có còn hàng và khả dụng không
   if (selectedSize.value) {
     const match = findVariantForSelection(newColor, selectedSize.value);
     if (isVariantPurchasable(match)) {
       selectedVariant.value = match;
       return;
     }
-    selectedSize.value = null;
-    selectedVariant.value = null;
   }
 
-  const colorVariants = product.value?.variants?.filter(v => v.color === newColor) || [];
-  if (colorVariants.length === 1) {
-    selectedSize.value = colorVariants[0].size;
-    selectedVariant.value = colorVariants[0];
-  } else if (colorVariants.length > 1 && availableSizes.value.length === 0) {
-    // If there are multiple variants with the same color but NO sizes available,
-    // we should still select one so the user can purchase.
-    const active = colorVariants.find(v => isVariantPurchasable(v));
-    selectedVariant.value = active || colorVariants[0];
-  } else if (colorVariants.length > 1) {
-    // There are sizes to choose from, clear the selected variant until size is chosen
-    selectedVariant.value = null;
+  // 2. Nếu size cũ không còn hàng ở màu mới -> Tự động chọn size đầu tiên CÒN HÀNG của màu mới
+  const purchasableVariant = colorVariants.find(v => isVariantPurchasable(v));
+  if (purchasableVariant) {
+    selectedSize.value = purchasableVariant.size || null;
+    selectedVariant.value = purchasableVariant;
+    return;
   }
+
+  // 3. Nếu tất cả các size của màu mới đều hết hàng -> Fallback chọn size đầu tiên của màu đó
+  const fallbackVariant = colorVariants[0];
+  selectedSize.value = fallbackVariant?.size || null;
+  selectedVariant.value = fallbackVariant || null;
 });
 
 // Khi chọn size → tìm variant đúng theo màu hiện tại, không làm mất lựa chọn màu.
@@ -773,10 +779,21 @@ const handleUpgrade = (premiumVariant) => {
   showToast(`Đã nâng cấp lên phiên bản ${premiumVariant.color || ''} ${premiumVariant.size || ''}`.trim(), 'success');
 };
 
+const previewModalShow = ref(false);
+const previewMediaList = ref([]);
+const previewInitialIndex = ref(0);
+
+const openImagePreview = (images, index = 0) => {
+  const parsed = Array.isArray(images) ? images : parseReviewImages(images);
+  if (!parsed || parsed.length === 0) return;
+  previewMediaList.value = parsed.map(img => getImageUrl(img));
+  previewInitialIndex.value = Math.max(0, Math.min(index, previewMediaList.value.length - 1));
+  previewModalShow.value = true;
+};
+
 const openImage = (img) => {
   if (!img) return;
-  const url = getImageUrl(img);
-  window.open(url, '_blank');
+  openImagePreview([img], 0);
 };
 
 const parseReviewImages = (images) => {
@@ -1202,7 +1219,7 @@ onBeforeUnmount(() => {
             </div>
             <div class="pd-review-text" v-html="sanitizeHtml(review.content)"></div>
             <div class="pd-review-images" v-if="parseReviewImages(review.images).length > 0">
-              <img v-for="(img, idx) in parseReviewImages(review.images)" :key="idx" :src="getImageUrl(img)" alt="Review image" @click="openImage(img)" style="cursor: pointer;" title="Nhấn để xem ảnh lớn" />
+              <img v-for="(img, idx) in parseReviewImages(review.images)" :key="idx" :src="getImageUrl(img)" alt="Review image" @click="openImagePreview(review.images, idx)" style="cursor: pointer;" title="Nhấn để xem ảnh phóng to" />
             </div>
           </div>
         </div>
@@ -1289,12 +1306,20 @@ onBeforeUnmount(() => {
       </div>
     </transition>
   </teleport>
+
+  <!-- Review Image Preview Lightbox Modal -->
+  <MediaPreviewModal
+    :show="previewModalShow"
+    :media-list="previewMediaList"
+    :initial-index="previewInitialIndex"
+    @close="previewModalShow = false"
+  />
 </template>
 
 <style scoped>
 .pd-wrapper {
   padding: 0 0 40px;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   color: var(--text-main);
 }
 

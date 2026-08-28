@@ -44,6 +44,18 @@ Artisan::command('inspire', function () {
 // =====================================================================
 
 /**
+ * ── 1. Gửi lời chúc sinh nhật + Mã giảm giá ──
+ *
+ * Chạy mỗi ngày lúc 00:00, quét các user có sinh nhật hôm nay
+ * → Tạo coupon riêng, gửi notification email + inbox và tặng điểm thưởng Loyalty.
+ */
+Schedule::command('app:send-birthday-wishes')
+    ->dailyAt('00:00')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+/**
  * ── 2. Nhắc nhở giỏ hàng bỏ quên ──
  *
  * Chạy mỗi giờ, quét giỏ hàng bỏ quên (xem ABANDONED_MINUTES trong command).
@@ -132,19 +144,6 @@ Schedule::command('ghn:sync-status --limit=50')
  */
 Schedule::command('orders:cancel-expired-vnpay --minutes=30')
     ->everyFiveMinutes()
-    ->withoutOverlapping()
-    ->onOneServer()
-    ->appendOutputTo(storage_path('logs/scheduler.log'));
-
-/**
- * ── 8. Đồng bộ trạng thái Ocean Express fallback ──
- *
- * Webhook là realtime path; command này là lưới an toàn khi webhook bị miss
- * (hãng vận chuyển down, network lỗi, deploy trùng thời điểm). Không có nó thì
- * một webhook rớt = đơn hàng kẹt trạng thái vĩnh viễn.
- */
-Schedule::command('ocean-express:sync-status --limit=100')
-    ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));

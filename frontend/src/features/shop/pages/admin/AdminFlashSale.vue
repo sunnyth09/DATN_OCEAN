@@ -493,16 +493,14 @@ onMounted(async () => {
     <div class="page-header">
       <div class="header-left">
         <h2 class="section-title">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:6px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <AppIcon name="zap" size="22" style="vertical-align:middle;margin-right:6px;color:#e63b6f;" />
           Quản lý Flash Sale Campaign
         </h2>
         <p class="section-desc">Thiết lập sự kiện Flash Sale và quản lý danh sách sản phẩm giảm giá.</p>
       </div>
       <div class="tab-header-actions">
         <button class="btn-create" @click="openCreate">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
+          <AppIcon name="plus" size="18" />
           Tạo Campaign
         </button>
       </div>
@@ -530,9 +528,9 @@ onMounted(async () => {
             <td>
               <div class="shift-info-cell">
                 <div class="shift-icon" style="background:#fff3e0; color:#e65100;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                  <AppIcon name="zap" size="16" />
                 </div>
-                <span class="shift-name">{{ fs.name }}</span>
+                <span class="shift-name">{{ fs.name ? fs.name.replace(/^⚡\s*/, '') : '' }}</span>
               </div>
             </td>
             <td><span class="time-badge time-start">{{ fs.start_time_formatted || new Date(fs.start_time).toLocaleString('vi-VN') }}</span></td>
@@ -548,10 +546,10 @@ onMounted(async () => {
             </td>
             <td class="actions-cell">
               <button class="btn-action edit" @click="openEdit(fs)" title="Sửa">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                <AppIcon name="edit" size="15" />
               </button>
               <button class="btn-action delete" @click="handleDelete(fs.id)" title="Xóa">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                <AppIcon name="trash" size="15" />
               </button>
             </td>
           </tr>
@@ -565,9 +563,9 @@ onMounted(async () => {
       <div v-if="isModalOpen" class="ws-modal-overlay" @click.self="isModalOpen = false">
         <div class="ws-modal-box fs-modal-box">
           <div class="ws-modal-head">
-            <h3 style="font-size: 0.98rem; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 6px;"><AppIcon name="zap" size="16" v-if="!isEditing" /><span v-else>✏️</span> {{ isEditing ? 'Chỉnh sửa Chiến Dịch Flash Sale' : 'Tạo Mới Chiến Dịch Flash Sale' }}</h3>
+            <h3 style="font-size: 0.98rem; font-weight: 700; margin: 0; color: var(--text-main); display: flex; align-items: center; gap: 6px;"><AppIcon name="zap" size="16" v-if="!isEditing" /><AppIcon name="edit" size="16" v-else /> {{ isEditing ? 'Chỉnh sửa Chiến Dịch Flash Sale' : 'Tạo Mới Chiến Dịch Flash Sale' }}</h3>
             <button class="ws-btn-close" @click="isModalOpen = false">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <AppIcon name="x" size="20" />
             </button>
           </div>
           <div class="ws-modal-body" style="overflow-y: auto; padding: 16px 20px;">
@@ -633,7 +631,7 @@ onMounted(async () => {
                     </ul>
                 </div>
                 <button type="button" @click="openPickerModal" class="btn btn-sm d-inline-flex align-items-center gap-1" style="white-space: nowrap; border-radius: 8px; font-weight: 600; font-size: 0.8rem; padding: 0 12px; border: 1.5px solid #E63B6F; color: #E63B6F; background: #fff5f8;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <AppIcon name="package" size="15" />
                     Chọn Hàng Loạt
                 </button>
             </div>
@@ -674,12 +672,14 @@ onMounted(async () => {
                             </td>
                             <td class="px-3 py-2 text-center fw-bold" style="color: var(--text-muted);">{{ item.sold }}</td>
                             <td class="px-3 py-2 text-center">
-                                <button class="btn btn-sm btn-outline-danger border-0 rounded-circle" @click="removeItem(index)" style="width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #ffebee;">✖</button>
+                                <button class="btn btn-sm btn-outline-danger border-0 rounded-circle" @click="removeItem(index)" style="width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: #ffebee;" title="Xóa">
+                                  <AppIcon name="x" size="13" />
+                                </button>
                             </td>
                         </tr>
                         <tr v-if="form.items.length === 0">
                             <td colspan="6" class="text-center text-muted py-4">
-                                <div class="mb-1"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                                <div class="mb-1"><AppIcon name="alert-circle" size="20" /></div>
                                 <span style="font-size: 0.8rem;">Chưa có sản phẩm nào. Tìm kiếm hoặc bấm <strong>"Chọn Hàng Loạt"</strong> ở trên.</span>
                             </td>
                         </tr>
@@ -692,7 +692,7 @@ onMounted(async () => {
           <div class="ws-modal-footer px-4 py-3 border-top d-flex justify-content-end gap-2" style="background: var(--card-bg, #f8fafc); border-top: 1px solid var(--border-color);">
             <button type="button" @click="isModalOpen = false" class="ws-btn-outline" style="padding: 8px 16px; font-size: 0.85rem;">Hủy bỏ</button>
             <button type="button" @click="handleSubmit" class="ws-btn-primary" style="padding: 8px 18px; font-size: 0.85rem;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <AppIcon name="check" size="15" />
               Lưu Thay Đổi
             </button>
           </div>
@@ -708,11 +708,14 @@ onMounted(async () => {
         <div class="ws-modal-box" style="max-width: 840px; width: 92%; max-height: 85vh;">
           <div class="ws-modal-head" style="background: linear-gradient(135deg, #E63B6F 0%, #BE123C 100%); color: #fff; padding: 12px 18px;">
             <div>
-              <h3 style="color: #fff; margin: 0; font-size: 0.95rem; font-weight: 700;">📦 Chọn Sản Phẩm Thêm Hàng Loạt Vào Flash Sale</h3>
+              <h3 style="color: #fff; margin: 0; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                <AppIcon name="package" size="18" />
+                Chọn Sản Phẩm Thêm Hàng Loạt Vào Flash Sale
+              </h3>
               <p style="margin: 2px 0 0; font-size: 0.72rem; color: #ffe4e6;">Lựa chọn nhanh nhiều sản phẩm theo danh mục và áp dụng thiết lập giảm giá tự động</p>
             </div>
             <button class="ws-btn-close" @click="isPickerOpen = false" style="color: #fff; background: rgba(255,255,255,0.2); width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <AppIcon name="x" size="16" />
             </button>
           </div>
 
@@ -746,7 +749,7 @@ onMounted(async () => {
               </div>
               <div class="col-md-5">
                 <select v-model="pickerCategory" @change="fetchPickerProducts" class="form-select form-select-sm" style="border-color: #e2e8f0; font-size: 0.78rem; height: 32px;">
-                  <option value="all">📁 Tất cả danh mục</option>
+                  <option value="all">Tất cả danh mục</option>
                   <option v-for="cat in pickerCategories" :key="cat.category_id || cat.id" :value="cat.category_id || cat.id">
                     {{ cat.name }}
                   </option>
@@ -828,8 +831,9 @@ onMounted(async () => {
             </div>
             <div class="d-flex gap-2">
               <button type="button" @click="isPickerOpen = false" class="btn btn-sm btn-light border px-3" style="font-size: 0.78rem;">Hủy</button>
-              <button type="button" @click="confirmBulkAdd" class="btn btn-sm text-white px-3 fw-bold" :disabled="selectedPickerProductIds.length === 0" style="background: #E63B6F; border-color: #E63B6F; font-size: 0.78rem;">
-                ➕ Thêm {{ selectedPickerProductIds.length }} Sản Phẩm Vào Flash Sale
+              <button type="button" @click="confirmBulkAdd" class="btn btn-sm text-white px-3 fw-bold d-inline-flex align-items-center gap-1" :disabled="selectedPickerProductIds.length === 0" style="background: #E63B6F; border-color: #E63B6F; font-size: 0.78rem;">
+                <AppIcon name="plus" size="14" />
+                Thêm {{ selectedPickerProductIds.length }} Sản Phẩm Vào Flash Sale
               </button>
             </div>
           </div>

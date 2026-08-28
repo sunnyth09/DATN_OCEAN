@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { pinia } from '@/stores';
 import { useAuthStore } from '@/stores/auth';
-import { broadcastLogout } from '@/sessionSync';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8383/api`,
@@ -63,42 +62,40 @@ const isTokenExpiring = (token, leewaySeconds = 300) => {
 
 const redirectToLogin = () => {
     if (window.location.pathname !== '/client/login') {
-        broadcastLogout();
         window.dispatchEvent(new CustomEvent('auth-logout'));
-        window.location.href = '/client/login';
+        const currentPath = window.location.pathname + window.location.search;
+        window.location.href = `/client/login?redirect=${encodeURIComponent(currentPath)}`;
     }
 };
 
-// ==================== MUTEX REQUEST QUEUE PATTERN ====================
-let isRefreshing = false;
-let failedQueue = [];
-
-const processQueue = (error, token = null) => {
-    failedQueue.forEach((prom) => {
-        if (error) {
-            prom.reject(error);
-        } else {
-            prom.resolve(token);
-        }
-    });
-    failedQueue = [];
-};
+// ==================== SINGLETON REFRESH PROMISE PATTERN ====================
+let refreshPromise = null;
 
 /**
  * Hàm gọi API /refresh một cách an toàn và trả về token mới.
+ * Sử dụng Singleton Promise: tất cả các request đồng thời (ở cả Request và Response Interceptor)
+ * đều chia sẻ một Promise duy nhất, loại bỏ hoàn toàn Race Condition.
  */
-const executeTokenRefresh = async () => {
-    try {
-        const response = await api.post('/refresh', null, { skipAuthRefresh: true });
-        const newToken = response.data?.access_token;
-        if (!newToken) throw new Error('No access_token received from /refresh endpoint');
-
-        saveToken(newToken);
-        api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
-        return newToken;
-    } catch (error) {
-        throw error;
+const getFreshToken = async () => {
+    if (refreshPromise) {
+        return refreshPromise;
     }
+
+    refreshPromise = (async () => {
+        try {
+            const response = await api.post('/refresh', null, { skipAuthRefresh: true });
+            const newToken = response.data?.access_token;
+            if (!newToken) throw new Error('No access_token received from /refresh endpoint');
+
+            saveToken(newToken);
+            api.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+            return newToken;
+        } finally {
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
 };
 
 // ==================== REQUEST INTERCEPTOR ====================
@@ -108,18 +105,13 @@ api.interceptors.request.use(
 
         // 1. Silent Proactive Refresh: nếu token sắp hết hạn trong 5 phút tới và không phải auth endpoint
         if (token && !config.skipAuthRefresh && !isAuthEndpoint(config.url) && isTokenExpiring(token, 300)) {
-            if (!isRefreshing) {
-                isRefreshing = true;
-                try {
-                    const newToken = await executeTokenRefresh();
-                    if (newToken) token = newToken;
-                    processQueue(null, newToken);
-                } catch (e) {
-                    // Nếu refresh ngầm tạm thời thất bại (do mạng chập chờn), vẫn gửi request với token hiện tại
-                    processQueue(e, null);
-                } finally {
-                    isRefreshing = false;
+            try {
+                const newToken = await getFreshToken();
+                if (newToken) {
+                    token = newToken;
                 }
+            } catch {
+                // Nếu refresh ngầm tạm thời thất bại (mạng chập chờn), vẫn thử gửi với token hiện tại
             }
         }
 
@@ -166,8 +158,8 @@ api.interceptors.response.use(
         if (
             !error.response ||
             error.response.status !== 401 ||
-            originalRequest._retry ||
-            isAuthEndpoint(originalRequest.url || '')
+            originalRequest?._retry ||
+            isAuthEndpoint(originalRequest?.url || '')
         ) {
             return Promise.reject(error);
         }
@@ -177,43 +169,24 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        // 3. Nếu đang có một request khác thực hiện refresh -> đưa request này vào HÀNG ĐỢI (Queue)
-        if (isRefreshing) {
-            return new Promise((resolve, reject) => {
-                failedQueue.push({ resolve, reject });
-            })
-                .then((newToken) => {
-                    originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                    return api(originalRequest);
-                })
-                .catch((err) => Promise.reject(err));
-        }
-
-        // 4. Nếu là request đầu tiên gặp 401 -> Khóa Mutex và thực hiện Refresh
         originalRequest._retry = true;
-        isRefreshing = true;
 
-        return new Promise((resolve, reject) => {
-            executeTokenRefresh()
-                .then((newToken) => {
-                    processQueue(null, newToken);
-                    originalRequest.headers.Authorization = `Bearer ${newToken}`;
-                    resolve(api(originalRequest));
-                })
-                .catch((refreshError) => {
-                    processQueue(refreshError, null);
-                    // Chỉ redirect khi server thực sự từ chối token (401/403/422)
-                    const status = refreshError.response?.status;
-                    if (status === 401 || status === 403 || status === 422) {
-                        clearAuth();
-                        redirectToLogin();
-                    }
-                    reject(refreshError);
-                })
-                .finally(() => {
-                    isRefreshing = false;
-                });
-        });
+        try {
+            const newToken = await getFreshToken();
+            if (newToken) {
+                originalRequest.headers.Authorization = `Bearer ${newToken}`;
+                return api(originalRequest);
+            }
+            return Promise.reject(error);
+        } catch (refreshError) {
+            const status = refreshError.response?.status;
+            // Chỉ redirect khi server thực sự từ chối token (401/403)
+            if (status === 401 || status === 403) {
+                clearAuth();
+                redirectToLogin();
+            }
+            return Promise.reject(refreshError);
+        }
     },
 );
 

@@ -188,6 +188,7 @@ class ProductVariant extends Model
         if ($this->effective_price < (float) $this->price) {
             return (float) $this->price;
         }
+
         return null;
     }
 

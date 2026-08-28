@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 Broadcast::routes(['middleware' => ['api', 'auth:api,admin']]);
 
 use App\Http\Controllers\Admin\AdminChatController;
+use App\Http\Controllers\Admin\FlashSaleController;
 use App\Http\Controllers\Admin\SizeGuideController;
 use App\Http\Controllers\AdminAffiliateController;
 use App\Http\Controllers\AdminDashboardController;
@@ -14,10 +15,12 @@ use App\Http\Controllers\AdminStaffController;
 use App\Http\Controllers\AdminStatisticsController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AdminWalletController;
+use App\Http\Controllers\Api\Admin\NotificationController;
 use App\Http\Controllers\Api\Admin\RewardAdminController;
 use App\Http\Controllers\Api\Admin\UserRewardAdminController;
 use App\Http\Controllers\Api\ReturnRequestController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ComboController;
 use App\Http\Controllers\ContactController;
@@ -96,12 +99,12 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::put('/wallets/withdrawals/{id}/reject', [AdminWalletController::class, 'rejectWithdrawal']);
 
     // Flash Sale Management (Admin only)
-    Route::get('/flash-sale', [App\Http\Controllers\Admin\FlashSaleController::class, 'adminIndex']);
-    Route::get('/flash-sale/search-products', [App\Http\Controllers\Admin\FlashSaleController::class, 'searchProducts']);
-    Route::post('/flash-sale', [App\Http\Controllers\Admin\FlashSaleController::class, 'store']);
-    Route::put('/flash-sale/{id}', [App\Http\Controllers\Admin\FlashSaleController::class, 'update']);
-    Route::delete('/flash-sale/{id}', [App\Http\Controllers\Admin\FlashSaleController::class, 'destroy']);
-    Route::post('/flash-sale/{id}/initialize', [App\Http\Controllers\Admin\FlashSaleController::class, 'initialize']);
+    Route::get('/flash-sale', [FlashSaleController::class, 'adminIndex']);
+    Route::get('/flash-sale/search-products', [FlashSaleController::class, 'searchProducts']);
+    Route::post('/flash-sale', [FlashSaleController::class, 'store']);
+    Route::put('/flash-sale/{id}', [FlashSaleController::class, 'update']);
+    Route::delete('/flash-sale/{id}', [FlashSaleController::class, 'destroy']);
+    Route::post('/flash-sale/{id}/initialize', [FlashSaleController::class, 'initialize']);
     // ── Affiliate Management (Admin) ──
     Route::get('/affiliate/users', [AdminAffiliateController::class, 'affiliates']);
     Route::get('/affiliate/conversions', [AdminAffiliateController::class, 'conversions']);
@@ -150,10 +153,10 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::get('/users/{id}', [AdminUserController::class, 'show']);
 
     // Admin Notifications
-    Route::get('/notifications', [App\Http\Controllers\Api\Admin\NotificationController::class, 'index']);
-    Route::post('/notifications/{id}/read', [App\Http\Controllers\Api\Admin\NotificationController::class, 'markAsRead']);
-    Route::post('/notifications/read-all', [App\Http\Controllers\Api\Admin\NotificationController::class, 'markAllAsRead']);
-    Route::delete('/notifications/{id}', [App\Http\Controllers\Api\Admin\NotificationController::class, 'destroy']);
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
 
     // Quản lý Đánh giá sản phẩm (Duyệt)
     Route::get('/reviews/pending-count', [ProductCommentController::class, 'pendingCount']);
@@ -177,7 +180,6 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::put('/orders/bulk-status', [AdminOrderController::class, 'bulkUpdateStatus']);
     Route::get('/orders/{id}', [AdminOrderController::class, 'show']);
     Route::put('/orders/{id}/status', [AdminOrderController::class, 'updateStatus']);
-    Route::put('/orders/{id}/force-status', [AdminOrderController::class, 'forceStatus']);
     Route::get('/orders/{id}/available-transitions', [AdminOrderController::class, 'availableTransitions']);
     Route::post('/orders/{id}/ghn-sync', [AdminOrderController::class, 'syncGHN']);
     Route::post('/orders/{id}/self-delivery', [AdminOrderController::class, 'selfDelivery']);
@@ -256,11 +258,11 @@ Route::middleware(['auth:api,admin', 'role:admin,staff'])->group(function () {
     Route::delete('categories/{id}/image', [CategoryController::class, 'deleteImage']);
 
     // Thương hiệu (Brand)
-    Route::post('brands', [App\Http\Controllers\BrandController::class, 'store']);
-    Route::post('brands/{id}', [App\Http\Controllers\BrandController::class, 'update']); // POST for multipart/form-data
-    Route::put('brands/{id}', [App\Http\Controllers\BrandController::class, 'update']);
-    Route::delete('brands/{id}', [App\Http\Controllers\BrandController::class, 'destroy']);
-    Route::delete('brands/{id}/image', [App\Http\Controllers\BrandController::class, 'deleteImage']);
+    Route::post('brands', [BrandController::class, 'store']);
+    Route::post('brands/{id}', [BrandController::class, 'update']); // POST for multipart/form-data
+    Route::put('brands/{id}', [BrandController::class, 'update']);
+    Route::delete('brands/{id}', [BrandController::class, 'destroy']);
+    Route::delete('brands/{id}/image', [BrandController::class, 'deleteImage']);
 
     // Quản lý Bảng Size
     Route::get('size-guides', [SizeGuideController::class, 'index']);

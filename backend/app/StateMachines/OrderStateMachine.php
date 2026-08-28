@@ -22,22 +22,21 @@ class OrderStateMachine
         ],
         'processing' => [
             'packing' => ['admin', 'system'],
-            'awaiting_pickup' => ['admin', 'system', 'carrier'],
-            'shipping' => ['admin', 'system', 'carrier'],
+            'awaiting_pickup' => ['system', 'carrier'],
             'cancelled' => ['admin', 'system'],
         ],
         'packing' => [
-            'awaiting_pickup' => ['admin', 'system', 'carrier'],
-            'shipping' => ['admin', 'system', 'carrier'],
+            'awaiting_pickup' => ['system', 'carrier'],
             'cancelled' => ['admin', 'system'],
         ],
         'awaiting_pickup' => [
-            'shipping' => ['admin', 'system', 'carrier'],
-            'cancelled' => ['admin', 'system'],
+            'shipping' => ['carrier', 'system'],
+            'cancelled' => ['admin', 'system', 'carrier'],
         ],
         'shipping' => [
-            'delivered' => ['admin', 'system', 'carrier'],
-            'cancelled' => ['admin', 'system'],
+            'delivered' => ['carrier', 'system'],
+            'cancelled' => ['carrier', 'system'],
+            'returning' => ['carrier'],
             'return_requested' => ['admin', 'system'],
         ],
         'delivered' => [
@@ -53,10 +52,10 @@ class OrderStateMachine
             'return_rejected' => ['admin', 'system'],
         ],
         'return_approved' => [
-            'returning' => ['admin', 'system', 'user', 'carrier'],
+            'returning' => ['user', 'carrier', 'system'],
         ],
         'returning' => [
-            'warehouse_received' => ['admin', 'system', 'carrier'],
+            'warehouse_received' => ['carrier', 'system', 'admin'],
         ],
         'warehouse_received' => [
             'inspected_ok' => ['admin', 'system'],
@@ -76,6 +75,11 @@ class OrderStateMachine
     ];
 
     /**
+     * Trạng thái thuộc sở hữu của hãng vận chuyển: chỉ webhook / hệ thống tạo vận đơn mới được cập nhật.
+     */
+    private const CARRIER_OWNED = ['shipping', 'delivered', 'returning'];
+
+    /**
      * Check if transition is allowed
      */
     public static function canTransition(Order $order, string $newStatus, string $actor = 'admin'): bool
@@ -84,6 +88,17 @@ class OrderStateMachine
 
         if ($current === $newStatus) {
             return false;
+        }
+
+        // Nếu admin thao tác trên đơn đã có mã vận đơn đối tác thì không được chỉnh trạng thái vận chuyển
+        if ($actor === 'admin' && in_array($newStatus, self::CARRIER_OWNED, true)) {
+            return false;
+        }
+
+        if ($actor === 'admin' && ! empty($order->tracking_number) && $order->tracking_number !== 'SELF-DELIVERY') {
+            if (in_array($newStatus, ['pending', 'confirmed', 'processing', 'packing', 'awaiting_pickup', 'shipping', 'delivered', 'returning', 'returned'], true)) {
+                return false;
+            }
         }
 
         $allowedActors = self::TRANSITIONS[$current][$newStatus] ?? null;
@@ -106,7 +121,9 @@ class OrderStateMachine
         $available = [];
         foreach ($possible as $nextStatus => $actors) {
             if (in_array($actor, $actors, true)) {
-                $available[] = $nextStatus;
+                if (self::canTransition($order, $nextStatus, $actor)) {
+                    $available[] = $nextStatus;
+                }
             }
         }
 

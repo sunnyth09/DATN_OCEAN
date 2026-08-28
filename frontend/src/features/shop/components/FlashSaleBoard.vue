@@ -87,7 +87,7 @@
           :disabled="isBuying || soldOut || isBought || isUpcoming"
           @click="handleBuy"
         >
-          <span v-if="isBought">✅ Đặt hàng thành công!</span>
+          <span v-if="isBought" style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"><AppIcon name="check-circle" size="16" /> Đặt hàng thành công!</span>
           <span v-else-if="isBuying">Đang xử lý...</span>
           <span v-else-if="soldOut">Đã hết hàng</span>
           <span v-else-if="isUpcoming" class="btn-content"><AppIcon name="hourglass" size="16" /> Sắp Mở Bán</span>
@@ -124,6 +124,7 @@ import { useRouter } from 'vue-router';
 import api, { getUser } from '@/axios.js';
 import FlashSaleBuyModal from '@/features/shop/components/FlashSaleBuyModal.vue';
 import AppIcon from '@/components/AppIcon.vue';
+import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
 const showBuyModal = ref(false);
@@ -181,18 +182,19 @@ const btnClass = computed(() => {
 });
 const isEnded = computed(() => ended.value);
 const productThumb = computed(() => {
-  const t = sale.value?.product_thumbnail;
+  const t = sale.value?.product_thumbnail || sale.value?.thumbnail_url || sale.value?.image_url || sale.value?.image || sale.value?.thumbnail || sale.value?.product?.thumbnail;
   if (!t) return 'https://placehold.co/400x400/E63B6F/FFF?text=Sale';
-  if (t.startsWith('http')) return t;
-  const apiUrl = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8383/api`;
-  const base = apiUrl.replace('/api', '');
-  return `${base}/storage/${t}`;
+  return getStorageUrl(t);
 });
 
 // ── Helpers ──
 const pad      = n => String(n).padStart(2, '0');
 const fmtPrice = p => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
-const imgFallback = e => { e.target.src = 'https://placehold.co/400x400/E63B6F/FFF?text=Sale'; };
+const imgFallback = e => {
+  if (e.target.src !== 'https://placehold.co/400x400/E63B6F/FFF?text=Sale') {
+    e.target.src = 'https://placehold.co/400x400/E63B6F/FFF?text=Sale';
+  }
+};
 
 function showToast(type, msg, ms = 4000) {
   clearTimeout(toastTimer);

@@ -84,6 +84,9 @@ class AdminChatController extends Controller
 
         $session = ChatSession::findOrFail($id);
 
+        // Tự động đánh dấu đã đọc tất cả tin nhắn trước đó của user trong session
+        $session->messages()->where('sender_type', 'user')->where('is_read', false)->update(['is_read' => true]);
+
         $message = ChatMessage::create([
             'chat_session_id' => $session->id,
             'sender_type' => 'admin',

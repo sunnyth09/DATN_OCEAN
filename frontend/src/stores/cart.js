@@ -16,8 +16,19 @@ export const useCartStore = defineStore('cart', () => {
 
   const fetchCount = async () => {
     const authStore = useAuthStore(pinia);
+    if (!authStore.isHydrated) {
+      authStore.hydrate();
+    }
 
-    if (!authStore.isAuthenticated || authStore.isAdminUser) {
+    const token = authStore.token || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+
+    // Admin/Staff không có giỏ hàng khách hàng
+    if (authStore.user?.role === 'admin' || authStore.user?.role === 'super_admin' || authStore.user?.role === 'staff' || authStore.isAdmin || window.location.pathname.startsWith('/admin')) {
+      count.value = 0;
+      return 0;
+    }
+
+    if (!token) {
       const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
       count.value = localItems.length;
       return count.value;
@@ -33,9 +44,14 @@ export const useCartStore = defineStore('cart', () => {
       const response = await api.get('/cart/count');
       count.value = response.data?.count || 0;
       return count.value;
-    })().catch(() => {
-      count.value = 0;
-      return 0;
+    })().catch((err) => {
+      if (err?.response?.status === 403) {
+        count.value = 0;
+        return 0;
+      }
+      const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
+      count.value = localItems.length;
+      return count.value;
     }).finally(() => {
       isFetchingCount.value = false;
       countRequest = null;
@@ -47,7 +63,7 @@ export const useCartStore = defineStore('cart', () => {
   const addItem = async ({ variantId, quantity = 1 }) => {
     const authStore = useAuthStore(pinia);
 
-    if (!authStore.isAuthenticated || authStore.isAdminUser) {
+    if (!authStore.isAuthenticated) {
       return { status: 'unauthenticated' };
     }
 
@@ -64,7 +80,7 @@ export const useCartStore = defineStore('cart', () => {
 
   const syncCart = async () => {
     const authStore = useAuthStore(pinia);
-    if (!authStore.isAuthenticated || authStore.isAdminUser) return;
+    if (!authStore.isAuthenticated) return;
 
     const localItems = JSON.parse(localStorage.getItem('cart_items') || '[]');
     if (localItems.length === 0) return;

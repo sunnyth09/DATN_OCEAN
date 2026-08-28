@@ -161,26 +161,25 @@ class StatisticsRepository
      */
     public function getTopSellingProducts($startDate, $endDate, int $limit = 10)
     {
-        return OrderItem::select(
-            'product_id',
-            'product_name',
-            DB::raw('SUM(quantity) as total_sold'),
-            DB::raw('SUM(line_total) as total_revenue')
-        )
-            ->whereHas('order', function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('created_at', [$startDate, $endDate])
-                    ->where(function ($sub) {
-                        $sub->where('payment_status', PaymentStatus::PAID->value)
-                            ->orWhere('fulfillment_status', OrderStatus::COMPLETED->value);
-                    })
-                    ->whereNotIn('fulfillment_status', [
-                        OrderStatus::CANCELLED->value,
-                        OrderStatus::RETURN_APPROVED->value,
-                        OrderStatus::RETURNED->value,
-                        OrderStatus::REFUNDED->value,
-                    ]);
+        return OrderItem::join('orders', 'orders.order_id', '=', 'order_items.order_id')
+            ->select(
+                'order_items.product_id',
+                'order_items.product_name',
+                DB::raw('SUM(order_items.quantity) as total_sold'),
+                DB::raw('SUM(order_items.line_total) as total_revenue')
+            )
+            ->whereBetween('orders.created_at', [$startDate, $endDate])
+            ->where(function ($sub) {
+                $sub->where('orders.payment_status', PaymentStatus::PAID->value)
+                    ->orWhere('orders.fulfillment_status', OrderStatus::COMPLETED->value);
             })
-            ->groupBy('product_id', 'product_name')
+            ->whereNotIn('orders.fulfillment_status', [
+                OrderStatus::CANCELLED->value,
+                OrderStatus::RETURN_APPROVED->value,
+                OrderStatus::RETURNED->value,
+                OrderStatus::REFUNDED->value,
+            ])
+            ->groupBy('order_items.product_id', 'order_items.product_name')
             ->orderByDesc('total_sold')
             ->limit($limit)
             ->with(['product' => function ($q) {

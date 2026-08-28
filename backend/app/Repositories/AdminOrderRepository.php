@@ -87,7 +87,7 @@ class AdminOrderRepository
     /**
      * Hoàn lại tồn kho bằng SQL CASE (batch update)
      */
-    public function restoreStock(array $items): void
+    public function restoreStock(iterable $items): void
     {
         $cases = [];
         $bindings = [];
@@ -129,7 +129,12 @@ class AdminOrderRepository
             foreach ($productQuantities as $productId => $qty) {
                 DB::table('products')->where('product_id', $productId)->decrement('sold_count', $qty);
             }
-            Cache::tags(['products:best-selling'])->flush();
+
+            try {
+                Cache::tags(['products:best-selling'])->flush();
+            } catch (\Throwable $e) {
+                Cache::forget('products:best-selling');
+            }
         }
     }
 }

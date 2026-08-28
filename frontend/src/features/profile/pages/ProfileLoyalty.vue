@@ -453,7 +453,7 @@ onMounted(async () => {
 <style scoped>
 /* ── Base ─────────────────────────────────────────────────────── */
 .loyalty-page {
-  font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-inter, 'Inter', sans-serif);
   color: var(--text-main);
   display: flex;
   flex-direction: column;

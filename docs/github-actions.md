@@ -54,11 +54,11 @@ Luồng của `deploy.yml` khi push lên `production`:
 
 | Variable | Mặc định nếu không set |
 |----------|------------------------|
-| `FRONTEND_URL` | `https://oceansport.bcbdev.id.vn` (dùng cho bước Verify) |
-| `VITE_API_URL` | `https://apiocean.bcbdev.id.vn/api` |
-| `VITE_BASE_URL` | `https://apiocean.bcbdev.id.vn` |
-| `VITE_API_STORAGE` | `https://apiocean.bcbdev.id.vn/storage` |
-| `VITE_REVERB_HOST` / `VITE_REVERB_PORT` / `VITE_REVERB_SCHEME` | `apiocean.bcbdev.id.vn` / `443` / `https` |
+| `FRONTEND_URL` | `https://oceansport.pro.vn` (dùng cho bước Verify) |
+| `VITE_API_URL` | `https://api.oceansport.pro.vn/api` |
+| `VITE_BASE_URL` | `https://api.oceansport.pro.vn` |
+| `VITE_API_STORAGE` | `https://api.oceansport.pro.vn/storage` |
+| `VITE_REVERB_HOST` / `VITE_REVERB_PORT` / `VITE_REVERB_SCHEME` | `api.oceansport.pro.vn` / `443` / `https` |
 | `VITE_TURNSTILE_SITE_KEY`, `VITE_GOOGLE_CLIENT_ID` | (xem `deploy.yml`) |
 
 > ⚠️ Port SSH đang **hard-code là 22** trong `deploy.yml`. Nếu VPS dùng port khác, sửa trực tiếp trong workflow hoặc thêm secret `VPS_PORT` rồi thay `port: 22` thành `port: ${{ secrets.VPS_PORT }}`.
@@ -202,7 +202,7 @@ sudo nano /etc/nginx/sites-available/oceansport.conf
 sudo nginx -t && sudo systemctl reload nginx
 
 # 5. Xác nhận header index.html đã no-store
-curl -sI https://oceansport.bcbdev.id.vn/ | grep -i cache-control
+curl -sI https://oceansport.pro.vn/ | grep -i cache-control
 # Kỳ vọng: cache-control: no-store, no-cache, must-revalidate, max-age=0
 ```
 
@@ -212,7 +212,7 @@ curl -sI https://oceansport.bcbdev.id.vn/ | grep -i cache-control
 
 ```bash
 # Commit đang chạy thật trên web
-curl -s https://oceansport.bcbdev.id.vn/version.json
+curl -s https://oceansport.pro.vn/version.json
 
 # So với commit mới nhất của production
 git rev-parse origin/production
