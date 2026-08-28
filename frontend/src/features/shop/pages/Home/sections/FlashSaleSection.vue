@@ -3,6 +3,23 @@ import ProductCard from '@/components/ProductCard.vue';
 import ProductSkeleton from '@/components/ProductSkeleton.vue';
 import AppIcon from '@/components/AppIcon.vue';
 defineProps(['flashSaleProducts', 'isLoadingFlashSale', 'countdown']);
+
+const formatSoldCount = (count) => {
+    const num = Number(count);
+    if (!Number.isFinite(num) || num <= 0) return '0';
+
+    if (num >= 1000000) {
+        const tr = (num / 1000000).toFixed(1).replace(/\.0$/, '');
+        return num % 1000000 === 0 ? `${tr} triệu` : `${tr} triệu+`;
+    }
+
+    if (num >= 1000) {
+        const k = (num / 1000).toFixed(1).replace(/\.0$/, '');
+        return num % 1000 === 0 ? `${k}k` : `${k}k+`;
+    }
+
+    return String(num);
+};
 </script>
 <template>
     <section class="flash-sale-section" v-if="flashSaleProducts.length > 0 || isLoadingFlashSale">
@@ -61,14 +78,16 @@ defineProps(['flashSaleProducts', 'isLoadingFlashSale', 'countdown']);
                         <div class="flash-sale-card-wrapper h-100">
                             <ProductCard :product="product">
                                 <template #bottom-content>
-                                    <div class="flash-progress-wrap mt-3">
-                                        <div class="flash-progress-bar-container">
+                                    <div class="flash-progress-wrap">
+                                        <div class="flash-progress-bar-container mt-2">
                                             <div class="flash-progress-fill"
-                                                :style="{ width: `${Math.min(100, Math.max(0, Number(product.flash_percent || 0)))}%` }"></div>
+                                                :style="{ width: `${Math.min(100, Math.max(0, Number(product.flash_percent || 0)))}%` }">
+                                            </div>
                                             <div class="flash-progress-text"
                                                 :class="{ 'text-white': Number(product.flash_percent || 0) >= 35 }">
-                                                <AppIcon :name="product.flash_percent > 75 ? 'flame' : 'zap'" size="13" stroke-width="2.2" />
-                                                <span>Đã bán {{ product.flash_sold }}</span>
+                                                <AppIcon :name="product.flash_percent > 75 ? 'flame' : 'zap'" size="14"
+                                                    stroke-width="2.2" />
+                                                <span>Đã bán {{ formatSoldCount(product.flash_sold) }}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -206,12 +225,12 @@ defineProps(['flashSaleProducts', 'isLoadingFlashSale', 'countdown']);
 
 .flash-progress-bar-container {
     position: relative;
-    height: 24px;
+    height: 30px;
     overflow: hidden;
     border-radius: 999px;
     background: #fff1f2;
     border: 1px solid #ffe4e6;
-    box-shadow: inset 0 1px 2px rgba(190, 18, 60, 0.08);
+    box-shadow: inset 0 1px 3px rgba(190, 18, 60, 0.1);
 }
 
 .flash-progress-fill {
@@ -227,9 +246,9 @@ defineProps(['flashSaleProducts', 'isLoadingFlashSale', 'countdown']);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
+    gap: 6px;
     color: #be123c;
-    font-size: 0.76rem;
+    font-size: 0.82rem;
     font-weight: 800;
     letter-spacing: 0.2px;
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);

@@ -98,6 +98,23 @@ const normalSoldCount = computed(() => {
     return Number.isFinite(sold) && sold >= 0 ? sold : null;
 });
 
+const formatSoldCount = (count) => {
+    const num = Number(count);
+    if (!Number.isFinite(num) || num <= 0) return '0';
+
+    if (num >= 1000000) {
+        const tr = (num / 1000000).toFixed(1).replace(/\.0$/, '');
+        return num % 1000000 === 0 ? `${tr} triệu` : `${tr} triệu+`;
+    }
+
+    if (num >= 1000) {
+        const k = (num / 1000).toFixed(1).replace(/\.0$/, '');
+        return num % 1000 === 0 ? `${k}k` : `${k}k+`;
+    }
+
+    return String(num);
+};
+
 const badgeLabel = computed(() => {
     if (isFlashSale.value) {
         return numericDiscount.value > 0 ? `-${numericDiscount.value}%` : "Flash Sale";
@@ -430,7 +447,7 @@ const handleAddToCart = async (event) => {
                             </span>
                             <span v-else></span>
                             <span v-if="normalSoldCount !== null" class="sold-info">
-                                Đã bán {{ normalSoldCount }}
+                                Đã bán {{ formatSoldCount(normalSoldCount) }}
                             </span>
                         </div>
                     </div>
@@ -664,6 +681,7 @@ const handleAddToCart = async (event) => {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    width: 100%;
 }
 
 .original-price {
@@ -802,35 +820,40 @@ const handleAddToCart = async (event) => {
 
 /* Dòng thông tin số lượng / đã bán bên dưới giá */
 .product-meta-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
+    display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    gap: 10px;
     width: 100%;
-    min-height: 18px;
-    margin-top: 4px;
+    min-height: 20px;
+    margin-top: 6px;
+    padding-top: 2px;
 }
 
 .stock-info,
 .sold-info {
     display: inline-block;
     min-width: 0;
-    color: #829ab1;
-    font-size: 0.72rem;
-    font-weight: 600;
-    line-height: 1.25;
+    font-size: 0.8rem;
+    font-weight: 750;
+    line-height: 1.3;
+}
+
+.stock-info {
+    color: #64748b;
 }
 
 .sold-info {
-    justify-self: end;
+    margin-left: auto;
     text-align: right;
-    color: #64748b;
+    color: #475569;
+    font-weight: 800;
     white-space: nowrap;
 }
 
 .stock-info.is-low-stock {
-    color: #f97316;
-    font-weight: 700;
+    color: #ea580c;
+    font-weight: 800;
     animation: pulse-text 1.8s ease-in-out infinite;
 }
 
