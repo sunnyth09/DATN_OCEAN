@@ -126,14 +126,15 @@ const getAuthorAvatarUrl = (author) => {
 </script>
 
 <template>
-  <div class="post-page">
-    <div class="post-container">
-      <!-- Hero Banner -->
-      <section class="page-hero">
+  <div class="static-page">
+    <!-- Hero Banner -->
+    <div class="container" style="padding-top: 24px;">
+      <div class="page-hero-card">
         <div class="hero-pill">OCEAN SPORT NEWS</div>
-        <h1>Tin Tức & Sự Kiện</h1>
+        <h1>Tin Tức &amp; Sự Kiện</h1>
         <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ Ocean Sport</p>
-      </section>
+      </div>
+    </div>
 
       <!-- Main Content -->
       <section class="page-content">
@@ -324,30 +325,19 @@ const getAuthorAvatarUrl = (author) => {
 
 
 
-.post-page {
-  font-family: var(--font-inter, 'Inter', sans-serif);
-}
-
-.post-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 40px;
-}
-
 /* Hero Section */
-.page-hero {
-  width: 100%;
-  color: #fff;
+.page-hero-card {
+  padding: 32px;
+  border: 1px solid rgba(230, 59, 111, 0.18);
   border-radius: 16px;
+  color: #fff;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
     linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
-  padding: 36px 36px;
-  margin: 16px 0 24px 0;
+  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+  margin-bottom: 28px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 10px 28px rgba(230, 59, 111, 0.16);
-  text-align: left;
 }
 
 .hero-pill {
@@ -355,19 +345,17 @@ const getAuthorAvatarUrl = (author) => {
   align-items: center;
   gap: 6px;
   background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 5px 14px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 1.2px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  margin-bottom: 10px;
-  backdrop-filter: blur(8px);
+  margin-bottom: 8px;
 }
 
-.page-hero h1 {
-  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+.page-hero-card h1 {
+  font-size: 1.75rem;
   font-weight: 800;
   letter-spacing: -0.5px;
   margin: 0 0 8px;
@@ -383,13 +371,8 @@ const getAuthorAvatarUrl = (author) => {
 }
 
 .page-content {
-  padding: 0 0 64px;
+  padding: 0 24px 64px;
 }
-
-@media (max-width: 768px) {
-  .post-container {
-    padding: 0 16px;
-  }
 }
 
 /* Filters */

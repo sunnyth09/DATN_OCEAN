@@ -1,12 +1,11 @@
 <template>
   <div class="static-page">
-    <section class="page-hero">
-      <div class="container">
-        <div class="hero-pill">HỖ TRỢ KHÁCH HÀNG</div>
-        <h1>Liên Hệ Với Chúng Tôi</h1>
+    <div class="container" style="padding-top: 24px;">
+      <div class="page-hero-card">
+        <h1>Liên Hệ Hỗ Trợ</h1>
         <p class="hero-sub">Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn mọi lúc mọi nơi</p>
       </div>
-    </section>
+    </div>
     <section class="page-content container">
       <div class="contact-grid">
         <div class="contact-card">
@@ -243,70 +242,58 @@ const submitContact = async () => {
 <style scoped>
 .static-page {
   font-family: var(--font-inter, 'Inter', sans-serif);
-  padding-top: 24px;
 }
 
-.container {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
-.page-hero {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 24px;
+.page-hero-card {
+  padding: 32px;
   color: #fff;
-  text-align: left;
-}
-
-.page-hero .container {
-  max-width: 100%;
-  padding: 36px 36px;
+  text-align: center;
+  border: 1px solid rgba(230, 59, 111, 0.18);
   border-radius: 16px;
-  margin-bottom: 24px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
     linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
-  box-shadow: 0 10px 28px rgba(230, 59, 111, 0.16);
+  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+  margin-bottom: 28px;
   position: relative;
   overflow: hidden;
 }
 
-.hero-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 5px 14px;
-  border-radius: 999px;
-  font-size: 0.72rem;
+.page-hero-card h1 {
+  position: relative;
+  display: inline-block;
+  font-size: 1.75rem;
   font-weight: 800;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-  backdrop-filter: blur(8px);
+  margin: 0 0 8px;
+  padding-bottom: 14px;
+  z-index: 1;
 }
 
-.page-hero h1 {
-  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  margin: 0 0 8px;
-  line-height: 1.2;
+.page-hero-card h1::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 96px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateX(-50%);
 }
 
 .hero-sub {
-  max-width: 580px;
-  margin: 0;
-  color: rgba(255, 255, 255, 0.95);
+  opacity: 0.95;
   font-size: 0.95rem;
-  line-height: 1.55;
+  max-width: 500px;
+  margin: 5px auto 0;
+  z-index: 1;
+  line-height: 1.6;
+  text-align: center;
+}
 }
 
 .page-content {
-  padding: 24px 24px 64px;
+  padding: 0 24px 64px;
 }
 
 .contact-grid {

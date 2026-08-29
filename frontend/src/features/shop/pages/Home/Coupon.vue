@@ -160,8 +160,8 @@ onUnmounted(() => {
 
 <template>
   <main class="coupon-page">
-    <div class="container pt-3">
-      <section class="coupon-hero">
+    <div class="container coupon-hero-section">
+      <div class="coupon-hero">
         <div class="coupon-hero-inner">
           <div class="coupon-hero-copy">
             <span class="coupon-kicker">OCEAN SPORT DEALS</span>
@@ -174,7 +174,7 @@ onUnmounted(() => {
           </div>
           <div class="coupon-hero-panel">
             <div class="hero-ticket-icon" aria-hidden="true">
-              <AppIcon name="voucher" width="30" height="30" :stroke-width="2.2" />
+              <AppIcon name="voucher" width="32" height="32" :stroke-width="2.2" />
             </div>
             <div>
               <strong>{{ activeCouponCount }}</strong>
@@ -182,7 +182,7 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
-      </section>
+      </div>
     </div>
 
     <section id="coupon-list" class="coupon-content">
@@ -306,29 +306,24 @@ onUnmounted(() => {
   padding-bottom: 72px;
 }
 
+.coupon-hero-section {
+  padding-top: 24px;
+  padding-bottom: 0;
+}
+
 .coupon-hero {
-  position: relative;
-  width: 100%;
-  border-radius: 16px;
-  padding: 36px 36px;
-  margin-bottom: 24px;
+  padding: 32px;
   color: #fff;
   overflow: hidden;
-  box-shadow: 0 10px 28px rgba(230, 59, 111, 0.16);
+  border: 1px solid rgba(230, 59, 111, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+  margin-bottom: 28px;
+  position: relative;
   background:
     radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18), transparent 28%),
     radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.16), transparent 32%),
     linear-gradient(135deg, #c80f55 0%, var(--primary) 52%, #ff6b9d 100%);
-}
-
-.coupon-hero::after {
-  content: '';
-  position: absolute;
-  inset: auto -8% -45% -8%;
-  height: 140px;
-  background: rgba(255, 255, 255, 0.16);
-  filter: blur(40px);
-  pointer-events: none;
 }
 
 .coupon-hero-inner {
@@ -348,29 +343,29 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 14px;
+  padding: 5px 12px;
   margin-bottom: 10px;
   border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
   color: #fff;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 1.2px;
+  letter-spacing: 1.4px;
   text-transform: uppercase;
 }
 
 .coupon-hero h1 {
   margin: 0 0 8px;
-  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
+  font-size: 1.75rem;
   font-weight: 800;
   letter-spacing: -0.5px;
   line-height: 1.2;
 }
 
 .coupon-hero p {
-  max-width: 540px;
-  margin: 0 0 16px;
+  max-width: 520px;
+  margin: 8px 0 0;
   color: rgba(255, 255, 255, 0.95);
   font-size: 0.95rem;
   line-height: 1.55;
@@ -378,9 +373,9 @@ onUnmounted(() => {
 
 .coupon-hero-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 28px;
+  margin-top: 18px;
 }
 
 .btn-hero-primary,
@@ -388,8 +383,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 42px;
-  min-height: unset;
+  min-height: 40px;
   padding: 0 22px;
   border-radius: 8px;
   font-weight: 700;
@@ -420,39 +414,39 @@ onUnmounted(() => {
 }
 
 .coupon-hero-panel {
-  min-width: 280px;
-  padding: 24px 28px;
+  min-width: 240px;
+  padding: 20px 24px;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
   border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 24px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(12px);
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.14);
 }
 
 .hero-ticket-icon {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 18px;
+  border-radius: 14px;
   color: #fff;
   background: rgba(255, 255, 255, 0.16);
 }
 
 .coupon-hero-panel strong {
   display: block;
-  font-size: 2.5rem;
+  font-size: 1.6rem;
   font-weight: 900;
   line-height: 1;
 }
 
 .coupon-hero-panel span {
   color: rgba(255, 255, 255, 0.78);
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .coupon-content {
