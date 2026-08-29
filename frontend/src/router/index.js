@@ -444,11 +444,19 @@ router.afterEach((to, from) => {
     const title = to.meta.title;
     const isAdmin = to.matched.some(record => record.path === '/admin');
 
-    if (title) {
-        document.title = isAdmin ? `${title} | QS Admin` : `${title} | Ocean Sport`;
-    } else {
-        document.title = 'Ocean Sport';
-    }
+    // Lấy số thông báo chưa đọc từ auth store (nếu đã init)
+    let unreadCount = 0;
+    try {
+        const { useAuthStore } = require('@/stores/auth');
+        const authStore = useAuthStore();
+        unreadCount = authStore.unreadNotificationCount || 0;
+    } catch (_) {}
+
+    const baseTitle = title
+        ? (isAdmin ? `${title} | QS Admin` : `${title} | Ocean Sport`)
+        : 'Ocean Sport';
+
+    document.title = unreadCount > 0 ? `(${unreadCount}) thông báo mới - ${baseTitle}` : baseTitle;
 });
 
 export default router;

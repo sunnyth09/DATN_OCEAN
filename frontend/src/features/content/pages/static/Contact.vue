@@ -1,11 +1,11 @@
 <template>
   <div class="static-page">
-    <section class="page-hero">
-      <div class="container">
+    <div class="container" style="padding-top: 24px;">
+      <div class="page-hero-card">
         <h1>Liên Hệ Hỗ Trợ</h1>
         <p class="hero-sub">Chúng tôi luôn sẵn sàng lắng nghe bạn</p>
       </div>
-    </section>
+    </div>
     <section class="page-content container">
       <div class="contact-grid">
         <div class="contact-card">
@@ -240,44 +240,35 @@ const submitContact = async () => {
 <style scoped>
 .static-page {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  padding-top: 24px;
 }
 
-.container {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
 
-.page-hero {
-  max-width: 1160px;
-  margin: 0 auto;
-  padding: 0 24px;
+.page-hero-card {
+  padding: 32px;
   color: #fff;
   text-align: center;
-}
-
-.page-hero .container {
-  max-width: 100%;
-  padding: 54px 24px;
   border: 1px solid rgba(230, 59, 111, 0.18);
-  border-radius: 24px;
+  border-radius: 16px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
     linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
   box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
 }
 
-.page-hero h1 {
+.page-hero-card h1 {
   position: relative;
   display: inline-block;
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 900;
-  margin: 0 0 16px;
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 0 0 8px;
   padding-bottom: 14px;
+  z-index: 1;
 }
 
-.page-hero h1::after {
+.page-hero-card h1::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -290,33 +281,17 @@ const submitContact = async () => {
 }
 
 .hero-sub {
-  max-width: 700px;
-  margin: 0 auto;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1.05rem;
-  line-height: 1.7;
-}
-
-.page-hero h1 {
-  font-size: 1.75rem;
-  font-weight: 800;
-  margin: 0 0 8px;
-  position: relative;
-  z-index: 1;
-}
-
-.hero-sub {
   opacity: 0.85;
   font-size: 0.95rem;
   max-width: 500px;
-  margin-top: 5px;
+  margin: 5px auto 0;
   z-index: 1;
   line-height: 1.6;
   text-align: center;
 }
 
 .page-content {
-  padding: 24px 24px 64px;
+  padding: 0 24px 64px;
 }
 
 .contact-grid {

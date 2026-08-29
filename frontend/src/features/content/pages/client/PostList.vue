@@ -122,13 +122,13 @@ const getAuthorAvatarUrl = (author) => {
 <template>
   <div class="static-page">
     <!-- Hero Banner -->
-    <section class="page-hero">
-      <div class="container">
+    <div class="container" style="padding-top: 24px;">
+      <div class="page-hero-card">
         <div class="hero-pill">OCEAN SPORT NEWS</div>
-        <h1>Tin Tức & Sự Kiện</h1>
+        <h1>Tin Tức &amp; Sự Kiện</h1>
         <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ Ocean Sport</p>
       </div>
-    </section>
+    </div>
 
     <!-- Main Content -->
     <section class="page-content container">
@@ -332,61 +332,50 @@ const getAuthorAvatarUrl = (author) => {
 
 
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
 
 /* Hero Section */
-.page-hero {
-  width: 100%;
+.page-hero-card {
+  padding: 32px;
+  border: 1px solid rgba(230, 59, 111, 0.18);
+  border-radius: 16px;
   color: #fff;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
     linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
-  padding: 70px 0;
-  margin-bottom: 20px;
-}
-
-.page-hero .container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 24px;
-  text-align: left;
+  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
 }
 
 .hero-pill {
   display: inline-block;
   background: rgba(255, 255, 255, 0.2);
-  padding: 6px 16px;
+  padding: 5px 14px;
   border-radius: 20px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
-.page-hero h1 {
-  font-size: 2.5rem;
+.page-hero-card h1 {
+  font-size: 1.75rem;
   font-weight: 800;
-  margin: 0 0 12px;
-  position: relative;
-  z-index: 1;
+  margin: 0 0 8px;
 }
 
 .hero-sub {
-  opacity: 0.9;
-  font-size: 1.1rem;
-  max-width: 600px;
+  opacity: 0.85;
+  font-size: 0.95rem;
+  max-width: 500px;
   margin: 0;
-  z-index: 1;
   line-height: 1.6;
 }
 
 .page-content {
-  padding: 48px 24px 64px;
+  padding: 0 24px 64px;
 }
 
 /* Filters */
