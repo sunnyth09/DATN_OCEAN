@@ -137,7 +137,7 @@ const getAuthorAvatarUrl = (author) => {
     </div>
 
       <!-- Main Content -->
-      <section class="page-content">
+      <section class="page-content container">
       <!-- Search & Category Filters -->
       <div class="filter-section">
         <div class="category-tabs" v-if="categories.length <= 4">
@@ -281,7 +281,6 @@ const getAuthorAvatarUrl = (author) => {
       </template>
     </section>
   </div>
-  </div>
 </template>
 
 <style scoped>
@@ -372,7 +371,6 @@ const getAuthorAvatarUrl = (author) => {
 
 .page-content {
   padding: 0 24px 64px;
-}
 }
 
 /* Filters */

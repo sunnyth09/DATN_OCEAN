@@ -290,7 +290,6 @@ const submitContact = async () => {
   line-height: 1.6;
   text-align: center;
 }
-}
 
 .page-content {
   padding: 0 24px 64px;
