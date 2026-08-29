@@ -2,8 +2,9 @@
   <div class="static-page">
     <section class="page-hero">
       <div class="container">
-        <h1>Điều Khoản Dịch Vụ</h1>
-        <p class="hero-sub">Cập nhật lần cuối: 20/03/2026</p>
+        <div class="hero-pill">ĐIỀU KHOẢN DỊCH VỤ</div>
+        <h1>Điều Khoản Sử Dụng</h1>
+        <p class="hero-sub">Quy định và quyền lợi của khách hàng khi trải nghiệm mua sắm tại Ocean Sport</p>
       </div>
     </section>
     <section class="page-content container">
@@ -57,59 +58,56 @@
 }
 .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
 .page-hero {
-  max-width: 1160px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 0 24px;
   color: #fff;
-  text-align: center;
+  text-align: left;
 }
+
 .page-hero .container {
   max-width: 100%;
-  padding: 54px 24px;
-  border: 1px solid rgba(230, 59, 111, 0.18);
-  border-radius: 24px;
+  padding: 36px 36px;
+  border-radius: 16px;
+  margin-bottom: 24px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
     linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
-  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
-}
-.page-hero h1 {
+  box-shadow: 0 10px 28px rgba(230, 59, 111, 0.16);
   position: relative;
-  display: inline-block;
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 900;
-  margin: 0 0 16px;
-  padding-bottom: 14px;
+  overflow: hidden;
 }
-.page-hero h1::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 96px;
-  height: 4px;
+
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 5px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  transform: translateX(-50%);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  backdrop-filter: blur(8px);
 }
-.hero-sub { max-width: 700px; margin: 0 auto; color: rgba(255,255,255,0.9); font-size: 1.05rem; line-height: 1.7; }
 
 .page-hero h1 {
-  font-size: 1.75rem;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
   font-weight: 800;
+  letter-spacing: -0.5px;
   margin: 0 0 8px;
-  position: relative;
-  z-index: 1;
+  line-height: 1.2;
 }
 
 .hero-sub {
-  opacity: 0.85;
+  max-width: 580px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.95);
   font-size: 0.95rem;
-  max-width: 500px;
-  margin-top: 5px;
-  z-index: 1;
-  line-height: 1.6;
-  text-align: center;
+  line-height: 1.55;
 }
 .page-content { padding: 48px 24px 64px; }
 .content-block { margin-bottom: 32px; }

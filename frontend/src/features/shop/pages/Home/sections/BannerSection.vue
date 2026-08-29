@@ -113,13 +113,15 @@ defineEmits(['update:activeTab']);
 .btn-view-more {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    padding: 13px 40px;
-    border: 2px solid var(--primary);
+    height: 42px;
+    padding: 0 24px;
+    border: 1.5px solid var(--primary);
     color: var(--primary);
     background: transparent;
-    border-radius: 99px;
-    font-size: .95rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
     font-weight: 700;
     text-decoration: none;
     transition: all .2s;
@@ -129,6 +131,6 @@ defineEmits(['update:activeTab']);
     background: var(--primary);
     color: #fff;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(230, 59, 111, .3);
+    box-shadow: 0 6px 16px rgba(230, 59, 111, .25);
 }
 </style>

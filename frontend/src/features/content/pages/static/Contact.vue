@@ -2,8 +2,9 @@
   <div class="static-page">
     <section class="page-hero">
       <div class="container">
-        <h1>Liên Hệ Hỗ Trợ</h1>
-        <p class="hero-sub">Chúng tôi luôn sẵn sàng lắng nghe bạn</p>
+        <div class="hero-pill">HỖ TRỢ KHÁCH HÀNG</div>
+        <h1>Liên Hệ Với Chúng Tôi</h1>
+        <p class="hero-sub">Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn mọi lúc mọi nơi</p>
       </div>
     </section>
     <section class="page-content container">
@@ -55,17 +56,14 @@
           <div class="mini-map">
             <iframe
               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3893.1!2d108.0978176!3d12.7244343!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3171f7b6e379b675%3A0x72662967145555c0!2zVHLGsOG7nW5nIENhbyDEkeG6s25nIEZQVCBQb2x5dGVjaG5pYyBUw6J5IE5ndXnDqm4!5e0!3m2!1svi!2svn!4v1700000000000"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-              title="Trường Cao đẳng FPT Polytechnic Tây Nguyên"
-              allowfullscreen=""
-            ></iframe>
+              loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+              title="Trường Cao đẳng FPT Polytechnic Tây Nguyên" allowfullscreen=""></iframe>
           </div>
           <div class="location-meta">
             <h3>Showroom OCEAN SPORT</h3>
             <p>99 Nguyễn Văn Linh, Phường Tân An, TP. Buôn Ma Thuột, Tỉnh Đắk Lắk</p>
-            <a href="https://www.google.com/maps/place/Tr%C6%B0%E1%BB%9Dng+Cao+%C4%91%E1%BA%B3ng+FPT+Polytechnic+T%C3%A2y+Nguy%C3%AAn/@12.7244343,108.0978176,17z/data=!4m6!3m5!1s0x3171f7b6e379b675:0x72662967145555c0!8m2!3d12.7244343!4d108.0978176!16s%2Fg%2F11v614p6nr" target="_blank"
-              rel="noopener noreferrer">
+            <a href="https://www.google.com/maps/place/Tr%C6%B0%E1%BB%9Dng+Cao+%C4%91%E1%BA%B3ng+FPT+Polytechnic+T%C3%A2y+Nguy%C3%AAn/@12.7244343,108.0978176,17z/data=!4m6!3m5!1s0x3171f7b6e379b675:0x72662967145555c0!8m2!3d12.7244343!4d108.0978176!16s%2Fg%2F11v614p6nr"
+              target="_blank" rel="noopener noreferrer">
               Xem bản đồ lớn
             </a>
           </div>
@@ -255,69 +253,56 @@ const submitContact = async () => {
 }
 
 .page-hero {
-  max-width: 1160px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 0 24px;
   color: #fff;
-  text-align: center;
+  text-align: left;
 }
 
 .page-hero .container {
   max-width: 100%;
-  padding: 54px 24px;
-  border: 1px solid rgba(230, 59, 111, 0.18);
-  border-radius: 24px;
+  padding: 36px 36px;
+  border-radius: 16px;
+  margin-bottom: 24px;
   background:
     radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.18), transparent 28%),
     linear-gradient(135deg, var(--primary) 0%, #d92f66 48%, #f05a8a 100%);
-  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
-}
-
-.page-hero h1 {
+  box-shadow: 0 10px 28px rgba(230, 59, 111, 0.16);
   position: relative;
-  display: inline-block;
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 900;
-  margin: 0 0 16px;
-  padding-bottom: 14px;
+  overflow: hidden;
 }
 
-.page-hero h1::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 96px;
-  height: 4px;
+.hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 5px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  transform: translateX(-50%);
-}
-
-.hero-sub {
-  max-width: 700px;
-  margin: 0 auto;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1.05rem;
-  line-height: 1.7;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  backdrop-filter: blur(8px);
 }
 
 .page-hero h1 {
-  font-size: 1.75rem;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
   font-weight: 800;
+  letter-spacing: -0.5px;
   margin: 0 0 8px;
-  position: relative;
-  z-index: 1;
+  line-height: 1.2;
 }
 
 .hero-sub {
-  opacity: 0.85;
+  max-width: 580px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.95);
   font-size: 0.95rem;
-  max-width: 500px;
-  margin-top: 5px;
-  z-index: 1;
-  line-height: 1.6;
-  text-align: center;
+  line-height: 1.55;
 }
 
 .page-content {

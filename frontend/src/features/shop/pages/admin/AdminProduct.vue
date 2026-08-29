@@ -1723,7 +1723,7 @@ const formatDate = (dateString) => {
 /* Actions */
 .actions-cell { display: flex; gap: 8px; }
 .btn-icon {
-    width: 36px; height: 36px; border-radius: 10px; border: none !important; outline: none !important;
+    width: 36px; height: 36px; min-height: unset; aspect-ratio: 1 / 1; border-radius: 10px; border: none !important; outline: none !important;
     background: transparent !important; color: #94a3b8 !important;
     cursor: pointer !important; display: flex; align-items: center; justify-content: center;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important; text-decoration: none;
@@ -1971,7 +1971,8 @@ const formatDate = (dateString) => {
 /* Responsive */
 @media (max-width: 768px) {
     .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
-    .header-btns { flex-direction: column; width: 100%; }
+    .header-btns { flex-direction: row; flex-wrap: wrap; width: 100%; gap: 8px; }
+    .header-btns .btn-import, .header-btns .btn-primary { flex: 1 1 auto; justify-content: center; }
     .filters-bar { flex-direction: column; gap: 12px; align-items: stretch; }
     .search-box { max-width: 100%; }
     .qv-top { flex-direction: column; }

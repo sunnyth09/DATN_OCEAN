@@ -932,6 +932,9 @@ async function sendMessage() {
 .chatbot-bubble {
   width: 48px;
   height: 48px;
+  min-height: unset;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary) 0%, #ff6b8b 50%, var(--primary-dark) 100%);
   border: none;
@@ -1503,6 +1506,8 @@ async function sendMessage() {
 .quick-toggle-btn {
   width: 36px;
   height: 36px;
+  min-height: unset;
+  aspect-ratio: 1 / 1;
   border-radius: 10px;
   border: 1.5px solid #e5e7eb;
   background: #f8fafc;
@@ -1587,6 +1592,8 @@ async function sendMessage() {
 .chat-send-btn {
   width: 40px;
   height: 40px;
+  min-height: unset;
+  aspect-ratio: 1 / 1;
   border-radius: 12px;
   border: none;
   background: var(--primary);
@@ -1812,6 +1819,8 @@ async function sendMessage() {
   .chatbot-bubble {
     width: 40px;
     height: 40px;
+    min-height: unset;
+    aspect-ratio: 1 / 1;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
   .chatbot-bubble svg {

@@ -594,6 +594,8 @@ onMounted(fetchAddresses);
 .action-btn {
   width: 34px;
   height: 34px;
+  min-height: unset;
+  aspect-ratio: 1 / 1;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   background: var(--card-bg);

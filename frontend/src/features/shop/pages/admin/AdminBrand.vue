@@ -488,7 +488,7 @@ const deleteBrand = async (id) => {
 .status-active { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 .status-inactive { background: rgba(100, 116, 139, 0.1); color: #64748b; }
 .action-buttons { display: flex; gap: 8px; }
-.btn-action { width: 32px; height: 32px; border-radius: 6px; border: none; background: var(--ocean-deepest); color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+.btn-action { width: 32px; height: 32px; min-height: unset; aspect-ratio: 1 / 1; border-radius: 6px; border: none; background: var(--ocean-deepest); color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
 .btn-action:hover { background: var(--hover-bg); }
 .btn-edit:hover { color: var(--ocean-bright); }
 .btn-delete:hover { color: var(--coral); }

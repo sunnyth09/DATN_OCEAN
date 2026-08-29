@@ -543,9 +543,15 @@ html, body {
 }
 
 @media (max-width: 768px) {
-  /* Đảm bảo kích thước chạm (touch target) tối thiểu 44px cho mobile */
-  .btn, button, .form-control, .form-select, input[type="text"], input[type="number"], input[type="email"], input[type="password"] {
-    min-height: 44px;
+  /* Đảm bảo kích thước chạm tối thiểu 40px cho các ô input và nút form chính trên mobile */
+  .form-control, .form-select, input[type="text"], input[type="number"], input[type="email"], input[type="password"],
+  .btn:not(.btn-sm):not(.btn-xs):not(.btn-icon):not(.icon-btn):not(.qty-btn):not(.btn-remove):not(.item-variant-btn):not(.aside-toggle-btn):not(.status-pill):not(.page-btn):not(.tab-btn):not(.star-btn):not(.chat-close-btn):not(.quick-toggle-btn):not(.mini-add-btn) {
+    min-height: 40px;
+  }
+
+  /* Reset toàn bộ nút icon và micro controls không bị kéo dãn min-height trên mobile */
+  .icon-btn, .btn-icon, .qty-btn, .btn-remove, .item-variant-btn, .aside-toggle-btn, .status-pill, .page-btn, .tab-btn, .star-btn, .chat-close-btn, .quick-toggle-btn, .mini-add-btn, .vmodal-close-top {
+    min-height: unset;
   }
   
   /* Giãn cách các thành phần block trên mobile để tránh bấm nhầm */
@@ -902,10 +908,10 @@ html.dark .swal2-popup {
 .swal2-confirm,
 .swal2-cancel,
 .swal2-deny {
-  border-radius: 10px !important;
-  padding: 10px 24px !important;
+  border-radius: 8px !important;
+  padding: 8px 18px !important;
   font-weight: 600 !important;
-  font-size: 0.95rem !important;
+  font-size: 0.88rem !important;
   letter-spacing: 0.2px !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-shadow: none !important;

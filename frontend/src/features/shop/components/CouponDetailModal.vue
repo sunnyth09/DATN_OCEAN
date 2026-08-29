@@ -454,7 +454,7 @@ onUnmounted(() => {
 .btn-view {
   min-height: 38px;
   font-size: 0.84rem;
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;

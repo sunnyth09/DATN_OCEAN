@@ -2692,17 +2692,17 @@ textarea.note-input {
 .btn-place-order {
     width: 100%;
     background: var(--primary);
-    /* Deep elegant ocean blue */
     color: white;
     border: none;
-    border-radius: 6px;
-    padding: 12px;
-    font-size: 1.05rem;
+    border-radius: 8px;
+    height: 46px;
+    padding: 10px 20px;
+    font-size: 0.95rem;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     cursor: pointer;
-    transition: all 0.3s;
-    box-shadow: 0 6px 20px rgba(230, 59, 111, 0.2);
+    transition: all 0.25s ease;
+    box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25);
     display: flex;
     align-items: center;
     justify-content: center;

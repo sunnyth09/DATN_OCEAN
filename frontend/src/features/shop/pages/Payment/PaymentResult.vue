@@ -374,33 +374,37 @@ onMounted(async () => {
 .btn-primary {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     background: linear-gradient(135deg, var(--primary), #C4305D);
     color: #fff;
-    padding: 12px 28px;
-    border-radius: 10px;
+    height: 42px;
+    padding: 0 22px;
+    border-radius: 8px;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     text-decoration: none;
     transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.3);
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25);
 }
 
 .btn-primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.4);
+    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.35);
 }
 
 .btn-secondary {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     background: #f1f5f9;
     color: #475569;
-    padding: 12px 28px;
-    border-radius: 10px;
+    height: 42px;
+    padding: 0 22px;
+    border-radius: 8px;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     text-decoration: none;
     transition: all 0.2s ease;
 }

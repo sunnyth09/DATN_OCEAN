@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import api from '@/axios';
-import { Toast, Modal } from 'bootstrap';
+import { Modal } from 'bootstrap';
+import { useToast } from '@/composables/useToast';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import Swal from 'sweetalert2';
 
@@ -17,20 +18,8 @@ const statusTabs = [
     { value: 'hidden', label: 'Đang ẩn' },
 ];
 
-const toastObj = ref({ message: '', type: 'success' });
 const deletingPostId = ref(null);
-
-const showToast = (message, type = 'success') => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
-    text: message,
-    icon: type === 'danger' ? 'error' : type,
-    showConfirmButton: false,
-    timer: 3000
-  });
-};
+const { showToast } = useToast();
 
 const fetchPosts = async () => {
     try {
@@ -273,19 +262,6 @@ const getStatusLabel = (status) => {
                 <span class="empty-emoji"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/></svg></span>
                 <h3>Không tìm thấy bài viết</h3>
                 <p>{{ searchQuery ? 'Thử từ khóa khác.' : 'Bắt đầu bằng cách thêm bài viết đầu tiên.' }}</p>
-                <router-link to="/admin/post/create" class="btn-primary mt-3" style="display:inline-flex" v-if="!searchQuery">Thêm bài viết ngay</router-link>
-            </div>
-        </div>
-
-
-
-        <!-- Bootstrap Toast -->
-        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-            <div class="toast align-items-center border-0" :class="toastObj.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="postListToast" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">{{ toastObj.message }}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
             </div>
         </div>
     </div>

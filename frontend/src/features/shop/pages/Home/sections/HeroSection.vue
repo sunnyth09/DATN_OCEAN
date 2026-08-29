@@ -139,10 +139,11 @@
     justify-content: center;
     background: var(--primary);
     color: #fff;
-    border: none;
-    padding: 8px 28px;
-    border-radius: var(--radius-md);
-    font-size: 1rem;
+    border: 1px solid var(--primary);
+    min-height: 44px;
+    padding: 10px 26px;
+    border-radius: var(--radius-sm, 8px);
+    font-size: 0.95rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s;
@@ -154,6 +155,8 @@
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
     color: #fff;
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
 }
 
 .btn-outline-hero {
@@ -162,10 +165,11 @@
     justify-content: center;
     background: transparent;
     color: var(--text-main);
-    border: 1px solid var(--primary);
-    padding: 12px 32px;
-    border-radius: var(--radius-md);
-    font-size: 1rem;
+    border: 1px solid var(--border-color);
+    min-height: 44px;
+    padding: 10px 26px;
+    border-radius: var(--radius-sm, 8px);
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s;
@@ -173,7 +177,8 @@
 }
 
 .btn-outline-hero:hover {
-    background: var(--surface);
+    background: var(--hover-bg);
+    border-color: var(--primary);
     color: var(--primary);
 }
 

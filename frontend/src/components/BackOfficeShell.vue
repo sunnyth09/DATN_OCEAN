@@ -487,6 +487,7 @@ onUnmounted(() => {
   justify-content: center;
   gap: 6px;
   height: 34px;
+  min-height: unset;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--card-bg);
@@ -496,6 +497,7 @@ onUnmounted(() => {
 
 .shell-icon-btn {
   width: 34px;
+  aspect-ratio: 1 / 1;
   cursor: pointer;
 }
 

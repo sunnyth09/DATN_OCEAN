@@ -557,6 +557,9 @@ const handleAddToCart = async (event) => {
 .icon-btn {
     width: 34px;
     height: 34px;
+    min-height: unset;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
     border: none;
     border-radius: 999px;
     display: inline-flex;

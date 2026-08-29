@@ -1733,13 +1733,15 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   border: 1.5px solid #e63b6e7d;
-  border-radius: 20px;
+  border-radius: 8px;
   overflow: hidden;
+  height: 38px;
 }
 
 .pd-qty button {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 38px;
+  min-height: unset;
   background: var(--card-bg);
   border: none;
   font-size: 1.1rem;
@@ -1756,7 +1758,9 @@ onBeforeUnmount(() => {
 }
 
 .pd-qty input {
-  width: 48px;
+  width: 44px;
+  height: 38px;
+  min-height: unset;
   text-align: center;
   border: none;
   border-left: 1px solid #E9ECEF;
@@ -1791,17 +1795,18 @@ onBeforeUnmount(() => {
 
 .pd-btn-cart {
   flex: 1;
-  min-height: 48px;
+  min-height: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 18px;
+  padding: 10px 18px;
   background: #FFF0F3;
   color: var(--primary);
   border: 1.5px solid var(--primary);
-  border-radius: 28px;
-  font-size: 0.95rem;
+  border-radius: 8px;
+  font-size: 0.92rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1825,17 +1830,18 @@ onBeforeUnmount(() => {
 
 .pd-btn-buy {
   flex: 1.55; /* Nút Đặt Hàng Nhanh rộng hơn nổi bật */
-  min-height: 48px;
+  min-height: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
+  padding: 10px 22px;
   background: linear-gradient(135deg, var(--primary) 0%, #D6285A 100%);
   color: #fff;
   border: 1.5px solid transparent;
-  border-radius: 28px;
-  font-size: 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -2480,7 +2486,10 @@ onBeforeUnmount(() => {
   .pd-cta button {
     flex: 1;
     font-size: 0.85rem;
-    padding: 12px 0;
+    padding: 10px 0;
+    min-height: 42px;
+    height: 42px;
+    border-radius: 8px;
   }
 
   /* Để nội dung không bị che bởi sticky bottom bar */

@@ -174,11 +174,13 @@ defineProps(['featuredProduct', 'sideCategories', 'isLoadingFeatured', 'isLoadin
 .btn-buy-now {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     background: var(--primary);
     color: #fff;
-    padding: 11px 28px;
-    border-radius: 99px;
+    height: 42px;
+    padding: 0 22px;
+    border-radius: 8px;
     font-weight: 700;
     font-size: .9rem;
     text-decoration: none;
@@ -189,7 +191,7 @@ defineProps(['featuredProduct', 'sideCategories', 'isLoadingFeatured', 'isLoadin
 .btn-buy-now:hover {
     background: #d82f65;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(230, 59, 111, .45);
+    box-shadow: 0 6px 18px rgba(230, 59, 111, .45);
     color: #fff;
 }
 

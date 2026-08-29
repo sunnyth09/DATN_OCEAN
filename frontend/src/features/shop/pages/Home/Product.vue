@@ -507,17 +507,38 @@ onUnmounted(() => {
 
 <template>
     <div class="product-page">
-        <!-- ══ HERO BANNER ══ -->
-        <section class="page-hero" :style="{ background: bannerInfo.bg }">
-            <div class="hero-inner-container">
-                <div class="hero-pill">OCEAN SPORT DEALS</div>
-                <h1>{{ bannerInfo.title }}</h1>
-                <p class="hero-sub">{{ bannerInfo.sub }}</p>
-            </div>
-        </section>
-
-        <!-- ══ MAIN CONTENT ══ -->
+        <!-- ══ MAIN CONTAINER ══ -->
         <div class="product-container">
+
+            <!-- ══ HERO BANNER (Đồng bộ kích thước chuẩn 16px) ══ -->
+            <section class="page-hero" :style="{ background: bannerInfo.bg }">
+                <div class="hero-inner-container">
+                    <div class="product-hero-content">
+                        <div class="hero-pill">
+                            <i class="bi bi-shield-check me-1"></i>
+                            OCEAN SPORT CHÍNH HÃNG
+                        </div>
+                        <h1>{{ bannerInfo.title }}</h1>
+                        <p class="hero-sub">{{ bannerInfo.sub }}</p>
+
+                        <!-- Trust Chips -->
+                        <div class="product-hero-trust">
+                            <div class="trust-chip">
+                                <i class="bi bi-patch-check-fill text-warning"></i>
+                                <span>100% Chính Hãng</span>
+                            </div>
+                            <div class="trust-chip">
+                                <i class="bi bi-arrow-repeat"></i>
+                                <span>Đổi trả 30 ngày</span>
+                            </div>
+                            <div class="trust-chip">
+                                <i class="bi bi-truck"></i>
+                                <span>Freeship đơn từ 500k</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             <!-- Desktop Info Toolbar -->
             <div class="product-toolbar d-none d-md-flex">
@@ -824,37 +845,37 @@ onUnmounted(() => {
     color: var(--text-main);
 }
 
-/* ── HERO ── */
+/* ── HERO BANNER (Đồng bộ chuẩn 16px) ── */
 .page-hero {
   background: linear-gradient(135deg, #e63b6f, #a0204e);
   color: #fff;
-  border-radius: 0;
-  padding: 60px 0;
-  margin: 0 0 28px 0;
+  border-radius: 16px;
+  padding: 36px 36px;
+  margin: 16px 0 24px 0;
   position: relative;
   overflow: hidden;
   text-align: left;
-  min-height: 200px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  box-shadow: 0 10px 28px rgba(230, 59, 111, 0.16);
 }
 .hero-inner-container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 40px;
   width: 100%;
+  position: relative;
+  z-index: 2;
 }
 .hero-pill {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.2);
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  backdrop-filter: blur(8px);
 }
 .page-hero::after {
   content: '';
@@ -866,8 +887,31 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 50%;
 }
-.page-hero h1 { font-size: 2.2rem; font-weight: 800; margin: 0 0 8px; position: relative; z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-.hero-sub { opacity: 0.95; font-size: 1.05rem; max-width: 500px; margin: 0; position: relative; z-index: 1; line-height: 1.5; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.page-hero h1 { font-size: clamp(1.75rem, 2.6vw, 2.25rem); font-weight: 800; margin: 0 0 8px; position: relative; z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.3); line-height: 1.2; }
+.hero-sub { opacity: 0.95; font-size: 0.95rem; max-width: 580px; margin: 0; position: relative; z-index: 1; line-height: 1.55; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+
+.product-hero-trust {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  position: relative;
+  z-index: 2;
+}
+
+.trust-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 5px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
 
 /* ── CONTAINER ── */
 .product-container {

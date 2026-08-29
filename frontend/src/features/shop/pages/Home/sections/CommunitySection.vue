@@ -183,25 +183,27 @@
 .btn-community {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     background: var(--primary);
     color: #fff;
     border: none;
-    padding: 13px 30px;
-    border-radius: 99px;
-    font-size: .95rem;
+    height: 42px;
+    padding: 0 24px;
+    border-radius: 8px;
+    font-size: .9rem;
     font-weight: 700;
     cursor: pointer;
     transition: all .3s;
     text-decoration: none;
     width: fit-content;
-    box-shadow: 0 4px 15px rgba(240, 62, 101, 0.4);
+    box-shadow: 0 4px 14px rgba(240, 62, 101, 0.35);
 }
 
 .btn-community:hover {
-    transform: translateY(-3px);
-    background: var(--primary);
-    box-shadow: 0 6px 20px rgba(240, 62, 101, 0.6);
+    transform: translateY(-2px);
+    background: var(--primary-dark, #d82f65);
+    box-shadow: 0 6px 18px rgba(240, 62, 101, 0.45);
 }
 
 .community-images-mobile {

@@ -403,6 +403,8 @@ const handleLogout = async () => {
   cursor: pointer;
   width: 30px;
   height: 30px;
+  min-height: unset;
+  aspect-ratio: 1 / 1;
   padding: 0;
   display: flex;
   align-items: center;

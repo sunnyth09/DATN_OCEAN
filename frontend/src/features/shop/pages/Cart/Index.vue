@@ -1571,6 +1571,7 @@ onUnmounted(() => {
 .btn-remove {
     width: 24px;
     height: 24px;
+    min-height: unset;
     border: none;
     background: #f8fafc;
     border-radius: 6px;
@@ -2350,6 +2351,7 @@ onUnmounted(() => {
     .btn-remove {
         width: 22px;
         height: 22px;
+        min-height: unset;
         border-radius: 5px;
     }
 
@@ -2361,6 +2363,7 @@ onUnmounted(() => {
     .qty-btn {
         width: 24px;
         height: 26px;
+        min-height: unset;
         font-size: 0.85rem;
     }
 

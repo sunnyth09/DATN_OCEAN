@@ -458,8 +458,8 @@ const steps = [
 
 /* Buttons */
 .btn-primary {
-  width: 100%; padding: 13px; border: none; border-radius: 10px;
-  background: var(--primary); color: #fff; font-size: 0.95rem; font-weight: 600;
+  width: 100%; height: 44px; padding: 0 16px; border: none; border-radius: 8px;
+  background: var(--primary); color: #fff; font-size: 0.92rem; font-weight: 700;
   font-family: inherit; cursor: pointer;
   transition: background 0.2s, transform 0.1s;
   display: flex; align-items: center; justify-content: center; gap: 8px;
