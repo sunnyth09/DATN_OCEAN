@@ -209,6 +209,7 @@ const mapProduct = (item) => {
 
     // Sản phẩm coi là "đang sale" nếu có sale_price active hoặc compare_at_price > price
     const isOnSale = lowest?.is_on_sale || (lowest?.compare_at_price > lowest?.price) || false;
+    const soldCount = Number(item.sold_count ?? item.total_sold ?? item.sold ?? 0);
 
     return {
         id: item.product_id, name: item.name,
@@ -223,6 +224,7 @@ const mapProduct = (item) => {
         slug: item.slug,
         category_name: item.category_name || '',
         variants_sum_stock: item.variants_sum_stock ?? null,
+        sold_count: Number.isFinite(soldCount) ? soldCount : 0,
         variants: item.variants ?? [],
     };
 };

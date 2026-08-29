@@ -196,6 +196,20 @@ const formatCurrency = (val) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0);
 };
 
+const sanitizeNumericInput = (value, { allowDecimal = false } = {}) => {
+    const pattern = allowDecimal ? /[^\d.]/g : /\D/g;
+    let nextValue = String(value ?? '').replace(pattern, '');
+    if (allowDecimal) {
+        const [integerPart, ...decimalParts] = nextValue.split('.');
+        nextValue = integerPart + (decimalParts.length ? `.${decimalParts.join('')}` : '');
+    }
+    return nextValue;
+};
+
+const normalizeNumberInput = (item, field, options = {}) => {
+    item[field] = sanitizeNumericInput(item[field], options);
+};
+
 const resolveThumbnail = (url) => {
     if (!url) return '/images/no-image.png';
     if (url.startsWith('http')) return url;
@@ -227,21 +241,39 @@ const removeItem = (index) => {
 };
 
 const onDiscountPercentChange = (item) => {
+    normalizeNumberInput(item, 'discount_percent', { allowDecimal: true });
     const basePrice = item.product?.base_price || 0;
     if (basePrice > 0) {
         let dp = parseFloat(item.discount_percent) || 0;
         dp = Math.min(100, Math.max(0, dp));
-        item.campaign_price = Math.max(0, basePrice - (basePrice * dp / 100));
+        item.discount_percent = String(dp);
+        item.campaign_price = String(Math.max(0, Math.round(basePrice - (basePrice * dp / 100))));
     }
 };
 
 const onCampaignPriceChange = (item) => {
+    normalizeNumberInput(item, 'campaign_price');
     const basePrice = item.product?.base_price || 0;
     if (basePrice > 0) {
         const cp = parseFloat(item.campaign_price) || 0;
         let dp = Math.round((1 - cp / basePrice) * 100);
-        item.discount_percent = Math.max(0, dp);
+        item.discount_percent = String(Math.max(0, Math.min(100, dp)));
     }
+};
+
+const onCampaignStockChange = (item) => {
+    normalizeNumberInput(item, 'campaign_stock');
+};
+
+const onDefaultPresetDiscountChange = () => {
+    defaultPresetDiscount.value = sanitizeNumericInput(defaultPresetDiscount.value, { allowDecimal: true });
+    if (defaultPresetDiscount.value !== '') {
+        defaultPresetDiscount.value = String(Math.min(99, Math.max(0, Number(defaultPresetDiscount.value) || 0)));
+    }
+};
+
+const onDefaultPresetStockChange = () => {
+    defaultPresetStock.value = sanitizeNumericInput(defaultPresetStock.value);
 };
 
 // -- CRUD Logic --
@@ -582,11 +614,9 @@ onMounted(async () => {
             
             <div class="d-flex gap-2 mb-2">
                 <div class="position-relative flex-grow-1" style="z-index: 1055;">
-                    <div class="input-group input-group-sm">
-                      <span class="input-group-text bg-white border-end-0" style="border-color: var(--border-color); color: #94a3b8;"><AppIcon name="search" size="14" /></span>
-                      <input v-model="productSearchTerm" @input="searchProducts" type="text" 
-                             class="ws-form-control form-control-sm w-100 border-start-0" placeholder="Gõ tên hoặc SKU để thêm nhanh..." style="font-size: 0.85rem;" />
-                    </div>
+                    <AppIcon name="search" size="14" class="search-field-icon" />
+                    <input v-model="productSearchTerm" @input="searchProducts" type="text"
+                           class="ws-form-control form-control-sm w-100" placeholder="Gõ tên hoặc SKU để thêm nhanh..." style="padding-left: 32px; width: 100%; font-size: 0.85rem;" />
                     
                     <ul v-if="searchedProducts && searchedProducts.length > 0" class="list-group position-absolute w-100 mt-1 shadow-lg border-0" style="z-index: 9999; max-height: 200px; overflow-y: auto; border-radius: 8px;">
                         <li v-for="prod in searchedProducts" :key="prod.product_id" 
@@ -628,16 +658,16 @@ onMounted(async () => {
                             </td>
                             <td class="px-3 py-2">
                                 <div class="input-group input-group-sm" style="border-radius: 6px; overflow: hidden;">
-                                    <input v-model="item.discount_percent" @input="onDiscountPercentChange(item)" type="number" min="0" max="100" class="form-control text-center" style="border-color: #d9e8f0; background: #fff;" />
+                                    <input v-model="item.discount_percent" @input="onDiscountPercentChange(item)" type="text" inputmode="decimal" class="form-control text-center" style="border-color: #d9e8f0; background: #fff;" />
                                     <span class="input-group-text bg-light border-light" style="border-color: #d9e8f0 !important;">%</span>
                                 </div>
                             </td>
                             <td class="px-3 py-2">
-                                <input v-model="item.campaign_price" @input="onCampaignPriceChange(item)" type="number" class="form-control form-control-sm" style="border-radius: 6px; border-color: #d9e8f0;" />
+                                <input v-model="item.campaign_price" @input="onCampaignPriceChange(item)" type="text" inputmode="numeric" class="form-control form-control-sm" style="border-radius: 6px; border-color: #d9e8f0;" />
                                 <small class="text-danger d-block mt-1" v-if="errors[`items.${index}.campaign_price`]">{{ errors[`items.${index}.campaign_price`][0] }}</small>
                             </td>
                             <td class="px-3 py-2">
-                                <input v-model="item.campaign_stock" type="number" class="form-control form-control-sm text-center" style="border-radius: 6px; border-color: #d9e8f0;" />
+                                <input v-model="item.campaign_stock" @input="onCampaignStockChange(item)" type="text" inputmode="numeric" class="form-control form-control-sm text-center" style="border-radius: 6px; border-color: #d9e8f0;" />
                                 <small class="text-danger d-block mt-1" v-if="errors[`items.${index}.campaign_stock`]">{{ errors[`items.${index}.campaign_stock`][0] }}</small>
                             </td>
                             <td class="px-3 py-2 text-center fw-bold" style="color: var(--text-muted);">{{ item.sold }}</td>
@@ -698,12 +728,12 @@ onMounted(async () => {
               <div class="d-flex align-items-center gap-2 flex-wrap">
                 <div class="d-flex align-items-center gap-1">
                   <span style="font-size: 0.72rem; color: #475569;">Giảm giá:</span>
-                  <input v-model="defaultPresetDiscount" type="number" min="0" max="99" class="form-control form-control-sm text-center" style="width: 55px; height: 26px; font-size: 0.75rem; border-radius: 5px; border-color: #fbcfe8;" />
+                  <input v-model="defaultPresetDiscount" @input="onDefaultPresetDiscountChange" type="text" inputmode="decimal" class="form-control form-control-sm text-center" style="width: 55px; height: 26px; font-size: 0.75rem; border-radius: 5px; border-color: #fbcfe8;" />
                   <span style="font-size: 0.72rem; font-weight: 600; color: #be123c;">%</span>
                 </div>
                 <div class="d-flex align-items-center gap-1">
                   <span style="font-size: 0.72rem; color: #475569;">SL Flash Sale:</span>
-                  <input v-model="defaultPresetStock" type="number" min="1" class="form-control form-control-sm text-center" style="width: 55px; height: 26px; font-size: 0.75rem; border-radius: 5px; border-color: #fbcfe8;" />
+                  <input v-model="defaultPresetStock" @input="onDefaultPresetStockChange" type="text" inputmode="numeric" class="form-control form-control-sm text-center" style="width: 55px; height: 26px; font-size: 0.75rem; border-radius: 5px; border-color: #fbcfe8;" />
                   <span style="font-size: 0.72rem; font-weight: 600; color: #be123c;">cái</span>
                 </div>
               </div>
@@ -713,7 +743,7 @@ onMounted(async () => {
             <div class="row g-2 mb-2">
               <div class="col-md-7">
                 <div class="input-group input-group-sm">
-                  <span class="input-group-text bg-white border-end-0" style="border-color: #e2e8f0; color: #94a3b8;"><AppIcon name="search" size="14" /></span>
+                  <span class="input-group-text bg-white border-end-0" style="border-color: #e2e8f0; font-size: 0.75rem;"><AppIcon name="search" size="14" /></span>
                   <input v-model="pickerSearch" @input="onPickerSearchInput" type="text" class="form-control border-start-0" placeholder="Tìm theo tên sản phẩm, mã SKU, ID..." style="border-color: #e2e8f0; font-size: 0.78rem; height: 32px;" />
                 </div>
               </div>
@@ -963,4 +993,14 @@ onMounted(async () => {
 ::-webkit-scrollbar-track { background: #f1f5f9; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.search-field-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+  z-index: 2;
+}
+
 </style>
