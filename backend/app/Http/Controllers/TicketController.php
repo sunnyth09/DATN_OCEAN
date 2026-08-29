@@ -100,11 +100,11 @@ class TicketController extends Controller
                         $message .= ' Admin: '.substr($ticket->admin_reply, 0, 60).'...';
                     }
 
-                    // Gửi email thông báo
+                    // Gửi email thông báo (bỏ vào Queue để không block request)
                     try {
-                        Mail::to($user->email)->send(new TicketReplyMail($ticket));
+                        Mail::to($user->email)->queue(new TicketReplyMail($ticket));
                     } catch (\Exception $mailEx) {
-                        Log::warning('TicketReplyMail failed: ' . $mailEx->getMessage());
+                        Log::warning('TicketReplyMail failed to queue: ' . $mailEx->getMessage());
                     }
 
                     // Gửi thông báo in-app

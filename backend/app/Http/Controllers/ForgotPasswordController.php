@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\PasswordResetOtpMail;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\Mailer\Mailer;
-use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
-use Symfony\Component\Mime\Email;
+use Illuminate\Support\Facades\Mail;
 
 class ForgotPasswordController extends Controller
 {
@@ -220,99 +219,18 @@ class ForgotPasswordController extends Controller
     }
 
     /**
-     * Gửi email OTP qua SMTP (sử dụng PHPMailer-style với mail())
+     * Gửi email OTP qua Queue (không block request của người dùng)
      */
     private function sendOtpEmail(string $email, string $otp, string $name): bool
     {
         try {
-            $emailUser = config('mail.mailers.smtp.username', config('services.email.user'));
-            $emailPass = config('mail.mailers.smtp.password', config('services.email.pass'));
+            Mail::to($email)->queue(new PasswordResetOtpMail($otp, $email));
 
-            // Sử dụng Symfony Mailer qua SMTP (port 587 = STARTTLS)
-            $transport = new EsmtpTransport(
-                'smtp.gmail.com',
-                587,
-                false // false = STARTTLS (auto-upgrade), true = SSL trực tiếp (port 465)
-            );
-            $transport->setUsername($emailUser);
-            $transport->setPassword($emailPass);
-
-            $mailer = new Mailer($transport);
-
-            $otpDigits = str_split($otp);
-            $otpBoxes = '';
-            foreach ($otpDigits as $digit) {
-                $otpBoxes .= '<td style="padding: 0 4px;"><div style="width: 48px; height: 56px; background: #FFF0F3; border: 2px solid #E63B6F; border-radius: 10px; font-size: 26px; font-weight: 800; color: #b50c4d; line-height: 56px; text-align: center; font-family: \'Courier New\', monospace;">'.$digit.'</div></td>';
-            }
-
-            $htmlBody = '
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Mã OTP đặt lại mật khẩu</title>
-            </head>
-            <body style="margin: 0; padding: 30px 15px; background: #f8f9fa; font-family: \'Plus Jakarta Sans\', -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Arial, sans-serif;">
-                <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr><td align="center">
-                        <table width="480" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(230, 59, 111, 0.08); border: 1px solid #f1f3f5;">
-                            <!-- Header -->
-                            <tr><td style="background: linear-gradient(135deg, #E63B6F 0%, #b50c4d 100%); padding: 32px 24px; text-align: center;">
-                                <div style="font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; color: #ffd9de;">OCEAN SPORT</div>
-                                <h1 style="color: #ffffff; font-size: 22px; margin: 0; font-weight: 800; letter-spacing: 0.5px;">Mã OTP Đặt Lại Mật Khẩu</h1>
-                                <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Bảo mật thông tin tài khoản của bạn</p>
-                            </td></tr>
-
-                            <!-- Body -->
-                            <tr><td style="padding: 32px 28px 24px;">
-                                <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">'.htmlspecialchars($name).'</strong>,</p>
-                                <p style="color: #64748b; font-size: 14px; margin: 0 0 24px; line-height: 1.6;">Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Vui lòng nhập mã xác thực OTP 6 số bên dưới để tiếp tục:</p>
-
-                                <!-- OTP Boxes -->
-                                <table cellpadding="0" cellspacing="0" style="margin: 0 auto 24px;">
-                                    <tr>'.$otpBoxes.'</tr>
-                                </table>
-
-                                <!-- Timer Warning -->
-                                <div style="background: #FFF0F3; border: 1px solid #ffd9de; border-radius: 10px; padding: 14px 16px; margin-bottom: 24px;">
-                                    <p style="color: #b50c4d; font-size: 13px; margin: 0; text-align: center; line-height: 1.5; font-weight: 600;">
-                                        ⏰ Mã có hiệu lực trong <strong>15 phút</strong>. Tuyệt đối không chia sẻ mã này với bất kỳ ai!
-                                    </p>
-                                </div>
-
-                                <!-- Security Note -->
-                                <p style="color: #94a3b8; font-size: 12px; margin: 0; line-height: 1.5; text-align: center;">
-                                    Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.<br>
-                                    Tài khoản của bạn vẫn được an toàn.
-                                </p>
-                            </td></tr>
-
-                            <!-- Footer -->
-                            <tr><td style="background: #f8fafc; padding: 20px 24px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                <div style="font-weight: 700; color: #64748b; font-size: 12px; margin-bottom: 4px;">OCEAN SPORT — CỬA HÀNG THỂ THAO CAO CẤP</div>
-                                <div style="font-size: 11px; color: #94a3b8; line-height: 1.5;">
-                                    Hotline: <strong style="color: #E63B6F;">1900 6868</strong> | Email: <strong style="color: #E63B6F;">contact@oceansport.vn</strong><br>
-                                    © '.date('Y').' Ocean Sport. All rights reserved.
-                                </div>
-                            </td></tr>
-                        </table>
-                    </td></tr>
-                </table>
-            </body>
-            </html>';
-
-            $emailMessage = (new Email)
-                ->from($emailUser)
-                ->to($email)
-                ->subject('[Ocean Sport] Mã OTP đặt lại mật khẩu của bạn')
-                ->html($htmlBody);
-
-            $mailer->send($emailMessage);
+            Log::info("Password reset OTP email queued for: {$email}");
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Failed to send OTP email: '.$e->getMessage());
+            Log::error('Failed to queue OTP email: '.$e->getMessage());
 
             return false;
         }

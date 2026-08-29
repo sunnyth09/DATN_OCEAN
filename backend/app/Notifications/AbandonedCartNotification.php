@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -17,7 +18,7 @@ use Illuminate\Notifications\Notification;
  * - Gửi email nhẹ nhàng nhắc nhở kèm thông tin điểm thưởng
  * - Lưu notification vào inbox
  */
-class AbandonedCartNotification extends Notification
+class AbandonedCartNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

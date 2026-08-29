@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\UserNotificationEvent;
 use App\Helpers\ProfanityFilter;
+use App\Mail\ContactReplyMail;
 use App\Models\Contact;
 use App\Models\User;
 use Carbon\Carbon;
@@ -11,12 +12,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Symfony\Component\Mailer\Mailer;
-use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
-use Symfony\Component\Mime\Email;
 
 class ContactController extends Controller
 {
@@ -225,83 +224,11 @@ class ContactController extends Controller
             ], 422);
         }
 
-        // Gửi email phản hồi
+        // Gửi email phản hồi qua Queue (không block request)
         try {
-            $emailUser = config('mail.mailers.smtp.username');
-            $emailPass = config('mail.mailers.smtp.password');
-
-            if (! $emailUser || ! $emailPass) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Chưa cấu hình email. Vui lòng kiểm tra .env.',
-                ], 500);
-            }
-
-            $replyContent = $request->reply;
-            $subject = "[Ocean Sport] Phản hồi hỗ trợ: {$contact->subject}";
-
-            $htmlBody = '
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Phản hồi hỗ trợ từ Ocean Sport</title>
-            </head>
-            <body style="margin: 0; padding: 30px 15px; background: #f8f9fa; font-family: \'Plus Jakarta Sans\', -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Arial, sans-serif;">
-                <table width="100%" cellpadding="0" cellspacing="0">
-                    <tr><td align="center">
-                        <table width="560" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(230, 59, 111, 0.08); border: 1px solid #f1f3f5;">
-                            <!-- Header -->
-                            <tr><td style="background: linear-gradient(135deg, #E63B6F 0%, #b50c4d 100%); padding: 32px 24px; text-align: center;">
-                                <div style="font-size: 13px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; color: #ffd9de;">OCEAN SPORT</div>
-                                <h1 style="color: #ffffff; font-size: 22px; margin: 0; font-weight: 800;">Phản Hồi Yêu Cầu Hỗ Trợ</h1>
-                                <p style="color: #ffd9de; font-size: 13px; margin: 6px 0 0;">Bộ phận Chăm sóc Khách hàng Ocean Sport</p>
-                            </td></tr>
-
-                            <!-- Body -->
-                            <tr><td style="padding: 32px 28px 24px;">
-                                <p style="color: #1e293b; font-size: 15px; margin: 0 0 8px; line-height: 1.5;">Xin chào <strong style="color: #0f172a;">'.htmlspecialchars($contact->name).'</strong>,</p>
-                                <p style="color: #64748b; font-size: 14px; margin: 0 0 20px; line-height: 1.6;">Cảm ơn bạn đã liên hệ với chúng tôi về chủ đề: <em>"'.htmlspecialchars($contact->subject).'"</em>. Dưới đây là phản hồi từ đội ngũ hỗ trợ:</p>
-
-                                <div style="background: #FFF0F3; border-left: 4px solid #E63B6F; padding: 18px 20px; border-radius: 10px; margin: 0 0 24px;">
-                                    <p style="color: #1e293b; margin: 0; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">'.htmlspecialchars($replyContent).'</p>
-                                </div>
-
-                                <p style="color: #64748b; font-size: 13px; margin: 0; line-height: 1.5;">
-                                    Nếu bạn cần thêm bất kỳ thông tin nào, hãy phản hồi trực tiếp email này hoặc liên hệ hotline <strong style="color: #E63B6F;">1900 6868</strong> để được hỗ trợ tức thì.
-                                </p>
-                            </td></tr>
-
-                            <!-- Footer -->
-                            <tr><td style="background: #f8fafc; padding: 20px 24px; border-top: 1px solid #f1f5f9; text-align: center;">
-                                <div style="font-weight: 700; color: #64748b; font-size: 12px; margin-bottom: 4px;">OCEAN SPORT — CỬA HÀNG THỂ THAO CAO CẤP</div>
-                                <div style="font-size: 11px; color: #94a3b8; line-height: 1.5;">
-                                    Hotline: <strong style="color: #E63B6F;">1900 6868</strong> | Email: <strong style="color: #E63B6F;">contact@oceansport.vn</strong><br>
-                                    © '.date('Y').' Ocean Sport. All rights reserved.
-                                </div>
-                            </td></tr>
-                        </table>
-                    </td></tr>
-                </table>
-            </body>
-            </html>';
-
-            $transport = new EsmtpTransport(
-                'smtp.gmail.com', 587, false
+            Mail::to($contact->email)->queue(
+                new ContactReplyMail($contact->name, $contact->subject, $request->reply)
             );
-            $transport->setUsername($emailUser);
-            $transport->setPassword($emailPass);
-
-            $mailer = new Mailer($transport);
-
-            $email = (new Email)
-                ->from($emailUser)
-                ->to($contact->email)
-                ->subject($subject)
-                ->html($htmlBody);
-
-            $mailer->send($email);
 
             // --- Ghi notification cho khách hàng (nếu khách là User hệ thống) ---
             try {
@@ -315,7 +242,7 @@ class ContactController extends Controller
 
                     DB::table('notifications')->insert([
                         'id' => Str::uuid(),
-                        'type' => 'App\Notifications\ContactReplyNotification',
+                        'type' => 'App\\Notifications\\ContactReplyNotification',
                         'notifiable_type' => User::class,
                         'notifiable_id' => $user->user_id,
                         'data' => json_encode($notificationData),
@@ -332,11 +259,11 @@ class ContactController extends Controller
             }
 
         } catch (\Exception $e) {
-            Log::error('Contact reply email error: '.$e->getMessage());
+            Log::error('Contact reply mail queue error: '.$e->getMessage());
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Gửi email thất bại, vui lòng thử lại sau.',
+                'message' => 'Không thể gửi email phản hồi, vui lòng thử lại sau.',
             ], 500);
         }
 
