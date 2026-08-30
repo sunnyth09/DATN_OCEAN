@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\OrderException;
 use App\Models\Coupon;
 use App\Models\Order;
+use App\Models\User;
 use App\Models\UserCoupon;
 use App\Repositories\CouponRepository;
 use Illuminate\Support\Facades\Cache;
@@ -200,7 +201,19 @@ class CouponService
      */
     public function getSavedForUser(int $userId)
     {
-        $hasOrders = Order::where('user_id', $userId)
+        $user = User::find($userId);
+        $userEmail = $user?->email;
+        $userPhone = $user?->phone;
+
+        $hasOrders = Order::where(function ($q) use ($userId, $userEmail, $userPhone) {
+            $q->where('user_id', $userId);
+            if (! empty($userEmail)) {
+                $q->orWhere('email', $userEmail);
+            }
+            if (! empty($userPhone)) {
+                $q->orWhere('recipient_phone', $userPhone);
+            }
+        })
             ->where('fulfillment_status', '!=', 'cancelled')
             ->exists();
 
@@ -256,18 +269,18 @@ class CouponService
         return true;
     }
 
-    public function checkCoupon(int $userId, string $couponCode, float $subtotal): array
+    public function checkCoupon(int $userId, string $couponCode, float $subtotal, $cartItems = null): array
     {
         $coupon = $this->couponRepository->findActiveByCode($couponCode);
 
         if (! $coupon) {
             return [
                 'success' => false,
-                'message' => 'Mã giảm giá không tồn tại hoặc đã hết hạn!',
+                'message' => 'Mã giảm giá không tồn tại hoặc đã hết hạn sử dụng. Bạn vui lòng kiểm tra lại nhé!',
             ];
         }
 
-        $validateResult = $this->validateCoupon($userId, $coupon, $subtotal);
+        $validateResult = $this->validateCoupon($userId, $coupon, $subtotal, $cartItems);
 
         if (! $validateResult['success']) {
             return $validateResult;
@@ -275,11 +288,11 @@ class CouponService
 
         return [
             'success' => true,
-            'coupon' => $coupon,
+            'coupon' => $coupon->loadMissing('categories:category_id,name'),
         ];
     }
 
-    public function applyCoupon(int $userId, ?string $couponCode, float $subtotal): array
+    public function applyCoupon(int $userId, ?string $couponCode, float $subtotal, $cartItems = null): array
     {
         if (! $couponCode) {
             return [
@@ -292,20 +305,16 @@ class CouponService
         $coupon = $this->couponRepository->findActiveByCode($couponCode);
 
         if (! $coupon) {
-            return [
-                'success' => true,
-                'coupon' => null,
-                'discount_amount' => 0,
-            ];
+            return $this->invalid('Mã giảm giá không tồn tại hoặc đã hết hạn sử dụng. Bạn vui lòng kiểm tra lại nhé!');
         }
 
-        $validateResult = $this->validateCoupon($userId, $coupon, $subtotal);
+        $validateResult = $this->validateCoupon($userId, $coupon, $subtotal, $cartItems);
 
         if (! $validateResult['success']) {
             return $validateResult;
         }
 
-        $discountAmount = $this->calculateDiscount($coupon, $subtotal);
+        $discountAmount = $this->calculateDiscount($coupon, $subtotal, $cartItems);
 
         return [
             'success' => true,
@@ -314,24 +323,28 @@ class CouponService
         ];
     }
 
-    private function validateCoupon(int $userId, $coupon, float $subtotal): array
+    private function validateCoupon(int $userId, $coupon, float $subtotal, $cartItems = null): array
     {
         $now = now();
 
+        if (! $coupon->is_active) {
+            return $this->invalid('Mã giảm giá hiện đang tạm ngưng áp dụng.');
+        }
+
         if ($coupon->start_date && $now->lt($coupon->start_date)) {
-            return $this->invalid('Mã giảm giá chưa đến thời gian áp dụng!');
+            return $this->invalid('Mã giảm giá chưa đến thời gian áp dụng.');
         }
 
         if ($coupon->end_date && $now->gt($coupon->end_date)) {
-            return $this->invalid('Mã giảm giá đã hết hạn!');
+            return $this->invalid('Mã giảm giá đã hết hạn sử dụng mất rồi.');
         }
 
         if ($coupon->min_order_value && $subtotal < $coupon->min_order_value) {
-            return $this->invalid('Đơn hàng không đạt giá trị tối thiểu để áp dụng mã này!');
+            return $this->invalid('Đơn hàng chưa đạt giá trị tối thiểu để áp dụng mã giảm giá này.');
         }
 
         if ($coupon->usage_limit !== null && $coupon->used_count >= $coupon->usage_limit) {
-            return $this->invalid('Mã giảm giá đã hết lượt sử dụng!');
+            return $this->invalid('Mã giảm giá đã hết lượt sử dụng mất rồi.');
         }
 
         if ($coupon->user_usage_limit !== null && $userId > 0) {
@@ -341,32 +354,92 @@ class CouponService
             );
 
             if ($userUsedCount >= $coupon->user_usage_limit) {
-                return $this->invalid('Bạn đã hết lượt sử dụng mã này!');
+                return $this->invalid('Bạn đã sử dụng hết số lượt cho phép của mã giảm giá này.');
             }
         }
 
         // Kiểm tra mã chỉ dành cho đơn hàng đầu tiên
         if ($coupon->is_first_order) {
             if ($userId <= 0) {
-                return $this->invalid('Vui lòng đăng nhập để sử dụng mã giảm giá cho đơn hàng đầu tiên!');
+                return $this->invalid('Vui lòng đăng nhập để sử dụng mã ưu đãi cho đơn hàng đầu tiên.');
             }
 
-            $existingOrderCount = Order::where('user_id', $userId)
+            $user = User::find($userId);
+            $userEmail = $user?->email;
+            $userPhone = $user?->phone;
+
+            $existingOrderCount = Order::where(function ($q) use ($userId, $userEmail, $userPhone) {
+                $q->where('user_id', $userId);
+                if (! empty($userEmail)) {
+                    $q->orWhere('email', $userEmail);
+                }
+                if (! empty($userPhone)) {
+                    $q->orWhere('recipient_phone', $userPhone);
+                }
+            })
                 ->where('fulfillment_status', '!=', 'cancelled')
                 ->count();
 
             if ($existingOrderCount > 0) {
-                return $this->invalid('Mã giảm giá này chỉ áp dụng cho đơn hàng đầu tiên!');
+                return $this->invalid('Mã ưu đãi này chỉ dành riêng cho khách hàng đặt đơn đầu tiên.');
+            }
+        }
+
+        // Kiểm tra ràng buộc danh mục áp dụng (nếu coupon chỉ áp dụng cho một số danh mục nhất định)
+        $coupon->loadMissing('categories:category_id,name');
+        $allowedCategoryIds = $coupon->categories ? $coupon->categories->pluck('category_id')->filter()->all() : [];
+
+        if (! empty($allowedCategoryIds) && ! empty($cartItems)) {
+            $eligibleSubtotal = 0;
+            $hasMatchingItem = false;
+
+            foreach ($cartItems as $item) {
+                $product = $item->variant?->product ?? $item->product ?? null;
+                $catId = $product?->category_id ?? null;
+                if ($catId && in_array($catId, $allowedCategoryIds)) {
+                    $hasMatchingItem = true;
+                    $itemPrice = (float) ($item->variant?->price ?? $item->price ?? 0);
+                    $itemQty = (int) ($item->quantity ?? 1);
+                    $eligibleSubtotal += $itemPrice * $itemQty;
+                }
+            }
+
+            if (! $hasMatchingItem) {
+                return $this->invalid('Mã giảm giá này chỉ áp dụng cho một số danh mục sản phẩm nhất định trong hệ thống.');
+            }
+
+            if ($coupon->min_order_value && $eligibleSubtotal < $coupon->min_order_value) {
+                return $this->invalid('Tổng giá trị các sản phẩm thuộc danh mục áp dụng chưa đạt mức tối thiểu để dùng mã này.');
             }
         }
 
         return ['success' => true];
     }
 
-    private function calculateDiscount($coupon, float $subtotal): float
+    private function calculateDiscount($coupon, float $subtotal, $cartItems = null): float
     {
+        $calcBase = $subtotal;
+        $coupon->loadMissing('categories:category_id,name');
+        $allowedCategoryIds = $coupon->categories ? $coupon->categories->pluck('category_id')->filter()->all() : [];
+
+        if (! empty($allowedCategoryIds) && ! empty($cartItems)) {
+            $eligibleSubtotal = 0;
+            foreach ($cartItems as $item) {
+                $product = $item->variant?->product ?? $item->product ?? null;
+                $catId = $product?->category_id ?? null;
+                if ($catId && in_array($catId, $allowedCategoryIds)) {
+                    $itemPrice = (float) ($item->variant?->price ?? $item->price ?? 0);
+                    $itemQty = (int) ($item->quantity ?? 1);
+                    $eligibleSubtotal += $itemPrice * $itemQty;
+                }
+            }
+            if ($eligibleSubtotal > 0) {
+                $calcBase = $eligibleSubtotal;
+            }
+        }
+
         if ($coupon->type === 'percent') {
-            $discount = ($subtotal * $coupon->value) / 100;
+            $discount = ($calcBase * $coupon->value) / 100;
 
             if ($coupon->max_discount_value) {
                 $discount = min($discount, $coupon->max_discount_value);
@@ -376,7 +449,7 @@ class CouponService
         }
 
         if ($coupon->type === 'fixed') {
-            return min($coupon->value, $subtotal);
+            return min($coupon->value, $calcBase);
         }
 
         return 0;

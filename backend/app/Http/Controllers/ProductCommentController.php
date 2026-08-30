@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Events\TicketCreatedAdmin;
-use App\Events\UserNotificationEvent;
 use App\Helpers\ProfanityFilter;
 use App\Models\Admin;
 use App\Models\OrderItem;
@@ -12,14 +11,12 @@ use App\Models\ProductComment;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Services\LoyaltyService;
-use Carbon\Carbon;
 use Exception;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 
 class ProductCommentController extends Controller
 {

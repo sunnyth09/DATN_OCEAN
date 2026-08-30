@@ -78,6 +78,10 @@ class CouponRepository
             return true;
         }
 
+        if ($perUserLimit !== null && $perUserLimit <= 0) {
+            return false;
+        }
+
         // Tăng nếu bản ghi đã tồn tại và còn lượt (hoặc không giới hạn)
         $query = UserCoupon::where('user_id', $userId)->where('coupon_id', $couponId);
         if ($perUserLimit !== null) {

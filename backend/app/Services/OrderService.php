@@ -6,7 +6,6 @@ use App\Enums\OrderStatus;
 use App\Events\OrderCreatedAdmin;
 use App\Exceptions\OrderException;
 use App\Models\Address;
-use App\Models\FlashSale;
 use App\Models\FlashSaleItem;
 use App\Models\Order;
 use App\Models\Product;
@@ -22,6 +21,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 
 class OrderService
@@ -128,7 +128,8 @@ class OrderService
             $couponResult = $this->couponService->applyCoupon(
                 $userId,
                 $data['coupon_applied'] ?? null,
-                $subtotal
+                $subtotal,
+                $cartItems
             );
 
             if (! $couponResult['success']) {
@@ -917,9 +918,6 @@ class OrderService
      *  - Nếu Flash Sale đã hết quota (remaining <= 0)
      *    → trả về giá gốc variant->price (không cho mua giá Flash Sale)
      *  - Nếu không có Flash Sale → trả về effective_price bình thường
-     *
-     * @param  \App\Models\ProductVariant  $variant
-     * @return float
      */
     private function resolveEffectivePrice(ProductVariant $variant): float
     {
@@ -969,11 +967,11 @@ class OrderService
 
                 // Đồng bộ Redis stock key nếu đang tồn tại
                 $stockKey = "flash_sale_{$flashSale->id}_product_{$productId}_stock";
-                if (\Illuminate\Support\Facades\Redis::exists($stockKey)) {
-                    $remaining = \Illuminate\Support\Facades\Redis::decrby($stockKey, $actualIncrement);
+                if (Redis::exists($stockKey)) {
+                    $remaining = Redis::decrby($stockKey, $actualIncrement);
                     // Đảm bảo Redis không âm (phòng trường hợp race condition)
                     if ($remaining < 0) {
-                        \Illuminate\Support\Facades\Redis::set($stockKey, 0);
+                        Redis::set($stockKey, 0);
                     }
                 }
 

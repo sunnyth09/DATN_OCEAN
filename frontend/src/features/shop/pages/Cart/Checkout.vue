@@ -16,6 +16,7 @@ import { loyaltyService } from '@/services/loyaltyService';
 import { useAuthStore } from '@/stores/auth';
 import { sanitizeAddressPayload, validateAddressPayload } from '@/utils/addressValidation';
 import AppIcon from '@/components/AppIcon.vue';
+import { getStorageUrl } from '@/utils/url';
 
 // Debounce helper — tránh gửi quá nhiều request liên tiếp gây rate-limit 429
 const debounce = (fn, delay) => {
@@ -96,11 +97,16 @@ const onBankingPaySuccess = () => {
 
 // --- Coupon ---
 const couponCode = ref('');
+const couponErrorMsg = ref('');
 const appliedCoupon = ref(null);
 const checkingCoupon = ref(false);
 const showCouponModal = ref(false);
 const availableCoupons = ref([]);
 const loadingCoupons = ref(false);
+
+watch(couponCode, () => {
+    couponErrorMsg.value = '';
+});
 
 // --- Wallet ---
 const useWallet = ref(false);
@@ -543,23 +549,36 @@ const applyCoupon = async () => {
     if (!couponCode.value.trim()) return;
 
     const code = couponCode.value.trim().toUpperCase();
+    couponCode.value = code;
     checkingCoupon.value = true;
+    couponErrorMsg.value = '';
     try {
-        const response = await api.post('/profile/coupons/check', {
+        const itemsPayload = cartItems.value.map(item => ({
+            product_id: item.product?.product_id,
+            category_id: item.product?.category_id,
+            price: item.variant?.price || 0,
+            quantity: item.quantity || 1
+        }));
+        const response = await api.post('/coupons/check', {
             code: code,
-            subtotal: subtotal.value
+            subtotal: subtotal.value,
+            items: itemsPayload
         });
         if (response.data?.status === 'success') {
             const couponData = response.data.data;
+            couponErrorMsg.value = '';
             selectCoupon(couponData);
         } else {
-            showToast(response.data?.message || 'Mã giảm giá không hợp lệ', 'error');
+            const msg = response.data?.message || 'Mã giảm giá không hợp lệ. Bạn vui lòng kiểm tra lại nhé!';
+            couponErrorMsg.value = msg;
+            showToast(msg, 'warning', { title: 'Mã giảm giá' });
             appliedCoupon.value = null;
         }
     } catch (error) {
         console.error('Lỗi kiểm tra mã giảm giá:', error);
-        const msg = error.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn';
-        showToast(msg, 'error');
+        const msg = error.response?.data?.message || 'Mã giảm giá không tồn tại hoặc đã hết hạn sử dụng. Bạn vui lòng kiểm tra lại nhé!';
+        couponErrorMsg.value = msg;
+        showToast(msg, 'warning', { title: 'Mã giảm giá' });
         appliedCoupon.value = null;
     } finally {
         checkingCoupon.value = false;
@@ -571,6 +590,7 @@ const openCouponModal = () => {
         promptLoginForCoupon();
         return;
     }
+    couponErrorMsg.value = '';
     showCouponModal.value = true;
 };
 
@@ -580,11 +600,13 @@ const selectCoupon = (coupon) => {
         return;
     }
     if (coupon.min_order_value && subtotal.value < parseFloat(coupon.min_order_value)) {
-        showToast(`Đơn hàng tối thiểu ${formatVND(coupon.min_order_value)} để áp dụng mã này!`, 'error');
+        const msg = `Đơn hàng cần đạt tối thiểu ${formatVND(coupon.min_order_value)} để áp dụng mã này.`;
+        couponErrorMsg.value = msg;
+        showToast(msg, 'warning', { title: 'Mã giảm giá' });
         return;
     }
     if (coupon.type === 'free_ship' && subtotal.value >= (upsellState.freeshipThreshold || 500000)) {
-        showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển!', 'warning');
+        showToast('Đơn hàng của bạn đã đủ điều kiện tự động miễn phí vận chuyển!', 'info', { title: 'Ưu đãi vận chuyển' });
         return;
     }
     appliedCoupon.value = {
@@ -595,13 +617,15 @@ const selectCoupon = (coupon) => {
         min_order_value: coupon.min_order_value
     };
     couponCode.value = coupon.code;
+    couponErrorMsg.value = '';
     showCouponModal.value = false;
-    showToast(`Đã áp dụng mã giảm giá ${coupon.code}!`, 'success');
+    showToast(`Áp dụng thành công mã ưu đãi "${coupon.code}"!`, 'success', { title: 'Mã giảm giá' });
 };
 
 const removingCoupon = () => {
     appliedCoupon.value = null;
     couponCode.value = '';
+    couponErrorMsg.value = '';
 };
 
 watch(subtotal, (newSubtotal) => {
@@ -932,15 +956,8 @@ const placeOrder = async () => {
 
 // Các hàm tiện ích
 const getProductImage = (item) => {
-    const getStorageUrl = (path) => {
-        if (!path) return 'https://placehold.co/120x120?text=No+Image';
-        if (path.startsWith('http')) return path;
-        // Xử lý trường hợp path đã có chữ storage/ ở đầu
-        const cleanPath = path.replace(/^\/?storage\//, '');
-        return `${APP_URL}/storage/${cleanPath}`;
-    };
-
-    if (item.variant?.image_url) return getStorageUrl(item.variant.image_url);
+    if (!item) return 'https://placehold.co/120x120?text=No+Image';
+    if (item.variant?.image_url && item.variant.image_url !== '0') return getStorageUrl(item.variant.image_url);
     if (item.product?.main_image) return getStorageUrl(item.product.main_image);
     if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return getStorageUrl(item.product.thumbnail_url);
     return 'https://placehold.co/120x120?text=No+Image';
@@ -1272,14 +1289,18 @@ onMounted(async () => {
                                     <template v-if="authStore.isAuthenticated">
                                         <div class="coupon-input-group" v-if="!appliedCoupon">
                                             <input type="text" v-model="couponCode" placeholder="Nhập mã khuyến mãi"
-                                                class="coupon-input" @keyup.enter="applyCoupon" />
+                                                class="coupon-input" :class="{ 'is-invalid-coupon': !!couponErrorMsg }" @keyup.enter="applyCoupon" />
                                             <button class="btn-apply-coupon" @click="applyCoupon"
                                                 :disabled="checkingCoupon || !couponCode">
                                                 <span v-if="checkingCoupon" class="small-spinner"></span>
                                                 <span v-else>Áp dụng</span>
                                             </button>
                                         </div>
-                                        <div v-else class="coupon-applied-box">
+                                        <div v-if="couponErrorMsg && !appliedCoupon" class="coupon-inline-hint">
+                                            <AppIcon name="alert-circle" size="14" class="hint-icon" />
+                                            <span>{{ couponErrorMsg }}</span>
+                                        </div>
+                                        <div v-else-if="appliedCoupon" class="coupon-applied-box">
                                             <div class="coupon-tag">
                                                 <AppIcon name="voucher" size="20" color="#111" class="me-1" />{{
                                                 appliedCoupon.code }}
@@ -2403,55 +2424,65 @@ textarea.note-input {
 }
 
 .bill-item-variant-btn {
-    margin: 3px 0 0;
+    margin: 4px 0 0;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    height: 22px;
-    min-height: 22px;
-    max-height: 22px;
-    padding: 0 7px;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    text-align: left;
+    gap: 5px;
+    align-self: flex-start;
+    width: fit-content;
     max-width: 100%;
+    height: 24px;
+    padding: 0 9px;
+    background: rgba(230, 59, 111, 0.08);
+    border: 1px solid rgba(230, 59, 111, 0.22);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
     box-sizing: border-box;
     line-height: 1;
     font-family: inherit;
-    font-size: 0.72rem;
-    color: #475569;
 }
 
 .bill-item-variant-btn:hover {
-    background: #fff0f5;
-    border-color: #fbcfe8;
-}
-
-.bill-item-variant-btn:hover .bill-item-variant-text {
-    color: #E63B6F;
+    background: rgba(230, 59, 111, 0.15);
+    border-color: var(--primary, #E63B6F);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(230, 59, 111, 0.18);
 }
 
 .bill-item-variant-btn .variant-caret {
-    width: 9px;
-    height: 9px;
-    color: #94a3b8;
+    width: 10px;
+    height: 10px;
+    color: var(--primary, #E63B6F);
+    opacity: 0.85;
     flex-shrink: 0;
-    transition: transform 0.15s ease;
+    transition: transform 0.2s ease;
 }
 
 .bill-item-variant-btn:hover .variant-caret {
-    color: #E63B6F;
+    opacity: 1;
     transform: translateY(1px);
 }
 
 .bill-item-variant-text {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     line-height: 1;
-    color: #475569;
-    font-weight: 500;
+    color: var(--primary, #E63B6F);
+    font-weight: 600;
+}
+
+html.dark .bill-item-variant-btn {
+    background: rgba(230, 59, 111, 0.16);
+    border-color: rgba(230, 59, 111, 0.35);
+}
+
+html.dark .bill-item-variant-text {
+    color: #ff85a2;
+}
+
+html.dark .bill-item-variant-btn .variant-caret {
+    color: #ff85a2;
 }
 
 .bill-item-variant {
@@ -2517,6 +2548,45 @@ textarea.note-input {
 
 .coupon-input:focus {
     border-color: var(--primary);
+}
+
+.coupon-input.is-invalid-coupon {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.04);
+}
+
+.coupon-inline-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: rgba(245, 158, 11, 0.08);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #d97706;
+    line-height: 1.35;
+    animation: fadeInHint 0.25s ease;
+}
+
+html.dark .coupon-inline-hint {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.coupon-inline-hint .hint-icon {
+    flex-shrink: 0;
+}
+
+@keyframes fadeInHint {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .btn-apply-coupon {
