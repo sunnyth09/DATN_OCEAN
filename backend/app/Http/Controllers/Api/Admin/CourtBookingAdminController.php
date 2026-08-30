@@ -25,7 +25,10 @@ class CourtBookingAdminController extends Controller
     }
 
     /**
-     * Danh sách booking + filter (date, court_id, status, search)
+     * Lấy danh sách đặt sân dành cho Admin kèm theo bộ lọc (date, court_id, status, search).
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
@@ -36,7 +39,10 @@ class CourtBookingAdminController extends Controller
     }
 
     /**
-     * Tạo booking cho khách vãng lai (POS / walk-in)
+     * Tạo một lượt đặt sân mới cho khách vãng lai (POS / walk-in) bởi Admin.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function store(Request $request)
     {
@@ -67,7 +73,10 @@ class CourtBookingAdminController extends Controller
     }
 
     /**
-     * Chi tiết booking (full relations)
+     * Lấy thông tin chi tiết của một lượt đặt sân (bao gồm các quan hệ: user, court, staff, services, payments,...).
+     *
+     * @param int $id ID lượt đặt sân
+     * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
     {
@@ -84,7 +93,11 @@ class CourtBookingAdminController extends Controller
     }
 
     /**
-     * Xác nhận booking (pending → confirmed)
+     * Chuyển trạng thái đặt sân từ "Chờ duyệt" (pending) sang "Đã xác nhận" (confirmed).
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $id ID lượt đặt sân
+     * @return \Illuminate\Http\JsonResponse
      */
     public function confirm(Request $request, $id)
     {
