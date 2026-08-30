@@ -3,19 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Events\TicketCreatedAdmin;
+use App\Events\UserNotificationEvent;
 use App\Helpers\ProfanityFilter;
 use App\Models\Admin;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductComment;
 use App\Models\Ticket;
+use App\Models\User;
 use App\Services\LoyaltyService;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class ProductCommentController extends Controller
 {
@@ -133,7 +137,7 @@ class ProductCommentController extends Controller
                 'order_item_id' => $request->order_item_id,
                 'rating' => $request->rating,
                 'content' => $filteredContent,
-                'is_approved' => ($request->rating >= 3 && empty($imagePaths)) ? 1 : 0,
+                'is_approved' => 0, // Mặc định chờ Admin duyệt mới hiển thị và cộng điểm
                 'images' => ! empty($imagePaths) ? $imagePaths : null,
             ]);
 
@@ -148,8 +152,8 @@ class ProductCommentController extends Controller
                     'status' => 'pending',
                 ]);
                 event(new TicketCreatedAdmin($autoTicket));
-            } elseif ($comment->is_approved == 0) {
-                // Đánh giá mới chờ duyệt (ví dụ: đánh giá có hình ảnh)
+            } else {
+                // Đánh giá mới chờ duyệt
                 $dummyTicket = new Ticket([
                     'ticket_id' => $comment->comment_id,
                     'reason' => 'Đánh giá sản phẩm mới chờ duyệt',
@@ -158,18 +162,7 @@ class ProductCommentController extends Controller
                 event(new TicketCreatedAdmin($dummyTicket));
             }
 
-            // ── Tích điểm Loyalty ──────────────────────────────────────────
-            $user = auth('api')->user();
-            if ($user) {
-                if (! empty($imagePaths)) {
-                    // +50 điểm bonus khi đính kèm hình ảnh
-                    $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
-                } elseif (! empty(trim($request->content ?? ''))) {
-                    // +20 điểm khi viết nhận xét có nội dung
-                    $this->loyaltyService->earnFromReview($user, $comment->comment_id);
-                }
-            }
-            // ───────────────────────────────────────────────────────────────
+            // Điểm thưởng Loyalty sẽ được cộng khi Admin duyệt đánh giá tại approve()
 
             // Recalculate average rating for the product using approved comments
             $this->recalculateProductRating($request->product_id);
@@ -178,7 +171,7 @@ class ProductCommentController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Đánh giá sản phẩm thành công.',
+                'message' => 'Đánh giá sản phẩm thành công và đang chờ duyệt.',
                 'data' => $comment->load('user:user_id,full_name,avatar_url'),
             ], 201);
         } catch (Exception $e) {
@@ -282,19 +275,63 @@ class ProductCommentController extends Controller
     }
 
     /**
-     * Admin: Approve a comment and recalculate product rating.
+     * Admin: Approve a comment, grant loyalty points to user, and recalculate product rating.
      */
     public function approve($id)
     {
         $this->authorize('moderate', ProductComment::class); // Admin/Staff only
 
-        $comment = ProductComment::findOrFail($id);
+        $comment = ProductComment::with(['user', 'product'])->findOrFail($id);
+        $wasUnapproved = ($comment->is_approved == 0);
+
         $comment->is_approved = 1;
         $comment->save();
 
+        // ── Tích điểm Loyalty khi Admin Duyệt đánh giá ────────────────
+        if ($wasUnapproved && $comment->user && $comment->commenter_type === 'user') {
+            $hasImages = ! empty($comment->images);
+            if ($hasImages) {
+                // Tích điểm khi đánh giá có hình ảnh (+50 điểm hoặc theo cấu hình)
+                $this->loyaltyService->earnFromReviewWithImage($comment->user, $comment->comment_id);
+            } elseif (! empty(trim($comment->content ?? ''))) {
+                // Tích điểm khi đánh giá có nội dung (+20 điểm hoặc theo cấu hình)
+                $this->loyaltyService->earnFromReview($comment->user, $comment->comment_id);
+            }
+
+            // Gửi thông báo in-app & broadcast realtime cho user
+            try {
+                $productName = $comment->product->name ?? 'sản phẩm';
+                $notificationData = [
+                    'title' => 'Đánh giá đã được phê duyệt',
+                    'message' => 'Đánh giá của bạn cho sản phẩm "'.$productName.'" đã được duyệt thành công. Bạn đã nhận được điểm thưởng!',
+                    'type' => 'review_approved',
+                    'reference_id' => $comment->comment_id,
+                ];
+
+                DB::table('notifications')->insert([
+                    'id' => Str::uuid(),
+                    'type' => 'App\Notifications\ReviewApprovedNotification',
+                    'notifiable_type' => User::class,
+                    'notifiable_id' => $comment->user->user_id,
+                    'data' => json_encode($notificationData),
+                    'read_at' => null,
+                    'created_at' => Carbon::now(),
+                    'updated_at' => Carbon::now(),
+                ]);
+
+                event(new UserNotificationEvent($comment->user->user_id, $notificationData));
+            } catch (\Exception $notifEx) {
+                Log::warning('Review approved notification failed: '.$notifEx->getMessage());
+            }
+        }
+        // ───────────────────────────────────────────────────────────────
+
         $this->recalculateProductRating($comment->product_id);
 
-        return response()->json(['status' => 'success', 'message' => 'Đã duyệt đánh giá.']);
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Đã duyệt đánh giá và cộng điểm thưởng cho khách hàng.',
+        ]);
     }
 
     /**
@@ -451,7 +488,7 @@ class ProductCommentController extends Controller
                     'order_item_id' => $data['order_item_id'],
                     'rating' => $data['rating'],
                     'content' => $filteredContent,
-                    'is_approved' => ($data['rating'] >= 3 && empty($imagePaths)) ? 1 : 0,
+                    'is_approved' => 0, // Mặc định chờ Admin duyệt mới hiển thị và cộng điểm
                     'images' => ! empty($imagePaths) ? $imagePaths : null,
                 ]);
 
@@ -467,15 +504,7 @@ class ProductCommentController extends Controller
                     ]);
                 }
 
-                // Loyalty points
-                $user = auth('api')->user();
-                if ($user) {
-                    if (! empty($imagePaths)) {
-                        $this->loyaltyService->earnFromReviewWithImage($user, $comment->comment_id);
-                    } elseif (! empty(trim($data['content'] ?? ''))) {
-                        $this->loyaltyService->earnFromReview($user, $comment->comment_id);
-                    }
-                }
+                // Điểm thưởng Loyalty sẽ được cộng khi Admin duyệt đánh giá tại approve()
 
                 // Recalculate rating
                 $this->recalculateProductRating($data['product_id']);
