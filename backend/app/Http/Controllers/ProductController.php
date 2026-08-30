@@ -13,7 +13,12 @@ class ProductController extends Controller
     ) {}
 
     /**
-     * Admin: danh sách sản phẩm (phân trang, tìm kiếm, lọc status)
+     * Lấy danh sách sản phẩm dành cho Admin.
+     * Hỗ trợ phân trang, tìm kiếm, và lọc theo trạng thái (status).
+     * Cũng thực hiện lưu lại lịch sử tìm kiếm nếu có.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
@@ -56,7 +61,10 @@ class ProductController extends Controller
     }
 
     /**
-     * Sản phẩm nổi bật (client — có limit)
+     * Lấy danh sách sản phẩm nổi bật (dành cho client, có giới hạn số lượng).
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function productFeatured(Request $request)
     {
@@ -66,7 +74,11 @@ class ProductController extends Controller
     }
 
     /**
-     * Chi tiết sản phẩm theo slug (client)
+     * Lấy thông tin chi tiết của một sản phẩm dựa vào slug hoặc ID.
+     * Dành cho phía Client (người mua hàng).
+     *
+     * @param string|int $identifier Slug hoặc ID của sản phẩm
+     * @return \Illuminate\Http\JsonResponse
      */
     public function show($identifier)
     {
@@ -78,7 +90,11 @@ class ProductController extends Controller
     }
 
     /**
-     * Sản phẩm liên quan theo slug
+     * Lấy danh sách các sản phẩm có liên quan dựa vào slug của sản phẩm hiện tại.
+     * Gợi ý dựa trên cùng danh mục (category) hoặc thương hiệu.
+     *
+     * @param string $slug Slug của sản phẩm
+     * @return \Illuminate\Http\JsonResponse
      */
     public function related($slug)
     {
@@ -90,7 +106,9 @@ class ProductController extends Controller
     }
 
     /**
-     * Danh sách sản phẩm nổi bật (all)
+     * Lấy danh sách tất cả sản phẩm nổi bật mà không bị giới hạn số lượng nhỏ.
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function featured()
     {
@@ -100,7 +118,10 @@ class ProductController extends Controller
     }
 
     /**
-     * Sản phẩm bán chạy nhất (home page)
+     * Lấy danh sách sản phẩm bán chạy nhất để hiển thị trên trang chủ.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function bestSelling(Request $request)
     {
@@ -113,7 +134,10 @@ class ProductController extends Controller
     }
 
     /**
-     * Sản phẩm đang sale (home page)
+     * Lấy danh sách các sản phẩm đang được giảm giá (Sale) để hiển thị trên trang chủ.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function onSale(Request $request)
     {
@@ -126,7 +150,10 @@ class ProductController extends Controller
     }
 
     /**
-     * GET /products/{id}/variants — Lấy danh sách biến thể
+     * Lấy danh sách các phiên bản (variants) của một sản phẩm cụ thể.
+     *
+     * @param int $id ID của sản phẩm
+     * @return \Illuminate\Http\JsonResponse
      */
     public function getVariants($id)
     {
@@ -138,7 +165,11 @@ class ProductController extends Controller
     }
 
     /**
-     * Danh sách tất cả sản phẩm (public, phân trang)
+     * Lấy toàn bộ danh sách sản phẩm (public).
+     * Dành cho trang cửa hàng (Shop/Catalog) với phân trang và bộ lọc.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function all(Request $request)
     {
