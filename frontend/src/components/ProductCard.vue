@@ -421,7 +421,7 @@ const handleAddToCart = async (event) => {
                     {{ product.name }}
                 </h3>
 
-                <div class="footer-row">
+                <div class="price-row">
                     <div class="price-block">
                         <span v-if="originalPrice" class="original-price">
                             {{ originalPrice }}
@@ -429,16 +429,6 @@ const handleAddToCart = async (event) => {
                         <span class="current-price">
                             {{ currentPrice }}
                         </span>
-                        <!-- Hiển thị số lượng / đã bán (giữ layout đồng nhất) -->
-                        <div v-if="(totalStock !== null && totalStock > 0) || normalSoldCount !== null" class="product-meta-row">
-                            <span v-if="totalStock !== null && totalStock > 0" class="stock-info" :class="{ 'is-low-stock': isLowStock }">
-                                {{ isLowStock ? 'Chỉ còn ' + totalStock + ' sản phẩm' : 'Còn ' + totalStock + ' sản phẩm' }}
-                            </span>
-                            <span v-else></span>
-                            <span v-if="normalSoldCount !== null" class="sold-info">
-                                Đã bán {{ formatSoldCount(normalSoldCount) }}
-                            </span>
-                        </div>
                     </div>
 
                     <button class="icon-btn cart-btn" @click.stop.prevent="handleAddToCart"
@@ -449,6 +439,17 @@ const handleAddToCart = async (event) => {
                             stroke-width="1.9" />
                         <span v-else class="small-spinner"></span>
                     </button>
+                </div>
+
+                <!-- Hiển thị số lượng / đã bán (nằm ở hàng riêng dưới cùng, không bị dính vào nút giỏ) -->
+                <div v-if="(totalStock !== null && totalStock > 0) || normalSoldCount !== null" class="product-meta-row">
+                    <span v-if="totalStock !== null && totalStock > 0" class="stock-info" :class="{ 'is-low-stock': isLowStock }">
+                        {{ isLowStock ? 'Chỉ còn ' + totalStock + ' sản phẩm' : 'Còn ' + totalStock + ' sản phẩm' }}
+                    </span>
+                    <span v-else></span>
+                    <span v-if="normalSoldCount !== null" class="sold-info">
+                        Đã bán {{ formatSoldCount(normalSoldCount) }}
+                    </span>
                 </div>
 
                 <slot name="bottom-content"></slot>
@@ -669,7 +670,7 @@ const handleAddToCart = async (event) => {
     color: var(--primary, #E63B6F);
 }
 
-.footer-row {
+.price-row {
     margin-top: auto;
     display: flex;
     align-items: flex-end;
