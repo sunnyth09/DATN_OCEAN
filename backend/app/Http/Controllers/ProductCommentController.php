@@ -297,32 +297,6 @@ class ProductCommentController extends Controller
                 // Tích điểm khi đánh giá có nội dung (+20 điểm hoặc theo cấu hình)
                 $this->loyaltyService->earnFromReview($comment->user, $comment->comment_id);
             }
-
-            // Gửi thông báo in-app & broadcast realtime cho user
-            try {
-                $productName = $comment->product->name ?? 'sản phẩm';
-                $notificationData = [
-                    'title' => 'Đánh giá đã được phê duyệt',
-                    'message' => 'Đánh giá của bạn cho sản phẩm "'.$productName.'" đã được duyệt thành công. Bạn đã nhận được điểm thưởng!',
-                    'type' => 'review_approved',
-                    'reference_id' => $comment->comment_id,
-                ];
-
-                DB::table('notifications')->insert([
-                    'id' => Str::uuid(),
-                    'type' => 'App\Notifications\ReviewApprovedNotification',
-                    'notifiable_type' => User::class,
-                    'notifiable_id' => $comment->user->user_id,
-                    'data' => json_encode($notificationData),
-                    'read_at' => null,
-                    'created_at' => Carbon::now(),
-                    'updated_at' => Carbon::now(),
-                ]);
-
-                event(new UserNotificationEvent($comment->user->user_id, $notificationData));
-            } catch (\Exception $notifEx) {
-                Log::warning('Review approved notification failed: '.$notifEx->getMessage());
-            }
         }
         // ───────────────────────────────────────────────────────────────
 
