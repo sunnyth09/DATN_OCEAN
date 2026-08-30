@@ -46,7 +46,7 @@
             <div class="hero-right">
                 <div class="hero-img-box">
                     <img 
-                        src="https://images.unsplash.com/photo-1556906781-9a412961c28c?w=1000&q=80" 
+                        src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1000&q=80" 
                         alt="Ocean Sport Collection" 
                         class="hero-img" 
                     />
