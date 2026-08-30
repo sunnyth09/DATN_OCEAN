@@ -116,7 +116,9 @@ const getCouponIcon = (coupon) => {
 
 /* ── Voucher section ── */
 .home-coupon-section {
-    background: linear-gradient(135deg, #fff0f3 0%, #fff8fa 100%);
+    background: #fbfcfd;
+    border-top: 1px solid #f1f5f9;
+    border-bottom: 1px solid #f1f5f9;
 }
 
 .coupon-section-kicker {
@@ -137,8 +139,8 @@ const getCouponIcon = (coupon) => {
 
 .home-coupon-card {
     position: relative;
-    background: #fff;
-    border: 1.5px dashed #f9a8c0;
+    background: #ffffff;
+    border: 1.5px dashed rgba(230, 59, 111, 0.28);
     border-radius: 16px;
     display: flex;
     align-items: center;
@@ -147,11 +149,12 @@ const getCouponIcon = (coupon) => {
     cursor: pointer;
     transition: all 0.25s ease;
     overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
 }
 
 .home-coupon-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(230, 59, 111, 0.12);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(230, 59, 111, 0.1);
     border-color: var(--primary);
 }
 
@@ -161,7 +164,7 @@ const getCouponIcon = (coupon) => {
     transform: translateY(-50%);
     width: 16px;
     height: 16px;
-    background: #fff0f3;
+    background: #fbfcfd;
     border-radius: 50%;
 }
 
@@ -169,10 +172,10 @@ const getCouponIcon = (coupon) => {
 .coupon-ticket-cut--right { right: -8px; }
 
 .home-coupon-icon {
-    width: 48px;
-    height: 48px;
+    width: 46px;
+    height: 46px;
     border-radius: 12px;
-    background: #fff0f3;
+    background: rgba(230, 59, 111, 0.08);
     color: var(--primary);
     display: flex;
     align-items: center;
