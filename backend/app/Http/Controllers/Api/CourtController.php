@@ -39,7 +39,10 @@ class CourtController extends Controller
      */
     public function show($id)
     {
-        $court = Court::with(['schedules', 'prices'])->findOrFail($id);
+        $court = Court::with(['schedules', 'prices'])
+            ->where('court_id', $id)
+            ->orWhere('slug', $id)
+            ->firstOrFail();
 
         return response()->json([
             'status' => 'success',

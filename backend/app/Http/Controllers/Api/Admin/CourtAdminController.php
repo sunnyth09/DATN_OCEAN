@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Court;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class CourtAdminController extends Controller
 {
@@ -32,6 +33,8 @@ class CourtAdminController extends Controller
             'type' => 'required|in:standard,vip,outdoor,indoor',
             'status' => 'required|in:active,inactive,maintenance,closed',
         ]);
+
+        $validated['slug'] = Str::slug($validated['court_name']);
 
         $court = Court::create($validated);
 
@@ -62,6 +65,10 @@ class CourtAdminController extends Controller
             'type' => 'sometimes|in:standard,vip,outdoor,indoor',
             'status' => 'sometimes|in:active,inactive,maintenance,closed',
         ]);
+
+        if (isset($validated['court_name'])) {
+            $validated['slug'] = Str::slug($validated['court_name']);
+        }
 
         $court->update($validated);
 
