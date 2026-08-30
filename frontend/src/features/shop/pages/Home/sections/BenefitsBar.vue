@@ -1,148 +1,193 @@
-﻿<script setup>
+<script setup>
 import AppIcon from '@/components/AppIcon.vue';
+
+const benefits = [
+    {
+        icon: 'shipping',
+        title: 'Miễn phí vận chuyển',
+        sub: 'Đơn hàng từ 500K toàn quốc'
+    },
+    {
+        icon: 'return',
+        title: 'Đổi trả 30 ngày',
+        sub: 'Thủ tục nhanh gọn & tiện lợi'
+    },
+    {
+        icon: 'payment',
+        title: 'Thanh toán bảo mật',
+        sub: 'Mã hóa SSL 256-bit chuẩn quốc tế'
+    },
+    {
+        icon: 'shield',
+        title: 'Hàng chính hãng 100%',
+        sub: 'Cam kết bồi hoàn nếu phát hiện giả'
+    },
+    {
+        icon: 'heart',
+        title: 'Hỗ trợ 24/7',
+        sub: 'Tư vấn kỹ thuật chọn vợt & size'
+    }
+];
 </script>
+
 <template>
-        <section class="benefits-bar reveal-on-scroll">
-            <div class="container">
-                <div class="benefits-inner">
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="shipping" />
+    <section class="benefits-bar-section">
+        <div class="container">
+            <div class="benefits-floating-card">
+                <div class="benefits-grid">
+                    <div 
+                        v-for="(item, idx) in benefits" 
+                        :key="idx" 
+                        class="benefit-card-item"
+                    >
+                        <div class="benefit-icon-wrapper">
+                            <AppIcon :name="item.icon" width="22" height="22" :stroke-width="2.2" />
                         </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Miễn phí vận chuyển</span>
-                            <span class="benefit-sub">Đơn hàng từ 500K</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="return" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Đổi trả 30 ngày</span>
-                            <span class="benefit-sub">Không cần lý do</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="payment" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Thanh toán bảo mật</span>
-                            <span class="benefit-sub">SSL 256-bit</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="shield" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Hàng chính hãng 100%</span>
-                            <span class="benefit-sub">Cam kết đảm bảo</span>
-                        </div>
-                    </div>
-                    <div class="benefit-item">
-                        <div class="benefit-icon">
-                            <AppIcon name="heart" />
-                        </div>
-                        <div class="benefit-text">
-                            <span class="benefit-title">Hỗ trợ 24/7</span>
-                            <span class="benefit-sub">Tư vấn nhiệt tình</span>
+                        <div class="benefit-info">
+                            <strong class="benefit-main-title">{{ item.title }}</strong>
+                            <span class="benefit-sub-text">{{ item.sub }}</span>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 </template>
 
 <style scoped>
-.benefits-bar {
-    background: #ffffff;
-    padding: 24px 0;
+.benefits-bar-section {
     position: relative;
-    border-bottom: 1px solid #f1f5f9;
+    z-index: 20;
+    margin-top: -24px;
+    margin-bottom: 24px;
 }
 
-.benefits-inner {
+.benefits-floating-card {
+    background: var(--card-bg, #ffffff);
+    border: 1px solid rgba(230, 59, 111, 0.12);
+    border-radius: 18px;
+    padding: 16px 24px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+html.dark .benefits-floating-card {
+    background: rgba(22, 24, 25, 0.95);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+
+.benefits-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 16px;
-    background: #ffffff;
+    align-items: center;
 }
 
-.benefit-item {
+.benefit-card-item {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    gap: 12px;
-    padding: 8px;
+    gap: 14px;
+    padding: 8px 10px;
     border-radius: 12px;
-    transition: all 0.3s ease;
-    background: transparent;
+    transition: all 0.25s ease;
 }
 
-.benefit-item:hover {
-    background: #f8fafc;
+.benefit-card-item:hover {
+    background: rgba(230, 59, 111, 0.04);
 }
 
-.benefit-item:hover .benefit-icon {
-    color: var(--primary);
+html.dark .benefit-card-item:hover {
+    background: rgba(255, 255, 255, 0.04);
 }
 
-.benefit-icon {
-    width: 48px;
-    height: 48px;
+.benefit-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f8fafc;
-    border-radius: 50%;
-    color: #64748b;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(230, 59, 111, 0.1) 0%, rgba(230, 59, 111, 0.2) 100%);
+    color: var(--primary);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.benefit-text {
+html.dark .benefit-icon-wrapper {
+    background: linear-gradient(135deg, rgba(255, 178, 191, 0.12) 0%, rgba(255, 178, 191, 0.24) 100%);
+}
+
+.benefit-card-item:hover .benefit-icon-wrapper {
+    transform: scale(1.1) rotate(-4deg);
+    background: var(--primary);
+    color: #ffffff;
+    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
+}
+
+.benefit-info {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
 }
 
-.benefit-title {
+.benefit-main-title {
     font-size: 0.88rem;
-    font-weight: 700;
-    color: #1e293b;
-    white-space: nowrap;
-    transition: color 0.3s;
+    font-weight: 800;
+    color: var(--text-main);
+    line-height: 1.25;
+    transition: color 0.2s ease;
 }
 
-.benefit-item:hover .benefit-title {
+.benefit-card-item:hover .benefit-main-title {
     color: var(--primary);
 }
 
-.benefit-sub {
-    font-size: 0.78rem;
-    color: #64748b;
+.benefit-sub-text {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
 }
 
+/* =======================================================
+   RESPONSIVE BREAKPOINTS
+======================================================= */
 @media (max-width: 1200px) {
-    .benefits-inner {
+    .benefits-grid {
         grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
     }
 }
 
 @media (max-width: 768px) {
-    .benefits-inner {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-        padding: 8px;
+    .benefits-bar-section {
+        margin-top: -12px;
     }
-    .benefit-item {
+
+    .benefits-floating-card {
         padding: 14px 16px;
+    }
+
+    .benefits-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .benefit-card-item {
+        padding: 6px 8px;
+    }
+
+    .benefit-icon-wrapper {
+        width: 38px;
+        height: 38px;
+        min-width: 38px;
     }
 }
 
 @media (max-width: 480px) {
-    .benefits-inner {
+    .benefits-grid {
         grid-template-columns: 1fr;
     }
 }

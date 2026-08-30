@@ -245,6 +245,28 @@ const getCouponIcon = (coupon) => {
     transform: scale(1.05);
 }
 
+/* ── Dark Mode ── */
+html.dark .home-coupon-section {
+    background: linear-gradient(135deg, #141718 0%, #0e1112 100%);
+}
+
+html.dark .home-coupon-card {
+    background: #1a1d1e;
+    border-color: rgba(255, 178, 191, 0.2);
+}
+
+html.dark .coupon-ticket-cut {
+    background: #141718;
+}
+
+html.dark .home-coupon-icon {
+    background: rgba(255, 178, 191, 0.1);
+}
+
+html.dark .home-coupon-condition {
+    color: #94a3b8;
+}
+
 @media (max-width: 640px) {
     .home-coupon-grid {
         grid-template-columns: 1fr;
