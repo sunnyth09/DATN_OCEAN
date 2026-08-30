@@ -70,8 +70,6 @@
         <div class="form-panel">
           <h2>Gửi yêu cầu hỗ trợ</h2>
           <form @submit.prevent="submitContact" class="contact-form" novalidate>
-            <div v-if="successMsg" class="alert-success">{{ successMsg }}</div>
-            <div v-if="errorMsg" class="alert-error">{{ errorMsg }}</div>
             <div class="form-row-2">
               <div class="form-group">
                 <label>Họ và tên</label>
@@ -139,11 +137,12 @@
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
 import api from '@/axios';
+import { useToastStore } from '@/stores/toast';
+
+const toastStore = useToastStore();
 
 const form = reactive({ name: '', email: '', subject: '', message: '' });
 const isSubmitting = ref(false);
-const successMsg = ref('');
-const errorMsg = ref('');
 const fieldErrors = reactive({});
 
 const turnstileToken = ref('');
@@ -207,7 +206,7 @@ const submitContact = async () => {
   isSubmitting.value = true;
   try {
     const res = await api.post('/submitcontact', { ...form, turnstile_token: turnstileToken.value });
-    successMsg.value = res.data.message;
+    toastStore.showToast('appToast', res.data.message || 'Yêu cầu hỗ trợ đã được gửi thành công!', 'success');
     // Reset form
     form.name = '';
     form.email = '';
@@ -226,7 +225,7 @@ const submitContact = async () => {
         fieldErrors[key] = msgs[0];
       }
     } else {
-      errorMsg.value = err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại.';
+      toastStore.showToast('appToast', err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại.', 'danger');
     }
 
     if (window.turnstile && turnstileWidgetId !== null) {
