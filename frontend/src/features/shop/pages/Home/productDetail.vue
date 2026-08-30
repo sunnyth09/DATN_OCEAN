@@ -1,4 +1,5 @@
 <script setup>
+import QRCode from 'qrcode';
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/axios';
@@ -38,6 +39,135 @@ const addingToCart = ref(false);
 const buyingNow = ref(false);
 const cartVersion = ref(0);
 const showSizeGuide = ref(false);
+const showQrModal = ref(false);
+const qrDataUrl = ref('');
+const qrGenerating = ref(false);
+const linkCopied = ref(false);
+
+const productUrl = computed(() => {
+  if (!product.value) return '';
+  return `${window.location.origin}/product/${product.value.slug || product.value.product_id}`;
+});
+
+const generateQr = async () => {
+  if (!product.value) return;
+  qrGenerating.value = true;
+  try {
+    qrDataUrl.value = await QRCode.toDataURL(productUrl.value, {
+      width: 280,
+      margin: 2,
+      color: { dark: '#1a1a2e', light: '#ffffff' },
+      errorCorrectionLevel: 'H',
+    });
+    showQrModal.value = true;
+  } catch (err) {
+    console.error('QR generation error', err);
+    showToast('Không thể tạo mã QR', 'error');
+  } finally {
+    qrGenerating.value = false;
+  }
+};
+
+const downloadQr = async () => {
+  if (!qrDataUrl.value || !product.value) return;
+  try {
+    // Tạo canvas lớn hơn với thông tin sản phẩm
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const qrSize = 400;
+    const padding = 40;
+    const headerH = 60;
+    const footerH = 50;
+    canvas.width = qrSize + padding * 2;
+    canvas.height = qrSize + padding * 2 + headerH + footerH;
+
+    // Background
+    ctx.fillStyle = '#ffffff';
+    ctx.roundRect(0, 0, canvas.width, canvas.height, 16);
+    ctx.fill();
+
+    // Header text
+    ctx.fillStyle = '#1a1a2e';
+    ctx.font = 'bold 18px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    const name = product.value.name || 'Sản phẩm';
+    const truncatedName = name.length > 35 ? name.substring(0, 35) + '...' : name;
+    ctx.fillText(truncatedName, canvas.width / 2, padding + 28);
+
+    // QR Image
+    const qrImg = new Image();
+    qrImg.src = qrDataUrl.value;
+    await new Promise((resolve) => { qrImg.onload = resolve; });
+    ctx.drawImage(qrImg, padding, padding + headerH, qrSize, qrSize);
+
+    // Footer
+    ctx.fillStyle = '#636E72';
+    ctx.font = '13px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('Quét mã QR để xem sản phẩm', canvas.width / 2, padding + headerH + qrSize + 30);
+
+    // Accent line
+    const gradient = ctx.createLinearGradient(padding, 0, canvas.width - padding, 0);
+    gradient.addColorStop(0, '#E63B6F');
+    gradient.addColorStop(1, '#FF6B9D');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(padding, padding + 6, canvas.width - padding * 2, 3);
+
+    // Download
+    const link = document.createElement('a');
+    const slug = product.value.slug || product.value.product_id;
+    link.download = `QR_${slug}.png`;
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('Đã tải mã QR thành công!', 'success');
+  } catch (err) {
+    console.error('QR download error', err);
+    showToast('Không thể tải mã QR', 'error');
+  }
+};
+
+const shareProduct = async () => {
+  if (!product.value) return;
+  const shareData = {
+    title: product.value.name,
+    text: `Xem sản phẩm: ${product.value.name}`,
+    url: productUrl.value,
+  };
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        copyLink();
+      }
+    }
+  } else {
+    copyLink();
+  }
+};
+
+const copyLink = async () => {
+  try {
+    await navigator.clipboard.writeText(productUrl.value);
+    linkCopied.value = true;
+    showToast('Đã sao chép liên kết sản phẩm!', 'success');
+    setTimeout(() => { linkCopied.value = false; }, 2500);
+  } catch {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = productUrl.value;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    linkCopied.value = true;
+    showToast('Đã sao chép liên kết sản phẩm!', 'success');
+    setTimeout(() => { linkCopied.value = false; }, 2500);
+  }
+};
 
 const { showToast } = useToast();
 const { isFavorited, toggleFavorite } = useFavorites();
@@ -885,6 +1015,25 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
+        <!-- Share & QR -->
+        <div class="pd-share-group">
+          <button class="pd-btn-share" @click="shareProduct" :disabled="!product">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            {{ linkCopied ? 'Đã sao chép!' : 'Chia sẻ' }}
+          </button>
+          <button class="pd-btn-share qr" @click="generateQr" :disabled="qrGenerating || !product">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/>
+              <line x1="21" y1="14" x2="21" y2="17"/><line x1="17" y1="21" x2="21" y2="21"/>
+            </svg>
+            {{ qrGenerating ? 'Đang tạo...' : 'Mã QR' }}
+          </button>
+        </div>
+
         <PremiumUpgrade :current-variant="selectedVariant" :all-variants="sortedVariants" @upgrade="handleUpgrade" />
       </div>
     </section>
@@ -1121,6 +1270,79 @@ onBeforeUnmount(() => {
                 <span>Màu sắc thực tế có thể chênh lệch 3-5% do độ phân giải và ánh sáng màn hình.</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </teleport>
+
+  <!-- QR Modal -->
+  <teleport to="body">
+    <transition name="modal-fade">
+      <div v-if="showQrModal" class="qr-modal-overlay" @click.self="showQrModal = false">
+        <div class="qr-modal-card">
+          <!-- Close -->
+          <button class="qr-modal-close" @click="showQrModal = false" title="Đóng">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+
+          <!-- Header -->
+          <div class="qr-modal-header">
+            <div class="qr-modal-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/>
+                <line x1="21" y1="14" x2="21" y2="17"/><line x1="17" y1="21" x2="21" y2="21"/>
+              </svg>
+            </div>
+            <h3 class="qr-modal-title">Mã QR sản phẩm</h3>
+            <p class="qr-modal-subtitle">{{ product?.name }}</p>
+          </div>
+
+          <!-- QR Image -->
+          <div class="qr-modal-body">
+            <div class="qr-modal-qr-wrap">
+              <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR Code" class="qr-modal-qr-img" />
+              <div class="qr-modal-qr-badge">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#E63B6F" stroke="none">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+              </div>
+            </div>
+            <p class="qr-modal-hint">Quét bằng camera hoặc app quét mã QR</p>
+          </div>
+
+          <!-- URL preview -->
+          <div class="qr-modal-url" @click="copyLink">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <span class="qr-modal-url-text">{{ productUrl }}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </div>
+
+          <!-- Actions -->
+          <div class="qr-modal-actions">
+            <button class="qr-modal-btn download" @click="downloadQr">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Tải ảnh QR
+            </button>
+            <button class="qr-modal-btn share" @click="shareProduct">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+              Chia sẻ
+            </button>
           </div>
         </div>
       </div>
@@ -1589,32 +1811,259 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 12px;
-  background: #1877F2;
+  gap: 8px;
+  padding: 11px 14px;
+  background: linear-gradient(135deg, #1877F2, #1565D8);
   color: #fff;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s ease;
   margin: 0 !important;
   font-family: inherit;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  box-shadow: 0 2px 8px rgba(24, 119, 242, 0.18);
 }
-.pd-btn-share:hover { background: #166FE5; }
-.pd-btn-share:disabled { opacity: 0.7; cursor: not-allowed; }
+.pd-btn-share:hover {
+  background: linear-gradient(135deg, #166FE5, #1258C0);
+  box-shadow: 0 4px 14px rgba(24, 119, 242, 0.28);
+  transform: translateY(-1px);
+}
+.pd-btn-share:active { transform: translateY(0); }
+.pd-btn-share:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 .pd-btn-share.qr {
-  background-color: #f8f9fa !important;
-  color: #212529 !important;
-  border: 1px solid #dee2e6 !important;
+  background: linear-gradient(135deg, #f8f9fa, #eef0f2) !important;
+  color: #1a1a2e !important;
+  border: 1.5px solid #dee2e6 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 .pd-btn-share.qr:hover {
-  background-color: #e9ecef !important;
+  background: linear-gradient(135deg, #eef0f2, #e4e7ea) !important;
+  border-color: #c8cdd2 !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+  transform: translateY(-1px);
+}
+
+/* ── QR Modal ── */
+.qr-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 15, 30, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 20px;
+}
+
+.qr-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.08);
+  padding: 32px 28px 28px;
+  animation: qrModalIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.qr-modal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #E63B6F, #FF6B9D, #E63B6F);
+  background-size: 200% 100%;
+  animation: qrShimmer 3s linear infinite;
+}
+
+@keyframes qrModalIn {
+  from { opacity: 0; transform: scale(0.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes qrShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.qr-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: #f1f3f5;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #636E72;
+  transition: all 0.2s;
+}
+.qr-modal-close:hover {
+  background: #e9ecef;
+  color: #1a1a2e;
+  transform: rotate(90deg);
+}
+
+.qr-modal-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.qr-modal-icon {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FFF0F3, #FFE0E8);
+  border-radius: 14px;
+  color: #E63B6F;
+  margin-bottom: 12px;
+}
+
+.qr-modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 6px;
+}
+
+.qr-modal-subtitle {
+  font-size: 0.85rem;
+  color: #636E72;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.qr-modal-body {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.qr-modal-qr-wrap {
+  position: relative;
+  display: inline-block;
+  padding: 16px;
+  background: #ffffff;
+  border: 2px solid #f1f3f5;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  transition: box-shadow 0.3s;
+}
+.qr-modal-qr-wrap:hover {
+  box-shadow: 0 8px 32px rgba(230, 59, 111, 0.12);
+}
+
+.qr-modal-qr-img {
+  display: block;
+  width: 220px;
+  height: 220px;
+  border-radius: 8px;
+}
+
+.qr-modal-qr-badge {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.qr-modal-hint {
+  font-size: 0.8rem;
+  color: #9CA3AF;
+  margin: 14px 0 0;
+}
+
+.qr-modal-url {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+  color: #636E72;
+}
+.qr-modal-url:hover {
+  background: #f1f3f5;
+  border-color: #dee2e6;
+}
+.qr-modal-url-text {
+  flex: 1;
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #495057;
+}
+
+.qr-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.qr-modal-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: inherit;
+}
+
+.qr-modal-btn.download {
+  background: linear-gradient(135deg, #E63B6F, #FF6B9D);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.25);
+}
+.qr-modal-btn.download:hover {
+  box-shadow: 0 6px 20px rgba(230, 59, 111, 0.35);
+  transform: translateY(-1px);
+}
+
+.qr-modal-btn.share {
+  background: #f1f3f5;
+  color: #1a1a2e;
+  border: 1.5px solid #e9ecef;
+}
+.qr-modal-btn.share:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
 }
 
 /* ── TABS ── */
