@@ -14,7 +14,9 @@ use Illuminate\Support\Str;
 class ProfileController extends Controller
 {
     /**
-     * Lấy người dùng hiện tại từ JWT guard (khách hàng hoặc admin)
+     * Lấy thực thể người dùng hiện tại từ JWT guard (hỗ trợ cả khách hàng hoặc admin).
+     *
+     * @return \Illuminate\Contracts\Auth\Authenticatable|null
      */
     private function currentUser()
     {
@@ -22,7 +24,11 @@ class ProfileController extends Controller
     }
 
     /**
-     * Cập nhật thông tin profile của user (có thể bao gồm Avatar)
+     * Cập nhật thông tin hồ sơ của người dùng (có thể bao gồm ảnh đại diện).
+     * Xử lý reprocess ảnh để ngăn chặn mã độc nhúng trong metadata.
+     *
+     * @param \App\Http\Requests\UpdateProfileRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function update(UpdateProfileRequest $request)
     {
@@ -104,11 +110,14 @@ class ProfileController extends Controller
     }
 
     /**
-     * Cập nhật mật khẩu cho user.
+     * Thay đổi mật khẩu cho người dùng hiện tại.
      *
      * QUAN TRỌNG: Model User/Admin có cast 'password' => 'hashed'.
-     * Nếu dùng $user->password = Hash::make($new) thì bị hash 2 lần (double hashing).
-     * Giải pháp: dùng forceFill() để bypass cast, kết hợp saveQuietly().
+     * Nếu dùng $user->password = Hash::make($new) thì sẽ bị hash 2 lần (double hashing).
+     * Giải pháp: dùng forceFill() để bypass cast, kết hợp saveQuietly() để không trigger model events.
+     *
+     * @param \App\Http\Requests\ChangePasswordRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function changePassword(ChangePasswordRequest $request)
     {
