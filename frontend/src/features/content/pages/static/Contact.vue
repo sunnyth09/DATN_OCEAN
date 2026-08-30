@@ -137,9 +137,9 @@
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount } from 'vue';
 import api from '@/axios';
-import { useToastStore } from '@/stores/toast';
+import { useToast } from '@/composables/useToast';
 
-const toastStore = useToastStore();
+const { showToast } = useToast();
 
 const form = reactive({ name: '', email: '', subject: '', message: '' });
 const isSubmitting = ref(false);
@@ -188,8 +188,6 @@ const clearFieldError = (field) => {
 };
 
 const submitContact = async () => {
-  successMsg.value = '';
-  errorMsg.value = '';
   Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
 
   // Client-side validation
@@ -206,7 +204,7 @@ const submitContact = async () => {
   isSubmitting.value = true;
   try {
     const res = await api.post('/submitcontact', { ...form, turnstile_token: turnstileToken.value });
-    toastStore.showToast('appToast', res.data.message || 'Yêu cầu hỗ trợ đã được gửi thành công!', 'success');
+    showToast(res.data?.message || 'Yêu cầu hỗ trợ đã được gửi thành công!', 'success');
     // Reset form
     form.name = '';
     form.email = '';
@@ -219,13 +217,13 @@ const submitContact = async () => {
       turnstileToken.value = '';
     }
   } catch (err) {
-    if (err.response?.status === 422 && err.response.data.errors) {
+    if (err.response?.status === 422 && err.response.data?.errors) {
       Object.keys(fieldErrors).forEach((key) => delete fieldErrors[key]);
       for (const [key, msgs] of Object.entries(err.response.data.errors)) {
         fieldErrors[key] = msgs[0];
       }
     } else {
-      toastStore.showToast('appToast', err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại.', 'danger');
+      showToast(err.response?.data?.message || 'Đã xảy ra lỗi, vui lòng thử lại.', 'danger');
     }
 
     if (window.turnstile && turnstileWidgetId !== null) {
