@@ -390,21 +390,10 @@ const handleAddToCart = async (event) => {
                     {{ badgeLabel }}
                 </span>
 
-                <div class="media-actions">
-                    <button class="icon-btn cart-btn" @click.stop.prevent="handleAddToCart"
-                        :disabled="isAddingToCart || isOutOfStock" :class="{ 'is-disabled': isOutOfStock }"
-                        :title="isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ'"
-                        :aria-label="isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'">
-                        <AppIcon v-if="!isAddingToCart" :name="isOutOfStock ? 'x' : 'cart'" size="18"
-                            stroke-width="1.9" />
-                        <span v-else class="small-spinner"></span>
-                    </button>
-
-                    <button class="icon-btn favorite-btn" :class="{ 'is-active': isFavorited(productId) }"
-                        @click.stop.prevent="handleToggleFav" title="Yêu thích" aria-label="Yêu thích">
-                        <AppIcon name="heart" size="18" stroke-width="1.8" />
-                    </button>
-                </div>
+                <button class="icon-btn favorite-btn" :class="{ 'is-active': isFavorited(productId) }"
+                    @click.stop.prevent="handleToggleFav" title="Yêu thích" aria-label="Yêu thích">
+                    <AppIcon name="heart" size="18" stroke-width="1.8" />
+                </button>
 
                 <div class="image-shell" :class="{ 'is-empty': !productImage }">
                     <img ref="productImageRef" v-if="productImage" :src="productImageUrl" :alt="product.name"
@@ -451,6 +440,15 @@ const handleAddToCart = async (event) => {
                             </span>
                         </div>
                     </div>
+
+                    <button class="icon-btn cart-btn" @click.stop.prevent="handleAddToCart"
+                        :disabled="isAddingToCart || isOutOfStock" :class="{ 'is-disabled': isOutOfStock }"
+                        :title="isOutOfStock ? 'Sản phẩm đã hết hàng' : 'Thêm vào giỏ'"
+                        :aria-label="isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'">
+                        <AppIcon v-if="!isAddingToCart" :name="isOutOfStock ? 'x' : 'cart'" size="16"
+                            stroke-width="1.9" />
+                        <span v-else class="small-spinner"></span>
+                    </button>
                 </div>
 
                 <slot name="bottom-content"></slot>
@@ -599,18 +597,11 @@ const handleAddToCart = async (event) => {
     transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
 
-.media-actions {
+.favorite-btn {
     position: absolute;
     top: 14px;
     right: 14px;
-    z-index: 4;
-    display: inline-flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.favorite-btn,
-.cart-btn {
+    z-index: 2;
     background: rgba(255, 255, 255, 0.94);
     color: #5f6672;
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
@@ -647,29 +638,35 @@ const handleAddToCart = async (event) => {
     display: flex;
     flex: 1;
     flex-direction: column;
-    gap: 8px;
-    padding: 14px 20px 20px;
+    padding: 10px 14px 14px;
 }
 
 .category {
-    margin: 0;
-    color: #6b7280;
-    font-size: 0.92rem;
-    font-weight: 600;
-    line-height: 1.3;
+    margin: 0 0 2px;
+    color: var(--text-secondary, #64748b);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
 }
 
 .name {
-    margin: 0;
-    color: #1f2937;
-    font-size: 1.02rem;
+    margin: 0 0 6px;
+    color: var(--text-main, #1e293b);
+    font-size: 0.88rem;
     font-weight: 500;
-    line-height: 1.45;
+    line-height: 1.35;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     overflow: hidden;
-    height: 48px;
+    height: 38px;
+    transition: color 0.2s ease;
+}
+
+.card-link:hover .name {
+    color: var(--primary, #E63B6F);
 }
 
 .footer-row {
@@ -677,37 +674,60 @@ const handleAddToCart = async (event) => {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 14px;
+    gap: 10px;
 }
 
 .price-block {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    width: 100%;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
 }
 
 .original-price {
-    color: #6b7280;
-    font-size: 0.98rem;
+    color: #94a3b8;
+    font-size: 0.78rem;
     text-decoration: line-through;
+    line-height: 1.2;
 }
 
 .current-price {
     color: #d4145a;
-    font-size: 1.14rem;
+    font-size: 1.02rem;
     font-weight: 800;
-    line-height: 1.1;
+    line-height: 1.2;
 }
 
 .cart-btn {
-    color: #20242c;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    background: rgba(230, 59, 111, 0.08);
+    color: var(--primary, #E63B6F);
+    border: 1px solid rgba(230, 59, 111, 0.16);
+    border-radius: 8px;
+    margin-bottom: 2px;
+    transition: all 0.2s ease;
 }
 
 .cart-btn:hover {
-    background: var(--primary);
+    background: var(--primary, #E63B6F);
+    border-color: var(--primary, #E63B6F);
     color: #fff;
-    transform: translateY(-1px) scale(1.06);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.28);
+}
+
+html.dark .cart-btn {
+    background: rgba(230, 59, 111, 0.16);
+    border-color: rgba(230, 59, 111, 0.25);
+    color: #ff8fab;
+}
+
+html.dark .cart-btn:hover {
+    background: var(--primary, #E63B6F);
+    color: #fff;
 }
 
 @media (max-width: 768px) {
@@ -782,10 +802,9 @@ const handleAddToCart = async (event) => {
         font-size: 0.72rem;
     }
 
-    .media-actions {
+    .favorite-btn {
         top: 8px;
         right: 8px;
-        gap: 6px;
     }
 }
 
@@ -821,25 +840,23 @@ const handleAddToCart = async (event) => {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
-/* Dòng thông tin số lượng / đã bán bên dưới giá */
+/* Dòng thông tin số lượng / đã bán */
 .product-meta-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
-    min-height: 20px;
-    margin-top: 6px;
-    padding-top: 2px;
+    margin-top: 4px;
 }
 
 .stock-info,
 .sold-info {
     display: inline-block;
     min-width: 0;
-    font-size: 0.8rem;
-    font-weight: 750;
-    line-height: 1.3;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.2;
 }
 
 .stock-info {
@@ -850,8 +867,12 @@ const handleAddToCart = async (event) => {
     margin-left: auto;
     text-align: right;
     color: #475569;
-    font-weight: 800;
+    font-weight: 750;
     white-space: nowrap;
+}
+
+html.dark .sold-info {
+    color: #94a3b8;
 }
 
 .stock-info.is-low-stock {
