@@ -46,7 +46,7 @@
             <div class="hero-right">
                 <div class="hero-img-box">
                     <img 
-                        src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1000&q=80" 
+                        src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1200&q=80" 
                         alt="Ocean Sport Collection" 
                         class="hero-img" 
                     />
@@ -61,7 +61,7 @@
     position: relative;
     width: 100%;
     background-color: var(--background, #ffffff);
-    padding: 32px 0 40px;
+    padding: 24px 0 32px;
     overflow: hidden;
 }
 
@@ -89,19 +89,19 @@
 
 .hero-img-box {
     width: 100%;
-    max-width: 480px;
-    height: 420px;
-    border-radius: 20px;
+    max-width: 500px;
+    height: 460px;
+    border-radius: 22px;
     overflow: hidden;
     background: #f8fafc;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.07);
     border: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 html.dark .hero-img-box {
     background: #191c1d;
     border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
 }
 
 .hero-img {
@@ -113,11 +113,11 @@ html.dark .hero-img-box {
 }
 
 .hero-img-box:hover .hero-img {
-    transform: scale(1.03);
+    transform: scale(1.02);
 }
 
 .hero-content {
-    max-width: 520px;
+    max-width: 500px;
 }
 
 .hero-tag {
@@ -125,13 +125,13 @@ html.dark .hero-img-box {
     color: var(--primary, #E63B6F);
     font-size: 0.76rem;
     font-weight: 800;
-    letter-spacing: 1.5px;
-    margin-bottom: 18px;
+    letter-spacing: 1.4px;
+    margin-bottom: 16px;
     text-transform: uppercase;
     background-color: rgba(230, 59, 111, 0.08);
     border: 1px solid rgba(230, 59, 111, 0.18);
     border-radius: 999px;
-    padding: 6px 16px;
+    padding: 5px 16px;
 }
 
 html.dark .hero-tag {
@@ -146,7 +146,7 @@ html.dark .hero-tag {
     line-height: 1.14;
     color: var(--text-main, #2D3436);
     letter-spacing: -0.8px;
-    margin: 0 0 18px;
+    margin: 0 0 16px;
 }
 
 .hero-title span {
@@ -157,7 +157,7 @@ html.dark .hero-tag {
     font-size: 1rem;
     color: var(--text-secondary, #636E72);
     line-height: 1.6;
-    margin-bottom: 28px;
+    margin-bottom: 24px;
 }
 
 .hero-btns {
@@ -218,9 +218,9 @@ html.dark .hero-tag {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 28px;
-    margin-top: 24px;
-    padding-top: 20px;
+    gap: 24px;
+    margin-top: 20px;
+    padding-top: 18px;
     border-top: 1px solid var(--border-color, #E9ECEF);
 }
 
@@ -253,16 +253,20 @@ html.dark .hero-tag {
     .hero-split {
         flex-direction: column;
         padding-top: 16px;
-        padding-bottom: 24px;
-        gap: 32px;
+        padding-bottom: 20px;
+        gap: 28px;
+        min-height: auto;
     }
     .hero-left {
-        padding-right: 0;
         align-items: center;
         text-align: center;
     }
     .hero-right {
         justify-content: center;
+    }
+    .hero-img-box {
+        max-width: 420px;
+        height: 360px;
     }
     .hero-desc {
         max-width: 100%;

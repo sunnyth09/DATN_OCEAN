@@ -5,27 +5,27 @@ const benefits = [
     {
         icon: 'shipping',
         title: 'Miễn phí vận chuyển',
-        sub: 'Đơn hàng từ 500K toàn quốc'
+        sub: 'Đơn hàng từ 500K'
     },
     {
         icon: 'return',
         title: 'Đổi trả 30 ngày',
-        sub: 'Thủ tục nhanh gọn & tiện lợi'
+        sub: 'Thủ tục nhanh gọn'
     },
     {
         icon: 'payment',
         title: 'Thanh toán bảo mật',
-        sub: 'Mã hóa SSL 256-bit chuẩn quốc tế'
+        sub: 'Mã hóa SSL 256-bit'
     },
     {
         icon: 'shield',
         title: 'Hàng chính hãng 100%',
-        sub: 'Cam kết bồi hoàn nếu phát hiện giả'
+        sub: 'Cam kết bồi hoàn'
     },
     {
         icon: 'heart',
         title: 'Hỗ trợ 24/7',
-        sub: 'Tư vấn kỹ thuật chọn vợt & size'
+        sub: 'Tư vấn nhiệt tình'
     }
 ];
 </script>
@@ -41,7 +41,7 @@ const benefits = [
                         class="benefit-card-item"
                     >
                         <div class="benefit-icon-wrapper">
-                            <AppIcon :name="item.icon" width="22" height="22" :stroke-width="2.2" />
+                            <AppIcon :name="item.icon" width="20" height="20" :stroke-width="2.2" />
                         </div>
                         <div class="benefit-info">
                             <strong class="benefit-main-title">{{ item.title }}</strong>
@@ -58,16 +58,16 @@ const benefits = [
 .benefits-bar-section {
     position: relative;
     z-index: 20;
-    margin-top: -24px;
+    margin-top: -20px;
     margin-bottom: 24px;
 }
 
 .benefits-floating-card {
     background: var(--card-bg, #ffffff);
     border: 1px solid rgba(230, 59, 111, 0.12);
-    border-radius: 18px;
-    padding: 16px 24px;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.02);
+    border-radius: 14px;
+    padding: 12px 24px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.02);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     transition: all 0.3s ease;
@@ -76,22 +76,22 @@ const benefits = [
 html.dark .benefits-floating-card {
     background: rgba(22, 24, 25, 0.95);
     border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .benefits-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    gap: 16px;
+    gap: 12px;
     align-items: center;
 }
 
 .benefit-card-item {
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 8px 10px;
-    border-radius: 12px;
+    gap: 10px;
+    padding: 4px 6px;
+    border-radius: 10px;
     transition: all 0.25s ease;
 }
 
@@ -104,15 +104,15 @@ html.dark .benefit-card-item:hover {
 }
 
 .benefit-icon-wrapper {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 12px;
-    background: linear-gradient(135deg, rgba(230, 59, 111, 0.1) 0%, rgba(230, 59, 111, 0.2) 100%);
-    color: var(--primary);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(230, 59, 111, 0.08) 0%, rgba(230, 59, 111, 0.18) 100%);
+    color: var(--primary, #E63B6F);
     transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -121,34 +121,41 @@ html.dark .benefit-icon-wrapper {
 }
 
 .benefit-card-item:hover .benefit-icon-wrapper {
-    transform: scale(1.1) rotate(-4deg);
-    background: var(--primary);
+    transform: scale(1.08) rotate(-3deg);
+    background: var(--primary, #E63B6F);
     color: #ffffff;
-    box-shadow: 0 6px 16px rgba(230, 59, 111, 0.3);
+    box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25);
 }
 
 .benefit-info {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
+    min-width: 0;
 }
 
 .benefit-main-title {
-    font-size: 0.88rem;
-    font-weight: 800;
-    color: var(--text-main);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-main, #2D3436);
     line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: color 0.2s ease;
 }
 
 .benefit-card-item:hover .benefit-main-title {
-    color: var(--primary);
+    color: var(--primary, #E63B6F);
 }
 
 .benefit-sub-text {
-    font-size: 0.76rem;
-    color: var(--text-secondary);
-    line-height: 1.35;
+    font-size: 0.72rem;
+    color: var(--text-secondary, #636E72);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* =======================================================
@@ -164,25 +171,34 @@ html.dark .benefit-icon-wrapper {
 @media (max-width: 768px) {
     .benefits-bar-section {
         margin-top: -12px;
+        margin-bottom: 20px;
     }
 
     .benefits-floating-card {
-        padding: 14px 16px;
+        padding: 10px 14px;
     }
 
     .benefits-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
+        gap: 8px;
     }
 
     .benefit-card-item {
-        padding: 6px 8px;
+        padding: 4px 6px;
     }
 
     .benefit-icon-wrapper {
-        width: 38px;
-        height: 38px;
-        min-width: 38px;
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+    }
+
+    .benefit-main-title {
+        font-size: 0.78rem;
+    }
+
+    .benefit-sub-text {
+        font-size: 0.68rem;
     }
 }
 

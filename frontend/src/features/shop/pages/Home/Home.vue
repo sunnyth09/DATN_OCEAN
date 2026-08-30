@@ -537,8 +537,8 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .section-subtitle {
-    color: #636E72;
-    font-size: 0.95rem;
+    color: var(--text-secondary, #636E72);
+    font-size: 0.9rem;
 }
 
 .accent-title::after {
@@ -552,15 +552,19 @@ onUnmounted(() => { if (countdownTimer) clearInterval(countdownTimer); });
 }
 
 .link-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     color: var(--primary);
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     text-decoration: none;
     white-space: nowrap;
-    transition: gap 0.2s;
+    transition: gap 0.2s, color 0.2s;
 }
 
 .link-more:hover {
-    color: #d82f65;
+    color: var(--primary-dark, #b50c4d);
+    gap: 8px;
 }
 </style>
