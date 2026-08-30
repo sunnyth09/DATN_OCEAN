@@ -27,8 +27,8 @@ const fetchCourts = async () => {
     await store.fetchCourts(searchParams.value);
 };
 
-const goToDetail = (id) => {
-    router.push({ name: 'court-detail', params: { id } });
+const goToDetail = (court) => {
+    router.push({ name: 'court-detail', params: { slug: court.slug || court.court_id } });
 };
 
 const formatCurrency = (value) => {
@@ -158,7 +158,7 @@ const clearFilters = () => {
                 <!-- Court Cards -->
                 <div v-else class="row g-4">
                     <div v-for="court in store.courts" :key="court.court_id" class="col-md-6 col-xl-4">
-                        <div class="client-court-card card h-100" @click="goToDetail(court.court_id)">
+                        <div class="client-court-card card h-100" @click="goToDetail(court)">
                             <!-- Image -->
                             <div class="client-court-card__img-wrap">
                                 <img :src="court.image_url || DEFAULT_COURT_IMAGE"
@@ -209,7 +209,7 @@ const clearFilters = () => {
                                     </div>
                                     <button class="btn btn-sm px-3 py-2 fw-semibold rounded-pill"
                                         style="background: var(--court-primary); color: #fff; font-size: 0.8rem; border: none;"
-                                        @click.stop="goToDetail(court.court_id)">
+                                        @click.stop="goToDetail(court)">
                                         Đặt Sân <i class="bi bi-arrow-right ms-1"></i>
                                     </button>
                                 </div>

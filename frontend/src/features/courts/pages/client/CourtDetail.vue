@@ -25,7 +25,7 @@ const toLocalDateString = (date = new Date()) => {
     return `${year}-${month}-${day}`;
 };
 
-const courtId = route.params.id;
+const courtId = route.params.slug;
 const selectedDate = ref(toLocalDateString());
 const availableSlots = ref([]);
 const services = ref([]);
