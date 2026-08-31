@@ -210,6 +210,8 @@ class OrderService
                 $couponId,
                 $couponResult,
                 $useWallet,
+                $useDeposit,
+                $useCommission,
                 $walletTotalDiscount,
                 &$walletDepositUsed,
                 &$walletCommissionUsed,
