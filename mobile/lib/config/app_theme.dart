@@ -328,4 +328,186 @@ class AppTheme {
       ),
     );
   }
+
+  /// Dark Theme — OLED-friendly dark mode
+  static ThemeData get darkTheme {
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme(
+      ThemeData.dark().textTheme,
+    ).apply(
+      bodyColor: const Color(0xFFE2E8F0),
+      displayColor: const Color(0xFFF8FAFC),
+    );
+
+    const darkSurface = Color(0xFF1E1E2E);
+    const darkBackground = Color(0xFF121218);
+    const darkCard = Color(0xFF252536);
+    const darkBorder = Color(0xFF2E2E42);
+    const darkTextPrimary = Color(0xFFE2E8F0);
+    const darkTextMuted = Color(0xFF64748B);
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      textTheme: textTheme,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primary,
+        primary: AppColors.primary,
+        onPrimary: AppColors.onPrimary,
+        secondary: const Color(0xFF94A3B8),
+        surface: darkSurface,
+        error: AppColors.error,
+        brightness: Brightness.dark,
+      ),
+      scaffoldBackgroundColor: darkBackground,
+      appBarTheme: AppBarTheme(
+        backgroundColor: darkSurface,
+        foregroundColor: darkTextPrimary,
+        elevation: 0,
+        centerTitle: true,
+        scrolledUnderElevation: 0.5,
+        shadowColor: Colors.black.withValues(alpha: 0.3),
+        titleTextStyle: GoogleFonts.plusJakartaSans(
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
+          color: darkTextPrimary,
+          letterSpacing: -0.2,
+        ),
+        iconTheme: const IconThemeData(color: darkTextPrimary),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.onPrimary,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primaryLight,
+          side: const BorderSide(color: AppColors.primaryLight, width: 1.2),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primaryLight,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          textStyle: GoogleFonts.plusJakartaSans(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: darkCard,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: darkBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: darkBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 10,
+        ),
+        hintStyle: GoogleFonts.plusJakartaSans(
+          color: darkTextMuted,
+          fontSize: 13,
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: darkCard,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: const BorderSide(color: darkBorder),
+        ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: darkBorder,
+        thickness: 1,
+        space: 1,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 60,
+        backgroundColor: darkSurface,
+        indicatorColor: AppColors.primary.withValues(alpha: 0.15),
+        indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 10,
+        shadowColor: Colors.black.withValues(alpha: 0.4),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return GoogleFonts.plusJakartaSans(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+              letterSpacing: -0.1,
+            );
+          }
+          return GoogleFonts.plusJakartaSans(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: darkTextMuted,
+            letterSpacing: -0.1,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const IconThemeData(color: AppColors.primary, size: 22);
+          }
+          return const IconThemeData(color: darkTextMuted, size: 22);
+        }),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColors.primary,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: darkCard,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: darkSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: darkSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      ),
+    );
+  }
 }

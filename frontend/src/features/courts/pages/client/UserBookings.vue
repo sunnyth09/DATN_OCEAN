@@ -181,37 +181,49 @@ const handlePay = async (booking) => {
 const showQr = async (booking) => {
     try {
         const res = await store.getBookingQr(booking.booking_id || booking.id);
-        const qrToken = res?.data?.data?.qr_token || res?.data?.qr_token || '';
+        const qrData = res?.data?.data?.qr_data || res?.data?.qr_data || (res?.data?.data?.qr_token ? `OSBK:${booking.booking_code}:${res.data.data.qr_token}` : '');
         const bookingCode = res?.data?.data?.booking_code || booking.booking_code || '';
+        const courtName = booking.court?.court_name || 'Sân thể thao';
+        const dateStr = formatDate(booking.booking_date);
+        const timeStr = `${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`;
 
-        if (!qrToken) {
+        if (!qrData) {
             toast.error('Không lấy được mã QR');
             return;
         }
 
         // Tạo ảnh QR
-        const qrImgUrl = await generateQrImgUrl(qrToken, 220);
+        const qrImgUrl = await generateQrImgUrl(qrData, 240);
 
         await Swal.fire({
-            title: '🏸 Mã QR Check-in',
+            title: '🏸 Thẻ Check-in Nhận Sân',
             html: `
-                <div style="text-align:center;padding:12px 0">
-                    <img
-                        src="${qrImgUrl}"
-                        alt="QR Code check-in"
-                        style="width:220px;height:220px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);border:2px solid #e9ecef"
-                        onerror="this.onerror=null;this.src='';this.parentElement.innerHTML='<div style=\'color:#dc3545;font-size:13px\'>Kh\u00f4ng t\u1ea3i đ\u01b0\u1ee3c QR, vui l\u00f2ng th\u1eed l\u1ea1i</div>'"
-                    />
-                    <div style="margin-top:14px;font-family:monospace;font-size:13px;color:#6c757d;background:#f8f9fa;padding:8px 12px;border-radius:8px;word-break:break-all">
-                        <strong>Mã đặt sân:</strong> ${bookingCode}
+                <div style="text-align:center;padding:8px 0">
+                    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 16px; padding: 18px; border: 1.5px dashed #0d6efd;">
+                        <img
+                            src="${qrImgUrl}"
+                            alt="QR Code check-in"
+                            style="width:220px;height:220px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.1);background:#fff;padding:8px"
+                        />
+                        <div style="margin-top:14px;font-weight:700;font-size:15px;color:#1a1a2e">
+                            ${courtName}
+                        </div>
+                        <div style="font-size:13px;color:#495057;margin-top:4px">
+                            📅 ${dateStr} &nbsp;•&nbsp; ⏰ ${timeStr}
+                        </div>
+                        <div style="margin-top:12px;font-family:monospace;font-size:14px;font-weight:800;color:#0d6efd;background:#fff;padding:8px 12px;border-radius:8px;border:1px solid #dee2e6">
+                            MÃ: ${bookingCode}
+                        </div>
                     </div>
-                    <p style="margin-top:10px;font-size:13px;color:#6c757d">Đưa mã này cho nhân viên quét khi đến sân</p>
+                    <p style="margin-top:12px;font-size:12.5px;color:#6c757d;margin-bottom:0">
+                        ⚡ Đưa mã này cho lễ tân quét camera hoặc đọc mã khi đến sân
+                    </p>
                 </div>
             `,
             showConfirmButton: true,
             confirmButtonText: 'Đóng',
             confirmButtonColor: '#0d6efd',
-            width: 360,
+            width: 380,
         });
     } catch (e) {
         console.error('QR error:', e);

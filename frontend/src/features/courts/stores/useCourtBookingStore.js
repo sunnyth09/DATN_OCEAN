@@ -123,8 +123,9 @@ export const useCourtBookingStore = defineStore('courtBooking', () => {
   const confirmBooking = (id, payload = {}) => wrapAction(() => courtBookingService.confirmBooking(id, payload));
   const cancelAdminBooking = (id, payload = {}) => wrapAction(() => courtBookingService.cancelAdminBooking(id, payload));
   const recordAdminPayment = (id, payload) => wrapAction(() => courtBookingService.recordAdminPayment(id, payload));
+  const scanQrCheckIn = (payload) => wrapAction(() => courtBookingService.scanQrCheckIn(payload));
   const qrCheckInBooking = (id, payload) => wrapAction(() => courtBookingService.qrCheckInBooking(id, payload));
-  const adminCheckIn = (id) => wrapAction(() => courtBookingService.checkInBooking(id));
+  const adminCheckIn = (id, payload = {}) => wrapAction(() => courtBookingService.checkInBooking(id, payload));
   const adminCheckOut = (id, payload = {}) => wrapAction(() => courtBookingService.checkOutBooking(id, payload));
   const addServiceToBooking = (id, payload) => wrapAction(() => courtBookingService.addServiceToBooking(id, payload));
   const extendBooking = (id, payload) => wrapAction(() => courtBookingService.extendBooking(id, payload));
@@ -207,7 +208,7 @@ export const useCourtBookingStore = defineStore('courtBooking', () => {
     // Admin Bookings Methods
     fetchAdminBookings, fetchAdminBookingDetail, createAdminBooking,
     updateAdminBooking, deleteAdminBooking, confirmBooking, cancelAdminBooking,
-    recordAdminPayment, qrCheckInBooking, adminCheckIn, adminCheckOut, addServiceToBooking, extendBooking,
+    recordAdminPayment, scanQrCheckIn, qrCheckInBooking, adminCheckIn, adminCheckOut, addServiceToBooking, extendBooking,
     
     // Admin Dashboard & Reports
     fetchCourtDashboard, fetchCourtStats, fetchCourtCalendar,

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Court;
 use App\Models\User;
+use App\Services\CourtBookingAdminService;
 use App\Services\CourtBookingService;
 use App\Services\CourtBookingWorkflowService;
 use Illuminate\Http\Request;
@@ -93,6 +94,108 @@ class CourtBookingWorkflowTest extends TestCase
         $lock = $service->lockSlot($this->payload($court->court_id, '19:00', '20:00'));
 
         $this->assertNotNull($lock->lock_token);
+    }
+
+    public function test_admin_scan_qr_checkin_success(): void
+    {
+        $court = $this->court();
+        $user = $this->user('qr-test@example.com');
+        auth()->guard('api')->setUser($user);
+
+        $bookingService = app(CourtBookingService::class);
+        $workflowService = app(CourtBookingWorkflowService::class);
+        $adminService = app(CourtBookingAdminService::class);
+
+        $lock = $bookingService->lockSlot($this->payload($court->court_id, '19:00', '20:00'));
+        $booking = $bookingService->createBooking(array_merge(
+            $this->payload($court->court_id, '19:00', '20:00'),
+            ['payment_method' => 'cash', 'lock_token' => $lock->lock_token]
+        ));
+
+        // Generate standardized QR payload
+        $qrPayload = $workflowService->qrPayload($booking);
+        $this->assertStringStartsWith('OSBK:', $qrPayload);
+
+        // Perform scan check-in via Admin Service
+        $result = $adminService->scanAndCheckIn($qrPayload, 1, Request::create('/'));
+
+        $this->assertTrue($result['ok']);
+        $this->assertEquals(200, $result['code']);
+        $this->assertEquals('checked_in', $result['data']->status);
+        $this->assertNotNull($result['data']->checked_in_at);
+    }
+
+    public function test_admin_override_checkin_outside_window(): void
+    {
+        $court = $this->court();
+        $user = $this->user('override-test@example.com');
+        auth()->guard('api')->setUser($user);
+
+        $bookingService = app(CourtBookingService::class);
+        $adminService = app(CourtBookingAdminService::class);
+
+        $lock = $bookingService->lockSlot($this->payload($court->court_id, '19:00', '20:00'));
+        $booking = $bookingService->createBooking(array_merge(
+            $this->payload($court->court_id, '19:00', '20:00'),
+            ['payment_method' => 'cash', 'lock_token' => $lock->lock_token]
+        ));
+
+        // Scan by booking code with override (default true)
+        $result = $adminService->scanAndCheckIn($booking->booking_code, 1, Request::create('/'), true);
+
+        $this->assertTrue($result['ok']);
+        $this->assertEquals('checked_in', $result['data']->status);
+    }
+
+    public function test_recover_no_show_booking_to_checked_in(): void
+    {
+        $court = $this->court();
+        $user = $this->user('noshow-test@example.com');
+        auth()->guard('api')->setUser($user);
+
+        $bookingService = app(CourtBookingService::class);
+        $workflowService = app(CourtBookingWorkflowService::class);
+        $adminService = app(CourtBookingAdminService::class);
+
+        $lock = $bookingService->lockSlot($this->payload($court->court_id, '19:00', '20:00'));
+        $booking = $bookingService->createBooking(array_merge(
+            $this->payload($court->court_id, '19:00', '20:00'),
+            ['payment_method' => 'cash', 'lock_token' => $lock->lock_token]
+        ));
+
+        // Transition to no_show
+        $booking = $workflowService->transition($booking, 'no_show', 'system', null, 'Auto marked no-show');
+        $this->assertEquals('no_show', $booking->status);
+
+        // Recover and check-in via scanAndCheckIn
+        $result = $adminService->scanAndCheckIn($booking->booking_code, 1, Request::create('/'), true);
+
+        $this->assertTrue($result['ok']);
+        $this->assertEquals('checked_in', $result['data']->status);
+    }
+
+    public function test_invalid_qr_token_rejected(): void
+    {
+        $court = $this->court();
+        $user = $this->user('invalid-qr@example.com');
+        auth()->guard('api')->setUser($user);
+
+        $bookingService = app(CourtBookingService::class);
+        $adminService = app(CourtBookingAdminService::class);
+
+        $lock = $bookingService->lockSlot($this->payload($court->court_id, '19:00', '20:00'));
+        $booking = $bookingService->createBooking(array_merge(
+            $this->payload($court->court_id, '19:00', '20:00'),
+            ['payment_method' => 'cash', 'lock_token' => $lock->lock_token]
+        ));
+
+        // Fake tampered QR token
+        $fakeQrPayload = "OSBK:{$booking->booking_code}:invalidfaketoken123456789";
+
+        $result = $adminService->scanAndCheckIn($fakeQrPayload, 1, Request::create('/'));
+
+        $this->assertFalse($result['ok']);
+        $this->assertEquals(400, $result['code']);
     }
 
     private function payload(int $courtId, string $start, string $end): array

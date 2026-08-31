@@ -42,6 +42,21 @@ const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
 };
 
+const getOtherDiscount = (orderData) => {
+  if (!orderData) return 0;
+  const subtotal = Number(orderData.subtotal) || 0;
+  const shippingFee = Number(orderData.shipping_fee) || 0;
+  const grandTotal = Number(orderData.grand_total) || 0;
+  const knownDiscount = (Number(orderData.discount_amount) || 0) +
+    (Number(orderData.combo_discount) || 0) +
+    (Number(orderData.wallet_deposit_discount) || 0) +
+    (Number(orderData.wallet_commission_discount) || 0);
+
+  const totalCalculatedDiscount = Math.max(0, subtotal + shippingFee - grandTotal);
+  const remaining = totalCalculatedDiscount - knownDiscount;
+  return remaining > 0 ? remaining : 0;
+};
+
 const getProductImage = (item) => {
     if (item.variant?.image_url) {
         return getStorageUrl(item.variant.image_url);
@@ -666,12 +681,39 @@ watch(orderId, (newId) => {
              </div>
              <div class="summary-row">
                <span class="fw-bold">Phí vận chuyển</span>
-               <span>{{ formatPrice(order.shipping_fee) }}</span>
+               <span>{{ Number(order.shipping_fee) === 0 ? 'Miễn phí (0 đ)' : formatPrice(order.shipping_fee) }}</span>
              </div>
-             <div class="summary-row discount" v-if="order.discount_amount > 0">
-               <span>Giảm giá</span>
+
+             <!-- Giảm giá Voucher / Khuyến mãi -->
+             <div class="summary-row discount" v-if="Number(order.discount_amount) > 0">
+               <span class="fw-bold">Giảm giá Voucher / Ưu đãi</span>
                <span>-{{ formatPrice(order.discount_amount) }}</span>
              </div>
+
+             <!-- Giảm giá Combo thể thao -->
+             <div class="summary-row discount" v-if="Number(order.combo_discount) > 0">
+               <span class="fw-bold">Giảm giá Combo thể thao</span>
+               <span>-{{ formatPrice(order.combo_discount) }}</span>
+             </div>
+
+             <!-- Trừ Ví Ocean (Tiền nạp) -->
+             <div class="summary-row discount" v-if="Number(order.wallet_deposit_discount) > 0">
+               <span class="fw-bold">Khấu trừ Ví Ocean (Tiền nạp)</span>
+               <span>-{{ formatPrice(order.wallet_deposit_discount) }}</span>
+             </div>
+
+             <!-- Trừ Ví Ocean (Hoa hồng) -->
+             <div class="summary-row discount" v-if="Number(order.wallet_commission_discount) > 0">
+               <span class="fw-bold">Khấu trừ Ví Ocean (Hoa hồng)</span>
+               <span>-{{ formatPrice(order.wallet_commission_discount) }}</span>
+             </div>
+
+             <!-- Chiết khấu / Ưu đãi trừ thêm khác (đảm bảo toán học luôn đúng 100%) -->
+             <div class="summary-row discount" v-if="getOtherDiscount(order) > 0">
+               <span class="fw-bold">Chiết khấu / Ưu đãi khác</span>
+               <span>-{{ formatPrice(getOtherDiscount(order)) }}</span>
+             </div>
+
              <div class="summary-row total">
                <span>Tổng cộng</span>
                <span class="total-price">{{ formatPrice(order.grand_total) }}</span>

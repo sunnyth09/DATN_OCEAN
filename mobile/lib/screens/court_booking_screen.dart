@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../utils/app_logger.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -197,7 +198,7 @@ class _CourtBookingScreenState extends State<CourtBookingScreen> {
     _subscribedDateChannel = newDateChannel;
 
     void onRealtimeChange(String event, dynamic data) {
-      debugPrint('[CourtBooking] Realtime event received: $event on $_subscribedCourtChannel');
+      AppLogger.debug('[CourtBooking] Realtime event received: $event on $_subscribedCourtChannel');
       if (mounted) {
         _loadAvailability(silent: true);
       }

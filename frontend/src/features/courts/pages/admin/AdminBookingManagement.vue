@@ -1,6 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useCourtBookingStore } from '@/features/courts/stores/useCourtBookingStore';
+import { Html5Qrcode } from 'html5-qrcode';
+import { playNotificationSound } from '@/utils/sound';
 import { Modal } from 'bootstrap';
 import Swal from 'sweetalert2';
 import '@/features/courts/assets/court-management.css';
@@ -255,12 +257,129 @@ const handleRecordPayment = async (booking) => {
     } catch (e) {}
 };
 
+// ==========================================
+// QR CAMERA SCANNER & FAST BARCODE CHECK-IN
+// ==========================================
+let html5QrCode = null;
+const isScanning = ref(false);
+const scannerInput = ref('');
+const scannerLoading = ref(false);
+const scannerError = ref('');
+const scannerResult = ref(null);
+const cameraList = ref([]);
+const selectedCameraId = ref('');
+
+const openScannerModal = async () => {
+    scannerInput.value = '';
+    scannerError.value = '';
+    scannerResult.value = null;
+    openModal('qrScannerModal');
+
+    await nextTick();
+    startCameraScanner();
+};
+
+const closeScannerModal = async () => {
+    await stopCameraScanner();
+    closeModal('qrScannerModal');
+};
+
+const startCameraScanner = async () => {
+    try {
+        if (html5QrCode && isScanning.value) {
+            await stopCameraScanner();
+        }
+
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length > 0) {
+            cameraList.value = devices;
+            if (!selectedCameraId.value) {
+                const backCam = devices.find(d => {
+                    const label = (d.label || '').toLowerCase();
+                    return label.includes('back') || label.includes('environment') || label.includes('sau');
+                });
+                selectedCameraId.value = backCam ? backCam.id : devices[0].id;
+            }
+
+            html5QrCode = new Html5Qrcode('qr-reader-container');
+            await html5QrCode.start(
+                selectedCameraId.value,
+                {
+                    fps: 10,
+                    qrbox: { width: 220, height: 220 },
+                    aspectRatio: 1.0,
+                },
+                (decodedText) => {
+                    handleProcessScan(decodedText);
+                },
+                () => {}
+            );
+            isScanning.value = true;
+        } else {
+            scannerError.value = 'Không tìm thấy Camera trên thiết bị này.';
+        }
+    } catch (err) {
+        console.warn('Camera scanner init error:', err);
+        scannerError.value = 'Không thể mở Camera. Bạn có thể dùng máy quét Barcode hoặc nhập mã bên dưới.';
+    }
+};
+
+const stopCameraScanner = async () => {
+    if (html5QrCode) {
+        try {
+            if (isScanning.value) {
+                await html5QrCode.stop();
+            }
+            html5QrCode.clear();
+        } catch (e) {
+            console.warn('Error stopping camera:', e);
+        }
+        isScanning.value = false;
+        html5QrCode = null;
+    }
+};
+
+const onCameraChange = async () => {
+    await stopCameraScanner();
+    await startCameraScanner();
+};
+
+const handleProcessScan = async (qrData) => {
+    if (!qrData || scannerLoading.value) return;
+
+    scannerLoading.value = true;
+    scannerError.value = '';
+
+    try {
+        const res = await store.scanQrCheckIn({ qr_data: qrData, allow_override: true });
+        playNotificationSound();
+        scannerResult.value = res?.data || res;
+        toast.success(res?.message || 'Check-in thành công!');
+        fetchBookings();
+    } catch (err) {
+        scannerError.value = err.response?.data?.message || err.message || 'Mã QR không hợp lệ hoặc check-in thất bại.';
+        toast.error(scannerError.value);
+    } finally {
+        scannerLoading.value = false;
+    }
+};
+
+const handleManualScanSubmit = () => {
+    if (!scannerInput.value.trim()) return;
+    handleProcessScan(scannerInput.value.trim());
+    scannerInput.value = '';
+};
+
+onUnmounted(() => {
+    stopCameraScanner();
+});
+
 const handleQrCheckIn = async (booking) => {
     const id = booking.booking_id || booking.id;
     const result = await Swal.fire({
         title: 'QR check-in',
         input: 'text',
-        inputPlaceholder: 'Dán mã QR token của khách',
+        inputPlaceholder: 'Dán mã QR token hoặc quét mã của khách',
         showCancelButton: true,
         confirmButtonText: 'Check-in',
         cancelButtonText: 'Đóng'
@@ -268,7 +387,8 @@ const handleQrCheckIn = async (booking) => {
     if (!result.isConfirmed || !result.value) return;
 
     try {
-        await store.qrCheckInBooking(id, { qr_token: result.value });
+        await store.scanQrCheckIn({ qr_data: result.value, allow_override: true });
+        playNotificationSound();
         toast.success('QR check-in thành công');
         fetchBookings();
     } catch (e) {}
@@ -377,9 +497,14 @@ const clearFilters = () => {
                 </h2>
                 <p class="court-section-subtitle">Theo dõi, check-in/out và quản lý tất cả đơn đặt sân</p>
             </div>
-            <button class="court-action-btn court-action-btn--primary" @click="openModal('posBookingModal')">
-                <i class="bi bi-plus-lg"></i> Đặt Sân Tại Quầy (POS)
-            </button>
+            <div class="d-flex align-items-center gap-2">
+                <button class="court-action-btn" style="background: #198754; color: #fff; border: none; font-weight: 600;" @click="openScannerModal">
+                    <i class="bi bi-qr-code-scan me-1"></i> Quét QR Check-in
+                </button>
+                <button class="court-action-btn court-action-btn--primary" @click="openModal('posBookingModal')">
+                    <i class="bi bi-plus-lg"></i> Đặt Sân Tại Quầy (POS)
+                </button>
+            </div>
         </div>
 
         <!-- Stats Bar -->
@@ -571,12 +696,17 @@ const clearFilters = () => {
                                                 <i class="bi bi-check-circle"></i> Xác nhận Booking
                                             </a>
                                         </li>
-                                        <li v-if="booking.status === 'confirmed'">
+                                        <li v-if="['confirmed', 'pending'].includes(booking.status)">
                                             <a class="dropdown-item d-flex align-items-center gap-2" href="#" @click.prevent="handleCheckIn(booking.booking_id || booking.id)" style="color: var(--court-available);">
                                                 <i class="bi bi-box-arrow-in-right"></i> Check-in Nhận Sân
                                             </a>
                                         </li>
-                                        <li v-if="booking.status === 'confirmed'">
+                                        <li v-if="booking.status === 'no_show'">
+                                            <a class="dropdown-item d-flex align-items-center gap-2 fw-bold text-success" href="#" @click.prevent="handleCheckIn(booking.booking_id || booking.id)">
+                                                <i class="bi bi-arrow-repeat"></i> Phục hồi & Check-in
+                                            </a>
+                                        </li>
+                                        <li v-if="['confirmed', 'pending', 'no_show'].includes(booking.status)">
                                             <a class="dropdown-item d-flex align-items-center gap-2" href="#" @click.prevent="handleQrCheckIn(booking)" style="color: var(--court-playing);">
                                                 <i class="bi bi-qr-code"></i> QR Check-in
                                             </a>
@@ -859,11 +989,148 @@ const clearFilters = () => {
             </div>
         </div>
 
+        <!-- QR Camera Scanner Modal -->
+        <div class="modal fade court-modal" id="qrScannerModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg" style="border-radius: 20px; overflow: hidden;">
+                    <div class="modal-header bg-dark text-white border-0 py-3">
+                        <h5 class="modal-title d-flex align-items-center gap-2 mb-0" style="font-size: 1.1rem; font-weight: 700;">
+                            <i class="bi bi-qr-code-scan text-success"></i>
+                            Quét QR Check-in Nhận Sân
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" @click="closeScannerModal"></button>
+                    </div>
+                    <div class="modal-body p-4 bg-light">
+                        <!-- Camera selector if multiple -->
+                        <div v-if="cameraList.length > 1" class="mb-3">
+                            <select class="form-select form-select-sm rounded-pill" v-model="selectedCameraId" @change="onCameraChange">
+                                <option v-for="cam in cameraList" :key="cam.id" :value="cam.id">
+                                    📹 {{ cam.label || 'Camera ' + cam.id }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Scanner Viewport -->
+                        <div class="position-relative mx-auto rounded-4 overflow-hidden shadow-sm" style="max-width: 320px; background: #000; min-height: 280px;">
+                            <div id="qr-reader-container" style="width: 100%; border: none;"></div>
+                            
+                            <!-- Scanning Overlay Animation -->
+                            <div v-if="isScanning" class="qr-scanner-overlay">
+                                <div class="qr-scanner-laser"></div>
+                            </div>
+
+                            <!-- Loading Spinner -->
+                            <div v-if="scannerLoading" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center bg-dark bg-opacity-75 text-white z-3">
+                                <div class="spinner-border text-success mb-2" role="status"></div>
+                                <div class="fw-semibold" style="font-size: 0.85rem;">Đang xác thực check-in...</div>
+                            </div>
+                        </div>
+
+                        <!-- Scanner Error Alert -->
+                        <div v-if="scannerError" class="alert alert-danger d-flex align-items-center gap-2 mt-3 py-2 px-3 mb-0" style="border-radius: 12px; font-size: 0.85rem;">
+                            <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+                            <div>{{ scannerError }}</div>
+                        </div>
+
+                        <!-- Success Result Card -->
+                        <div v-if="scannerResult" class="card border-0 shadow-sm mt-3" style="border-radius: 14px; background: #e8f5e9; border: 1px solid #a5d6a7;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center gap-2 text-success fw-bold mb-2" style="font-size: 0.95rem;">
+                                    <i class="bi bi-check-circle-fill" style="font-size: 1.2rem;"></i>
+                                    Check-in thành công!
+                                </div>
+                                <div class="d-flex justify-content-between py-1 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.06) !important;">
+                                    <span class="text-muted">Mã booking:</span>
+                                    <span class="fw-bold font-monospace">{{ scannerResult.booking_code }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between py-1 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.06) !important;">
+                                    <span class="text-muted">Khách hàng:</span>
+                                    <span class="fw-semibold">{{ scannerResult.customer_name || scannerResult.user?.full_name || 'Khách vãng lai' }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between py-1 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.06) !important;">
+                                    <span class="text-muted">Sân:</span>
+                                    <span class="fw-semibold text-primary">{{ scannerResult.court?.court_name || scannerResult.court?.name }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between py-1" style="font-size: 0.85rem;">
+                                    <span class="text-muted">Giờ chơi:</span>
+                                    <span class="fw-bold">{{ formatTime(scannerResult.start_time) }} - {{ formatTime(scannerResult.end_time) }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fast Input for Barcode Gun / Manual Typing -->
+                        <div class="mt-3">
+                            <label class="form-label text-muted fw-semibold mb-1" style="font-size: 0.75rem;">
+                                <i class="bi bi-upc-scan me-1"></i> HOẶC QUÉT BẰNG SÚNG QUÉT / NHẬP MÃ:
+                            </label>
+                            <div class="input-group">
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    v-model="scannerInput"
+                                    placeholder="Dán mã QR / Mã BK..."
+                                    @keyup.enter="handleManualScanSubmit"
+                                    style="border-radius: 10px 0 0 10px; font-size: 0.85rem;"
+                                />
+                                <button
+                                    class="btn btn-dark fw-semibold px-3"
+                                    style="border-radius: 0 10px 10px 0; font-size: 0.85rem;"
+                                    @click="handleManualScanSubmit"
+                                    :disabled="!scannerInput.trim() || scannerLoading"
+                                >
+                                    Check-in
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-white border-0 py-3">
+                        <button type="button" class="btn btn-secondary rounded-pill px-4" @click="closeScannerModal">
+                            Đóng
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </template>
 
 <style scoped>
 .booking-management-page {
     max-width: 100%;
+}
+
+.qr-scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qr-scanner-laser {
+    position: absolute;
+    width: 80%;
+    height: 2px;
+    background: #00ff88;
+    box-shadow: 0 0 12px #00ff88, 0 0 20px #00ff88;
+    animation: scanAnimation 2s infinite ease-in-out;
+}
+
+@keyframes scanAnimation {
+    0% { transform: translateY(-80px); opacity: 0.8; }
+    50% { transform: translateY(80px); opacity: 1; }
+    100% { transform: translateY(-80px); opacity: 0.8; }
+}
+
+:deep(#qr-reader-container video) {
+    width: 100% !important;
+    height: auto !important;
+    border-radius: 12px;
+    object-fit: cover;
 }
 </style>

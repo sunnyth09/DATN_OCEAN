@@ -58,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (_) {}
   }
 
-  Future<void> _completeLoginSuccess(String email, {String? password}) async {
+  Future<void> _completeLoginSuccess(String email) async {
     final user = context.read<AuthProvider>().user;
     final token = await StorageService.read(AuthService.keyToken);
     final isPasskey = await PasskeyService.isPasskeyEnrolled(email);
@@ -68,7 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
         email,
         name: user?.fullName,
         avatarUrl: user?.avatarUrl,
-        password: password,
         token: token,
         userData: user?.toJson(),
       );
@@ -77,7 +76,6 @@ class _LoginScreenState extends State<LoginScreen> {
       await PasskeyService.updatePasskeyData(
         email,
         token: token,
-        password: password,
         userData: user?.toJson(),
       );
     }
@@ -146,17 +144,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
 
-    // 3. Nếu Token hết hạn hoặc chưa có, thử đăng nhập bằng Mật khẩu đã lưu trong vault
-    final savedPwd = await PasskeyService.getPasskeyPassword(email);
-    if (savedPwd != null && savedPwd.isNotEmpty) {
-      final loginResult = await authProvider.login(email, savedPwd);
-      if (loginResult['success'] == true) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        await _completeLoginSuccess(email, password: savedPwd);
-        return;
-      }
-    }
+    // 3. Token hết hạn và không có cách tự động đăng nhập lại — yêu cầu nhập mật khẩu thủ công
+    if (!mounted) return;
+    setState(() => _isLoading = false);
 
     // 4. Nếu chưa có mật khẩu hoặc token lưu trữ (e.g. lần đầu sau khi bật passkey mà token hết hạn)
     if (!mounted) return;
@@ -254,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         if (result['success'] == true) {
                           if (ctx.mounted) Navigator.pop(ctx);
                           if (!mounted) return;
-                          await _completeLoginSuccess(email, password: pwd);
+                          await _completeLoginSuccess(email);
                         } else {
                           if (!mounted) return;
                           AppToast.showError(
@@ -301,7 +291,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      await _completeLoginSuccess(email, password: password);
+      await _completeLoginSuccess(email);
     } else {
       AppToast.showError(
         context,

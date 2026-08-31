@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_logger.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 
@@ -50,7 +51,7 @@ class LoyaltyProvider extends ChangeNotifier {
         _rewards = rewardsRes.data['data'] ?? [];
       }
     } catch (e) {
-      debugPrint('Error fetching loyalty data: $e');
+      AppLogger.error(' fetching loyalty data: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -106,10 +107,10 @@ class LoyaltyProvider extends ChangeNotifier {
       }
       return false;
     } on DioException catch (e) {
-      debugPrint('Error redeeming reward: ${e.response?.data}');
+      AppLogger.error(' redeeming reward: ${e.response?.data}');
       return false;
     } catch (e) {
-      debugPrint('Error redeeming reward: $e');
+      AppLogger.error(' redeeming reward: $e');
       return false;
     } finally {
       _isRedeeming = false;
@@ -125,7 +126,7 @@ class LoyaltyProvider extends ChangeNotifier {
       }
       return [];
     } catch (e) {
-      debugPrint('Error fetching wheel prizes: $e');
+      AppLogger.error(' fetching wheel prizes: $e');
       return [];
     }
   }

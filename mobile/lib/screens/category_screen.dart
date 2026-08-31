@@ -459,7 +459,14 @@ class _CategoryScreenState extends State<CategoryScreen>
               return _compactChip(
                 label: 'Tất cả',
                 selected: sel,
-                onTap: () => context.read<CategoryProvider>().selectCategory(null, null),
+                onTap: () {
+                  if (!sel) {
+                    if (_scrollCtrl.hasClients && _scrollCtrl.offset > 0) {
+                      _scrollCtrl.jumpTo(0);
+                    }
+                    context.read<CategoryProvider>().selectCategory(null, null);
+                  }
+                },
               );
             }
             final cat = cats[i - 1];
@@ -472,7 +479,14 @@ class _CategoryScreenState extends State<CategoryScreen>
             return _compactChip(
               label: cleanName,
               selected: sel,
-              onTap: () => context.read<CategoryProvider>().selectCategory(int.tryParse(id.toString()), cleanName),
+              onTap: () {
+                if (!sel) {
+                  if (_scrollCtrl.hasClients && _scrollCtrl.offset > 0) {
+                    _scrollCtrl.jumpTo(0);
+                  }
+                  context.read<CategoryProvider>().selectCategory(int.tryParse(id.toString()), cleanName);
+                }
+              },
             );
           },
         ),

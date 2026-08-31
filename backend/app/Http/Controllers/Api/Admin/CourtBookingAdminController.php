@@ -141,21 +141,23 @@ class CourtBookingAdminController extends Controller
     }
 
     /**
-     * Check-in (confirmed → checked_in)
+     * Check-in (confirmed/pending/no_show → checked_in)
      */
     public function checkIn(Request $request, $id)
     {
         $booking = CourtBooking::findOrFail($id);
 
-        if ($booking->status !== 'confirmed') {
+        if (! in_array($booking->status, ['confirmed', 'pending', 'no_show'], true)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Booking phải ở trạng thái "Chờ duyệt" hoặc "Đã xác nhận" để check-in.',
+                'message' => 'Booking phải ở trạng thái "Chờ duyệt", "Đã xác nhận" hoặc "Vắng mặt" để check-in.',
             ], 400);
         }
 
+        $allowOverride = $request->boolean('allow_override', true);
+
         try {
-            $this->workflowService->assertCheckInWindow($booking);
+            $this->workflowService->assertCheckInWindow($booking, $allowOverride);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 400);
         }
@@ -165,7 +167,7 @@ class CourtBookingAdminController extends Controller
             'checked_in',
             'admin',
             $this->adminId(),
-            'Check-in nhan san',
+            'Lễ tân check-in nhận sân tại quầy',
             ['checked_in_at' => now()],
             $request
         );
@@ -173,7 +175,7 @@ class CourtBookingAdminController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Check-in thành công.',
-            'data' => $booking,
+            'data' => $booking->load(['user', 'court', 'services.service', 'payments']),
         ]);
     }
 
@@ -374,6 +376,30 @@ class CourtBookingAdminController extends Controller
             'message' => 'QR check-in successful.',
             'data' => $booking,
         ]);
+    }
+
+    /**
+     * Quét QR Check-in toàn cục (nhận diện camera / scanner gun)
+     */
+    public function scanQr(Request $request)
+    {
+        $validated = $request->validate([
+            'qr_data' => 'required|string',
+            'allow_override' => 'nullable|boolean',
+        ]);
+
+        $allowOverride = $request->boolean('allow_override', true);
+        $result = $this->adminService->scanAndCheckIn($validated['qr_data'], $this->adminId(), $request, $allowOverride);
+
+        if (! $result['ok']) {
+            return response()->json(['status' => 'error', 'message' => $result['message']], $result['code']);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => $result['message'] ?? 'Check-in thành công.',
+            'data' => $result['data'],
+        ], $result['code']);
     }
 
     public function calendar(Request $request)

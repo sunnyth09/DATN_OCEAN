@@ -699,8 +699,12 @@ class _OrderScreenState extends State<OrderScreen>
                                 onPressed: () {
                                   if (category == 'to_review' || category == 'cancelled') {
                                     context.push('/shop');
-                                  } else if (category == 'shipping') {
-                                    context.push('/tracking?code=$orderCode');
+                                    final trackingNum = order['tracking_number']?.toString();
+                                    final hasExternalTracking = trackingNum != null &&
+                                        trackingNum.isNotEmpty &&
+                                        trackingNum.toUpperCase().startsWith('OE-');
+                                    final targetCode = hasExternalTracking ? trackingNum : orderCode;
+                                    context.push('/tracking?code=$targetCode', extra: order);
                                   } else {
                                     context.push('/order-detail', extra: orderId);
                                   }
