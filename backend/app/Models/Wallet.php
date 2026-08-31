@@ -74,11 +74,11 @@ class Wallet extends Model
 
     /**
      * Tính max giảm giá từ hoa hồng cho 1 đơn.
-     * Rule: Chỉ được dùng 10% tổng số hoa hồng tích lũy.
+     * Rule: Dùng 100% hoa hồng.
      */
     public function getMaxCommissionDiscount(): float
     {
-        return round((float) $this->commission_balance * 0.10, 2);
+        return (float) $this->commission_balance;
     }
 
     /**
