@@ -192,7 +192,6 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
         Route::middleware('throttle:strict_api')->get('/affiliate/profile', [AffiliateController::class, 'profile']);
         Route::middleware('throttle:strict_api')->get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
         Route::middleware('throttle:strict_api')->get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
-        Route::middleware('throttle:3,60')->post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
         Route::middleware('throttle:strict_api')->get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
     });
     // Khiếu nại của tôi

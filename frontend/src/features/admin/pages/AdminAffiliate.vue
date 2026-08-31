@@ -5,15 +5,13 @@ import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 
-const activeTab = ref('affiliates'); // 'affiliates', 'conversions' or 'withdrawals'
+const activeTab = ref('affiliates'); // 'affiliates' or 'conversions'
 const affiliates = ref([]);
 const conversions = ref([]);
-const withdrawals = ref([]);
 const isLoading = ref(false);
 
 const paginationAff = ref(null);
 const paginationConv = ref(null);
-const paginationWith = ref(null);
 
 const formatPrice = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v || 0);
 const formatDate = (d) => {
@@ -30,15 +28,7 @@ const CONV_STATUS_MAP = {
   canceled:  { text: 'Đã hủy',     tone: 'status-danger' },
 };
 
-const WITHDRAW_STATUS_MAP = {
-  pending:   { text: 'Chờ xử lý',  tone: 'status-warning' },
-  approved:  { text: 'Đã duyệt',   tone: 'status-info' },
-  paid:      { text: 'Đã thanh toán',tone: 'status-success' },
-  rejected:  { text: 'Từ chối',    tone: 'status-danger' },
-};
-
 const summaryPendingConversions = computed(() => conversions.value.filter(c => c.status === 'pending').length);
-const summaryPendingWithdrawals = computed(() => withdrawals.value.filter(w => w.status === 'pending').length);
 
 const fetchAffiliates = async (page = 1) => {
   isLoading.value = true;
@@ -78,29 +68,9 @@ const fetchConversions = async (page = 1) => {
   }
 };
 
-const fetchWithdrawals = async (page = 1) => {
-  isLoading.value = true;
-  try {
-    const res = await api.get('/admin/affiliate/withdrawals', { params: { page, per_page: 10 } });
-    if (res.data) {
-      withdrawals.value = res.data.data?.data || [];
-      paginationWith.value = {
-        current_page: res.data.data?.current_page,
-        last_page: res.data.data?.last_page,
-        total: res.data.data?.total,
-      };
-    }
-  } catch (e) {
-    console.error('Fetch withdrawals error', e);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
 const switchTab = (tab) => {
   activeTab.value = tab;
   if (tab === 'conversions') fetchConversions(1);
-  else if (tab === 'withdrawals') fetchWithdrawals(1);
   else fetchAffiliates(1);
 };
 
@@ -146,74 +116,9 @@ const cancelConversion = async (conv) => {
   }
 };
 
-// Withdrawals Actions
-const approveWithdrawal = async (w) => {
-  const result = await Swal.fire({
-    title: 'Duyệt yêu cầu rút tiền?',
-    html: `<p>Duyệt yêu cầu rút <strong style="color:#16a34a">${formatPrice(w.amount)}</strong> của <strong>${w.user?.name}</strong>.</p>`,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Duyệt',
-    cancelButtonText: 'Hủy'
-  });
-  if (result.isConfirmed) {
-    try {
-      const res = await api.put(`/admin/affiliate/withdrawals/${w.id}/approve`);
-      Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data.message || 'Đã duyệt yêu cầu', icon: 'success', showConfirmButton: false, timer: 3000 });
-      fetchWithdrawals(paginationWith.value?.current_page || 1);
-    } catch (e) {
-      Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
-    }
-  }
-};
-
-const rejectWithdrawal = async (w) => {
-  const { value: note } = await Swal.fire({
-    title: 'Từ chối rút tiền',
-    input: 'text',
-    inputLabel: 'Lý do từ chối',
-    inputPlaceholder: 'Nhập lý do (tuỳ chọn)...',
-    showCancelButton: true,
-    confirmButtonColor: '#dc2626',
-    confirmButtonText: 'Từ chối'
-  });
-  
-  if (note !== undefined) {
-    try {
-      const res = await api.put(`/admin/affiliate/withdrawals/${w.id}/reject`, { note });
-      Swal.fire({ toast: true, position: 'top-end', title: 'Đã từ chối', text: res.data.message || 'Đã từ chối yêu cầu', icon: 'success', showConfirmButton: false, timer: 3000 });
-      fetchWithdrawals(paginationWith.value?.current_page || 1);
-    } catch (e) {
-      Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
-    }
-  }
-};
-
-const markPaidWithdrawal = async (w) => {
-  const result = await Swal.fire({
-    title: 'Xác nhận đã thanh toán?',
-    html: `<p>Bạn xác nhận đã chuyển khoản <strong style="color:#16a34a">${formatPrice(w.amount)}</strong> thành công?</p>`,
-    icon: 'info',
-    showCancelButton: true,
-    confirmButtonText: 'Đã thanh toán',
-    cancelButtonText: 'Hủy'
-  });
-  if (result.isConfirmed) {
-    try {
-      const res = await api.put(`/admin/affiliate/withdrawals/${w.id}/paid`);
-      Swal.fire({ toast: true, position: 'top-end', title: 'Thành công', text: res.data.message || 'Đã chuyển trạng thái Đã thanh toán', icon: 'success', showConfirmButton: false, timer: 3000 });
-      fetchWithdrawals(paginationWith.value?.current_page || 1);
-    } catch (e) {
-      Swal.fire({ toast: true, position: 'top-end', title: 'Lỗi', text: e.response?.data?.message || 'Có lỗi xảy ra', icon: 'error', showConfirmButton: false, timer: 3000 });
-    }
-  }
-};
-
 onMounted(() => {
   fetchAffiliates(1);
-  // Prefetch for summaries
   fetchConversions(1);
-  fetchWithdrawals(1);
 });
 </script>
 
@@ -222,7 +127,7 @@ onMounted(() => {
     <div class="page-header">
       <div>
         <h1 class="page-title">Quản lý Affiliate</h1>
-        <p class="page-subtitle">Duyệt đơn hàng giới thiệu và xử lý yêu cầu rút tiền</p>
+        <p class="page-subtitle">Duyệt đơn hàng giới thiệu</p>
       </div>
     </div>
 
@@ -237,16 +142,7 @@ onMounted(() => {
           <span class="summary-label">Đơn chờ duyệt</span>
         </div>
       </div>
-      <div class="summary-card">
-        <div class="summary-icon summary-icon--primary">
-          <AppIcon name="credit-card" size="24" />
-        </div>
-        <div class="summary-body">
-          <span class="summary-value">{{ summaryPendingWithdrawals }}</span>
-          <span class="summary-label">Yêu cầu rút tiền mới</span>
-        </div>
       </div>
-    </div>
 
     <!-- Tabs -->
     <div class="custom-tabs">
@@ -255,9 +151,6 @@ onMounted(() => {
         </button>
         <button class="tab-btn" :class="{'active': activeTab === 'conversions'}" @click="switchTab('conversions')">
             Đơn hàng giới thiệu (Conversions)
-        </button>
-        <button class="tab-btn" :class="{'active': activeTab === 'withdrawals'}" @click="switchTab('withdrawals')">
-            Yêu cầu rút tiền (Withdrawals)
         </button>
     </div>
 
@@ -367,69 +260,6 @@ onMounted(() => {
           <button :disabled="paginationConv.current_page === paginationConv.last_page" @click="fetchConversions(paginationConv.current_page + 1)" class="btn-page">Sau</button>
       </div>
     </div>
-
-    <!-- Tab: Withdrawals -->
-    <div v-else-if="activeTab === 'withdrawals'" class="table-card">
-      <div class="table-responsive">
-        <table class="data-table">
-        <thead>
-          <tr>
-            <th>Cộng tác viên</th>
-            <th>Số tiền rút</th>
-            <th>Ngân hàng</th>
-            <th>Trạng thái</th>
-            <th>Ngày yêu cầu</th>
-            <th>Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="withdrawals.length === 0">
-            <td colspan="6" class="empty-cell">Không có yêu cầu rút tiền nào.</td>
-          </tr>
-          <tr v-for="w in withdrawals" :key="w.id">
-            <td>
-              <div class="cell-stack">
-                <strong>{{ w.user?.name }}</strong>
-                <span>{{ w.user?.email }}</span>
-              </div>
-            </td>
-            <td><span class="amount-text">{{ formatPrice(w.amount) }}</span></td>
-            <td>
-              <div class="cell-stack">
-                <strong>{{ w.bank_name }}</strong>
-                <span>{{ w.account_number }} - {{ w.account_name }}</span>
-              </div>
-            </td>
-            <td>
-              <span class="status-badge" :class="WITHDRAW_STATUS_MAP[w.status]?.tone || 'status-info'">
-                {{ WITHDRAW_STATUS_MAP[w.status]?.text || w.status }}
-              </span>
-            </td>
-            <td>{{ formatDate(w.created_at) }}</td>
-            <td>
-              <div v-if="w.status === 'pending'" class="action-group">
-                <button class="btn-action btn-action--approve" @click="approveWithdrawal(w)">Duyệt</button>
-                <button class="btn-action btn-action--reject" @click="rejectWithdrawal(w)">Từ chối</button>
-              </div>
-              <div v-else-if="w.status === 'approved'" class="action-group">
-                <button class="btn-action btn-action--approve" @click="markPaidWithdrawal(w)">Đã CK xong</button>
-              </div>
-              <span v-else class="processed-text">—</span>
-            </td>
-          </tr>
-        </tbody>
-        </table>
-      </div>
-      <!-- Pagination -->
-      <div v-if="paginationWith && paginationWith.last_page > 1" class="pagination-controls">
-          <button :disabled="paginationWith.current_page === 1" @click="fetchWithdrawals(paginationWith.current_page - 1)" class="btn-page">Trước</button>
-          <div class="page-numbers">
-              <button v-for="page in paginationWith.last_page" :key="page" @click="fetchWithdrawals(page)" class="btn-page-number" :class="{'active': paginationWith.current_page === page}">{{ page }}</button>
-          </div>
-          <button :disabled="paginationWith.current_page === paginationWith.last_page" @click="fetchWithdrawals(paginationWith.current_page + 1)" class="btn-page">Sau</button>
-      </div>
-    </div>
-
   </div>
 </template>
 

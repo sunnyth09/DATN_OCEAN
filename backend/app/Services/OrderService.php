@@ -176,7 +176,9 @@ class OrderService
             $grandTotal = max(0, $subtotal + $shippingFee - $discountAmount - $comboDiscount);
 
             // ── Wallet Discount ──────────────────────────────────────────
-            $useWallet = ! empty($data['use_wallet']);
+            $useDeposit = ! empty($data['use_deposit']);
+            $useCommission = ! empty($data['use_commission']);
+            $useWallet = $useDeposit || $useCommission;
             $walletDepositUsed = 0;
             $walletCommissionUsed = 0;
             $walletTotalDiscount = 0;
@@ -186,7 +188,7 @@ class OrderService
 
                 if ($requestedWalletAmount > 0) {
                     // Preview để validate giới hạn
-                    $preview = $this->walletService->previewDiscount($userId, $grandTotal);
+                    $preview = $this->walletService->previewDiscount($userId, $grandTotal, $useDeposit, $useCommission);
                     $walletTotalDiscount = min($requestedWalletAmount, $preview['max_total_discount']);
                 }
             }
@@ -219,6 +221,8 @@ class OrderService
                 $couponId,
                 $couponResult,
                 $useWallet,
+                $useDeposit,
+                $useCommission,
                 $walletTotalDiscount,
                 &$walletDepositUsed,
                 &$walletCommissionUsed,
@@ -245,7 +249,9 @@ class OrderService
                     $walletResult = $this->walletService->applyOrderDiscount(
                         $userId,
                         $walletTotalDiscount,
-                        0 // orderId chưa có, sẽ update reference sau
+                        0, // orderId chưa có, sẽ update reference sau
+                        $useDeposit,
+                        $useCommission
                     );
                     $walletDepositUsed = $walletResult['deposit_used'];
                     $walletCommissionUsed = $walletResult['commission_used'];

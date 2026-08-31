@@ -134,13 +134,13 @@ class WalletService
      * @param  float  $requestedAmount  Tổng số tiền user muốn dùng từ ví
      * @return array{deposit_used: float, commission_used: float, total_discount: float, transactions: WalletTransaction[]}
      */
-    public function applyOrderDiscount(int $userId, float $requestedAmount, int $orderId): array
+    public function applyOrderDiscount(int $userId, float $requestedAmount, int $orderId, bool $useDeposit = true, bool $useCommission = true): array
     {
         if ($requestedAmount <= 0) {
             throw new \InvalidArgumentException('Số tiền giảm giá phải lớn hơn 0');
         }
 
-        return DB::transaction(function () use ($userId, $requestedAmount, $orderId) {
+        return DB::transaction(function () use ($userId, $requestedAmount, $orderId, $useDeposit, $useCommission) {
             $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->firstOrFail();
 
             if (! $wallet->isActive()) {
@@ -148,8 +148,8 @@ class WalletService
             }
 
             // Tính giới hạn
-            $maxFromDeposit = (float) $wallet->deposit_balance;
-            $maxFromCommission = $wallet->getMaxCommissionDiscount(); // 10% hoa hồng
+            $maxFromDeposit = $useDeposit ? (float) $wallet->deposit_balance : 0.0;
+            $maxFromCommission = $useCommission ? $wallet->getMaxCommissionDiscount() : 0.0; // Dùng 100% hoa hồng
 
             // Ưu tiên trừ deposit trước
             $depositUsed = min($requestedAmount, $maxFromDeposit);
@@ -457,12 +457,12 @@ class WalletService
     /**
      * Preview giảm giá ví cho 1 đơn hàng.
      */
-    public function previewDiscount(int $userId, float $orderSubtotal): array
+    public function previewDiscount(int $userId, float $orderSubtotal, bool $useDeposit = true, bool $useCommission = true): array
     {
         $wallet = $this->getOrCreateWallet($userId);
 
-        $maxDeposit = (float) $wallet->deposit_balance;
-        $maxCommission = $wallet->getMaxCommissionDiscount();
+        $maxDeposit = $useDeposit ? (float) $wallet->deposit_balance : 0.0;
+        $maxCommission = $useCommission ? $wallet->getMaxCommissionDiscount() : 0.0;
         $maxTotal = min($maxDeposit + $maxCommission, $orderSubtotal);
 
         // Mô phỏng logic applyOrderDiscount: deposit trước, commission sau

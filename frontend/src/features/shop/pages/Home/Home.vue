@@ -1,12 +1,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from "vue";
 import { storeToRefs } from "pinia";
-import ProductCard from "@/components/ProductCard.vue";
-import ProductSkeleton from "@/components/ProductSkeleton.vue";
-import AppIcon from "@/components/AppIcon.vue";
-import CouponDetailModal from "@/features/shop/components/CouponDetailModal.vue";
 import { useCatalogStore } from "@/stores/catalog";
-import { catalogService, extractCollection } from "@/services/catalogService";
+import { extractCollection } from "@/services/catalogService";
 import { getAppBaseUrl, getStorageUrl } from '@/utils/url';
 import api from "@/axios";
 

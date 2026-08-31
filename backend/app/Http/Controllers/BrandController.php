@@ -25,7 +25,10 @@ class BrandController extends Controller
     }
 
     /**
-     * Display a listing of the resource.
+     * Lấy danh sách tất cả các thương hiệu (Brands).
+     * Dữ liệu được cache trong 1 ngày (86400 giây) để tăng hiệu suất.
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index()
     {
@@ -42,7 +45,6 @@ class BrandController extends Controller
 
         return response()->json($brands);
     }
-
     /**
      * Store a newly created resource in storage.
      */

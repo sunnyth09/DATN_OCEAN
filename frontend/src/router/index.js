@@ -92,7 +92,7 @@ const routes = [
             { path: "terms", name: "terms", component: () => import("@/features/content/pages/static/Terms.vue"), meta: { title: 'Điều khoản dịch vụ' } },
             // Court Booking Pages
             { path: "courts", name: "courts-list", component: () => import("@/features/courts/pages/client/CourtsList.vue"), meta: { title: 'Đặt sân cầu lông' } },
-            { path: "courts/:id", name: "court-detail", component: () => import("@/features/courts/pages/client/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },
+            { path: "courts/:slug", name: "court-detail", component: () => import("@/features/courts/pages/client/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },
 
         ],
     },

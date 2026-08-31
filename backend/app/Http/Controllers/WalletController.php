@@ -82,11 +82,15 @@ class WalletController extends Controller
 
         $request->validate([
             'subtotal' => 'required|numeric|min:0',
+            'use_deposit' => 'nullable|boolean',
+            'use_commission' => 'nullable|boolean',
         ]);
 
         $preview = $this->walletService->previewDiscount(
             $user->user_id,
-            (float) $request->subtotal
+            (float) $request->subtotal,
+            filter_var($request->input('use_deposit', true), FILTER_VALIDATE_BOOLEAN),
+            filter_var($request->input('use_commission', true), FILTER_VALIDATE_BOOLEAN)
         );
 
         return response()->json([

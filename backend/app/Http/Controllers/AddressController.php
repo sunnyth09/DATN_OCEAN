@@ -11,7 +11,11 @@ use Illuminate\Validation\ValidationException;
 class AddressController extends Controller
 {
     /**
-     * Lấy user_id cho bảng addresses
+     * Lấy ID của người dùng (khách hàng) hiện đang đăng nhập.
+     * Chặn quyền truy cập đối với tài khoản nhân viên/quản trị.
+     *
+     * @return int
+     * @throws \Symfony\Component\HttpKernel\Exception\HttpException
      */
     private function currentUserId()
     {
@@ -24,8 +28,12 @@ class AddressController extends Controller
     }
 
     /**
-     * Lấy tất cả địa chỉ của user đang đăng nhập
-     * GET /api/profile/addresses
+     * Lấy danh sách tất cả địa chỉ của người dùng hiện đang đăng nhập.
+     * Hỗ trợ phân trang nếu có truyền tham số `page` và `per_page`.
+     * (Route: GET /api/profile/addresses)
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
@@ -62,8 +70,14 @@ class AddressController extends Controller
     }
 
     /**
-     * Tạo địa chỉ mới
-     * POST /api/profile/addresses
+     * Thêm mới một địa chỉ giao hàng vào sổ địa chỉ.
+     * Đảm bảo một người dùng có tối đa một số lượng địa chỉ nhất định.
+     * Tự động set `is_default` nếu là địa chỉ đầu tiên.
+     * (Route: POST /api/profile/addresses)
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     * @throws \Illuminate\Validation\ValidationException
      */
     public function store(Request $request)
     {
@@ -101,8 +115,14 @@ class AddressController extends Controller
     }
 
     /**
-     * Cập nhật địa chỉ
-     * PUT /api/profile/addresses/{id}
+     * Cập nhật thông tin địa chỉ đã lưu.
+     * Nếu set `is_default`, sẽ gỡ trạng thái mặc định của các địa chỉ khác.
+     * (Route: PUT /api/profile/addresses/{id})
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $id ID của địa chỉ cần sửa
+     * @return \Illuminate\Http\JsonResponse
+     * @throws \Illuminate\Validation\ValidationException
      */
     public function update(Request $request, $id)
     {
@@ -141,8 +161,12 @@ class AddressController extends Controller
     }
 
     /**
-     * Xóa địa chỉ
-     * DELETE /api/profile/addresses/{id}
+     * Xóa vĩnh viễn một địa chỉ khỏi sổ địa chỉ của người dùng.
+     * Không cho phép xóa địa chỉ nếu đó là địa chỉ mặc định (phải đổi mặc định trước).
+     * (Route: DELETE /api/profile/addresses/{id})
+     *
+     * @param int $id ID của địa chỉ cần xóa
+     * @return \Illuminate\Http\JsonResponse
      */
     public function destroy($id)
     {
