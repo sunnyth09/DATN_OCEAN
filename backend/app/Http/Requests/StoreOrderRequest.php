@@ -46,7 +46,8 @@ class StoreOrderRequest extends FormRequest
             'referral_code' => 'nullable|string|max:20',
 
             // Wallet discount
-            'use_wallet' => 'nullable|boolean',
+            'use_deposit' => 'nullable|boolean',
+            'use_commission' => 'nullable|boolean',
             'wallet_amount' => 'nullable|numeric|min:0',
 
             // Loyalty points
