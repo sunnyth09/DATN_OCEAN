@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { affiliateService } from '@/services/affiliateService';
+import { walletService } from '@/services/walletService';
 import { useToast } from '@/composables/useToast';
 
 const { showToast } = useToast();
@@ -8,6 +9,7 @@ const { showToast } = useToast();
 // --- State ---
 const loading = ref(true);
 const profile = ref(null);
+const walletSummary = ref(null);
 const isAffiliate = computed(() => profile.value?.is_affiliate === true);
 
 // Statistics
@@ -152,8 +154,19 @@ const changeStatsType = (type) => {
 
 
 
+const fetchWalletSummary = async () => {
+  try {
+    const res = await walletService.getSummary();
+    if (res.data?.status === 'success') {
+      walletSummary.value = res.data.data;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+};
+
 const loadAffiliateData = async () => {
-  await Promise.all([fetchStatistics(), fetchConversions()]);
+  await Promise.all([fetchStatistics(), fetchConversions(), fetchWalletSummary()]);
 };
 
 onMounted(async () => {
@@ -277,11 +290,11 @@ onMounted(async () => {
           </div>
           <div class="aff-stat-card">
             <div class="aff-stat-icon bg-pink">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             </div>
             <div class="aff-stat-info">
-              <span class="aff-stat-value">{{ formatPrice(profile.summary?.paid_commission) }}</span>
-              <span class="aff-stat-label">Đã thanh toán</span>
+              <span class="aff-stat-value">{{ formatPrice(walletSummary?.commission_balance) }}</span>
+              <span class="aff-stat-label">Khả dụng</span>
             </div>
           </div>
         </div>
