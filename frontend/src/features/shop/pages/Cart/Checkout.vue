@@ -89,7 +89,8 @@ const availableCoupons = ref([]);
 const loadingCoupons = ref(false);
 
 // --- Wallet ---
-const useWallet = ref(false);
+const useDeposit = ref(false);
+const useCommission = ref(false);
 const walletPreview = ref(null); // { deposit_available, commission_available, max_commission, total_available }
 const walletLoading = ref(false);
 
@@ -198,7 +199,8 @@ watch(() => authStore.isAuthenticated, (val) => {
         appliedCoupon.value = null;
         couponCode.value = '';
         showCouponModal.value = false;
-        useWallet.value = false;
+        useDeposit.value = false;
+        useCommission.value = false;
         if (paymentMethod.value === 'wallet') paymentMethod.value = 'cod';
     }
 }, { immediate: true });
@@ -483,16 +485,19 @@ const total = computed(() => {
 
 // --- Wallet ---
 const walletDiscount = computed(() => {
-    if (!useWallet.value || !walletPreview.value) return 0;
+    if (!walletPreview.value) return 0;
+    let sum = 0;
+    if (useDeposit.value) sum += walletPreview.value.deposit_used || 0;
+    if (useCommission.value) sum += walletPreview.value.commission_used || 0;
     const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value;
-    return Math.min(walletPreview.value.total_available || 0, Math.max(0, maxDiscount));
+    return Math.min(sum, Math.max(0, maxDiscount));
 });
 
 const fetchWalletPreview = async () => {
     if (!authStore.isAuthenticated) return;
     walletLoading.value = true;
     try {
-        const res = await walletService.previewDiscount(subtotal.value);
+        const res = await walletService.previewDiscount(subtotal.value, useDeposit.value, useCommission.value);
         if (res.data?.status === 'success') {
             walletPreview.value = res.data.data;
         }
@@ -510,8 +515,8 @@ watch(subtotal, () => {
     if (authStore.isAuthenticated) debouncedFetchWalletPreview();
 });
 
-watch(useWallet, (val) => {
-    if (val && !walletPreview.value) debouncedFetchWalletPreview();
+watch([useDeposit, useCommission], ([nd, nc]) => {
+    if (authStore.isAuthenticated) debouncedFetchWalletPreview();
 });
 
 const promptLoginForCoupon = () => {
@@ -604,8 +609,9 @@ const placeOrder = async () => {
         note: note.value,
         coupon_applied: authStore.isAuthenticated ? (appliedCoupon.value?.code || null) : null,
         referral_code: localStorage.getItem('affiliate_ref') || null,
-        use_wallet: authStore.isAuthenticated && useWallet.value && walletDiscount.value > 0,
-        wallet_amount: authStore.isAuthenticated && useWallet.value ? walletDiscount.value : 0,
+        use_deposit: authStore.isAuthenticated && useDeposit.value,
+        use_commission: authStore.isAuthenticated && useCommission.value,
+        wallet_amount: authStore.isAuthenticated && (useDeposit.value || useCommission.value) ? walletDiscount.value : 0,
         reward_points_used: useLoyaltyPoints.value ? inputPoints.value : 0,
     };
 
@@ -1248,43 +1254,58 @@ onMounted(async () => {
                                     <div class="summary-divider variant-dashed"></div>
 
                                     <!-- WALLET DISCOUNT WIDGET -->
-                                    <div v-if="authStore.isAuthenticated && walletPreview && walletPreview.total_available > 0"
-                                        class="wallet-checkout-widget">
+                                    <div v-if="authStore.isAuthenticated && walletPreview && walletPreview.deposit_balance > 0" class="wallet-checkout-widget">
                                         <label class="wallet-toggle">
-                                            <input type="checkbox" v-model="useWallet" />
+                                            <input type="checkbox" v-model="useDeposit" />
                                             <div class="wt-switch">
                                                 <div class="wt-knob"></div>
                                             </div>
                                             <div class="wt-info">
                                                 <span class="wt-label">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                        stroke="currentColor" stroke-width="2">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                         <rect x="2" y="4" width="20" height="16" rx="2" />
                                                         <path d="M16 12h.01" />
                                                         <path d="M2 10h20" />
                                                     </svg>
-                                                    Dùng ví thanh toán
+                                                    Dùng ví Ocean Pay
                                                 </span>
-                                                <span class="wt-balance">Khả dụng: <strong>{{
-                                                        formatPrice(walletPreview.total_available) }}</strong></span>
+                                                <span class="wt-balance">Khả dụng: <strong>{{ formatPrice(walletPreview.deposit_balance) }}</strong></span>
                                             </div>
                                         </label>
-                                        <div v-if="useWallet && walletDiscount > 0" class="wallet-discount-detail">
-                                            <div v-if="walletPreview.deposit_used > 0" class="wd-row">
-                                                <span>Từ số dư nạp</span>
-                                                <span class="wd-val">-{{ formatPrice(walletPreview.deposit_used)
-                                                    }}</span>
-                                            </div>
-                                            <div v-if="walletPreview.commission_used > 0" class="wd-row">
-                                                <span>Từ hoa hồng</span>
-                                                <span class="wd-val">-{{ formatPrice(walletPreview.commission_used)
-                                                    }}</span>
+                                        <div v-if="useDeposit && walletPreview.deposit_used > 0" class="wallet-discount-detail">
+                                            <div class="wd-row">
+                                                <span>Từ số dư ví</span>
+                                                <span class="wd-val">-{{ formatPrice(walletPreview.deposit_used) }}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div v-if="useWallet && walletDiscount > 0" class="total-row wallet-discount-row">
-                                        <span>Giảm từ ví</span>
+                                    <div v-if="authStore.isAuthenticated && walletPreview && walletPreview.commission_balance > 0" class="wallet-checkout-widget mt-3">
+                                        <label class="wallet-toggle" style="border-color: #10b981; background: #ecfdf5;">
+                                            <input type="checkbox" v-model="useCommission" />
+                                            <div class="wt-switch" :style="{ backgroundColor: useCommission ? '#10b981' : '#d1d5db' }">
+                                                <div class="wt-knob"></div>
+                                            </div>
+                                            <div class="wt-info">
+                                                <span class="wt-label" style="color: #047857;">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                                    </svg>
+                                                    Dùng Hoa hồng Affiliate
+                                                </span>
+                                                <span class="wt-balance">Khả dụng: <strong>{{ formatPrice(walletPreview.commission_balance) }}</strong></span>
+                                            </div>
+                                        </label>
+                                        <div v-if="useCommission && walletPreview.commission_used > 0" class="wallet-discount-detail">
+                                            <div class="wd-row">
+                                                <span>Từ hoa hồng</span>
+                                                <span class="wd-val">-{{ formatPrice(walletPreview.commission_used) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="(useDeposit || useCommission) && walletDiscount > 0" class="total-row wallet-discount-row">
+                                        <span>Tổng giảm từ Ví/Hoa hồng</span>
                                         <span class="discount-val" style="color: #8b5cf6; font-weight: 700;">-{{
                                             formatPrice(walletDiscount) }}</span>
                                     </div>
