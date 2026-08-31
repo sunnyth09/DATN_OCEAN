@@ -453,7 +453,7 @@ const discount = computed(() => {
 const maxPointsCanUse = computed(() => {
     let max = loyaltyPoints.value;
     const totalBeforeLoyalty = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
-    const maxForTotal = Math.floor((totalBeforeLoyalty * 0.3) / 100);
+    const maxForTotal = Math.floor((totalBeforeLoyalty * 0.1) / 100);
     return Math.min(max, maxForTotal);
 });
 
@@ -1205,7 +1205,7 @@ onMounted(async () => {
                                         <span style="font-size: 0.9rem; color: #666;">điểm = <strong style="color: #ef4444;">-{{ formatPrice(loyaltyDiscount) }}</strong></span>
                                     </div>
                                     <div style="font-size: 0.75rem; color: #f59e0b; margin-top: 8px; padding-top: 8px; border-top: 1px solid #fca5a5; line-height: 1.4;">
-                                        * Tối thiểu 100 điểm để đổi giảm giá. Tối đa 30% giá trị đơn hàng. Điểm có hiệu lực 365 ngày kể từ ngày tích.
+                                        * Tối thiểu 100 điểm để đổi giảm giá. Tối đa 10% giá trị đơn hàng. Điểm có hiệu lực 365 ngày kể từ ngày tích.
                                     </div>
                                 </div>
 
@@ -1254,9 +1254,9 @@ onMounted(async () => {
                                     <div class="summary-divider variant-dashed"></div>
 
                                     <!-- WALLET DISCOUNT WIDGET -->
-                                    <div v-if="authStore.isAuthenticated && walletPreview && walletPreview.deposit_balance > 0" class="wallet-checkout-widget">
-                                        <label class="wallet-toggle">
-                                            <input type="checkbox" v-model="useDeposit" />
+                                    <div v-if="authStore.isAuthenticated && walletPreview" class="wallet-checkout-widget">
+                                        <label class="wallet-toggle" :class="{ 'disabled-toggle': walletPreview.deposit_balance <= 0 }">
+                                            <input type="checkbox" v-model="useDeposit" :disabled="walletPreview.deposit_balance <= 0" />
                                             <div class="wt-switch">
                                                 <div class="wt-knob"></div>
                                             </div>
@@ -1280,9 +1280,9 @@ onMounted(async () => {
                                         </div>
                                     </div>
 
-                                    <div v-if="authStore.isAuthenticated && walletPreview && walletPreview.commission_balance > 0" class="wallet-checkout-widget mt-3">
-                                        <label class="wallet-toggle" style="border-color: #10b981; background: #ecfdf5;">
-                                            <input type="checkbox" v-model="useCommission" />
+                                    <div v-if="authStore.isAuthenticated && walletPreview" class="wallet-checkout-widget mt-3">
+                                        <label class="wallet-toggle" :class="{ 'disabled-toggle': walletPreview.commission_balance <= 0 }" style="border-color: #10b981; background: #ecfdf5;">
+                                            <input type="checkbox" v-model="useCommission" :disabled="walletPreview.commission_balance <= 0" />
                                             <div class="wt-switch" :style="{ backgroundColor: useCommission ? '#10b981' : '#d1d5db' }">
                                                 <div class="wt-knob"></div>
                                             </div>
