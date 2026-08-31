@@ -12,8 +12,8 @@ export const walletService = {
   },
 
   // Preview giảm giá checkout
-  previewDiscount(subtotal) {
-    return api.get('/wallet/preview-discount', { params: { subtotal } });
+  previewDiscount(subtotal, useDeposit = true, useCommission = true) {
+    return api.get('/wallet/preview-discount', { params: { subtotal, use_deposit: useDeposit, use_commission: useCommission } });
   },
 
   // Khởi tạo nạp tiền
