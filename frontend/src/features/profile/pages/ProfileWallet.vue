@@ -832,7 +832,7 @@ onMounted(async () => {
 
 <style scoped>
 .wallet-page {
-  font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-inter, 'Inter', sans-serif);
 }
 
 /* Loading */
@@ -880,14 +880,15 @@ onMounted(async () => {
 .balance-label { font-size: 0.85rem; opacity: 0.85; margin: 0; }
 .balance-amount { font-size: 1.8rem; font-weight: 800; margin: 4px 0 0; letter-spacing: -0.5px; }
 .btn-deposit {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 24px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px;
+  padding: 0 18px;
   background: rgba(255,255,255,0.2);
   border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 12px;
+  border-radius: 8px;
   color: #fff;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   cursor: pointer;
   transition: all 0.2s;
   backdrop-filter: blur(10px);

@@ -1,5 +1,7 @@
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue';
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
+import { useAdminKeepAlive } from '@/composables/useAdminKeepAlive';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
@@ -21,6 +23,9 @@ const toast = {
   error: (msg) => showToastNotify(msg, 'danger'),
   info: (msg) => showToastNotify(msg, 'info'),
 };
+
+const route = useRoute();
+const router = useRouter();
 
 const orders = ref([]);
 const loading = ref(true);
@@ -60,12 +65,17 @@ const statuses = [
   { value: 'returned', label: 'Đã nhận hàng hoàn' },
   { value: 'refunded', label: 'Đã hoàn tiền' },
 ];
-const fulfillmentOptions = statuses.filter(s => s.value !== 'all');
 
-// Removed statusTransitions because we use backend available_transitions now
+const fulfillmentOptions = [
+  { value: 'confirmed', label: 'Duyệt đơn (Đã duyệt)' },
+  { value: 'processing', label: 'Chuyển sang đang xử lý' },
+  { value: 'packing', label: 'Chuyển sang đóng gói' },
+  { value: 'awaiting_pickup', label: 'Chờ lấy hàng' },
+  { value: 'cancelled', label: 'Hủy đơn hàng' },
+];
 
 const isLockedFulfillmentStatus = (status) => {
-  return ['completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returning', 'warehouse_received', 'inspection_failed', 'inspected_ok', 'returned', 'refunded'].includes(status);
+  return ['shipping', 'delivered', 'completed', 'cancelled', 'return_requested', 'return_approved', 'return_rejected', 'returning', 'warehouse_received', 'inspection_failed', 'inspected_ok', 'returned', 'refunded'].includes(status);
 };
 
 // ===== Payment Status (Chỉ hiển thị, không cho admin sửa) =====
@@ -115,6 +125,12 @@ const fetchOrders = async (page = 1, showLoading = true) => {
   }
 };
 
+useAdminKeepAlive({
+  resourceKey: 'orders',
+  fetchFn: () => fetchOrders(pagination.value.current_page || 1, false),
+  ttl: 180000,
+});
+
 const handleSearch = () => {
     fetchOrders(1);
 };
@@ -133,8 +149,12 @@ const handleFilterStatus = (status) => {
 };
 
 const changePage = (page) => {
-  if(page >= 1 && page <= pagination.value.last_page) {
-      fetchOrders(page);
+  if (page >= 1 && page <= pagination.value.last_page) {
+    // Sync trang vào URL để khi bấm Back trên trình duyệt URL đúng
+    const q = { ...route.query };
+    if (page <= 1) { delete q.page; } else { q.page = String(page); }
+    router.replace({ query: q });
+    fetchOrders(page);
   }
 }
 
@@ -189,14 +209,11 @@ const statusActionDefinitions = {
   processing: { icon: 'clock', label: 'Chuyển sang đang xử lý', success: 'Đã chuyển đơn sang đang xử lý!' },
   packing: { icon: 'clipboard-list', label: 'Chuyển sang đóng gói', success: 'Đã chuyển đơn sang đóng gói!' },
   awaiting_pickup: { icon: 'package', label: 'Chờ lấy hàng', success: 'Đã chuyển đơn sang chờ lấy hàng!' },
-  shipping: { icon: 'truck', label: 'Chuyển sang đang giao', success: 'Đã chuyển đơn sang đang giao!' },
-  delivered: { icon: 'check', label: 'Đánh dấu đã giao', success: 'Đã đánh dấu đơn hàng đã giao!' },
   completed: { icon: 'check', label: 'Hoàn thành đơn', success: 'Đã hoàn thành đơn hàng!' },
   cancelled: { icon: 'x', label: 'Hủy đơn', success: 'Đã hủy đơn hàng thành công!' },
   return_requested: { icon: 'rotate-ccw', label: 'Yêu cầu hoàn trả', success: 'Đã chuyển sang yêu cầu hoàn trả!' },
   return_approved: { icon: 'check', label: 'Duyệt hoàn trả', success: 'Đã duyệt yêu cầu hoàn trả!' },
   return_rejected: { icon: 'x', label: 'Từ chối hoàn trả', success: 'Đã từ chối yêu cầu hoàn trả!' },
-  returning: { icon: 'truck', label: 'Khách đang gửi trả', success: 'Khách hàng đang gửi trả sản phẩm!' },
   warehouse_received: { icon: 'box', label: 'Kho đã nhận', success: 'Kho đã nhận sản phẩm hoàn trả!' },
   inspection_failed: { icon: 'x-circle', label: 'Không đạt kiểm tra', success: 'Hàng hoàn trả không đạt yêu cầu!' },
   inspected_ok: { icon: 'check-circle', label: 'Đạt kiểm tra', success: 'Hàng hoàn trả đạt yêu cầu!' },
@@ -265,6 +282,35 @@ const updateOrderStatus = async (order, action) => {
     toast.error(error.response?.data?.message || 'Lỗi cập nhật trạng thái');
   } finally {
     statusActionLoadingId.value = null;
+  }
+};
+
+const syncingOrderId = ref(null);
+const syncGhn = async (order) => {
+  const confirmResult = await Swal.fire({
+    title: 'Đẩy đơn vận chuyển',
+    text: `Tạo vận đơn và đẩy đơn hàng #${order.order_code} sang đối tác Ocean Express?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#E63B6F',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'Đồng ý đẩy đơn',
+    cancelButtonText: 'Hủy'
+  });
+  if (!confirmResult.isConfirmed) return;
+
+  syncingOrderId.value = order.order_id;
+  try {
+    const res = await api.post(`/admin/orders/${order.order_id}/ghn-sync`);
+    if (res.data.status === 'success') {
+      toast.success(res.data.message || 'Đã tạo vận đơn trên Ocean Express thành công!');
+      window.dispatchEvent(new Event('admin-order-updated'));
+      await fetchOrders(pagination.value.current_page, false);
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Không thể đẩy đơn sang nhà vận chuyển');
+  } finally {
+    syncingOrderId.value = null;
   }
 };
 
@@ -368,8 +414,46 @@ const applyBulkStatus = async () => {
     }
 };
 
+// Lưu trạng thái trang khi rời khỏi trang danh sách (sang chi tiết đơn hàng)
+const ORDER_STATE_KEY = 'admin_order_list_state';
+onBeforeRouteLeave(() => {
+  sessionStorage.setItem(ORDER_STATE_KEY, JSON.stringify({
+    page: pagination.value.current_page,
+    status: currentStatus.value,
+    search: searchQuery.value,
+    dateFrom: dateFrom.value,
+    dateTo: dateTo.value,
+  }));
+});
+
 onMounted(() => {
-  fetchOrders();
+  // Ưu tiên URL query (?page=2), sau đó sessionStorage (khi back từ chi tiết đơn)
+  const urlPage = parseInt(route.query.page);
+  const savedRaw = sessionStorage.getItem(ORDER_STATE_KEY);
+
+  if (urlPage && urlPage > 1) {
+    // URL có page → dùng luôn (trường hợp user share link hay reload)
+    sessionStorage.removeItem(ORDER_STATE_KEY);
+    fetchOrders(urlPage);
+  } else if (savedRaw) {
+    // Có state lưu từ lần rời trang trước → khôi phục toàn bộ
+    sessionStorage.removeItem(ORDER_STATE_KEY);
+    try {
+      const state = JSON.parse(savedRaw);
+      currentStatus.value = state.status || '';
+      searchQuery.value   = state.search  || '';
+      dateFrom.value      = state.dateFrom || '';
+      dateTo.value        = state.dateTo   || '';
+      const pg = parseInt(state.page) || 1;
+      // Cập nhật URL cho đúng
+      if (pg > 1) router.replace({ query: { ...route.query, page: String(pg) } });
+      fetchOrders(pg);
+    } catch {
+      fetchOrders(1);
+    }
+  } else {
+    fetchOrders(1);
+  }
 
   if (window.Echo) {
     window.Echo.private('admin-notifications')
@@ -559,6 +643,15 @@ onUnmounted(() => {
                         </td>
                         <td>
                             <div class="actions-cell">
+                                <button
+                                    v-if="!order.tracking_number && ['confirmed', 'processing', 'packing', 'awaiting_pickup'].includes(order.fulfillment_status)"
+                                    class="btn-icon ship-btn"
+                                    @click="syncGhn(order)"
+                                    :disabled="syncingOrderId === order.order_id"
+                                    title="Đẩy đơn cho nhà vận chuyển"
+                                >
+                                    <AppIcon name="truck" size="16" />
+                                </button>
                                 <router-link :to="{ name: 'admin-order-detail', params: { id: order.order_id } }" class="btn-icon view" title="Chi tiết">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -801,6 +894,7 @@ onUnmounted(() => {
 }
 .btn-icon:hover { border-color: currentColor; background: var(--card-bg);}
 .view:hover { color: #8e24aa; border-color: #8e24aa; background: rgba(142, 36, 170, 0.05); }
+.ship-btn:hover { color: #0284c7; border-color: #0284c7; background: rgba(2, 132, 199, 0.08); }
 
 /* Empty state */
 .empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); }

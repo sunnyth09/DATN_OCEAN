@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
+import { useAdminKeepAlive, markAdminResourceDirty } from '@/composables/useAdminKeepAlive';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AdminCategoryFormTree from '@/components/AdminCategoryFormTree.vue';
@@ -45,17 +46,25 @@ const showToast = (message, type = 'success') => {
   });
 };
 
-const fetchCategories = async () => {
+const fetchCategories = async ({ background = false } = {}) => {
     try {
-        isLoading.value = true;
+        if (!background && categories.value.length === 0) {
+            isLoading.value = true;
+        }
         const response = await api.get('/categories');
         categories.value = response.data.data;
     } catch (error) {
-        showToast('Lỗi tải danh mục!', 'danger');
+        if (!background) showToast('Lỗi tải danh mục!', 'danger');
     } finally {
         isLoading.value = false;
     }
 };
+
+useAdminKeepAlive({
+    resourceKey: 'categories',
+    fetchFn: () => fetchCategories({ background: true }),
+    ttl: 180000,
+});
 
 const filterTree = (nodes, query) => {
     if (!query) return nodes;

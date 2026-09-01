@@ -176,7 +176,8 @@ const login = async () => {
 
             <div class="brand">
               <router-link to="/" class="brand-logo-link">
-                <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="Ocean Sport" class="brand-logo-img" />
+                <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="Ocean Sport"
+                  class="brand-logo-img" />
               </router-link>
               <span class="brand-text">Ocean Sport</span>
             </div>
@@ -587,10 +588,11 @@ const login = async () => {
   background: var(--primary);
   color: white;
   border: none;
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 8px;
+  height: 44px;
+  padding: 0 16px;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   width: 100%;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -652,9 +654,10 @@ const login = async () => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px;
+  height: 40px;
+  padding: 0 12px;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;

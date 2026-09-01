@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_logger.dart';
 import 'package:dio/dio.dart';
 import '../services/api_client.dart';
 
@@ -50,7 +51,7 @@ class LoyaltyProvider extends ChangeNotifier {
         _rewards = rewardsRes.data['data'] ?? [];
       }
     } catch (e) {
-      debugPrint('Error fetching loyalty data: $e');
+      AppLogger.error(' fetching loyalty data: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -64,11 +65,17 @@ class LoyaltyProvider extends ChangeNotifier {
     try {
       final res = await ApiClient().dio.post('/loyalty/check-in');
       if (res.data['status'] == 'success') {
+        if (res.data['data'] != null) {
+          _points = res.data['data']['reward_points'] ?? _points;
+          _checkInStreak = res.data['data']['check_in_streak'] ?? _checkInStreak;
+          _hasCheckedInToday = true;
+          notifyListeners();
+        }
         await fetchLoyaltyData();
         return {
           'success': true,
           'message': res.data['message'] ?? 'Điểm danh thành công!',
-          'points_earned': res.data['data']['points_earned'] ?? 0,
+          'points_earned': res.data['data']?['points_earned'] ?? 0,
         };
       }
       return {
@@ -78,7 +85,7 @@ class LoyaltyProvider extends ChangeNotifier {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Lỗi kết nối',
+        'message': e.response?.data?['message'] ?? 'Lỗi kết nối máy chủ',
       };
     } catch (e) {
       return {
@@ -106,10 +113,10 @@ class LoyaltyProvider extends ChangeNotifier {
       }
       return false;
     } on DioException catch (e) {
-      debugPrint('Error redeeming reward: ${e.response?.data}');
+      AppLogger.error(' redeeming reward: ${e.response?.data}');
       return false;
     } catch (e) {
-      debugPrint('Error redeeming reward: $e');
+      AppLogger.error(' redeeming reward: $e');
       return false;
     } finally {
       _isRedeeming = false;
@@ -125,7 +132,7 @@ class LoyaltyProvider extends ChangeNotifier {
       }
       return [];
     } catch (e) {
-      debugPrint('Error fetching wheel prizes: $e');
+      AppLogger.error(' fetching wheel prizes: $e');
       return [];
     }
   }

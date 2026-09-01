@@ -2,9 +2,10 @@
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import api from '@/axios';
-import { Toast, Modal } from 'bootstrap';
+import { Modal } from 'bootstrap';
+import { useToast } from '@/composables/useToast';
 import AdminCategoryFormTree from '@/components/AdminCategoryFormTree.vue';
-import AdminCategoryRow from '@/components/AdminCategoryRow.vue'; // We can safely use this component if the props match (e.g., category_id vs post_category_id)
+import AdminCategoryRow from '@/components/AdminCategoryRow.vue';
 
 const categories = ref([]);
 const isLoading = ref(true);
@@ -23,20 +24,7 @@ const defaultForm = () => ({
 });
 
 const form = ref(defaultForm());
-
-const toast = ref({ message: '', type: 'success' });
-
-const showToast = (message, type = 'success') => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
-    text: message,
-    icon: type === 'danger' ? 'error' : type,
-    showConfirmButton: false,
-    timer: 3000
-  });
-};
+const { showToast } = useToast();
 
 const fetchCategories = async () => {
     try {
@@ -326,18 +314,6 @@ const deleteCategory = async (id) => {
                 </div>
             </div>
         </Transition>
-
-
-
-        <!-- Bootstrap Toast -->
-        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-            <div class="toast align-items-center border-0" :class="toast.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="categoryToast" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">{{ toast.message }}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 

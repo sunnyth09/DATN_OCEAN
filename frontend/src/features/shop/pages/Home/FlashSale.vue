@@ -67,19 +67,19 @@ onMounted(async () => {
 <template>
   <div class="flash-sale-page">
     <div class="flash-sale-container">
-      
-      <!-- ══ HERO BANNER ══ -->
+
+      <!-- ══ HERO BANNER (Đồng bộ với Product.vue) ══ -->
       <section class="page-hero">
         <div class="hero-inner">
           <h1 class="hero-title">
-            <AppIcon name="zap" size="28" stroke-width="2.5" />
+            <AppIcon name="zap" size="28" />
             Flash Sale
             <span class="hero-accent">Giá Sốc</span>
           </h1>
-          <p class="hero-sub">Số lượng cực kỳ có hạn — Cơ hội săn deal không thể bỏ lỡ!</p>
+          <p class="hero-sub">Số lượng có hạn — Đặt nhanh kẻo hết!</p>
         </div>
 
-        <!-- ══ ĐIỀU KIỆN THAM GIA (HIỂN THỊ LOGIC NỔI BẬT NGAY TRÊN BANNER) ══ -->
+        <!-- ══ ĐIỀU KIỆN THAM GIA BANNER BAR (HIỂN THỊ LOGIC NGAY ĐẦU TRANG) ══ -->
         <div class="hero-rules-bar">
           <div class="rule-chip">
             <span class="rule-chip-icon"><AppIcon name="lock" size="14" /></span>
@@ -215,17 +215,17 @@ onMounted(async () => {
   padding: 32px 40px 60px;
 }
 
-/* ── HERO BANNER (Đồng bộ với Product.vue) ── */
+/* ── HERO BANNER (Đồng bộ chuẩn 16px) ── */
 .page-hero {
   background: linear-gradient(135deg, #e63b6f 0%, #a0204e 100%);
   color: #fff;
   border-radius: 16px;
-  padding: 32px 36px;
-  margin: 0 0 28px 0;
+  padding: 36px 36px;
+  margin: 0 0 24px 0;
   position: relative;
   overflow: hidden;
   text-align: left;
-  box-shadow: 0 8px 24px rgba(230, 59, 111, 0.15);
+  box-shadow: 0 10px 28px rgba(230, 59, 111, 0.16);
 }
 
 .page-hero::after {
@@ -237,23 +237,31 @@ onMounted(async () => {
   height: 320px;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 50%;
-  pointer-events: none;
 }
 
 .hero-inner {
   position: relative;
   z-index: 2;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .hero-title {
   color: #fff;
-  font-size: 1.85rem;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
   font-weight: 800;
+  letter-spacing: -0.5px;
   margin: 0 0 8px;
   display: flex;
   align-items: center;
   gap: 10px;
+  line-height: 1.2;
+}
+
+.hero-sub {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.95rem;
+  margin: 0;
+  line-height: 1.55;
 }
 
 .hero-accent {
@@ -336,25 +344,33 @@ onMounted(async () => {
   justify-content: center;
   gap: 8px;
   padding: 12px 20px;
-  border: none;
+  border: 1.5px solid transparent;
   background: transparent;
   border-radius: 12px;
   font-weight: 700;
   font-size: 0.95rem;
   color: #64748b;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.22s ease;
 }
 
-.fs-tab-btn:hover {
-  background: #f8fafc;
-  color: #1e293b;
+.fs-tab-btn:hover:not(.active) {
+  background: #fff0f5;
+  color: var(--primary, #E63B6F);
+  border-color: #ffd7e3;
+  transform: translateY(-1px);
+}
+
+.fs-tab-btn:hover:not(.active) .tab-badge {
+  background: #ffd7e3;
+  color: var(--primary, #E63B6F);
 }
 
 .fs-tab-btn.active {
-  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+  background: linear-gradient(135deg, #E63B6F 0%, #C4305D 100%);
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.35);
 }
 
 .tab-badge {
@@ -367,6 +383,7 @@ onMounted(async () => {
   font-weight: 800;
   background: rgba(255, 255, 255, 0.25);
   color: #ffffff;
+  transition: all 0.2s ease;
 }
 
 .fs-tab-btn:not(.active) .tab-badge {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Brand;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -24,7 +25,10 @@ class BrandController extends Controller
     }
 
     /**
-     * Display a listing of the resource.
+     * Lấy danh sách tất cả các thương hiệu (Brands).
+     * Dữ liệu được cache trong 1 ngày (86400 giây) để tăng hiệu suất.
+     *
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index()
     {
@@ -32,14 +36,15 @@ class BrandController extends Controller
             $data = Brand::orderBy('brand_id', 'desc')->get();
             $data->transform(function ($brand) {
                 $brand->image_url = $this->buildImageUrl($brand->logo_url);
+
                 return $brand;
             });
+
             return $data;
         });
 
         return response()->json($brands);
     }
-
     /**
      * Store a newly created resource in storage.
      */
@@ -69,7 +74,7 @@ class BrandController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Thêm thương hiệu thành công',
-            'data' => $brand
+            'data' => $brand,
         ], 201);
     }
 
@@ -94,7 +99,7 @@ class BrandController extends Controller
         }
 
         if ($request->hasFile('image')) {
-            if ($brand->logo_url && !filter_var($brand->logo_url, FILTER_VALIDATE_URL)) {
+            if ($brand->logo_url && ! filter_var($brand->logo_url, FILTER_VALIDATE_URL)) {
                 Storage::disk('public')->delete($brand->logo_url);
             }
             $path = $request->file('image')->store('brands', 'public');
@@ -110,7 +115,7 @@ class BrandController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật thương hiệu thành công',
-            'data' => $result
+            'data' => $result,
         ]);
     }
 
@@ -122,7 +127,7 @@ class BrandController extends Controller
         $brand = Brand::findOrFail($id);
 
         if ($brand->logo_url) {
-            if (!filter_var($brand->logo_url, FILTER_VALIDATE_URL)) {
+            if (! filter_var($brand->logo_url, FILTER_VALIDATE_URL)) {
                 Storage::disk('public')->delete($brand->logo_url);
             }
             $brand->update(['logo_url' => null]);
@@ -131,7 +136,7 @@ class BrandController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Xóa logo thành công'
+            'message' => 'Xóa logo thành công',
         ]);
     }
 
@@ -142,19 +147,19 @@ class BrandController extends Controller
     {
         $brand = Brand::findOrFail($id);
 
-        if ($brand->logo_url && !filter_var($brand->logo_url, FILTER_VALIDATE_URL)) {
+        if ($brand->logo_url && ! filter_var($brand->logo_url, FILTER_VALIDATE_URL)) {
             Storage::disk('public')->delete($brand->logo_url);
         }
 
         // Đặt brand_id của các sản phẩm thuộc thương hiệu này về null để tránh lỗi tham chiếu
-        \App\Models\Product::where('brand_id', $id)->update(['brand_id' => null]);
+        Product::where('brand_id', $id)->update(['brand_id' => null]);
 
         $brand->delete();
         Cache::forget('brands:all');
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Xóa thương hiệu thành công'
+            'message' => 'Xóa thương hiệu thành công',
         ]);
     }
 }

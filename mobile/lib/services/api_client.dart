@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:go_router/go_router.dart';
 
 import '../config/app_config.dart';
@@ -26,28 +27,28 @@ class ApiClient {
   static DateTime? _lastDnsLookup;
 
   /// Giải quyết lỗi DNS IPv6 treo trên Android Emulator:
-  /// Phân giải trực tiếp sang IPv4 hoặc fallback về IP tĩnh '116.118.6.160'
+  /// Phân giải trực tiếp sang IPv4, fallback về hostname gốc để OS tự resolve.
   static Future<String> getEffectiveHost() async {
-    if (kIsWeb) return 'apiocean.bcbdev.id.vn';
+    const hostname = 'api.oceansport.pro.vn';
+    if (kIsWeb) return hostname;
     if (_resolvedIp != null &&
         _lastDnsLookup != null &&
         DateTime.now().difference(_lastDnsLookup!).inMinutes < 10) {
       return _resolvedIp!;
     }
     try {
-      final list = await InternetAddress.lookup('apiocean.bcbdev.id.vn', type: InternetAddressType.IPv4)
-          .timeout(const Duration(milliseconds: 1500));
+      final list = await InternetAddress.lookup(hostname, type: InternetAddressType.IPv4)
+          .timeout(const Duration(milliseconds: 2000));
       if (list.isNotEmpty) {
         _resolvedIp = list.first.address;
         _lastDnsLookup = DateTime.now();
         return _resolvedIp!;
       }
     } catch (_) {
-      // Fallback về IP máy chủ nếu máy ảo Android bị nghẽn DNS
-      _resolvedIp = '116.118.6.160';
-      _lastDnsLookup = DateTime.now();
+      // DNS lookup thất bại → trả hostname gốc để OS tự resolve
+      _resolvedIp = null;
     }
-    return _resolvedIp ?? '116.118.6.160';
+    return _resolvedIp ?? hostname;
   }
 
   ApiClient._internal() {
@@ -72,32 +73,46 @@ class ApiClient {
           client.connectionTimeout = const Duration(seconds: 30);
           client.idleTimeout = const Duration(seconds: 60);
           client.maxConnectionsPerHost = 20;
-          client.badCertificateCallback =
-              (X509Certificate cert, String host, int port) => true;
+          // ⚠️ CHỈ bypass SSL trên môi trường dev/emulator
+          if (!AppConfig.isProduction) {
+            client.badCertificateCallback =
+                (X509Certificate cert, String host, int port) => true;
+          }
           client.userAgent = kMobileUserAgent;
 
-          // Khắc phục triệt để lỗi nghẽn DNS IPv6 trên Android Emulator (10.0.2.3):
-          // 1. Mở kết nối TCP trực tiếp tới IP máy chủ '116.118.6.160' (< 50ms)
-          // 2. Nâng cấp TLS bằng SecureSocket.secure với host: uri.host để thiết lập đầy đủ tiêu đề SNI hợp lệ
-          client.connectionFactory = (Uri uri, String? proxyHost, int? proxyPort) {
-            final targetIp = (uri.host == 'apiocean.bcbdev.id.vn') ? '116.118.6.160' : uri.host;
+          // Khắc phục lỗi nghẽn DNS IPv6 trên Android Emulator:
+          // Phân giải DNS sang IPv4 rồi mở kết nối TCP trực tiếp.
+          client.connectionFactory = (Uri uri, String? proxyHost, int? proxyPort) async {
+            // Resolve DNS IPv4 tránh nghẽn IPv6 trên emulator
+            String targetHost = uri.host;
+            try {
+              final addresses = await InternetAddress.lookup(
+                uri.host,
+                type: InternetAddressType.IPv4,
+              ).timeout(const Duration(seconds: 3));
+              if (addresses.isNotEmpty) {
+                targetHost = addresses.first.address;
+              }
+            } catch (_) {
+              // Fallback: dùng hostname gốc để OS tự resolve
+            }
 
             final Future<Socket> futureSocket = Socket.connect(
-              targetIp,
+              targetHost,
               uri.port,
               timeout: const Duration(seconds: 15),
             ).then<Socket>((rawSocket) {
               if (uri.scheme == 'https') {
                 return SecureSocket.secure(
                   rawSocket,
-                  host: uri.host, // 'apiocean.bcbdev.id.vn' -> Thiết lập chuẩn tiêu đề TLS SNI!
-                  onBadCertificate: (cert) => true,
+                  host: uri.host, // Thiết lập chuẩn tiêu đề TLS SNI
+                  onBadCertificate: AppConfig.isProduction ? null : (cert) => true,
                 );
               }
               return rawSocket;
             });
 
-            return Future.value(ConnectionTask.fromSocket(futureSocket, () {}));
+            return ConnectionTask.fromSocket(futureSocket, () {});
           };
 
           return client;
@@ -132,33 +147,33 @@ class ApiClient {
             if (safeHeaders.containsKey('Authorization')) {
               safeHeaders['Authorization'] = 'Bearer ***';
             }
-            debugPrint('====== API REQUEST ======');
-            debugPrint('URL: ${options.baseUrl}${options.path}');
-            debugPrint('Headers: $safeHeaders');
-            debugPrint('Body: ${options.data}');
-            debugPrint('=========================');
+            AppLogger.debug('====== API REQUEST ======');
+            AppLogger.debug('URL: ${options.baseUrl}${options.path}');
+            AppLogger.debug('Headers: $safeHeaders');
+            AppLogger.debug('Body: ${options.data}');
+            AppLogger.debug('=========================');
           }
 
           return handler.next(options);
         },
         onResponse: (response, handler) {
           if (kDebugMode) {
-            debugPrint('====== API RESPONSE ======');
-            debugPrint('Status: ${response.statusCode}');
-            debugPrint('Data: ${response.data}');
-            debugPrint('==========================');
+            AppLogger.debug('====== API RESPONSE ======');
+            AppLogger.debug('Status: ${response.statusCode}');
+            AppLogger.debug('Data: ${response.data}');
+            AppLogger.debug('==========================');
           }
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
           if (kDebugMode) {
-            debugPrint('======= API ERROR =======');
-            debugPrint('Type: ${e.type}');
-            debugPrint('Message: ${e.message}');
-            debugPrint('Error: ${e.error}');
-            debugPrint('Status: ${e.response?.statusCode}');
-            debugPrint('Data: ${e.response?.data}');
-            debugPrint('=========================');
+            AppLogger.debug('======= API ERROR =======');
+            AppLogger.debug('Type: ${e.type}');
+            AppLogger.debug('Message: ${e.message}');
+            AppLogger.error(': ${e.error}');
+            AppLogger.debug('Status: ${e.response?.statusCode}');
+            AppLogger.debug('Data: ${e.response?.data}');
+            AppLogger.debug('=========================');
           }
 
           // 1. Tự động retry 1 lần đối với request GET khi gặp timeout hoặc mạng chập chờn

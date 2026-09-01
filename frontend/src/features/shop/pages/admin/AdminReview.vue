@@ -194,9 +194,11 @@ const selectedTicket = ref(null);
 const replyContent = ref('');
 const updateStatus = ref('pending');
 
+const ticketPagination = ref({ current_page: 1, last_page: 1, total: 0 });
+
 let hasFetchedTickets = false;
 
-const fetchTickets = async () => {
+const fetchTickets = async (page = 1) => {
   if (ticketLoading.value) return;
   ticketLoading.value = true;
   hasFetchedTickets = true;
@@ -204,11 +206,19 @@ const fetchTickets = async () => {
     const res = await api.get('/admin/tickets', {
       params: {
         search: ticketSearchQuery.value,
-        status: ticketFilterStatus.value
+        status: ticketFilterStatus.value,
+        page,
+        per_page: 10,
       }
     });
     if (res.data.status === 'success') {
-      tickets.value = res.data.data.data || [];
+      const d = res.data.data;
+      tickets.value = d.data || [];
+      ticketPagination.value = {
+        current_page: d.current_page || 1,
+        last_page: d.last_page || 1,
+        total: d.total || 0,
+      };
     }
   } catch (error) {
     console.error("Lỗi lấy danh sách khiếu nại:", error);
@@ -346,7 +356,7 @@ onUnmounted(() => {
       </div>
       <div class="header-badge">
         <span v-if="viewMode === 'reviews'">{{ reviewPagination.total }} đánh giá</span>
-        <span v-else>{{ tickets.length }} khiếu nại</span>
+        <span v-else>{{ ticketPagination.total }} khiếu nại</span>
       </div>
     </div>
 
@@ -602,6 +612,21 @@ onUnmounted(() => {
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Ticket Pagination -->
+      <div v-if="!ticketLoading && ticketPagination.last_page > 1" class="pagination-wrap">
+        <button
+          class="page-btn"
+          :disabled="ticketPagination.current_page <= 1"
+          @click="fetchTickets(ticketPagination.current_page - 1)"
+        >← Trước</button>
+        <span class="page-info">{{ ticketPagination.current_page }} / {{ ticketPagination.last_page }}</span>
+        <button
+          class="page-btn"
+          :disabled="ticketPagination.current_page >= ticketPagination.last_page"
+          @click="fetchTickets(ticketPagination.current_page + 1)"
+        >Sau →</button>
       </div>
     </div>
 

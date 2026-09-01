@@ -338,8 +338,10 @@ function formatCurrency(value) {
     position: absolute;
     top: 16px;
     right: 16px;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
+    min-height: unset;
+    aspect-ratio: 1 / 1;
     border: 0;
     border-radius: 50%;
     background: rgba(241, 245, 249, 0.9);
@@ -594,11 +596,12 @@ function formatCurrency(value) {
 }
 
 .vmodal-qty button {
-    width: 42px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
+    min-height: unset;
     border: 0;
     background: #ffffff;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     cursor: pointer;
     color: #475569;
     font-weight: 600;
@@ -681,16 +684,16 @@ function formatCurrency(value) {
 
 .vmodal-btn-confirm {
     width: 100%;
-    height: 50px;
+    height: 44px;
     border: 0;
-    border-radius: 12px;
+    border-radius: 8px;
     background: #E63B6F;
     color: #ffffff;
-    font-weight: 800;
-    font-size: 1rem;
+    font-weight: 700;
+    font-size: 0.95rem;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 10px 25px -5px rgba(230, 59, 111, 0.4);
+    box-shadow: 0 8px 20px -4px rgba(230, 59, 111, 0.35);
 }
 
 .vmodal-btn-confirm:hover:not(:disabled) {

@@ -121,10 +121,10 @@ jobs:
       - name: NPM Build (Frontend)
         working-directory: ./frontend
         env:
-          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://apiocean.bcbdev.id.vn/api' }}
-          VITE_BASE_URL: ${{ vars.VITE_BASE_URL || 'https://apiocean.bcbdev.id.vn' }}
-          VITE_API_STORAGE: ${{ vars.VITE_API_STORAGE || 'https://apiocean.bcbdev.id.vn/storage' }}
-          VITE_REVERB_HOST: ${{ vars.VITE_REVERB_HOST || 'apiocean.bcbdev.id.vn' }}
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://api.oceansport.pro.vn/api' }}
+          VITE_BASE_URL: ${{ vars.VITE_BASE_URL || 'https://api.oceansport.pro.vn' }}
+          VITE_API_STORAGE: ${{ vars.VITE_API_STORAGE || 'https://api.oceansport.pro.vn/storage' }}
+          VITE_REVERB_HOST: ${{ vars.VITE_REVERB_HOST || 'api.oceansport.pro.vn' }}
           VITE_REVERB_PORT: ${{ vars.VITE_REVERB_PORT || '443' }}
           VITE_REVERB_SCHEME: ${{ vars.VITE_REVERB_SCHEME || 'https' }}
           VITE_REVERB_APP_KEY: ${{ secrets.REVERB_APP_KEY || 'ocean_realtime_key_2024' }}
@@ -133,7 +133,7 @@ jobs:
         run: npm run build
 
       # Ghi commit SHA vào build để verify được chính xác bản nào đang chạy trên web.
-      # Kiểm tra nhanh sau deploy: curl -s https://oceansport.bcbdev.id.vn/version.json
+      # Kiểm tra nhanh sau deploy: curl -s https://oceansport.pro.vn/version.json
       - name: Stamp build version
         working-directory: ./frontend
         run: |
@@ -159,7 +159,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          timeout: 120s
+          timeout: 10m
           command_timeout: 10m
           source: "frontend/dist/*"
           target: "/tmp/frontend_dist_${{ github.run_id }}"
@@ -173,7 +173,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
-          timeout: 120s
+          timeout: 15m
           command_timeout: 30m
           script: |
             set -e
@@ -261,8 +261,7 @@ jobs:
             docker compose exec -T backend php artisan optimize || true
             docker compose exec -T backend php artisan migrate --force || true
             docker compose exec -T backend php artisan queue:restart || true
-            docker compose exec -T backend php artisan reverb:restart || true
-            docker compose exec -T backend php artisan horizon:terminate || true
+            docker compose restart queue_worker reverb || true
 
             echo "=== Deployed version on disk ==="
             cat /var/www/oceansport/dist/version.json || true
@@ -273,7 +272,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Verify deployment is live
         run: |
-          URL="${{ vars.FRONTEND_URL || 'https://oceansport.bcbdev.id.vn' }}"
+          URL="${{ vars.FRONTEND_URL || 'https://oceansport.pro.vn' }}"
           echo "Checking $URL/version.json ..."
           for i in 1 2 3 4 5; do
             LIVE=$(curl -fsSL --max-time 20 -H 'Cache-Control: no-cache' "$URL/version.json" | tr -d ' \n' || echo '')

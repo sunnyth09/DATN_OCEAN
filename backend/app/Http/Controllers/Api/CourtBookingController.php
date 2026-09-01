@@ -26,7 +26,11 @@ class CourtBookingController extends Controller
     }
 
     /**
-     * Lock slot temporarily
+     * Tạm khóa slot (giữ chỗ) trong vòng 5 phút để user tiến hành thanh toán.
+     * Tránh tình trạng tranh chấp lịch đặt (Double Booking).
+     *
+     * @param \App\Http\Requests\CourtBooking\LockCourtBookingRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function lock(LockCourtBookingRequest $request)
     {
@@ -46,6 +50,12 @@ class CourtBookingController extends Controller
         }
     }
 
+    /**
+     * Chủ động hủy khóa slot (nhả slot) nếu user thoát ra không thanh toán nữa.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function releaseLock(Request $request)
     {
         $validated = $request->validate([
@@ -61,7 +71,11 @@ class CourtBookingController extends Controller
     }
 
     /**
-     * Create booking
+     * Tạo một lượt đặt sân mới sau khi xác nhận thanh toán/giữ chỗ thành công.
+     * Sẽ gửi thông báo hệ thống cho khách hàng và Admin.
+     *
+     * @param \App\Http\Requests\CourtBooking\StoreCourtBookingRequest $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function store(StoreCourtBookingRequest $request)
     {
@@ -104,7 +118,10 @@ class CourtBookingController extends Controller
     }
 
     /**
-     * Get user bookings
+     * Lấy danh sách lịch sử đặt sân của người dùng hiện tại (đã đăng nhập).
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
@@ -120,7 +137,11 @@ class CourtBookingController extends Controller
     }
 
     /**
-     * Get booking details
+     * Lấy thông tin chi tiết một lịch đặt sân của người dùng hiện tại.
+     * Bao gồm cả dịch vụ, thanh toán và lịch sử thay đổi trạng thái.
+     *
+     * @param int $id ID của lượt đặt sân
+     * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
     {
@@ -135,7 +156,11 @@ class CourtBookingController extends Controller
     }
 
     /**
-     * Cancel booking
+     * Hủy lịch đặt sân bởi người dùng (nếu trạng thái hợp lệ để hủy).
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $id ID của lượt đặt sân
+     * @return \Illuminate\Http\JsonResponse
      */
     public function cancel(Request $request, $id)
     {
@@ -182,6 +207,7 @@ class CourtBookingController extends Controller
                 'booking_id' => $booking->booking_id,
                 'booking_code' => $booking->booking_code,
                 'qr_token' => $this->workflowService->qrToken($booking),
+                'qr_data' => $this->workflowService->qrPayload($booking),
             ],
         ]);
     }

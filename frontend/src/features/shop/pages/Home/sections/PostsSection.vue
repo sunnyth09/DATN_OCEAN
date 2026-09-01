@@ -16,9 +16,15 @@ const sideHomePosts = computed(() => {
     return props.homePosts.filter(p => p.post_id !== featuredHomePost.value.post_id).slice(0, 3);
 });
 
+const FALLBACK_POST_IMG = 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
+
 const getPostImage = (url) => {
-    if (!url || url === '0') return 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=800&q=80';
+    if (!url || url === '0' || url === 'null') return FALLBACK_POST_IMG;
     return getStorageUrl(url);
+};
+
+const handleImageError = (e) => {
+    e.target.src = FALLBACK_POST_IMG;
 };
 
 const getAuthorName = (author) => {
@@ -73,7 +79,7 @@ const formatDate = (dateStr) => {
                     :to="'/posts/' + (featuredHomePost.slug || featuredHomePost.post_id)"
                     class="home-news-featured"
                 >
-                    <img :src="getPostImage(featuredHomePost.thumbnail_url)" :alt="featuredHomePost.title" class="home-news-featured-img" />
+                    <img :src="getPostImage(featuredHomePost.thumbnail_url)" :alt="featuredHomePost.title" class="home-news-featured-img" @error="handleImageError" />
                     <div class="home-news-featured-overlay">
                         <span class="hn-tag">{{ featuredHomePost.category?.name || 'Tin nổi bật' }}</span>
                         <h3 class="hn-title">{{ featuredHomePost.title }}</h3>
@@ -96,7 +102,7 @@ const formatDate = (dateStr) => {
                 <div class="home-news-side">
                     <div v-for="post in sideHomePosts" :key="post.post_id" class="home-post-card">
                         <router-link :to="'/posts/' + (post.slug || post.post_id)" class="home-post-img-wrap">
-                            <img :src="getPostImage(post.thumbnail_url)" :alt="post.title" class="home-post-img" />
+                            <img :src="getPostImage(post.thumbnail_url)" :alt="post.title" class="home-post-img" @error="handleImageError" />
                             <span class="home-post-tag">{{ post.category?.name || 'Tin tức' }}</span>
                         </router-link>
                         <div class="home-post-content">

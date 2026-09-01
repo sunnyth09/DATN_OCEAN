@@ -92,6 +92,23 @@
       </router-link>
 
       <router-link
+        to="/profile/tickets"
+        class="aside-nav-item"
+        active-class="aside-nav-item--active"
+      >
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </div>
+        <span>Khiếu nại của tôi</span>
+      </router-link>
+
+      <router-link
         to="/profile/wishlist"
         class="aside-nav-item"
         active-class="aside-nav-item--active"
@@ -502,6 +519,32 @@ const handleLogout = async () => {
 @media (max-width: 768px) {
   .profile-aside {
     width: 100%;
+    border-radius: 14px;
+  }
+
+  .aside-user-card {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+
+  .aside-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: 1.05rem;
+  }
+
+  .aside-user-name {
+    font-size: 0.92rem;
+  }
+
+  .aside-user-email {
+    font-size: 0.74rem;
+  }
+
+  .aside-points-badge {
+    margin-top: 2px;
+    padding: 2px 7px;
+    font-size: 0.7rem;
   }
 
   /* --- MOBILE STYLES --- */
@@ -510,11 +553,11 @@ const handleLogout = async () => {
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 16px 20px;
+    padding: 10px 14px;
     background: #fff;
     border: none;
-    border-bottom: 1px solid #e5e7eb;
-    font-size: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.88rem;
     font-weight: 600;
     color: var(--text-main);
     cursor: pointer;
@@ -522,8 +565,8 @@ const handleLogout = async () => {
   
   .aside-nav {
     display: none; /* Ẩn đi mặc định trên mobile */
-    padding: 12px;
-    gap: 4px;
+    padding: 8px;
+    gap: 2px;
   }
   
   .aside-nav.aside-nav--open {
@@ -531,8 +574,9 @@ const handleLogout = async () => {
   }
 
   .aside-nav-item {
-    padding: 12px 16px;
-    font-size: 0.9rem;
+    padding: 9px 12px;
+    font-size: 0.85rem;
+    border-radius: 8px;
   }
 
   .aside-nav-divider {

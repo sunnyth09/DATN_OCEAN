@@ -91,20 +91,17 @@ class PasskeyService {
   }
 
   /// Đăng ký / Kích hoạt Passkey cho tài khoản sau khi đã đăng nhập thành công.
+  /// ⚠️ KHÔNG lưu mật khẩu — chỉ lưu token phiên và thông tin người dùng.
   static Future<void> enrollPasskey(
     String email, {
     String? name,
     String? avatarUrl,
-    String? password,
     String? token,
     Map<String, dynamic>? userData,
   }) async {
     final key = '$_keyPrefix${email.trim().toLowerCase()}';
     await StorageService.write(key, 'true');
     await StorageService.write('${key}_at', DateTime.now().toIso8601String());
-    if (password != null && password.isNotEmpty) {
-      await StorageService.write('${key}_pwd', password);
-    }
     if (token != null && token.isNotEmpty) {
       await StorageService.write('${key}_token', token);
     }
@@ -131,11 +128,10 @@ class PasskeyService {
   }
 
   /// Cập nhật credentials mới nhất cho Passkey đã enrolled (KHÔNG thay đổi trạng thái enrolled).
-  /// Gọi sau mỗi lần đăng nhập thành công để giữ token & password luôn fresh.
+  /// Gọi sau mỗi lần đăng nhập thành công để giữ token luôn fresh.
   static Future<void> updatePasskeyData(
     String email, {
     String? token,
-    String? password,
     Map<String, dynamic>? userData,
   }) async {
     if (email.trim().isEmpty) return;
@@ -144,9 +140,6 @@ class PasskeyService {
     final enrolled = await StorageService.read(key);
     if (enrolled != 'true') return;
 
-    if (password != null && password.isNotEmpty) {
-      await StorageService.write('${key}_pwd', password);
-    }
     if (token != null && token.isNotEmpty) {
       await StorageService.write('${key}_token', token);
     }
@@ -155,12 +148,7 @@ class PasskeyService {
     }
   }
 
-  /// Lấy mật khẩu của Passkey đã lưu
-  static Future<String?> getPasskeyPassword(String email) async {
-    if (email.trim().isEmpty) return null;
-    final key = '$_keyPrefix${email.trim().toLowerCase()}_pwd';
-    return await StorageService.read(key);
-  }
+
 
   /// Lấy Token phiên đăng nhập của Passkey đã lưu
   static Future<String?> getPasskeyToken(String email) async {
@@ -188,7 +176,6 @@ class PasskeyService {
     final key = '$_keyPrefix${email.trim().toLowerCase()}';
     await StorageService.delete(key);
     await StorageService.delete('${key}_at');
-    await StorageService.delete('${key}_pwd');
     await StorageService.delete('${key}_token');
     await StorageService.delete('${key}_user');
 

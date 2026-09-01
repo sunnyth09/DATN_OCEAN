@@ -3,19 +3,6 @@ import { ref, computed, watch, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import AppIcon from '@/components/AppIcon.vue';
 import api from '@/axios';
-import Swal from 'sweetalert2';
-
-const showToast = (message, type = 'success') => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
-    text: message,
-    icon: type === 'danger' ? 'error' : (type === 'info' ? 'info' : 'success'),
-    showConfirmButton: false,
-    timer: 3500
-  });
-};
 
 const props = defineProps({
   coupon: {
@@ -91,12 +78,9 @@ const handleSaveCoupon = async () => {
     if (res.data?.status === 'success' || res.data?.status === 'info') {
       localIsSaved.value = true;
       window.dispatchEvent(new Event('coupon-saved'));
-      showToast(res.data.message || 'Lưu mã thành công!', res.data.status);
     }
   } catch (e) {
     console.error('Lỗi lưu coupon:', e);
-    const msg = e.response?.data?.message || 'Không thể lưu mã giảm giá!';
-    showToast(msg, 'danger');
   } finally {
     isSaving.value = false;
   }
@@ -191,10 +175,6 @@ onUnmounted(() => {
               </div>
 
               <div class="coupon-detail-list">
-                <div class="coupon-detail-row" v-if="coupon.is_first_order">
-                  <span>Đối tượng áp dụng</span>
-                  <strong style="color: #e63b6f;">Chỉ dành cho đơn hàng đầu tiên</strong>
-                </div>
                 <div class="coupon-detail-row">
                   <span>Điều kiện đơn hàng</span>
                   <strong v-if="coupon.min_order_value">Từ {{ formatCurrency(coupon.min_order_value) }}</strong>
@@ -474,7 +454,7 @@ onUnmounted(() => {
 .btn-view {
   min-height: 38px;
   font-size: 0.84rem;
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;

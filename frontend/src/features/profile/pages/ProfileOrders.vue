@@ -116,17 +116,9 @@ const setFilter = (status) => {
   }
 };
 
-import { Toast } from 'bootstrap';
-import { nextTick } from 'vue';
+import { useToast } from '@/composables/useToast';
 
-const toastData = ref({ message: '', type: 'success' });
-const showToast = (message, type = 'success') => {
-  toastData.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('ordersToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
-  });
-};
+const { showToast } = useToast();
 
 // Lý do hủy đơn phổ biến (chuẩn ecommerce)
 const cancelReasons = [
@@ -424,16 +416,6 @@ onMounted(() => {
         </div>
       </div>
     </Transition>
-
-    <!-- Bootstrap Toast -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-      <div class="toast align-items-center border-0" :class="toastData.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="ordersToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body">{{ toastData.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 

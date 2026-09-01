@@ -37,10 +37,12 @@ class _MapCheckpoint {
 /// Thiết kế cao cấp, uốn lượn theo Quốc lộ 1A & Quốc lộ 6, chuẩn 100% hệ thống Web.
 class OrderTrackingScreen extends StatefulWidget {
   final String? trackingNumber;
+  final dynamic initialOrderData;
 
   const OrderTrackingScreen({
     super.key,
     this.trackingNumber,
+    this.initialOrderData,
   });
 
   @override
@@ -109,6 +111,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
     );
 
+    // Nếu đã có dữ liệu đơn hàng ban đầu -> Dựng và hiển thị ngay 0ms!
+    if (widget.initialOrderData is Map) {
+      try {
+        final initialMap = Map<String, dynamic>.from(widget.initialOrderData as Map);
+        _order = OrderTrackingService().buildFromShopData(initialMap, _currentTrackingCode);
+        _isLoading = false;
+        _safeFitBounds();
+      } catch (_) {}
+    }
+
     _loadTrackingData(_currentTrackingCode);
   }
 
@@ -122,13 +134,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
   }
 
   Future<void> _loadTrackingData(String code) async {
+    final cleanCode = code.trim();
+    if (cleanCode.isEmpty) return;
+
     if (!mounted) return;
     setState(() {
+      _currentTrackingCode = cleanCode;
       _isLoading = true;
     });
 
     try {
-      final order = await OrderTrackingService().fetchTracking(code);
+      final order = await OrderTrackingService().fetchTracking(cleanCode);
       if (!mounted) return;
       setState(() {
         _order = order;
@@ -138,14 +154,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
       _safeFitBounds();
     } catch (e) {
       if (!mounted) return;
-      // Dữ liệu mô phỏng chuẩn xác 100% khớp hệ thống web (TP.HCM -> Sơn La 1548.1 km)
-      final mock = OrderTrackingService.getMockOrder(trackingNumber: code);
       setState(() {
-        _order = mock;
+        _order = null;
         _isLoading = false;
       });
-
-      _safeFitBounds();
+      AppToast.showError(
+        context,
+        message: 'Không tìm thấy thông tin vận đơn: $cleanCode',
+      );
     }
   }
 
@@ -727,15 +743,25 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.25),
+                  color: _order!.failedAttemptReason != null
+                      ? const Color(0xFFEF4444).withValues(alpha: 0.25)
+                      : const Color(0xFF3B82F6).withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.5)),
+                  border: Border.all(
+                    color: _order!.failedAttemptReason != null
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.5)
+                        : const Color(0xFF3B82F6).withValues(alpha: 0.5),
+                  ),
                 ),
-                child: const Text(
-                  'Giao lại',
-                  style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: Color(0xFFFCA5A5)),
+                child: Text(
+                  _order!.failedAttemptReason != null ? 'Giao lại' : _order!.statusName,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: _order!.failedAttemptReason != null ? const Color(0xFFFCA5A5) : const Color(0xFF93C5FD),
+                  ),
                 ),
               ),
             ],
@@ -920,30 +946,175 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
             ),
           ),
           Expanded(
-            child: _order == null
-                ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                : ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-                    children: [
-                      _buildStatusHeaderCard(),
-                      const SizedBox(height: 12),
-                      _buildDriverCard(),
-                      const SizedBox(height: 14),
-                      _buildHorizontalStepper(),
-                      const SizedBox(height: 16),
-                      _buildDetailedTimeline(),
-                      const SizedBox(height: 16),
-                      _buildPackageInfoCard(),
-                    ],
-                  ),
+            child: _isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(color: AppColors.primary, strokeWidth: 3),
+                        SizedBox(height: 14),
+                        Text(
+                          'Đang tra cứu hành trình vận đơn...',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _order == null
+                    ? _buildEmptyOrNotFoundState(scrollController)
+                    : ListView(
+                        controller: scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                        children: [
+                          _buildStatusHeaderCard(),
+                          const SizedBox(height: 12),
+                          _buildDriverCard(),
+                          const SizedBox(height: 14),
+                          _buildHorizontalStepper(),
+                          const SizedBox(height: 16),
+                          _buildDetailedTimeline(),
+                          const SizedBox(height: 16),
+                          _buildPackageInfoCard(),
+                        ],
+                      ),
           ),
         ],
       ),
     );
   }
 
+  Widget _buildEmptyOrNotFoundState(ScrollController scrollController) {
+    return ListView(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      children: [
+        Center(
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFFEE2E2), width: 2),
+            ),
+            child: const Icon(
+              Icons.local_shipping_outlined,
+              size: 30,
+              color: Color(0xFFEF4444),
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        const Center(
+          child: Text(
+            'Chưa có hành trình vận chuyển',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Center(
+          child: Text(
+            'Mã tra cứu: "$_currentTrackingCode"\nĐơn hàng có thể đang được nhân viên Ocean Sport chuẩn bị tại kho hoặc chưa đồng bộ sang đơn vị vận chuyển.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: Color(0xFF64748B),
+              height: 1.4,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  _searchCtrl.text = 'OE-1771735165842';
+                  _loadTrackingData('OE-1771735165842');
+                },
+                icon: const Icon(Icons.map_outlined, size: 15),
+                label: const Text('Xem đơn mẫu OE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2563EB),
+                  side: const BorderSide(color: Color(0xFF93C5FD)),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _loadTrackingData(_currentTrackingCode),
+                icon: const Icon(Icons.refresh_rounded, size: 15),
+                label: const Text('Thử lại', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: TextButton(
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/orders');
+              }
+            },
+            child: const Text(
+              'Quay lại danh sách đơn hàng',
+              style: TextStyle(
+                color: Color(0xFF475569),
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStatusHeaderCard() {
+    final st = _order!.status.toLowerCase();
+    IconData statusIcon = Icons.local_shipping_rounded;
+    Color iconBg = const Color(0xFF3B82F6).withValues(alpha: 0.2);
+    Color iconColor = const Color(0xFF60A5FA);
+
+    if (st.contains('delivered') || st.contains('completed')) {
+      statusIcon = Icons.check_circle_rounded;
+      iconBg = const Color(0xFF10B981).withValues(alpha: 0.2);
+      iconColor = const Color(0xFF34D399);
+    } else if (st.contains('cancelled') || st.contains('fail')) {
+      statusIcon = Icons.warning_amber_rounded;
+      iconBg = const Color(0xFFEF4444).withValues(alpha: 0.2);
+      iconColor = const Color(0xFFF87171);
+    } else if (st.contains('processing') || st.contains('confirmed')) {
+      statusIcon = Icons.inventory_2_rounded;
+      iconBg = const Color(0xFF8B5CF6).withValues(alpha: 0.2);
+      iconColor = const Color(0xFFA78BFA);
+    } else if (st.contains('pending')) {
+      statusIcon = Icons.schedule_rounded;
+      iconBg = const Color(0xFFF59E0B).withValues(alpha: 0.2);
+      iconColor = const Color(0xFFFBBF24);
+    }
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -962,10 +1133,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+              color: iconBg,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFF87171), size: 24),
+            child: Icon(statusIcon, color: iconColor, size: 24),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1121,7 +1292,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen>
 
   Widget _buildHorizontalStepper() {
     final steps = ['Đặt đơn', 'Lấy hàng', 'Nhập kho', 'Đang giao', 'Đã giao'];
-    final currentStep = 3;
+    final currentStep = _order!.currentStepIndex;
 
     return Row(
       children: List.generate(steps.length * 2 - 1, (index) {

@@ -102,6 +102,7 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
+import { useAdminKeepAlive } from '@/composables/useAdminKeepAlive';
 import api from '@/axios';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
 import TopProductsTable from './Statistics/TopProductsTable.vue';
@@ -263,7 +264,10 @@ watch(currentTab, () => {
   fetchRevenueChart();
 });
 
-onMounted(async () => {
+const loadDashboardData = async ({ background = false } = {}) => {
+    if (!background && stats.value[0].value === '...') {
+        isLoading.value = true;
+    }
     try {
         const preset = currentTab.value === 'week' ? '7days' : '30days';
         const [dashboardRes, topProductsRes, topCustomersRes, revenueRes] = await Promise.all([
@@ -308,6 +312,12 @@ onMounted(async () => {
     } finally {
         isLoading.value = false;
     }
+};
+
+useAdminKeepAlive({ resourceKey: 'stats', fetchFn: loadDashboardData, ttl: 180000 });
+
+onMounted(() => {
+    loadDashboardData();
 });
 </script>
 

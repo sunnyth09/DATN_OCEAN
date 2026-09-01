@@ -1,35 +1,23 @@
 <script setup>
-import Swal from 'sweetalert2';
 import { reactive, ref, onMounted, nextTick, watch } from "vue";
 import api from '@/axios';
 import { useRouter } from 'vue-router';
+import { useToast } from '@/composables/useToast';
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 import { getStorageUrl } from '@/utils/url';
 
 const router = useRouter();
+const { showToast } = useToast();
 
 let quillContent = null;
 const editorContent = ref(null);
 
 const categories = ref([]);
 const authors = ref([]);
-const toastObj = ref({ message: '', type: 'success' });
 const isSubmitting = ref(false);
 const SUMMARY_MAX_LENGTH = 500;
 const SEO_DESCRIPTION_MAX_LENGTH = 500;
-
-const showToast = (message, type = 'success') => {
-    Swal.fire({
-        toast: true,
-        position: 'top-end',
-        title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
-        text: message,
-        icon: type === 'danger' ? 'error' : type,
-        showConfirmButton: false,
-        timer: 3000
-    });
-};
 
 const parseMarkdownToHtml = (markdown) => {
     if (!markdown) return '';
@@ -515,18 +503,6 @@ const handleSubmit = async () => {
                 </div>
             </div>
         </form>
-
-        <!-- Bootstrap Toast -->
-        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-            <div class="toast align-items-center border-0"
-                :class="toastObj.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="postToast" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">{{ toastObj.message }}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto"
-                        data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 

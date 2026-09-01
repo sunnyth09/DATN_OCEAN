@@ -84,11 +84,14 @@ export const courtBookingService = {
   recordAdminPayment(id, payload) {
     return api.post(`/admin/court-bookings/${id}/payments`, payload);
   },
+  scanQrCheckIn(payload) {
+    return api.post('/admin/court-bookings/scan-qr', payload);
+  },
   qrCheckInBooking(id, payload) {
     return api.post(`/admin/court-bookings/${id}/qr-check-in`, payload);
   },
-  checkInBooking(id) {
-    return api.post(`/admin/court-bookings/${id}/check-in`);
+  checkInBooking(id, payload = {}) {
+    return api.post(`/admin/court-bookings/${id}/check-in`, payload);
   },
   checkOutBooking(id, payload = {}) {
     return api.post(`/admin/court-bookings/${id}/check-out`, payload);

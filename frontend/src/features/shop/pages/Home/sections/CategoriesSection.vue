@@ -230,15 +230,15 @@ const handleImgError = (e, sportName) => {
 }
 
 .section-title {
-  font-size: 1.85rem;
+  font-size: 1.75rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main, #2D3436);
   letter-spacing: -0.5px;
 }
 
 .section-subtitle {
-  color: #64748b;
-  font-size: 0.95rem;
+  color: var(--text-secondary, #636E72);
+  font-size: 0.9rem;
 }
 
 .link-view-all {

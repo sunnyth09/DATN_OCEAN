@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { affiliateService } from '@/services/affiliateService';
+import { walletService } from '@/services/walletService';
 import { useToast } from '@/composables/useToast';
 
 const { showToast } = useToast();
@@ -8,6 +9,7 @@ const { showToast } = useToast();
 // --- State ---
 const loading = ref(true);
 const profile = ref(null);
+const walletSummary = ref(null);
 const isAffiliate = computed(() => profile.value?.is_affiliate === true);
 
 // Statistics
@@ -19,17 +21,7 @@ const loadingStats = ref(false);
 const conversions = ref([]);
 const loadingConversions = ref(false);
 
-// Withdrawals
-const withdrawals = ref([]);
-const loadingWithdrawals = ref(false);
-const showWithdrawForm = ref(false);
-const submittingWithdraw = ref(false);
-const withdrawForm = ref({
-  amount: '',
-  bank_name: '',
-  bank_account_name: '',
-  bank_account_number: '',
-});
+// Withdrawals - removed as commission is now used directly at checkout
 
 // Registration
 const registering = ref(false);
@@ -124,19 +116,7 @@ const fetchConversions = async () => {
   }
 };
 
-const fetchWithdrawals = async () => {
-  loadingWithdrawals.value = true;
-  try {
-    const res = await affiliateService.getWithdrawals();
-    if (res.data?.status) {
-      withdrawals.value = res.data.data || [];
-    }
-  } catch (e) {
-    console.error('Fetch withdrawals error:', e);
-  } finally {
-    loadingWithdrawals.value = false;
-  }
-};
+
 
 const registerAffiliate = async () => {
   registering.value = true;
@@ -172,32 +152,21 @@ const changeStatsType = (type) => {
   fetchStatistics();
 };
 
-const submitWithdrawal = async () => {
-  if (!withdrawForm.value.amount || !withdrawForm.value.bank_name || !withdrawForm.value.bank_account_name || !withdrawForm.value.bank_account_number) {
-    showToast('Vui lòng điền đầy đủ thông tin!', 'error');
-    return;
-  }
-  submittingWithdraw.value = true;
+
+
+const fetchWalletSummary = async () => {
   try {
-    const res = await affiliateService.requestWithdrawal(withdrawForm.value);
-    if (res.data?.status) {
-      showToast('Gửi yêu cầu rút tiền thành công!', 'success');
-      showWithdrawForm.value = false;
-      withdrawForm.value = { amount: '', bank_name: '', bank_account_name: '', bank_account_number: '' };
-      await fetchWithdrawals();
-      await fetchProfile();
-    } else {
-      showToast(res.data?.message || 'Lỗi gửi yêu cầu!', 'error');
+    const res = await walletService.getSummary();
+    if (res.data?.status === 'success') {
+      walletSummary.value = res.data.data;
     }
   } catch (e) {
-    showToast(e.response?.data?.message || 'Lỗi gửi yêu cầu rút tiền!', 'error');
-  } finally {
-    submittingWithdraw.value = false;
+    console.error(e);
   }
 };
 
 const loadAffiliateData = async () => {
-  await Promise.all([fetchStatistics(), fetchConversions(), fetchWithdrawals()]);
+  await Promise.all([fetchStatistics(), fetchConversions(), fetchWalletSummary()]);
 };
 
 onMounted(async () => {
@@ -261,7 +230,7 @@ onMounted(async () => {
             <li>✅ Nhận mã giới thiệu riêng</li>
             <li>✅ Theo dõi lượt click & đơn hàng</li>
             <li>✅ Thống kê hoa hồng chi tiết</li>
-            <li>✅ Rút tiền hoa hồng dễ dàng</li>
+            <li>✅ Sử dụng hoa hồng trực tiếp khi thanh toán đơn hàng thay cho Điểm thưởng/Tiền mặt</li>
           </ul>
           <button class="aff-btn-register" @click="registerAffiliate" :disabled="registering">
             <span v-if="registering" class="aff-btn-spinner"></span>
@@ -350,11 +319,11 @@ onMounted(async () => {
           </div>
           <div class="aff-stat-card">
             <div class="aff-stat-icon bg-pink">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             </div>
             <div class="aff-stat-info">
-              <span class="aff-stat-value">{{ formatPrice(profile.summary?.paid_commission) }}</span>
-              <span class="aff-stat-label">Đã thanh toán</span>
+              <span class="aff-stat-value">{{ formatPrice(walletSummary?.commission_balance) }}</span>
+              <span class="aff-stat-label">Khả dụng</span>
             </div>
           </div>
         </div>
@@ -428,71 +397,13 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- WITHDRAWALS -->
+        <!-- USE COMMISSION -->
         <div class="aff-section">
           <div class="aff-section-header">
-            <h3>Rút tiền hoa hồng</h3>
-            <button class="aff-btn-withdraw" @click="showWithdrawForm = !showWithdrawForm">
-              {{ showWithdrawForm ? 'Đóng' : '+ Yêu cầu rút tiền' }}
-            </button>
+            <h3>Sử dụng tiền hoa hồng</h3>
           </div>
-
-          <!-- WITHDRAW FORM -->
-          <div v-if="showWithdrawForm" class="aff-withdraw-form">
-            <div class="aff-form-row">
-              <div class="aff-form-group">
-                <label>Số tiền muốn rút (VND)</label>
-                <input v-model.number="withdrawForm.amount" type="number" placeholder="Ví dụ: 500000" />
-              </div>
-              <div class="aff-form-group">
-                <label>Tên ngân hàng</label>
-                <input v-model="withdrawForm.bank_name" type="text" placeholder="Ví dụ: Vietcombank" />
-              </div>
-            </div>
-            <div class="aff-form-row">
-              <div class="aff-form-group">
-                <label>Tên chủ tài khoản</label>
-                <input v-model="withdrawForm.bank_account_name" type="text" placeholder="Ví dụ: NGUYEN VAN A" />
-              </div>
-              <div class="aff-form-group">
-                <label>Số tài khoản</label>
-                <input v-model="withdrawForm.bank_account_number" type="text" placeholder="Ví dụ: 1234567890" />
-              </div>
-            </div>
-            <button class="aff-btn-submit" @click="submitWithdrawal" :disabled="submittingWithdraw">
-              <span v-if="submittingWithdraw" class="aff-btn-spinner"></span>
-              <span v-else>Gửi yêu cầu</span>
-            </button>
-          </div>
-
-          <!-- WITHDRAWAL HISTORY -->
-          <div v-if="loadingWithdrawals" class="aff-table-loading"><div class="aff-spinner-sm"></div></div>
-          <div v-else-if="withdrawals.length === 0 && !showWithdrawForm" class="aff-empty">Chưa có yêu cầu rút tiền nào.</div>
-          <div v-else-if="withdrawals.length > 0" class="aff-table-wrap">
-            <table class="aff-table">
-              <thead>
-                <tr>
-                  <th>Số tiền</th>
-                  <th>Ngân hàng</th>
-                  <th>Chủ TK</th>
-                  <th>Số TK</th>
-                  <th>Trạng thái</th>
-                  <th>Ghi chú</th>
-                  <th>Ngày</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="w in withdrawals" :key="w.id">
-                  <td class="aff-commission-cell">{{ formatPrice(w.amount) }}</td>
-                  <td>{{ w.bank_name }}</td>
-                  <td>{{ w.bank_account_name }}</td>
-                  <td>{{ w.bank_account_number }}</td>
-                  <td><span class="aff-status" :class="statusClass(w.status)">{{ statusLabel(w.status) }}</span></td>
-                  <td>{{ w.note || '—' }}</td>
-                  <td>{{ formatDate(w.created_at) }}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="aff-empty">
+            Tiền hoa hồng của bạn có thể được sử dụng trực tiếp để thanh toán (giảm giá) khi mua hàng tại màn hình Thanh toán. Không cần phải rút tiền!
           </div>
         </div>
 
@@ -503,7 +414,7 @@ onMounted(async () => {
 
 <style scoped>
 .aff-page {
-  font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-inter, 'Inter', sans-serif);
   color: var(--text-main);
 }
 

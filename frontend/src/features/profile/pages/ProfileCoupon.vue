@@ -110,8 +110,10 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import api from '@/axios';
-import Swal from 'sweetalert2';
+import { useToast } from '@/composables/useToast';
 import AppIcon from '@/components/AppIcon.vue';
+
+const { showToast } = useToast();
 
 const coupons = ref([]);
 const loading = ref(true);
@@ -168,16 +170,7 @@ const copyCode = (code) => {
   if (!code) return;
   navigator.clipboard.writeText(code);
   copiedCode.value = code;
-
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    title: 'Thành công',
-    text: `Đã sao chép mã giảm giá ${code} vào bộ nhớ tạm!`,
-    icon: 'success',
-    showConfirmButton: false,
-    timer: 3000
-  });
+  showToast('Đã sao chép mã giảm giá vào bộ nhớ tạm!', 'success');
 
   setTimeout(() => {
     if (copiedCode.value === code) {

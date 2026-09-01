@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
+import { useAdminKeepAlive, markAdminResourceDirty } from '@/composables/useAdminKeepAlive';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
@@ -39,17 +40,25 @@ const showToast = (message, type = 'success') => {
   });
 };
 
-const fetchBrands = async () => {
+const fetchBrands = async ({ background = false } = {}) => {
     try {
-        isLoading.value = true;
+        if (!background && brands.value.length === 0) {
+            isLoading.value = true;
+        }
         const response = await api.get('/brands');
         brands.value = response.data.data || response.data;
     } catch (error) {
-        showToast('Lỗi tải thương hiệu!', 'danger');
+        if (!background) showToast('Lỗi tải thương hiệu!', 'danger');
     } finally {
         isLoading.value = false;
     }
 };
+
+useAdminKeepAlive({
+    resourceKey: 'brands',
+    fetchFn: () => fetchBrands({ background: true }),
+    ttl: 180000,
+});
 
 const filteredBrands = computed(() => {
     if (!searchQuery.value) return brands.value;
@@ -488,7 +497,7 @@ const deleteBrand = async (id) => {
 .status-active { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 .status-inactive { background: rgba(100, 116, 139, 0.1); color: #64748b; }
 .action-buttons { display: flex; gap: 8px; }
-.btn-action { width: 32px; height: 32px; border-radius: 6px; border: none; background: var(--ocean-deepest); color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+.btn-action { width: 32px; height: 32px; min-height: unset; aspect-ratio: 1 / 1; border-radius: 6px; border: none; background: var(--ocean-deepest); color: var(--text-muted); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
 .btn-action:hover { background: var(--hover-bg); }
 .btn-edit:hover { color: var(--ocean-bright); }
 .btn-delete:hover { color: var(--coral); }

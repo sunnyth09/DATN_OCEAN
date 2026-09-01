@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useAdminKeepAlive, markAdminResourceDirty } from '@/composables/useAdminKeepAlive';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
@@ -118,8 +119,10 @@ const buildMedia = (path) => {
 
 const productCache = new Map();
 
-const fetchProducts = async () => {
-    isLoading.value = true;
+const fetchProducts = async (force = false) => {
+    if (!force && products.value.length === 0) {
+        isLoading.value = true;
+    }
     try {
         selectedProducts.value = [];
         const params = new URLSearchParams({
@@ -136,7 +139,7 @@ const fetchProducts = async () => {
         const cacheKey = params.toString();
         
         // Fast Cache Check
-        if (productCache.has(cacheKey)) {
+        if (!force && productCache.has(cacheKey)) {
             const cached = productCache.get(cacheKey);
             products.value = cached.products;
             totalProducts.value = cached.total;
@@ -161,6 +164,12 @@ const fetchProducts = async () => {
         isInitialLoad.value = false;
     }
 };
+
+useAdminKeepAlive({
+    resourceKey: 'products',
+    fetchFn: () => fetchProducts(true),
+    ttl: 180000,
+});
 
 onMounted(async () => {
     fetchCategories();
@@ -1723,7 +1732,7 @@ const formatDate = (dateString) => {
 /* Actions */
 .actions-cell { display: flex; gap: 8px; }
 .btn-icon {
-    width: 36px; height: 36px; border-radius: 10px; border: none !important; outline: none !important;
+    width: 36px; height: 36px; min-height: unset; aspect-ratio: 1 / 1; border-radius: 10px; border: none !important; outline: none !important;
     background: transparent !important; color: #94a3b8 !important;
     cursor: pointer !important; display: flex; align-items: center; justify-content: center;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important; text-decoration: none;
@@ -1971,7 +1980,8 @@ const formatDate = (dateString) => {
 /* Responsive */
 @media (max-width: 768px) {
     .page-header { flex-direction: column; align-items: flex-start; gap: 16px; }
-    .header-btns { flex-direction: column; width: 100%; }
+    .header-btns { flex-direction: row; flex-wrap: wrap; width: 100%; gap: 8px; }
+    .header-btns .btn-import, .header-btns .btn-primary { flex: 1 1 auto; justify-content: center; }
     .filters-bar { flex-direction: column; gap: 12px; align-items: stretch; }
     .search-box { max-width: 100%; }
     .qv-top { flex-direction: column; }

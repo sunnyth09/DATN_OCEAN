@@ -273,7 +273,7 @@ const handleRegister = async () => {
 </template>
 
 <style scoped>
-.auth-page { flex: 1; padding: 48px 24px; display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+.auth-page { flex: 1; padding: 48px 24px; display: flex; align-items: center; justify-content: center; font-family: var(--font-inter, 'Inter', sans-serif); }
 .auth-card { width: 100%; max-width: 440px; background: var(--card-bg); border-radius: 16px; padding: 40px 36px 36px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04); }
 .auth-icon { width: 56px; height: 56px; border-radius: 14px; background: #FFF0F3; color: var(--primary); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
 .auth-title { text-align: center; font-size: 1.5rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px; }
@@ -306,7 +306,7 @@ const handleRegister = async () => {
 .has-error-terms .checkbox-label { color: #ef4444; }
 .link { color: var(--primary); text-decoration: none; font-weight: 500; }
 .link:hover { text-decoration: underline; }
-.btn-primary { width: 100%; padding: 13px; border: none; border-radius: 10px; background: var(--primary); color: #fff; font-size: 0.95rem; font-weight: 600; font-family: inherit; cursor: pointer; transition: background 0.2s, transform 0.1s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-primary { width: 100%; height: 44px; padding: 0 16px; border: none; border-radius: 8px; background: var(--primary); color: #fff; font-size: 0.92rem; font-weight: 700; font-family: inherit; cursor: pointer; transition: background 0.2s, transform 0.1s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .btn-primary:hover:not(:disabled) { background: #C4305D; }
 .btn-primary:active:not(:disabled) { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }

@@ -34,9 +34,16 @@ import ProfileAside from '@/features/profile/components/ProfileAside.vue';
 }
 
 @media (max-width: 768px) {
+  .profile-page {
+    padding-top: 12px;
+    padding-bottom: 24px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
   .profile-container {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
   .profile-content {
     width: 100%;

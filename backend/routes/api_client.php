@@ -160,6 +160,7 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
     Route::middleware('customer.only')->group(function () {
         Route::middleware('throttle:strict_api')->get('/coupons', [CouponController::class, 'getUserCoupons']);
         Route::middleware('throttle:strict_api')->post('/coupons/save', [CouponController::class, 'saveCoupon']);
+        Route::middleware('throttle:strict_api')->post('/coupons/check', [CouponController::class, 'checkCoupon']);
     });
 
     // Đơn hàng của tôi
@@ -191,10 +192,15 @@ Route::middleware('auth:api,admin')->prefix('profile')->group(function () {
         Route::middleware('throttle:strict_api')->get('/affiliate/profile', [AffiliateController::class, 'profile']);
         Route::middleware('throttle:strict_api')->get('/affiliate/statistics', [AffiliateController::class, 'statistics']);
         Route::middleware('throttle:strict_api')->get('/affiliate/conversions', [AffiliateController::class, 'conversions']);
-        Route::middleware('throttle:3,60')->post('/affiliate/withdrawals', [AffiliateController::class, 'requestWithdrawal']);
         Route::middleware('throttle:strict_api')->get('/affiliate/withdrawals', [AffiliateController::class, 'withdrawals']);
     });
     // Khiếu nại của tôi
+    Route::get('/tickets', [TicketController::class, 'clientIndex']);
+    Route::middleware('throttle:3,1')->post('/tickets', [TicketController::class, 'clientStore']);
+});
+
+// Alias for tickets route outside profile prefix
+Route::middleware('auth:api,admin')->group(function () {
     Route::get('/tickets', [TicketController::class, 'clientIndex']);
     Route::middleware('throttle:3,1')->post('/tickets', [TicketController::class, 'clientStore']);
 });
@@ -257,6 +263,7 @@ Route::get('products', [ProductController::class, 'index']);
 Route::get('products/slug/{slug}', [ProductController::class, 'show']);
 Route::get('products/{id}/variants', [ProductController::class, 'getVariants']);
 Route::get('products/{slug}/related', [ProductController::class, 'related']);
+Route::get('products/{slug}/matching', [ProductController::class, 'matching']);
 Route::get('products/{product_id}/comments', [ProductCommentController::class, 'getByProduct']);
 Route::get('products/{id}', [ProductController::class, 'show']);
 Route::get('productFeatured', [ProductController::class, 'productFeatured']);
@@ -286,7 +293,7 @@ Route::middleware('auth:api')->post('/combos/check-cart', [ComboController::clas
 Route::get('/loyalty/rules', [LoyaltyController::class, 'rules']);
 
 // Routes yêu cầu đăng nhập
-Route::middleware('auth:api')->prefix('loyalty')->group(function () {
+Route::middleware('auth:api,admin')->prefix('loyalty')->group(function () {
     Route::get('/lucky-wheel', [LoyaltyController::class, 'luckyWheelPrizes']);   // Danh sách quà vòng quay
     Route::post('/lucky-wheel/spin', [LoyaltyController::class, 'spinLuckyWheel']); // Quay vòng quay
     Route::get('/summary', [LoyaltyController::class, 'summary']);        // Điểm hiện tại + thống kê

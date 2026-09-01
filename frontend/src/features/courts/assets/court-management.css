@@ -613,15 +613,16 @@ html.dark .court-tab--active {
 .booking-history-card--completed { border-left-color: var(--court-completed); }
 .booking-history-card--cancelled { border-left-color: var(--court-closed); }
 
-/* ─── Hero Banner ─── */
+/* ─── Hero Banner (Đồng bộ chuẩn 16px) ─── */
 .court-hero {
   background: linear-gradient(135deg, var(--court-primary), #a0204e);
   color: #fff;
   border-radius: 16px;
-  padding: 32px;
-  margin-bottom: 28px;
+  padding: 36px 36px;
+  margin-bottom: 24px;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 10px 28px rgba(230, 59, 111, 0.16);
 }
 
 .court-hero::after {
@@ -636,15 +637,19 @@ html.dark .court-tab--active {
 }
 
 .court-hero__title {
-  font-size: 1.75rem;
+  font-size: clamp(1.75rem, 2.6vw, 2.25rem);
   font-weight: 800;
-  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+  margin: 0 0 8px;
+  line-height: 1.2;
 }
 
 .court-hero__subtitle {
-  opacity: 0.85;
+  opacity: 0.95;
   font-size: 0.95rem;
-  max-width: 500px;
+  max-width: 580px;
+  margin: 0;
+  line-height: 1.55;
 }
 
 /* ─── Service Card (Client) ─── */
@@ -714,4 +719,21 @@ html.dark .court-tab--active {
 .court-dropdown .dropdown-divider {
   margin: 4px 0;
   border-color: var(--border-color, rgba(0,0,0,0.06));
+}
+
+/* ─── Responsive for Client Court ─── */
+@media (max-width: 768px) {
+  .court-hero {
+    padding: 20px 16px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+  }
+
+  .court-hero__title {
+    font-size: 1.3rem;
+  }
+
+  .court-hero__subtitle {
+    font-size: 0.85rem;
+  }
 }

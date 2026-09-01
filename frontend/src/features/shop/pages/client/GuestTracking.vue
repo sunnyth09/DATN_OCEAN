@@ -280,7 +280,7 @@ onMounted(loadByToken);
 .tracking-card {
   background: var(--card-bg);
   border: 1px solid #e2e8f0;
-  border-radius: 24px;
+  border-radius: 16px;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
   padding: 28px;
 }
@@ -318,15 +318,18 @@ onMounted(loadByToken);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
+  height: 42px;
+  min-height: unset;
   border: none;
-  border-radius: 14px;
-  padding: 0 20px;
+  border-radius: 8px;
+  padding: 0 18px;
   background: linear-gradient(135deg, var(--primary), #c22b56);
   color: #fff;
-  font-weight: 900;
+  font-weight: 700;
+  font-size: 0.9rem;
   text-decoration: none;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn-track:disabled {

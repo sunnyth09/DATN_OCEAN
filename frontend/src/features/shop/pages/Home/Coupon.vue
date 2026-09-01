@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import api from '@/axios';
 import { useRouter } from 'vue-router';
-import Swal from 'sweetalert2';
+import { useToast } from '@/composables/useToast';
 import CouponDetailModal from '@/features/shop/components/CouponDetailModal.vue';
 import AppIcon from '@/components/AppIcon.vue';
 
@@ -13,18 +13,7 @@ const searchQuery = ref('');
 const selectedCoupon = ref(null);
 const visibleLimit = ref(8);
 const router = useRouter();
-
-const showToast = (message, type = 'success') => {
-  Swal.fire({
-    toast: true,
-    position: 'top-end',
-    title: type === 'success' ? 'Thành công' : (type === 'error' || type === 'danger' ? 'Lỗi' : 'Thông báo'),
-    text: message,
-    icon: type === 'danger' ? 'error' : (type === 'info' ? 'info' : 'success'),
-    showConfirmButton: false,
-    timer: 3500
-  });
-};
+const { showToast } = useToast();
 
 const isLoggedIn = computed(() => sessionStorage.getItem('user') !== null);
 
@@ -171,28 +160,30 @@ onUnmounted(() => {
 
 <template>
   <main class="coupon-page">
-    <section class="coupon-hero">
-      <div class="container coupon-hero-inner">
-        <div class="coupon-hero-copy">
-          <span class="coupon-kicker">OCEAN SPORT DEALS</span>
-          <h1>Săn Voucher</h1>
-          <p>Thu thập ưu đãi mới nhất, sao chép mã trước và đăng nhập khi thanh toán để sử dụng voucher.</p>
-          <div class="coupon-hero-actions">
-            <a href="#coupon-list" class="btn-hero-primary">Khám phá mã</a>
-            <router-link to="/product" class="btn-hero-outline">Mua sắm ngay</router-link>
+    <div class="container coupon-hero-section">
+      <div class="coupon-hero">
+        <div class="coupon-hero-inner">
+          <div class="coupon-hero-copy">
+            <span class="coupon-kicker">OCEAN SPORT DEALS</span>
+            <h1>Săn Voucher & Ưu Đãi</h1>
+            <p>Thu thập ưu đãi mới nhất, sao chép mã trước và đăng nhập khi thanh toán để sử dụng voucher.</p>
+            <div class="coupon-hero-actions">
+              <a href="#coupon-list" class="btn-hero-primary">Khám phá mã</a>
+              <router-link to="/product" class="btn-hero-outline">Mua sắm ngay</router-link>
+            </div>
           </div>
-        </div>
-        <div class="coupon-hero-panel">
-          <div class="hero-ticket-icon" aria-hidden="true">
-            <AppIcon name="voucher" width="34" height="34" :stroke-width="2.2" />
-          </div>
-          <div>
-            <strong>{{ activeCouponCount }}</strong>
-            <span>voucher đang khả dụng</span>
+          <div class="coupon-hero-panel">
+            <div class="hero-ticket-icon" aria-hidden="true">
+              <AppIcon name="voucher" width="32" height="32" :stroke-width="2.2" />
+            </div>
+            <div>
+              <strong>{{ activeCouponCount }}</strong>
+              <span>voucher đang khả dụng</span>
+            </div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
 
     <section id="coupon-list" class="coupon-content">
       <div class="container">
@@ -247,8 +238,7 @@ onUnmounted(() => {
                 <AppIcon :name="getCouponIcon(coupon)" width="14" height="14" :stroke-width="2.2" />
                 {{ getCouponLabel(coupon) }}
               </span>
-              <span v-if="coupon.is_first_order" class="coupon-first-order-badge">Đơn đầu tiên</span>
-              <span v-else-if="isDisabled(coupon)" class="coupon-status">Hết hiệu lực</span>
+              <span v-if="isDisabled(coupon)" class="coupon-status">Hết hiệu lực</span>
             </div>
 
             <button class="coupon-code-box" type="button" @click.stop="copyCode(coupon.code)">
@@ -260,13 +250,10 @@ onUnmounted(() => {
             </button>
 
             <div class="coupon-value">{{ formatValue(coupon) }}</div>
-            <p class="coupon-condition">
-              <span v-if="coupon.is_first_order" class="first-order-tag" style="color: #e63b6f; font-weight: 700; display: block; margin-bottom: 2px;">★ Dành cho đơn hàng đầu tiên</span>
-              <template v-if="coupon.min_order_value">
-                Đơn từ <strong>{{ formatCurrency(coupon.min_order_value) }}</strong>
-              </template>
-              <template v-else>Không yêu cầu đơn tối thiểu</template>
+            <p class="coupon-condition" v-if="coupon.min_order_value">
+              Đơn từ <strong>{{ formatCurrency(coupon.min_order_value) }}</strong>
             </p>
+            <p class="coupon-condition" v-else>Không yêu cầu đơn tối thiểu</p>
 
             <div class="coupon-divider"></div>
 
@@ -315,30 +302,28 @@ onUnmounted(() => {
 .coupon-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #fff 0%, #fff7fb 42%, #f8fafc 100%);
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter, 'Inter', sans-serif);
   padding-bottom: 72px;
 }
 
+.coupon-hero-section {
+  padding-top: 24px;
+  padding-bottom: 0;
+}
+
 .coupon-hero {
-  position: relative;
-  width: 100vw;
-  margin-left: calc(-50vw + 50%);
-  padding: 76px 0;
+  padding: 32px;
   color: #fff;
   overflow: hidden;
+  border: 1px solid rgba(230, 59, 111, 0.18);
+  border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(230, 59, 111, 0.18);
+  margin-bottom: 28px;
+  position: relative;
   background:
     radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18), transparent 28%),
     radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.16), transparent 32%),
     linear-gradient(135deg, #c80f55 0%, var(--primary) 52%, #ff6b9d 100%);
-}
-
-.coupon-hero::after {
-  content: '';
-  position: absolute;
-  inset: auto -8% -45% -8%;
-  height: 160px;
-  background: rgba(255, 255, 255, 0.16);
-  filter: blur(40px);
 }
 
 .coupon-hero-inner {
@@ -347,46 +332,50 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 40px;
+  gap: 32px;
 }
 
 .coupon-hero-copy {
-  max-width: 650px;
+  max-width: 600px;
 }
 
 .coupon-kicker {
   display: inline-flex;
   align-items: center;
-  padding: 6px 14px;
-  margin-bottom: 16px;
+  gap: 6px;
+  padding: 5px 12px;
+  margin-bottom: 10px;
   border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.14);
-  font-size: 0.72rem;
+  color: #fff;
+  font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 1.6px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
 }
 
 .coupon-hero h1 {
-  margin: 0;
-  font-size: clamp(2.2rem, 4vw, 4rem);
-  font-weight: 900;
-  letter-spacing: -1.5px;
+  margin: 0 0 8px;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
 }
 
 .coupon-hero p {
   max-width: 520px;
-  margin: 14px 0 0;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 1rem;
-  line-height: 1.7;
+  margin: 8px 0 0;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.95rem;
+  line-height: 1.55;
 }
 
 .coupon-hero-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 28px;
+  margin-top: 18px;
 }
 
 .btn-hero-primary,
@@ -394,10 +383,11 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 24px;
-  border-radius: 999px;
-  font-weight: 800;
+  min-height: 40px;
+  padding: 0 22px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
   text-decoration: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
@@ -424,38 +414,39 @@ onUnmounted(() => {
 }
 
 .coupon-hero-panel {
-  min-width: 260px;
-  padding: 24px;
+  min-width: 240px;
+  padding: 20px 24px;
   display: flex;
   align-items: center;
   gap: 16px;
   border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 24px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(12px);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.14);
 }
 
 .hero-ticket-icon {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 18px;
+  border-radius: 14px;
   color: #fff;
   background: rgba(255, 255, 255, 0.16);
 }
 
 .coupon-hero-panel strong {
   display: block;
-  font-size: 2.2rem;
+  font-size: 1.6rem;
   font-weight: 900;
   line-height: 1;
 }
 
 .coupon-hero-panel span {
   color: rgba(255, 255, 255, 0.78);
-  font-size: 0.88rem;
+  font-size: 0.8rem;
 }
 
 .coupon-content {
@@ -489,12 +480,13 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 0 16px;
-  min-height: 46px;
+  height: 42px;
+  min-height: unset;
   border: 1px solid #ffe0ea;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #fff;
   color: var(--primary);
-  box-shadow: 0 10px 26px rgba(230, 59, 111, 0.08);
+  box-shadow: 0 4px 16px rgba(230, 59, 111, 0.06);
 }
 
 .coupon-search input {
@@ -543,14 +535,16 @@ onUnmounted(() => {
 
 .coupon-login-banner button {
   margin-left: auto;
-  min-height: 40px;
-  padding: 0 20px;
+  height: 38px;
+  min-height: unset;
+  padding: 0 18px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--primary);
   color: #fff;
   font-family: inherit;
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 0.85rem;
 }
 
 .coupon-grid {
@@ -614,8 +608,7 @@ onUnmounted(() => {
 }
 
 .coupon-type-pill,
-.coupon-status,
-.coupon-first-order-badge {
+.coupon-status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -628,13 +621,6 @@ onUnmounted(() => {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-}
-
-.coupon-first-order-badge {
-  color: #c80f55;
-  background: #fff0f3;
-  border-color: #ffb3c6;
-  white-space: nowrap;
 }
 
 .coupon-status {
@@ -712,10 +698,11 @@ onUnmounted(() => {
 
 .btn-save-coupon,
 .btn-copy-coupon {
-  min-height: 40px;
-  border-radius: 11px;
+  height: 38px;
+  min-height: unset;
+  border-radius: 6px;
   font-family: inherit;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 0.85rem;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
@@ -761,15 +748,17 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 30px;
+  height: 42px;
+  min-height: unset;
+  padding: 0 24px;
   border: 1.5px solid var(--primary);
-  border-radius: 999px;
+  border-radius: 8px;
   background: #fff;
   color: var(--primary);
   font-family: inherit;
-  font-weight: 900;
-  box-shadow: 0 12px 26px rgba(230, 59, 111, 0.1);
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 6px 18px rgba(230, 59, 111, 0.08);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
@@ -854,6 +843,10 @@ onUnmounted(() => {
 }
 
 @media (max-width: 576px) {
+  .coupon-page {
+    padding-bottom: 70px;
+  }
+
   .coupon-hero {
     padding: 52px 0;
   }

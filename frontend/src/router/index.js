@@ -65,6 +65,7 @@ const routes = [
                     { path: "orders/:id", name: "profile-order-detail", component: () => import("@/features/profile/pages/ProfileOrderDetail.vue"), meta: { title: 'Chi tiết đơn hàng' } },
                     { path: "return-requests", name: "profile-return-requests", component: () => import("@/features/profile/pages/ProfileReturnRequests.vue"), meta: { title: 'Yêu cầu hoàn hàng' } },
                     { path: "return-requests/:id", name: "profile-return-request-detail", component: () => import("@/features/profile/pages/ProfileReturnRequestDetail.vue"), meta: { title: 'Chi tiết yêu cầu hoàn hàng' } },
+                    { path: "tickets", name: "profile-tickets", component: () => import("@/features/profile/pages/ProfileTickets.vue"), meta: { title: 'Khiếu nại của tôi' } },
                     { path: "addresses", name: "profile-address", component: () => import("@/features/profile/pages/ProfileAddress.vue"), meta: { title: 'Địa chỉ' } },
                     { path: "change-password", name: "profile-change-password", component: () => import("@/features/profile/pages/ProfileChangePassword.vue"), meta: { title: 'Đổi mật khẩu' } },
                     { path: "wishlist", name: "profile-wishlist", component: () => import("@/features/profile/pages/ProfileWishlist.vue"), meta: { title: 'Yêu thích' } },
@@ -91,7 +92,7 @@ const routes = [
             { path: "terms", name: "terms", component: () => import("@/features/content/pages/static/Terms.vue"), meta: { title: 'Điều khoản dịch vụ' } },
             // Court Booking Pages
             { path: "courts", name: "courts-list", component: () => import("@/features/courts/pages/client/CourtsList.vue"), meta: { title: 'Đặt sân cầu lông' } },
-            { path: "courts/:id", name: "court-detail", component: () => import("@/features/courts/pages/client/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },
+            { path: "courts/:slug", name: "court-detail", component: () => import("@/features/courts/pages/client/CourtDetail.vue"), meta: { title: 'Chi tiết sân' } },
 
         ],
     },
@@ -143,7 +144,7 @@ const routes = [
                 path: "product",
                 name: "admin-product",
                 component: AdminProduct,
-                meta: { roles: ['admin', 'staff'], title: 'Quản lý sản phẩm' },
+                meta: { roles: ['admin', 'staff'], title: 'Quản lý sản phẩm', fluid: true },
             },
             {
                 path: "product/create",
@@ -155,13 +156,13 @@ const routes = [
                 path: "pos",
                 name: "admin-pos",
                 component: () => import("@/features/shop/pages/admin/AdminPOS.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Bán Hàng Trực Tiếp (POS)' },
+                meta: { roles: ['admin', 'seller'], title: 'Bán Hàng Trực Tiếp (POS)', fluid: true },
             },
             {
                 path: "order",
                 name: "admin-order",
                 component: () => import("@/features/shop/pages/admin/AdminOrder.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Quản lý Đơn hàng' },
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý Đơn hàng', fluid: true },
             },
             {
                 path: "return-requests",
@@ -191,7 +192,7 @@ const routes = [
                 path: "users",
                 name: "admin-users",
                 component: AdminUsers,
-                meta: { roles: ['admin', 'seller'], title: 'Quản lý khách hàng' },
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý khách hàng', fluid: true },
             },
             {
                 path: "category",
@@ -227,7 +228,7 @@ const routes = [
                 path: "chat",
                 name: "admin-chat",
                 component: () => import("@/features/support/pages/AdminChat.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Tin nhắn khách hàng' },
+                meta: { roles: ['admin', 'seller'], title: 'Tin nhắn khách hàng', fluid: true },
             },
             {
                 path: "coupon",
@@ -318,7 +319,7 @@ const routes = [
                 path: "tickets",
                 name: "admin-tickets",
                 component: () => import("@/features/support/pages/AdminTicketList.vue"),
-                meta: { roles: ['admin', 'seller'], title: 'Quản lý khiếu nại' },
+                meta: { roles: ['admin', 'seller'], title: 'Quản lý khiếu nại', fluid: true },
             },
             {
                 path: "attendance",
@@ -342,7 +343,7 @@ const routes = [
                 path: "stats",
                 name: "admin-stats",
                 component: () => import("@/features/admin/pages/AdminStats.vue"),
-                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thống kê' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Thống kê', fluid: true },
             },
             {
                 path: "attendance-list",
@@ -367,19 +368,19 @@ const routes = [
                 path: "courts",
                 name: "admin-courts",
                 component: () => import("@/features/courts/pages/admin/AdminCourtManagement.vue"),
-                meta: { roles: ['admin', 'seller', 'staff'], title: 'Quản lý Hệ thống Sân' },
+                meta: { roles: ['admin', 'seller', 'staff'], title: 'Quản lý Hệ thống Sân', fluid: true },
             },
             {
                 path: "court-bookings",
                 name: "admin-court-bookings",
                 component: () => import("@/features/courts/pages/admin/AdminBookingManagement.vue"),
-                meta: { roles: ['admin', 'staff', 'seller'], title: 'Quản lý Đặt Sân' },
+                meta: { roles: ['admin', 'staff', 'seller'], title: 'Quản lý Đặt Sân', fluid: true },
             },
             {
                 path: "court-dashboard",
                 name: "admin-court-dashboard",
                 component: () => import("@/features/courts/pages/admin/AdminCourtDashboard.vue"),
-                meta: { roles: ['admin', 'staff', 'seller'], title: 'Dashboard Lễ Tân' },
+                meta: { roles: ['admin', 'staff', 'seller'], title: 'Dashboard Lễ Tân', fluid: true },
             },
             {
                 path: "court-reports",
@@ -457,11 +458,18 @@ router.afterEach((to, from) => {
     const title = to.meta.title;
     const isAdmin = to.matched.some(record => record.path === '/admin');
 
-    if (title) {
-        document.title = isAdmin ? `${title} | QS Admin` : `${title} | Ocean Sport`;
-    } else {
-        document.title = 'Ocean Sport';
-    }
+    // Lấy số thông báo chưa đọc từ auth store (nếu đã init)
+    let unreadCount = 0;
+    try {
+        const authStore = useAuthStore();
+        unreadCount = authStore.unreadNotificationCount || 0;
+    } catch (_) {}
+
+    const baseTitle = title
+        ? (isAdmin ? `${title} | QS Admin` : `${title} | Ocean Sport`)
+        : 'Ocean Sport';
+
+    document.title = unreadCount > 0 ? `(${unreadCount}) thông báo mới - ${baseTitle}` : baseTitle;
 });
 
 // ==================== Dynamic Chunk Error Handling ====================

@@ -112,19 +112,21 @@ function emitPage(page) {
 
 .page-btn,
 .page-number {
-    min-width: 38px;
-    height: 38px;
+    min-width: 36px;
+    height: 36px;
+    min-height: unset;
     border: 1px solid #e5e7eb;
-    border-radius: 10px;
+    border-radius: 6px;
     background: #fff;
     color: #374151;
+    font-size: 0.88rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .page-btn {
-    padding: 0 14px;
+    padding: 0 12px;
 }
 
 .page-btn:hover:not(:disabled),

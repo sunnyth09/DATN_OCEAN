@@ -455,14 +455,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (orderData == null) return const Center(child: Text('Không có dữ liệu.'));
 
     final orderCode = orderData!['order_code'] ?? '#${widget.orderId}';
-    final grandTotal = orderData!['grand_total'] ?? 0;
-    final shippingFee = orderData!['shipping_fee'] ?? 0;
-    final discountAmount = orderData!['discount_amount'] ?? 0;
-    final subtotal = orderData!['subtotal'] ?? 0;
     final items = orderData!['items'] as List? ?? [];
     final histories = orderData!['status_histories'] as List? ?? [];
     final address = orderData!['address'];
-    final paymentMethod = orderData!['payment_method'] ?? 'COD';
     final createdAt = orderData!['created_at'];
 
     String status = (orderData!['fulfillment_status'] ?? orderData!['status'] ?? '').toString().toUpperCase();
@@ -499,7 +494,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 const SizedBox(height: 14),
 
                 // 5. PAYMENT & PRICING BREAKDOWN
-                _buildPaymentSummarySection(paymentMethod, subtotal, shippingFee, discountAmount, grandTotal),
+                _buildPaymentSummarySection(orderData!),
                 const SizedBox(height: 20),
               ],
             ),
@@ -602,7 +597,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           const Divider(height: 1, color: Color(0xFFF1F5F9)),
           const SizedBox(height: 10),
           InkWell(
-            onTap: () => context.push('/tracking?code=$orderCode'),
+            onTap: () {
+              final trackingNum = orderData?['tracking_number']?.toString();
+              final hasExternalTracking = trackingNum != null &&
+                  trackingNum.isNotEmpty &&
+                  trackingNum.toUpperCase().startsWith('OE-');
+              final targetCode = hasExternalTracking ? trackingNum : orderCode;
+              context.push('/tracking?code=$targetCode', extra: orderData);
+            },
             borderRadius: BorderRadius.circular(10),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1027,7 +1029,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  Widget _buildPaymentSummarySection(String paymentMethod, dynamic subtotal, dynamic shippingFee, dynamic discountAmount, dynamic grandTotal) {
+  Widget _buildPaymentSummarySection(Map<String, dynamic> data) {
+    final paymentMethod = (data['payment_method'] ?? 'COD').toString();
+    final subtotal = FormatUtils.parseNum(data['subtotal']);
+    final shippingFee = FormatUtils.parseNum(data['shipping_fee']);
+    final discountAmount = FormatUtils.parseNum(data['discount_amount']);
+    final comboDiscount = FormatUtils.parseNum(data['combo_discount']);
+    final walletDepositDiscount = FormatUtils.parseNum(data['wallet_deposit_discount']);
+    final walletCommissionDiscount = FormatUtils.parseNum(data['wallet_commission_discount']);
+    final grandTotal = FormatUtils.parseNum(data['grand_total']);
+
+    final knownDiscount = discountAmount + comboDiscount + walletDepositDiscount + walletCommissionDiscount;
+    final calculatedTotalDiscount = (subtotal + shippingFee - grandTotal).clamp(0, double.infinity);
+    final otherDiscount = (calculatedTotalDiscount - knownDiscount).clamp(0, double.infinity);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1075,11 +1090,29 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
           _priceRow('Tiền hàng (Tạm tính)', FormatUtils.formatPrice(subtotal)),
           const SizedBox(height: 6),
-          _priceRow('Phí vận chuyển', FormatUtils.formatPrice(shippingFee)),
-          if (FormatUtils.parseNum(discountAmount) > 0) ...[
+          _priceRow('Phí vận chuyển', shippingFee == 0 ? 'Miễn phí (0 đ)' : FormatUtils.formatPrice(shippingFee)),
+
+          if (discountAmount > 0) ...[
             const SizedBox(height: 6),
             _priceRow('Giảm giá voucher / khuyến mãi', '- ${FormatUtils.formatPrice(discountAmount)}', valueColor: const Color(0xFF16A34A)),
           ],
+          if (comboDiscount > 0) ...[
+            const SizedBox(height: 6),
+            _priceRow('Giảm giá Combo thể thao', '- ${FormatUtils.formatPrice(comboDiscount)}', valueColor: const Color(0xFF16A34A)),
+          ],
+          if (walletDepositDiscount > 0) ...[
+            const SizedBox(height: 6),
+            _priceRow('Khấu trừ Ví Ocean (Tiền nạp)', '- ${FormatUtils.formatPrice(walletDepositDiscount)}', valueColor: const Color(0xFF16A34A)),
+          ],
+          if (walletCommissionDiscount > 0) ...[
+            const SizedBox(height: 6),
+            _priceRow('Khấu trừ Ví Ocean (Hoa hồng)', '- ${FormatUtils.formatPrice(walletCommissionDiscount)}', valueColor: const Color(0xFF16A34A)),
+          ],
+          if (otherDiscount > 0) ...[
+            const SizedBox(height: 6),
+            _priceRow('Chiết khấu / Ưu đãi khác', '- ${FormatUtils.formatPrice(otherDiscount)}', valueColor: const Color(0xFF16A34A)),
+          ],
+
           const SizedBox(height: 10),
           const Divider(height: 1, color: Color(0xFFE2E8F0)),
           const SizedBox(height: 10),

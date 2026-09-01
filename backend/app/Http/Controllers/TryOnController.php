@@ -26,6 +26,7 @@ class TryOnController extends Controller
         $request->validate([
             'product_id' => 'required|integer|exists:products,product_id',
             'user_image' => "required|image|mimes:{$allowedMimes}|max:{$maxSizeKb}",
+            'product_image_path' => 'nullable|string',
         ], [
             'user_image.max' => 'Ảnh upload không được vượt quá '.($maxSizeKb / 1024).'MB.',
             'user_image.mimes' => 'Chỉ hỗ trợ định dạng: '.$allowedMimes,
@@ -36,11 +37,14 @@ class TryOnController extends Controller
         $product = Product::with('mainImage')->find($request->product_id);
 
         // Cố gắng tìm ảnh tốt nhất để gửi cho AI
-        $productImagePath = '';
-        if ($product->thumbnail_url && $product->thumbnail_url !== '0') {
-            $productImagePath = $product->thumbnail_url;
-        } elseif ($product->mainImage) {
-            $productImagePath = $product->mainImage->image_url;
+        $productImagePath = $request->input('product_image_path');
+
+        if (empty($productImagePath)) {
+            if ($product->thumbnail_url && $product->thumbnail_url !== '0') {
+                $productImagePath = $product->thumbnail_url;
+            } elseif ($product->mainImage) {
+                $productImagePath = $product->mainImage->image_url;
+            }
         }
 
         if (empty($productImagePath)) {

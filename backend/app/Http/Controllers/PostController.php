@@ -37,7 +37,11 @@ class PostController extends Controller
     }
 
     /**
-     * Display a listing of the resource.
+     * Lấy danh sách bài viết hiển thị công khai (Public).
+     * Chỉ lấy các bài viết có trạng thái 'published'.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
@@ -66,6 +70,13 @@ class PostController extends Controller
         return response()->json(PostResource::collection($posts)->resolve());
     }
 
+    /**
+     * Lấy danh sách bài viết dành cho Admin.
+     * Cho phép lọc theo trạng thái (published, draft, hidden) và loại bài viết.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function adminIndex(Request $request)
     {
         $validated = $request->validate([
@@ -100,7 +111,12 @@ class PostController extends Controller
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Thêm mới một bài viết vào hệ thống.
+     * Tự động sinh slug nếu không được cung cấp và gắn tác giả là người dùng hiện tại.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     * @throws \Illuminate\Validation\ValidationException
      */
     public function create(Request $request)
     {
@@ -285,15 +301,15 @@ class PostController extends Controller
             'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
         ], [
             'image.required' => 'Vui lòng chọn ảnh.',
-            'image.image'    => 'File phải là ảnh.',
-            'image.mimes'    => 'Chỉ hỗ trợ định dạng: JPEG, PNG, JPG, GIF, WEBP.',
-            'image.max'      => 'Ảnh không được vượt quá 4MB.',
+            'image.image' => 'File phải là ảnh.',
+            'image.mimes' => 'Chỉ hỗ trợ định dạng: JPEG, PNG, JPG, GIF, WEBP.',
+            'image.max' => 'Ảnh không được vượt quá 4MB.',
         ]);
 
         $path = $request->file('image')->store('uploads/post_content', 'public');
 
         return response()->json([
-            'url' => \Illuminate\Support\Facades\Storage::disk('public')->url($path),
+            'url' => Storage::disk('public')->url($path),
         ]);
     }
 

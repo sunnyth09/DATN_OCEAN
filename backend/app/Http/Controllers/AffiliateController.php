@@ -74,26 +74,7 @@ class AffiliateController extends Controller
         return response()->json($result['body'], $result['status_code']);
     }
 
-    /**
-     * Gửi yêu cầu rút tiền
-     * POST /profile/affiliate/withdrawals
-     */
-    public function requestWithdrawal(Request $request): JsonResponse
-    {
-        $request->validate([
-            'amount' => 'required|numeric|min:1',
-            'bank_name' => 'required|string|max:100',
-            'bank_account_name' => 'required|string|max:255',
-            'bank_account_number' => 'required|string|max:50',
-        ]);
 
-        $userId = auth('api')->id();
-        $result = $this->affiliateService->requestWithdrawal($userId, $request->only([
-            'amount', 'bank_name', 'bank_account_name', 'bank_account_number',
-        ]));
-
-        return response()->json($result['body'], $result['status_code']);
-    }
 
     /**
      * Lịch sử rút tiền

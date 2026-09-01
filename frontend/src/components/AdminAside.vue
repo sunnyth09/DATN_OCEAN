@@ -21,11 +21,27 @@ const props = defineProps({
 const router = useRouter();
 const authStore = useAuthStore();
 const uiStore = useUiStore();
-const userName = ref('Admin');
-const userEmail = ref('');
-const userAvatar = ref('');
-const userRole = ref('Manager');
-const userRoleRaw = ref('');
+const currentUser = computed(() => {
+  if (authStore.user) return authStore.user;
+  try {
+    const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+});
+
+const userRoleRaw = computed(() => currentUser.value?.role || authStore.userRole || 'admin');
+const userName = computed(() => currentUser.value?.full_name || currentUser.value?.name || 'Admin');
+const userEmail = computed(() => currentUser.value?.email || '');
+const userRole = computed(() => {
+  const role = userRoleRaw.value;
+  return role === 'admin' ? 'Super Admin' : (role === 'staff' ? 'Staff' : (role === 'seller' ? 'Seller' : 'Customer'));
+});
+const userAvatar = computed(() => {
+  const path = currentUser.value?.avatar_url;
+  return path ? getAbsoluteUrl(path) : '';
+});
 
 const openMenus = reactive({
   business: false,
@@ -53,32 +69,6 @@ const handleSubmenuClick = (menu) => {
   }
 };
 
-onMounted(() => {
-  const userData = sessionStorage.getItem('user');
-  if (userData) {
-    try {
-      const user = JSON.parse(userData);
-      const path = user.avatar_url;
-
-      userName.value = user.full_name || user.name || 'Admin';
-      userEmail.value = user.email || '';
-      userRoleRaw.value = user.role;
-      userRole.value = user.role === 'admin' ? 'Super Admin' : (user.role === 'staff' ? 'Staff' : (user.role === 'seller' ? 'Seller' : 'Customer'));
-
-      if (path) {
-        userAvatar.value = getAbsoluteUrl(path);
-      }
-    } catch (e) {
-      console.error("Failed to parse user data", e);
-    }
-  }
-
-  // Fetch pending contact count
-  fetchPendingContactCount();
-  fetchPendingChatCount();
-  fetchPendingReviewCount();
-});
-
 const handleLogout = async () => {
   const result = await Swal.fire({
       title: 'Xác nhận',
@@ -93,54 +83,21 @@ const handleLogout = async () => {
     router.push('/client/login');
   }
 };
-
-const fetchPendingContactCount = async () => {
-  try {
-    const res = await api.get('/admin/contacts/pending-count');
-    if (res.data.status === 'success') {
-      uiStore.setPendingContactCount(res.data.count || 0);
-    }
-  } catch (e) {
-    // Silently fail - non-critical
-  }
-};
-
-const fetchPendingChatCount = async () => {
-  try {
-    const res = await api.get('/admin/live-chats/pending-count');
-    if (res.data.status === 'success') {
-      uiStore.setPendingChatCount(res.data.count || 0);
-    }
-  } catch (e) {
-    // Silently fail
-  }
-};
-
-const fetchPendingReviewCount = async () => {
-  try {
-    const res = await api.get('/admin/reviews/pending-count');
-    if (res.data.status === 'success') {
-      uiStore.setPendingReviewCount(res.data.count || 0);
-    }
-  } catch (e) {
-    // Silently fail
-  }
-};
 </script>
 <template>
   <aside class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
     <!-- Brand -->
     <div class="sidebar-brand">
       <router-link to="/admin" class="logo">
-        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="logo-ocean" width="45" >
+        <img :src="BASE_URL + '/storage/logo/OCEAN_SPORT_LOGO_v0_tranperant.png'" alt="logo-ocean" class="logo-img" >
         <span class="logo-text">Ocean Sport</span>
       </router-link>
       <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">
-        <svg v-if="collapsed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg v-if="collapsed" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="13 17 18 12 13 7"></polyline>
           <polyline points="6 17 11 12 6 7"></polyline>
         </svg>
-        <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="11 17 6 12 11 7"></polyline>
           <polyline points="18 17 13 12 18 7"></polyline>
         </svg>
@@ -376,23 +333,10 @@ const fetchPendingReviewCount = async () => {
 </template>
 
 <style scoped>
-.logo {
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
-}
-.logo-text {
-  margin-left: 10px;
-  font-size: 15px;
-  font-weight: bold;
-  color: #64748b;
-}
+/* Base Sidebar */
 .sidebar {
   width: 250px;
   height: 100vh;
-
   background: var(--card-bg, #fff);
   display: flex;
   flex-direction: column;
@@ -411,90 +355,122 @@ const fetchPendingReviewCount = async () => {
   border-radius: 4px;
 }
 
+/* Brand & Header */
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 14px;
+  height: var(--shell-header-height, 56px);
+  border-bottom: 1px solid var(--border-color, #eee);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.logo {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+
+.logo-img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main, #1e293b);
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aside-toggle-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  min-height: unset;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  margin-left: auto;
+}
+
+.aside-toggle-btn:hover {
+  background: var(--hover-bg, #f1f5f9);
+  color: var(--primary, #1d4ed8);
+  border-color: var(--border-color, #e2e8f0);
+}
+
+/* Collapsed State */
 .sidebar--collapsed {
   width: 80px;
 }
 
+.sidebar--collapsed .logo-text,
 .sidebar--collapsed .brand-title,
 .sidebar--collapsed .sidebar-nav span,
 .sidebar--collapsed .dropdown-arrow,
 .sidebar--collapsed .nav-submenu,
+.sidebar--collapsed .nav-dot,
+.sidebar--collapsed .submenu-badge,
 .sidebar--collapsed .user-details {
-  display: none;
-}
-
-.sidebar--collapsed .brand-icon {
-  display: none;
-}
-
-.sidebar--collapsed .aside-toggle-btn {
-  margin-left: 0;
+  display: none !important;
 }
 
 .sidebar--collapsed .sidebar-brand {
-  padding: 0;
-  justify-content: center;
+  padding: 0 8px;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.sidebar--collapsed .logo {
+  gap: 0;
+}
+
+.sidebar--collapsed .logo-img {
+  width: 32px;
+  height: 32px;
+}
+
+.sidebar--collapsed .aside-toggle-btn {
+  width: 26px;
+  height: 26px;
+  margin-left: 0;
 }
 
 .sidebar--collapsed .nav-item {
   justify-content: center;
   padding: 12px 0;
+  gap: 0;
+}
+
+.sidebar--collapsed .nav-icon {
+  margin: 0 auto;
 }
 
 .sidebar--collapsed .user-profile {
   justify-content: center;
   padding: 8px 0;
-}
-
-
-/* Brand */
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px;
-  height: var(--shell-header-height, 56px);
-  border-bottom: 1px solid var(--border-color, #eee);
-  flex-shrink: 0;
-  box-sizing: border-box;
-}
-
-.brand-icon {
-  width: auto;
-  height: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-}
-
-.brand-title {
-  font-size: 1.15rem;
-  margin-left: 0;
-  margin-top: 0;
-  font-weight: 700;
-  color: var(--text-main, #000);
-  letter-spacing: -0.3px;
-  white-space: nowrap;
-}
-
-.aside-toggle-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted, #666);
-  cursor: pointer;
-  padding: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: auto;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.aside-toggle-btn:hover {
-  background: var(--hover-bg, #f3f4f6);
-  color: var(--primary);
 }
 
 /* Nav */

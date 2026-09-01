@@ -145,12 +145,15 @@ const BASE_URL = getAppBaseUrl();
 .btn-promo {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     background: #f43f5e;
     color: white;
-    padding: 12px 24px;
-    border-radius: 99px;
-    font-weight: 600;
+    height: 42px;
+    padding: 0 22px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
     text-decoration: none;
     transition: all 0.3s ease;
 }
@@ -158,18 +161,22 @@ const BASE_URL = getAppBaseUrl();
 .btn-promo:hover {
     background: #e11d48;
     transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(244, 63, 94, 0.3);
 }
 
 .btn-promo-outline {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     background: white;
     color: #111827;
     border: 1px solid #e5e7eb;
-    padding: 12px 24px;
-    border-radius: 99px;
-    font-weight: 600;
+    height: 42px;
+    padding: 0 22px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
     text-decoration: none;
     transition: all 0.3s ease;
 }

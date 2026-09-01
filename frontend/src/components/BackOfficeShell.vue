@@ -136,8 +136,8 @@
         </div>
       </header>
 
-      <main class="backoffice-content">
-        <div class="backoffice-content__inner">
+      <main class="backoffice-content" :class="{ 'backoffice-content--fluid': isFluidLayout }">
+        <div class="backoffice-content__inner" :class="{ 'backoffice-content__inner--fluid': isFluidLayout }">
           <slot />
         </div>
       </main>
@@ -166,6 +166,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  fluid: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const route = useRoute();
@@ -174,6 +178,15 @@ const {
   isBackofficeDarkMode: isDarkMode,
   isBackofficeSidebarOpen: isSidebarOpen,
 } = storeToRefs(uiStore);
+
+const isFluidLayout = computed(() => {
+  for (let i = route.matched.length - 1; i >= 0; i -= 1) {
+    if (typeof route.matched[i]?.meta?.fluid === 'boolean') {
+      return route.matched[i].meta.fluid;
+    }
+  }
+  return props.fluid;
+});
 
 const resolvedTitle = computed(() => {
   for (let i = route.matched.length - 1; i >= 0; i -= 1) {
@@ -365,6 +378,7 @@ onMounted(() => {
       });
 
     // Listen to chat messages globally to update sidebar badges
+    window.Echo.leave('admin.chats');
     window.Echo.channel('admin.chats')
       .listen('.message.sent', (e) => {
         fetchSidebarBadges();
@@ -380,6 +394,7 @@ onUnmounted(() => {
   window.removeEventListener('update-sidebar-badges', fetchSidebarBadges);
   if (window.Echo) {
     window.Echo.leave('admin-notifications');
+    window.Echo.leave('admin.chats');
   }
 });
 </script>
@@ -472,6 +487,7 @@ onUnmounted(() => {
   justify-content: center;
   gap: 6px;
   height: 34px;
+  min-height: unset;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--card-bg);
@@ -481,6 +497,7 @@ onUnmounted(() => {
 
 .shell-icon-btn {
   width: 34px;
+  aspect-ratio: 1 / 1;
   cursor: pointer;
 }
 
@@ -504,6 +521,10 @@ onUnmounted(() => {
   padding: 24px;
 }
 
+.backoffice-content--fluid {
+  padding: 24px 28px;
+}
+
 .shell-icon-btn--menu {
   display: none;
 }
@@ -511,6 +532,14 @@ onUnmounted(() => {
 .backoffice-content__inner {
   max-width: var(--layout-max-width);
   margin: 0 auto;
+  width: 100%;
+}
+
+.backoffice-content__inner--fluid {
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
 }
 
 .backoffice-scrim {

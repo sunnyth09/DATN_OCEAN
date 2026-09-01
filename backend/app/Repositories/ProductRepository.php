@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\CartItem;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
@@ -485,6 +486,53 @@ class ProductRepository
             // Ưu tiên 4: Còn hàng
             ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
             ->orderBy('product_id', 'desc')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Sản phẩm phối đồ (các category anh em, hoặc fallback)
+     */
+    public function getMatchingProducts(int $productId, int $categoryId, int $limit = 8)
+    {
+        $currentCategory = Category::find($categoryId);
+        $siblingCategoryIds = [];
+
+        if ($currentCategory && $currentCategory->parent_id) {
+            $siblingCategoryIds = Category::where('parent_id', $currentCategory->parent_id)
+                ->where('category_id', '!=', $categoryId)
+                ->pluck('category_id')->toArray();
+        }
+
+        $query = Product::with([
+            'mainImage' => function ($q) {
+                $q->select('image_id', 'image_url', 'product_id');
+            },
+            'lowestPriceVariant' => function ($q) {
+                $q->select('product_variants.variant_id', 'product_variants.price', 'product_variants.compare_at_price', 'product_variants.sale_price', 'product_variants.sale_starts_at', 'product_variants.sale_ends_at', 'product_variants.stock', 'product_variants.product_id');
+            },
+            'variants' => function ($q) {
+                $q->select('variant_id', 'price', 'compare_at_price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'product_id');
+            },
+            'category:category_id,name',
+        ])
+            ->withSum('variants', 'stock')
+            ->where('product_id', '!=', $productId)
+            ->where('status', 'active')
+            ->whereNull('deleted_at');
+
+        if (! empty($siblingCategoryIds)) {
+            // Lấy từ các danh mục anh em
+            $query->whereIn('category_id', $siblingCategoryIds);
+        } else {
+            // Fallback: nếu không có danh mục anh em, loại trừ danh mục hiện tại và lấy nổi bật
+            $query->where('category_id', '!=', $categoryId)
+                ->orderBy('is_featured', 'desc');
+        }
+
+        return $query->orderBy('sold_count', 'desc')
+            ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
+            ->inRandomOrder()
             ->limit($limit)
             ->get();
     }

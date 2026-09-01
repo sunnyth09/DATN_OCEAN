@@ -21,7 +21,64 @@ const form = ref({
     table_headers: [],
     table_rows: [],
     tips: [],
-    category_id: null
+    category_ids: []
+});
+
+// Multi-select dropdown state
+const showCategoryDropdown = ref(false);
+const categoryDropdownRef = ref(null);
+
+const toggleCategoryDropdown = () => {
+    showCategoryDropdown.value = !showCategoryDropdown.value;
+};
+
+const toggleCategory = (categoryId) => {
+    const idx = form.value.category_ids.indexOf(categoryId);
+    if (idx === -1) {
+        form.value.category_ids.push(categoryId);
+    } else {
+        form.value.category_ids.splice(idx, 1);
+    }
+};
+
+const isCategorySelected = (categoryId) => {
+    return form.value.category_ids.includes(categoryId);
+};
+
+// Lấy danh sách phẳng tất cả category (để hiển thị tên đã chọn)
+const flatCategories = computed(() => {
+    const result = [];
+    const flatten = (cats, level = 0) => {
+        for (const cat of cats) {
+            result.push({ ...cat, level });
+            if (cat.children && cat.children.length > 0) {
+                flatten(cat.children, level + 1);
+            }
+        }
+    };
+    flatten(categories.value);
+    return result;
+});
+
+const selectedCategoryNames = computed(() => {
+    return flatCategories.value
+        .filter(c => form.value.category_ids.includes(c.category_id))
+        .map(c => c.name);
+});
+
+// Đóng dropdown khi click ra ngoài
+const handleClickOutside = (e) => {
+    if (categoryDropdownRef.value && !categoryDropdownRef.value.contains(e.target)) {
+        showCategoryDropdown.value = false;
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', handleClickOutside);
 });
 
 const formError = ref('');
@@ -67,6 +124,7 @@ const openCreateModal = () => {
     isEditing.value = false;
     formError.value = '';
     errors.value = {};
+    showCategoryDropdown.value = false;
     form.value = {
         id: null,
         name: '',
@@ -76,7 +134,7 @@ const openCreateModal = () => {
             ['M', '65']
         ],
         tips: ['Vui lòng chọn size theo bảng'],
-        category_id: null
+        category_ids: []
     };
     isModalOpen.value = true;
 };
@@ -85,6 +143,7 @@ const openEditModal = (guide) => {
     isEditing.value = true;
     formError.value = '';
     errors.value = {};
+    showCategoryDropdown.value = false;
     form.value = {
         id: guide.id,
         name: guide.name || '',
@@ -92,7 +151,7 @@ const openEditModal = (guide) => {
         table_headers: Array.isArray(guide.table_headers) ? [...guide.table_headers] : [],
         table_rows: Array.isArray(guide.table_rows) ? JSON.parse(JSON.stringify(guide.table_rows)) : [],
         tips: Array.isArray(guide.tips) ? [...guide.tips] : [],
-        category_id: guide.categories && guide.categories.length > 0 ? guide.categories[0].category_id : null
+        category_ids: (guide.categories || []).map(c => c.category_id)
     };
     isModalOpen.value = true;
 };
@@ -141,8 +200,6 @@ const handleSubmit = async () => {
         return;
     }
 
-    const categoryIds = form.value.category_id ? [form.value.category_id] : [];
-
     try {
         const payload = {
             name: form.value.name,
@@ -150,7 +207,7 @@ const handleSubmit = async () => {
             table_headers: form.value.table_headers,
             table_rows: form.value.table_rows,
             tips: form.value.tips,
-            category_ids: categoryIds
+            category_ids: form.value.category_ids
         };
 
         if (isEditing.value) {
@@ -288,10 +345,27 @@ const deleteGuide = async (id) => {
                             </div>
                             <div class="form-group">
                                 <label>Áp dụng cho Danh mục</label>
-                                <select v-model="form.category_id" class="form-select" :class="{'is-invalid': errors.category_ids}">
-                                    <option :value="null">— Chọn 1 danh mục —</option>
-                                    <AdminCategoryFormTree :categories="categories" />
-                                </select>
+                                <div ref="categoryDropdownRef" class="multi-select-dropdown" :class="{'is-invalid': errors.category_ids}">
+                                    <div class="multi-select-trigger" @click="toggleCategoryDropdown">
+                                        <div class="multi-select-tags" v-if="selectedCategoryNames.length > 0">
+                                            <span class="ms-tag" v-for="(name, i) in selectedCategoryNames" :key="i">{{ name }}</span>
+                                        </div>
+                                        <span class="multi-select-placeholder" v-else>— Chọn danh mục —</span>
+                                        <svg class="ms-chevron" :class="{open: showCategoryDropdown}" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </div>
+                                    <Transition name="dropdown">
+                                        <div class="multi-select-menu custom-scroll" v-if="showCategoryDropdown">
+                                            <template v-for="cat in flatCategories" :key="cat.category_id">
+                                                <label class="ms-option" :style="{paddingLeft: (12 + cat.level * 20) + 'px'}">
+                                                    <input type="checkbox" :checked="isCategorySelected(cat.category_id)" @change="toggleCategory(cat.category_id)" />
+                                                    <span class="ms-check"></span>
+                                                    <span class="ms-label">{{ cat.level > 0 ? '└ ' : '' }}{{ cat.name }}</span>
+                                                </label>
+                                            </template>
+                                            <div v-if="flatCategories.length === 0" class="ms-empty">Không có danh mục</div>
+                                        </div>
+                                    </Transition>
+                                </div>
                             </div>
                         </div>
 
@@ -502,4 +576,58 @@ const deleteGuide = async (id) => {
 .modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-from .modal-box, .modal-leave-to .modal-box { transform: scale(0.95) translateY(10px); }
+
+/* ═══ Multi-Select Dropdown ═══ */
+.multi-select-dropdown { position: relative; }
+.multi-select-trigger {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 12px; min-height: 42px; border-radius: 8px;
+    border: 1px solid var(--border-color); background: var(--ocean-deepest);
+    cursor: pointer; transition: all 0.2s;
+}
+.multi-select-trigger:hover { border-color: var(--primary); }
+.multi-select-dropdown.is-invalid .multi-select-trigger { border-color: var(--coral); }
+
+.multi-select-tags { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
+.ms-tag {
+    display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px;
+    background: linear-gradient(135deg, #fce4ec, #f8bbd0); color: #c62828;
+    font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+}
+.multi-select-placeholder { color: var(--text-muted); font-size: 0.85rem; }
+
+.ms-chevron { transition: transform 0.2s; flex-shrink: 0; color: var(--text-muted); }
+.ms-chevron.open { transform: rotate(180deg); }
+
+.multi-select-menu {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 50;
+    background: var(--card-bg, #fff); border: 1px solid var(--border-color);
+    border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    max-height: 240px; overflow-y: auto; padding: 4px 0;
+}
+.ms-option {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    cursor: pointer; font-size: 0.85rem; color: var(--text-main);
+    transition: background 0.15s; user-select: none;
+}
+.ms-option:hover { background: var(--hover-bg, #f1f5f9); }
+.ms-option input[type="checkbox"] { display: none; }
+.ms-check {
+    width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0;
+    border: 2px solid var(--border-color); display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; background: white;
+}
+.ms-option input:checked + .ms-check {
+    background: var(--primary); border-color: var(--primary);
+}
+.ms-option input:checked + .ms-check::after {
+    content: ''; display: block; width: 5px; height: 9px;
+    border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); margin-top: -1px;
+}
+.ms-label { font-weight: 500; white-space: nowrap; }
+.ms-empty { padding: 12px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+/* Dropdown Transition */
+.dropdown-enter-active, .dropdown-leave-active { transition: all 0.15s ease; }
+.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px); }
 </style>

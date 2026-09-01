@@ -140,20 +140,20 @@ const formatSoldCount = (count) => {
 }
 
 .flash-sale-title {
-    font-size: 1.8rem;
-    font-weight: 900;
-    color: #111827;
-    letter-spacing: -.5px;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.5px;
 }
 
 .flash-sale-sub {
-    color: #4b5563;
-    font-size: .85rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
 }
 
 .countdown-label {
-    color: #4b5563;
-    font-size: .85rem;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
     font-weight: 600;
 }
 

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Toast } from 'bootstrap';
+import { useToast } from '@/composables/useToast';
 import { orderService } from '@/services/orderService';
 import { returnRequestService } from '@/services/returnRequestService';
 import AppIcon from '@/components/AppIcon.vue';
@@ -20,19 +20,12 @@ import { getStorageUrl } from '@/utils/url';
 import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline.vue';
 import SepayPaymentModal from '@/components/SepayPaymentModal.vue';
 
+const { showToast } = useToast();
+
 const showSepayModal = ref(false);
 const onSepaySuccess = () => {
   showToast('Thanh toán đơn hàng thành công!', 'success');
   fetchOrderDetail();
-};
-
-const toastData = ref({ message: '', type: 'success' });
-const showToast = (message, type = 'success') => {
-  toastData.value = { message, type };
-  nextTick(() => {
-    const el = document.getElementById('orderDetailToast');
-    if (el) Toast.getOrCreateInstance(el, { delay: 3000 }).show();
-  });
 };
 
 const route = useRoute();
@@ -47,6 +40,21 @@ const actionLoading = ref(false);
 
 const formatPrice = (price) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0);
+};
+
+const getOtherDiscount = (orderData) => {
+  if (!orderData) return 0;
+  const subtotal = Number(orderData.subtotal) || 0;
+  const shippingFee = Number(orderData.shipping_fee) || 0;
+  const grandTotal = Number(orderData.grand_total) || 0;
+  const knownDiscount = (Number(orderData.discount_amount) || 0) +
+    (Number(orderData.combo_discount) || 0) +
+    (Number(orderData.wallet_deposit_discount) || 0) +
+    (Number(orderData.wallet_commission_discount) || 0);
+
+  const totalCalculatedDiscount = Math.max(0, subtotal + shippingFee - grandTotal);
+  const remaining = totalCalculatedDiscount - knownDiscount;
+  return remaining > 0 ? remaining : 0;
 };
 
 const getProductImage = (item) => {
@@ -673,12 +681,39 @@ watch(orderId, (newId) => {
              </div>
              <div class="summary-row">
                <span class="fw-bold">Phí vận chuyển</span>
-               <span>{{ formatPrice(order.shipping_fee) }}</span>
+               <span>{{ Number(order.shipping_fee) === 0 ? 'Miễn phí (0 đ)' : formatPrice(order.shipping_fee) }}</span>
              </div>
-             <div class="summary-row discount" v-if="order.discount_amount > 0">
-               <span>Giảm giá</span>
+
+             <!-- Giảm giá Voucher / Khuyến mãi -->
+             <div class="summary-row discount" v-if="Number(order.discount_amount) > 0">
+               <span class="fw-bold">Giảm giá Voucher / Ưu đãi</span>
                <span>-{{ formatPrice(order.discount_amount) }}</span>
              </div>
+
+             <!-- Giảm giá Combo thể thao -->
+             <div class="summary-row discount" v-if="Number(order.combo_discount) > 0">
+               <span class="fw-bold">Giảm giá Combo thể thao</span>
+               <span>-{{ formatPrice(order.combo_discount) }}</span>
+             </div>
+
+             <!-- Trừ Ví Ocean (Tiền nạp) -->
+             <div class="summary-row discount" v-if="Number(order.wallet_deposit_discount) > 0">
+               <span class="fw-bold">Khấu trừ Ví Ocean (Tiền nạp)</span>
+               <span>-{{ formatPrice(order.wallet_deposit_discount) }}</span>
+             </div>
+
+             <!-- Trừ Ví Ocean (Hoa hồng) -->
+             <div class="summary-row discount" v-if="Number(order.wallet_commission_discount) > 0">
+               <span class="fw-bold">Khấu trừ Ví Ocean (Hoa hồng)</span>
+               <span>-{{ formatPrice(order.wallet_commission_discount) }}</span>
+             </div>
+
+             <!-- Chiết khấu / Ưu đãi trừ thêm khác (đảm bảo toán học luôn đúng 100%) -->
+             <div class="summary-row discount" v-if="getOtherDiscount(order) > 0">
+               <span class="fw-bold">Chiết khấu / Ưu đãi khác</span>
+               <span>-{{ formatPrice(getOtherDiscount(order)) }}</span>
+             </div>
+
              <div class="summary-row total">
                <span>Tổng cộng</span>
                <span class="total-price">{{ formatPrice(order.grand_total) }}</span>
@@ -962,16 +997,6 @@ watch(orderId, (newId) => {
         </div>
       </div>
     </Transition>
-
-    <!-- Bootstrap Toast -->
-    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080">
-      <div class="toast align-items-center border-0" :class="toastData.type === 'success' ? 'text-bg-success' : 'text-bg-danger'" id="orderDetailToast" role="alert">
-        <div class="d-flex">
-          <div class="toast-body">{{ toastData.message }}</div>
-          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
