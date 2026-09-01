@@ -312,6 +312,7 @@ const downloadReceiptPdf = async (order) => {
 };
 
 const checkoutOrder = ref(null);
+const showCheckoutSuccess = ref(false);
 const customerNameError = ref(false);
 
 const handleCheckout = async () => {
@@ -358,6 +359,7 @@ const handleCheckout = async () => {
       removeCoupon();
       searchQuery.value = '';
       searchResults.value = [];
+      toast.success('Thanh toán đơn hàng thành công!');
     }
   } catch (error) {
     const errorMsg = error.response?.data?.message || 'Lỗi thanh toán';
