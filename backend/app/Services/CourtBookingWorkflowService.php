@@ -26,14 +26,14 @@ use InvalidArgumentException;
 class CourtBookingWorkflowService
 {
     private const ALLOWED_TRANSITIONS = [
-        'pending' => ['confirmed', 'cancelled', 'no_show', 'expired'],
+        'pending' => ['confirmed', 'checked_in', 'cancelled', 'no_show', 'expired'],
         'confirmed' => ['checked_in', 'cancelled', 'no_show'],
         'checked_in' => ['playing', 'extended', 'completed'],
         'playing' => ['extended', 'completed'],
         'extended' => ['extended', 'completed'],
         'completed' => [],
         'cancelled' => [],
-        'no_show' => [],
+        'no_show' => ['checked_in', 'cancelled'],
         'expired' => [],
     ];
 
@@ -252,6 +252,11 @@ class CourtBookingWorkflowService
         ]), config('app.key'));
     }
 
+    public function qrPayload(CourtBooking $booking): string
+    {
+        return 'OSBK:'.$booking->booking_code.':'.$this->qrToken($booking);
+    }
+
     public function assertValidQrToken(CourtBooking $booking, string $token): void
     {
         if (! hash_equals($this->qrToken($booking), $token)) {
@@ -259,9 +264,13 @@ class CourtBookingWorkflowService
         }
     }
 
-    // check in window: từ 30 phút trước đến khi kết thúc thời gian đặt sân
-    public function assertCheckInWindow(CourtBooking $booking): void
+    // check in window: từ 30 phút trước đến khi kết thúc thời gian đặt sân (hỗ trợ Admin Override)
+    public function assertCheckInWindow(CourtBooking $booking, bool $allowOverride = false): void
     {
+        if ($allowOverride) {
+            return;
+        }
+
         $startAt = Carbon::parse($booking->booking_date->format('Y-m-d').' '.$booking->start_time);
         $endAt = Carbon::parse($booking->booking_date->format('Y-m-d').' '.$booking->end_time);
 

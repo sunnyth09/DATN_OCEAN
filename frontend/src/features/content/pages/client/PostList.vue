@@ -12,7 +12,7 @@ const selectedCategory = ref('all');
 
 // Load more
 const currentPage = ref(1);
-const postsPerPage = 6;
+const postsPerPage = 8;
 
 const fetchPosts = async () => {
   try {
@@ -132,12 +132,13 @@ const getAuthorAvatarUrl = (author) => {
       <div class="page-hero-card">
         <div class="hero-pill">OCEAN SPORT NEWS</div>
         <h1>Tin Tức &amp; Sự Kiện</h1>
-        <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ Ocean Sport</p>
+        <p class="hero-sub">Cập nhật xu hướng thời trang thể thao mới nhất và các chương trình khuyến mãi độc quyền từ
+          Ocean Sport</p>
       </div>
     </div>
 
-      <!-- Main Content -->
-      <section class="page-content container">
+    <!-- Main Content -->
+    <section class="page-content container">
       <!-- Search & Category Filters -->
       <div class="filter-section">
         <div class="category-tabs" v-if="categories.length <= 4">
@@ -914,7 +915,8 @@ const getAuthorAvatarUrl = (author) => {
   }
 
   .post-card-summary {
-    display: none; /* Ẩn tóm tắt trên mobile 2 cột để thẻ gọn gàng, sắc sảo */
+    display: none;
+    /* Ẩn tóm tắt trên mobile 2 cột để thẻ gọn gàng, sắc sảo */
   }
 
   .post-card-author {

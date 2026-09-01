@@ -527,6 +527,30 @@ const handleSubmit = async () => {
                     <!-- Cột phải (Cài đặt) -->
                     <div class="sidebar-col">
                         <div class="ocean-card form-section">
+                            <h3 class="section-title">Hình ảnh</h3>
+                            <div class="form-group">
+                                <label>Ảnh Thumbnail (Nhỏ gọn)</label>
+                                <div class="image-upload-box">
+                                    <input type="file" id="thumbnail" @change="handleThumbnailChange" class="file-input"
+                                        accept="image/*" />
+                                    <label for="thumbnail" class="upload-label" v-if="!post.thumbnailPreview">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                            stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                            <circle cx="8.5" cy="8.5" r="1.5" />
+                                            <polyline points="21 15 16 10 5 21" />
+                                        </svg>
+                                        <span>Tải ảnh lên</span>
+                                    </label>
+                                    <div class="preview-box" v-else>
+                                        <img :src="post.thumbnailPreview" alt="Thumbnail Preview" class="img-preview" />
+                                        <button type="button" class="btn-remove-img"
+                                            @click="() => { post.thumbnailPreview = null; post.thumbnailFile = null }">×</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ocean-card form-section">
                             <h3 class="section-title">Trạng thái & Phân loại</h3>
                             <div class="form-group">
                                 <label for="post_category_id">Danh mục bài viết <span class="required">*</span></label>
@@ -569,31 +593,6 @@ const handleSubmit = async () => {
                                         <span class="toggle-slider"></span>
                                     </div>
                                 </label>
-                            </div>
-                        </div>
-
-                        <div class="ocean-card form-section">
-                            <h3 class="section-title">Hình ảnh</h3>
-                            <div class="form-group">
-                                <label>Ảnh Thumbnail (Nhỏ gọn)</label>
-                                <div class="image-upload-box">
-                                    <input type="file" id="thumbnail" @change="handleThumbnailChange" class="file-input"
-                                        accept="image/*" />
-                                    <label for="thumbnail" class="upload-label" v-if="!post.thumbnailPreview">
-                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                            <circle cx="8.5" cy="8.5" r="1.5" />
-                                            <polyline points="21 15 16 10 5 21" />
-                                        </svg>
-                                        <span>Tải ảnh lên</span>
-                                    </label>
-                                    <div class="preview-box" v-else>
-                                        <img :src="post.thumbnailPreview" alt="Thumbnail Preview" class="img-preview" />
-                                        <button type="button" class="btn-remove-img"
-                                            @click="() => { post.thumbnailPreview = null; post.thumbnailFile = null }">×</button>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>

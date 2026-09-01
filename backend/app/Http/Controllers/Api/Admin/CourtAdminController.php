@@ -5,9 +5,16 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Court;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class CourtAdminController extends Controller
 {
+    /**
+     * Lấy danh sách tất cả các sân bóng (kèm theo lịch và giá).
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request)
     {
         $query = Court::with(['schedules', 'prices']);
@@ -24,6 +31,13 @@ class CourtAdminController extends Controller
         ]);
     }
 
+    /**
+     * Thêm mới một sân bóng vào hệ thống.
+     * Tự động sinh slug từ tên sân.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -32,6 +46,8 @@ class CourtAdminController extends Controller
             'type' => 'required|in:standard,vip,outdoor,indoor',
             'status' => 'required|in:active,inactive,maintenance,closed',
         ]);
+
+        $validated['slug'] = Str::slug($validated['court_name']);
 
         $court = Court::create($validated);
 
@@ -42,6 +58,12 @@ class CourtAdminController extends Controller
         ]);
     }
 
+    /**
+     * Hiển thị thông tin chi tiết một sân bóng theo ID.
+     *
+     * @param int $id ID của sân bóng
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show($id)
     {
         $court = Court::findOrFail($id);
@@ -52,6 +74,14 @@ class CourtAdminController extends Controller
         ]);
     }
 
+    /**
+     * Cập nhật thông tin sân bóng.
+     * Sẽ cập nhật lại slug nếu có sự thay đổi về tên sân.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @param int $id ID của sân bóng
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, $id)
     {
         $court = Court::findOrFail($id);
@@ -63,6 +93,10 @@ class CourtAdminController extends Controller
             'status' => 'sometimes|in:active,inactive,maintenance,closed',
         ]);
 
+        if (isset($validated['court_name'])) {
+            $validated['slug'] = Str::slug($validated['court_name']);
+        }
+
         $court->update($validated);
 
         return response()->json([
@@ -72,6 +106,12 @@ class CourtAdminController extends Controller
         ]);
     }
 
+    /**
+     * Xóa mềm (soft delete) một sân bóng khỏi hệ thống.
+     *
+     * @param int $id ID của sân bóng
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id)
     {
         $court = Court::findOrFail($id);

@@ -3,8 +3,13 @@
     :sidebar-component="AdminAside"
     default-title="Tổng quan"
     section-label="Bảng điều khiển"
+    :fluid="true"
   >
-    <router-view />
+    <router-view v-slot="{ Component, route }">
+      <keep-alive :max="15">
+        <component :is="Component" :key="route.fullPath" />
+      </keep-alive>
+    </router-view>
   </BackOfficeShell>
 </template>
 

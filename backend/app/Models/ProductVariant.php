@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Redis;
 
 class ProductVariant extends Model
 {
@@ -69,8 +70,8 @@ class ProductVariant extends Model
                 self::$activeFlashSaleCache = [];
                 foreach ($items as $item) {
                     $stockKey = "flash_sale_{$item->flash_sale_id}_product_{$item->product_id}_stock";
-                    $remaining = \Illuminate\Support\Facades\Redis::exists($stockKey)
-                        ? (int) \Illuminate\Support\Facades\Redis::get($stockKey)
+                    $remaining = Redis::exists($stockKey)
+                        ? (int) Redis::get($stockKey)
                         : ($item->campaign_stock - $item->sold);
 
                     if ($remaining > 0) {

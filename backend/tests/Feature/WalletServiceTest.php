@@ -158,20 +158,20 @@ class WalletServiceTest extends TestCase
         $this->assertSame('85000.00', $wallet->total_used);
     }
 
-    public function test_apply_order_discount_caps_commission_at_ten_percent(): void
+    public function test_apply_order_discount_uses_full_commission(): void
     {
         $userId = $this->makeUser();
-        // Không có deposit, chỉ có commission 100000 → chỉ dùng được 10000
+        // Không có deposit, chỉ có commission 100000 → dùng được toàn bộ 100000
         $this->service->credit($userId, 100000, 'commission');
 
         $result = $this->service->applyOrderDiscount($userId, 100000, 1);
 
         $this->assertEqualsWithDelta(0, $result['deposit_used'], 0.001);
-        $this->assertEqualsWithDelta(10000, $result['commission_used'], 0.001);
-        $this->assertEqualsWithDelta(10000, $result['total_discount'], 0.001);
+        $this->assertEqualsWithDelta(100000, $result['commission_used'], 0.001);
+        $this->assertEqualsWithDelta(100000, $result['total_discount'], 0.001);
 
         $wallet = Wallet::where('user_id', $userId)->first();
-        $this->assertSame('90000.00', $wallet->commission_balance);
+        $this->assertSame('0.00', $wallet->commission_balance);
     }
 
     public function test_apply_order_discount_throws_when_no_balance(): void

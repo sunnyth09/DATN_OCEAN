@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -85,9 +86,9 @@ class NotificationService {
         },
       );
     } on DioException catch (e) {
-      debugPrint('Lỗi gửi FCM token: ${e.response?.statusCode}');
+      AppLogger.debug('Lỗi gửi FCM token: ${e.response?.statusCode}');
     } catch (e) {
-      debugPrint('Lỗi gửi FCM token: $e');
+      AppLogger.debug('Lỗi gửi FCM token: $e');
     }
   }
 
@@ -117,7 +118,7 @@ class NotificationService {
             _handleNotificationClick(Map<String, dynamic>.from(data));
           }
         } catch (error, stackTrace) {
-          debugPrint(
+          AppLogger.debug(
             '[NotificationService] click handler error: $error\n$stackTrace',
           );
         }

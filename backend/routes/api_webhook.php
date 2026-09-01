@@ -202,6 +202,7 @@ Route::middleware(['auth:api,admin', 'role:admin,staff,seller'])->prefix('admin'
     Route::apiResource('court-maintenances', CourtMaintenanceAdminController::class);
 
     // Bookings Management
+    Route::post('/court-bookings/scan-qr', [CourtBookingAdminController::class, 'scanQr']);
     Route::get('/court-bookings/conflicts', [CourtBookingAdminController::class, 'checkConflicts']);
     Route::apiResource('court-bookings', CourtBookingAdminController::class);
     Route::post('/court-bookings/{id}/split-payment', [CourtBookingAdminController::class, 'splitPayment']);

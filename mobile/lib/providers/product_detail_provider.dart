@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../utils/app_logger.dart';
 import '../config/app_config.dart';
 import '../services/api_client.dart';
 import '../utils/format_utils.dart';
@@ -287,7 +288,7 @@ class ProductDetailProvider extends ChangeNotifier {
         _selectedSize = sizes.first;
       }
     } catch (e) {
-      debugPrint('Lỗi tải thông tin chi tiết sản phẩm: $e');
+      AppLogger.debug('Lỗi tải thông tin chi tiết sản phẩm: $e');
     } finally {
       _isLoadingDetails = false;
       notifyListeners();
@@ -329,7 +330,7 @@ class ProductDetailProvider extends ChangeNotifier {
         _totalComments = 0;
       }
     } catch (e) {
-      debugPrint('Lỗi tải đánh giá sản phẩm: $e');
+      AppLogger.debug('Lỗi tải đánh giá sản phẩm: $e');
       _comments = [];
       _totalComments = 0;
     } finally {

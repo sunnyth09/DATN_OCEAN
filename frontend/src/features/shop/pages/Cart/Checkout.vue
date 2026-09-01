@@ -16,6 +16,7 @@ import { loyaltyService } from '@/services/loyaltyService';
 import { useAuthStore } from '@/stores/auth';
 import { sanitizeAddressPayload, validateAddressPayload } from '@/utils/addressValidation';
 import AppIcon from '@/components/AppIcon.vue';
+import { getStorageUrl } from '@/utils/url';
 
 // Debounce helper — tránh gửi quá nhiều request liên tiếp gây rate-limit 429
 const debounce = (fn, delay) => {
@@ -96,14 +97,20 @@ const onBankingPaySuccess = () => {
 
 // --- Coupon ---
 const couponCode = ref('');
+const couponErrorMsg = ref('');
 const appliedCoupon = ref(null);
 const checkingCoupon = ref(false);
 const showCouponModal = ref(false);
 const availableCoupons = ref([]);
 const loadingCoupons = ref(false);
 
+watch(couponCode, () => {
+    couponErrorMsg.value = '';
+});
+
 // --- Wallet ---
-const useWallet = ref(false);
+const useDeposit = ref(false);
+const useCommission = ref(false);
 const walletPreview = ref(null); // { deposit_available, commission_available, max_commission, total_available }
 const walletLoading = ref(false);
 
@@ -212,7 +219,8 @@ watch(() => authStore.isAuthenticated, (val) => {
         appliedCoupon.value = null;
         couponCode.value = '';
         showCouponModal.value = false;
-        useWallet.value = false;
+        useDeposit.value = false;
+        useCommission.value = false;
         if (paymentMethod.value === 'wallet') paymentMethod.value = 'cod';
     }
 }, { immediate: true });
@@ -465,7 +473,7 @@ const discount = computed(() => {
 const maxPointsCanUse = computed(() => {
     let max = loyaltyPoints.value;
     const totalBeforeLoyalty = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value);
-    const maxForTotal = Math.floor((totalBeforeLoyalty * 0.3) / 100);
+    const maxForTotal = Math.floor((totalBeforeLoyalty * 0.1) / 100);
     return Math.min(max, maxForTotal);
 });
 
@@ -497,16 +505,19 @@ const total = computed(() => {
 
 // --- Wallet ---
 const walletDiscount = computed(() => {
-    if (!useWallet.value || !walletPreview.value) return 0;
+    if (!walletPreview.value) return 0;
+    let sum = 0;
+    if (useDeposit.value) sum += walletPreview.value.deposit_used || 0;
+    if (useCommission.value) sum += walletPreview.value.commission_used || 0;
     const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value;
-    return Math.min(walletPreview.value.total_available || 0, Math.max(0, maxDiscount));
+    return Math.min(sum, Math.max(0, maxDiscount));
 });
 
 const fetchWalletPreview = async () => {
     if (!authStore.isAuthenticated) return;
     walletLoading.value = true;
     try {
-        const res = await walletService.previewDiscount(subtotal.value);
+        const res = await walletService.previewDiscount(subtotal.value, useDeposit.value, useCommission.value);
         if (res.data?.status === 'success') {
             walletPreview.value = res.data.data;
         }
@@ -524,8 +535,8 @@ watch(subtotal, () => {
     if (authStore.isAuthenticated) debouncedFetchWalletPreview();
 });
 
-watch(useWallet, (val) => {
-    if (val && !walletPreview.value) debouncedFetchWalletPreview();
+watch([useDeposit, useCommission], ([nd, nc]) => {
+    if (authStore.isAuthenticated) debouncedFetchWalletPreview();
 });
 
 const promptLoginForCoupon = () => {
@@ -543,23 +554,36 @@ const applyCoupon = async () => {
     if (!couponCode.value.trim()) return;
 
     const code = couponCode.value.trim().toUpperCase();
+    couponCode.value = code;
     checkingCoupon.value = true;
+    couponErrorMsg.value = '';
     try {
-        const response = await api.post('/profile/coupons/check', {
+        const itemsPayload = cartItems.value.map(item => ({
+            product_id: item.product?.product_id,
+            category_id: item.product?.category_id,
+            price: item.variant?.price || 0,
+            quantity: item.quantity || 1
+        }));
+        const response = await api.post('/coupons/check', {
             code: code,
-            subtotal: subtotal.value
+            subtotal: subtotal.value,
+            items: itemsPayload
         });
         if (response.data?.status === 'success') {
             const couponData = response.data.data;
+            couponErrorMsg.value = '';
             selectCoupon(couponData);
         } else {
-            showToast(response.data?.message || 'Mã giảm giá không hợp lệ', 'error');
+            const msg = response.data?.message || 'Mã giảm giá không hợp lệ. Bạn vui lòng kiểm tra lại nhé!';
+            couponErrorMsg.value = msg;
+            showToast(msg, 'warning', { title: 'Mã giảm giá' });
             appliedCoupon.value = null;
         }
     } catch (error) {
         console.error('Lỗi kiểm tra mã giảm giá:', error);
-        const msg = error.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn';
-        showToast(msg, 'error');
+        const msg = error.response?.data?.message || 'Mã giảm giá không tồn tại hoặc đã hết hạn sử dụng. Bạn vui lòng kiểm tra lại nhé!';
+        couponErrorMsg.value = msg;
+        showToast(msg, 'warning', { title: 'Mã giảm giá' });
         appliedCoupon.value = null;
     } finally {
         checkingCoupon.value = false;
@@ -571,6 +595,7 @@ const openCouponModal = () => {
         promptLoginForCoupon();
         return;
     }
+    couponErrorMsg.value = '';
     showCouponModal.value = true;
 };
 
@@ -580,11 +605,13 @@ const selectCoupon = (coupon) => {
         return;
     }
     if (coupon.min_order_value && subtotal.value < parseFloat(coupon.min_order_value)) {
-        showToast(`Đơn hàng tối thiểu ${formatVND(coupon.min_order_value)} để áp dụng mã này!`, 'error');
+        const msg = `Đơn hàng cần đạt tối thiểu ${formatVND(coupon.min_order_value)} để áp dụng mã này.`;
+        couponErrorMsg.value = msg;
+        showToast(msg, 'warning', { title: 'Mã giảm giá' });
         return;
     }
     if (coupon.type === 'free_ship' && subtotal.value >= (upsellState.freeshipThreshold || 500000)) {
-        showToast('Đơn hàng từ 500.000₫ đã được tự động miễn phí vận chuyển!', 'warning');
+        showToast('Đơn hàng của bạn đã đủ điều kiện tự động miễn phí vận chuyển!', 'info', { title: 'Ưu đãi vận chuyển' });
         return;
     }
     appliedCoupon.value = {
@@ -595,13 +622,15 @@ const selectCoupon = (coupon) => {
         min_order_value: coupon.min_order_value
     };
     couponCode.value = coupon.code;
+    couponErrorMsg.value = '';
     showCouponModal.value = false;
-    showToast(`Đã áp dụng mã giảm giá ${coupon.code}!`, 'success');
+    showToast(`Áp dụng thành công mã ưu đãi "${coupon.code}"!`, 'success', { title: 'Mã giảm giá' });
 };
 
 const removingCoupon = () => {
     appliedCoupon.value = null;
     couponCode.value = '';
+    couponErrorMsg.value = '';
 };
 
 watch(subtotal, (newSubtotal) => {
@@ -779,8 +808,9 @@ const placeOrder = async () => {
         note: note.value,
         coupon_applied: authStore.isAuthenticated ? (appliedCoupon.value?.code || null) : null,
         referral_code: localStorage.getItem('affiliate_ref') || null,
-        use_wallet: authStore.isAuthenticated && useWallet.value && walletDiscount.value > 0,
-        wallet_amount: authStore.isAuthenticated && useWallet.value ? walletDiscount.value : 0,
+        use_deposit: authStore.isAuthenticated && useDeposit.value,
+        use_commission: authStore.isAuthenticated && useCommission.value,
+        wallet_amount: authStore.isAuthenticated && (useDeposit.value || useCommission.value) ? walletDiscount.value : 0,
         reward_points_used: useLoyaltyPoints.value ? inputPoints.value : 0,
     };
 
@@ -932,15 +962,8 @@ const placeOrder = async () => {
 
 // Các hàm tiện ích
 const getProductImage = (item) => {
-    const getStorageUrl = (path) => {
-        if (!path) return 'https://placehold.co/120x120?text=No+Image';
-        if (path.startsWith('http')) return path;
-        // Xử lý trường hợp path đã có chữ storage/ ở đầu
-        const cleanPath = path.replace(/^\/?storage\//, '');
-        return `${APP_URL}/storage/${cleanPath}`;
-    };
-
-    if (item.variant?.image_url) return getStorageUrl(item.variant.image_url);
+    if (!item) return 'https://placehold.co/120x120?text=No+Image';
+    if (item.variant?.image_url && item.variant.image_url !== '0') return getStorageUrl(item.variant.image_url);
     if (item.product?.main_image) return getStorageUrl(item.product.main_image);
     if (item.product?.thumbnail_url && item.product.thumbnail_url !== '0') return getStorageUrl(item.product.thumbnail_url);
     return 'https://placehold.co/120x120?text=No+Image';
@@ -1221,7 +1244,7 @@ onMounted(async () => {
                                         <span class="payment-name-simple">VNPay</span>
                                     </div>
                                 </label>
-                        </div>
+                            </div>
                         </div>
                     </section>
                 </div>
@@ -1272,14 +1295,18 @@ onMounted(async () => {
                                     <template v-if="authStore.isAuthenticated">
                                         <div class="coupon-input-group" v-if="!appliedCoupon">
                                             <input type="text" v-model="couponCode" placeholder="Nhập mã khuyến mãi"
-                                                class="coupon-input" @keyup.enter="applyCoupon" />
+                                                class="coupon-input" :class="{ 'is-invalid-coupon': !!couponErrorMsg }" @keyup.enter="applyCoupon" />
                                             <button class="btn-apply-coupon" @click="applyCoupon"
                                                 :disabled="checkingCoupon || !couponCode">
                                                 <span v-if="checkingCoupon" class="small-spinner"></span>
                                                 <span v-else>Áp dụng</span>
                                             </button>
                                         </div>
-                                        <div v-else class="coupon-applied-box">
+                                        <div v-if="couponErrorMsg && !appliedCoupon" class="coupon-inline-hint">
+                                            <AppIcon name="alert-circle" size="14" class="hint-icon" />
+                                            <span>{{ couponErrorMsg }}</span>
+                                        </div>
+                                        <div v-else-if="appliedCoupon" class="coupon-applied-box">
                                             <div class="coupon-tag">
                                                 <AppIcon name="voucher" size="20" color="#111" class="me-1" />{{
                                                 appliedCoupon.code }}
@@ -1317,7 +1344,7 @@ onMounted(async () => {
                                         <span style="font-size: 0.9rem; color: #666;">điểm = <strong style="color: #ef4444;">-{{ formatPrice(loyaltyDiscount) }}</strong></span>
                                     </div>
                                     <div style="font-size: 0.75rem; color: #f59e0b; margin-top: 8px; padding-top: 8px; border-top: 1px solid #fca5a5; line-height: 1.4;">
-                                        * Tối thiểu 100 điểm để đổi giảm giá. Tối đa 30% giá trị đơn hàng. Điểm có hiệu lực 365 ngày kể từ ngày tích.
+                                        * Tối thiểu 100 điểm để đổi giảm giá. Tối đa 10% giá trị đơn hàng. Điểm có hiệu lực 365 ngày kể từ ngày tích.
                                     </div>
                                 </div>
 
@@ -1366,43 +1393,58 @@ onMounted(async () => {
                                     <div class="summary-divider variant-dashed"></div>
 
                                     <!-- WALLET DISCOUNT WIDGET -->
-                                    <div v-if="authStore.isAuthenticated && walletPreview && walletPreview.total_available > 0"
-                                        class="wallet-checkout-widget">
-                                        <label class="wallet-toggle">
-                                            <input type="checkbox" v-model="useWallet" />
+                                    <div v-if="authStore.isAuthenticated && walletPreview" class="wallet-checkout-widget">
+                                        <label class="wallet-toggle" :class="{ 'disabled-toggle': walletPreview.deposit_balance <= 0 }">
+                                            <input type="checkbox" v-model="useDeposit" :disabled="walletPreview.deposit_balance <= 0" />
                                             <div class="wt-switch">
                                                 <div class="wt-knob"></div>
                                             </div>
                                             <div class="wt-info">
                                                 <span class="wt-label">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                                                        stroke="currentColor" stroke-width="2">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                         <rect x="2" y="4" width="20" height="16" rx="2" />
                                                         <path d="M16 12h.01" />
                                                         <path d="M2 10h20" />
                                                     </svg>
-                                                    Dùng ví thanh toán
+                                                    Dùng ví Ocean Pay
                                                 </span>
-                                                <span class="wt-balance">Khả dụng: <strong>{{
-                                                        formatPrice(walletPreview.total_available) }}</strong></span>
+                                                <span class="wt-balance">Khả dụng: <strong>{{ formatPrice(walletPreview.deposit_balance) }}</strong></span>
                                             </div>
                                         </label>
-                                        <div v-if="useWallet && walletDiscount > 0" class="wallet-discount-detail">
-                                            <div v-if="walletPreview.deposit_used > 0" class="wd-row">
-                                                <span>Từ số dư nạp</span>
-                                                <span class="wd-val">-{{ formatPrice(walletPreview.deposit_used)
-                                                    }}</span>
-                                            </div>
-                                            <div v-if="walletPreview.commission_used > 0" class="wd-row">
-                                                <span>Từ hoa hồng</span>
-                                                <span class="wd-val">-{{ formatPrice(walletPreview.commission_used)
-                                                    }}</span>
+                                        <div v-if="useDeposit && walletPreview.deposit_used > 0" class="wallet-discount-detail">
+                                            <div class="wd-row">
+                                                <span>Từ số dư ví</span>
+                                                <span class="wd-val">-{{ formatPrice(walletPreview.deposit_used) }}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div v-if="useWallet && walletDiscount > 0" class="total-row wallet-discount-row">
-                                        <span>Giảm từ ví</span>
+                                    <div v-if="authStore.isAuthenticated && walletPreview" class="wallet-checkout-widget mt-3">
+                                        <label class="wallet-toggle" :class="{ 'disabled-toggle': walletPreview.commission_balance <= 0 }" style="border-color: #10b981; background: #ecfdf5;">
+                                            <input type="checkbox" v-model="useCommission" :disabled="walletPreview.commission_balance <= 0" />
+                                            <div class="wt-switch" :style="{ backgroundColor: useCommission ? '#10b981' : '#d1d5db' }">
+                                                <div class="wt-knob"></div>
+                                            </div>
+                                            <div class="wt-info">
+                                                <span class="wt-label" style="color: #047857;">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                                                    </svg>
+                                                    Dùng Hoa hồng Affiliate
+                                                </span>
+                                                <span class="wt-balance">Khả dụng: <strong>{{ formatPrice(walletPreview.commission_balance) }}</strong></span>
+                                            </div>
+                                        </label>
+                                        <div v-if="useCommission && walletPreview.commission_used > 0" class="wallet-discount-detail">
+                                            <div class="wd-row">
+                                                <span>Từ hoa hồng</span>
+                                                <span class="wd-val">-{{ formatPrice(walletPreview.commission_used) }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="(useDeposit || useCommission) && walletDiscount > 0" class="total-row wallet-discount-row">
+                                        <span>Tổng giảm từ Ví/Hoa hồng</span>
                                         <span class="discount-val" style="color: #8b5cf6; font-weight: 700;">-{{
                                             formatPrice(walletDiscount) }}</span>
                                     </div>
@@ -2403,55 +2445,65 @@ textarea.note-input {
 }
 
 .bill-item-variant-btn {
-    margin: 3px 0 0;
+    margin: 4px 0 0;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    height: 22px;
-    min-height: 22px;
-    max-height: 22px;
-    padding: 0 7px;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-    text-align: left;
+    gap: 5px;
+    align-self: flex-start;
+    width: fit-content;
     max-width: 100%;
+    height: 24px;
+    padding: 0 9px;
+    background: rgba(230, 59, 111, 0.08);
+    border: 1px solid rgba(230, 59, 111, 0.22);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-align: left;
     box-sizing: border-box;
     line-height: 1;
     font-family: inherit;
-    font-size: 0.72rem;
-    color: #475569;
 }
 
 .bill-item-variant-btn:hover {
-    background: #fff0f5;
-    border-color: #fbcfe8;
-}
-
-.bill-item-variant-btn:hover .bill-item-variant-text {
-    color: #E63B6F;
+    background: rgba(230, 59, 111, 0.15);
+    border-color: var(--primary, #E63B6F);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(230, 59, 111, 0.18);
 }
 
 .bill-item-variant-btn .variant-caret {
-    width: 9px;
-    height: 9px;
-    color: #94a3b8;
+    width: 10px;
+    height: 10px;
+    color: var(--primary, #E63B6F);
+    opacity: 0.85;
     flex-shrink: 0;
-    transition: transform 0.15s ease;
+    transition: transform 0.2s ease;
 }
 
 .bill-item-variant-btn:hover .variant-caret {
-    color: #E63B6F;
+    opacity: 1;
     transform: translateY(1px);
 }
 
 .bill-item-variant-text {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     line-height: 1;
-    color: #475569;
-    font-weight: 500;
+    color: var(--primary, #E63B6F);
+    font-weight: 600;
+}
+
+html.dark .bill-item-variant-btn {
+    background: rgba(230, 59, 111, 0.16);
+    border-color: rgba(230, 59, 111, 0.35);
+}
+
+html.dark .bill-item-variant-text {
+    color: #ff85a2;
+}
+
+html.dark .bill-item-variant-btn .variant-caret {
+    color: #ff85a2;
 }
 
 .bill-item-variant {
@@ -2517,6 +2569,45 @@ textarea.note-input {
 
 .coupon-input:focus {
     border-color: var(--primary);
+}
+
+.coupon-input.is-invalid-coupon {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.04);
+}
+
+.coupon-inline-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: rgba(245, 158, 11, 0.08);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #d97706;
+    line-height: 1.35;
+    animation: fadeInHint 0.25s ease;
+}
+
+html.dark .coupon-inline-hint {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.coupon-inline-hint .hint-icon {
+    flex-shrink: 0;
+}
+
+@keyframes fadeInHint {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .btn-apply-coupon {

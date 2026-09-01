@@ -13,7 +13,7 @@ class Court extends Model
     protected $primaryKey = 'court_id';
 
     protected $fillable = [
-        'court_name', 'court_code', 'type', 'description',
+        'court_name', 'slug', 'court_code', 'type', 'description',
         'surface', 'max_players', 'status', 'image_url', 'sort_order',
     ];
 

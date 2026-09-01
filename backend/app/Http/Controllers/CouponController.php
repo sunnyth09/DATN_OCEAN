@@ -162,9 +162,15 @@ class CouponController extends Controller
         $validated = $request->validate([
             'code' => 'required|string',
             'subtotal' => 'required|numeric|min:0',
+            'items' => 'nullable|array',
         ]);
 
-        $result = $this->couponService->checkCoupon($userId, $validated['code'], (float) $validated['subtotal']);
+        $result = $this->couponService->checkCoupon(
+            $userId,
+            $validated['code'],
+            (float) $validated['subtotal'],
+            $validated['items'] ?? null
+        );
 
         if (! $result['success']) {
             return response()->json([

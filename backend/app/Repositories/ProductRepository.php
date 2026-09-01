@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\CartItem;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariant;
@@ -494,11 +495,11 @@ class ProductRepository
      */
     public function getMatchingProducts(int $productId, int $categoryId, int $limit = 8)
     {
-        $currentCategory = \App\Models\Category::find($categoryId);
+        $currentCategory = Category::find($categoryId);
         $siblingCategoryIds = [];
-        
+
         if ($currentCategory && $currentCategory->parent_id) {
-            $siblingCategoryIds = \App\Models\Category::where('parent_id', $currentCategory->parent_id)
+            $siblingCategoryIds = Category::where('parent_id', $currentCategory->parent_id)
                 ->where('category_id', '!=', $categoryId)
                 ->pluck('category_id')->toArray();
         }
@@ -520,18 +521,18 @@ class ProductRepository
             ->where('status', 'active')
             ->whereNull('deleted_at');
 
-        if (!empty($siblingCategoryIds)) {
+        if (! empty($siblingCategoryIds)) {
             // Lấy từ các danh mục anh em
             $query->whereIn('category_id', $siblingCategoryIds);
         } else {
             // Fallback: nếu không có danh mục anh em, loại trừ danh mục hiện tại và lấy nổi bật
             $query->where('category_id', '!=', $categoryId)
-                  ->orderBy('is_featured', 'desc');
+                ->orderBy('is_featured', 'desc');
         }
 
         return $query->orderBy('sold_count', 'desc')
             ->orderByRaw('COALESCE(variants_sum_stock, 0) > 0 DESC')
-            ->inRandomOrder() 
+            ->inRandomOrder()
             ->limit($limit)
             ->get();
     }

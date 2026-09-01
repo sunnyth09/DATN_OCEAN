@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'config/app_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +12,7 @@ import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/home_provider.dart';
 import 'providers/category_provider.dart';
-import 'providers/product_detail_provider.dart';
+
 import 'providers/loyalty_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/favorite_provider.dart';
@@ -20,12 +21,15 @@ import 'services/notification_service.dart';
 import 'widgets/offline_banner.dart';
 import 'router/app_router.dart';
 
-/// HttpOverrides cho phép ứng dụng kết nối mạng an toàn và bỏ qua lỗi chứng chỉ self-signed trên môi trường dev/emulator.
+/// HttpOverrides cho phép bỏ qua lỗi chứng chỉ self-signed trên môi trường dev/emulator.
+/// ⚠️ CHỈ hoạt động khi KHÔNG phải Production để ngăn chặn tấn công MITM.
 class AppHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     final client = super.createHttpClient(context);
-    client.badCertificateCallback = (cert, host, port) => true;
+    if (!AppConfig.isProduction) {
+      client.badCertificateCallback = (cert, host, port) => true;
+    }
     return client;
   }
 }
@@ -80,7 +84,6 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
-        ChangeNotifierProvider(create: (_) => ProductDetailProvider()),
         ChangeNotifierProvider(create: (_) => LoyaltyProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => FavoriteProvider()),
@@ -92,6 +95,8 @@ class MyApp extends StatelessWidget {
         routerConfig: router,
         // Sử dụng theme tập trung đồng bộ với website
         theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
         builder: (context, child) {
           return OfflineBanner(child: child!);
         },

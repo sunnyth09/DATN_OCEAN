@@ -14,6 +14,7 @@ class PasswordResetOtpMail extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public string $otp;
+
     public string $email;
 
     public function __construct(string $otp, string $email)

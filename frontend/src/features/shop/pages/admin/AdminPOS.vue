@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import { getStorageUrl } from '@/utils/url';
@@ -177,12 +177,26 @@ const fetchCoupons = async () => {
     }
 };
 
-const applyCoupon = () => {
+const applyCoupon = async () => {
     if (!couponCode.value.trim()) {
       toast.error('Vui lòng nhập mã giảm giá');
       return;
     }
-    const found = availableCoupons.value.find(c => c.code.toUpperCase() === couponCode.value.trim().toUpperCase());
+    const code = couponCode.value.trim().toUpperCase();
+    let found = availableCoupons.value.find(c => c.code.toUpperCase() === code);
+    
+    if (!found) {
+      try {
+        const res = await api.post('/coupons/check', { code, subtotal: subtotal.value });
+        if (res.data.status === 'success' && res.data.data) {
+          found = res.data.data;
+        }
+      } catch (e) {
+        toast.error(e.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc hết hạn');
+        return;
+      }
+    }
+
     if (found) {
         if (subtotal.value < (found.min_order_value || 0)) {
             toast.error(`Đơn tối thiểu phải từ ${formatPrice(found.min_order_value)}`);
@@ -289,6 +303,25 @@ const grandTotal = computed(() => {
   return Math.max(0, subtotal.value - discountAmount.value);
 });
 
+watch(subtotal, (newSubtotal) => {
+  if (appliedCoupon.value) {
+    if (newSubtotal === 0 || newSubtotal < (appliedCoupon.value.min_order_value || 0)) {
+      const couponName = appliedCoupon.value.code;
+      const minVal = formatPrice(appliedCoupon.value.min_order_value || 0);
+      removeCoupon();
+      toast.error(`Mã ${couponName} đã bị tự động gỡ do tổng tiền không đủ đơn tối thiểu (${minVal})`);
+    } else {
+      let discount = 0;
+      if (appliedCoupon.value.type === 'fixed') discount = appliedCoupon.value.value;
+      else if (appliedCoupon.value.type === 'percent') discount = newSubtotal * (appliedCoupon.value.value / 100);
+      if (appliedCoupon.value.max_discount_value && discount > appliedCoupon.value.max_discount_value) {
+        discount = appliedCoupon.value.max_discount_value;
+      }
+      discountAmount.value = discount;
+    }
+  }
+});
+
 const isDownloadingPdf = ref(false);
 
 const downloadReceiptPdf = async (order) => {
@@ -312,6 +345,7 @@ const downloadReceiptPdf = async (order) => {
 };
 
 const checkoutOrder = ref(null);
+const showCheckoutSuccess = ref(false);
 const customerNameError = ref(false);
 
 const handleCheckout = async () => {
@@ -342,7 +376,9 @@ const handleCheckout = async () => {
       customer_phone: customerPhone.value,
       payment_method: paymentMethod.value,
       note: note.value,
-      discount_amount: discountAmount.value
+      discount_amount: discountAmount.value,
+      coupon_code: appliedCoupon.value?.code || null,
+      coupon_id: appliedCoupon.value?.id || null
     };
     const res = await api.post('/admin/pos/checkout', payload);
     if (res.data.status === 'success') {
@@ -718,17 +754,19 @@ onUnmounted(() => {
                 <span v-if="item.size" class="tag">{{ item.size }}</span>
               </div>
               <div class="item-bottom">
-                <div class="qty-wrap">
-                  <button class="qty-btn" @click="decreaseQuantity(item)">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  </button>
-                  <span class="qty-val">{{ item.quantity }}</span>
-                  <button class="qty-btn" @click="increaseQuantity(item)">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  </button>
+                <div class="qty-group" style="display: flex; align-items: center; gap: 6px;">
+                  <div class="qty-wrap">
+                    <button class="qty-btn" @click="decreaseQuantity(item)">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <span class="qty-val">{{ item.quantity }}</span>
+                    <button class="qty-btn" @click="increaseQuantity(item)">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                  </div>
+                  <span class="item-stock-chip">Còn: {{ item.stock ?? 0 }}</span>
                 </div>
                 <div class="item-prices">
-                  <span class="item-unit">{{ formatPrice(item.price) }}/sp</span>
                   <span class="item-total">{{ formatPrice(item.price * item.quantity) }}</span>
                 </div>
               </div>
@@ -1533,6 +1571,15 @@ onUnmounted(() => {
 .item-unit {
   font-size: 0.7rem;
   color: var(--text-light, #9ca3af);
+}
+.item-stock-chip {
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7280);
+  background: var(--hover-bg, #f3f4f6);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 .item-total {
   font-weight: 700;

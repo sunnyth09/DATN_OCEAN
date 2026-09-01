@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import '../utils/app_logger.dart';
 import '../config/app_config.dart';
 
 typedef RealtimeEventCallback = void Function(String event, dynamic data);
@@ -31,20 +31,20 @@ class RealtimeService {
 
     try {
       final url = AppConfig.reverbWsUrl;
-      debugPrint('[RealtimeService] Connecting to Reverb: $url');
+      AppLogger.debug('[RealtimeService] Connecting to Reverb: $url');
       _socket = await WebSocket.connect(url).timeout(const Duration(seconds: 8));
       _isConnected = true;
       _isConnecting = false;
-      debugPrint('[RealtimeService] Connected successfully!');
+      AppLogger.debug('[RealtimeService] Connected successfully!');
 
       _socket!.listen(
         _onMessage,
         onError: (err) {
-          debugPrint('[RealtimeService] Socket error: $err');
+          AppLogger.debug('[RealtimeService] Socket error: $err');
           _handleDisconnect();
         },
         onDone: () {
-          debugPrint('[RealtimeService] Socket closed by server');
+          AppLogger.debug('[RealtimeService] Socket closed by server');
           _handleDisconnect();
         },
         cancelOnError: true,
@@ -53,7 +53,7 @@ class RealtimeService {
       _startPing();
       _resubscribeAll();
     } catch (e) {
-      debugPrint('[RealtimeService] Connect failed: $e');
+      AppLogger.debug('[RealtimeService] Connect failed: $e');
       _isConnecting = false;
       _handleDisconnect();
     }
@@ -72,7 +72,7 @@ class RealtimeService {
       }
 
       if (event == 'pusher:connection_established') {
-        debugPrint('[RealtimeService] Connection established: $payload');
+        AppLogger.debug('[RealtimeService] Connection established: $payload');
         _resubscribeAll();
         return;
       }
@@ -100,7 +100,7 @@ class RealtimeService {
         }
       }
     } catch (e) {
-      debugPrint('[RealtimeService] Error parsing message: $e');
+      AppLogger.debug('[RealtimeService] Error parsing message: $e');
     }
   }
 

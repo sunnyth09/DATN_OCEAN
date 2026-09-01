@@ -104,7 +104,7 @@ class TicketController extends Controller
                     try {
                         Mail::to($user->email)->queue(new TicketReplyMail($ticket));
                     } catch (\Exception $mailEx) {
-                        Log::warning('TicketReplyMail failed to queue: ' . $mailEx->getMessage());
+                        Log::warning('TicketReplyMail failed to queue: '.$mailEx->getMessage());
                     }
 
                     // Gửi thông báo in-app

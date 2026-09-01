@@ -369,9 +369,9 @@ class LoyaltyService
 
         // Tính điểm tối đa được phép dùng
         $maxByBalance = min($currentBalance, $rule->max_points_per_order ?? PHP_INT_MAX);
-        $maxByPercent = $rule->max_burn_percent
-            ? (int) floor(($orderSubtotal * $rule->max_burn_percent / 100) / $rule->vnd_per_point)
-            : PHP_INT_MAX;
+        // Override: Force max burn percent to 10% instead of rule's configured value (requested by user)
+        $overrideMaxBurnPercent = 10;
+        $maxByPercent = (int) floor(($orderSubtotal * $overrideMaxBurnPercent / 100) / $rule->vnd_per_point);
 
         $maxAllowed = min($maxByBalance, $maxByPercent);
 

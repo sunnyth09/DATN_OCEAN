@@ -10,15 +10,27 @@ const props = defineProps({
 
 const emit = defineEmits(['copy', 'open', 'close', 'view-all']);
 
-const formatCurrency = (val) => {
+const formatCurrencyShort = (val) => {
     if (!val) return '0₫';
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+    const num = Number(val);
+    if (num >= 1000000) {
+        const tr = (num / 1000000).toFixed(1).replace(/\.0$/, '');
+        return `${tr}tr`;
+    }
+    if (num >= 1000) {
+        return `${Math.round(num / 1000)}k`;
+    }
+    return `${num}₫`;
 };
 
 const formatCouponValue = (coupon) => {
     if (coupon.type === 'percent') return `Giảm ${coupon.value}%`;
-    if (coupon.type === 'free_ship') return 'Miễn phí vận chuyển';
-    return `Giảm ${formatCurrency(coupon.value)}`;
+    if (coupon.type === 'free_ship') return 'Freeship';
+    const val = Number(coupon.value);
+    if (val >= 1000) {
+        return `Giảm ${Math.round(val / 1000)}k`;
+    }
+    return `Giảm ${val}₫`;
 };
 
 const getCouponIcon = (coupon) => {
@@ -29,9 +41,9 @@ const getCouponIcon = (coupon) => {
 </script>
 
 <template>
-    <section class="home-coupon-section py-5" v-if="publicCoupons.length > 0">
+    <section class="home-coupon-section py-4" v-if="publicCoupons.length > 0">
         <div class="container">
-            <div class="d-flex align-items-end justify-content-between mb-4">
+            <div class="d-flex align-items-end justify-content-between mb-3 flex-wrap gap-2">
                 <div>
                     <span class="coupon-section-kicker">ƯU ĐÃI CÓ HẠN</span>
                     <h2 class="section-title mb-1">SĂN VOUCHER HÔM NAY</h2>
@@ -45,6 +57,7 @@ const getCouponIcon = (coupon) => {
                 </router-link>
             </div>
 
+            <!-- 4 Columns Grid -->
             <div class="home-coupon-grid">
                 <article
                     v-for="coupon in publicCoupons"
@@ -54,20 +67,30 @@ const getCouponIcon = (coupon) => {
                 >
                     <div class="coupon-ticket-cut coupon-ticket-cut--left"></div>
                     <div class="coupon-ticket-cut coupon-ticket-cut--right"></div>
+                    
+                    <!-- Left Icon Box -->
                     <div class="home-coupon-icon">
-                        <AppIcon :name="getCouponIcon(coupon)" width="24" height="24" :stroke-width="2.2" />
+                        <AppIcon :name="getCouponIcon(coupon)" width="18" height="18" :stroke-width="2.2" />
                     </div>
+
+                    <!-- Middle Info -->
                     <div class="home-coupon-main">
-                        <span class="home-coupon-type">{{ coupon.type === 'free_ship' ? 'FREESHIP' : 'VOUCHER' }}</span>
+                        <span class="home-coupon-type">{{ coupon.type === 'free_ship' ? 'FREESHIP' : 'GIẢM GIÁ' }}</span>
                         <strong class="home-coupon-value">{{ formatCouponValue(coupon) }}</strong>
-                        <span class="home-coupon-condition" v-if="coupon.min_order_value">
-                            Đơn từ {{ formatCurrency(coupon.min_order_value) }}
+                        <span class="home-coupon-condition">
+                            {{ coupon.min_order_value ? 'Đơn từ ' + formatCurrencyShort(coupon.min_order_value) : 'Đơn từ 0₫' }}
                         </span>
-                        <span class="home-coupon-condition" v-else>Không yêu cầu đơn tối thiểu</span>
                     </div>
-                    <button class="home-coupon-copy" type="button" @click.stop="emit('copy', coupon.code)">
-                        {{ coupon.code }}
-                        <span>{{ copiedCouponCode === coupon.code ? 'Đã sao chép' : 'Sao chép' }}</span>
+
+                    <!-- Right Copy Button -->
+                    <button 
+                        class="btn-copy-coupon" 
+                        :class="{ 'is-copied': copiedCouponCode === coupon.code }"
+                        type="button" 
+                        @click.stop="emit('copy', coupon.code)"
+                    >
+                        <span class="coupon-code-label">{{ coupon.code }}</span>
+                        <span class="coupon-action-label">{{ copiedCouponCode === coupon.code ? 'Đã sao chép' : 'Sao chép' }}</span>
                     </button>
                 </article>
             </div>
@@ -87,31 +110,31 @@ const getCouponIcon = (coupon) => {
 .section-title {
     font-size: 1.75rem;
     font-weight: 800;
-    color: var(--text-main);
+    color: var(--text-main, #2D3436);
     letter-spacing: -0.5px;
     margin: 0;
 }
 
 .section-subtitle {
-    color: #636E72;
-    font-size: 0.95rem;
+    color: var(--text-secondary, #636E72);
+    font-size: 0.9rem;
 }
 
 .link-more {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: var(--primary);
+    color: var(--primary, #E63B6F);
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     text-decoration: none;
     white-space: nowrap;
     transition: gap 0.2s, color 0.2s;
 }
 
 .link-more:hover {
-    color: #d82f65;
-    gap: 10px;
+    color: var(--primary-dark, #b50c4d);
+    gap: 8px;
 }
 
 /* ── Voucher section ── */
@@ -123,60 +146,62 @@ const getCouponIcon = (coupon) => {
 
 .coupon-section-kicker {
     display: inline-block;
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.72rem;
+    font-weight: 800;
     letter-spacing: 1.5px;
     text-transform: uppercase;
-    color: var(--primary);
-    margin-bottom: 4px;
+    color: var(--primary, #E63B6F);
+    margin-bottom: 2px;
 }
 
+/* 4 columns layout */
 .home-coupon-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
 }
 
 .home-coupon-card {
     position: relative;
     background: #ffffff;
-    border: 1.5px dashed rgba(230, 59, 111, 0.28);
-    border-radius: 16px;
+    border: 1.5px dashed rgba(230, 59, 111, 0.25);
+    border-radius: 12px;
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 20px 20px 20px 24px;
+    gap: 10px;
+    padding: 10px 12px;
     cursor: pointer;
     transition: all 0.25s ease;
     overflow: hidden;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .home-coupon-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 28px rgba(230, 59, 111, 0.1);
-    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(230, 59, 111, 0.1);
+    border-color: var(--primary, #E63B6F);
 }
 
 .coupon-ticket-cut {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     background: #fbfcfd;
     border-radius: 50%;
 }
 
-.coupon-ticket-cut--left { left: -8px; }
-.coupon-ticket-cut--right { right: -8px; }
+.coupon-ticket-cut--left { left: -6px; }
+.coupon-ticket-cut--right { right: -6px; }
 
 .home-coupon-icon {
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    border-radius: 8px;
     background: rgba(230, 59, 111, 0.08);
-    color: var(--primary);
+    color: var(--primary, #E63B6F);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -187,70 +212,85 @@ const getCouponIcon = (coupon) => {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    overflow: hidden;
+    gap: 1px;
+    min-width: 0;
 }
 
 .home-coupon-type {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 1px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.6px;
     color: #94a3b8;
     text-transform: uppercase;
 }
 
 .home-coupon-value {
-    font-size: 1rem;
+    font-size: 0.92rem;
     font-weight: 800;
-    color: var(--primary);
+    color: var(--primary, #E63B6F);
+    line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .home-coupon-condition {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     color: #64748b;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.home-coupon-copy {
+/* Right Copy Button */
+.btn-copy-coupon {
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
-    background: var(--primary);
-    color: #fff;
+    justify-content: center;
+    gap: 2px;
+    background: var(--primary, #E63B6F);
+    color: #ffffff;
     border: none;
-    border-radius: 10px;
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    font-family: 'Courier New', monospace;
+    border-radius: 8px;
+    padding: 6px 8px;
+    min-width: 68px;
     cursor: pointer;
     transition: all 0.2s ease;
+}
+
+.coupon-code-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    font-family: 'Courier New', monospace;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 64px;
+}
+
+.coupon-action-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    opacity: 0.9;
     white-space: nowrap;
 }
 
-.home-coupon-copy span {
-    font-family: inherit;
-    font-size: 0.68rem;
-    font-weight: 600;
-    opacity: 0.85;
-    letter-spacing: 0;
+.btn-copy-coupon:hover {
+    background: var(--primary-dark, #b50c4d);
+    transform: scale(1.03);
 }
 
-.home-coupon-copy:hover {
-    background: #c4295a;
-    transform: scale(1.05);
+.btn-copy-coupon.is-copied {
+    background: #10b981;
 }
 
 /* ── Dark Mode ── */
 html.dark .home-coupon-section {
     background: linear-gradient(135deg, #141718 0%, #0e1112 100%);
+    border-color: rgba(255, 255, 255, 0.06);
 }
 
 html.dark .home-coupon-card {
@@ -270,7 +310,14 @@ html.dark .home-coupon-condition {
     color: #94a3b8;
 }
 
-@media (max-width: 640px) {
+/* Responsive */
+@media (max-width: 1200px) {
+    .home-coupon-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
     .home-coupon-grid {
         grid-template-columns: 1fr;
     }

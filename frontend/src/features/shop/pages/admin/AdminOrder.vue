@@ -1,6 +1,7 @@
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router';
+import { useAdminKeepAlive } from '@/composables/useAdminKeepAlive';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
@@ -123,6 +124,12 @@ const fetchOrders = async (page = 1, showLoading = true) => {
     if (showLoading) loading.value = false;
   }
 };
+
+useAdminKeepAlive({
+  resourceKey: 'orders',
+  fetchFn: () => fetchOrders(pagination.value.current_page || 1, false),
+  ttl: 180000,
+});
 
 const handleSearch = () => {
     fetchOrders(1);

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../providers/product_detail_provider.dart';
 import '../screens/main_wrapper.dart';
 import '../screens/home_screen.dart';
 import '../screens/category_screen.dart';
@@ -139,7 +141,10 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final product = state.extra as Map<String, dynamic>;
-          return ProductDetailScreen(product: product);
+          return ChangeNotifierProvider(
+            create: (_) => ProductDetailProvider(),
+            child: ProductDetailScreen(product: product),
+          );
         },
       ),
       GoRoute(
@@ -303,8 +308,12 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         path: '/tracking',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
-          final trackingNumber = state.uri.queryParameters['code'] ?? (state.extra as String?);
-          return OrderTrackingScreen(trackingNumber: trackingNumber);
+          final trackingNumber = state.uri.queryParameters['code'] ?? (state.extra is String ? state.extra as String : null);
+          final initialOrder = state.extra is Map ? state.extra as Map<String, dynamic> : null;
+          return OrderTrackingScreen(
+            trackingNumber: trackingNumber,
+            initialOrderData: initialOrder,
+          );
         },
       ),
       GoRoute(
@@ -312,7 +321,11 @@ GoRouter createRouter({required bool isFirstLaunch}) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
           final code = state.pathParameters['trackingNumber'];
-          return OrderTrackingScreen(trackingNumber: code);
+          final initialOrder = state.extra is Map ? state.extra as Map<String, dynamic> : null;
+          return OrderTrackingScreen(
+            trackingNumber: code,
+            initialOrderData: initialOrder,
+          );
         },
       ),
     ],

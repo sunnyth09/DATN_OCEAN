@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../utils/app_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_client.dart';
+import '../services/realtime_service.dart';
 
 enum ChatMode { staff, ai }
 
@@ -16,6 +18,7 @@ class ChatProvider extends ChangeNotifier {
   // Live Chat với nhân viên
   List<Map<String, dynamic>> _staffMessages = [];
   Timer? _pollingTimer;
+  bool _wsConnected = false;
 
   // AI Chatbot
   final List<Map<String, dynamic>> _aiMessages = [];
@@ -74,18 +77,51 @@ class ChatProvider extends ChangeNotifier {
             .toList();
       }
     } catch (e) {
-      debugPrint('Error init staff chat: $e');
+      AppLogger.error('Error init staff chat', e, 'Chat');
     } finally {
       _isLoading = false;
       notifyListeners();
-      startPolling();
+      _connectWebSocket();
     }
   }
 
-  /// Bắt đầu polling ngầm mỗi 3 giây để nhận tin nhắn mới từ Admin/Staff
-  void startPolling() {
+  /// Kết nối WebSocket qua RealtimeService để nhận tin nhắn tức thời.
+  /// Fallback về polling HTTP nếu WebSocket không khả dụng.
+  void _connectWebSocket() {
+    if (_sessionToken == null || _sessionToken!.isEmpty) {
+      _startFallbackPolling();
+      return;
+    }
+
+    try {
+      final realtime = RealtimeService();
+      realtime.connect();
+      realtime.subscribe(
+        'live-chat.$_sessionToken',
+        '*',
+        (event, data) {
+          if (data is Map) {
+            final msg = Map<String, dynamic>.from(data);
+            if (msg['message'] != 'SYSTEM_SESSION_CLOSED') {
+              _staffMessages.add(msg);
+              notifyListeners();
+            }
+          }
+        },
+      );
+      _wsConnected = true;
+      AppLogger.info('WebSocket connected for chat session', 'Chat');
+    } catch (e) {
+      AppLogger.error('WebSocket failed, falling back to polling', e, 'Chat');
+      _wsConnected = false;
+      _startFallbackPolling();
+    }
+  }
+
+  /// Polling fallback mỗi 8 giây (thay vì 3s trước đây) khi WebSocket không khả dụng
+  void _startFallbackPolling() {
     _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 8), (_) async {
       if (_sessionToken == null || _sessionToken!.isEmpty) return;
       try {
         final res = await ApiClient().dio.post('/live-chat/init', data: {
@@ -110,6 +146,12 @@ class ChatProvider extends ChangeNotifier {
   void stopPolling() {
     _pollingTimer?.cancel();
     _pollingTimer = null;
+    if (_wsConnected && _sessionToken != null) {
+      try {
+        RealtimeService().unsubscribe('live-chat.$_sessionToken');
+      } catch (_) {}
+      _wsConnected = false;
+    }
   }
 
   /// Gửi tin nhắn tới nhân viên CSKH
@@ -143,7 +185,7 @@ class ChatProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      debugPrint('Error sending staff message: $e');
+      AppLogger.error(' sending staff message: $e');
       _staffMessages.remove(optimisticMsg);
       return false;
     } finally {

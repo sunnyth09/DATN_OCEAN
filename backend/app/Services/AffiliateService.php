@@ -165,70 +165,7 @@ class AffiliateService
         return $this->success('Lấy danh sách đơn affiliate thành công!', $conversions);
     }
 
-    /**
-     * Gửi yêu cầu rút tiền
-     */
-    public function requestWithdrawal(int $userId, array $data): array
-    {
-        // Kiểm tra user là affiliate
-        $profile = $this->affiliateRepo->getAffiliateProfile($userId);
-        if (! $profile || ! $profile->is_affiliate) {
-            return $this->error('Bạn chưa đăng ký affiliate!', 403);
-        }
 
-        // Kiểm tra có yêu cầu pending chưa xử lý
-        if ($this->withdrawalRepo->hasPendingWithdrawal($userId)) {
-            return $this->error('Bạn đang có yêu cầu rút tiền chưa được xử lý. Vui lòng chờ duyệt!', 422);
-        }
-
-        $amount = (float) $data['amount'];
-        $minAmount = config('affiliate.min_withdraw_amount', 100000);
-
-        if ($amount < $minAmount) {
-            return $this->error('Số tiền rút tối thiểu là '.number_format($minAmount).' VND!', 422);
-        }
-
-        try {
-            // Toàn bộ (kiểm tra pending + số dư + tạo yêu cầu) nằm trong 1 transaction có khóa
-            // dòng ví để chống race: 2 request đồng thời không thể cùng vượt số dư khả dụng.
-            $withdrawal = DB::transaction(function () use ($userId, $amount, $data) {
-                // Khóa dòng ví trước khi đọc số dư hoa hồng.
-                $wallet = Wallet::where('user_id', $userId)->lockForUpdate()->firstOrFail();
-
-                // Số dư khả dụng = hoa hồng hiện có − (đã rút/đang chờ rút).
-                $pendingOrWithdrawn = $this->withdrawalRepo->getTotalWithdrawnOrPending($userId);
-                $availableBalance = (float) $wallet->commission_balance - $pendingOrWithdrawn;
-
-                if ($amount > $availableBalance) {
-                    throw new OrderException(
-                        'Số dư hoa hồng khả dụng không đủ để rút ('.number_format(max(0, $availableBalance)).' VND)!'
-                    );
-                }
-
-                // Kiểm tra pending BÊN TRONG lock để chống tạo trùng yêu cầu.
-                if ($this->withdrawalRepo->hasPendingWithdrawal($userId)) {
-                    throw new OrderException('Bạn đang có yêu cầu rút tiền chưa được xử lý. Vui lòng chờ duyệt!');
-                }
-
-                return $this->withdrawalRepo->create([
-                    'user_id' => $userId,
-                    'amount' => $amount,
-                    'bank_name' => $data['bank_name'] ?? 'VNPay Payout',
-                    'bank_account_name' => $data['bank_account_name'] ?? '',
-                    'bank_account_number' => $data['bank_account_number'] ?? '',
-                    'status' => 'pending',
-                ]);
-            });
-
-            return $this->success('Gửi yêu cầu rút tiền thành công! Vui lòng chờ duyệt.', $withdrawal);
-        } catch (OrderException $e) {
-            return $this->error($e->getMessage(), 422);
-        } catch (\Exception $e) {
-            Log::error('Affiliate withdrawal error: '.$e->getMessage());
-
-            return $this->error('Lỗi khi gửi yêu cầu rút tiền!', 500);
-        }
-    }
 
     /**
      * Lịch sử rút tiền

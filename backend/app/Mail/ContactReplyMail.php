@@ -14,7 +14,9 @@ class ContactReplyMail extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public string $contactName;
+
     public string $contactSubject;
+
     public string $replyContent;
 
     public function __construct(string $contactName, string $contactSubject, string $replyContent)

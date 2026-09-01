@@ -16,7 +16,10 @@ use Illuminate\Http\Request;
 class CourtController extends Controller
 {
     /**
-     * Get list of courts (public)
+     * Lấy danh sách các sân bóng (Court) đang hoạt động.
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
@@ -35,11 +38,19 @@ class CourtController extends Controller
     }
 
     /**
-     * Get single court with schedules & prices
+     * Lấy thông tin chi tiết của một sân bóng, bao gồm lịch hoạt động và bảng giá.
+     * 
+     * @param int|string $id ID hoặc Slug của sân bóng
+     * @return \Illuminate\Http\JsonResponse
+     * 
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
     public function show($id)
     {
-        $court = Court::with(['schedules', 'prices'])->findOrFail($id);
+        $court = Court::with(['schedules', 'prices'])
+            ->where('court_id', $id)
+            ->orWhere('slug', $id)
+            ->firstOrFail();
 
         return response()->json([
             'status' => 'success',
@@ -48,8 +59,13 @@ class CourtController extends Controller
     }
 
     /**
-     * Generate hourly time slots with availability status for a given date.
-     * Returns an array of slots: [ { start_time, end_time, price, status } ]
+     * Tạo danh sách các khung giờ (slot) trong một ngày cụ thể kèm theo trạng thái (trống, đã đặt, bảo trì,...).
+     * 
+     * @param \Illuminate\Http\Request $request
+     * @param int|string $id ID của sân bóng
+     * @return \Illuminate\Http\JsonResponse Trả về mảng các khung giờ: [ { start_time, end_time, price, status } ]
+     * 
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
     public function availability(Request $request, $id)
     {
@@ -201,7 +217,9 @@ class CourtController extends Controller
     }
 
     /**
-     * Public: get active court services (no admin auth needed)
+     * Lấy danh sách các dịch vụ đi kèm đang hoạt động (Nước uống, Thuê vợt, v.v.) dành cho người dùng public.
+     * 
+     * @return \Illuminate\Http\JsonResponse
      */
     public function publicServices()
     {

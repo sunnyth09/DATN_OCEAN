@@ -23,6 +23,8 @@ class PosCheckoutRequest extends FormRequest
             'payment_method' => 'nullable|string|in:pos_cash,pos_transfer,pos_card',
             'note' => 'nullable|string|max:500',
             'discount_amount' => 'nullable|numeric|min:0',
+            'coupon_code' => 'nullable|string|max:100',
+            'coupon_id' => 'nullable|integer',
         ];
     }
 

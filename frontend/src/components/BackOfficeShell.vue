@@ -522,7 +522,7 @@ onUnmounted(() => {
 }
 
 .backoffice-content--fluid {
-  padding: 16px 20px;
+  padding: 24px 28px;
 }
 
 .shell-icon-btn--menu {
@@ -539,6 +539,7 @@ onUnmounted(() => {
   max-width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
+  width: 100% !important;
 }
 
 .backoffice-scrim {
