@@ -147,3 +147,29 @@ Schedule::command('orders:cancel-expired-vnpay --minutes=30')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+/**
+ * ── 8. Đồng bộ trạng thái Ocean Express fallback ──
+ *
+ * Webhook là realtime path; command này là lưới an toàn khi webhook bị miss
+ * (hãng vận chuyển down, network lỗi, deploy trùng thời điểm). Không có nó thì
+ * một webhook rớt = đơn hàng kẹt trạng thái vĩnh viễn.
+ */
+Schedule::command('ocean-express:sync-status --limit=100')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+/**
+ * ── 9. Reset hạng thành viên hàng tháng ──
+ *
+ * Chạy vào lúc 00:00 ngày mùng 1 mỗi tháng.
+ * Reset tier_month_spent = 0 và tier_id = NULL cho tất cả khách hàng,
+ * buộc họ phải tích lũy lại chi tiêu trong tháng mới để thăng hạng.
+ */
+Schedule::command('app:reset-customer-tiers')
+    ->monthly()
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));

@@ -9,6 +9,12 @@
       <div class="aside-user-info">
         <h3 class="aside-user-name">{{ userName }}</h3>
         <p class="aside-user-email">{{ userEmail }}</p>
+        <div v-if="userTierName" style="margin-top: 6px;">
+          <span class="vip-tier-badge" :style="{ backgroundColor: userTierColor || '#e5e7eb' }">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+             Hạng: {{ userTierName }}
+          </span>
+        </div>
         <!-- Điểm thưởng mini badge -->
         <div v-if="rewardPoints > 0" class="aside-points-badge">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #fbbf24; margin-right: 2px;">
@@ -301,6 +307,8 @@ const userName = computed(() => authStore.displayName);
 const userEmail = computed(() => authStore.email);
 const userInitial = computed(() => authStore.userInitial);
 const userAvatar = computed(() => authStore.avatarUrl || '');
+const userTierName = computed(() => authStore.user?.tier?.name);
+const userTierColor = computed(() => authStore.user?.tier?.color);
 
 // Điểm thưởng
 const rewardPoints = ref(0);
@@ -405,8 +413,8 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 600;
   flex-shrink: 0;
   border: 2px solid rgba(255, 255, 255, 0.3);
 }
@@ -419,25 +427,40 @@ const handleLogout = async () => {
 }
 
 .aside-user-info {
+  flex: 1;
   min-width: 0;
 }
 
 .aside-user-name {
+  margin: 0 0 4px;
   font-size: 1rem;
-  font-weight: 700;
-  margin: 0;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .aside-user-email {
-  font-size: 0.8rem;
-  margin: 2px 0 0;
-  opacity: 0.85;
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.vip-tier-badge {
+    display: inline-flex;
+    align-items: center;
+    color: #fff;
+    font-size: 0.65rem;
+    padding: 2px 6px 2px 4px;
+    border-radius: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    line-height: 1.2;
+    margin-top: 6px;
 }
 
 /* Nav */
