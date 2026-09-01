@@ -147,13 +147,8 @@ const handleLogout = async () => {
     <!-- Brand / Header -->
     <div class="sidebar-brand">
       <router-link to="/admin" class="logo" :title="collapsed ? 'Ocean Sport' : ''">
-        <div class="logo-wrapper">
-          <img :src="oceanLogo" alt="Ocean Sport" class="logo-img">
-        </div>
-        <div class="logo-info">
-          <span class="logo-text">Ocean Sport</span>
-          <span class="logo-tag">ADMIN</span>
-        </div>
+        <img :src="oceanLogo" alt="Ocean Sport" class="logo-img">
+        <span class="logo-text">Ocean Sport</span>
       </router-link>
 
       <button 
@@ -494,8 +489,9 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px 0 18px;
-  height: 72px;
+  padding: 0 14px 0 16px;
+  height: var(--shell-header-height, 60px);
+  min-height: var(--shell-header-height, 60px);
   border-bottom: 1px solid var(--border-color, #f1f5f9);
   flex-shrink: 0;
   box-sizing: border-box;
@@ -512,66 +508,30 @@ const handleLogout = async () => {
   min-width: 0;
 }
 
-.logo-wrapper {
+.logo-img {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(230, 59, 111, 0.08), rgba(230, 59, 111, 0.02));
-  border: 1px solid rgba(230, 59, 111, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 6px rgba(230, 59, 111, 0.06);
-}
-
-.logo-img {
-  width: 36px;
-  height: 36px;
   object-fit: contain;
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.04));
-  transition: transform 0.2s ease;
-}
-
-.logo:hover .logo-wrapper {
-  transform: translateY(-1px);
-  border-color: rgba(230, 59, 111, 0.35);
-  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.18);
-  background: linear-gradient(135deg, rgba(230, 59, 111, 0.12), rgba(230, 59, 111, 0.04));
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.08));
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .logo:hover .logo-img {
-  transform: scale(1.06);
-}
-
-.logo-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+  transform: scale(1.08);
 }
 
 .logo-text {
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 800;
   color: var(--text-main, #0f172a);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.4px;
   white-space: nowrap;
+  transition: color 0.2s ease;
 }
 
-.logo-tag {
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgba(230, 59, 111, 0.1);
+.logo:hover .logo-text {
   color: var(--primary, #E63B6F);
-  border: 1px solid rgba(230, 59, 111, 0.2);
-  letter-spacing: 0.5px;
-  flex-shrink: 0;
-  text-transform: uppercase;
 }
 
 .aside-toggle-btn {
@@ -587,7 +547,7 @@ const handleLogout = async () => {
   border-radius: 8px;
   flex-shrink: 0;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  margin-left: 6px;
+  margin-left: 4px;
 }
 
 .aside-toggle-btn:hover {
@@ -883,7 +843,7 @@ const handleLogout = async () => {
   width: 80px;
 }
 
-.sidebar--collapsed .logo-info,
+.sidebar--collapsed .logo-text,
 .sidebar--collapsed .nav-label,
 .sidebar--collapsed .nav-trailing,
 .sidebar--collapsed .nav-tree-container,
@@ -894,7 +854,8 @@ const handleLogout = async () => {
 
 .sidebar--collapsed .sidebar-brand {
   padding: 0;
-  height: 72px;
+  height: var(--shell-header-height, 60px);
+  min-height: var(--shell-header-height, 60px);
   justify-content: center;
   position: relative;
 }
@@ -904,16 +865,10 @@ const handleLogout = async () => {
   width: 100%;
 }
 
-.sidebar--collapsed .logo-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  margin: 0 auto;
-}
-
 .sidebar--collapsed .logo-img {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
 }
 
 .sidebar--collapsed .aside-toggle-btn {

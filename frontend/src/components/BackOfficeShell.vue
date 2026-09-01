@@ -430,8 +430,8 @@ onUnmounted(() => {
 }
 
 .backoffice-header {
-  height: var(--shell-header-height, 56px);
-  min-height: var(--shell-header-height, 56px);
+  height: var(--shell-header-height, 60px);
+  min-height: var(--shell-header-height, 60px);
   padding: 0 20px;
   display: flex;
   align-items: center;
