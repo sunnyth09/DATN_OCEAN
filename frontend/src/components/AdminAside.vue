@@ -146,17 +146,28 @@ const handleLogout = async () => {
   <aside class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
     <!-- Brand / Header -->
     <div class="sidebar-brand">
-      <router-link to="/admin" class="logo">
-        <img :src="oceanLogo" alt="Ocean Sport" class="logo-img">
+      <router-link to="/admin" class="logo" :title="collapsed ? 'Ocean Sport' : ''">
+        <div class="logo-wrapper">
+          <img :src="oceanLogo" alt="Ocean Sport" class="logo-img">
+        </div>
         <div class="logo-info">
           <span class="logo-text">Ocean Sport</span>
           <span class="logo-tag">ADMIN</span>
         </div>
       </router-link>
 
-      <button class="aside-toggle-btn" @click="toggleSidebar" :title="collapsed ? 'Mở rộng' : 'Thu gọn'">
-        <i v-if="collapsed" class="bi bi-chevron-right"></i>
-        <i v-else class="bi bi-chevron-left"></i>
+      <button 
+        class="aside-toggle-btn" 
+        @click="toggleSidebar" 
+        :title="collapsed ? 'Mở rộng menu' : 'Thu gọn menu'"
+        :aria-label="collapsed ? 'Mở rộng menu' : 'Thu gọn menu'"
+      >
+        <svg v-if="collapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
       </button>
     </div>
 
@@ -484,10 +495,11 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px 0 18px;
-  height: 68px;
+  height: 72px;
   border-bottom: 1px solid var(--border-color, #f1f5f9);
   flex-shrink: 0;
   box-sizing: border-box;
+  background: var(--card-bg, #ffffff);
 }
 
 .logo {
@@ -500,17 +512,38 @@ const handleLogout = async () => {
   min-width: 0;
 }
 
-.logo-img {
+.logo-wrapper {
   width: 44px;
   height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(230, 59, 111, 0.08), rgba(230, 59, 111, 0.02));
+  border: 1px solid rgba(230, 59, 111, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(230, 59, 111, 0.06);
+}
+
+.logo-img {
+  width: 36px;
+  height: 36px;
   object-fit: contain;
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.05));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.04));
   transition: transform 0.2s ease;
 }
 
+.logo:hover .logo-wrapper {
+  transform: translateY(-1px);
+  border-color: rgba(230, 59, 111, 0.35);
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.18);
+  background: linear-gradient(135deg, rgba(230, 59, 111, 0.12), rgba(230, 59, 111, 0.04));
+}
+
 .logo:hover .logo-img {
-  transform: scale(1.04);
+  transform: scale(1.06);
 }
 
 .logo-info {
@@ -529,14 +562,16 @@ const handleLogout = async () => {
 }
 
 .logo-tag {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  padding: 2.5px 8px;
+  padding: 2px 7px;
   border-radius: 6px;
-  background: rgba(230, 59, 111, 0.12);
+  background: rgba(230, 59, 111, 0.1);
   color: var(--primary, #E63B6F);
+  border: 1px solid rgba(230, 59, 111, 0.2);
   letter-spacing: 0.5px;
   flex-shrink: 0;
+  text-transform: uppercase;
 }
 
 .aside-toggle-btn {
@@ -552,15 +587,15 @@ const handleLogout = async () => {
   border-radius: 8px;
   flex-shrink: 0;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  font-size: 0.82rem;
   margin-left: 6px;
 }
 
 .aside-toggle-btn:hover {
   background: var(--primary, #E63B6F);
-  color: white;
+  color: #ffffff;
   border-color: var(--primary, #E63B6F);
-  transform: scale(1.05);
+  transform: scale(1.08);
+  box-shadow: 0 3px 10px rgba(230, 59, 111, 0.25);
 }
 
 /* ─── NAVIGATION LIST ─── */
@@ -859,7 +894,7 @@ const handleLogout = async () => {
 
 .sidebar--collapsed .sidebar-brand {
   padding: 0;
-  height: 68px;
+  height: 72px;
   justify-content: center;
   position: relative;
 }
@@ -869,10 +904,16 @@ const handleLogout = async () => {
   width: 100%;
 }
 
-.sidebar--collapsed .logo-img {
-  width: 44px;
-  height: 44px;
+.sidebar--collapsed .logo-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   margin: 0 auto;
+}
+
+.sidebar--collapsed .logo-img {
+  width: 38px;
+  height: 38px;
 }
 
 .sidebar--collapsed .aside-toggle-btn {
@@ -884,23 +925,29 @@ const handleLogout = async () => {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: var(--primary, #E63B6F);
-  color: #ffffff;
-  border: 2px solid #ffffff;
-  box-shadow: 0 2px 8px rgba(230, 59, 111, 0.35);
+  background: #ffffff;
+  color: #64748b;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 100;
   opacity: 0;
   pointer-events: none;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   margin-left: 0;
-  font-size: 0.72rem;
 }
 
 .sidebar--collapsed:hover .aside-toggle-btn,
 .sidebar--collapsed .sidebar-brand:hover .aside-toggle-btn {
   opacity: 1;
   pointer-events: auto;
-  transform: translateY(-50%) scale(1.08);
+  transform: translateY(-50%) scale(1.12);
+}
+
+.sidebar--collapsed .aside-toggle-btn:hover {
+  background: var(--primary, #E63B6F);
+  color: #ffffff;
+  border-color: var(--primary, #E63B6F);
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.35);
 }
 
 .sidebar--collapsed .nav-item {
