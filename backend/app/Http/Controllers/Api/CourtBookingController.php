@@ -10,6 +10,7 @@ use App\Models\CourtBooking;
 use App\Notifications\SystemNotification;
 use App\Services\CourtBookingService;
 use App\Services\CourtBookingWorkflowService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 
@@ -29,8 +30,7 @@ class CourtBookingController extends Controller
      * Tạm khóa slot (giữ chỗ) trong vòng 5 phút để user tiến hành thanh toán.
      * Tránh tình trạng tranh chấp lịch đặt (Double Booking).
      *
-     * @param \App\Http\Requests\CourtBooking\LockCourtBookingRequest $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function lock(LockCourtBookingRequest $request)
     {
@@ -53,8 +53,7 @@ class CourtBookingController extends Controller
     /**
      * Chủ động hủy khóa slot (nhả slot) nếu user thoát ra không thanh toán nữa.
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function releaseLock(Request $request)
     {
@@ -74,8 +73,7 @@ class CourtBookingController extends Controller
      * Tạo một lượt đặt sân mới sau khi xác nhận thanh toán/giữ chỗ thành công.
      * Sẽ gửi thông báo hệ thống cho khách hàng và Admin.
      *
-     * @param \App\Http\Requests\CourtBooking\StoreCourtBookingRequest $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(StoreCourtBookingRequest $request)
     {
@@ -120,8 +118,7 @@ class CourtBookingController extends Controller
     /**
      * Lấy danh sách lịch sử đặt sân của người dùng hiện tại (đã đăng nhập).
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -144,27 +141,27 @@ class CourtBookingController extends Controller
      * Lấy thông tin chi tiết một lịch đặt sân của người dùng hiện tại.
      * Bao gồm cả dịch vụ, thanh toán, lịch sử thay đổi trạng thái và người chơi Open Play.
      *
-     * @param int $id ID của lượt đặt sân
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID của lượt đặt sân
+     * @return JsonResponse
      */
     public function show($id)
     {
         $userId = auth()->guard('api')->id();
         $booking = CourtBooking::where(function ($q) use ($userId) {
-                $q->where('user_id', $userId)
-                  ->orWhereHas('openPlay.participants', function ($pq) use ($userId) {
-                      $pq->where('user_id', $userId);
-                  });
-            })
+            $q->where('user_id', $userId)
+                ->orWhereHas('openPlay.participants', function ($pq) use ($userId) {
+                    $pq->where('user_id', $userId);
+                });
+        })
             ->with([
-                'court',
-                'services',
-                'payments',
-                'statusHistories',
-                'user',
-                'openPlay.confirmedParticipants.user',
-                'openPlay.waitlists.user',
-            ])
+            'court',
+            'services',
+            'payments',
+            'statusHistories',
+            'user',
+            'openPlay.confirmedParticipants.user',
+            'openPlay.waitlists.user',
+        ])
             ->findOrFail($id);
 
         return response()->json([
@@ -176,9 +173,8 @@ class CourtBookingController extends Controller
     /**
      * Hủy lịch đặt sân bởi người dùng (nếu trạng thái hợp lệ để hủy).
      *
-     * @param \Illuminate\Http\Request $request
-     * @param int $id ID của lượt đặt sân
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID của lượt đặt sân
+     * @return JsonResponse
      */
     public function cancel(Request $request, $id)
     {

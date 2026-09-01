@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -64,7 +65,7 @@ class CategoryController extends Controller
      * Lấy danh sách tất cả các danh mục dưới dạng cây (Tree).
      * Dữ liệu được cache vĩnh viễn (cho đến khi có thay đổi).
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index()
     {
@@ -86,8 +87,7 @@ class CategoryController extends Controller
      * Thêm mới một danh mục (Category) vào hệ thống.
      * Hỗ trợ lưu trữ ảnh đại diện và tự động sinh slug từ tên danh mục.
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(Request $request)
     {

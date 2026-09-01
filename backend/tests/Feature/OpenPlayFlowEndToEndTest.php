@@ -2,24 +2,27 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
 use App\Models\Court;
 use App\Models\CourtBooking;
 use App\Models\OpenPlay;
 use App\Models\OpenPlayParticipant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
+use Tests\TestCase;
 
 class OpenPlayFlowEndToEndTest extends TestCase
 {
     use RefreshDatabase;
 
     protected User $host;
+
     protected User $player1;
+
     protected User $player2;
+
     protected Court $court;
+
     protected CourtBooking $booking;
 
     protected function setUp(): void
@@ -28,21 +31,21 @@ class OpenPlayFlowEndToEndTest extends TestCase
 
         // 1. Tạo Users
         $this->host = User::factory()->create([
-            'email' => 'host_' . uniqid() . '@example.com',
+            'email' => 'host_'.uniqid().'@example.com',
             'full_name' => 'Host Player',
-            'phone' => '0987' . random_int(100000, 999999),
+            'phone' => '0987'.random_int(100000, 999999),
         ]);
 
         $this->player1 = User::factory()->create([
-            'email' => 'player1_' . uniqid() . '@example.com',
+            'email' => 'player1_'.uniqid().'@example.com',
             'full_name' => 'Player One',
-            'phone' => '0912' . random_int(100000, 999999),
+            'phone' => '0912'.random_int(100000, 999999),
         ]);
 
         $this->player2 = User::factory()->create([
-            'email' => 'player2_' . uniqid() . '@example.com',
+            'email' => 'player2_'.uniqid().'@example.com',
             'full_name' => 'Player Two',
-            'phone' => '0934' . random_int(100000, 999999),
+            'phone' => '0934'.random_int(100000, 999999),
         ]);
 
         // 2. Tìm hoặc tạo Court
@@ -55,7 +58,7 @@ class OpenPlayFlowEndToEndTest extends TestCase
 
         // 3. Tạo Booking cho Host
         $this->booking = CourtBooking::create([
-            'booking_code' => 'BK' . strtoupper(uniqid()),
+            'booking_code' => 'BK'.strtoupper(uniqid()),
             'user_id' => $this->host->user_id,
             'court_id' => $this->court->court_id ?? $this->court->id,
             'booking_date' => now()->addDays(2)->format('Y-m-d'),
@@ -146,7 +149,7 @@ class OpenPlayFlowEndToEndTest extends TestCase
         $participant = OpenPlayParticipant::where('open_play_id', $openPlayId)
             ->where('user_id', $this->player1->user_id)
             ->first();
-        
+
         $this->assertNotNull($participant);
         $this->assertNotNull($participant->check_in_token);
 

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Admin;
 use App\Models\Coupon;
 use App\Models\LoyaltyRule;
 use App\Models\LuckyWheelPrize;
+use App\Models\User;
 use App\Models\UserCoupon;
 use App\Services\LoyaltyService;
 use Carbon\Carbon;
@@ -32,16 +34,16 @@ class LoyaltyController extends Controller
         protected LoyaltyService $loyaltyService,
     ) {}
 
-    protected function getAuthUser(): ?\App\Models\User
+    protected function getAuthUser(): ?User
     {
         $user = auth('api')->user();
-        if ($user instanceof \App\Models\User) {
+        if ($user instanceof User) {
             return $user;
         }
 
         $admin = auth('admin')->user();
-        if ($admin instanceof \App\Models\Admin) {
-            return \App\Models\User::firstOrCreate(
+        if ($admin instanceof Admin) {
+            return User::firstOrCreate(
                 ['email' => $admin->email],
                 [
                     'full_name' => $admin->full_name,
@@ -53,7 +55,7 @@ class LoyaltyController extends Controller
         }
 
         $reqUser = request()->user();
-        if ($reqUser instanceof \App\Models\User) {
+        if ($reqUser instanceof User) {
             return $reqUser;
         }
 

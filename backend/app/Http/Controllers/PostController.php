@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\PostResource;
 use App\Models\Post;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PostController extends Controller
 {
@@ -40,8 +42,7 @@ class PostController extends Controller
      * Lấy danh sách bài viết hiển thị công khai (Public).
      * Chỉ lấy các bài viết có trạng thái 'published'.
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -74,8 +75,7 @@ class PostController extends Controller
      * Lấy danh sách bài viết dành cho Admin.
      * Cho phép lọc theo trạng thái (published, draft, hidden) và loại bài viết.
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function adminIndex(Request $request)
     {
@@ -114,9 +114,9 @@ class PostController extends Controller
      * Thêm mới một bài viết vào hệ thống.
      * Tự động sinh slug nếu không được cung cấp và gắn tác giả là người dùng hiện tại.
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     * @throws \Illuminate\Validation\ValidationException
+     * @return JsonResponse
+     *
+     * @throws ValidationException
      */
     public function create(Request $request)
     {

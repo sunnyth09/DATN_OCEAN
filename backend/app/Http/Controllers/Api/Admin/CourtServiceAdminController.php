@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CourtService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CourtServiceAdminController extends Controller
@@ -120,8 +121,7 @@ class CourtServiceAdminController extends Controller
     /**
      * Upload ảnh dịch vụ
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function uploadImage(Request $request)
     {
@@ -131,7 +131,7 @@ class CourtServiceAdminController extends Controller
 
         $file = $request->file('image');
         $path = $file->store('uploads/court_services', 'public');
-        $url = asset('storage/' . $path);
+        $url = asset('storage/'.$path);
 
         return response()->json([
             'status' => 'success',

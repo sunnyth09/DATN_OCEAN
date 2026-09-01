@@ -10,6 +10,7 @@ use App\Models\OpenPlay;
 use App\Services\OpenPlayService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class OpenPlayController extends Controller
 {
@@ -30,7 +31,7 @@ class OpenPlayController extends Controller
                 'data' => $openPlays,
             ]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('OpenPlayController index error: ' . $e->getMessage(), [
+            Log::error('OpenPlayController index error: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'filters' => $request->all(),
             ]);

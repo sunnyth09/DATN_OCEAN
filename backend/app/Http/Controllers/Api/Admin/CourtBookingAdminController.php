@@ -8,6 +8,7 @@ use App\Mail\CourtBookingConfirmedMail;
 use App\Models\CourtBooking;
 use App\Services\CourtBookingAdminService;
 use App\Services\CourtBookingWorkflowService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -27,8 +28,7 @@ class CourtBookingAdminController extends Controller
     /**
      * Lấy danh sách đặt sân dành cho Admin kèm theo bộ lọc (date, court_id, status, search).
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -41,8 +41,7 @@ class CourtBookingAdminController extends Controller
     /**
      * Tạo một lượt đặt sân mới cho khách vãng lai (POS / walk-in) bởi Admin.
      *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(Request $request)
     {
@@ -75,8 +74,8 @@ class CourtBookingAdminController extends Controller
     /**
      * Lấy thông tin chi tiết của một lượt đặt sân (bao gồm các quan hệ: user, court, staff, services, payments,...).
      *
-     * @param int $id ID lượt đặt sân
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID lượt đặt sân
+     * @return JsonResponse
      */
     public function show($id)
     {
@@ -95,9 +94,8 @@ class CourtBookingAdminController extends Controller
     /**
      * Chuyển trạng thái đặt sân từ "Chờ duyệt" (pending) sang "Đã xác nhận" (confirmed).
      *
-     * @param \Illuminate\Http\Request $request
-     * @param int $id ID lượt đặt sân
-     * @return \Illuminate\Http\JsonResponse
+     * @param  int  $id  ID lượt đặt sân
+     * @return JsonResponse
      */
     public function confirm(Request $request, $id)
     {

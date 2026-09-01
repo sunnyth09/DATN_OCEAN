@@ -9,6 +9,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class OpenPlayNotification extends Notification implements ShouldQueue
@@ -71,7 +72,7 @@ class OpenPlayNotification extends Notification implements ShouldQueue
 
             event(new UserNotificationEvent((int) $userId, $notificationData));
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to send open play notification', [
+            Log::warning('Failed to send open play notification', [
                 'user_id' => $userId,
                 'error' => $e->getMessage(),
             ]);

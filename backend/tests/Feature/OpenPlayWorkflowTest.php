@@ -5,8 +5,7 @@ namespace Tests\Feature;
 use App\Models\Court;
 use App\Models\CourtBooking;
 use App\Models\OpenPlay;
-use App\Models\OpenPlayParticipant;
-use App\Models\OpenPlayWaitlist;
+use App\Models\PhoneOtpVerification;
 use App\Models\User;
 use App\Services\OpenPlayService;
 use Illuminate\Support\Facades\Hash;
@@ -310,7 +309,7 @@ class OpenPlayWorkflowTest extends TestCase
         $sendRes = $service->sendGuestOtp($phone);
         $this->assertEquals('success', $sendRes['status']);
 
-        $record = \App\Models\PhoneOtpVerification::where('phone', $phone)->first();
+        $record = PhoneOtpVerification::where('phone', $phone)->first();
         $this->assertNotNull($record);
 
         // Verify with incorrect OTP -> fails

@@ -11,15 +11,16 @@ use App\Models\CourtPrice;
 use App\Models\CourtSchedule;
 use App\Models\CourtService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class CourtController extends Controller
 {
     /**
      * Lấy danh sách các sân bóng (Court) đang hoạt động.
-     * 
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
+     *
+     * @return JsonResponse
      */
     public function index(Request $request)
     {
@@ -39,11 +40,11 @@ class CourtController extends Controller
 
     /**
      * Lấy thông tin chi tiết của một sân bóng, bao gồm lịch hoạt động và bảng giá.
-     * 
-     * @param int|string $id ID hoặc Slug của sân bóng
-     * @return \Illuminate\Http\JsonResponse
-     * 
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     *
+     * @param  int|string  $id  ID hoặc Slug của sân bóng
+     * @return JsonResponse
+     *
+     * @throws ModelNotFoundException
      */
     public function show($id)
     {
@@ -64,12 +65,11 @@ class CourtController extends Controller
 
     /**
      * Tạo danh sách các khung giờ (slot) trong một ngày cụ thể kèm theo trạng thái (trống, đã đặt, bảo trì,...).
-     * 
-     * @param \Illuminate\Http\Request $request
-     * @param int|string $id ID của sân bóng
-     * @return \Illuminate\Http\JsonResponse Trả về mảng các khung giờ: [ { start_time, end_time, price, status } ]
-     * 
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     *
+     * @param  int|string  $id  ID của sân bóng
+     * @return JsonResponse Trả về mảng các khung giờ: [ { start_time, end_time, price, status } ]
+     *
+     * @throws ModelNotFoundException
      */
     public function availability(Request $request, $id)
     {
@@ -222,8 +222,8 @@ class CourtController extends Controller
 
     /**
      * Lấy danh sách các dịch vụ đi kèm đang hoạt động (Nước uống, Thuê vợt, v.v.) dành cho người dùng public.
-     * 
-     * @return \Illuminate\Http\JsonResponse
+     *
+     * @return JsonResponse
      */
     public function publicServices()
     {
