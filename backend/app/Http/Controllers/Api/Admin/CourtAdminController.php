@@ -44,10 +44,13 @@ class CourtAdminController extends Controller
             'court_name' => 'required|string|max:100',
             'court_code' => 'required|string|max:20|unique:courts,court_code',
             'type' => 'required|in:standard,vip,outdoor,indoor',
+            'surface' => 'nullable|string|max:50',
+            'max_players' => 'nullable|integer|min:1|max:20',
+            'description' => 'nullable|string',
+            'image_url' => 'nullable|string',
+            'sort_order' => 'nullable|integer|min:0',
             'status' => 'required|in:active,inactive,maintenance,closed',
         ]);
-
-        $validated['slug'] = Str::slug($validated['court_name']);
 
         $court = Court::create($validated);
 
@@ -76,7 +79,6 @@ class CourtAdminController extends Controller
 
     /**
      * Cập nhật thông tin sân bóng.
-     * Sẽ cập nhật lại slug nếu có sự thay đổi về tên sân.
      *
      * @param \Illuminate\Http\Request $request
      * @param int $id ID của sân bóng
@@ -90,12 +92,13 @@ class CourtAdminController extends Controller
             'court_name' => 'sometimes|string|max:100',
             'court_code' => 'sometimes|string|max:20|unique:courts,court_code,'.$court->court_id.',court_id',
             'type' => 'sometimes|in:standard,vip,outdoor,indoor',
+            'surface' => 'nullable|string|max:50',
+            'max_players' => 'nullable|integer|min:1|max:20',
+            'description' => 'nullable|string',
+            'image_url' => 'nullable|string',
+            'sort_order' => 'nullable|integer|min:0',
             'status' => 'sometimes|in:active,inactive,maintenance,closed',
         ]);
-
-        if (isset($validated['court_name'])) {
-            $validated['slug'] = Str::slug($validated['court_name']);
-        }
 
         $court->update($validated);
 
@@ -103,6 +106,32 @@ class CourtAdminController extends Controller
             'status' => 'success',
             'message' => 'Court updated successfully.',
             'data' => $court,
+        ]);
+    }
+
+    /**
+     * Upload ảnh đại diện sân
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
+        ]);
+
+        $file = $request->file('image');
+        $path = $file->store('uploads/courts', 'public');
+        $url = asset('storage/' . $path);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Image uploaded successfully.',
+            'data' => [
+                'path' => $path,
+                'url' => $url,
+            ],
         ]);
     }
 

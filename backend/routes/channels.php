@@ -24,3 +24,11 @@ Broadcast::channel('court-booking.{date}', function ($user, $date) {
 Broadcast::channel('court-booking.court.{courtId}.{date}', function ($user, $courtId, $date) {
     return (bool) $user;
 }, ['guards' => ['api', 'admin']]);
+
+Broadcast::channel('open-play.{id}', function ($user, $id) {
+    return true;
+}, ['guards' => ['api', 'admin']]);
+
+Broadcast::channel('open-plays', function ($user) {
+    return true;
+}, ['guards' => ['api', 'admin']]);

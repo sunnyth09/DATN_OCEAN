@@ -143,6 +143,7 @@ class CourtBooking {
   final String? customerPhone;
   final String? note;
   final List<CourtBookingPayment> payments;
+  final Map<String, dynamic>? openPlay;
 
   CourtBooking({
     required this.id,
@@ -162,12 +163,35 @@ class CourtBooking {
     this.customerPhone,
     this.note,
     this.payments = const [],
+    this.openPlay,
   });
 
   int get amountDue => totalAmount - paidAmount;
 
+  int get currentPlayersCount {
+    if (openPlay != null) {
+      if (openPlay!['confirmed_participants'] is List) {
+        return (openPlay!['confirmed_participants'] as List).length;
+      }
+      return _toInt(openPlay!['current_players'], fallback: 1);
+    }
+    return 1;
+  }
+
+  int get maxPlayersCount {
+    if (openPlay != null) {
+      return _toInt(openPlay!['max_players'], fallback: 4);
+    }
+    return 4;
+  }
+
+  int get remainingSlotsCount => (maxPlayersCount - currentPlayersCount).clamp(0, 12);
+
+  bool get isMatchFull => openPlay?['status'] == 'full' || currentPlayersCount >= maxPlayersCount;
+
   factory CourtBooking.fromJson(Map<String, dynamic> json) {
     final court = json['court'] is Map ? Map<String, dynamic>.from(json['court']) : null;
+    final openPlay = json['open_play'] is Map ? Map<String, dynamic>.from(json['open_play']) : null;
     final payments = json['payments'] is List
         ? (json['payments'] as List)
             .whereType<Map>()
@@ -193,6 +217,7 @@ class CourtBooking {
       customerPhone: json['customer_phone']?.toString(),
       note: json['note']?.toString(),
       payments: payments,
+      openPlay: openPlay,
     );
   }
 }

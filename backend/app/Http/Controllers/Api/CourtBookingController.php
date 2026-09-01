@@ -126,7 +126,11 @@ class CourtBookingController extends Controller
     public function index(Request $request)
     {
         $bookings = CourtBooking::where('user_id', auth()->guard('api')->id())
-            ->with(['court'])
+            ->with([
+                'court',
+                'openPlay.confirmedParticipants.user',
+                'openPlay.waitlists.user',
+            ])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -138,15 +142,29 @@ class CourtBookingController extends Controller
 
     /**
      * Lấy thông tin chi tiết một lịch đặt sân của người dùng hiện tại.
-     * Bao gồm cả dịch vụ, thanh toán và lịch sử thay đổi trạng thái.
+     * Bao gồm cả dịch vụ, thanh toán, lịch sử thay đổi trạng thái và người chơi Open Play.
      *
      * @param int $id ID của lượt đặt sân
      * @return \Illuminate\Http\JsonResponse
      */
     public function show($id)
     {
-        $booking = CourtBooking::where('user_id', auth()->guard('api')->id())
-            ->with(['court', 'services', 'payments', 'statusHistories'])
+        $userId = auth()->guard('api')->id();
+        $booking = CourtBooking::where(function ($q) use ($userId) {
+                $q->where('user_id', $userId)
+                  ->orWhereHas('openPlay.participants', function ($pq) use ($userId) {
+                      $pq->where('user_id', $userId);
+                  });
+            })
+            ->with([
+                'court',
+                'services',
+                'payments',
+                'statusHistories',
+                'user',
+                'openPlay.confirmedParticipants.user',
+                'openPlay.waitlists.user',
+            ])
             ->findOrFail($id);
 
         return response()->json([

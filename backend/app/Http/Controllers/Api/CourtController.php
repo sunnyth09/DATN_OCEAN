@@ -48,8 +48,12 @@ class CourtController extends Controller
     public function show($id)
     {
         $court = Court::with(['schedules', 'prices'])
-            ->where('court_id', $id)
-            ->orWhere('slug', $id)
+            ->where(function ($q) use ($id) {
+                if (is_numeric($id)) {
+                    $q->where('court_id', $id);
+                }
+                $q->orWhere('court_code', $id);
+            })
             ->firstOrFail();
 
         return response()->json([

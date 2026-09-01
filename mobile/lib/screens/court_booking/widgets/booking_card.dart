@@ -6,6 +6,7 @@ import '../../../config/app_theme.dart';
 import '../../../models/court_booking_models.dart';
 import '../../../widgets/app_toast.dart';
 import 'court_booking_chips.dart';
+import 'court_player_invite_sheet.dart';
 
 class BookingCard extends StatelessWidget {
   final CourtBooking booking;
@@ -265,6 +266,72 @@ class BookingCard extends StatelessWidget {
               ),
             ),
 
+            // ─── 2.5. PLAYER COLLABORATION INFO ──────────────────────
+            if (!isCancelled) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.people_alt_rounded, size: 15, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Người chơi: ${booking.currentPlayersCount}/${booking.maxPlayersCount}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    if (!booking.isMatchFull) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '(Còn ${booking.remainingSlotsCount} slot)',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF059669),
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    InkWell(
+                      onTap: () => CourtPlayerInviteSheet.show(context, booking: booking),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF0F5),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFFFD1DC)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person_add_alt_1_rounded, size: 12, color: AppColors.primary),
+                            SizedBox(width: 4),
+                            Text(
+                              'Mời bạn',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // ─── 3. ACTION BUTTONS ───────────────────────────────────
             if (showActions) ...[
               const SizedBox(height: 12),
@@ -298,6 +365,23 @@ class BookingCard extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: Color(0xFFFECACA)),
             backgroundColor: const Color(0xFFFEF2F2),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      if (['pending', 'confirmed', 'checked_in'].contains(booking.status))
+        OutlinedButton.icon(
+          onPressed: () => CourtPlayerInviteSheet.show(context, booking: booking),
+          icon: const Icon(Icons.people_rounded, size: 14, color: AppColors.primary),
+          label: const Text(
+            'Mời bạn chơi',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.primary),
+          ),
+          style: OutlinedButton.styleFrom(
+            backgroundColor: const Color(0xFFFFF0F5),
+            side: const BorderSide(color: Color(0xFFFFD1DC)),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             minimumSize: Size.zero,

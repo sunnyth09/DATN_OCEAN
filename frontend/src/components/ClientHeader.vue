@@ -593,7 +593,7 @@ watch(
                     <router-link
                         to="/courts"
                         class="nav-link"
-                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
+                        :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') || isRouteActive('open-plays-list') || isRouteActive('open-play-detail') }"
                     >
                         Sân thể thao
                     </router-link>
@@ -960,7 +960,7 @@ watch(
                             <router-link
                                 to="/courts"
                                 class="mobile-nav-link"
-                                :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') }"
+                                :class="{ active: isRouteActive('courts-list') || isRouteActive('court-detail') || isRouteActive('open-plays-list') || isRouteActive('open-play-detail') }"
                                 @click="closeMobileMenu"
                             >
                                 <span class="mobile-nav-link-left">

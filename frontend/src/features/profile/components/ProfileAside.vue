@@ -220,9 +220,26 @@
             <line x1="16" y1="2" x2="16" y2="6"></line>
             <line x1="8" y1="2" x2="8" y2="6"></line>
             <line x1="3" y1="10" x2="21" y2="10"></line>
+            <path d="m9 16 2 2 4-4"></path>
           </svg>
         </div>
         <span>Lịch đặt sân</span>
+      </router-link>
+
+      <router-link
+        to="/profile/open-plays"
+        class="aside-nav-item"
+        active-class="aside-nav-item--active"
+      >
+        <div class="aside-nav-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
+        <span>Trận đấu của tôi</span>
       </router-link>
 
       <div class="aside-nav-divider"></div>
@@ -259,14 +276,16 @@ const menuLabels = {
   '/profile/addresses': 'Sổ địa chỉ',
   '/profile/orders': 'Đơn hàng của tôi',
   '/profile/return-requests': 'Yêu cầu hoàn hàng',
+  '/profile/tickets': 'Khiếu nại của tôi',
   '/profile/wishlist': 'Sản phẩm yêu thích',
   '/profile/coupons': 'Mã giảm giá của tôi',
   '/profile/affiliate': 'Affiliate',
   '/profile/wallet': 'Ví tiền',
-  '/profile/rewards': 'Điểm thưởng',
+  '/profile/loyalty': 'Điểm thưởng',
   '/profile/change-password': 'Đổi mật khẩu',
   '/profile/notifications': 'Thông báo',
-  '/profile/bookings': 'Lịch đặt sân'
+  '/profile/court-bookings': 'Lịch đặt sân',
+  '/profile/open-plays': 'Trận đấu của tôi'
 };
 
 const currentMenuTitle = computed(() => {

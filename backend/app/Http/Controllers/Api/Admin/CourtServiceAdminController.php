@@ -116,4 +116,30 @@ class CourtServiceAdminController extends Controller
             'message' => 'Service deleted successfully.',
         ]);
     }
+
+    /**
+     * Upload ảnh dịch vụ
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image' => 'required|image|mimes:jpeg,png,jpg,webp,svg|max:5120',
+        ]);
+
+        $file = $request->file('image');
+        $path = $file->store('uploads/court_services', 'public');
+        $url = asset('storage/' . $path);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Service image uploaded successfully.',
+            'data' => [
+                'path' => $path,
+                'url' => $url,
+            ],
+        ]);
+    }
 }
