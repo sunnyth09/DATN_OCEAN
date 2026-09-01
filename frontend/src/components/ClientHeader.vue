@@ -26,6 +26,8 @@ const { unreadNotificationCount } = storeToRefs(authStore);
 const isLoggedIn = ref(false);
 const userName = ref("");
 const userEmail = ref("");
+const userTierName = ref(null);
+const userTierColor = ref(null);
 const userAvatar = ref(null);
 const isAdmin = ref(false);
 const showDropdown = ref(false);
@@ -305,6 +307,13 @@ const checkAuth = () => {
             userName.value = user.full_name || user.name || user.email;
             userEmail.value = user.email || "";
             isAdmin.value = ["admin", "staff", "seller"].includes(user.role);
+            if (user.tier) {
+                userTierName.value = user.tier.name;
+                userTierColor.value = user.tier.color;
+            } else {
+                userTierName.value = null;
+                userTierColor.value = null;
+            }
 
             const path = user.avatar_url;
             if (path) {
@@ -321,6 +330,8 @@ const checkAuth = () => {
         isLoggedIn.value = false;
         userName.value = "";
         userEmail.value = "";
+        userTierName.value = null;
+        userTierColor.value = null;
         isAdmin.value = false;
     }
 };
@@ -840,11 +851,17 @@ watch(
                                         {{ (userName || "?")[0].toUpperCase() }}
                                     </div>
                                     <div class="dropdown-user-text">
-                                        <div class="dropdown-name">
+                                        <div class="dropdown-name" style="display: flex; align-items: center; gap: 6px;">
                                             {{ userName }}
                                         </div>
                                         <div class="dropdown-email">
                                             {{ userEmail }}
+                                        </div>
+                                        <div v-if="userTierName" style="margin-top: 4px;">
+                                            <span class="vip-tier-badge" :style="{ backgroundColor: userTierColor || '#e5e7eb' }">
+                                                <AppIcon name="award" size="12" style="margin-right: 2px" />
+                                                Hạng: {{ userTierName }}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -1011,8 +1028,16 @@ watch(
                                 {{ (userName || "?")[0].toUpperCase() }}
                             </div>
                             <div class="mobile-account-text">
-                                <strong>{{ userName }}</strong>
+                                <strong style="display: flex; align-items: center; gap: 6px;">
+                                    {{ userName }}
+                                </strong>
                                 <span>{{ userEmail }}</span>
+                                <div v-if="userTierName" style="margin-top: 4px;">
+                                    <span class="vip-tier-badge" :style="{ backgroundColor: userTierColor || '#e5e7eb' }">
+                                        <AppIcon name="award" size="12" style="margin-right: 2px" />
+                                        Hạng: {{ userTierName }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <router-link to="/profile" class="mobile-account-link" @click="closeMobileMenu">Tài khoản của
@@ -1046,6 +1071,19 @@ watch(
 </template>
 
 <style scoped>
+.vip-tier-badge {
+    display: inline-flex;
+    align-items: center;
+    color: #fff;
+    font-size: 0.65rem;
+    padding: 2px 6px 2px 4px;
+    border-radius: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    line-height: 1.2;
+    transform: translateY(-1px);
+}
 .site-header {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);

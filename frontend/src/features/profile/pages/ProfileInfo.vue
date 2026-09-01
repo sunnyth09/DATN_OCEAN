@@ -42,7 +42,8 @@
           <div class="avatar-info">
             <h4 style="display: flex; align-items: center; gap: 8px;">
                 Ảnh đại diện
-                <span v-if="user.tier" :style="{ backgroundColor: user.tier.color || '#e5e7eb', color: '#000' }" class="tier-badge">
+                <span v-if="user.tier" :style="{ backgroundColor: user.tier.color || '#e5e7eb' }" class="tier-badge">
+                    <AppIcon name="award" size="14" style="margin-right: 4px" />
                     Hạng {{ user.tier.name }}
                 </span>
             </h4>
@@ -450,14 +451,17 @@ onUnmounted(() => {
 
 <style scoped>
 .tier-badge {
+  display: inline-flex;
+  align-items: center;
+  color: #fff !important;
   font-size: 0.75rem;
-  padding: 4px 10px;
+  padding: 4px 10px 4px 8px;
   border-radius: 20px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  display: inline-block;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  line-height: 1;
 }
 .profile-info {
   display: flex;
