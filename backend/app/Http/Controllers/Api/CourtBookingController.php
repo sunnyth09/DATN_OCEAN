@@ -154,14 +154,14 @@ class CourtBookingController extends Controller
                 });
         })
             ->with([
-            'court',
-            'services',
-            'payments',
-            'statusHistories',
-            'user',
-            'openPlay.confirmedParticipants.user',
-            'openPlay.waitlists.user',
-        ])
+                'court',
+                'services',
+                'payments',
+                'statusHistories',
+                'user',
+                'openPlay.confirmedParticipants.user',
+                'openPlay.waitlists.user',
+            ])
             ->findOrFail($id);
 
         return response()->json([
