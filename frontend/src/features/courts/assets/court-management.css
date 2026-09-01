@@ -2029,5 +2029,174 @@ html.dark .ocean-table th {
   transform: translateY(-1px);
 }
 
+/* =============================================================
+   Ocean Sport Unified Theme & Color System Overrides
+   ============================================================= */
+
+/* Universal Button Overrides in Court & Open Play Modules */
+.court-container .btn-primary,
+.my-open-plays-page .btn-primary,
+.open-play-detail-page .btn-primary,
+.court-btn-primary,
+.btn-ocean-pink {
+  background: linear-gradient(135deg, #e63b6f 0%, #d82b60 100%) !important;
+  border-color: #e63b6f !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(230, 59, 111, 0.28) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.court-container .btn-primary:hover,
+.my-open-plays-page .btn-primary:hover,
+.open-play-detail-page .btn-primary:hover,
+.court-btn-primary:hover,
+.btn-ocean-pink:hover {
+  background: linear-gradient(135deg, #f04e7f 0%, #c91e52 100%) !important;
+  border-color: #d82b60 !important;
+  color: #ffffff !important;
+  transform: translateY(-1.5px) !important;
+  box-shadow: 0 6px 18px rgba(230, 59, 111, 0.38) !important;
+}
+
+.court-container .btn-outline-primary,
+.my-open-plays-page .btn-outline-primary,
+.open-play-detail-page .btn-outline-primary,
+.court-btn-outline-primary {
+  color: #e63b6f !important;
+  border-color: #e63b6f !important;
+  background: transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+.court-container .btn-outline-primary:hover,
+.my-open-plays-page .btn-outline-primary:hover,
+.open-play-detail-page .btn-outline-primary:hover,
+.court-btn-outline-primary:hover {
+  background: #e63b6f !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(230, 59, 111, 0.25) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Modern Pill Badges (Soft Toned Colors) */
+.badge-skill-all {
+  background: rgba(230, 59, 111, 0.1) !important;
+  color: #e63b6f !important;
+  border: 1px solid rgba(230, 59, 111, 0.25) !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.76rem !important;
+}
+
+.badge-skill-beginner {
+  background: rgba(16, 185, 129, 0.1) !important;
+  color: #059669 !important;
+  border: 1px solid rgba(16, 185, 129, 0.25) !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.76rem !important;
+}
+
+.badge-skill-intermediate {
+  background: rgba(245, 158, 11, 0.1) !important;
+  color: #d97706 !important;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.76rem !important;
+}
+
+.badge-skill-advanced {
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #dc2626 !important;
+  border: 1px solid rgba(239, 68, 68, 0.25) !important;
+  font-weight: 700 !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.76rem !important;
+}
+
+.badge-gender-pill,
+.badge-match-pill {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.76rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.badge-split-payment {
+  background: rgba(16, 185, 129, 0.1) !important;
+  color: #059669 !important;
+  border: 1px solid rgba(16, 185, 129, 0.25) !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.76rem !important;
+}
+
+.badge-host-pays {
+  background: rgba(230, 59, 111, 0.1) !important;
+  color: #e63b6f !important;
+  border: 1px solid rgba(230, 59, 111, 0.25) !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.76rem !important;
+}
+
+/* Match Card Component */
+.open-play-match-card {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-left: 5px solid #e63b6f !important;
+  border-radius: 16px;
+  padding: 18px 22px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.open-play-match-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(230, 59, 111, 0.12);
+  border-color: #fbcfe8;
+}
+
+/* Host Avatar Capsule */
+.host-avatar-capsule {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e63b6f 0%, #ff6b8b 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(230, 59, 111, 0.25);
+  flex-shrink: 0;
+}
+
+/* Ocean Progress Bar */
+.court-container .progress-bar.bg-primary,
+.ocean-progress-bar {
+  background: linear-gradient(90deg, #e63b6f 0%, #ff6b8b 100%) !important;
+}
+
+/* Text Primary */
+.court-container .text-primary,
+.text-ocean-primary {
+  color: #e63b6f !important;
+}
+
 
 

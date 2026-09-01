@@ -114,27 +114,122 @@ class OceanExpressService
     }
 
     /**
-     * Create a shipment order in Ocean Express.
+     * Create a shipment order in Ocean Express with detailed error reporting.
      * Request body per API spec:
      *   receiver_name, receiver_phone, receiver_location_id,
      *   receiver_address_detail, weight, cod_amount
+     *
+     * @return array{success: bool, data?: array, tracking_number?: string, error?: string, status_code?: int}
      */
-    public static function createOrder(array $orderData): ?array
+    public static function createOrderDetailed(array $orderData): array
     {
         try {
             $response = self::client()->post(self::url('orders'), $orderData);
 
             if ($response->successful()) {
-                // Returns: { id, tracking_number, status, shipping_fee, estimated_delivery_time }
-                return $response->json('data');
+                $payload = $response->json('data') ?? $response->json();
+                $trackingNumber = $payload['tracking_number'] ?? $payload['tracking_code'] ?? $payload['code'] ?? null;
+
+                if ($trackingNumber) {
+                    return [
+                        'success' => true,
+                        'data' => $payload,
+                        'tracking_number' => $trackingNumber,
+                    ];
+                }
+
+                Log::warning('OceanExpress createOrder 200 but missing tracking_number: '.$response->body());
+                return [
+                    'success' => false,
+                    'status_code' => $response->status(),
+                    'error' => 'Phản hồi từ Ocean Express thành công nhưng không tìm thấy mã vận đơn (tracking_number).',
+                    'raw' => $response->json(),
+                ];
             }
 
-            Log::error('OceanExpress createOrder failed: '.$response->body());
+            $statusCode = $response->status();
+            $body = $response->json() ?? [];
+            $rawMsg = $body['message'] ?? $body['error'] ?? null;
+
+            // Thu thập các lỗi validation chi tiết từ API
+            if (isset($body['errors']) && is_array($body['errors'])) {
+                $fieldErrors = [];
+                foreach ($body['errors'] as $field => $messages) {
+                    $msgStr = is_array($messages) ? implode(', ', $messages) : (string) $messages;
+                    $fieldErrors[] = "{$field}: {$msgStr}";
+                }
+                $rawMsg = implode(' | ', $fieldErrors);
+            }
+
+            if (empty($rawMsg)) {
+                $rawMsg = $response->body() ?: "Mã phản hồi HTTP {$statusCode}";
+            }
+
+            // Dịch các thông báo lỗi phổ biến sang tiếng Việt rõ ràng
+            $friendlyMsg = self::formatApiErrorMessage($rawMsg, $statusCode);
+
+            Log::error("OceanExpress createOrder failed [HTTP {$statusCode}]: {$rawMsg}", [
+                'payload' => $orderData,
+                'response' => $body,
+            ]);
+
+            return [
+                'success' => false,
+                'status_code' => $statusCode,
+                'error' => $friendlyMsg,
+                'raw' => $body,
+            ];
         } catch (\Throwable $e) {
-            Log::error('OceanExpress createOrder error: '.$e->getMessage());
+            Log::error('OceanExpress createOrder error: '.$e->getMessage(), [
+                'payload' => $orderData,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'success' => false,
+                'status_code' => 500,
+                'error' => 'Không thể kết nối đến máy chủ Ocean Express: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Dịch thông báo lỗi thô từ API sang tiếng Việt dễ hiểu
+     */
+    private static function formatApiErrorMessage(string $rawMsg, int $statusCode): string
+    {
+        if ($statusCode === 401 || str_contains(strtolower($rawMsg), 'unauthenticated')) {
+            return 'Lỗi xác thực (401): OCEAN_EXPRESS_API_KEY chưa cấu hình hoặc không hợp lệ.';
+        }
+        if ($statusCode === 403) {
+            return 'Lỗi phân quyền (403): API Key không có quyền tạo đơn vận chuyển trên Ocean Express.';
+        }
+        if (str_contains($rawMsg, 'receiver_location_id')) {
+            return 'Mã địa chỉ (ward_code/receiver_location_id) không hợp lệ hoặc không tồn tại trên hệ thống Ocean Express.';
+        }
+        if (str_contains($rawMsg, 'receiver_phone')) {
+            return 'Số điện thoại người nhận không hợp lệ (cần 10 chữ số).';
+        }
+        if (str_contains($rawMsg, 'receiver_name')) {
+            return 'Tên người nhận hàng không được để trống.';
+        }
+        if (str_contains($rawMsg, 'weight')) {
+            return 'Trọng lượng gói hàng không hợp lệ (phải lớn hơn 0 gram).';
+        }
+        if ($statusCode >= 500) {
+            return "Máy chủ Ocean Express gặp sự cố nội bộ (HTTP {$statusCode}): {$rawMsg}";
         }
 
-        return null;
+        return "Ocean Express báo lỗi (HTTP {$statusCode}): {$rawMsg}";
+    }
+
+    /**
+     * Create a shipment order in Ocean Express (Tương thích ngược).
+     */
+    public static function createOrder(array $orderData): ?array
+    {
+        $res = self::createOrderDetailed($orderData);
+        return $res['success'] ? $res['data'] : null;
     }
 
     /**

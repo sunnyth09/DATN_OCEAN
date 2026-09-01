@@ -531,7 +531,38 @@ const syncGhn = async () => {
       fetchOrder();
     }
   } catch (error) {
-    toast.error(error.response?.data?.message || 'Không thể đồng bộ vận chuyển');
+    const errorMsg = error.response?.data?.message || 'Không thể đồng bộ vận chuyển';
+    toast.error(errorMsg);
+
+    Swal.fire({
+      title: 'Đẩy Đơn Vận Chuyển Thất Bại',
+      html: `
+        <div class="text-start">
+          <p class="text-danger fw-bold mb-2 small">Chi tiết lỗi từ Ocean Express:</p>
+          <div class="p-2.5 bg-light border border-danger-subtle rounded small text-dark mb-3" style="font-size: 0.85rem; line-height: 1.4;">
+            ${errorMsg}
+          </div>
+          <div class="small text-muted">
+            <strong class="text-dark">💡 Hướng dẫn vá lỗi kịp thời:</strong>
+            <ul class="mb-0 ps-3 mt-1">
+              <li>Kiểm tra lại SĐT người nhận (10 chữ số).</li>
+              <li>Kiểm tra mã địa chỉ phường/xã (ward_code) có hợp lệ không.</li>
+              <li>Hoặc bấm <strong>"Tự Giao Hàng"</strong> để đẩy đơn sang Đang Giao ngay lập tức!</li>
+            </ul>
+          </div>
+        </div>
+      `,
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Chuyển sang Tự Giao Hàng',
+      cancelButtonText: 'Đóng & Kiểm tra lại'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        confirmSelfDelivery();
+      }
+    });
   } finally {
     isSyncingGhn.value = false;
   }

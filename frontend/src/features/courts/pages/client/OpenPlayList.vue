@@ -141,19 +141,48 @@ const formatDateDisplay = (dateStr) => {
 
 const getSkillBadge = (level) => {
   const map = {
-    all: { text: 'Mọi trình độ', class: 'bg-primary' },
-    beginner: { text: 'Mới chơi', class: 'bg-success' },
-    intermediate: { text: 'Trung bình', class: 'bg-warning text-dark' },
-    advanced: { text: 'Nâng cao', class: 'bg-danger' }
+    all: { text: 'Mọi trình độ', class: 'badge-skill-all' },
+    all_levels: { text: 'Mọi trình độ', class: 'badge-skill-all' },
+    beginner: { text: 'Mới chơi', class: 'badge-skill-beginner' },
+    intermediate: { text: 'Trung bình', class: 'badge-skill-intermediate' },
+    advanced: { text: 'Nâng cao', class: 'badge-skill-advanced' }
   };
-  return map[level] || { text: level, class: 'bg-secondary' };
+  return map[level] || { text: level, class: 'badge-skill-all' };
+};
+
+const getGenderBadge = (gender) => {
+  const map = {
+    all: 'Nam & Nữ',
+    any: 'Nam & Nữ',
+    male_only: 'Chỉ Nam',
+    male: 'Chỉ Nam',
+    female_only: 'Chỉ Nữ',
+    female: 'Chỉ Nữ',
+    mixed: 'Đôi Nam Nữ'
+  };
+  return map[gender] || 'Không giới hạn';
+};
+
+const getMatchTypeBadge = (type) => {
+  const map = {
+    single: 'Đánh đơn',
+    singles: 'Đánh đơn',
+    double: 'Đánh đôi',
+    doubles: 'Đánh đôi',
+    mixed: 'Đôi nam nữ',
+    any: 'Tự do'
+  };
+  return map[type] || 'Giao lưu';
 };
 
 const getGenderLabel = (gender) => {
   const map = {
     any: 'Không giới hạn',
+    all: 'Không giới hạn',
     male: 'Nam',
+    male_only: 'Nam',
     female: 'Nữ',
+    female_only: 'Nữ',
     mixed: 'Nam/Nữ'
   };
   return map[gender] || gender;
@@ -171,7 +200,7 @@ const getCourtTypeLabel = (type) => {
 </script>
 
 <template>
-  <div class="container py-3 py-md-4">
+  <div class="court-container container py-3 py-md-4">
     <!-- Sleek Segmented Sub-Nav Bar -->
     <div class="court-subnav-bar">
       <div class="court-segmented-control">
@@ -429,27 +458,26 @@ const getCourtTypeLabel = (type) => {
         <div v-else class="row g-3">
           <div v-for="match in openPlayStore.matches" :key="match.id" class="col-12">
             <div
-              class="card border-0 shadow-sm rounded-4 p-3 p-md-4 transition-all hover-lift cursor-pointer"
-              style="border-left: 5px solid #e63b6f !important;"
+              class="open-play-match-card"
               @click="goToDetail(match.id)"
             >
               <div class="row align-items-center g-3">
                 <!-- Left Details -->
                 <div class="col-md-7">
                   <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                    <span class="badge rounded-pill" :class="getSkillBadge(match.skill_level).class">
+                    <span :class="getSkillBadge(match.skill_level).class">
                       {{ getSkillBadge(match.skill_level).text }}
                     </span>
-                    <span class="badge bg-light text-dark border">
-                      <i class="bi bi-gender-ambiguous me-1"></i>{{ getGenderBadge(match.gender_rule) }}
+                    <span class="badge-gender-pill">
+                      <i class="bi bi-gender-ambiguous me-1 text-ocean-primary"></i>{{ getGenderBadge(match.gender_rule) }}
                     </span>
-                    <span class="badge bg-light text-dark border">
-                      <i class="bi bi-controller me-1"></i>{{ getMatchTypeBadge(match.match_type) }}
+                    <span class="badge-match-pill">
+                      <i class="bi bi-controller me-1 text-ocean-primary"></i>{{ getMatchTypeBadge(match.match_type) }}
                     </span>
-                    <span v-if="match.payment_mode === 'split_payment'" class="badge bg-success-subtle text-success border border-success-subtle">
+                    <span v-if="match.payment_mode === 'split_payment'" class="badge-split-payment">
                       <i class="bi bi-cash-coin me-1"></i>Chia tiền sân
                     </span>
-                    <span v-else class="badge bg-secondary-subtle text-secondary border">
+                    <span v-else class="badge-host-pays">
                       <i class="bi bi-gift me-1"></i>Host bao sân
                     </span>
                   </div>
@@ -461,11 +489,11 @@ const getCourtTypeLabel = (type) => {
 
                   <div class="d-flex flex-wrap gap-3 text-secondary small mt-2">
                     <div class="d-flex align-items-center gap-1">
-                      <i class="bi bi-calendar3 text-primary"></i>
+                      <i class="bi bi-calendar3 text-ocean-primary"></i>
                       <span>{{ formatDateDisplay(match.booking?.booking_date) }}</span>
                     </div>
                     <div class="d-flex align-items-center gap-1">
-                      <i class="bi bi-clock text-primary"></i>
+                      <i class="bi bi-clock text-ocean-primary"></i>
                       <span class="fw-semibold">{{ formatTime(match.booking?.start_time) }} - {{ formatTime(match.booking?.end_time) }}</span>
                     </div>
                     <div class="d-flex align-items-center gap-1">
@@ -476,7 +504,7 @@ const getCourtTypeLabel = (type) => {
 
                   <!-- Host info -->
                   <div class="d-flex align-items-center gap-2 mt-3 pt-2 border-top">
-                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 28px; height: 28px; font-size: 0.8rem;">
+                    <div class="host-avatar-capsule">
                       {{ (match.host?.full_name || 'H')[0].toUpperCase() }}
                     </div>
                     <span class="small text-secondary">
@@ -494,14 +522,14 @@ const getCourtTypeLabel = (type) => {
                     <div class="d-flex justify-content-between align-items-center mb-1">
                       <span class="small fw-semibold text-secondary">Số lượng người chơi</span>
                       <span class="fw-bold fs-6 text-dark">
-                        <strong class="text-primary">{{ match.current_players }}</strong> / {{ match.max_players }}
+                        <strong class="text-ocean-primary">{{ match.current_players }}</strong> / {{ match.max_players }}
                       </span>
                     </div>
 
                     <!-- Progress bar -->
                     <div class="progress mb-2" style="height: 8px;">
                       <div
-                        class="progress-bar"
+                        class="progress-bar ocean-progress-bar"
                         :class="match.current_players >= match.max_players ? 'bg-danger' : 'bg-primary'"
                         role="progressbar"
                         :style="{ width: ((match.current_players / match.max_players) * 100) + '%' }"
@@ -518,7 +546,7 @@ const getCourtTypeLabel = (type) => {
                       <span v-if="match.payment_mode === 'split_payment'" class="fw-bold text-dark">
                         {{ formatCurrency(match.slot_price) }} / người
                       </span>
-                      <span v-else class="badge bg-success text-white">
+                      <span v-else class="badge-split-payment">
                         Miễn phí
                       </span>
                     </div>

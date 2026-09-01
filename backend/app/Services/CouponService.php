@@ -19,11 +19,49 @@ class CouponService
     // ─── ADMIN CRUD ────────────────────────────────────────────────────
 
     /**
-     * Admin: danh sách coupon (kèm categories + thống kê lượt dùng), phân trang.
+     * Admin: danh sách coupon (kèm categories + thống kê lượt dùng), phân trang và lọc thùng rác/trạng thái.
      */
-    public function adminPaginate(int $perPage = 20)
+    public function adminPaginate(array $filters = [], int $perPage = 20)
     {
-        $coupons = Coupon::with(['categories:category_id,name', 'userCoupons'])->paginate($perPage);
+        $query = Coupon::with(['categories:category_id,name', 'userCoupons']);
+
+        // Xử lý thùng rác (soft deletes)
+        $trashed = $filters['trashed'] ?? null;
+        if ($trashed === 'only' || $trashed === 'trash' || $trashed === 'deleted') {
+            $query->onlyTrashed();
+        } elseif ($trashed === 'with') {
+            $query->withTrashed();
+        }
+
+        // Lọc theo trạng thái
+        $status = $filters['status'] ?? null;
+        if (! empty($status) && $status !== 'all') {
+            if ($status === 'active') {
+                $query->where('is_active', true)
+                    ->where(function ($q) {
+                        $q->whereNull('end_date')
+                            ->orWhere('end_date', '>=', now());
+                    });
+            } elseif ($status === 'expired') {
+                $query->whereNotNull('end_date')->where('end_date', '<', now());
+            } elseif ($status === 'inactive') {
+                $query->where('is_active', false);
+            }
+        }
+
+        // Tìm kiếm theo code
+        $search = $filters['search'] ?? null;
+        if (! empty($search)) {
+            $query->where('code', 'LIKE', "%{$search}%");
+        }
+
+        if ($trashed === 'only' || $trashed === 'trash' || $trashed === 'deleted') {
+            $query->orderByDesc('deleted_at');
+        } else {
+            $query->orderByDesc('id');
+        }
+
+        $coupons = $query->paginate($perPage);
 
         collect($coupons->items())->each(function ($coupon) {
             $coupon->total_users_used = $coupon->userCoupons->where('used_count', '>', 0)->count();
@@ -31,6 +69,23 @@ class CouponService
         });
 
         return $coupons;
+    }
+
+    /**
+     * Thống kê số lượng coupon theo từng tab trạng thái.
+     */
+    public function getCounts(): array
+    {
+        return [
+            'all' => Coupon::count(),
+            'active' => Coupon::where('is_active', true)
+                ->where(function ($q) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+                })->count(),
+            'expired' => Coupon::whereNotNull('end_date')->where('end_date', '<', now())->count(),
+            'inactive' => Coupon::where('is_active', false)->count(),
+            'trashed' => Coupon::onlyTrashed()->count(),
+        ];
     }
 
     /**
@@ -90,6 +145,68 @@ class CouponService
         Cache::forget('coupons:public_active');
 
         return true;
+    }
+
+    /**
+     * Admin: khôi phục coupon đã xóa mềm.
+     */
+    public function adminRestore($id): bool
+    {
+        $coupon = Coupon::onlyTrashed()->find($id);
+        if (! $coupon) {
+            return false;
+        }
+
+        $coupon->restore();
+        Cache::forget('coupons:public_active');
+
+        return true;
+    }
+
+    /**
+     * Admin: xóa vĩnh viễn coupon.
+     */
+    public function adminForceDelete($id): bool
+    {
+        $coupon = Coupon::withTrashed()->find($id);
+        if (! $coupon) {
+            return false;
+        }
+
+        $coupon->forceDelete();
+        Cache::forget('coupons:public_active');
+
+        return true;
+    }
+
+    /**
+     * Admin: khôi phục hàng loạt coupon.
+     */
+    public function adminBulkRestore(array $ids): int
+    {
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $count = Coupon::onlyTrashed()->whereIn('id', $ids)->restore();
+        Cache::forget('coupons:public_active');
+
+        return $count;
+    }
+
+    /**
+     * Admin: xóa vĩnh viễn hàng loạt coupon.
+     */
+    public function adminBulkForceDelete(array $ids): int
+    {
+        if (empty($ids)) {
+            return 0;
+        }
+
+        $count = Coupon::withTrashed()->whereIn('id', $ids)->forceDelete();
+        Cache::forget('coupons:public_active');
+
+        return $count;
     }
 
     /**

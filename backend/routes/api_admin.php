@@ -29,6 +29,7 @@ use App\Http\Controllers\FaceEncodingController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\PostCommentController;
+use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProductCommentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\TicketController;
@@ -50,12 +51,16 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     Route::get('/user-rewards', [UserRewardAdminController::class, 'index']);
     Route::put('/user-rewards/{id}/status', [UserRewardAdminController::class, 'updateStatus']);
 
-    // Quản lý Khách hàng (Thêm/Sửa/Xóa/Phân quyền)
+    // Quản lý Khách hàng (Thêm/Sửa/Xóa/Phân quyền/Thùng rác)
     Route::post('/users', [AdminUserController::class, 'store']);
     Route::put('/users/{id}', [AdminUserController::class, 'update']);
     Route::delete('/users/{id}', [AdminUserController::class, 'destroy']);
     Route::put('/users/{id}/role', [AdminUserController::class, 'updateRole']);
     Route::put('/users/{id}/status', [AdminUserController::class, 'updateStatus']);
+    Route::post('/users/{id}/restore', [AdminUserController::class, 'restore']);
+    Route::delete('/users/{id}/force', [AdminUserController::class, 'forceDelete']);
+    Route::post('/users/bulk-restore', [AdminUserController::class, 'bulkRestore']);
+    Route::post('/users/bulk-force-delete', [AdminUserController::class, 'bulkForceDelete']);
 
     // Quản lý Nhân sự (Chỉ Admin)
     Route::get('/staff', [AdminStaffController::class, 'index']);
@@ -68,12 +73,23 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
     // Quản lý Liên hệ (Xóa)
     Route::delete('/contacts/{id}', [ContactController::class, 'destroy']);
 
-    // Quản lý Mã giảm giá (Chỉ Admin tạo/sửa/xóa)
+    // Quản lý Mã giảm giá (Chỉ Admin tạo/sửa/xóa/thùng rác)
+    Route::get('/coupons/counts', [CouponController::class, 'counts']);
     Route::get('/coupons', [CouponController::class, 'index']);
     Route::post('/coupons', [CouponController::class, 'store']);
     Route::put('/coupons/{id}', [CouponController::class, 'update']);
     Route::delete('/coupons/{id}', [CouponController::class, 'destroy']);
+    Route::post('/coupons/{id}/restore', [CouponController::class, 'restore']);
+    Route::delete('/coupons/{id}/force', [CouponController::class, 'forceDelete']);
+    Route::post('/coupons/bulk-restore', [CouponController::class, 'bulkRestore']);
+    Route::post('/coupons/bulk-force-delete', [CouponController::class, 'bulkForceDelete']);
     Route::get('/coupons/{id}/usages', [CouponController::class, 'getCouponUsages']);
+
+    // Quản lý Bài viết (Thùng rác & Khôi phục & Xóa vĩnh viễn)
+    Route::post('/posts/{id}/restore', [PostController::class, 'restore']);
+    Route::delete('/posts/{id}/force', [PostController::class, 'forceDelete']);
+    Route::post('/posts/bulk-restore', [PostController::class, 'bulkRestore']);
+    Route::post('/posts/bulk-force-delete', [PostController::class, 'bulkForceDelete']);
 
     // ── Combo/Bundle (Flash Sale Combo + Auto Voucher) ──
     Route::post('/combos/flash-sale', [ComboController::class, 'storeFlashCombo']);
@@ -148,7 +164,8 @@ Route::middleware(['auth:api,admin', 'role:admin'])->prefix('admin')->group(func
 // ==========================================
 // NHÓM 2: BÁN HÀNG & CHĂM SÓC KHÁCH HÀNG (admin, seller)
 Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->group(function () {
-    // Quản lý Khách hàng (Chỉ Xem)
+    // Quản lý Khách hàng (Chỉ Xem & Thống kê)
+    Route::get('/users/counts', [AdminUserController::class, 'counts']);
     Route::get('/users', [AdminUserController::class, 'index']);
     Route::get('/users/{id}', [AdminUserController::class, 'show']);
 
@@ -169,6 +186,9 @@ Route::middleware(['auth:api,admin', 'role:admin,seller'])->prefix('admin')->gro
     Route::get('/post-comments', [PostCommentController::class, 'adminIndex']);
     Route::put('/post-comments/{id}/approve', [PostCommentController::class, 'approve']);
     Route::delete('/post-comments/{id}', [PostCommentController::class, 'destroy']);
+
+    // Quản lý Bài viết (Thống kê)
+    Route::get('/posts/counts', [PostController::class, 'counts']);
 
     // Quản lý Liên hệ (Xem và trả lời)
     Route::get('/contacts/pending-count', [ContactController::class, 'pendingCount']);
