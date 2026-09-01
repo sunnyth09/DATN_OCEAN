@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class PosService
 {
+    public function __construct(
+        protected CouponService $couponService
+    ) {}
+
     /**
      * Quét barcode → 1 variant active.
      *
@@ -103,7 +107,15 @@ class PosService
             }
         }
 
-        return DB::transaction(function () use ($data, $staffId, $customerId, $customerName) {
+        // Tra cứu coupon nếu có truyền
+        $coupon = null;
+        if (! empty($data['coupon_id'])) {
+            $coupon = \App\Models\Coupon::find($data['coupon_id']);
+        } elseif (! empty($data['coupon_code'])) {
+            $coupon = \App\Models\Coupon::where('code', $data['coupon_code'])->first();
+        }
+
+        return DB::transaction(function () use ($data, $staffId, $customerId, $customerName, $coupon) {
             $subtotal = 0;
             $itemsData = [];
 
@@ -141,6 +153,7 @@ class PosService
                 'order_type' => 'pos',
                 'user_id' => $customerId,
                 'seller_id' => $staffId,
+                'promotion_id' => $coupon ? $coupon->id : null,
                 'recipient_name' => ! empty($customerName) ? $customerName : 'Khách lẻ',
                 'recipient_phone' => ! empty($data['customer_phone']) ? $data['customer_phone'] : '',
                 'shipping_address' => 'Mua tại cửa hàng',
@@ -177,6 +190,11 @@ class PosService
                     Product::where('product_id', $v->product_id)
                         ->increment('sold_count', $row['quantity']);
                 }
+            }
+
+            // Ghi nhận lượt sử dụng cho mã giảm giá (voucher)
+            if ($coupon) {
+                $this->couponService->markCouponAsUsed($customerId ?? 0, $coupon);
             }
 
             OrderStatusHistory::create([

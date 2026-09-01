@@ -177,12 +177,26 @@ const fetchCoupons = async () => {
     }
 };
 
-const applyCoupon = () => {
+const applyCoupon = async () => {
     if (!couponCode.value.trim()) {
       toast.error('Vui lòng nhập mã giảm giá');
       return;
     }
-    const found = availableCoupons.value.find(c => c.code.toUpperCase() === couponCode.value.trim().toUpperCase());
+    const code = couponCode.value.trim().toUpperCase();
+    let found = availableCoupons.value.find(c => c.code.toUpperCase() === code);
+    
+    if (!found) {
+      try {
+        const res = await api.post('/coupons/check', { code, subtotal: subtotal.value });
+        if (res.data.status === 'success' && res.data.data) {
+          found = res.data.data;
+        }
+      } catch (e) {
+        toast.error(e.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc hết hạn');
+        return;
+      }
+    }
+
     if (found) {
         if (subtotal.value < (found.min_order_value || 0)) {
             toast.error(`Đơn tối thiểu phải từ ${formatPrice(found.min_order_value)}`);
@@ -343,7 +357,9 @@ const handleCheckout = async () => {
       customer_phone: customerPhone.value,
       payment_method: paymentMethod.value,
       note: note.value,
-      discount_amount: discountAmount.value
+      discount_amount: discountAmount.value,
+      coupon_code: appliedCoupon.value?.code || null,
+      coupon_id: appliedCoupon.value?.id || null
     };
     const res = await api.post('/admin/pos/checkout', payload);
     if (res.data.status === 'success') {
