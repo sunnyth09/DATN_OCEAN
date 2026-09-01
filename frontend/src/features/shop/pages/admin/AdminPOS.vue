@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import { getStorageUrl } from '@/utils/url';
@@ -301,6 +301,25 @@ const subtotal = computed(() => {
 
 const grandTotal = computed(() => {
   return Math.max(0, subtotal.value - discountAmount.value);
+});
+
+watch(subtotal, (newSubtotal) => {
+  if (appliedCoupon.value) {
+    if (newSubtotal === 0 || newSubtotal < (appliedCoupon.value.min_order_value || 0)) {
+      const couponName = appliedCoupon.value.code;
+      const minVal = formatPrice(appliedCoupon.value.min_order_value || 0);
+      removeCoupon();
+      toast.error(`Mã ${couponName} đã bị tự động gỡ do tổng tiền không đủ đơn tối thiểu (${minVal})`);
+    } else {
+      let discount = 0;
+      if (appliedCoupon.value.type === 'fixed') discount = appliedCoupon.value.value;
+      else if (appliedCoupon.value.type === 'percent') discount = newSubtotal * (appliedCoupon.value.value / 100);
+      if (appliedCoupon.value.max_discount_value && discount > appliedCoupon.value.max_discount_value) {
+        discount = appliedCoupon.value.max_discount_value;
+      }
+      discountAmount.value = discount;
+    }
+  }
 });
 
 const isDownloadingPdf = ref(false);

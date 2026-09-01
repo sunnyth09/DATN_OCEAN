@@ -145,8 +145,38 @@ class PosService
                 ];
             }
 
-            $discountAmount = min($data['discount_amount'] ?? 0, $subtotal);
-            $grandTotal = $subtotal - $discountAmount;
+            $discountAmount = 0;
+            if ($coupon) {
+                if (! $coupon->is_active) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" hiện đang tạm ngưng áp dụng.');
+                }
+                if ($coupon->start_date && now()->lt($coupon->start_date)) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" chưa đến thời gian áp dụng.');
+                }
+                if ($coupon->end_date && now()->gt($coupon->end_date)) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" đã hết hạn sử dụng.');
+                }
+                if ($coupon->min_order_value && $subtotal < $coupon->min_order_value) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" yêu cầu giá trị đơn hàng tối thiểu từ '.number_format($coupon->min_order_value, 0, ',', '.').' đ.');
+                }
+                if ($coupon->usage_limit !== null && $coupon->used_count >= $coupon->usage_limit) {
+                    throw new \Exception('Mã giảm giá "'.$coupon->code.'" đã hết lượt sử dụng.');
+                }
+
+                if ($coupon->type === 'percent') {
+                    $discountAmount = ($subtotal * $coupon->value) / 100;
+                    if ($coupon->max_discount_value) {
+                        $discountAmount = min($discountAmount, $coupon->max_discount_value);
+                    }
+                } elseif ($coupon->type === 'fixed') {
+                    $discountAmount = min($coupon->value, $subtotal);
+                }
+                $discountAmount = min($discountAmount, $subtotal);
+            } else {
+                $discountAmount = min($data['discount_amount'] ?? 0, $subtotal);
+            }
+
+            $grandTotal = max(0, $subtotal - $discountAmount);
 
             $order = Order::create([
                 'order_code' => 'POS'.strtoupper(uniqid()).rand(10, 99),
