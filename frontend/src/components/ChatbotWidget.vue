@@ -1828,15 +1828,15 @@ async function sendMessage() {
     right: 14px;
   }
   .chatbot-bubble {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     min-height: unset;
     aspect-ratio: 1 / 1;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 14px rgba(230, 59, 111, 0.35);
   }
   .chatbot-bubble svg {
-    width: 19px;
-    height: 19px;
+    width: 20px;
+    height: 20px;
   }
 
   /* Khi Chatbot mở trên Mobile: Full Bottom Sheet Drawer Modal chuẩn app */
@@ -1849,9 +1849,9 @@ async function sendMessage() {
     left: 0;
     right: 0;
     top: 0;
-    background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
@@ -1866,28 +1866,51 @@ async function sendMessage() {
   .chatbot-window {
     position: relative;
     width: 100vw;
-    height: 88dvh;
-    max-height: 88dvh;
+    height: 92dvh;
+    max-height: 92dvh;
     bottom: 0;
     left: 0;
     right: 0;
-    border-radius: 20px 20px 0 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+    border-radius: 24px 24px 0 0;
+    border: none;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.35);
     display: flex;
     flex-direction: column;
   }
 
   .chatbot-wrapper.on-product-detail .chatbot-window {
     bottom: 0;
-    height: 88dvh;
+    height: 92dvh;
   }
 
   .chat-header {
-    border-radius: 20px 20px 0 0;
-    padding: 14px 16px;
+    position: relative;
+    border-radius: 24px 24px 0 0;
+    padding: 18px 16px 14px;
+  }
+
+  .chat-header::before {
+    content: '';
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.45);
+    border-radius: 9999px;
+  }
+
+  .chat-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .chat-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
   }
 
   .chat-messages {
@@ -1895,16 +1918,12 @@ async function sendMessage() {
     padding: 12px 14px;
   }
 
-  .chat-input-area {
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-  }
-
   .quick-actions {
     flex-wrap: nowrap;
     overflow-x: auto;
-    gap: 6px;
-    padding: 8px 12px;
-    max-height: 48px;
+    gap: 8px;
+    padding: 10px 14px;
+    max-height: 52px;
     scrollbar-width: none;
     -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
@@ -1913,12 +1932,70 @@ async function sendMessage() {
     display: none;
   }
   .quick-slide-enter-active, .quick-slide-leave-active {
-    max-height: 48px;
+    max-height: 52px;
   }
   .quick-action-btn {
     white-space: nowrap;
     flex-shrink: 0;
-    padding: 5px 12px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .quick-action-btn:active {
+    background: #fff1f5;
+    border-color: #f472b6;
+    color: var(--primary, #e63b6f);
+    transform: scale(0.97);
+  }
+
+  .chat-input-area {
+    padding: 10px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+    align-items: center;
+    background: #ffffff;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .chat-input {
+    min-height: 40px;
+    border-radius: 20px;
+    padding: 9px 16px;
+    font-size: 0.92rem;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+  }
+
+  .chat-input:focus {
+    border-color: var(--primary, #e63b6f);
+    background: #ffffff;
+    box-shadow: 0 0 0 3px rgba(230, 59, 111, 0.1);
+  }
+
+  .quick-toggle-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+  }
+  .quick-toggle-btn.active {
+    background: #fff1f5;
+    border-color: #f472b6;
+    color: var(--primary, #e63b6f);
+    box-shadow: 0 2px 8px rgba(230, 59, 111, 0.15);
+  }
+
+  .chat-send-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary, #e63b6f), #d82f65);
   }
 }
 </style>
