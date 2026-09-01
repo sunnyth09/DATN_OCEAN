@@ -417,6 +417,39 @@ const getOtherDiscount = (orderData) => {
   return remaining > 0 ? remaining : 0;
 };
 
+const isPosOrder = computed(() => {
+  if (!order.value) return false;
+  return order.value.order_type === 'pos' || order.value.order_code?.startsWith('POS');
+});
+
+const isPosGuest = computed(() => {
+  if (!order.value) return false;
+  if (!isPosOrder.value) return false;
+  return !order.value.user_id || order.value.user_id === order.value.seller_id;
+});
+
+const isDownloadingPosPdf = ref(false);
+const downloadPosReceipt = async () => {
+  if (!order.value) return;
+  try {
+    isDownloadingPosPdf.value = true;
+    const response = await api.get(`/admin/pos/orders/${order.value.order_id}/receipt-pdf`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `hoadon_${order.value.order_code}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+    toast.success('Đã tải hóa đơn POS thành công!');
+  } catch (error) {
+    toast.error('Lỗi khi tải hóa đơn POS. Vui lòng thử lại!');
+    console.error('POS receipt error:', error);
+  } finally {
+    isDownloadingPosPdf.value = false;
+  }
+};
+
 const formatDate = (dateString) => {
   if (!dateString) return '—';
   const date = new Date(dateString);
@@ -797,7 +830,11 @@ onMounted(() => fetchOrder());
             <p class="page-sub">Ngày đặt: {{ formatDate(order.created_at) }}</p>
           </div>
         </div>
-        <div class="header-badges">
+        <div class="header-badges" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button v-if="isPosOrder" class="btn-print-pos" @click="downloadPosReceipt" :disabled="isDownloadingPosPdf" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 8px; background: #0284c7; color: #fff; font-size: 0.82rem; font-weight: 700; border: none; cursor: pointer; transition: background 0.2s;" title="Tải/In hóa đơn bán hàng tại quầy">
+            <AppIcon name="printer" size="15" />
+            <span>{{ isDownloadingPosPdf ? 'Đang tải...' : 'In hóa đơn POS' }}</span>
+          </button>
           <span class="status-badge" :class="getStatusBadgeClass(order.fulfillment_status)">{{ getStatusLabel(order.fulfillment_status) }}</span>
           <span class="status-badge" :class="getPaymentBadgeClass(order.payment_status)">{{ paymentLabels[order.payment_status] || order.payment_status }}</span>
         </div>
@@ -973,22 +1010,29 @@ onMounted(() => fetchOrder());
 
           <!-- Thông tin khách hàng -->
           <div class="info-card">
-            <h3 class="card-title">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Khách hàng
+            <h3 class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Khách hàng
+              </div>
+              <span v-if="isPosOrder" class="status-badge badge-info sm">Đơn tại quầy (POS)</span>
             </h3>
             <div class="info-rows">
               <div class="info-row">
                 <span class="info-label">Tên</span>
-                <span class="info-value">{{ order.user?.name || order.recipient_name }}</span>
+                <span class="info-value fw-bold">{{ isPosGuest ? (order.recipient_name || 'Khách lẻ') : (order.user?.full_name || order.user?.name || order.recipient_name || 'Khách lẻ') }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Email</span>
-                <span class="info-value">{{ order.user?.email || '—' }}</span>
+                <span class="info-value">{{ isPosGuest ? '—' : (order.user?.email || '—') }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Điện thoại</span>
-                <span class="info-value">{{ order.user?.phone || '—' }}</span>
+                <span class="info-value">{{ order.recipient_phone || (isPosGuest ? '—' : order.user?.phone) || '—' }}</span>
+              </div>
+              <div class="info-row" v-if="order.seller">
+                <span class="info-label">Thu ngân</span>
+                <span class="info-value">{{ order.seller.full_name || order.seller.name }}</span>
               </div>
             </div>
           </div>

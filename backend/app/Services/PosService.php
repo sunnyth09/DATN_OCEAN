@@ -139,7 +139,7 @@ class PosService
             $order = Order::create([
                 'order_code' => 'POS'.strtoupper(uniqid()).rand(10, 99),
                 'order_type' => 'pos',
-                'user_id' => $customerId ?? $staffId,
+                'user_id' => $customerId,
                 'seller_id' => $staffId,
                 'recipient_name' => ! empty($customerName) ? $customerName : 'Khách lẻ',
                 'recipient_phone' => ! empty($data['customer_phone']) ? $data['customer_phone'] : '',
@@ -196,7 +196,7 @@ class PosService
      */
     public function findOrderForReceipt($id): ?Order
     {
-        return Order::with('items')->find($id);
+        return Order::with(['items', 'seller', 'user'])->find($id);
     }
 
     private function formatVariantResponse($variant): array
