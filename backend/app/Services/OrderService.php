@@ -92,6 +92,7 @@ class OrderService
             // Mua nhanh (Buy Now): đặt trực tiếp sản phẩm được truyền vào,
             // KHÔNG lấy từ giỏ hàng và KHÔNG ảnh hưởng tới giỏ hàng hiện có.
             $isDirectOrder = ! empty($data['items']) && is_array($data['items']);
+            $isFlashSaleOrder = ! empty($data['flash_sale_id']);
             $cart = null;
             $isAbandonedCheckout = false;
 
@@ -122,7 +123,7 @@ class OrderService
 
             $couponResult = $this->couponService->applyCoupon(
                 $userId,
-                $data['coupon_applied'] ?? null,
+                $isFlashSaleOrder ? null : ($data['coupon_applied'] ?? null),
                 $subtotal
             );
 
@@ -145,7 +146,7 @@ class OrderService
             $comboDiscount = $comboResult['discount_amount'];
 
             // === TÍNH TOÁN ĐIỂM THƯỞNG ===
-            $rewardPointsUsed = (int) ($data['reward_points_used'] ?? 0);
+            $rewardPointsUsed = $isFlashSaleOrder ? 0 : (int) ($data['reward_points_used'] ?? 0);
             $rewardDiscount = 0;
             if ($rewardPointsUsed > 0) {
 
@@ -164,7 +165,7 @@ class OrderService
 
             // === TÍNH TOÁN GIẢM GIÁ HẠNG THÀNH VIÊN ===
             $tierDiscountAmount = 0;
-            if ($user && $user->tier_id && $user->tier) {
+            if (!$isFlashSaleOrder && $user && $user->tier_id && $user->tier) {
                 $tierDiscountAmount = round(($subtotal * $user->tier->discount_percent) / 100, 2);
                 $discountAmount += $tierDiscountAmount;
             }
@@ -172,8 +173,8 @@ class OrderService
             $grandTotal = max(0, $subtotal + $shippingFee - $discountAmount - $comboDiscount);
 
             // ── Wallet Discount ──────────────────────────────────────────
-            $useDeposit = ! empty($data['use_deposit']);
-            $useCommission = ! empty($data['use_commission']);
+            $useDeposit = $isFlashSaleOrder ? false : ! empty($data['use_deposit']);
+            $useCommission = $isFlashSaleOrder ? false : ! empty($data['use_commission']);
             $useWallet = $useDeposit || $useCommission;
             $walletDepositUsed = 0;
             $walletCommissionUsed = 0;
