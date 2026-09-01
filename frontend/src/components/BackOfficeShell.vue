@@ -410,7 +410,7 @@ onUnmounted(() => {
 }
 
 .backoffice-sidebar-shell {
-  width: var(--shell-sidebar-width, 250px);
+  width: var(--shell-sidebar-width, 275px);
   flex-shrink: 0;
   position: sticky;
   top: 0;

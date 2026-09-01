@@ -456,7 +456,7 @@ const handleLogout = async () => {
 <style scoped>
 /* ─── BASE SIDEBAR CONTAINER ─── */
 .sidebar {
-  width: 260px;
+  width: var(--shell-sidebar-width, 275px);
   height: 100vh;
   background: var(--card-bg, #ffffff);
   display: flex;
@@ -467,7 +467,7 @@ const handleLogout = async () => {
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
-  box-shadow: 1px 0 10px rgba(0, 0, 0, 0.02);
+  box-shadow: 1px 0 12px rgba(0, 0, 0, 0.03);
 }
 
 .sidebar::-webkit-scrollbar {
@@ -483,7 +483,7 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 16px 0 18px;
   height: 64px;
   border-bottom: 1px solid var(--border-color, #f1f5f9);
   flex-shrink: 0;
@@ -497,6 +497,7 @@ const handleLogout = async () => {
   gap: 10px;
   cursor: pointer;
   user-select: none;
+  min-width: 0;
 }
 
 .logo-img {
@@ -510,10 +511,11 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .logo-text {
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   font-weight: 800;
   color: var(--text-main, #0f172a);
   letter-spacing: -0.3px;
@@ -521,13 +523,14 @@ const handleLogout = async () => {
 }
 
 .logo-tag {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 2px 7px;
+  border-radius: 5px;
   background: rgba(230, 59, 111, 0.12);
   color: var(--primary, #E63B6F);
   letter-spacing: 0.5px;
+  flex-shrink: 0;
 }
 
 .aside-toggle-btn {
@@ -535,21 +538,23 @@ const handleLogout = async () => {
   border: 1px solid var(--border-color, #e2e8f0);
   color: var(--text-muted, #64748b);
   cursor: pointer;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 8px;
   flex-shrink: 0;
   transition: all 0.2s;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+  margin-left: 6px;
 }
 
 .aside-toggle-btn:hover {
   background: var(--primary, #E63B6F);
   color: white;
   border-color: var(--primary, #E63B6F);
+  transform: scale(1.05);
 }
 
 /* ─── NAVIGATION LIST ─── */
