@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, nextTick, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useAdminKeepAlive, markAdminResourceDirty } from '@/composables/useAdminKeepAlive';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AppIcon from '@/components/AppIcon.vue';
@@ -118,8 +119,10 @@ const buildMedia = (path) => {
 
 const productCache = new Map();
 
-const fetchProducts = async () => {
-    isLoading.value = true;
+const fetchProducts = async (force = false) => {
+    if (!force && products.value.length === 0) {
+        isLoading.value = true;
+    }
     try {
         selectedProducts.value = [];
         const params = new URLSearchParams({
@@ -136,7 +139,7 @@ const fetchProducts = async () => {
         const cacheKey = params.toString();
         
         // Fast Cache Check
-        if (productCache.has(cacheKey)) {
+        if (!force && productCache.has(cacheKey)) {
             const cached = productCache.get(cacheKey);
             products.value = cached.products;
             totalProducts.value = cached.total;
@@ -161,6 +164,12 @@ const fetchProducts = async () => {
         isInitialLoad.value = false;
     }
 };
+
+useAdminKeepAlive({
+    resourceKey: 'products',
+    fetchFn: () => fetchProducts(true),
+    ttl: 180000,
+});
 
 onMounted(async () => {
     fetchCategories();

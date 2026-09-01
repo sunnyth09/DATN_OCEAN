@@ -32,6 +32,34 @@ class LoyaltyController extends Controller
         protected LoyaltyService $loyaltyService,
     ) {}
 
+    protected function getAuthUser(): ?\App\Models\User
+    {
+        $user = auth('api')->user();
+        if ($user instanceof \App\Models\User) {
+            return $user;
+        }
+
+        $admin = auth('admin')->user();
+        if ($admin instanceof \App\Models\Admin) {
+            return \App\Models\User::firstOrCreate(
+                ['email' => $admin->email],
+                [
+                    'full_name' => $admin->full_name,
+                    'password' => $admin->password,
+                    'role' => 'admin',
+                    'status' => 'active',
+                ]
+            );
+        }
+
+        $reqUser = request()->user();
+        if ($reqUser instanceof \App\Models\User) {
+            return $reqUser;
+        }
+
+        return null;
+    }
+
     // ─── USER ENDPOINTS ──────────────────────────────────────────────────
 
     /**
@@ -40,7 +68,7 @@ class LoyaltyController extends Controller
      */
     public function summary(): JsonResponse
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
@@ -61,7 +89,7 @@ class LoyaltyController extends Controller
      */
     public function checkIn(): JsonResponse
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
@@ -125,7 +153,7 @@ class LoyaltyController extends Controller
      */
     public function spinLuckyWheel(): JsonResponse
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
@@ -217,7 +245,7 @@ class LoyaltyController extends Controller
      */
     public function history(Request $request): JsonResponse
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
@@ -268,7 +296,7 @@ class LoyaltyController extends Controller
      */
     public function previewBurn(Request $request): JsonResponse
     {
-        $user = auth('api')->user();
+        $user = $this->getAuthUser();
         if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }

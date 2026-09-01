@@ -65,11 +65,17 @@ class LoyaltyProvider extends ChangeNotifier {
     try {
       final res = await ApiClient().dio.post('/loyalty/check-in');
       if (res.data['status'] == 'success') {
+        if (res.data['data'] != null) {
+          _points = res.data['data']['reward_points'] ?? _points;
+          _checkInStreak = res.data['data']['check_in_streak'] ?? _checkInStreak;
+          _hasCheckedInToday = true;
+          notifyListeners();
+        }
         await fetchLoyaltyData();
         return {
           'success': true,
           'message': res.data['message'] ?? 'Điểm danh thành công!',
-          'points_earned': res.data['data']['points_earned'] ?? 0,
+          'points_earned': res.data['data']?['points_earned'] ?? 0,
         };
       }
       return {
@@ -79,7 +85,7 @@ class LoyaltyProvider extends ChangeNotifier {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Lỗi kết nối',
+        'message': e.response?.data?['message'] ?? 'Lỗi kết nối máy chủ',
       };
     } catch (e) {
       return {

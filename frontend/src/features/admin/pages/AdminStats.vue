@@ -99,6 +99,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useAdminKeepAlive } from '@/composables/useAdminKeepAlive';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
@@ -184,6 +185,12 @@ const fetchData = async () => {
     loading.value = false;
   }
 };
+
+useAdminKeepAlive({
+  resourceKey: 'stats',
+  fetchFn: () => fetchData(),
+  ttl: 180000,
+});
 
 const handlePrintPdf = () => {
   window.print();

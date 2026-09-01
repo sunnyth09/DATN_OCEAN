@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
+import { useAdminKeepAlive, markAdminResourceDirty } from '@/composables/useAdminKeepAlive';
 import api from '@/axios';
 import Swal from 'sweetalert2';
 import AdminTableSkeleton from '@/components/AdminTableSkeleton.vue';
@@ -39,17 +40,25 @@ const showToast = (message, type = 'success') => {
   });
 };
 
-const fetchBrands = async () => {
+const fetchBrands = async ({ background = false } = {}) => {
     try {
-        isLoading.value = true;
+        if (!background && brands.value.length === 0) {
+            isLoading.value = true;
+        }
         const response = await api.get('/brands');
         brands.value = response.data.data || response.data;
     } catch (error) {
-        showToast('Lỗi tải thương hiệu!', 'danger');
+        if (!background) showToast('Lỗi tải thương hiệu!', 'danger');
     } finally {
         isLoading.value = false;
     }
 };
+
+useAdminKeepAlive({
+    resourceKey: 'brands',
+    fetchFn: () => fetchBrands({ background: true }),
+    ttl: 180000,
+});
 
 const filteredBrands = computed(() => {
     if (!searchQuery.value) return brands.value;

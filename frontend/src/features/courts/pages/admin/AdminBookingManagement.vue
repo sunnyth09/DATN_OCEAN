@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { useAdminKeepAlive } from '@/composables/useAdminKeepAlive';
 import { useCourtBookingStore } from '@/features/courts/stores/useCourtBookingStore';
 import { Html5Qrcode } from 'html5-qrcode';
 import { playNotificationSound } from '@/utils/sound';
@@ -58,6 +59,12 @@ const fetchBookings = async () => {
     await store.fetchAdminBookings(searchParams.value);
     await fetchCalendar();
 };
+
+useAdminKeepAlive({
+    resourceKey: 'courts',
+    fetchFn: () => fetchBookings(),
+    ttl: 120000,
+});
 
 const fetchCalendar = async () => {
     await store.fetchCourtCalendar({
