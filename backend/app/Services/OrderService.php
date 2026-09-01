@@ -82,6 +82,11 @@ class OrderService
     public function createOrder(int $userId, array $data, Request $request): array
     {
         try {
+            $user = User::with('tier')->find($userId);
+            if (! $user) {
+                throw new OrderException('Không tìm thấy người dùng!');
+            }
+
             $address = $this->resolveAddress($userId, $data);
 
             // Mua nhanh (Buy Now): đặt trực tiếp sản phẩm được truyền vào,
@@ -142,12 +147,7 @@ class OrderService
             // === TÍNH TOÁN ĐIỂM THƯỞNG ===
             $rewardPointsUsed = (int) ($data['reward_points_used'] ?? 0);
             $rewardDiscount = 0;
-            $user = null;
             if ($rewardPointsUsed > 0) {
-                $user = User::find($userId);
-                if (! $user) {
-                    throw new OrderException('Không tìm thấy người dùng!');
-                }
 
                 $preview = app(LoyaltyService::class)->previewBurn($userId, $rewardPointsUsed, $subtotal);
 
@@ -160,6 +160,13 @@ class OrderService
                 $rewardPointsUsed = $preview['points_to_use'];
                 $rewardDiscount = $preview['discount_amount'];
                 $discountAmount += $rewardDiscount;
+            }
+
+            // === TÍNH TOÁN GIẢM GIÁ HẠNG THÀNH VIÊN ===
+            $tierDiscountAmount = 0;
+            if ($user && $user->tier_id && $user->tier) {
+                $tierDiscountAmount = round(($subtotal * $user->tier->discount_percent) / 100, 2);
+                $discountAmount += $tierDiscountAmount;
             }
 
             $grandTotal = max(0, $subtotal + $shippingFee - $discountAmount - $comboDiscount);
@@ -218,7 +225,8 @@ class OrderService
                 $paymentMethod,
                 $isAbandonedCheckout,
                 $isDirectOrder,
-                $rewardPointsUsed
+                $rewardPointsUsed,
+                $tierDiscountAmount
             ) {
                 $this->lockAndValidateStock($cartItems, $subtotal);
 
@@ -265,6 +273,7 @@ class OrderService
                     'fulfillment_status' => 'pending',
                     'subtotal' => $subtotal,
                     'discount_amount' => $discountAmount,
+                    'tier_discount' => $tierDiscountAmount,
                     'wallet_deposit_discount' => $walletDepositUsed,
                     'wallet_commission_discount' => $walletCommissionUsed,
                     'shipping_fee' => $shippingFee,

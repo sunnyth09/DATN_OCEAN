@@ -478,8 +478,16 @@ const loyaltyDiscount = computed(() => {
     return (inputPoints.value || 0) * 100;
 });
 
+const tierDiscount = computed(() => {
+    const tier = authStore.user?.tier;
+    if (tier && tier.discount_percent > 0) {
+        return Math.round((subtotal.value * tier.discount_percent) / 100);
+    }
+    return 0;
+});
+
 const total = computed(() => {
-    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value);
+    const base = Math.max(0, subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value - tierDiscount.value);
     return Math.max(0, base - walletDiscount.value);
 });
 
@@ -489,7 +497,7 @@ const walletDiscount = computed(() => {
     let sum = 0;
     if (useDeposit.value) sum += walletPreview.value.deposit_used || 0;
     if (useCommission.value) sum += walletPreview.value.commission_used || 0;
-    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value;
+    const maxDiscount = subtotal.value + shippingFee.value - discount.value - shippingDiscount.value - loyaltyDiscount.value - tierDiscount.value;
     return Math.min(sum, Math.max(0, maxDiscount));
 });
 
@@ -1234,6 +1242,10 @@ onMounted(async () => {
                                     <div class="total-row" v-if="loyaltyDiscount > 0">
                                         <span>Điểm thưởng ({{ inputPoints }} điểm)</span>
                                         <span class="discount-val" style="color: #ef4444;">- {{ formatPrice(loyaltyDiscount) }}</span>
+                                    </div>
+                                    <div class="total-row" v-if="tierDiscount > 0">
+                                        <span>Ưu đãi hạng {{ authStore.user?.tier?.name }} (-{{ authStore.user?.tier?.discount_percent }}%)</span>
+                                        <span class="discount-val" style="color: #ef4444;">- {{ formatPrice(tierDiscount) }}</span>
                                     </div>
 
 

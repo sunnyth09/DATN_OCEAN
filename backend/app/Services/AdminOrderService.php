@@ -37,6 +37,7 @@ class AdminOrderService
         protected AffiliateService $affiliateService,
         protected LoyaltyService $loyaltyService,
         protected WalletService $walletService,
+        protected CustomerTierService $customerTierService,
     ) {}
 
     /**
@@ -222,6 +223,10 @@ class AdminOrderService
 
                     $this->orderRepository->restoreStock($order->items);
 
+                    if ($order->user) {
+                        $this->customerTierService->subtractSpendingAndDowngradeTier($order->user, (float) $order->grand_total);
+                    }
+
                     if ($order->user && $order->user->email) {
                         Mail::to($order->user->email)->queue(new OrderCancelledMail($order, 'admin', $updates['cancel_reason']));
                     }
@@ -267,6 +272,7 @@ class AdminOrderService
                     OrderStatus::COMPLETED->value,
                 ], true) && $order->user) {
                     try {
+                        $this->customerTierService->addSpendingAndUpgradeTier($order->user, (float) $order->grand_total);
                         $this->loyaltyService->earnFromOrder($order->user, $order->fresh());
 
                         $isFirstOrder = Order::where('user_id', $order->user_id)

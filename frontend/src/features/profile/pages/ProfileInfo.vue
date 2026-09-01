@@ -40,8 +40,16 @@
             <input type="file" id="avatar-input" accept="image/jpeg,image/png,image/gif,image/jpg" class="sr-only" @change="onAvatarChange" />
           </div>
           <div class="avatar-info">
-            <h4>Ảnh đại diện</h4>
+            <h4 style="display: flex; align-items: center; gap: 8px;">
+                Ảnh đại diện
+                <span v-if="user.tier" :style="{ backgroundColor: user.tier.color || '#e5e7eb', color: '#000' }" class="tier-badge">
+                    Hạng {{ user.tier.name }}
+                </span>
+            </h4>
             <p>JPG, PNG hoặc GIF. Tối đa 2MB.</p>
+            <p v-if="user.total_spent !== undefined" style="margin-top: 4px; font-size: 0.85rem; color: #6b7280;">
+                Tổng chi tiêu tích lũy: <strong style="color: #ef4444;">{{ formatPrice(user.total_spent) }}</strong>
+            </p>
             <span v-if="errors.avatar" class="error-text">{{ errors.avatar[0] }}</span>
           </div>
         </div>
@@ -441,6 +449,16 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.tier-badge {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: inline-block;
+}
 .profile-info {
   display: flex;
   flex-direction: column;
