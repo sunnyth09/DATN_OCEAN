@@ -48,6 +48,11 @@ const formatPoints = (n) => {
   return new Intl.NumberFormat('vi-VN').format(n ?? 0);
 };
 
+const cleanText = (val) => {
+  if (!val) return '';
+  return String(val).replace(/<[^>]*>/g, '').trim();
+};
+
 const formatMoney = (n) => {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n ?? 0);
 };
@@ -387,7 +392,7 @@ onMounted(async () => {
               <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="18" height="18"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
             </div>
             <div class="lp-tx-info">
-              <div class="lp-tx-desc">{{ tx.description }}</div>
+              <div class="lp-tx-desc">{{ cleanText(tx.description) }}</div>
               <div class="lp-tx-meta">
                 <span class="lp-tx-badge" :style="{ background: typeBg(tx.type), color: typeColor(tx.type) }">
                   {{ tx.type_label }}

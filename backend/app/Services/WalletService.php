@@ -636,7 +636,7 @@ class WalletService
                 'amount' => abs($delta),
                 'balance_before' => $before,
                 'balance_after' => (float) $wallet->deposit_balance,
-                'description' => $description,
+                'description' => trim(strip_tags($description)),
                 'status' => 'completed',
                 'metadata' => ['admin_id' => $adminId],
             ]);
