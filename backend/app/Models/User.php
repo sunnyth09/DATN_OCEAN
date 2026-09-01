@@ -51,6 +51,7 @@ class User extends Authenticatable implements JWTSubject
         'status',
         'reward_points',
         'total_spent',
+        'tier_month_spent',
         'tier_id',
         'is_affiliate',
         'referral_code',

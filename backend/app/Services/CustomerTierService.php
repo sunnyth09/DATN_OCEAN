@@ -19,10 +19,11 @@ class CustomerTierService
 
         try {
             $user->total_spent += $amount;
+            $user->tier_month_spent += $amount;
             
-            // Tìm hạng cao nhất phù hợp với total_spent hiện tại
+            // Tìm hạng cao nhất phù hợp với tier_month_spent hiện tại
             $newTier = CustomerTier::where('is_active', true)
-                ->where('min_spent', '<=', $user->total_spent)
+                ->where('min_spent', '<=', $user->tier_month_spent)
                 ->orderByDesc('min_spent')
                 ->first();
 
@@ -37,6 +38,7 @@ class CustomerTierService
             // Dùng forceFill để vượt qua $guarded nếu có
             $user->forceFill([
                 'total_spent' => $user->total_spent,
+                'tier_month_spent' => $user->tier_month_spent,
                 'tier_id' => $user->tier_id,
             ])->save();
 
@@ -56,10 +58,11 @@ class CustomerTierService
 
         try {
             $user->total_spent = max(0, $user->total_spent - $amount);
+            $user->tier_month_spent = max(0, $user->tier_month_spent - $amount);
             
-            // Tìm hạng cao nhất phù hợp với total_spent bị giảm
+            // Tìm hạng cao nhất phù hợp với tier_month_spent bị giảm
             $newTier = CustomerTier::where('is_active', true)
-                ->where('min_spent', '<=', $user->total_spent)
+                ->where('min_spent', '<=', $user->tier_month_spent)
                 ->orderByDesc('min_spent')
                 ->first();
 
@@ -72,6 +75,7 @@ class CustomerTierService
 
             $user->forceFill([
                 'total_spent' => $user->total_spent,
+                'tier_month_spent' => $user->tier_month_spent,
                 'tier_id' => $user->tier_id,
             ])->save();
 

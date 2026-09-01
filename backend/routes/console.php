@@ -148,3 +148,16 @@ Schedule::command('ocean-express:sync-status --limit=100')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/scheduler.log'));
+
+/**
+ * ── 9. Reset hạng thành viên hàng tháng ──
+ *
+ * Chạy vào lúc 00:00 ngày mùng 1 mỗi tháng.
+ * Reset tier_month_spent = 0 và tier_id = NULL cho tất cả khách hàng,
+ * buộc họ phải tích lũy lại chi tiêu trong tháng mới để thăng hạng.
+ */
+Schedule::command('app:reset-customer-tiers')
+    ->monthly()
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/scheduler.log'));
