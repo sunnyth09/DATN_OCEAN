@@ -484,7 +484,7 @@ const handleLogout = async () => {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px 0 18px;
-  height: 64px;
+  height: 68px;
   border-bottom: 1px solid var(--border-color, #f1f5f9);
   flex-shrink: 0;
   box-sizing: border-box;
@@ -494,17 +494,23 @@ const handleLogout = async () => {
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
   user-select: none;
   min-width: 0;
 }
 
 .logo-img {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
   flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.05));
+  transition: transform 0.2s ease;
+}
+
+.logo:hover .logo-img {
+  transform: scale(1.04);
 }
 
 .logo-info {
@@ -515,7 +521,7 @@ const handleLogout = async () => {
 }
 
 .logo-text {
-  font-size: 1.08rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: var(--text-main, #0f172a);
   letter-spacing: -0.3px;
@@ -523,10 +529,10 @@ const handleLogout = async () => {
 }
 
 .logo-tag {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 5px;
+  padding: 2.5px 8px;
+  border-radius: 6px;
   background: rgba(230, 59, 111, 0.12);
   color: var(--primary, #E63B6F);
   letter-spacing: 0.5px;
@@ -538,15 +544,15 @@ const handleLogout = async () => {
   border: 1px solid var(--border-color, #e2e8f0);
   color: var(--text-muted, #64748b);
   cursor: pointer;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
   flex-shrink: 0;
-  transition: all 0.2s;
-  font-size: 0.8rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-size: 0.82rem;
   margin-left: 6px;
 }
 
@@ -839,7 +845,7 @@ const handleLogout = async () => {
 
 /* ─── COLLAPSED STATE (ICON RAIL) ─── */
 .sidebar--collapsed {
-  width: 72px;
+  width: 80px;
 }
 
 .sidebar--collapsed .logo-info,
@@ -852,22 +858,49 @@ const handleLogout = async () => {
 }
 
 .sidebar--collapsed .sidebar-brand {
-  padding: 0 10px;
+  padding: 0;
+  height: 68px;
   justify-content: center;
   position: relative;
 }
 
-.sidebar--collapsed .aside-toggle-btn {
-  display: none;
+.sidebar--collapsed .logo {
+  justify-content: center;
+  width: 100%;
 }
 
-.sidebar--collapsed .sidebar-brand:hover .aside-toggle-btn {
+.sidebar--collapsed .logo-img {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+}
+
+.sidebar--collapsed .aside-toggle-btn {
   display: flex;
   position: absolute;
   top: 50%;
+  right: -13px;
   transform: translateY(-50%);
-  right: 6px;
-  z-index: 10;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary, #E63B6F);
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(230, 59, 111, 0.35);
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-left: 0;
+  font-size: 0.72rem;
+}
+
+.sidebar--collapsed:hover .aside-toggle-btn,
+.sidebar--collapsed .sidebar-brand:hover .aside-toggle-btn {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) scale(1.08);
 }
 
 .sidebar--collapsed .nav-item {
