@@ -245,17 +245,23 @@ const fetchUnreadCount = async () => {
 const fetchSidebarBadges = async () => {
   try {
     const response = await api.get('/admin/sidebar-badges');
-    if (response.data.status === 'success') {
+    if (response.data?.status === 'success') {
       const data = response.data.data;
       uiStore.setAdminUnreadChatCount?.(data.unread_chats || 0);
       uiStore.setAdminPendingReviewCount?.(data.pending_reviews || 0);
       uiStore.setAdminPendingTicketCount?.(data.open_tickets || 0);
       uiStore.setAdminPendingContactCount?.(data.pending_contacts || 0);
+      uiStore.setAdminPendingOrderCount?.(data.pending_orders || 0);
+      uiStore.setAdminPendingReturnCount?.(data.pending_returns || 0);
+      uiStore.setAdminPendingCourtBookingCount?.(data.pending_court_bookings || 0);
+      uiStore.setAdminPendingWithdrawalCount?.(data.pending_withdrawals || 0);
     }
   } catch (error) {
     console.error('Failed to fetch sidebar badges', error);
   }
 };
+
+let badgePollingInterval = null;
 
 import { playNotificationSound } from '@/utils/sound';
 
@@ -266,6 +272,11 @@ onMounted(() => {
   
   fetchUnreadCount();
   fetchSidebarBadges();
+
+  badgePollingInterval = setInterval(() => {
+    fetchSidebarBadges();
+    fetchUnreadCount();
+  }, 30000);
 
   if (window.Echo) {
     const handleNotification = (e, eventType) => {
@@ -390,6 +401,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (badgePollingInterval) {
+    clearInterval(badgePollingInterval);
+  }
   window.removeEventListener('resize', syncSidebarForViewport);
   window.removeEventListener('update-sidebar-badges', fetchSidebarBadges);
   if (window.Echo) {

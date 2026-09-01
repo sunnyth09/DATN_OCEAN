@@ -53,6 +53,13 @@ const openMenus = reactive({
   staff: false
 });
 
+// Real-time notification badge counts
+const businessPendingCount = computed(() => (uiStore.adminPendingOrderCount || 0) + (uiStore.adminPendingReturnCount || 0));
+const courtPendingCount = computed(() => uiStore.adminPendingCourtBookingCount || 0);
+const financePendingCount = computed(() => uiStore.adminPendingWithdrawalCount || 0);
+const careReviewTicketCount = computed(() => (uiStore.pendingReviewCount || 0) + (uiStore.adminPendingTicketCount || 0));
+const carePendingCount = computed(() => (uiStore.pendingContactCount || 0) + (uiStore.pendingChatCount || 0) + careReviewTicketCount.value);
+
 // Single Accordion sync with active route
 const syncActiveRouteToMenu = () => {
   const path = route.path;
@@ -182,9 +189,15 @@ const handleLogout = async () => {
           :class="{ 'nav-item--open': openMenus.business, 'nav-item--parent-active': isParentActive('business') }"
           :title="collapsed ? 'Kinh doanh' : ''"
         >
-          <div class="nav-icon"><i class="bi bi-cart3"></i></div>
+          <div class="nav-icon position-relative">
+            <i class="bi bi-cart3"></i>
+            <span v-if="businessPendingCount > 0" class="capsule-pulse-dot"></span>
+          </div>
           <span class="nav-label">Kinh doanh</span>
           <div class="nav-trailing">
+            <span v-if="!openMenus.business && businessPendingCount > 0" class="capsule-count-badge">
+              {{ businessPendingCount > 99 ? '99+' : businessPendingCount }}
+            </span>
             <i class="bi bi-chevron-down nav-chevron" :class="{ 'nav-chevron--rotated': openMenus.business }"></i>
           </div>
         </div>
@@ -195,9 +208,15 @@ const handleLogout = async () => {
             </router-link>
             <router-link to="/admin/order" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Đơn hàng</span>
+              <span v-if="uiStore.adminPendingOrderCount > 0" class="tree-badge">
+                {{ uiStore.adminPendingOrderCount > 99 ? '99+' : uiStore.adminPendingOrderCount }}
+              </span>
             </router-link>
             <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/return-requests" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Hoàn hàng</span>
+              <span v-if="uiStore.adminPendingReturnCount > 0" class="tree-badge">
+                {{ uiStore.adminPendingReturnCount > 99 ? '99+' : uiStore.adminPendingReturnCount }}
+              </span>
             </router-link>
           </div>
         </transition>
@@ -243,9 +262,15 @@ const handleLogout = async () => {
           :class="{ 'nav-item--open': openMenus.court, 'nav-item--parent-active': isParentActive('court') }"
           :title="collapsed ? 'Cụm Sân Cầu Lông' : ''"
         >
-          <div class="nav-icon"><i class="bi bi-buildings"></i></div>
+          <div class="nav-icon position-relative">
+            <i class="bi bi-buildings"></i>
+            <span v-if="courtPendingCount > 0" class="capsule-pulse-dot"></span>
+          </div>
           <span class="nav-label">Sân Cầu Lông</span>
           <div class="nav-trailing">
+            <span v-if="!openMenus.court && courtPendingCount > 0" class="capsule-count-badge">
+              {{ courtPendingCount > 99 ? '99+' : courtPendingCount }}
+            </span>
             <i class="bi bi-chevron-down nav-chevron" :class="{ 'nav-chevron--rotated': openMenus.court }"></i>
           </div>
         </div>
@@ -259,6 +284,9 @@ const handleLogout = async () => {
             </router-link>
             <router-link to="/admin/court-bookings" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Lịch Đặt &amp; Khung Giờ</span>
+              <span v-if="uiStore.adminPendingCourtBookingCount > 0" class="tree-badge">
+                {{ uiStore.adminPendingCourtBookingCount > 99 ? '99+' : uiStore.adminPendingCourtBookingCount }}
+              </span>
             </router-link>
             <router-link v-if="['admin'].includes(userRoleRaw)" to="/admin/court-reports" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Báo Cáo Thống Kê</span>
@@ -310,9 +338,15 @@ const handleLogout = async () => {
           :class="{ 'nav-item--open': openMenus.finance, 'nav-item--parent-active': isParentActive('finance') }"
           :title="collapsed ? 'Tài chính & Ví' : ''"
         >
-          <div class="nav-icon"><i class="bi bi-wallet2"></i></div>
+          <div class="nav-icon position-relative">
+            <i class="bi bi-wallet2"></i>
+            <span v-if="financePendingCount > 0" class="capsule-pulse-dot"></span>
+          </div>
           <span class="nav-label">Tài chính</span>
           <div class="nav-trailing">
+            <span v-if="!openMenus.finance && financePendingCount > 0" class="capsule-count-badge">
+              {{ financePendingCount > 99 ? '99+' : financePendingCount }}
+            </span>
             <i class="bi bi-chevron-down nav-chevron" :class="{ 'nav-chevron--rotated': openMenus.finance }"></i>
           </div>
         </div>
@@ -323,6 +357,9 @@ const handleLogout = async () => {
             </router-link>
             <router-link to="/admin/wallet-withdrawals" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Duyệt rút tiền</span>
+              <span v-if="uiStore.adminPendingWithdrawalCount > 0" class="tree-badge">
+                {{ uiStore.adminPendingWithdrawalCount > 99 ? '99+' : uiStore.adminPendingWithdrawalCount }}
+              </span>
             </router-link>
           </div>
         </transition>
@@ -338,11 +375,13 @@ const handleLogout = async () => {
         >
           <div class="nav-icon position-relative">
             <i class="bi bi-chat-dots"></i>
-            <span v-if="uiStore.pendingContactCount > 0 || uiStore.pendingChatCount > 0 || uiStore.pendingReviewCount > 0" class="capsule-pulse-dot"></span>
+            <span v-if="carePendingCount > 0" class="capsule-pulse-dot"></span>
           </div>
           <span class="nav-label">Khách hàng</span>
           <div class="nav-trailing">
-            <span v-if="uiStore.pendingChatCount > 0" class="capsule-count-badge">{{ uiStore.pendingChatCount }}</span>
+            <span v-if="!openMenus.care && carePendingCount > 0" class="capsule-count-badge">
+              {{ carePendingCount > 99 ? '99+' : carePendingCount }}
+            </span>
             <i class="bi bi-chevron-down nav-chevron" :class="{ 'nav-chevron--rotated': openMenus.care }"></i>
           </div>
         </div>
@@ -353,15 +392,21 @@ const handleLogout = async () => {
             </router-link>
             <router-link to="/admin/review" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Đánh giá &amp; Khiếu nại</span>
-              <span v-if="uiStore.pendingReviewCount > 0" class="tree-badge">{{ uiStore.pendingReviewCount > 99 ? '99+' : uiStore.pendingReviewCount }}</span>
+              <span v-if="careReviewTicketCount > 0" class="tree-badge">
+                {{ careReviewTicketCount > 99 ? '99+' : careReviewTicketCount }}
+              </span>
             </router-link>
             <router-link to="/admin/chat" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Tin nhắn Chat</span>
-              <span v-if="uiStore.pendingChatCount > 0" class="tree-badge">{{ uiStore.pendingChatCount > 99 ? '99+' : uiStore.pendingChatCount }}</span>
+              <span v-if="uiStore.pendingChatCount > 0" class="tree-badge">
+                {{ uiStore.pendingChatCount > 99 ? '99+' : uiStore.pendingChatCount }}
+              </span>
             </router-link>
             <router-link to="/admin/contact" class="tree-item" active-class="tree-item--active">
               <span class="tree-dot"></span><span class="tree-text">Yêu cầu liên hệ</span>
-              <span v-if="uiStore.pendingContactCount > 0" class="tree-badge">{{ uiStore.pendingContactCount > 99 ? '99+' : uiStore.pendingContactCount }}</span>
+              <span v-if="uiStore.pendingContactCount > 0" class="tree-badge">
+                {{ uiStore.pendingContactCount > 99 ? '99+' : uiStore.pendingContactCount }}
+              </span>
             </router-link>
           </div>
         </transition>
@@ -729,38 +774,63 @@ const handleLogout = async () => {
   flex: 1;
 }
 
+/* ─── NOTIFICATION BADGES & DOTS ─── */
 .tree-badge {
   font-size: 0.72rem;
   font-weight: 700;
   background: #ef4444;
   color: white;
-  padding: 1px 6px;
-  border-radius: 8px;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-/* ─── NOTIFICATION BADGES & DOTS ─── */
 .capsule-pulse-dot {
   position: absolute;
   top: -2px;
   right: -2px;
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #ef4444;
-  box-shadow: 0 0 0 2px white;
+  box-shadow: 0 0 0 2px var(--card-bg, #ffffff);
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.85;
+  }
 }
 
 .capsule-count-badge {
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 800;
   background: #ef4444;
   color: white;
-  width: 18px;
+  min-width: 18px;
   height: 18px;
-  border-radius: 50%;
-  display: flex;
+  line-height: 18px;
+  border-radius: 999px;
+  padding: 0 5px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
+  margin-right: 4px;
 }
 
 /* ─── SIDEBAR FOOTER (User Profile) ─── */
