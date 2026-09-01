@@ -719,17 +719,19 @@ onUnmounted(() => {
                 <span v-if="item.size" class="tag">{{ item.size }}</span>
               </div>
               <div class="item-bottom">
-                <div class="qty-wrap">
-                  <button class="qty-btn" @click="decreaseQuantity(item)">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  </button>
-                  <span class="qty-val">{{ item.quantity }}</span>
-                  <button class="qty-btn" @click="increaseQuantity(item)">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  </button>
+                <div class="qty-group" style="display: flex; align-items: center; gap: 6px;">
+                  <div class="qty-wrap">
+                    <button class="qty-btn" @click="decreaseQuantity(item)">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <span class="qty-val">{{ item.quantity }}</span>
+                    <button class="qty-btn" @click="increaseQuantity(item)">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                  </div>
+                  <span class="item-stock-chip">Còn: {{ item.stock ?? 0 }}</span>
                 </div>
                 <div class="item-prices">
-                  <span class="item-unit">{{ formatPrice(item.price) }}/sp</span>
                   <span class="item-total">{{ formatPrice(item.price * item.quantity) }}</span>
                 </div>
               </div>
@@ -1534,6 +1536,15 @@ onUnmounted(() => {
 .item-unit {
   font-size: 0.7rem;
   color: var(--text-light, #9ca3af);
+}
+.item-stock-chip {
+  font-size: 0.72rem;
+  color: var(--text-muted, #6b7280);
+  background: var(--hover-bg, #f3f4f6);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 .item-total {
   font-weight: 700;
