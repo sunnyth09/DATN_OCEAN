@@ -56,7 +56,11 @@ const paymentLabels = {
 const paymentMethodLabels = {
   cod: 'Thanh toán khi nhận hàng (COD)',
   vnpay: 'VNPay',
+  momo: 'MoMo',
   bank_transfer: 'Chuyển khoản ngân hàng',
+  pos_cash: 'Tiền mặt (POS)',
+  pos_transfer: 'Chuyển khoản (POS)',
+  pos_card: 'Quẹt thẻ (POS)',
 };
 
 const getPaymentBadgeClass = (status) => {

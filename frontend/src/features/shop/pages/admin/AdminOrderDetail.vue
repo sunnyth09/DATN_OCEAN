@@ -286,11 +286,30 @@ const paymentLabels = {
 const paymentMethodLabels = {
   cod: 'Thanh toán khi nhận hàng (COD)',
   vnpay: 'VNPay',
+  momo: 'MoMo',
   bank_transfer: 'Chuyển khoản ngân hàng',
+  pos_cash: 'Tiền mặt (POS)',
+  pos_transfer: 'Chuyển khoản (POS)',
+  pos_card: 'Quẹt thẻ (POS)',
 };
 
 paymentLabels.refund_pending = 'Chờ hoàn tiền';
 paymentLabels.refund_failed = 'Hoàn tiền lỗi';
+
+const getCustomerEmail = computed(() => {
+  if (!order.value) return 'None';
+  if (order.value.order_type === 'pos' && order.value.seller_id && order.value.user_id === order.value.seller_id) {
+    return 'None';
+  }
+  const email = order.value.user?.email;
+  return email && email.trim() ? email : 'None';
+});
+
+const getCustomerPhone = computed(() => {
+  if (!order.value) return 'None';
+  const phone = order.value.recipient_phone || order.value.user?.phone;
+  return phone && phone.trim() ? phone : 'None';
+});
 
 const fetchOrder = async (autoLookup = true) => {
   loading.value = true;
@@ -604,6 +623,28 @@ const printLabel = async () => {
     toast.error('Lỗi khi in vận đơn');
   } finally {
     isPrinting.value = false;
+  }
+};
+
+const isDownloadingPosPdf = ref(false);
+const downloadPosReceiptPdf = async () => {
+  if (!order.value) return;
+  isDownloadingPosPdf.value = true;
+  try {
+    const response = await api.get(`/admin/pos/orders/${order.value.order_id}/receipt-pdf`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `hoadon_${order.value.order_code}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode.removeChild(link);
+    toast.success('Đã tải hóa đơn POS thành công!');
+  } catch (error) {
+    toast.error('Lỗi khi tải hóa đơn POS. Vui lòng thử lại!');
+    console.error('PDF error:', error);
+  } finally {
+    isDownloadingPosPdf.value = false;
   }
 };
 
@@ -942,39 +983,64 @@ onMounted(() => fetchOrder());
 
           <!-- Thông tin khách hàng -->
           <div class="info-card">
-            <h3 class="card-title">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Khách hàng
+            <h3 class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
+              <div style="display:flex; align-items:center; gap: 10px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Khách hàng</span>
+                <span v-if="order.order_type === 'pos'" class="status-badge badge-success sm ms-2">
+                  <AppIcon name="shopping-bag" size="14" class="me-1" /> Mua tại cửa hàng (POS)
+                </span>
+              </div>
+
+              <!-- Nút xuất PDF hóa đơn cho đơn POS -->
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="order.order_type === 'pos'">
+                <button class="btn-print" style="background-color: #e63b6f" @click="downloadPosReceiptPdf" :disabled="isDownloadingPosPdf">
+                   <AppIcon name="file-text" size="15" class="me-1" />
+                   {{ isDownloadingPosPdf ? 'Đang tải...' : 'In hóa đơn POS (PDF)' }}
+                </button>
+              </div>
             </h3>
             <div class="info-rows">
               <div class="info-row">
                 <span class="info-label">Tên</span>
-                <span class="info-value">{{ order.user?.name || order.recipient_name }}</span>
+                <span class="info-value">{{ order.recipient_name || (order.user_id !== order.seller_id ? (order.user?.name || order.user?.full_name) : '') || 'Khách lẻ' }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Email</span>
-                <span class="info-value">{{ order.user?.email || '—' }}</span>
+                <span class="info-value">{{ getCustomerEmail }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Điện thoại</span>
-                <span class="info-value">{{ order.user?.phone || '—' }}</span>
+                <span class="info-value">{{ getCustomerPhone }}</span>
               </div>
+              <template v-if="order.order_type === 'pos'">
+                <div class="info-row">
+                  <span class="info-label">PT Thanh toán</span>
+                  <span class="info-value fw-bold">{{ paymentMethodLabels[order.payment_method] || order.payment_method }}</span>
+                </div>
+                <div class="info-row" v-if="order.note">
+                  <span class="info-label">Ghi chú</span>
+                  <span class="info-value note-text">{{ order.note }}</span>
+                </div>
+              </template>
             </div>
           </div>
 
-          <!-- Thông tin giao hàng -->
-          <div class="info-card">
+          <!-- Thông tin giao hàng (Chỉ dành cho đơn mua trên web/online) -->
+          <div class="info-card" v-if="order.order_type !== 'pos'">
             <h3 class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
               <div style="display:flex; align-items:center; gap: 10px;">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                Giao hàng
+                
+                <span>Giao hàng</span>
+                
                 <span v-if="order.tracking_number === 'SELF-DELIVERY'" class="status-badge badge-success sm ms-2">
                   <AppIcon name="user-check" size="14" class="me-1" /> Shop tự giao
                 </span>
                 <span v-else-if="order.tracking_number" class="status-badge badge-info sm ms-2">Mã vận đơn: {{ order.tracking_number }}</span>
               </div>
               
-              <!-- Khối thao tác đẩy đơn/tự giao -->
+              <!-- Khối thao tác đẩy đơn/tự giao (chỉ dành cho đơn website/online) -->
               <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="!order.tracking_number && ['confirmed', 'processing', 'packing', 'awaiting_pickup'].includes(order.fulfillment_status)">
                 <button class="btn-lookup-ghn" @click="syncGhn" :disabled="isSyncingGhn || order.fulfillment_status === 'cancelled'">
                    <AppIcon name="truck" size="16" class="me-1" />
@@ -986,7 +1052,7 @@ onMounted(() => fetchOrder());
                 </button>
               </div>
               
-              <!-- Khối tracking đối tác -->
+              <!-- Khối tracking đối tác (chỉ dành cho đơn website/online) -->
               <div style="display: flex; gap: 8px; flex-wrap: wrap;" v-if="order.tracking_number && order.tracking_number !== 'SELF-DELIVERY'">
                 <button class="btn-lookup-ghn" @click="lookupGhnStatus(true)" :disabled="isLookingUpGhn">
                    {{ isLookingUpGhn ? 'Đang tra...' : 'Tra cứu đơn' }}
@@ -1002,15 +1068,15 @@ onMounted(() => fetchOrder());
             <div class="info-rows">
               <div class="info-row">
                 <span class="info-label">Người nhận</span>
-                <span class="info-value fw-bold">{{ order.recipient_name }}</span>
+                <span class="info-value fw-bold">{{ order.recipient_name || 'Khách lẻ' }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">SĐT</span>
-                <span class="info-value">{{ order.recipient_phone }}</span>
+                <span class="info-value">{{ order.recipient_phone || "None" }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Địa chỉ</span>
-                <span class="info-value">{{ order.shipping_address }}</span>
+                <span class="info-value">{{ order.shipping_address || 'None' }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">PT Thanh toán</span>
