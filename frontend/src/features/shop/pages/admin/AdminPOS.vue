@@ -312,6 +312,7 @@ const downloadReceiptPdf = async (order) => {
 };
 
 const checkoutOrder = ref(null);
+const showCheckoutSuccess = ref(false);
 const customerNameError = ref(false);
 
 const handleCheckout = async () => {
