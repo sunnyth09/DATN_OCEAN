@@ -311,10 +311,6 @@ const getCustomerPhone = computed(() => {
   return phone && phone.trim() ? phone : 'None';
 });
 
-const isPosOrder = computed(() => order.value?.order_type === 'pos');
-const isPosGuest = computed(() => isPosOrder.value && order.value?.seller_id && order.value?.user_id === order.value?.seller_id);
-const downloadPosReceipt = (...args) => downloadPosReceiptPdf(...args);
-
 const fetchOrder = async (autoLookup = true) => {
   loading.value = true;
   try {
@@ -472,6 +468,7 @@ const downloadPosReceipt = async () => {
     isDownloadingPosPdf.value = false;
   }
 };
+const downloadPosReceiptPdf = downloadPosReceipt;
 
 const formatDate = (dateString) => {
   if (!dateString) return '—';
@@ -691,28 +688,6 @@ const printLabel = async () => {
     toast.error('Lỗi khi in vận đơn');
   } finally {
     isPrinting.value = false;
-  }
-};
-
-const isDownloadingPosPdf = ref(false);
-const downloadPosReceiptPdf = async () => {
-  if (!order.value) return;
-  isDownloadingPosPdf.value = true;
-  try {
-    const response = await api.get(`/admin/pos/orders/${order.value.order_id}/receipt-pdf`, { responseType: 'blob' });
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `hoadon_${order.value.order_code}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.parentNode.removeChild(link);
-    toast.success('Đã tải hóa đơn POS thành công!');
-  } catch (error) {
-    toast.error('Lỗi khi tải hóa đơn POS. Vui lòng thử lại!');
-    console.error('PDF error:', error);
-  } finally {
-    isDownloadingPosPdf.value = false;
   }
 };
 
